@@ -1,0 +1,33 @@
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -250px; /* Hidden by default */
+  width: 250px;
+  height: 100%;
+  background-color: var(--background-secondary);
+  border-right: 1px solid var(--border-color);
+  transition: left 0.3s ease;
+  padding-top: 60px; /* Space for header */
+  z-index: 1000;
+}
+
+.sidebar.open {
+  left: 0;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-item {
+  padding: 15px 20px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  display: block;
+}
+
+.nav-item:hover {
+  background-color: var(--background-tertiary);
+  color: var(--text-primary);
+}

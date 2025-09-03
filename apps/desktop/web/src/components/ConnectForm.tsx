@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import './HomeScreen.css'
 
 type Props = {
   onConnected: (id: string) => void
-  getTermSize?: () => { cols: number; rows: number }  // ← opcional
+  getTermSize?: () => { cols: number; rows: number }  // optional
 }
 
 export default function ConnectForm({ onConnected, getTermSize }: Props) {
@@ -29,14 +30,16 @@ export default function ConnectForm({ onConnected, getTermSize }: Props) {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
-      <input placeholder="host" value={host} onChange={e => setHost(e.target.value)} />
-      <input placeholder="puerto" type="number" value={port}
-        onChange={e => setPort(parseInt(e.target.value || '22'))} />
-      <input placeholder="usuario" value={user} onChange={e => setUser(e.target.value)} />
-      <input placeholder="password" type="password" value={password}
-        onChange={e => setPassword(e.target.value)} />
-      <button onClick={connect} disabled={busy}>Conectar</button>
+    <div className="home-screen">
+      <div className="connect-box">
+        <input placeholder="host" value={host} onChange={e => setHost(e.target.value)} />
+        <input placeholder="puerto" type="number" value={port}
+          onChange={e => setPort(parseInt(e.target.value || '22'))} />
+        <input placeholder="usuario" value={user} onChange={e => setUser(e.target.value)} />
+        <input placeholder="password" type="password" value={password}
+          onChange={e => setPassword(e.target.value)} />
+        <button onClick={connect} disabled={busy}>Conectar</button>
+      </div>
     </div>
   )
 }

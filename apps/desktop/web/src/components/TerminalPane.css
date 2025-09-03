@@ -1,0 +1,10 @@
+.terminal-pane {
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  background-color: var(--background-primary);
+}
+
+.xterm .xterm-viewport {
+  overflow-y: auto !important;
+}

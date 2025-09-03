@@ -1,0 +1,74 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  background-color: var(--background-secondary);
+  padding: 0 10px;
+  height: 50px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-toggle {
+  padding: 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.sidebar-toggle:hover {
+  color: var(--text-primary);
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  height: 100%;
+  cursor: pointer;
+  border-right: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  position: relative;
+}
+
+.tab.active {
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+}
+
+.tab:hover {
+  background-color: var(--background-tertiary);
+}
+
+.close-tab {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  margin-left: 10px;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+}
+
+.close-tab:hover {
+  background-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.new-tab {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 15px;
+  height: 100%;
+}
+
+.new-tab:hover {
+  background-color: var(--background-tertiary);
+  color: var(--text-primary);
+}
