@@ -1,3 +1,5 @@
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use crate::error::AppError;
 use crate::ssh::client::{Session, ChanCmd};
 use once_cell::sync::Lazy;
@@ -54,7 +56,7 @@ pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Re
   };
   let bytes = if let Some(enc) = encoding {
     if enc == "base64" {
-      match base64::decode(&data) {
+      match STANDARD.decode(&data) {
         Ok(b) => b,
         Err(_) => return Err("base64 decode error".to_string()),
       }
