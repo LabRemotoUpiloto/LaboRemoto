@@ -1,33 +1,60 @@
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
+import './App.css'
+import Header from './components/Header'
+import Sidebar from './components/Sidebar'
+import TerminalView from './components/TerminalView'
 import ConnectForm from './components/ConnectForm'
-import TerminalPane, { TerminalHandle } from './components/TerminalPane'
 
-export default function App() {
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const termRef = useRef<TerminalHandle>(null)
+const App: React.FC = () => {
+  const [sessions, setSessions] = useState<string[]>([])
+  const [activeSession, setActiveSession] = useState<string | null>(null)
+  const [isSidebarOpen, setSidebarOpen] = useState(false)
+
+  const handleNewSession = (id: string) => {
+    if (!sessions.includes(id)) setSessions(prev => [...prev, id])
+    setActiveSession(id)
+  }
+
+  const handleTabClick = (sessionId: string | null) => {
+    setActiveSession(sessionId)
+  }
+
+  const handleCloseTab = (sessionId: string) => {
+    setSessions(prev => prev.filter(s => s !== sessionId))
+    if (activeSession === sessionId) {
+      // If there are other sessions, switch to the first one, otherwise go home
+      const remainingSessions = sessions.filter(s => s !== sessionId)
+      setActiveSession(remainingSessions.length > 0 ? remainingSessions[0] : null)
+    }
+    // TODO: Add backend call to close SSH session
+  }
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!isSidebarOpen)
+  }
 
   return (
-    <div style={{ height: '100%', display: 'grid', gridTemplateRows: 'auto 1fr' }}>
-      <header style={{ padding: '8px 16px', borderBottom: '1px solid #222C3A', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 600 }}>SSH AI Client</h1>
-        <span style={{ fontSize: 12, opacity: 0.7 }}>MVP • russh + xterm.js</span>
-      </header>
-
-      <main style={{ display: 'grid', gridTemplateColumns: '360px 1fr', height: '100%' }}>
-        <aside style={{ borderRight: '1px solid #222C3A', padding: 12, overflow: 'auto' }}>
-          <ConnectForm
-            onConnected={(id) => setSessionId(id)}
-            getTermSize={() => {
-              termRef.current?.fit()
-              return termRef.current?.getSize() ?? { cols: 80, rows: 24 }
-            }}
-          />
-        </aside>
-
-        <section style={{ padding: 0, overflow: 'hidden' }}>
-          <TerminalPane ref={termRef} sessionId={sessionId} />
-        </section>
-      </main>
+    <div className="app-container">
+      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <div className={`main-content ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+        <Header
+          sessions={sessions}
+          activeSession={activeSession}
+          onTabClick={handleTabClick}
+          onCloseTab={handleCloseTab}
+          onNewSession={() => setActiveSession(null)} // Go to home to create a new session
+          toggleSidebar={toggleSidebar}
+        />
+        <main className="content-area">
+          {activeSession ? (
+            <TerminalView sessionId={activeSession} />
+          ) : (
+            <ConnectForm onConnected={handleNewSession} />
+          )}
+        </main>
+      </div>
     </div>
   )
 }
+
+export default App
