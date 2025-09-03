@@ -1,62 +1,105 @@
-import React from 'react'
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { AttachAddon } from '@xterm/addon-attach'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import 'xterm/css/xterm.css'
 
+export type TerminalHandle = {
+  fit: () => void
+  getSize: () => { cols: number; rows: number }
+}
+
 interface Props { sessionId: string | null }
 
-export default function TerminalPane({ sessionId }: Props) {
-  const ref = React.useRef<HTMLDivElement>(null)
-  const termRef = React.useRef<Terminal | null>(null)
-  const fitRef = React.useRef<FitAddon | null>(null)
+const TerminalPane = forwardRef<TerminalHandle, Props>(({ sessionId }, ref) => {
+  const hostRef = useRef<HTMLDivElement>(null)
+  const termRef = useRef<Terminal>()
+  const fitRef = useRef<FitAddon>()
+  const unlistenRef = useRef<(() => void) | null>(null)
 
-  React.useEffect(() => {
-    if (!ref.current) return
+  useEffect(() => {
     const term = new Terminal({
-      convertEol: true,
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+      // convertEol: false (por defecto) -> mejor para readline/bash
+      cursorBlink: true,
+      allowProposedApi: true,
+      scrollback: 5000,
       fontSize: 14,
-      theme: { background: '#0B1220' }
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+      theme: { background: '#0B1220' },
     })
     const fit = new FitAddon()
-  // const attach = new AttachAddon(ws) // Solo si usas WebSocket directo
-    const webLinks = new WebLinksAddon()
     term.loadAddon(fit)
-    term.loadAddon(webLinks)
-    // term.loadAddon(attach) // Solo si usas WebSocket directo
-    term.open(ref.current)
+    term.loadAddon(new WebLinksAddon())
+
+    term.open(hostRef.current!)
     fit.fit()
+
     termRef.current = term
     fitRef.current = fit
 
-    const onResize = () => { try { fit.fit() } catch {} }
-    addEventListener('resize', onResize)
+    const onWindowResize = () => {
+      try {
+        fit.fit()
+        if (sessionId) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows })
+      } catch {}
+    }
+    window.addEventListener('resize', onWindowResize)
 
-    return () => { removeEventListener('resize', onResize); term.dispose() }
+    const disposeOnResize = term.onResize(({ cols, rows }) => {
+      if (sessionId) invoke('ssh_resize', { id: sessionId, cols, rows }).catch(() => {})
+    })
+
+    return () => {
+      if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null }
+      disposeOnResize.dispose()
+      window.removeEventListener('resize', onWindowResize)
+      term.dispose()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  React.useEffect(() => {
+  // Conectar teclado/salida cuando llega la sesión
+  useEffect(() => {
     const term = termRef.current
-    if (!term || !sessionId) return
-    term.write(`\r\nConectado, sesión: ${sessionId}\r\n`)
-    // Para resize real del PTY: invoca un comando backend (pendiente en este MVP)
-    // invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows })
-    term.onData((data) => { invoke('ssh_stdin', { id: sessionId, data }) })
+    if (!term) return
 
-    // Escuchar eventos de salida SSH desde el backend
-    let unlisten: (() => void) | null = null
-    listen<string>(`ssh_out_${sessionId}`, (event) => {
-      if (event.payload) {
-        term.write(event.payload)
-      }
-    }).then((fn) => { unlisten = fn })
+    // limpia listeners anteriores
+    if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null }
 
-    return () => { if (unlisten) unlisten() }
+    const disposers: Array<{ dispose: () => void }> = []
+
+    if (sessionId) {
+      // teclado -> backend (sin hacks de backspace)
+      disposers.push(term.onData((data) => {
+        invoke('ssh_stdin', { id: sessionId, data }).catch(() => {})
+      }))
+
+      // backend -> terminal
+      listen<string>(`ssh_out_${sessionId}`, (event) => {
+        if (event.payload) term.write(event.payload)
+      }).then(un => { unlistenRef.current = un })
+
+      // tamaño inicial correcto
+      invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {})
+    }
+
+    return () => {
+      disposers.forEach(d => d.dispose())
+      if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null }
+    }
   }, [sessionId])
 
-  return <div style={{ height: '100%' }} ref={ref} />
-}
+  useImperativeHandle(ref, () => ({
+    fit: () => { try { fitRef.current?.fit() } catch {} },
+    getSize: () => {
+      const t = termRef.current!
+      return { cols: t.cols, rows: t.rows }
+    },
+  }), [])
+
+  return <div ref={hostRef} style={{ width: '100%', height: '100%' }} />
+})
+
+export default TerminalPane

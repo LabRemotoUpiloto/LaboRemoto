@@ -47,12 +47,24 @@ pub async fn ssh_connect(
 }
 
 #[tauri::command]
-pub async fn ssh_stdin(id: String, data: String) -> Result<(), String> {
+pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Result<(), String> {
   let tx = {
     let map = SESSIONS.lock().unwrap();
     map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?.tx.clone()
   };
-  tx.send(ChanCmd::Send(data.into_bytes()))
+  let bytes = if let Some(enc) = encoding {
+    if enc == "base64" {
+      match base64::decode(&data) {
+        Ok(b) => b,
+        Err(_) => return Err("base64 decode error".to_string()),
+      }
+    } else {
+      data.into_bytes()
+    }
+  } else {
+    data.into_bytes()
+  };
+  tx.send(ChanCmd::Send(bytes))
     .map_err(|e| e.to_string())
 }
 
