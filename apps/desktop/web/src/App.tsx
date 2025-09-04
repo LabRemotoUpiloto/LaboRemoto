@@ -8,7 +8,7 @@ import ConnectForm from './components/ConnectForm'
 const App: React.FC = () => {
   const [sessions, setSessions] = useState<string[]>([])
   const [activeSession, setActiveSession] = useState<string | null>(null)
-  const [isSidebarOpen, setSidebarOpen] = useState(false)
+  const [isSidebarOpen, setSidebarOpen] = useState(true)
 
   const handleNewSession = (id: string) => {
     if (!sessions.includes(id)) setSessions(prev => [...prev, id])
