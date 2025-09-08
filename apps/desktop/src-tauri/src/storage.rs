@@ -79,6 +79,22 @@ pub fn list_hosts() -> anyhow::Result<Vec<String>> {
 }
 
 pub fn delete_host(id: &str) -> anyhow::Result<()> {
+  // If caller passed a filename (e.g. "abcd1234.json.enc"), delete that file directly
+  if id.ends_with(".json.enc") {
+    let mut path = storage_dir()?;
+    // ensure we only join a basename
+    let filename = std::path::Path::new(id)
+      .file_name()
+      .and_then(|n| n.to_str())
+      .ok_or_else(|| anyhow!("invalid filename"))?;
+    path.push(filename);
+    if path.exists() {
+      fs::remove_file(path)?;
+    }
+    return Ok(());
+  }
+
+  // otherwise treat `id` as the logical id and compute its filename
   let f = file_for_id(id)?;
   if f.exists() {
     fs::remove_file(f)?;
