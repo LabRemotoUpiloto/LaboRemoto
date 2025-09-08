@@ -5,9 +5,10 @@
 .host-card-left { width:56px; display:flex; align-items:center; justify-content:center; }
 .host-avatar { width:44px; height:44px; border-radius:10px; background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; font-size:20px }
 .host-card-body { flex:1; }
-.host-title { font-weight:700; color:var(--text-primary) }
+.host-badge { display:inline-flex; align-items:center; gap:8px; background: linear-gradient(90deg, rgba(44,203,129,0.12), rgba(41,182,145,0.08)); color: #9fffe0; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:700; margin-right:8px; box-shadow: 0 6px 18px rgba(6,30,20,0.28); border: 1px solid rgba(72,255,180,0.08); }
+.host-badge::before{ content: '\25CF'; display:inline-block; width:10px;height:10px;border-radius:50%; background:linear-gradient(90deg,#2ae89f,#19d08e); box-shadow:0 2px 6px rgba(20,200,140,0.25); }
+.host-title { font-weight:800; color:var(--text-primary); font-size:15px }
 .host-sub { color:var(--text-secondary); margin-top:6px; font-size:13px }
-.host-badge { display:inline-block; background:rgba(255,255,255,0.04); color:var(--text-secondary); padding:4px 8px; border-radius:999px; font-size:12px; margin-right:8px }
 .host-card-actions { display:flex; gap:8px }
 .btn { padding:8px 12px; border-radius:8px; border:none; cursor:pointer }
 .btn-connect { background: var(--accent-primary); color:#042018 }
