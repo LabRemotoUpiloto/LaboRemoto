@@ -59,3 +59,18 @@
 .connect-box button:hover {
   background-color: var(--accent-primary-hover);
 }
+
+/* inline loader for connect form */
+.loading-overlay.local {
+  position: absolute;
+  inset: 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(2,6,23,0.45);
+  z-index: 3000;
+}
+.loading-box { background: rgba(11,17,32,0.95); padding:18px 22px; border-radius:10px; display:flex; gap:12px; align-items:center }
+.spinner { width:28px; height:28px; border-radius:50%; border:3px solid rgba(255,255,255,0.08); border-top-color: var(--accent-primary); animation: spin 1s linear infinite }
+.loading-text { color: var(--text-primary); font-weight:600 }
+@keyframes spin { to { transform: rotate(360deg) } }

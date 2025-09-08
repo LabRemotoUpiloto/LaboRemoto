@@ -9,10 +9,11 @@
   flex-direction: column;
   transition: margin-left 0.3s ease;
   margin-left: 0;
+  margin-top: 50px; /* reserve space for fixed header */
 }
 
 .main-content.sidebar-open {
-  margin-left: 250px; /* Same as sidebar width */
+  margin-left: 220px; /* push content right when sidebar opens so it resizes */
 }
 
 .content-area {

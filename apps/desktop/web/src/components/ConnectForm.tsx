@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { saveHostEncrypted, saveHostWithMaster } from '../api/storage'
 import './HomeScreen.css'
+import { useLoading } from '../contexts/LoadingContext'
 
 type Props = {
   onConnected: (id: string) => void
@@ -14,7 +15,8 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
   const [port, setPort] = useState<number>(22)
   const [user, setUser] = useState('')
   const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [busyLocal, setBusyLocal] = useState(false) // keep local to disable inputs in this component
+  const { setLoading } = useLoading()
 
   useEffect(() => {
     if (initialPayload) {
@@ -31,7 +33,8 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
   }, [initialPayload]);
 
   const connect = async () => {
-    setBusy(true)
+    setBusyLocal(true)
+    setLoading(true, `Conectando ${host}...`)
     try {
       const size = getTermSize ? getTermSize() : { cols: 80, rows: 24 }
       const id = await invoke<string>('ssh_connect', {
@@ -41,7 +44,8 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
     } catch (e: any) {
       alert(e?.toString?.() ?? 'Error conectando')
     } finally {
-      setBusy(false)
+      setBusyLocal(false)
+      setLoading(false, null)
     }
   }
 
@@ -55,8 +59,8 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
         <input placeholder="password" type="password" value={password}
           onChange={e => setPassword(e.target.value)} />
         <div style={{display:'flex',gap:8}}>
-          <button onClick={connect} disabled={busy}>Conectar</button>
-          <button onClick={async () => {
+          <button onClick={connect} disabled={busyLocal}>Conectar</button>
+          <button disabled={busyLocal} onClick={async () => {
             if (!host || !user) return alert('host and user required');
             const id = `${host}:${port}:${user}`;
             try {
