@@ -9,10 +9,15 @@ const App: React.FC = () => {
   const [sessions, setSessions] = useState<string[]>([])
   const [activeSession, setActiveSession] = useState<string | null>(null)
   const [isSidebarOpen, setSidebarOpen] = useState(true)
+  const [pendingHost, setPendingHost] = useState<any | null>(null)
 
-  const handleNewSession = (id: string) => {
-    if (!sessions.includes(id)) setSessions(prev => [...prev, id])
-    setActiveSession(id)
+  const handleNewSession = (idOrNull: string | null) => {
+    if (!idOrNull) {
+      setActiveSession(null);
+      return;
+    }
+    if (!sessions.includes(idOrNull)) setSessions(prev => [...prev, idOrNull])
+    setActiveSession(idOrNull)
   }
 
   const handleTabClick = (sessionId: string | null) => {
@@ -35,7 +40,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+  <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} onOpenHome={(payload?: any) => { setPendingHost(payload || null); setActiveSession(null); }} onCreateSession={handleNewSession} />
       <div className={`main-content ${isSidebarOpen ? 'sidebar-open' : ''}`}>
         <Header
           sessions={sessions}
@@ -49,7 +54,7 @@ const App: React.FC = () => {
           {activeSession ? (
             <TerminalView sessionId={activeSession} />
           ) : (
-            <ConnectForm onConnected={handleNewSession} />
+            <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
           )}
         </main>
       </div>

@@ -14,6 +14,17 @@ serde_json = "1.0"
 thiserror = "1.0"
 uuid = { version = "1", features = ["v4"] }
 
+# storage/encryption
+argon2 = "0.4"
+rand = "0.8"
+chacha20poly1305 = "0.10"
+hex = "0.4"
+keyring = "1.0"
+directories = "4.0"
+sha2 = "0.10"
+hkdf = "0.12"
+whoami = "1.2"
+
 # Runtime async
 tokio = { version = "1.39", features = ["rt-multi-thread", "macros", "sync", "io-util", "time"] }
 
