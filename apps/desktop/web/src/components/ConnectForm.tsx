@@ -1,18 +1,34 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { saveHostEncrypted, saveHostWithMaster } from '../api/storage'
 import './HomeScreen.css'
 
 type Props = {
   onConnected: (id: string) => void
   getTermSize?: () => { cols: number; rows: number }  // optional
+  initialPayload?: any | null
 }
 
-export default function ConnectForm({ onConnected, getTermSize }: Props) {
+export default function ConnectForm({ onConnected, getTermSize, initialPayload }: Props) {
   const [host, setHost] = useState('')
   const [port, setPort] = useState<number>(22)
   const [user, setUser] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (initialPayload) {
+      const p = initialPayload;
+      if (p.host) setHost(p.host);
+      if (p.port) setPort(p.port);
+      if (p.user) setUser(p.user);
+      if (p.password) setPassword(p.password);
+      if (p.autoConnect) {
+        // small timeout so inputs render first
+        setTimeout(() => { connect(); }, 50);
+      }
+    }
+  }, [initialPayload]);
 
   const connect = async () => {
     setBusy(true)
@@ -38,7 +54,20 @@ export default function ConnectForm({ onConnected, getTermSize }: Props) {
         <input placeholder="usuario" value={user} onChange={e => setUser(e.target.value)} />
         <input placeholder="password" type="password" value={password}
           onChange={e => setPassword(e.target.value)} />
-        <button onClick={connect} disabled={busy}>Conectar</button>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={connect} disabled={busy}>Conectar</button>
+          <button onClick={async () => {
+            if (!host || !user) return alert('host and user required');
+            const id = `${host}:${port}:${user}`;
+            try {
+              await saveHostWithMaster(id, { host, port, user, password });
+              alert('Host guardado (usando master-key en keychain)');
+            } catch (e: any) {
+              console.error('saveHostWithMaster error', e);
+              alert('Error guardando: ' + e?.toString?.());
+            }
+          }}>Guardar host</button>
+        </div>
       </div>
     </div>
   )
