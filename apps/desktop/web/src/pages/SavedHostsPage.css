@@ -7,6 +7,7 @@
 .host-card-body { flex:1; }
 .host-title { font-weight:700; color:var(--text-primary) }
 .host-sub { color:var(--text-secondary); margin-top:6px; font-size:13px }
+.host-badge { display:inline-block; background:rgba(255,255,255,0.04); color:var(--text-secondary); padding:4px 8px; border-radius:999px; font-size:12px; margin-right:8px }
 .host-card-actions { display:flex; gap:8px }
 .btn { padding:8px 12px; border-radius:8px; border:none; cursor:pointer }
 .btn-connect { background: var(--accent-primary); color:#042018 }

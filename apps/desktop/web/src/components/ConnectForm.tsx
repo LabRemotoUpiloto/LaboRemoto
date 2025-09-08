@@ -17,6 +17,8 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
   const [password, setPassword] = useState('')
   const [busyLocal, setBusyLocal] = useState(false) // keep local to disable inputs in this component
   const { setLoading } = useLoading()
+  const [showSaveName, setShowSaveName] = useState(false)
+  const [saveName, setSaveName] = useState('')
 
   useEffect(() => {
     if (initialPayload) {
@@ -58,20 +60,38 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
         <input placeholder="usuario" value={user} onChange={e => setUser(e.target.value)} />
         <input placeholder="password" type="password" value={password}
           onChange={e => setPassword(e.target.value)} />
-        <div style={{display:'flex',gap:8}}>
-          <button onClick={connect} disabled={busyLocal}>Conectar</button>
-          <button disabled={busyLocal} onClick={async () => {
-            if (!host || !user) return alert('host and user required');
-            const id = `${host}:${port}:${user}`;
-            try {
-              await saveHostWithMaster(id, { host, port, user, password });
-              alert('Host guardado (usando master-key en keychain)');
-            } catch (e: any) {
-              console.error('saveHostWithMaster error', e);
-              alert('Error guardando: ' + e?.toString?.());
-            }
-          }}>Guardar host</button>
-        </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={connect} disabled={busyLocal}>Conectar</button>
+              {!showSaveName ? (
+                <button disabled={busyLocal} onClick={() => setShowSaveName(true)}>Guardar host</button>
+              ) : (
+                <>
+                  <button disabled={busyLocal} onClick={async () => {
+                    if (!host || !user) return alert('host and user required');
+                    const id = `${host}:${port}:${user}`;
+                    try {
+                      const payload = { host, port, user, password, name: saveName || undefined }
+                      await saveHostWithMaster(id, payload as any);
+                      alert('Host guardado (usando master-key en keychain)');
+                      setSaveName('')
+                      setShowSaveName(false)
+                    } catch (e: any) {
+                      console.error('saveHostWithMaster error', e);
+                      alert('Error guardando: ' + e?.toString?.());
+                    }
+                  }}>Confirmar guardar</button>
+                  <button onClick={() => { setShowSaveName(false); setSaveName('') }}>Cancelar</button>
+                </>
+              )}
+            </div>
+            {showSaveName && (
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <input placeholder="Nombre (opcional)" value={saveName} onChange={e => setSaveName(e.target.value)} />
+                <small style={{color:'#999'}}>Puedes dejarlo vacío</small>
+              </div>
+            )}
+          </div>
       </div>
     </div>
   )

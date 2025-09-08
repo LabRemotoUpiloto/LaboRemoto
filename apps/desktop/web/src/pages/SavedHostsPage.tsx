@@ -54,7 +54,10 @@ export default function SavedHostsPage({ onConnect }: { onConnect?: (host: strin
               <div className="host-avatar">🖥️</div>
             </div>
             <div className="host-card-body">
-              <div className="host-title">{it.payload?.host}</div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                {it.payload?.name && <span className="host-badge">{it.payload.name}</span>}
+                <div className="host-title">{it.payload?.host}</div>
+              </div>
               <div className="host-sub">ssh, {it.payload?.user}@{it.payload?.port}</div>
             </div>
             <div className="host-card-actions">
