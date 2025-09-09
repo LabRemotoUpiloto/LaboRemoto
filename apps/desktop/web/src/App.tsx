@@ -76,10 +76,9 @@ const App: React.FC = () => {
             toggleSidebar={toggleSidebar}
           />
           <main className="content-area">
-            {activeTab.type === 'session' ? (
-              <TerminalView sessionId={activeTab.id} />
-            ) : (
-              selectedPage === 'connect' ? (
+            {/* Contenedor Home persistente */}
+            <div style={{display: activeTab.type==='home' ? 'block' : 'none', height:'100%'}}>
+              {selectedPage === 'connect' ? (
                 <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
               ) : selectedPage === 'hosts' ? (
                 <SavedHostsPage onConnect={async (h,p,u,pass) => {
@@ -94,8 +93,14 @@ const App: React.FC = () => {
                 <ThemesPage />
               ) : (
                 <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
-              )
-            )}
+              )}
+            </div>
+            {/* Sesiones SSH persistentes */}
+            {tabs.filter(t => t.type==='session').map(t => (
+              <div key={t.id} style={{display: activeTabId===t.id ? 'flex':'none', height:'100%', width:'100%'}}>
+                <TerminalView sessionId={t.id} />
+              </div>
+            ))}
           </main>
         </div>
           <GlobalLoader />
