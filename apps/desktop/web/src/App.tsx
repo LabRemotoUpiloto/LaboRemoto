@@ -10,6 +10,8 @@ import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/GlobalLoader'
 import { ToastProvider } from './contexts/ToastContext'
 import ToastContainer from './components/ToastContainer'
+import { ThemeProvider } from './contexts/ThemeContext'
+import ThemesPage from './pages/ThemesPage'
 
 const App: React.FC = () => {
   const [sessions, setSessions] = useState<string[]>([])
@@ -48,7 +50,8 @@ const App: React.FC = () => {
   return (
     <LoadingProvider>
       <ToastProvider>
-        <div className="app-container">
+        <ThemeProvider>
+  <div className="app-container">
         <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} selectedPage={selectedPage} onSelectPage={(p)=>setSelectedPage(p)} />
         <div className={`main-content ${isSidebarOpen ? 'sidebar-open' : ''}`}>
           <Header
@@ -77,6 +80,8 @@ const App: React.FC = () => {
                     alert('Error connecting to host: ' + (e as any)?.toString?.())
                   }
                 }} />
+              ) : selectedPage === 'themes' ? (
+                <ThemesPage />
               ) : (
                 <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
               )
@@ -86,6 +91,7 @@ const App: React.FC = () => {
           <GlobalLoader />
           <ToastContainer />
         </div>
+        </ThemeProvider>
       </ToastProvider>
     </LoadingProvider>
   )

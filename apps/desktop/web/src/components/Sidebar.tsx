@@ -10,12 +10,13 @@ interface SidebarProps {
 
 const items = [
   { id: 'connect', label: 'Connect', icon: '🖥️' },
-  { id: 'hosts', label: 'Hosts', icon: '�' },
-  { id: 'keychain', label: 'Keychain', icon: '🔑' },
-  { id: 'port', label: 'Port Forwarding', icon: '🔀' },
-  { id: 'snippets', label: 'Snippets', icon: '{}' },
-  { id: 'known', label: 'Known Hosts', icon: '📡' },
-  { id: 'logs', label: 'Logs', icon: '🕘' },
+  // simple emoji icons for now; consider replacing with SVG react components later
+  { id: 'hosts', label: 'Hosts', icon: '🧭' },
+  { id: 'themes', label: 'Temas', icon: '🎨' },
+    { id: 'port', label: 'Port Forwarding', icon: '�' },
+    { id: 'snippets', label: 'Snippets', icon: '📎' },
+    { id: 'known', label: 'Known Hosts', icon: '📡' },
+    { id: 'logs', label: 'Logs', icon: '🕘' },
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, selectedPage, onSelectPage }) => {
