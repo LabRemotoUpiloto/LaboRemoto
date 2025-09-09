@@ -14,33 +14,46 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import ThemesPage from './pages/ThemesPage'
 
 const App: React.FC = () => {
-  const [sessions, setSessions] = useState<string[]>([])
-  const [activeSession, setActiveSession] = useState<string | null>(null)
+  type Tab = { id: string; type: 'home' | 'session'; label: string }
+  const HOME_ID = 'home'
+  const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_ID, type: 'home', label: 'Inicio' }])
+  const [activeTabId, setActiveTabId] = useState<string>(HOME_ID)
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [pendingHost, setPendingHost] = useState<any | null>(null)
   const [selectedPage, setSelectedPage] = useState<string>('connect')
 
-  const handleNewSession = (idOrNull: string | null) => {
-    if (!idOrNull) {
-      setActiveSession(null);
-      return;
-    }
-    if (!sessions.includes(idOrNull)) setSessions(prev => [...prev, idOrNull])
-    setActiveSession(idOrNull)
+  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
+
+  const openSession = (id: string) => {
+    setTabs(prev => prev.some(t => t.id === id) ? prev : [...prev, { id, type: 'session', label: id }])
+    setActiveTabId(id)
   }
 
-  const handleTabClick = (sessionId: string | null) => {
-    setActiveSession(sessionId)
+  const closeTab = (id: string) => {
+    if (id === HOME_ID) return
+    setTabs(prev => {
+      const next = prev.filter(t => t.id !== id)
+      // recompute active fallback
+      if (activeTabId === id) {
+        const firstSession = next.find(t => t.type === 'session')
+        setActiveTabId(firstSession ? firstSession.id : HOME_ID)
+      }
+      return next
+    })
   }
 
-  const handleCloseTab = (sessionId: string) => {
-    setSessions(prev => prev.filter(s => s !== sessionId))
-    if (activeSession === sessionId) {
-      // If there are other sessions, switch to the first one, otherwise go home
-      const remainingSessions = sessions.filter(s => s !== sessionId)
-      setActiveSession(remainingSessions.length > 0 ? remainingSessions[0] : null)
-    }
-    // TODO: Add backend call to close SSH session
+  const handleNewSession = (id: string | null) => {
+    if (!id) { setActiveTabId(HOME_ID); return }
+    openSession(id)
+  }
+
+  const handleTabClick = (id: string) => {
+    setActiveTabId(id)
+  }
+
+  const handleCloseTab = (id: string) => {
+    closeTab(id)
+    // TODO: backend close (ssh_disconnect?)
   }
 
   const toggleSidebar = () => {
@@ -52,31 +65,28 @@ const App: React.FC = () => {
       <ToastProvider>
         <ThemeProvider>
   <div className="app-container">
-        <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} selectedPage={selectedPage} onSelectPage={(p)=>setSelectedPage(p)} />
+        <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} selectedPage={selectedPage} onSelectPage={(p)=>{ setActiveTabId(HOME_ID); setSelectedPage(p) }} />
         <div className={`main-content ${isSidebarOpen ? 'sidebar-open' : ''}`}>
           <Header
-            sessions={sessions}
-            activeSession={activeSession}
+            tabs={tabs}
+            activeTabId={activeTabId}
             onTabClick={handleTabClick}
             onCloseTab={handleCloseTab}
-            onNewSession={() => setActiveSession(null)} // Go to home to create a new session
+            onNewSession={() => setActiveTabId(HOME_ID)}
             toggleSidebar={toggleSidebar}
           />
           <main className="content-area">
-            {activeSession ? (
-              <TerminalView sessionId={activeSession} />
+            {activeTab.type === 'session' ? (
+              <TerminalView sessionId={activeTab.id} />
             ) : (
               selectedPage === 'connect' ? (
                 <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
               ) : selectedPage === 'hosts' ? (
                 <SavedHostsPage onConnect={async (h,p,u,pass) => {
-                  // call backend ssh_connect and expect a session id
                   try {
                     const sessionId = await connectFromHost(h, Number(p), u || '', pass || '')
-                    // if backend returns a session id, register it
-                    if (sessionId) handleNewSession(sessionId as any)
+                    if (sessionId) openSession(sessionId as any)
                   } catch (e) {
-                    // show alert for now
                     alert('Error connecting to host: ' + (e as any)?.toString?.())
                   }
                 }} />
