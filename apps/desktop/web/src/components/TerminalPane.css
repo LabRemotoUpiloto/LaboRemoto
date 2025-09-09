@@ -8,3 +8,9 @@
 .xterm .xterm-viewport {
   overflow-y: auto !important;
 }
+
+/* Make xterm background transparent so theme overlays show through */
+.xterm, .xterm .xterm-viewport, .xterm .xterm-screen, .xterm .xterm-rows {
+  background: transparent !important;
+}
+/* keep xterm transparent so themes can control background if needed */

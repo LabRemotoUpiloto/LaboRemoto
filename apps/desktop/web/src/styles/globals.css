@@ -9,6 +9,319 @@
   --border-color: #374151;
 }
 
+/* Theme variants applied via data-theme attribute on <html> */
+html[data-theme="default"] {
+  --background-primary: #0B1220;
+  --background-secondary: #131B2D;
+  --background-tertiary: #1A2339;
+  --text-primary: #E5E7EB;
+  --text-secondary: #9CA3AF;
+  --accent-primary: #34D399;
+  --accent-primary-hover: #6EE7B7;
+  --accent-strong: #10b981;
+  --border-color: #374151;
+}
+
+html[data-theme="dracula"] {
+  --background-primary: #282a36;
+  --background-secondary: #1e1f2b;
+  --background-tertiary: #222235;
+  --text-primary: #f8f8f2;
+  --text-secondary: #bfb8d3;
+  --accent-primary: #ff79c6;
+  --accent-primary-hover: #ff92d0;
+  --accent-strong: #bd93f9;
+  --border-color: #44475a;
+}
+
+html[data-theme="light"] {
+  --background-primary: #f6f7fb;
+  --background-secondary: #eef2f7;
+  --background-tertiary: #e6ebf5;
+  --text-primary: #0b1220;
+  --text-secondary: #4b5563;
+  --accent-primary: #06b6d4;
+  --accent-primary-hover: #34d7e8;
+  --accent-strong: #0891b2;
+  --border-color: #d1d5db;
+}
+
+/* Midnight Muse: dark, modern, subtle green accent */
+html[data-theme="midnight-muse"] {
+  --background-primary: #071022;
+  --background-secondary: #0f1a2a;
+  --background-tertiary: #162435;
+  --text-primary: #E6EEF6;
+  --text-secondary: #9FB2C2;
+  --accent-primary: #5FD6A6;
+  --accent-primary-hover: #7fe2c1;
+  --accent-strong: #33C48B;
+  --border-color: rgba(255,255,255,0.04);
+}
+
+/* Obsidian Rose (dark, pink accent) */
+html[data-theme="obsidian-rose"]{
+  --background-primary: #0a0608;
+  --background-secondary: #141012;
+  --background-tertiary: #1e1619;
+  --text-primary: #F3E9EB;
+  --text-secondary: #C2AEB3;
+  --accent-primary: #ff6b9a;
+  --accent-primary-hover: #ff8eb1;
+  --accent-strong: #ff3868;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Mist Harbor (light, soft) */
+html[data-theme="mist-harbor"]{
+  --background-primary: #f3f8fa;
+  --background-secondary: #e9eff3;
+  --background-tertiary: #e0e9ee;
+  --text-primary: #0f2026;
+  --text-secondary: #52666e;
+  --accent-primary: #1f8fa0;
+  --accent-primary-hover: #58b9c6;
+  --accent-strong: #0b6f78;
+  --border-color: #d3dde0;
+}
+
+/* Paper Sand (light, warm) */
+html[data-theme="paper-sand"]{
+  --background-primary: #fbf6f1;
+  --background-secondary: #f2ebe3;
+  --background-tertiary: #eadfd3;
+  --text-primary: #2b2a28;
+  --text-secondary: #6f6a64;
+  --accent-primary: #d97706;
+  --accent-primary-hover: #f0a54a;
+  --accent-strong: #b45309;
+  --border-color: #e7ddd3;
+}
+
+/* Aurora Coral (dark, warm colorfulness) */
+html[data-theme="aurora-coral"]{
+  --background-primary: #061025;
+  --background-secondary: #0f1724;
+  --background-tertiary: #173044;
+  --text-primary: #eaf6f4;
+  --text-secondary: #b9e6df;
+  --accent-primary: #ffb86b;
+  --accent-primary-hover: #ffc89a;
+  --accent-strong: #ff6b6b;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Verdant Neon (dark, neon green) */
+html[data-theme="verdant-neon"]{
+  --background-primary: #03120a;
+  --background-secondary: #062016;
+  --background-tertiary: #0a2a1f;
+  --text-primary: #e6fff4;
+  --text-secondary: #9fe9c7;
+  --accent-primary: #00ff9c;
+  --accent-primary-hover: #66ffd0;
+  --accent-strong: #00e68a;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+/* Additional batch 1 */
+html[data-theme="sunset-blush"]{
+  --background-primary: #1b0a0f;
+  --background-secondary: #2a0f14;
+  --background-tertiary: #3a141a;
+  --text-primary: #ffeef0;
+  --text-secondary: #f7c7cc;
+  --accent-primary: #ff7a88;
+  --accent-primary-hover: #ff9aa6;
+  --accent-strong: #ff4568;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+html[data-theme="emerald-dusk"]{
+  --background-primary: #07120e;
+  --background-secondary: #0b2017;
+  --background-tertiary: #113024;
+  --text-primary: #ecfff7;
+  --text-secondary: #9fe6c8;
+  --accent-primary: #2bd18b;
+  --accent-primary-hover: #5fe6b0;
+  --accent-strong: #16b56f;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+html[data-theme="moody-purple"]{
+  --background-primary: #0d0b12;
+  --background-secondary: #171423;
+  --background-tertiary: #221c2f;
+  --text-primary: #efe9ff;
+  --text-secondary: #c9bfe6;
+  --accent-primary: #b68cff;
+  --accent-primary-hover: #d3baff;
+  --accent-strong: #9b6cff;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+html[data-theme="oceanic-teal"]{
+  --background-primary: #021922;
+  --background-secondary: #062b31;
+  --background-tertiary: #0b3f45;
+  --text-primary: #e9f8f7;
+  --text-secondary: #a7d7d2;
+  --accent-primary: #2bd6c8;
+  --accent-primary-hover: #6fe8dc;
+  --accent-strong: #1fb7a8;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+html[data-theme="ruby-night"]{
+  --background-primary: #16080a;
+  --background-secondary: #2a0f11;
+  --background-tertiary: #3d1416;
+  --text-primary: #ffeaea;
+  --text-secondary: #f1b6b8;
+  --accent-primary: #ff3b55;
+  --accent-primary-hover: #ff6b7f;
+  --accent-strong: #e03147;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+html[data-theme="forest-moss"]{
+  --background-primary: #07120b;
+  --background-secondary: #0c1d10;
+  --background-tertiary: #133017;
+  --text-primary: #eaf7ef;
+  --text-secondary: #9fd6b8;
+  --accent-primary: #2d9c66;
+  --accent-primary-hover: #5ecf98;
+  --accent-strong: #1f7a4f;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+html[data-theme="sunburst-rainbow"]{
+  --background-primary: #070707;
+  --background-secondary: #0a0a0a;
+  --background-tertiary: #0f0f0f;
+  --text-primary: #ffffff;
+  --text-secondary: #f0f0f0;
+  --accent-primary: #ff4b6b; /* vivid magenta */
+  --accent-1: #ffb26b; /* orange */
+  --accent-2: #ffd56b; /* yellow */
+  --accent-3: #6bff8b; /* green */
+  --accent-4: #6bd7ff; /* cyan */
+  --accent-5: #6b8bff; /* blue */
+  --accent-primary-hover: #ff8fb0; /* lighter magenta */
+  --accent-strong: #ffd56b; /* yellow */
+  --border-color: rgba(255,255,255,0.06);
+}
+
+/* UI adjustments for Sunburst Rainbow: warm multi-color buttons and accents */
+html[data-theme="sunburst-rainbow"] .btn,
+html[data-theme="sunburst-rainbow"] .btn-connect {
+  background: linear-gradient(90deg,#ff4b6b,#ff8b3b,#ffe33b);
+  color: #0b0b0b;
+  border: none;
+}
+html[data-theme="sunburst-rainbow"] .btn-delete {
+  background: linear-gradient(90deg,#6bff8b,#39d6ff,#6b7bff);
+  color: #0b0b0b;
+  border: none;
+}
+html[data-theme="sunburst-rainbow"] .host-badge,
+html[data-theme="sunburst-rainbow"] .nav-item.active::before {
+  background: linear-gradient(90deg,#ff4b6b,#ffb26b,#ffd56b);
+}
+
+/* UI adjustments for Bold Rainbow: saturated, cooler multi-accent and animated button */
+/* bold-rainbow UI overrides removed — only topbar animation kept */
+
+
+html[data-theme="lime-electric"]{
+  --background-primary: #08120a;
+  --background-secondary: #0c2415;
+  --background-tertiary: #12321f;
+  --text-primary: #effff0;
+  --text-secondary: #bff9c6;
+  --accent-primary: #a6ff4d;
+  --accent-primary-hover: #d0ff93;
+  --accent-strong: #7be22a;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+html[data-theme="berry-soda"]{
+  --background-primary: #08121a;
+  --background-secondary: #0f2130;
+  --background-tertiary: #17283b;
+  --text-primary: #f5f6ff;
+  --text-secondary: #c9d1ff;
+  --accent-primary: #ff78c6;
+  --accent-primary-hover: #ffadde;
+  --accent-strong: #ff4fa8;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+html[data-theme="citrus-pop"]{
+  --background-primary: #0a1210;
+  --background-secondary: #12201b;
+  --background-tertiary: #18302a;
+  --text-primary: #f2fff7;
+  --text-secondary: #cfeee0;
+  --accent-primary: #ffd166;
+  --accent-primary-hover: #ffe39a;
+  --accent-strong: #ffae2e;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+html[data-theme="violet-ember"]{
+  --background-primary: #0b0610;
+  --background-secondary: #140b19;
+  --background-tertiary: #1d0f23;
+  --text-primary: #fff5ff;
+  --text-secondary: #e0cfe6;
+  --accent-primary: #9b6bff;
+  --accent-primary-hover: #cdaaff;
+  --accent-strong: #7b3bff;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Custom Rainbow theme (created because repo might not have an exact rainbow): bold multi-accent */
+html[data-theme="bold-rainbow"]{
+  --background-primary: #050505;
+  --background-secondary: #0b0b0b;
+  --background-tertiary: #111111;
+  --text-primary: #ffffff;
+  --text-secondary: #e6e6e6;
+  --accent-primary: #ff3b7a; /* hot magenta */
+  --accent-1: #ff8b3b; /* orange */
+  --accent-2: #ffe33b; /* yellow */
+  --accent-3: #4bff7a; /* green */
+  --accent-4: #39d6ff; /* cyan */
+  --accent-5: #6b7bff; /* blue */
+  --accent-primary-hover: #ffb86b; /* warm hover */
+  --accent-strong: #ffd56b;
+  --border-color: rgba(255,255,255,0.05);
+}
+
+/* Animated RGB topbar for Bold Rainbow theme */
+html[data-theme="bold-rainbow"] .app-header{
+  background: linear-gradient(90deg,#ff3b7a 0%, #ff8b3b 20%, #ffe33b 40%, #4bff7a 60%, #39d6ff 80%, #6b7bff 100%);
+  background-size: 300% 100%;
+  animation: headerRgbShift 10s linear infinite;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+
+@keyframes headerRgbShift{
+  0% { background-position: 0% 50% }
+  50% { background-position: 100% 50% }
+  100% { background-position: 0% 50% }
+}
+
+/* Ensure header controls remain legible (keep this so header text contrasts) */
+html[data-theme="bold-rainbow"] .app-header, html[data-theme="bold-rainbow"] .app-header .tab, html[data-theme="bold-rainbow"] .app-header .tabs .tab.active {
+  color: #070707;
+}
+
+
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -23,6 +336,18 @@ body {
   font-size: 14px;
 }
 
+/* Smooth transitions when switching themes */
+body, .page-content, .theme-card, .theme-card .meta, .theme-card .preview {
+  transition: background-color 260ms ease, color 260ms ease, border-color 260ms ease, box-shadow 260ms ease, transform 200ms ease;
+}
+
 * {
   box-sizing: border-box;
+}
+
+/* Page content container to avoid full-bleed layouts */
+.page-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 24px;
 }
