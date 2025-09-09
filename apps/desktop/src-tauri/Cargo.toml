@@ -35,6 +35,11 @@ ssh-key = "0.6"
 # Tauri v2
 tauri = { version = "2", features = [] }
 
+# HTTP client and dotenv for reading OPENAI_API_KEY
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+dotenvy = "0.15"
+
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
