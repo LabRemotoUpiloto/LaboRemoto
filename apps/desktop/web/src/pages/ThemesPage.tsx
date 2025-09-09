@@ -24,6 +24,15 @@ const THEMES: { id: string; label: string; previewClass?: string }[] = [
   { id: 'citrus-pop', label: 'Citrus Pop', previewClass: 'citrus-pop' },
   { id: 'violet-ember', label: 'Violet Ember', previewClass: 'violet-ember' },
   { id: 'bold-rainbow', label: 'Bold Rainbow', previewClass: 'bold-rainbow' },
+  { id: 'polar-mint', label: 'Polar Mint', previewClass: 'polar-mint' },
+  { id: 'midday-azure', label: 'Midday Azure', previewClass: 'midday-azure' },
+  { id: 'sakura-blush', label: 'Sakura Blush', previewClass: 'sakura-blush' },
+  { id: 'glass-water', label: 'Glass Water', previewClass: 'glass-water' },
+  { id: 'metro-gray', label: 'Metro Gray', previewClass: 'metro-gray' },
+  { id: 'cosmic-latte', label: 'Cosmic Latte', previewClass: 'cosmic-latte' },
+  { id: 'ember-dawn', label: 'Ember Dawn', previewClass: 'ember-dawn' },
+  { id: 'nebula-ink', label: 'Nebula Ink', previewClass: 'nebula-ink' },
+  { id: 'sepia-paper', label: 'Sepia Paper', previewClass: 'sepia-paper' },
 ]
 
 export default function ThemesPage(){

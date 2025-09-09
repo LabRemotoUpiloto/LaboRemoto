@@ -7,6 +7,10 @@
   --accent-primary: #34D399;
   --accent-primary-hover: #6EE7B7;
   --border-color: #374151;
+  /* terminal-specific defaults: prefer theme text color but allow per-theme overrides */
+  --terminal-foreground: var(--text-primary);
+  --terminal-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', 'Liberation Mono', monospace;
+  --terminal-font-size: 13;
 }
 
 /* Theme variants applied via data-theme attribute on <html> */
@@ -44,6 +48,8 @@ html[data-theme="light"] {
   --accent-primary-hover: #34d7e8;
   --accent-strong: #0891b2;
   --border-color: #d1d5db;
+  /* ensure terminal text is dark on light themes */
+  --terminal-foreground: #0b1220;
 }
 
 /* Midnight Muse: dark, modern, subtle green accent */
@@ -83,6 +89,7 @@ html[data-theme="mist-harbor"]{
   --accent-primary-hover: #58b9c6;
   --accent-strong: #0b6f78;
   --border-color: #d3dde0;
+  --terminal-foreground: #0f2026;
 }
 
 /* Paper Sand (light, warm) */
@@ -96,6 +103,7 @@ html[data-theme="paper-sand"]{
   --accent-primary-hover: #f0a54a;
   --accent-strong: #b45309;
   --border-color: #e7ddd3;
+  --terminal-foreground: #2b2a28;
 }
 
 /* Aurora Coral (dark, warm colorfulness) */
@@ -314,6 +322,131 @@ html[data-theme="bold-rainbow"] .app-header{
   0% { background-position: 0% 50% }
   50% { background-position: 100% 50% }
   100% { background-position: 0% 50% }
+}
+
+/* Restored themes (9) to reach 30 total */
+
+/* Polar Mint (light-fresh) */
+html[data-theme="polar-mint"]{
+  --background-primary: #fbffff;
+  --background-secondary: #f3fbfa;
+  --background-tertiary: #e9f7f5;
+  --text-primary: #072022;
+  --text-secondary: #4b6a67;
+  --accent-primary: #4dd0c8;
+  --accent-primary-hover: #83e9dd;
+  --accent-strong: #2bbab0;
+  --border-color: #dfeff0;
+  /* terminal overrides for legibility on very light backgrounds */
+  --terminal-foreground: #072022;
+}
+
+/* Midday Azure (light, cool) */
+html[data-theme="midday-azure"]{
+  --background-primary: #f7fbff;
+  --background-secondary: #eef7ff;
+  --background-tertiary: #e6f1fb;
+  --text-primary: #05223a;
+  --text-secondary: #35607a;
+  --accent-primary: #2fa4ff;
+  --accent-primary-hover: #6cc8ff;
+  --accent-strong: #1b88e6;
+  --border-color: #d7eaf8;
+  --terminal-foreground: #05223a;
+}
+
+/* Sakura Blush (soft pink, light) */
+html[data-theme="sakura-blush"]{
+  --background-primary: #fff7f9;
+  --background-secondary: #fff0f4;
+  --background-tertiary: #fdeef2;
+  --text-primary: #2b1220;
+  --text-secondary: #6f4756;
+  --accent-primary: #ff7aa6;
+  --accent-primary-hover: #ff9fbe;
+  --accent-strong: #ff4f85;
+  --border-color: #fae6eb;
+  --terminal-foreground: #2b1220;
+}
+
+/* Glass Water (muted, cool) */
+html[data-theme="glass-water"]{
+  --background-primary: #061015;
+  --background-secondary: #0b1b24;
+  --background-tertiary: #12303b;
+  --text-primary: #dff6fb;
+  --text-secondary: #9fd8e3;
+  --accent-primary: #66e0ff;
+  --accent-primary-hover: #9ff4ff;
+  --accent-strong: #2ac6e6;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Metro Gray (neutral, medium contrast) */
+html[data-theme="metro-gray"]{
+  --background-primary: #0f1316;
+  --background-secondary: #15181b;
+  --background-tertiary: #1c1f22;
+  --text-primary: #e6e9eb;
+  --text-secondary: #b7bfc4;
+  --accent-primary: #9aa0ff;
+  --accent-primary-hover: #c7cbff;
+  --accent-strong: #747bff;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Cosmic Latte (warm, creamy) */
+html[data-theme="cosmic-latte"]{
+  --background-primary: #fffaf2;
+  --background-secondary: #fff4e6;
+  --background-tertiary: #fff0dc;
+  --text-primary: #2b2a22;
+  --text-secondary: #7a6f61;
+  --accent-primary: #f4b942;
+  --accent-primary-hover: #f7d280;
+  --accent-strong: #e09b2f;
+  --border-color: #efe7da;
+  --terminal-foreground: #2b2a22;
+}
+
+/* Ember Dawn (warm, dark accent) */
+html[data-theme="ember-dawn"]{
+  --background-primary: #0b0807;
+  --background-secondary: #14100f;
+  --background-tertiary: #221a19;
+  --text-primary: #fff3eb;
+  --text-secondary: #d9bfb3;
+  --accent-primary: #ff8b5a;
+  --accent-primary-hover: #ffb393;
+  --accent-strong: #ff6b35;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Nebula Ink (deep space purple) */
+html[data-theme="nebula-ink"]{
+  --background-primary: #05030a;
+  --background-secondary: #0a0713;
+  --background-tertiary: #151026;
+  --text-primary: #f7f3ff;
+  --text-secondary: #d8ccf8;
+  --accent-primary: #9b8cff;
+  --accent-primary-hover: #cdbaff;
+  --accent-strong: #7b5bff;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Sepia Paper (vintage warm) */
+html[data-theme="sepia-paper"]{
+  --background-primary: #fbf5ef;
+  --background-secondary: #f3e9de;
+  --background-tertiary: #eadfcf;
+  --text-primary: #2c231a;
+  --text-secondary: #6c5b4a;
+  --accent-primary: #b87333;
+  --accent-primary-hover: #d79a63;
+  --accent-strong: #974e1a;
+  --border-color: #eadfcf;
+  --terminal-foreground: #2c231a;
 }
 
 /* Ensure header controls remain legible (keep this so header text contrasts) */
