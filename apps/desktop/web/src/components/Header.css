@@ -13,6 +13,36 @@
   transition: left 220ms cubic-bezier(.2,.9,.2,1), width 220ms cubic-bezier(.2,.9,.2,1);
 }
 
+.app-header {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  backdrop-filter: blur(10px) saturate(160%);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  padding: 0 10px;
+  height: 50px;
+  border-bottom: 1px solid var(--border-color);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  transition: left 220ms cubic-bezier(.2,.9,.2,1), width 220ms cubic-bezier(.2,.9,.2,1), background-color 220ms ease;
+}
+
+/* Mantener fondo sólido en temas claros para legibilidad */
+html[data-theme="light"],
+html[data-theme="paper-sand"],
+html[data-theme="mist-harbor"],
+html[data-theme="polar-mint"],
+html[data-theme="midday-azure"],
+html[data-theme="sakura-blush"],
+html[data-theme="cosmic-latte"],
+html[data-theme="sepia-paper"] .app-header {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--background-secondary);
+}
 .sidebar-toggle {
   padding: 10px;
   cursor: pointer;
@@ -43,6 +73,13 @@
 .tab.active {
   background-color: var(--background-primary);
   color: var(--text-primary);
+  .tabs {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    gap: 0;
+    margin-left: 4px;
+  }
 }
 
 .tab:hover {
@@ -64,6 +101,33 @@
   color: var(--text-primary);
 }
 
+.close-tab {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transform: translateX(4px);
+  transition: background 140ms ease, color 140ms ease, opacity 140ms ease, transform 180ms ease;
+}
+.tab:hover .close-tab, .tab.active .close-tab { opacity: .9; transform: translateX(0); }
+
+.close-tab:hover {
+  background: var(--accent-primary);
+  color: #000;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.4);
+}
+.close-tab:active { transform: scale(.9); }
 .new-tab {
   background: none;
   border: none;
@@ -77,4 +141,38 @@
 .new-tab:hover {
   background-color: var(--background-tertiary);
   color: var(--text-primary);
+}
+
+.new-tab {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 0 14px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  transition: background 160ms ease, color 160ms ease;
+}
+.new-tab:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
+  color: var(--text-primary);
+}
+.new-tab:active { transform: scale(.92); }
+
+/* Ajuste de colores para header arcoiris: texto oscuro ya definido en globals, pero mantener contraste en tabs activas */
+html[data-theme="bold-rainbow"] .tab.active, html[data-theme="sunburst-rainbow"] .tab.active {
+  color: #111;
+  background: rgba(255,255,255,0.65);
+  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.6);
+}
+html[data-theme="bold-rainbow"] .tab:hover, html[data-theme="sunburst-rainbow"] .tab:hover {
+  background: rgba(255,255,255,0.45);
+  color: #111;
+}
+html[data-theme="bold-rainbow"] .close-tab:hover, html[data-theme="sunburst-rainbow"] .close-tab:hover {
+  background: #111;
+  color: #fff;
+  box-shadow: none;
 }
