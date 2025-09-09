@@ -4,7 +4,8 @@
   position: fixed;
   left: 0;
   top: 50px; /* sit below the fixed header */
-  background: linear-gradient(180deg, #151426 0%, #0f1116 100%);
+  /* use global palette variables to stay inside the theme */
+  background: linear-gradient(180deg, var(--background-secondary) 0%, var(--background-primary) 100%);
   padding: 22px 12px;
   display: flex;
   flex-direction: column;
@@ -38,7 +39,7 @@
   align-items: center;
   padding: 10px 14px;
   border-radius: 12px;
-  color: #dfe6f0;
+  color: var(--text-secondary);
   transition: background 0.12s ease, transform 0.06s ease;
   justify-content: flex-start;
 }
@@ -59,7 +60,8 @@
 
 /* active item visual: rounded pill with slight contrast and left accent */
 .nav-item.active .nav-pill {
-  background: rgba(255,255,255,0.04);
+  /* subtle contrast that respects the dark palette */
+  background: rgba(255,255,255,0.03);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
   color: var(--text-primary);
 }
@@ -86,7 +88,8 @@
 .nav-item:hover .nav-pill { background: rgba(255,255,255,0.03); }
 
 .nav-item.active .nav-pill {
-  background: rgba(255,255,255,0.06);
+  /* tighten active color so we don't leak out of the palette */
+  background: rgba(255,255,255,0.04);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
 }
 
