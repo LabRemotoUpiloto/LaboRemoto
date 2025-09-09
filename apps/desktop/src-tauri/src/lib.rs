@@ -14,6 +14,7 @@ pub fn run() {
       cmd::ssh_stdin,
       cmd::ssh_resize,
       cmd::ssh_disconnect,
+  cmd::ai_chat,
   cmd::save_host_encrypted,
   cmd::load_host_encrypted,
   cmd::save_host_master,
