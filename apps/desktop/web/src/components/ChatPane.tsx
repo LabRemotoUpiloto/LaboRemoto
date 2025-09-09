@@ -91,26 +91,45 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         // non-fatal
       }
 
-      // For display: only use summary when in Agent mode; Ask mode should show normal explanation.
+      // Clean up the response text by removing unwanted patterns
+      const cleanText = (text: string) => {
+        if (!text) return '';
+        return text
+          .replace(/```(bash|sh)?\s*|\s*```/g, '') // remove code block markers
+          .replace(/Comando sugerido:\s*/gi, '')    // remove "Comando sugerido:" text
+          .replace(/"""/g, '')                      // remove triple quotes
+          .replace(/^[\s`]+|[\s`]+$/g, '')         // remove leading/trailing spaces and backticks
+          .trim();
+      };
+
+      // Clean all response fields
+      if ((res as any).summary) (res as any).summary = cleanText((res as any).summary);
+      if ((res as any).explanation) (res as any).explanation = cleanText((res as any).explanation);
+      if ((res as any).ai_response) (res as any).ai_response = cleanText((res as any).ai_response);
+
+      // For display: only use summary when in Agent mode; Ask mode should show normal explanation
       const aiText =
         mode === 'agent'
           ? ((res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '')
           : ((res as any).explanation ?? (res as any).ai_response ?? '');
 
-      // Detect command in ai_response, explanation, summary, or aiText (detection independent of display)
+      // Detect command in ai_response, explanation, summary, or aiText
       const runPrefix = 'RUN_CMD:';
       let cmd: string | null = null;
       const candidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary, aiText];
       for (const candidate of candidates) {
         if (!candidate) continue;
-        const out = candidate as string;
-        if (out.includes(runPrefix)) { cmd = out.split(runPrefix)[1].trim(); break; }
+        const out = cleanText(candidate as string);
+        if (out.includes(runPrefix)) {
+          cmd = out.split(runPrefix)[1].trim();
+          break;
+        }
         // detect code blocks or first command-looking line
-        const m =
-          out.match(/```bash\s*([\s\S]*?)```/m) ||
-          out.match(/```sh\s*([\s\S]*?)```/m) ||
-          out.match(/(?:^|\n)\$?\s*([^\n]+)\n?/m);
-        if (m && m[1]) { cmd = m[1].trim(); break; }
+        const m = out.match(/(?:^|\n)\$?\s*([^\n]+)\n?/m);
+        if (m && m[1]) {
+          cmd = m[1].trim();
+          break;
+        }
       }
 
       let sentToTerminal = false;
@@ -118,13 +137,29 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       // If in Agent mode and we have a session + detected command, create a confirmation message
       let confirmationMsgId: string | null = null;
       if (mode === 'agent' && cmd) {
-        // do NOT auto-send; instead ask the user to confirm
-        const sysId = String(Date.now() + 5);
-        const sysText = 'Se ha generado un comando. Confirma si deseas ejecutarlo en la terminal.';
-        const sysMeta = { pendingCommand: cmd, summary: (res as any).summary, explanation: (res as any).explanation };
-        const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
-        setMessages(prev => [...prev, sysMsg]);
-        confirmationMsgId = sysId;
+        const catMatch = cmd.match(/cat\s*>\s*([^\s]+)\s*<<\s*EOF\n([\s\S]+)\nEOF/);
+        if (catMatch) {
+          // This is a file creation command
+          const [, fileName, fileContent] = catMatch;
+          const sysId = String(Date.now() + 5);
+          const sysText = `El agente quiere crear el archivo '${fileName}'. ¿Deseas continuar?`;
+          const sysMeta = {
+            pendingFileCreation: { fileName, fileContent, command: cmd },
+            summary: (res as any).summary,
+            explanation: (res as any).explanation,
+          };
+          const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
+          setMessages(prev => [...prev, sysMsg]);
+          confirmationMsgId = sysId;
+        } else {
+          // This is a regular command execution
+          const sysId = String(Date.now() + 5);
+          const sysText = 'El agente quiere ejecutar un comando para ' + ((res as any).summary || 'realizar una acción') + '.';
+          const sysMeta = { pendingCommand: cmd, summary: (res as any).summary, explanation: (res as any).explanation };
+          const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
+          setMessages(prev => [...prev, sysMsg]);
+          confirmationMsgId = sysId;
+        }
       }
 
       // If we had already sent to terminal (older flow) keep behavior; otherwise displayText is aiText
@@ -170,22 +205,23 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     <div className="chat-pane">
       <div className="chat-header">
         <button onClick={handleNewChat}>New Chat</button>
-        <select value={mode} onChange={(e) => setMode(e.target.value as ChatMode)}>
+        <select value={mode} onChange={handleModeChange}>
           <option value="ask">Ask Mode</option>
           <option value="agent">Agent Mode</option>
         </select>
         {/* No SSH session id field anymore */}
       </div>
+
       <div className="chat-messages">
         {messages.map((msg) => {
-          // detect command candidates in AI response
+          // detect command candidates in AI response (si lo quieres usar luego)
           let cmdCandidate: string | null = null;
           if (msg.sender === 'ai') {
             const out = (msg.meta && msg.meta.ai_response) || msg.text || '';
             const runPrefix = 'RUN_CMD:';
-            if (out.includes(runPrefix)) {
+            if (typeof out === 'string' && out.includes(runPrefix)) {
               cmdCandidate = out.split(runPrefix)[1].trim();
-            } else {
+            } else if (typeof out === 'string') {
               const m =
                 out.match(/```bash\s*([\s\S]*?)```/m) ||
                 out.match(/```sh\s*([\s\S]*?)```/m) ||
@@ -197,71 +233,164 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           return (
             <div key={msg.id} className={`message ${msg.sender}`}>
               <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.text}</pre>
-              {/* If a short summary exists, show it prominently */}
-              {msg.meta && msg.meta.summary && (
+
+              {/* Si existe un resumen corto, muéstralo */}
+              {msg.meta?.summary && (
                 <div className="summary">{msg.meta.summary}</div>
               )}
-              {/* always show the detailed explanation if present */}
-              {msg.meta && msg.meta.explanation && msg.meta.explanation !== msg.text && (
+
+              {/* Mostrar explicación detallada si existe y no es igual al texto principal */}
+              {msg.meta?.explanation && msg.meta.explanation !== msg.text && (
                 <div className="explanation">{msg.meta.explanation}</div>
               )}
-              {!msg.meta?.sentToTerminal && msg.meta && msg.meta.code_output && (
+
+              {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
                 <pre className="code-output">{msg.meta.code_output}</pre>
               )}
-              {!msg.meta?.sentToTerminal && cmdCandidate && mode === 'agent' && (
-                <div style={{ marginTop: 8 }}>
-                  <button onClick={async () => {
-                    try {
-                      // copy the command to clipboard so the user can paste it in their SSH pane/terminal
-                      await navigator.clipboard.writeText(cmdCandidate!);
-                      setMessages(prev => [...prev, {
-                        id: String(Date.now()),
-                        sender: 'system',
-                        text: `Comando copiado al portapapeles: ${cmdCandidate}`
-                      }]);
-                    } catch (e: any) {
-                      setMessages(prev => [...prev, {
-                        id: String(Date.now()),
-                        sender: 'system',
-                        text: `Error copiando al portapapeles: ${String(e)}`
-                      }]);
-                    }
-                  }}>Run (copy)</button>
+
+              {/* Confirmation UI para comando pendiente */}
+              {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: '12px',
+                    backgroundColor: '#1a1a1a',
+                    borderRadius: '6px',
+                    border: '1px solid #333'
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: '0 0 8px 0',
+                      color: '#e0e0e0',
+                      fontSize: '14px'
+                    }}
+                  >
+                    {msg.text}
+                  </p>
+
+                  <div
+                    style={{
+                      backgroundColor: '#2d2d2d',
+                      padding: '10px',
+                      borderRadius: '4px',
+                      border: '1px solid #404040',
+                      marginTop: '8px'
+                    }}
+                  >
+                    <pre
+                      style={{
+                        margin: 0,
+                        color: '#e0e0e0',
+                        fontSize: '13px',
+                        fontFamily: 'monospace'
+                      }}
+                    >
+                      {msg.meta.pendingCommand}
+                    </pre>
+                  </div>
+
+                  <p
+                    style={{
+                      margin: '12px 0',
+                      color: '#e0e0e0',
+                      fontSize: '14px'
+                    }}
+                  >
+                    ¿Deseas ejecutar este comando en la terminal?
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await invoke('ssh_stdin', { id: sessionId, data: (msg.meta.pendingCommand as string) + '\n' });
+                          setMessages(prev => prev.map(m => m.id === msg.id ? 
+                            { ...m, text: 'Comando enviado a la terminal.', meta: { ...m.meta, processed: true } } : m
+                          ));
+                          setMessages(prev => {
+                            const pending = msg.meta.pendingCommand as string;
+                            let marked = false;
+                            return prev.map(m => {
+                              if (!marked && m.sender === 'ai' && m.meta) {
+                                const out = (m.meta.ai_response as string) || (m.meta.summary as string) || m.text || '';
+                                if (typeof out === 'string' && out.includes(pending)) {
+                                  marked = true;
+                                  return { ...m, meta: { ...m.meta, sentToTerminal: true } };
+                                }
+                              }
+                              return m;
+                            });
+                          });
+                        } catch (e: any) {
+                          setMessages(prev => [
+                            ...prev,
+                            {
+                              id: String(Date.now()),
+                              sender: 'system',
+                              text: `Error enviando a la terminal: ${String(e)}`
+                            }
+                          ]);
+                        }
+                      }}
+                      className="send-button"
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMessages(prev =>
+                          prev.map(m =>
+                            m.id === msg.id
+                              ? { ...m, text: 'Comando cancelado por el usuario.', meta: { ...m.meta, processed: true } }
+                              : m
+                          )
+                        );
+                      }}
+                      className="cancel-button"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Confirmation UI for pending commands created by the agent */}
-              {msg.sender === 'system' && msg.meta && (msg.meta.pendingCommand) && (
+              {/* Confirmation UI para creación de archivo pendiente */}
+              {msg.sender === 'system' && msg.meta?.pendingFileCreation && (
                 <div style={{ marginTop: 8 }}>
-                  <button onClick={async () => {
-                    // Confirm: send the pending command to the terminal
-                    try {
-                      await invoke('ssh_stdin', { id: sessionId, data: (msg.meta.pendingCommand as string) + '\n' });
-                      // update the system message to reflect confirmation
-                      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, text: 'Comando enviado a la terminal.' } : m));
-                      // mark the last AI message that referenced this pendingCommand as sentToTerminal so its run UI hides
-                      setMessages(prev => {
-                        const pending = msg.meta.pendingCommand as string;
-                        let marked = false;
-                        return prev.map(m => {
-                          if (!marked && m.sender === 'ai' && m.meta) {
-                            const out = (m.meta.ai_response as string) || (m.meta.summary as string) || m.text || '';
-                            if (typeof out === 'string' && out.includes(pending)) {
-                              marked = true;
-                              return { ...m, meta: { ...m.meta, sentToTerminal: true } };
-                            }
-                          }
-                          return m;
-                        });
-                      });
-                    } catch (e: any) {
-                      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'system', text: `Error enviando a la terminal: ${String(e)}` }]);
-                    }
-                  }}>Confirmar</button>
+                  <p>{msg.text}</p>
+                  <p>Contenido del archivo:</p>
+                  <pre className="code-output">{msg.meta.pendingFileCreation.fileContent}</pre>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await invoke('ssh_stdin', { id: sessionId, data: (msg.meta.pendingFileCreation.command as string) + '\n' });
+                        setMessages(prev =>
+                          prev.map(m =>
+                            m.id === msg.id
+                              ? { ...m, text: `Archivo '${msg.meta.pendingFileCreation.fileName}' creado exitosamente.` }
+                              : m
+                          )
+                        );
+                      } catch (e: any) {
+                        setMessages(prev => [
+                          ...prev,
+                          { id: String(Date.now()), sender: 'system', text: `Error creando el archivo: ${String(e)}` }
+                        ]);
+                      }
+                    }}
+                  >
+                    Confirmar
+                  </button>
                   <button
                     onClick={() => {
-                      // Cancel: remove the pendingCommand from the system message
-                      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, text: 'Ejecución cancelada por el usuario.', meta: undefined } : m));
+                      setMessages(prev =>
+                        prev.map(m =>
+                          m.id === msg.id
+                            ? { ...m, text: 'Creación de archivo cancelada por el usuario.', meta: undefined }
+                            : m
+                        )
+                      );
                     }}
                     style={{ marginLeft: 8 }}
                   >
@@ -273,6 +402,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           );
         })}
       </div>
+
       <div className="chat-input">
         <textarea
           value={input}

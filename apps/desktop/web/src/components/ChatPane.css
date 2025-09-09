@@ -74,3 +74,24 @@
   border-radius: 4px;
   cursor: pointer;
 }
+
+/* Estilos para los botones de confirmación */
+.send-button {
+  background-color: var(--accent-primary);
+  color: var(--background-primary);
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.cancel-button {
+  background-color: var(--background-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
