@@ -14,3 +14,66 @@
   background: transparent !important;
 }
 /* keep xterm transparent so themes can control background if needed */
+
+/* Force terminal text color only for light themes so dark themes keep xterm defaults */
+html[data-theme="light"] .xterm,
+html[data-theme="light"] .xterm .xterm-rows,
+html[data-theme="light"] .xterm .xterm-screen,
+html[data-theme="light"] .xterm .xterm-viewport,
+html[data-theme="mist-harbor"] .xterm,
+html[data-theme="mist-harbor"] .xterm .xterm-rows,
+html[data-theme="mist-harbor"] .xterm .xterm-screen,
+html[data-theme="mist-harbor"] .xterm .xterm-viewport,
+html[data-theme="paper-sand"] .xterm,
+html[data-theme="paper-sand"] .xterm .xterm-rows,
+html[data-theme="paper-sand"] .xterm .xterm-screen,
+html[data-theme="paper-sand"] .xterm .xterm-viewport,
+html[data-theme="midday-azure"] .xterm,
+html[data-theme="midday-azure"] .xterm .xterm-rows,
+html[data-theme="midday-azure"] .xterm .xterm-screen,
+html[data-theme="midday-azure"] .xterm .xterm-viewport,
+html[data-theme="sakura-blush"] .xterm,
+html[data-theme="sakura-blush"] .xterm .xterm-rows,
+html[data-theme="sakura-blush"] .xterm .xterm-screen,
+html[data-theme="sakura-blush"] .xterm .xterm-viewport,
+html[data-theme="cosmic-latte"] .xterm,
+html[data-theme="cosmic-latte"] .xterm .xterm-rows,
+html[data-theme="cosmic-latte"] .xterm .xterm-screen,
+html[data-theme="cosmic-latte"] .xterm .xterm-viewport,
+html[data-theme="sepia-paper"] .xterm,
+html[data-theme="sepia-paper"] .xterm .xterm-rows,
+html[data-theme="sepia-paper"] .xterm .xterm-screen,
+html[data-theme="sepia-paper"] .xterm .xterm-viewport {
+  color: var(--terminal-foreground) !important;
+}
+
+/* Force font family/size for light themes so mono text is consistent and legible */
+html[data-theme="light"] .xterm,
+html[data-theme="mist-harbor"] .xterm,
+html[data-theme="paper-sand"] .xterm {
+  font-family: var(--terminal-font-family) !important;
+  font-size: calc(var(--terminal-font-size) * 1px) !important;
+}
+
+/* caret & selection styling for those light themes */
+html[data-theme="light"] .xterm .xterm-cursor,
+html[data-theme="mist-harbor"] .xterm .xterm-cursor,
+html[data-theme="paper-sand"] .xterm .xterm-cursor,
+html[data-theme="midday-azure"] .xterm .xterm-cursor,
+html[data-theme="sakura-blush"] .xterm .xterm-cursor,
+html[data-theme="cosmic-latte"] .xterm .xterm-cursor,
+html[data-theme="sepia-paper"] .xterm .xterm-cursor {
+  background-color: var(--accent-primary) !important;
+  color: var(--background-primary) !important;
+}
+
+html[data-theme="light"] .xterm ::selection,
+html[data-theme="mist-harbor"] .xterm ::selection,
+html[data-theme="paper-sand"] .xterm ::selection,
+html[data-theme="midday-azure"] .xterm ::selection,
+html[data-theme="sakura-blush"] .xterm ::selection,
+html[data-theme="cosmic-latte"] .xterm ::selection,
+html[data-theme="sepia-paper"] .xterm ::selection {
+  background: var(--accent-primary-hover) !important;
+  color: var(--background-primary) !important;
+}

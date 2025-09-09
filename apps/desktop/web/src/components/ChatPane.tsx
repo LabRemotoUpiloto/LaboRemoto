@@ -27,6 +27,13 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const [mode, setMode] = useState<ChatMode>('ask');
   const [memory, setMemory] = useState<{ lastFile?: string }>({});
 
+  // Limpiar mensajes automáticamente al cambiar de modo
+  const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setMode(e.target.value as ChatMode);
+    setMessages([]);
+    setMemory({});
+  };
+
   // No SSH session input in this pane anymore; running commands must be done via the terminal/SSH pane.
 
   const handleNewChat = () => {
