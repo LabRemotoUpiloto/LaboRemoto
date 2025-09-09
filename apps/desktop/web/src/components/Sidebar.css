@@ -5,7 +5,7 @@
   left: 0;
   top: 50px; /* sit below the fixed header */
   /* use global palette variables to stay inside the theme */
-  background: linear-gradient(180deg, var(--background-secondary) 0%, var(--background-primary) 100%);
+  background: linear-gradient(180deg, var(--background-secondary) 0%, var(--background-tertiary) 50%, var(--background-primary) 100%);
   padding: 22px 12px;
   display: flex;
   flex-direction: column;
@@ -32,6 +32,9 @@
   align-items: center;
   position: relative;
 }
+
+/* ensure nav content appears above any sidebar overlay */
+.sidebar-nav, .nav-item, .nav-pill, .nav-item .icon, .nav-item .label { position: relative }
 
 .nav-pill {
   display: flex;
@@ -73,8 +76,9 @@
   top: 8px;
   bottom: 8px;
   width: 6px;
-  background: var(--accent-primary);
+  background: var(--accent-primary); /* theme-driven accent */
   border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 
 /* ensure the label and pill show slightly indented when active */
@@ -95,4 +99,7 @@
 
 .nav-item:active .nav-pill { transform: translateY(1px); }
 
-.empty { color: #9aa3b2; padding: 12px }
+.empty { color: var(--text-secondary); padding: 12px }
+
+/* Subtle animated RGB tint for Bold Rainbow theme (overlays the existing dark palette) */
+/* no animated overlay on sidebar - keep palette-driven background */
