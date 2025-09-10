@@ -43,14 +43,24 @@ html[data-theme="cosmic-latte"] .xterm .xterm-viewport,
 html[data-theme="sepia-paper"] .xterm,
 html[data-theme="sepia-paper"] .xterm .xterm-rows,
 html[data-theme="sepia-paper"] .xterm .xterm-screen,
-html[data-theme="sepia-paper"] .xterm .xterm-viewport {
+html[data-theme="sepia-paper"] .xterm .xterm-viewport,
+html[data-theme="polar-mint"] .xterm,
+html[data-theme="polar-mint"] .xterm .xterm-rows,
+html[data-theme="polar-mint"] .xterm .xterm-screen,
+html[data-theme="polar-mint"] .xterm .xterm-viewport,
+html[data-theme="granite-fog"] .xterm,
+html[data-theme="granite-fog"] .xterm .xterm-rows,
+html[data-theme="granite-fog"] .xterm .xterm-screen,
+html[data-theme="granite-fog"] .xterm .xterm-viewport {
   color: var(--terminal-foreground) !important;
 }
 
 /* Force font family/size for light themes so mono text is consistent and legible */
 html[data-theme="light"] .xterm,
 html[data-theme="mist-harbor"] .xterm,
-html[data-theme="paper-sand"] .xterm {
+html[data-theme="paper-sand"] .xterm,
+html[data-theme="polar-mint"] .xterm,
+html[data-theme="granite-fog"] .xterm {
   font-family: var(--terminal-font-family) !important;
   font-size: calc(var(--terminal-font-size) * 1px) !important;
 }
@@ -62,7 +72,9 @@ html[data-theme="paper-sand"] .xterm .xterm-cursor,
 html[data-theme="midday-azure"] .xterm .xterm-cursor,
 html[data-theme="sakura-blush"] .xterm .xterm-cursor,
 html[data-theme="cosmic-latte"] .xterm .xterm-cursor,
-html[data-theme="sepia-paper"] .xterm .xterm-cursor {
+html[data-theme="sepia-paper"] .xterm .xterm-cursor,
+html[data-theme="polar-mint"] .xterm .xterm-cursor,
+html[data-theme="granite-fog"] .xterm .xterm-cursor {
   background-color: var(--accent-primary) !important;
   color: var(--background-primary) !important;
 }
@@ -73,7 +85,9 @@ html[data-theme="paper-sand"] .xterm ::selection,
 html[data-theme="midday-azure"] .xterm ::selection,
 html[data-theme="sakura-blush"] .xterm ::selection,
 html[data-theme="cosmic-latte"] .xterm ::selection,
-html[data-theme="sepia-paper"] .xterm ::selection {
+html[data-theme="sepia-paper"] .xterm ::selection,
+html[data-theme="polar-mint"] .xterm ::selection,
+html[data-theme="granite-fog"] .xterm ::selection {
   background: var(--accent-primary-hover) !important;
   color: var(--background-primary) !important;
 }

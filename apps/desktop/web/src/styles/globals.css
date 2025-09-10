@@ -449,6 +449,20 @@ html[data-theme="sepia-paper"]{
   --terminal-foreground: #2c231a;
 }
 
+/* Fgonzalez (intermedio claro): legible en luz brillante pero no blanco puro */
+html[data-theme="granite-fog"]{
+  --background-primary: #a5abb4;   /* claro, más oscuro */
+  --background-secondary: #9da5af; /* paneles */
+  --background-tertiary: #959eaa;  /* barras/hover */
+  --text-primary: #0b1220;         /* texto oscuro */
+  --text-secondary: #253044;       /* slate más profundo para contraste */
+  --accent-primary: #22c55e;       /* verde accesible */
+  --accent-primary-hover: #86efac; /* hover suave */
+  --accent-strong: #16a34a;
+  --border-color: #8691a0;         /* bordes algo más marcados */
+  --terminal-foreground: #0b1220;  /* terminal con texto oscuro */
+}
+
 /* Ensure header controls remain legible (keep this so header text contrasts) */
 html[data-theme="bold-rainbow"] .app-header, html[data-theme="bold-rainbow"] .app-header .tab, html[data-theme="bold-rainbow"] .app-header .tabs .tab.active {
   color: #070707;
