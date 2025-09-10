@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import './ThemesPage.css'
 
@@ -38,14 +38,39 @@ const THEMES: { id: string; label: string; previewClass?: string }[] = [
 
 export default function ThemesPage(){
   const { theme, setTheme } = useTheme()
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  const onCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, idx: number, id: string) => {
+    const target = e.currentTarget
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      setTheme(id as any)
+      return
+    }
+    const grid = gridRef.current
+    if (!grid) return
+  const cards = Array.from(grid.querySelectorAll('.theme-card')) as HTMLElement[]
+  const focusCard = (i: number) => { const el = cards[i]; if (el) (el as HTMLElement).focus() }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); focusCard(Math.min(cards.length - 1, idx + 1)) }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); focusCard(Math.max(0, idx - 1)) }
+  }
   return (
     <div className="page-content themes-page">
       <h2 className="page-title">Temas</h2>
-      <div className="themes-grid">
-        {THEMES.map(t => (
-          <div key={t.id} className={`theme-card ${theme===t.id ? 'active' : ''}`} onClick={()=>setTheme(t.id as any)}>
+      <div className="themes-grid" role="radiogroup" aria-label="Selector de tema" ref={gridRef}>
+        {THEMES.map((t, i) => (
+          <div
+            key={t.id}
+            className={`theme-card ${theme===t.id ? 'active' : ''}`}
+            role="radio"
+            aria-checked={theme===t.id}
+            tabIndex={0}
+            onKeyDown={(e)=>onCardKeyDown(e, i, t.id)}
+            onClick={()=>setTheme(t.id as any)}
+          >
             {theme === t.id && <div className="selected-badge">Seleccionado</div>}
             <div className={`preview ${t.previewClass ?? ''}`} />
+            <button className="apply-btn" onClick={(e)=>{ e.stopPropagation(); setTheme(t.id as any) }}>Aplicar</button>
             {(t.previewClass === 'sunburst-rainbow' || t.previewClass === 'bold-rainbow') && (
               <div className="swatches">
                 {/* sunburst: 5 swatches, bold: 7 swatches */}
