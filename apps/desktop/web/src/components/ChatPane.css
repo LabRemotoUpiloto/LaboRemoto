@@ -10,8 +10,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border-color);
+}
+.chat-header button:focus, .chat-header select:focus {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* Make header controls pop more */
@@ -89,7 +93,7 @@
 
 .chat-input button {
   background-color: var(--accent-primary);
-  color: var(--background-primary);
+  color: var(--accent-contrast);
   border: none;
   padding: 0 20px;
   border-radius: 4px;
@@ -99,7 +103,7 @@
 /* Estilos para los botones de confirmación */
 .send-button {
   background-color: var(--accent-primary);
-  color: var(--background-primary);
+  color: var(--accent-contrast);
   border: none;
   padding: 6px 16px;
   border-radius: 4px;

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { saveHostEncrypted, saveHostWithMaster } from '../api/storage'
 import './HomeScreen.css'
 import { useLoading } from '../contexts/LoadingContext'
+import { useToasts } from '../contexts/ToastContext'
 
 type Props = {
   onConnected: (id: string) => void
@@ -19,6 +20,7 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
   const { setLoading } = useLoading()
   const [showSaveName, setShowSaveName] = useState(false)
   const [saveName, setSaveName] = useState('')
+  const { push } = useToasts()
 
   useEffect(() => {
     if (initialPayload) {
@@ -33,6 +35,8 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
       }
     }
   }, [initialPayload]);
+
+  const isValid = host.trim() && user.trim() && password.trim()
 
   const connect = async () => {
     setBusyLocal(true)
@@ -51,47 +55,78 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
     }
   }
 
+  const doSaveHost = useCallback(async () => {
+    if (!host || !user) { push({ type: 'error', message: 'Host y usuario requeridos' }); return }
+    const id = `${host}:${port}:${user}`
+    try {
+      const payload = { host, port, user, password, name: saveName || undefined }
+      await saveHostWithMaster(id, payload as any)
+      push({ type: 'success', message: 'Host guardado' })
+      setSaveName('')
+      setShowSaveName(false)
+    } catch (e: any) {
+      console.error('saveHostWithMaster error', e)
+      push({ type: 'error', message: 'Error guardando host' })
+    }
+  }, [host, port, user, password, saveName, push])
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    // Enter: conectar si válido; Ctrl/Cmd+S: guardar
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (isValid && !busyLocal) connect()
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault()
+      if (!showSaveName) setShowSaveName(true)
+      else doSaveHost()
+    }
+  }
+
   return (
     <div className="home-screen">
-      <div className="connect-box">
-        <input placeholder="host" value={host} onChange={e => setHost(e.target.value)} />
-        <input placeholder="puerto" type="number" value={port}
-          onChange={e => setPort(parseInt(e.target.value || '22'))} />
-        <input placeholder="usuario" value={user} onChange={e => setUser(e.target.value)} />
-        <input placeholder="password" type="password" value={password}
-          onChange={e => setPassword(e.target.value)} />
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            <div style={{display:'flex',gap:8}}>
-              <button onClick={connect} disabled={busyLocal}>Conectar</button>
-              {!showSaveName ? (
-                <button disabled={busyLocal} onClick={() => setShowSaveName(true)}>Guardar host</button>
-              ) : (
-                <>
-                  <button disabled={busyLocal} onClick={async () => {
-                    if (!host || !user) return alert('host and user required');
-                    const id = `${host}:${port}:${user}`;
-                    try {
-                      const payload = { host, port, user, password, name: saveName || undefined }
-                      await saveHostWithMaster(id, payload as any);
-                      alert('Host guardado (usando master-key en keychain)');
-                      setSaveName('')
-                      setShowSaveName(false)
-                    } catch (e: any) {
-                      console.error('saveHostWithMaster error', e);
-                      alert('Error guardando: ' + e?.toString?.());
-                    }
-                  }}>Confirmar guardar</button>
-                  <button onClick={() => { setShowSaveName(false); setSaveName('') }}>Cancelar</button>
-                </>
-              )}
-            </div>
-            {showSaveName && (
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                <input placeholder="Nombre (opcional)" value={saveName} onChange={e => setSaveName(e.target.value)} />
-                <small style={{color:'#999'}}>Puedes dejarlo vacío</small>
-              </div>
-            )}
+      <div className="connect-box" onKeyDown={onKeyDown}>
+        <div className="form-grid">
+          <div className="field host">
+            <label>Host</label>
+            <input placeholder="ej. 192.168.1.10" value={host} onChange={e => setHost(e.target.value)} />
           </div>
+          <div className="field port">
+            <label>Puerto</label>
+            <input placeholder="22" type="number" value={port} onChange={e => setPort(parseInt(e.target.value || '22'))} />
+          </div>
+          <div className="field user">
+            <label>Usuario</label>
+            <input placeholder="usuario" value={user} onChange={e => setUser(e.target.value)} />
+          </div>
+          <div className="field pass">
+            <label>Password</label>
+            <input placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          </div>
+        </div>
+        <div className="actions-row">
+          <button title={isValid ? '' : 'Completa host, usuario y password'} onClick={connect} disabled={busyLocal || !isValid}>
+            {busyLocal ? <span className="spinner" style={{ width:18, height:18, borderWidth:3, marginRight:8 }} /> : null}
+            Conectar
+          </button>
+          {!showSaveName ? (
+            <button className="ghost" disabled={busyLocal} onClick={() => setShowSaveName(true)}>Guardar host</button>
+          ) : (
+            <>
+              <button disabled={busyLocal} onClick={doSaveHost}>Confirmar guardar</button>
+              <button className="ghost" onClick={() => { setShowSaveName(false); setSaveName('') }}>Cancelar</button>
+            </>
+          )}
+        </div>
+        {showSaveName && (
+          <div className="save-row">
+            <label>Nombre (opcional)</label>
+            <div className="save-inline">
+              <input placeholder="Mi servidor" value={saveName} onChange={e => setSaveName(e.target.value)} />
+              <small className="muted">Ctrl/⌘+S para guardar rápidamente</small>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
