@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
-type Theme = 'dracula' | 'light' | 'default' | 'midnight-muse' | 'obsidian-rose' | 'mist-harbor' | 'paper-sand' | 'aurora-coral' | 'verdant-neon' | 'sunset-blush' | 'emerald-dusk' | 'moody-purple' | 'oceanic-teal' | 'ruby-night' | 'forest-moss' | 'sunburst-rainbow' | 'lime-electric' | 'berry-soda' | 'citrus-pop' | 'violet-ember' | 'bold-rainbow'
+type Theme = 'dracula' | 'light' | 'default' | 'midnight-muse' | 'obsidian-rose' | 'mist-harbor' | 'paper-sand' | 'aurora-coral' | 'verdant-neon' | 'sunset-blush' | 'emerald-dusk' | 'moody-purple' | 'oceanic-teal' | 'ruby-night' | 'forest-moss' | 'sunburst-rainbow' | 'lime-electric' | 'berry-soda' | 'citrus-pop' | 'violet-ember' | 'bold-rainbow' | 'granite-fog'
 
 type ThemeContextType = { theme: Theme; setTheme: (t: Theme)=>void }
 
@@ -10,6 +10,11 @@ export const ThemeProvider: React.FC<{children?: React.ReactNode}> = ({ children
   const [theme, setThemeState] = useState<Theme>(() => {
     try {
       const v = localStorage.getItem('theme')
+      // migrate old theme id if present
+      if (v === 'fgonzalez') {
+        try { localStorage.setItem('theme', 'granite-fog') } catch {}
+        return 'granite-fog' as Theme
+      }
       // Ensure we don't default to 'light' — prefer the 'default' palette
       if (v === 'light') {
         try { localStorage.setItem('theme', 'default') } catch {}

@@ -33,6 +33,7 @@ const THEMES: { id: string; label: string; previewClass?: string }[] = [
   { id: 'ember-dawn', label: 'Ember Dawn', previewClass: 'ember-dawn' },
   { id: 'nebula-ink', label: 'Nebula Ink', previewClass: 'nebula-ink' },
   { id: 'sepia-paper', label: 'Sepia Paper', previewClass: 'sepia-paper' },
+  { id: 'granite-fog', label: 'Granite Fog', previewClass: 'granite-fog' },
 ]
 
 export default function ThemesPage(){

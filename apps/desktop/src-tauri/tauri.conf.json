@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
     "build": {
-    "frontendDist": "../web/dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm --prefix ../web run dev",
-    "beforeBuildCommand": "npm --prefix ../web run build"
+  "frontendDist": "../desktop/web/dist",
+  "devUrl": "http://localhost:5173",
+  "beforeDevCommand": "npm --prefix ../desktop/web run dev",
+  "beforeBuildCommand": "npm --prefix ../desktop/web run build"
   },
   "app": {
     "windows": [

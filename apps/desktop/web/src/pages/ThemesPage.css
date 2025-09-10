@@ -46,6 +46,7 @@
 .theme-card .preview.ember-dawn{background:linear-gradient(180deg,#0b0807,#14100f)}
 .theme-card .preview.nebula-ink{background:linear-gradient(180deg,#05030a,#0a0713)}
 .theme-card .preview.sepia-paper{background:linear-gradient(180deg,#fbf5ef,#f3e9de)}
+.theme-card .preview.granite-fog{background:linear-gradient(180deg,#a5abb4,#9da5af)}
 
 /* Add small swatches row to better show rainbow palettes */
 .theme-card .swatches { display:flex; gap:6px; margin-top:6px }

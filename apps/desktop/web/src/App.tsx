@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import './App.css'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
@@ -51,9 +52,13 @@ const App: React.FC = () => {
     setActiveTabId(id)
   }
 
-  const handleCloseTab = (id: string) => {
-    closeTab(id)
-    // TODO: backend close (ssh_disconnect?)
+  const handleCloseTab = async (id: string) => {
+    try {
+      await invoke('ssh_disconnect', { id })
+      closeTab(id)
+    } catch (e: any) {
+      alert('No se pudo cerrar la sesión: ' + (e?.toString?.() ?? 'Error desconocido'))
+    }
   }
 
   const toggleSidebar = () => {
