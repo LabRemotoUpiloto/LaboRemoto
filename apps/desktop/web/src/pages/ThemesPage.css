@@ -4,7 +4,7 @@
 .themes-grid{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;max-height:calc(100vh - 220px);overflow:auto;padding-right:6px}
 .theme-card{width:160px;flex:0 0 160px;border-radius:10px;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));cursor:pointer;box-shadow:0 6px 18px rgba(2,6,23,0.25);position:relative}
 .theme-card.active{outline:2px solid rgba(0,0,0,0.06);transform:translateY(-4px)}
-.theme-card .selected-badge{position:absolute;top:8px;right:8px;background:var(--accent-primary);color:var(--text-primary);padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(2,6,23,0.4);z-index:60}
+.theme-card .selected-badge{position:absolute;top:8px;right:8px;background:var(--accent-primary);color:var(--accent-contrast);padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(2,6,23,0.4);z-index:60}
 
 /* stronger active border for rainbow themes */
 .theme-card.active { box-shadow: 0 10px 30px rgba(0,0,0,0.45) }

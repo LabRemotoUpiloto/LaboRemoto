@@ -1,29 +1,41 @@
 :root {
   --background-primary: #0B1220;
-  --background-secondary: #131B2D;
-  --background-tertiary: #1A2339;
+  --background-secondary: #0F172A; /* refined surface */
+  --background-tertiary: #111827; /* controls */
   --text-primary: #E5E7EB;
   --text-secondary: #9CA3AF;
-  --accent-primary: #34D399;
-  --accent-primary-hover: #6EE7B7;
-  --border-color: #374151;
+  --accent-primary: #10B981;        /* emerald 500 */
+  --accent-primary-hover: #059669;  /* emerald 600 */
+  --border-color: #1F2937;          /* consistent borders */
   /* terminal-specific defaults: prefer theme text color but allow per-theme overrides */
   --terminal-foreground: var(--text-primary);
   --terminal-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', 'Liberation Mono', monospace;
   --terminal-font-size: 13;
+
+  /* Semantic aliases (back-compat with existing CSS) */
+  --text-muted: var(--text-secondary);
+  --border: var(--border-color);
+  --ring: #22D3EE;
+  --accent-contrast: #061016;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --info: #22D3EE;
 }
 
 /* Theme variants applied via data-theme attribute on <html> */
 html[data-theme="default"] {
   --background-primary: #0B1220;
-  --background-secondary: #131B2D;
-  --background-tertiary: #1A2339;
+  --background-secondary: #0F172A;
+  --background-tertiary: #111827;
   --text-primary: #E5E7EB;
   --text-secondary: #9CA3AF;
-  --accent-primary: #34D399;
-  --accent-primary-hover: #6EE7B7;
+  --accent-primary: #10B981;
+  --accent-primary-hover: #059669;
   --accent-strong: #10b981;
-  --border-color: #374151;
+  --border-color: #1F2937;
+  --ring: #22D3EE;
+  --accent-contrast: #061016;
 }
 
 html[data-theme="dracula"] {
