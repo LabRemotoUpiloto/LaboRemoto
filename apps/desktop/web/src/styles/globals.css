@@ -1,18 +1,17 @@
 :root {
   --background-primary: #0B1220;
-  --background-secondary: #0F172A; /* refined surface */
-  --background-tertiary: #111827; /* controls */
+  --background-secondary: #0F172A;
+  --background-tertiary: #111827; 
   --text-primary: #E5E7EB;
   --text-secondary: #9CA3AF;
-  --accent-primary: #10B981;        /* emerald 500 */
-  --accent-primary-hover: #059669;  /* emerald 600 */
-  --border-color: #1F2937;          /* consistent borders */
+  --accent-primary: #10B981;        
+  --accent-primary-hover: #059669;  
+  --border-color: #1F2937;          
   /* terminal-specific defaults: prefer theme text color but allow per-theme overrides */
   --terminal-foreground: var(--text-primary);
   --terminal-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', 'Liberation Mono', monospace;
   --terminal-font-size: 13;
 
-  /* Semantic aliases (back-compat with existing CSS) */
   --text-muted: var(--text-secondary);
   --border: var(--border-color);
   --ring: #22D3EE;
@@ -223,14 +222,14 @@ html[data-theme="sunburst-rainbow"]{
   --background-tertiary: #0f0f0f;
   --text-primary: #ffffff;
   --text-secondary: #f0f0f0;
-  --accent-primary: #ff4b6b; /* vivid magenta */
-  --accent-1: #ffb26b; /* orange */
-  --accent-2: #ffd56b; /* yellow */
-  --accent-3: #6bff8b; /* green */
-  --accent-4: #6bd7ff; /* cyan */
-  --accent-5: #6b8bff; /* blue */
-  --accent-primary-hover: #ff8fb0; /* lighter magenta */
-  --accent-strong: #ffd56b; /* yellow */
+  --accent-primary: #ff4b6b;
+  --accent-1: #ffb26b;
+  --accent-2: #ffd56b;
+  --accent-3: #6bff8b;
+  --accent-4: #6bd7ff; 
+  --accent-5: #6b8bff;
+  --accent-primary-hover: #ff8fb0;
+  --accent-strong: #ffd56b;
   --border-color: rgba(255,255,255,0.06);
 }
 
@@ -310,13 +309,13 @@ html[data-theme="bold-rainbow"]{
   --background-tertiary: #111111;
   --text-primary: #ffffff;
   --text-secondary: #e6e6e6;
-  --accent-primary: #ff3b7a; /* hot magenta */
-  --accent-1: #ff8b3b; /* orange */
-  --accent-2: #ffe33b; /* yellow */
-  --accent-3: #4bff7a; /* green */
-  --accent-4: #39d6ff; /* cyan */
-  --accent-5: #6b7bff; /* blue */
-  --accent-primary-hover: #ffb86b; /* warm hover */
+  --accent-primary: #ff3b7a; 
+  --accent-1: #ff8b3b;
+  --accent-2: #ffe33b;
+  --accent-3: #4bff7a;
+  --accent-4: #39d6ff;
+  --accent-5: #6b7bff;
+  --accent-primary-hover: #ffb86b;
   --accent-strong: #ffd56b;
   --border-color: rgba(255,255,255,0.05);
 }
@@ -461,18 +460,17 @@ html[data-theme="sepia-paper"]{
   --terminal-foreground: #2c231a;
 }
 
-/* Fgonzalez (intermedio claro): legible en luz brillante pero no blanco puro */
 html[data-theme="granite-fog"]{
-  --background-primary: #a5abb4;   /* claro, más oscuro */
-  --background-secondary: #9da5af; /* paneles */
-  --background-tertiary: #959eaa;  /* barras/hover */
-  --text-primary: #0b1220;         /* texto oscuro */
-  --text-secondary: #253044;       /* slate más profundo para contraste */
-  --accent-primary: #22c55e;       /* verde accesible */
-  --accent-primary-hover: #86efac; /* hover suave */
+  --background-primary: #a5abb4;  
+  --background-secondary: #9da5af;
+  --background-tertiary: #959eaa; 
+  --text-primary: #0b1220;        
+  --text-secondary: #253044;     
+  --accent-primary: #22c55e;    
+  --accent-primary-hover: #86efac;
   --accent-strong: #16a34a;
-  --border-color: #8691a0;         /* bordes algo más marcados */
-  --terminal-foreground: #0b1220;  /* terminal con texto oscuro */
+  --border-color: #8691a0;      
+  --terminal-foreground: #0b1220; 
 }
 
 /* Ensure header controls remain legible (keep this so header text contrasts) */
