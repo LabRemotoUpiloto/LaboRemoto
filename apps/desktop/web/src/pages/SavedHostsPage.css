@@ -11,10 +11,11 @@
 .host-title { font-weight:800; color:var(--text-primary); font-size:15px }
 .host-sub { color:var(--text-secondary); margin-top:6px; font-size:13px }
 .host-card-actions { display:flex; gap:8px }
-.btn { padding:8px 12px; border-radius:12px; border:1px solid transparent; cursor:pointer }
+.btn { padding:8px 12px; border-radius:12px; border:1px solid transparent; cursor:pointer; transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease }
  .btn-connect { background: var(--accent-primary); color: var(--accent-contrast); }
  .btn-connect:hover { background: var(--accent-primary-hover) }
  .btn-delete { background: transparent; color: #EF4444; border:1px solid #EF4444; }
+	.btn-delete:hover { background: #EF4444; color: #ffffff; border-color: #EF4444 }
 .empty { color:var(--text-secondary); padding: 18px }
 
 /* loading overlay */
