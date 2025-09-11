@@ -58,7 +58,7 @@ export default function ThemesPage(){
     <div className="page-content themes-page">
       <h2 className="page-title">Temas</h2>
       <div className="themes-grid" role="radiogroup" aria-label="Selector de tema" ref={gridRef}>
-        {THEMES.map((t, i) => (
+    {THEMES.map((t, i) => (
           <div
             key={t.id}
             className={`theme-card ${theme===t.id ? 'active' : ''}`}
@@ -68,9 +68,7 @@ export default function ThemesPage(){
             onKeyDown={(e)=>onCardKeyDown(e, i, t.id)}
             onClick={()=>setTheme(t.id as any)}
           >
-            {theme === t.id && <div className="selected-badge">Seleccionado</div>}
-            <div className={`preview ${t.previewClass ?? ''}`} />
-            <button className="apply-btn" onClick={(e)=>{ e.stopPropagation(); setTheme(t.id as any) }}>Aplicar</button>
+      <div className={`preview ${t.previewClass ?? ''}`} />
             {(t.previewClass === 'sunburst-rainbow' || t.previewClass === 'bold-rainbow') && (
               <div className="swatches">
                 {/* sunburst: 5 swatches, bold: 7 swatches */}

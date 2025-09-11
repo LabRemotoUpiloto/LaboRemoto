@@ -1,9 +1,13 @@
 .themes-page{padding:28px}
 .page-title{color:var(--text-primary);margin:8px 0 18px;font-size:18px}
 
-.themes-grid{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;max-height:calc(100vh - 220px);overflow:auto;padding-right:6px}
-.theme-card{width:160px;flex:0 0 160px;border-radius:12px;padding:14px;background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.03));cursor:pointer;box-shadow:0 8px 22px rgba(2,6,23,0.28);position:relative;border:1px solid var(--border);transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease}
-.theme-card:hover{ transform: translateY(-4px) scale(1.01) }
+.themes-grid{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;max-height:calc(100vh - 170px);/* was 220px */overflow:auto;padding:16px 16px 64px 16px;scroll-padding:16px;scrollbar-gutter: stable both-edges}
+.theme-card{width:160px;flex:0 0 160px;border-radius:12px;padding:14px;background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.03));cursor:pointer;box-shadow:0 8px 22px rgba(2,6,23,0.28);position:relative;border:1px solid var(--border);transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; scroll-margin: 20px}
+.theme-card:not(.active):hover{
+	transform: translateY(-4px) scale(1.01);
+	/* single pulse that ends with a visible 2px ring until hover ends */
+	animation: themeHoverPulse 650ms ease-out forwards;
+}
 .theme-card:focus-visible{ outline:none; box-shadow:0 0 0 3px var(--ring), 0 8px 24px rgba(0,0,0,.45) }
 .theme-card.active{ box-shadow:0 0 0 2px var(--accent-primary), 0 10px 30px rgba(0,0,0,.35); border-color: color-mix(in oklab, var(--accent-primary) 30%, var(--border)); transform: translateY(-2px) }
 /* removed duplicate selected-badge; see enhanced version below */
@@ -19,7 +23,7 @@
 	background-size: 200% 100%;
 }
 .theme-card .preview{height:90px;border-radius:8px;margin-bottom:8px;background:linear-gradient(180deg, var(--background-secondary), var(--background-tertiary)); position:relative; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02) }
-.theme-card .selected-badge{position:absolute;top:8px;right:8px;background:var(--accent-primary);color:var(--accent-contrast);padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(2,6,23,0.4);z-index:60; border:1px solid color-mix(in oklab, var(--accent-primary) 55%, var(--border))}
+/* selected badge removed as selection is conveyed by active ring */
 .theme-card .preview.default{background:linear-gradient(180deg,#0B1220,#131B2D)}
 .theme-card .preview.dracula{background:linear-gradient(180deg,#282a36,#1e1f2b)}
 .theme-card .preview.light{background:linear-gradient(180deg,#f6f7fb,#eef2f7)}
@@ -51,9 +55,7 @@
 .theme-card .preview.sepia-paper{background:linear-gradient(180deg,#fbf5ef,#f3e9de)}
 .theme-card .preview.granite-fog{background:linear-gradient(180deg,#a5abb4,#9da5af)}
 
-/* Micro botón "Aplicar" (aparece en hover/focus) */
-.apply-btn{ position:absolute; left:10px; bottom:10px; padding:4px 10px; border-radius:999px; background:var(--accent-primary); color:var(--accent-contrast); border:1px solid transparent; font-size:12px; font-weight:700; opacity:0; transform: translateY(4px); transition: opacity .16s ease, transform .16s ease }
-.theme-card:hover .apply-btn, .theme-card:focus-within .apply-btn{ opacity:1; transform: translateY(0) }
+/* apply button removed */
 
 /* Add small swatches row to better show rainbow palettes */
 .theme-card .swatches { display:flex; gap:6px; margin-top:6px }
@@ -79,8 +81,15 @@
 	animation: rainbowShift 8s linear infinite;
 }
 
-.theme-card:hover { transform: translateY(-6px) scale(1.02) }
+.theme-card:hover { transform: translateY(-4px) scale(1.01) }
 .theme-card .preview:hover{ filter: saturate(1.06) brightness(1.02) }
+
+/* Subtle hover pulse (only for non-selected cards) */
+@keyframes themeHoverPulse {
+	0%   { box-shadow: 0 8px 22px rgba(2,6,23,0.28), 0 0 0 0 color-mix(in oklab, var(--accent-primary) 0%, transparent) }
+	50%  { box-shadow: 0 8px 24px rgba(2,6,23,0.34), 0 0 0 6px color-mix(in oklab, var(--accent-primary) 38%, transparent) }
+	100% { box-shadow: 0 8px 24px rgba(2,6,23,0.34), 0 0 0 2px color-mix(in oklab, var(--accent-primary) 45%, var(--border)) }
+}
 
 @keyframes rainbowShift {
 	0% { background-position: 0% 50% }
