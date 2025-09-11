@@ -1,3 +1,4 @@
+// Almacenamiento cifrado de hosts: guarda/lee entradas usando claves derivadas.
 use anyhow::{Context, anyhow};
 use argon2::{password_hash::SaltString, Params};
 use keyring::Entry;
@@ -14,8 +15,9 @@ use rand::rngs::OsRng;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 
-const STORAGE_SUBDIR: &str = "hosts";
+const STORAGE_SUBDIR: &str = "hosts"; // subdirectorio dentro del data_dir de la app
 
+/// Directorio de almacenamiento de la app (por usuario/SO). Crea si no existe.
 fn storage_dir() -> anyhow::Result<PathBuf> {
   let proj = ProjectDirs::from("com", "example", "ssh-ai-client")
     .context("cannot determine project dir")?;
@@ -24,8 +26,9 @@ fn storage_dir() -> anyhow::Result<PathBuf> {
   Ok(dir)
 }
 
+/// Deriva una clave simétrica a partir de passphrase + salt usando Argon2id.
 fn derive_key_from_pass(passphrase: &str, salt: &[u8]) -> anyhow::Result<Key> {
-  // Use Argon2id with conservative params
+  // Argon2id con parámetros conservadores
   let params = Params::new(15000, 2, 1, None).unwrap_or_default();
   let mut out = [0u8; 32];
   let argon = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
@@ -35,8 +38,9 @@ fn derive_key_from_pass(passphrase: &str, salt: &[u8]) -> anyhow::Result<Key> {
   Ok(Key::from_slice(&out).clone())
 }
 
+/// Obtiene o crea una clave maestra (32 bytes) desde el llavero del sistema.
 fn get_or_create_master_key() -> anyhow::Result<[u8; 32]> {
-  // Use keyring to store/retrieve 32 bytes master key
+  // Usa keyring para almacenar/recuperar clave maestra
   let service = "ssh-ai-client";
   let user = whoami::username();
   let kr = Entry::new(service, &user);
@@ -46,7 +50,7 @@ fn get_or_create_master_key() -> anyhow::Result<[u8; 32]> {
     key.copy_from_slice(&b[..32]);
     return Ok(key);
   }
-  // generate
+  // generar si no existe
   let mut key = [0u8; 32];
   OsRng.fill_bytes(&mut key);
   let encoded = STANDARD.encode(&key);
@@ -54,6 +58,7 @@ fn get_or_create_master_key() -> anyhow::Result<[u8; 32]> {
   Ok(key)
 }
 
+/// Resuelve un nombre de archivo estable a partir de un id lógico (hash SHA-256 truncado).
 fn file_for_id(id: &str) -> anyhow::Result<PathBuf> {
   let mut path = storage_dir()?;
   // sanitize id for filename
@@ -64,6 +69,7 @@ fn file_for_id(id: &str) -> anyhow::Result<PathBuf> {
   Ok(path)
 }
 
+/// Lista archivos .json.enc almacenados.
 pub fn list_hosts() -> anyhow::Result<Vec<String>> {
   let dir = storage_dir()?;
   let mut out = vec![];
@@ -78,8 +84,9 @@ pub fn list_hosts() -> anyhow::Result<Vec<String>> {
   Ok(out)
 }
 
+/// Elimina una entrada por filename directo o por id lógico.
 pub fn delete_host(id: &str) -> anyhow::Result<()> {
-  // If caller passed a filename (e.g. "abcd1234.json.enc"), delete that file directly
+  // Si recibe un nombre de archivo ("abcd1234.json.enc"), borrar directamente
   if id.ends_with(".json.enc") {
     let mut path = storage_dir()?;
     // ensure we only join a basename
@@ -94,7 +101,7 @@ pub fn delete_host(id: &str) -> anyhow::Result<()> {
     return Ok(());
   }
 
-  // otherwise treat `id` as the logical id and compute its filename
+  // Si no, tratar `id` como lógico y resolver filename
   let f = file_for_id(id)?;
   if f.exists() {
     fs::remove_file(f)?;
@@ -102,6 +109,7 @@ pub fn delete_host(id: &str) -> anyhow::Result<()> {
   Ok(())
 }
 
+/// Guarda un host cifrado con clave derivada de passphrase.
 pub fn save_host_with_pass(passphrase: &str, id: &str, json_payload: &str) -> anyhow::Result<()> {
   let salt = SaltString::generate(&mut OsRng).as_ref().as_bytes().to_vec();
   let key = derive_key_from_pass(passphrase, &salt)?;
@@ -111,7 +119,7 @@ pub fn save_host_with_pass(passphrase: &str, id: &str, json_payload: &str) -> an
   let nonce = Nonce::from_slice(&nonce_bytes);
   let ciphertext = cipher.encrypt(nonce, json_payload.as_bytes()).map_err(|e| anyhow!(format!("encrypt failed: {}", e)))?;
 
-  // store: salt (base64) + nonce (base64) + ciphertext (base64) as JSON
+  // Almacenar: salt + nonce + ciphertext (todos en base64) dentro de un JSON
   let blob = serde_json::json!({
     "salt": STANDARD.encode(&salt),
     "nonce": STANDARD.encode(&nonce_bytes),
@@ -123,9 +131,10 @@ pub fn save_host_with_pass(passphrase: &str, id: &str, json_payload: &str) -> an
   Ok(())
 }
 
+/// Guarda un host cifrado con clave derivada de la clave maestra mediante HKDF.
 pub fn save_host_with_master(id: &str, json_payload: &str) -> anyhow::Result<()> {
   let master = get_or_create_master_key()?;
-  // derive per-file key with HKDF
+  // derivar clave por archivo con HKDF
   let salt = SaltString::generate(&mut OsRng).as_ref().as_bytes().to_vec();
   let hk = Hkdf::<Sha256Hkdf>::new(Some(&salt), &master);
   let mut out = [0u8; 32];
@@ -146,6 +155,7 @@ pub fn save_host_with_master(id: &str, json_payload: &str) -> anyhow::Result<()>
   Ok(())
 }
 
+/// Carga y descifra una entrada usando la clave maestra.
 pub fn load_host_with_master(id: &str) -> anyhow::Result<String> {
   let path = file_for_id(id)?;
   let data = fs::read_to_string(path)?;
@@ -168,6 +178,7 @@ pub fn load_host_with_master(id: &str) -> anyhow::Result<String> {
   Ok(s)
 }
 
+/// Carga y descifra una entrada usando passphrase.
 pub fn load_host_with_pass(passphrase: &str, id: &str) -> anyhow::Result<String> {
   let path = file_for_id(id)?;
   let data = fs::read_to_string(path)?;
@@ -186,6 +197,7 @@ pub fn load_host_with_pass(passphrase: &str, id: &str) -> anyhow::Result<String>
   Ok(s)
 }
 
+/// Lista todas las entradas devolviendo (archivo + payload descifrado) para mostrarlas en UI.
 pub fn list_hosts_entries() -> anyhow::Result<Vec<serde_json::Value>> {
   let dir = storage_dir()?;
   let mut out = vec![];
@@ -218,7 +230,7 @@ pub fn list_hosts_entries() -> anyhow::Result<Vec<serde_json::Value>> {
   Ok(out)
 }
 
-/// Load and decrypt a stored host by its filename inside the storage dir (e.g. "abcd1234.json.enc").
+/// Carga y descifra un host por su filename dentro del directorio de storage (p.ej. "abcd1234.json.enc").
 pub fn load_host_from_file(filename: &str) -> anyhow::Result<String> {
   let mut path = storage_dir()?;
   path.push(filename);

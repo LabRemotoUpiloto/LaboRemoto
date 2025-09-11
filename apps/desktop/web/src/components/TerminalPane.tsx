@@ -1,3 +1,4 @@
+// Panel del terminal: instancia xterm, ajusta tamaño y suscribe a eventos Tauri.
 import React, { useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -17,6 +18,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const fitRef = useRef<FitAddon | null>(null);
   const unlistenRef = useRef<(() => void) | null>(null);
 
+  // Montaje del terminal (una sola vez)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -31,7 +33,8 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     termRef.current = term;
     fitRef.current = fit;
 
-    const onResize = () => {
+  // Ajustar tamaño al cambiar ventana y notificar al backend
+  const onResize = () => {
       try { fit.fit(); } catch {}
       if (sessionId) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
     };
@@ -50,6 +53,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Suscribirse a la sesión SSH específica (cambio de sessionId)
   useEffect(() => {
     const term = termRef.current;
     if (!term) return;
@@ -70,7 +74,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
         if (event.payload) term.write(event.payload);
       }).then(un => { unlistenRef.current = un }).catch(() => {});
 
-      // initial resize
+  // Redimensionado inicial
       invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
     }
 
