@@ -1,5 +1,5 @@
 // Panel de chat: integra modo ASK (explicar) y AGENT (sugerir/confirmar comandos).
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './ChatPane.css';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -27,6 +27,26 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
   const [memory, setMemory] = useState<{ lastFile?: string }>({});
+  const [isSending, setIsSending] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  // Referencia para el contenedor de mensajes (auto-scroll inteligente)
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+
+  const isNearBottom = (el: HTMLElement, threshold = 4) =>
+    el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+
+  // Auto-scroll al último mensaje solo si el usuario está cerca del fondo
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    if (isNearBottom(el)) {
+      el.scrollTop = el.scrollHeight;
+      setShowScrollToBottom(false);
+    } else {
+      setShowScrollToBottom(true);
+    }
+  }, [messages]);
 
   // Limpiar mensajes automáticamente al cambiar de modo
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -45,6 +65,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
   // Enviar prompt al backend (Tauri -> ai_chat) y procesar respuesta
   const handleSend = async () => {
+    if (isSending) return; // previene duplicados
     const trimmed = input.trim();
     if (!trimmed) return;
 
@@ -63,6 +84,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     setInput('');
 
     try {
+      setIsSending(true);
       const modeValue = mode === 'agent' ? 'AGENT' : 'ASK';
       // Call Tauri command ai_chat
       const res = await invoke<AiResponse>('ai_chat', {
@@ -200,21 +222,33 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
     } catch (e: any) {
       setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+    } finally {
+      setIsSending(false);
     }
   };
 
   return (
     <div className="chat-pane">
       <div className="chat-header">
-        <button onClick={handleNewChat}>New Chat</button>
-        <select value={mode} onChange={handleModeChange}>
-          <option value="ask">Ask Mode</option>
-          <option value="agent">Agent Mode</option>
+        <button onClick={handleNewChat} aria-label="Nuevo chat">Nuevo chat</button>
+        <select value={mode} onChange={handleModeChange} aria-label="Seleccionar modo de chat">
+          <option value="ask">Modo Consulta</option>
+          <option value="agent">Modo Agente</option>
         </select>
         {/* No SSH session id field anymore */}
       </div>
 
-      <div className="chat-messages">
+      <div
+        className="chat-messages"
+        ref={messagesRef}
+        role="log"
+        aria-live="polite"
+        aria-busy={isSending ? true : undefined}
+        onScroll={(e) => {
+          const el = e.currentTarget as HTMLDivElement;
+          setShowScrollToBottom(!isNearBottom(el));
+        }}
+      >
         {messages.map((msg) => {
           // detect command candidates in AI response (si lo quieres usar luego)
           let cmdCandidate: string | null = null;
@@ -252,57 +286,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
               {/* Confirmation UI para comando pendiente */}
               {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: '12px',
-                    backgroundColor: '#1a1a1a',
-                    borderRadius: '6px',
-                    border: '1px solid #333'
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: '0 0 8px 0',
-                      color: '#e0e0e0',
-                      fontSize: '14px'
-                    }}
-                  >
-                    {msg.text}
-                  </p>
+                <div className="confirm-card" tabIndex={0}>
+                  <p className="confirm-text">{msg.text}</p>
 
-                  <div
-                    style={{
-                      backgroundColor: '#2d2d2d',
-                      padding: '10px',
-                      borderRadius: '4px',
-                      border: '1px solid #404040',
-                      marginTop: '8px'
-                    }}
-                  >
-                    <pre
-                      style={{
-                        margin: 0,
-                        color: '#e0e0e0',
-                        fontSize: '13px',
-                        fontFamily: 'monospace'
-                      }}
-                    >
-                      {msg.meta.pendingCommand}
-                    </pre>
+                  <div className="confirm-code">
+                    <pre className="code-output">{msg.meta.pendingCommand}</pre>
                   </div>
 
-                  <p
-                    style={{
-                      margin: '12px 0',
-                      color: '#e0e0e0',
-                      fontSize: '14px'
-                    }}
-                  >
-                    ¿Deseas ejecutar este comando en la terminal?
-                  </p>
+                  <p className="confirm-question">¿Deseas ejecutar este comando en la terminal?</p>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div className="confirm-actions">
                     <button
                       onClick={async () => {
                         try {
@@ -336,6 +329,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                         }
                       }}
                       className="send-button"
+                      aria-label="Confirmar ejecución"
                     >
                       Confirmar
                     </button>
@@ -350,6 +344,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                         );
                       }}
                       className="cancel-button"
+                      aria-label="Cancelar ejecución"
                     >
                       Cancelar
                     </button>
@@ -359,10 +354,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
               {/* Confirmation UI para creación de archivo pendiente */}
               {msg.sender === 'system' && msg.meta?.pendingFileCreation && (
-                <div style={{ marginTop: 8 }}>
-                  <p>{msg.text}</p>
-                  <p>Contenido del archivo:</p>
-                  <pre className="code-output">{msg.meta.pendingFileCreation.fileContent}</pre>
+                <div className="confirm-card" style={{ marginTop: 8 }}>
+                  <p className="confirm-text">{msg.text}</p>
+                  <p className="confirm-sub">Contenido del archivo:</p>
+                  <div className="confirm-code">
+                    <pre className="code-output">{msg.meta.pendingFileCreation.fileContent}</pre>
+                  </div>
                   <button
                     onClick={async () => {
                       try {
@@ -381,6 +378,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                         ]);
                       }
                     }}
+                    className="send-button"
+                    aria-label="Confirmar creación de archivo"
                   >
                     Confirmar
                   </button>
@@ -394,7 +393,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                         )
                       );
                     }}
-                    style={{ marginLeft: 8 }}
+                    className="cancel-button"
+                    aria-label="Cancelar creación de archivo"
                   >
                     Cancelar
                   </button>
@@ -403,16 +403,32 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             </div>
           );
         })}
+        {showScrollToBottom && (
+          <button
+            className="scroll-to-bottom"
+            aria-label="Bajar al último mensaje"
+            title="Bajar"
+            onClick={() => {
+              const el = messagesRef.current; if (!el) return;
+              el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+              setShowScrollToBottom(false);
+            }}
+          >
+            ↓
+          </button>
+        )}
       </div>
 
       <div className="chat-input">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask something..."
+          placeholder={mode === 'agent' ? 'Escribe tu mensaje… (Se pedirá confirmación para comandos)' : 'Escribe tu mensaje…'}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         />
-        <button onClick={handleSend}>Send</button>
+        <button onClick={handleSend} disabled={isSending} aria-label="Enviar mensaje">
+          {isSending ? 'Enviando…' : 'Enviar'}
+        </button>
       </div>
     </div>
   );
