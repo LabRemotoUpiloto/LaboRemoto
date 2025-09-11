@@ -13,7 +13,8 @@ type Props = {
 
 export default function ConnectForm({ onConnected, getTermSize, initialPayload }: Props) {
   const [host, setHost] = useState('')
-  const [port, setPort] = useState<number>(22)
+  // Port como string para permitir borrar completamente y evitar spinners
+  const [port, setPort] = useState<string>('22')
   const [user, setUser] = useState('')
   const [password, setPassword] = useState('')
   const [busyLocal, setBusyLocal] = useState(false) // keep local to disable inputs in this component
@@ -26,7 +27,7 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
     if (initialPayload) {
       const p = initialPayload;
       if (p.host) setHost(p.host);
-      if (p.port) setPort(p.port);
+  if (p.port) setPort(String(p.port));
       if (p.user) setUser(p.user);
       if (p.password) setPassword(p.password);
       if (p.autoConnect) {
@@ -42,9 +43,12 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
     setBusyLocal(true)
     setLoading(true, `Conectando ${host}...`)
     try {
+      // Parsear puerto (por defecto 22 si vacío o inválido)
+      const parsedPort = parseInt((port || '22').trim(), 10)
+      const safePort = (parsedPort > 0 && parsedPort <= 65535) ? parsedPort : 22
       const size = getTermSize ? getTermSize() : { cols: 80, rows: 24 }
       const id = await invoke<string>('ssh_connect', {
-        host, port, user, password, cols: size.cols, rows: size.rows,
+        host, port: safePort, user, password, cols: size.cols, rows: size.rows,
       })
       onConnected(id)
     } catch (e: any) {
@@ -57,9 +61,11 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
 
   const doSaveHost = useCallback(async () => {
     if (!host || !user) { push({ type: 'error', message: 'Host y usuario requeridos' }); return }
-    const id = `${host}:${port}:${user}`
+    const parsedPort = parseInt((port || '22').trim(), 10)
+    const safePort = (parsedPort > 0 && parsedPort <= 65535) ? parsedPort : 22
+    const id = `${host}:${safePort}:${user}`
     try {
-      const payload = { host, port, user, password, name: saveName || undefined }
+      const payload = { host, port: safePort, user, password, name: saveName || undefined }
       await saveHostWithMaster(id, payload as any)
       push({ type: 'success', message: 'Host guardado' })
       setSaveName('')
@@ -93,7 +99,17 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
           </div>
           <div className="field port">
             <label>Puerto</label>
-            <input placeholder="22" type="number" value={port} onChange={e => setPort(parseInt(e.target.value || '22'))} />
+            {/* Input de texto con teclado numérico; sin spinners; permite vaciar */}
+            <input
+              placeholder="22"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={port}
+              onChange={e => setPort(e.target.value)}
+              onWheel={(e) => { try { (e.target as HTMLInputElement).blur() } catch {} }}
+              autoComplete="off"
+            />
           </div>
           <div className="field user">
             <label>Usuario</label>
