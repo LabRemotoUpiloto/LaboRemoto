@@ -47,13 +47,13 @@
 
 .chat-messages {
   flex-grow: 1;
-  padding: 10px;
+  padding: 10px 10px 24px; /* más aire al final */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  /* Keep layout stable when scrollbar appears */
+  gap: 15px; /* más espacio entre mensajes */
   scrollbar-gutter: stable both-edges;
+  position: relative; /* para el botón flotante */
 }
 
 .message {
@@ -75,6 +75,8 @@
   box-shadow: 0 1px 0 rgba(0,0,0,0.08);
   align-self: flex-start;
 }
+
+/* acciones rápidas en mensajes (removidas) */
 
 .chat-input {
   display: flex;
@@ -100,7 +102,11 @@
   padding: 0 20px;
   border-radius: 4px;
   cursor: pointer;
+  transition: background-color 160ms ease, transform 80ms ease;
 }
+.chat-input button:hover { background-color: var(--accent-primary-hover) }
+.chat-input button:active { transform: translateY(1px) }
+.chat-input button[disabled] { opacity: .7; cursor: not-allowed }
 
 /* Estilos para los botones de confirmación */
 .send-button {
@@ -122,6 +128,44 @@
   cursor: pointer;
   font-size: 14px;
 }
+.send-button:focus-visible, .cancel-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px }
+
+/* Tarjeta de confirmación (sin inline styles) */
+.confirm-card { 
+  margin-top: 8px;
+  padding: 12px;
+  background-color: var(--background-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+.confirm-text { margin: 0 0 8px 0; color: var(--text-primary); font-size: 14px }
+.confirm-sub { margin: 6px 0; color: var(--text-secondary); font-size: 13px }
+.confirm-question { margin: 12px 0; color: var(--text-primary); font-size: 14px }
+.confirm-code { position: relative; background: var(--background-secondary); border:1px solid var(--border-color); padding: 10px; border-radius: 6px }
+.code-output { margin: 0; color: var(--text-primary); font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; white-space: pre-wrap; overflow-x: auto }
+
+/* Botón flota para bajar al último mensaje */
+.scroll-to-bottom {
+  position: sticky; /* permanece visible al desplazarse */
+  bottom: 12px;
+  margin-left: auto;
+  margin-right: 12px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--background-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.28);
+  opacity: 0.92;
+  z-index: 2;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, opacity 160ms ease, transform 80ms ease;
+}
+.scroll-to-bottom:hover { background: var(--background-tertiary); color: var(--text-primary); opacity: 1 }
+.scroll-to-bottom:active { transform: translateY(1px) }
 
 .chat-messages { scrollbar-width: thin; scrollbar-color: var(--accent-primary) rgba(255,255,255,0.04); }
 
