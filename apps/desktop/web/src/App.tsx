@@ -1,3 +1,4 @@
+// App raíz: manejo de pestañas (Inicio persistente + sesiones) y navegación lateral.
 import React, { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import './App.css'
@@ -15,21 +16,24 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import ThemesPage from './pages/ThemesPage'
 
 const App: React.FC = () => {
+  // Representa una pestaña: 'home' (persistente) o 'session' (SSH)
   type Tab = { id: string; type: 'home' | 'session'; label: string }
   const HOME_ID = 'home'
   const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_ID, type: 'home', label: 'Inicio' }])
   const [activeTabId, setActiveTabId] = useState<string>(HOME_ID)
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [pendingHost, setPendingHost] = useState<any | null>(null)
-  const [selectedPage, setSelectedPage] = useState<string>('connect')
+  const [selectedPage, setSelectedPage] = useState<string>('connect') // subpágina dentro de Inicio
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
+  // Abre una nueva sesión si no existe, y la activa
   const openSession = (id: string) => {
     setTabs(prev => prev.some(t => t.id === id) ? prev : [...prev, { id, type: 'session', label: id }])
     setActiveTabId(id)
   }
 
+  // Cierra pestaña (no permite cerrar Inicio) y re-calcula activa
   const closeTab = (id: string) => {
     if (id === HOME_ID) return
     setTabs(prev => {
@@ -52,6 +56,7 @@ const App: React.FC = () => {
     setActiveTabId(id)
   }
 
+  // Al cerrar una sesión, pedir al backend que desconecte antes de remover la pestaña
   const handleCloseTab = async (id: string) => {
     try {
       await invoke('ssh_disconnect', { id })

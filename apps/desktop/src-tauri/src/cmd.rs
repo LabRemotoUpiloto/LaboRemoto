@@ -1,3 +1,4 @@
+// Comandos Tauri expuestos al frontend: SSH, almacenamiento y chat con IA.
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use crate::error::AppError;
@@ -13,12 +14,14 @@ use reqwest::Client;
 use dotenvy::dotenv;
 use std::env;
 
+/// Petición para el chat con IA.
 #[derive(Serialize, Deserialize)]
 pub struct AiChatRequest {
   pub user_input: String,
   pub mode: Option<String>,
 }
 
+/// Respuesta del chat con IA (algunos campos son opcionales según el modo).
 #[derive(Serialize, Deserialize)]
 pub struct AiChatResponse {
   pub user_input: String,
@@ -28,6 +31,10 @@ pub struct AiChatResponse {
   pub summary: Option<String>,
 }
 
+/// Chat con IA:
+/// - Lee la clave OPENAI_API_KEY desde el entorno/.env
+/// - Usa prompts distintos para ASK (explicar) y AGENT (emitir comandos)
+/// - Intenta extraer bloques de código y generar explicación/resumen si faltan
 #[tauri::command]
 pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   // Load .env to pick up OPENAI_API_KEY (dotenvy is safe on desktop)
@@ -494,9 +501,11 @@ ls -la
   })
 }
 
+// Sesiones SSH activas en memoria, indexadas por un ID (UUID)
 static SESSIONS: Lazy<Mutex<HashMap<String, Session>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
+/// Establece una sesión SSH (usuario/clave), abre un PTY y reenvía la salida a la UI por eventos.
 #[tauri::command]
 pub async fn ssh_connect(
   app: AppHandle,
@@ -534,6 +543,7 @@ pub async fn ssh_connect(
   Ok(id)
 }
 
+/// Envía datos al stdin del canal SSH (tecleo del usuario).
 #[tauri::command]
 pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Result<(), String> {
   let tx = {
@@ -556,6 +566,7 @@ pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Re
     .map_err(|e| e.to_string())
 }
 
+/// Cambia el tamaño del PTY (cols/rows) para ajustar el terminal remoto.
 #[tauri::command]
 pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> {
   let tx = {
@@ -566,6 +577,7 @@ pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> 
     .map_err(|e| e.to_string())
 }
 
+/// Desconecta y limpia la sesión (cierra el canal y la elimina del mapa en memoria).
 #[tauri::command]
 pub async fn ssh_disconnect(id: String) -> Result<(), String> {
   let tx = {
@@ -579,7 +591,7 @@ pub async fn ssh_disconnect(id: String) -> Result<(), String> {
   Ok(())
 }
 
-// --- storage commands (per-host encrypted JSON) ---
+// --- Comandos de almacenamiento (JSON cifrado por host) ---
 
 #[tauri::command]
 pub async fn save_host_encrypted(passphrase: String, id: String, json_payload: String) -> Result<(), String> {

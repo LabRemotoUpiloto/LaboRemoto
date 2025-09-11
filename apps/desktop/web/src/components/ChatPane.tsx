@@ -1,3 +1,4 @@
+// Panel de chat: integra modo ASK (explicar) y AGENT (sugerir/confirmar comandos).
 import React, { useState } from 'react';
 import './ChatPane.css';
 import { invoke } from '@tauri-apps/api/core';
@@ -34,7 +35,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     setMemory({});
   };
 
-  // No SSH session input in this pane anymore; running commands must be done via the terminal/SSH pane.
+  // No se envía stdin directo desde aquí: la ejecución ocurre en el TerminalPane.
 
   const handleNewChat = () => {
     setMessages([]);
@@ -42,6 +43,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     setMemory({});
   };
 
+  // Enviar prompt al backend (Tauri -> ai_chat) y procesar respuesta
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
@@ -70,7 +72,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       // Debug: surface the raw AI response in the browser console to inspect fields
       try { console.log('ai_chat response', res); } catch (e) {}
 
-      // Try to detect created filename from response (here-doc or explanation)
+  // Intentar detectar nombre de archivo creado (here-doc o explicación)
       try {
         // look for here-doc pattern in ai_response or explanation
         const aiResp = (res as any).ai_response ?? '';
@@ -91,7 +93,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         // non-fatal
       }
 
-      // Clean up the response text by removing unwanted patterns
+  // Limpiar texto de respuesta quitando fences y rótulos redundantes
       const cleanText = (text: string) => {
         if (!text) return '';
         return text
@@ -107,13 +109,13 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       if ((res as any).explanation) (res as any).explanation = cleanText((res as any).explanation);
       if ((res as any).ai_response) (res as any).ai_response = cleanText((res as any).ai_response);
 
-      // For display: only use summary when in Agent mode; Ask mode should show normal explanation
+  // Visualización: en AGENT priorizar summary; en ASK usar explicación
       const aiText =
         mode === 'agent'
           ? ((res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '')
           : ((res as any).explanation ?? (res as any).ai_response ?? '');
 
-      // Detect command in ai_response, explanation, summary, or aiText
+  // Detectar comando en ai_response/explanation/summary o en el texto final
       const runPrefix = 'RUN_CMD:';
       let cmd: string | null = null;
       const candidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary, aiText];
@@ -134,7 +136,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
       let sentToTerminal = false;
 
-      // If in Agent mode and we have a session + detected command, create a confirmation message
+  // En modo AGENT: generar mensaje de confirmación (comando o creación de archivo)
       let confirmationMsgId: string | null = null;
       if (mode === 'agent' && cmd) {
         const catMatch = cmd.match(/cat\s*>\s*([^\s]+)\s*<<\s*EOF\n([\s\S]+)\nEOF/);
@@ -162,12 +164,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         }
       }
 
-      // If we had already sent to terminal (older flow) keep behavior; otherwise displayText is aiText
+  // Si ya se había enviado a terminal (flujo previo), mostrar confirmación; si no, usar aiText
       const displayText = sentToTerminal
         ? ((res as any).summary ?? (res as any).explanation ?? 'Comando ejecutado en la terminal.')
         : aiText;
 
-      // include sentToTerminal flag in meta so the renderer can hide the code/run UI
+  // Incluir bandera sentToTerminal en meta para ajustar renderizado
       const metaWithFlag: any = { ...(res as any), sentToTerminal };
       // sanitize summary/ai_response to remove stray backticks and repetitive 'Comando sugerido:' artifacts
       try {
@@ -185,7 +187,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         }
       } catch (e) { /* non-fatal */ }
 
-      // If we created a confirmation system message, avoid repeating summary/explanation in the AI message
+  // Si se creó mensaje de confirmación, evita duplicar summary/explanation en el mensaje de IA
       if (confirmationMsgId) {
         try {
           if (metaWithFlag.summary) delete metaWithFlag.summary;
