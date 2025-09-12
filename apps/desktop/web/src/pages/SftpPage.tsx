@@ -189,7 +189,24 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
     }catch(e:any){ setRerr(e?.toString?.()||'Error') }
     finally{ setRload(false) }
   }
-  useEffect(()=>{ if(canUse) refreshRemote() }, [canUse, rpath])
+  // Al establecer sesión por primera vez, intentar obtener home remoto y cambiar rpath antes de listar
+  useEffect(()=>{
+    if(!canUse) return;
+    let cancelled = false;
+    (async()=>{
+      try{
+        // solo si seguimos en root inicial
+        if(rpath==='/'){
+          const home = await invoke<string>('sftp_home', { id: sessionId });
+          if(!cancelled && home && home.length>1){ setRpath(home); return; }
+        }
+      }catch{/* fallback root */}
+      if(!cancelled) refreshRemote();
+    })();
+    return ()=>{ cancelled=true };
+  }, [canUse, sessionId]);
+
+  useEffect(()=>{ if(canUse) refreshRemote() }, [rpath])
 
   useEffect(()=>{ setRSelectedPath(undefined) }, [rpath])
 
@@ -294,8 +311,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gridTemplateRows:'1fr auto',height:'100%',columnGap:16,rowGap:8,padding:12}}>
       {/* Local */}
       <div className={`pane ${activePane==='local'? 'active':''}`} onClick={()=> setActivePane('local')}>
-        <div className="pane-header">
-          <button title='Atrás' className="btn btn-ghost btn-sm">◀</button>
+  <div className="pane-header">
           <button title='Arriba' className="btn btn-ghost btn-sm" onClick={()=>{ const p=lpath.replace(/\\/g,'/'); if(p==='/'||/^[A-Za-z]:\\?$/.test(lpath)) return; const idx=p.lastIndexOf('/'); if(idx>0){ const next=p.slice(0,idx); setLpath(next); refreshLocal(next); } }}>
             ↑
           </button>
@@ -350,8 +366,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
 
       {/* Remote */}
       <div className={`pane ${activePane==='remote'? 'active':''}`} onClick={()=> setActivePane('remote')}>
-        <div className="pane-header">
-          <button title='Atrás' className="btn btn-ghost btn-sm">◀</button>
+  <div className="pane-header">
           <button title='Arriba' className="btn btn-ghost btn-sm" onClick={()=>{ if(rpath==='/') return; const p=rpath.endsWith('/')? rpath.slice(0,-1): rpath; const idx=p.lastIndexOf('/'); setRpath(idx<=0? '/': p.slice(0,idx)); }}>
             ↑
           </button>
@@ -365,8 +380,8 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
             <input placeholder='Buscar por nombre o extensión' className="input" style={{width:220}} />
           </div>
         </div>
-        <div className="pane-subheader">
-          <select className="select" value={sessionId||''} onChange={e=>setSessionId(e.target.value||undefined)} style={{maxWidth: 280}} title={sessionId || ''}>
+        <div className="pane-subheader" style={{flexWrap:'wrap', rowGap:8}}>
+          <select className="select" value={sessionId||''} onChange={e=>setSessionId(e.target.value||undefined)} style={{maxWidth: 220}} title={sessionId || ''}>
             <option value=''>Sesión</option>
             {sessions.map(id=> {
               const label = sessionsMeta?.[id]?.label || id
@@ -375,6 +390,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
           </select>
           <button className="btn" onClick={refreshRemote} disabled={!canUse} title="Actualizar">Actualizar</button>
           <div className="toolbar-spacer">
+            <button className="btn btn-primary" onClick={doUpload} disabled={!canUse || !lSelectedPath} title="Subir al servidor remoto (usa la selección local)">Subir →</button>
             <button className="btn" onClick={doRemoteMkdir} disabled={!canUse} title="Crear carpeta en remoto">Nueva carpeta</button>
             <button className="btn" onClick={doRemoteRename} disabled={!canUse || !rSelectedPath} title="Renombrar en remoto">Renombrar</button>
             <button className="btn btn-danger" onClick={doRemoteDelete} disabled={!canUse || !rSelectedPath} title="Eliminar en remoto">Eliminar</button>
@@ -384,11 +400,11 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
   <div className="pane-body scroll-accent">
           {rerr && <div style={{color:'crimson',padding:8}}>Error: {rerr}</div>}
           {rload? <div style={{padding:8}} aria-busy>Cargando…</div> : (
-            <Table cols={["Nombre","Modificado","Tamaño","Tipo"]}
+      <Table cols={["Nombre","Modificado","Tamaño","Tipo"]}
               rows={rdisplay.map(e=>[
                 <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
                 fmtDate(e.mtime||undefined, true),
-                <span style={{fontVariantNumeric:'tabular-nums'}}>{fmtBytes(e.size)}</span>,
+        <span className="size-cell">{fmtBytes(e.size)}</span>,
                 e.kind==='dir'? 'carpeta':'archivo',
               ])}
               onRowClick={(i)=> setRSelectedPath(rdisplay[i]?.path || joinRemote(rpath, rdisplay[i]?.name || ''))}

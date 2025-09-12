@@ -21,6 +21,7 @@ pub fn run() {
       cmd::ssh::ssh_disconnect,
       // SFTP (stubs)
       cmd::sftp::sftp_open,
+  cmd::sftp::sftp_home,
       cmd::sftp::sftp_list,
       cmd::sftp::sftp_mkdir,
       cmd::sftp::sftp_rename,
