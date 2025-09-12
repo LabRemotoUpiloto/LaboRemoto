@@ -13,9 +13,9 @@
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-color);
 }
-.chat-header button:focus, .chat-header select:focus {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+.chat-header button:focus-visible, .chat-header select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer);
 }
 
 /* Make header controls pop more */
@@ -27,7 +27,9 @@
 /* New Chat: solid accent for visibility */
 .chat-header button {
   background-color: var(--accent-primary);
-  color: var(--background-primary);
+  color: var(--accent-contrast);
+  box-shadow: var(--accent-guard-inset), 0 0 0 rgba(0,0,0,0);
+  text-shadow: var(--accent-guard-shadow);
   border: 1px solid transparent;
   cursor: pointer;
   transition: background-color 160ms ease, box-shadow 160ms ease, transform 80ms ease;
@@ -64,7 +66,9 @@
 
 .message.user {
   background-color: var(--accent-primary);
-  color: var(--background-primary);
+  color: var(--accent-contrast);
+  box-shadow: var(--accent-guard-inset);
+  text-shadow: var(--accent-guard-shadow);
   align-self: flex-end;
 }
 
@@ -99,6 +103,8 @@
   background-color: var(--accent-primary);
   color: var(--accent-contrast);
   border: none;
+  box-shadow: var(--accent-guard-inset), 0 0 0 rgba(0,0,0,0);
+  text-shadow: var(--accent-guard-shadow);
   padding: 0 20px;
   border-radius: 4px;
   cursor: pointer;
@@ -122,13 +128,13 @@
 .cancel-button {
   background-color: var(--background-tertiary);
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-subtle);
   padding: 6px 16px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
 }
-.send-button:focus-visible, .cancel-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px }
+.send-button:focus-visible, .cancel-button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer) }
 
 /* Tarjeta de confirmación (sin inline styles) */
 .confirm-card { 
@@ -136,12 +142,12 @@
   padding: 12px;
   background-color: var(--background-tertiary);
   border-radius: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-subtle);
 }
 .confirm-text { margin: 0 0 8px 0; color: var(--text-primary); font-size: 14px }
 .confirm-sub { margin: 6px 0; color: var(--text-secondary); font-size: 13px }
 .confirm-question { margin: 12px 0; color: var(--text-primary); font-size: 14px }
-.confirm-code { position: relative; background: var(--background-secondary); border:1px solid var(--border-color); padding: 10px; border-radius: 6px }
+.confirm-code { position: relative; background: var(--background-secondary); border:1px solid var(--border-subtle); padding: 10px; border-radius: 6px }
 .code-output { margin: 0; color: var(--text-primary); font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; white-space: pre-wrap; overflow-x: auto }
 
 /* Botón flota para bajar al último mensaje */
