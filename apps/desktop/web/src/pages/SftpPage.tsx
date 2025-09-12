@@ -189,7 +189,24 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
     }catch(e:any){ setRerr(e?.toString?.()||'Error') }
     finally{ setRload(false) }
   }
-  useEffect(()=>{ if(canUse) refreshRemote() }, [canUse, rpath])
+  // Al establecer sesión por primera vez, intentar obtener home remoto y cambiar rpath antes de listar
+  useEffect(()=>{
+    if(!canUse) return;
+    let cancelled = false;
+    (async()=>{
+      try{
+        // solo si seguimos en root inicial
+        if(rpath==='/'){
+          const home = await invoke<string>('sftp_home', { id: sessionId });
+          if(!cancelled && home && home.length>1){ setRpath(home); return; }
+        }
+      }catch{/* fallback root */}
+      if(!cancelled) refreshRemote();
+    })();
+    return ()=>{ cancelled=true };
+  }, [canUse, sessionId]);
+
+  useEffect(()=>{ if(canUse) refreshRemote() }, [rpath])
 
   useEffect(()=>{ setRSelectedPath(undefined) }, [rpath])
 
