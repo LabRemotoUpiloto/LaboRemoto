@@ -202,16 +202,23 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
   const doDownload = async ()=>{
     if(!sessionId || !rSelectedPath) return
     const entry = rrows.find(x=> x.path===rSelectedPath || joinRemote(rpath, x.name)===rSelectedPath)
-    if(!entry || entry.kind!=='file') { alert('Descarga solo soportada para archivos por ahora.'); return }
+    if(!entry) return
     const local = joinLocal(lpath, entry.name)
-  try{ await invoke('sftp_download_start', { id: sessionId, remotePath: rSelectedPath, localPath: local }) }catch(e:any){ alert('download: '+(e?.toString?.()||e)) }
+    const isDir = entry.kind==='dir'
+    try{
+      if(isDir){ await invoke('sftp_download_dir_start', { id: sessionId, remotePath: rSelectedPath, localPath: local }) }
+      else { await invoke('sftp_download_start', { id: sessionId, remotePath: rSelectedPath, localPath: local }) }
+    }catch(e:any){ alert('download: '+(e?.toString?.()||e)) }
   }
   const doUpload = async ()=>{
     if(!sessionId || !lSelectedPath) return
     const entry = lrows.find(x=> x.path===lSelectedPath)
-    if(!entry || entry.kind!=='file') { alert('Subida solo soportada para archivos por ahora.'); return }
+    if(!entry) return
     const remote = joinRemote(rpath, entry.name)
-  try{ await invoke('sftp_upload_start', { id: sessionId, localPath: lSelectedPath, remotePath: remote }) }catch(e:any){ alert('upload: '+(e?.toString?.()||e)) }
+    try{
+      if(entry.kind==='dir'){ await invoke('sftp_upload_dir_start', { id: sessionId, localPath: lSelectedPath, remotePath: remote }) }
+      else { await invoke('sftp_upload_start', { id: sessionId, localPath: lSelectedPath, remotePath: remote }) }
+    }catch(e:any){ alert('upload: '+(e?.toString?.()||e)) }
   }
   const doCancel = async (tid:string)=>{
     if(!sessionId) return

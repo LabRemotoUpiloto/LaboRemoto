@@ -26,6 +26,8 @@ pub fn run() {
   cmd::sftp_download_start,
   cmd::sftp_upload_start,
   cmd::sftp_cancel,
+  cmd::sftp_upload_dir_start,
+  cmd::sftp_download_dir_start,
   // Local FS (pane izquierdo)
   cmd::local_home_dir,
   cmd::local_list_dir,
