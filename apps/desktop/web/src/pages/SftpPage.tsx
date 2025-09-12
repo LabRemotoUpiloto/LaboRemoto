@@ -21,14 +21,30 @@ const CrumbBar: React.FC<{ rootLabel: string; path: string; onNavigate: (p: stri
     }
     return crumbs;
   },[path,prefix]);
+  const displaySegs = useMemo(()=>{
+    // collapse middle when many segments
+    if(segs.length > 5){
+      return [segs[0], segs[1], {name:'…', full:'__ellipsis__'}, segs[segs.length-2], segs[segs.length-1]];
+    }
+    return segs;
+  },[segs]);
+  const shortRoot = useMemo(()=>{
+    const lbl = rootLabel || '';
+    if(lbl.length > 18){ return lbl.slice(0,10)+'…'+lbl.slice(-6) }
+    return lbl;
+  },[rootLabel]);
   return (
-    <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-      <span style={{opacity:.8}}>{rootLabel}</span>
-      <span style={{opacity:.35}}>/</span>
-      {segs.map((c,i)=> (
-        <React.Fragment key={c.full}>
-          <button onClick={()=>onNavigate(c.full)} style={{background:'transparent',border:'none',color:'var(--text)',cursor:'pointer',padding:0}}>{c.name}</button>
-          {i<segs.length-1 && <span style={{opacity:.35}}>/</span>}
+    <div className="crumbs" style={{flex:1,minWidth:0}} title={path}>
+      <span style={{opacity:.8,color:'var(--text-primary)',maxWidth:180,overflow:'hidden',textOverflow:'ellipsis'}} title={rootLabel}>{shortRoot}</span>
+      <span className="crumb-sep">/</span>
+      {displaySegs.map((c,i)=> (
+        <React.Fragment key={c.full + ':' + i}>
+          {c.full==='__ellipsis__'? (
+            <span className="crumb-sep" style={{padding:'0 4px'}}>…</span>
+          ) : (
+            <button onClick={()=>onNavigate(c.full)} className="btn btn-ghost btn-sm crumb-btn" title={c.full}>{c.name}</button>
+          )}
+          {i<displaySegs.length-1 && <span className="crumb-sep">/</span>}
         </React.Fragment>
       ))}
     </div>
@@ -37,20 +53,20 @@ const CrumbBar: React.FC<{ rootLabel: string; path: string; onNavigate: (p: stri
 
 const Table: React.FC<{ cols: string[]; rows: React.ReactNode[][]; onRowDoubleClick?: (index: number) => void; onRowClick?: (index:number)=>void; selectedIndex?: number; onSort?: (colIndex:number)=>void; onContextMenuRow?: (index:number, e: React.MouseEvent)=>void }>=({cols,rows,onRowDoubleClick,onRowClick,selectedIndex,onSort,onContextMenuRow})=>{
   return (
-    <table style={{width:'100%',borderCollapse:'collapse'}}>
+    <table className="table">
       <thead>
         <tr>
           {cols.map((c,i)=> (
-            <th key={c} style={{textAlign:'left',borderBottom:'1px solid var(--border)',padding:'6px 4px'}}>
-              <button onClick={()=>onSort?.(i)} style={{all:'unset',cursor:onSort? 'pointer':'default'}}>{c}</button>
+            <th key={c}>
+              <button onClick={()=>onSort?.(i)}>{c}</button>
             </th>
           ))}
         </tr>
       </thead>
       <tbody>
-        {rows.length===0 ? <tr><td colSpan={cols.length} style={{opacity:.7,padding:'8px 4px'}}>Vacío</td></tr> : rows.map((r,i)=> (
-          <tr key={i} className="file-row" onClick={()=> onRowClick?.(i)} onDoubleClick={()=> onRowDoubleClick?.(i)} onContextMenu={(e)=>{ e.preventDefault(); onContextMenuRow?.(i, e) }} style={{cursor: onRowDoubleClick? 'pointer': undefined, background: selectedIndex===i? 'rgba(125,125,200,0.15)': undefined}}>
-            {r.map((cell,j)=> <td key={j} style={{padding:'6px 4px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>{cell}</td>)}
+        {rows.length===0 ? <tr><td colSpan={cols.length} style={{opacity:.7,padding:'8px 6px'}}>Vacío</td></tr> : rows.map((r,i)=> (
+          <tr key={i} className={`file-row ${selectedIndex===i? 'selected':''}`} onClick={()=> onRowClick?.(i)} onDoubleClick={()=> onRowDoubleClick?.(i)} onContextMenu={(e)=>{ e.preventDefault(); onContextMenuRow?.(i, e) }} style={{cursor: onRowDoubleClick? 'pointer': undefined}}>
+            {r.map((cell,j)=> <td key={j}>{cell}</td>)}
           </tr>
         ))}
       </tbody>
@@ -244,28 +260,30 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
 
   // UI Layout similar al screenshot: barra superior por pane (back/up, breadcrumbs, filter, actions)
   return (
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',height:'100%',gap:16,padding:12}}>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gridTemplateRows:'1fr auto',height:'100%',columnGap:16,rowGap:8,padding:12}}>
       {/* Local */}
-      <div style={{display:'flex',flexDirection:'column',minHeight:0,border:'1px solid var(--border)',borderRadius:12,overflow:'hidden',background:'var(--panel)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderBottom:'1px solid var(--border)'}}>
-          <button title='Atrás' style={{border:'none',background:'transparent'}}>◀</button>
-          <button title='Arriba' style={{border:'none',background:'transparent'}} onClick={()=>{ const p=lpath.replace(/\\/g,'/'); if(p==='/'||/^[A-Za-z]:\\?$/.test(lpath)) return; const idx=p.lastIndexOf('/'); if(idx>0){ const next=p.slice(0,idx); setLpath(next); refreshLocal(next); } }}>
+      <div className="pane">
+        <div className="pane-header">
+          <button title='Atrás' className="btn btn-ghost btn-sm">◀</button>
+          <button title='Arriba' className="btn btn-ghost btn-sm" onClick={()=>{ const p=lpath.replace(/\\/g,'/'); if(p==='/'||/^[A-Za-z]:\\?$/.test(lpath)) return; const idx=p.lastIndexOf('/'); if(idx>0){ const next=p.slice(0,idx); setLpath(next); refreshLocal(next); } }}>
             ↑
           </button>
           <CrumbBar rootLabel='Local' path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
-          <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
-            <input placeholder='Filter' style={{width:140}} />
-            <button onClick={doUpload} disabled={!sessionId || !lSelectedPath}>Upload →</button>
+          <div className="toolbar-spacer">
+            <input placeholder='Filtrar' className="input" style={{width:160}} />
           </div>
         </div>
-        <div style={{display:'flex',gap:8,padding:'8px 12px',borderBottom:'1px solid var(--border)'}}>
-          <select onChange={e=>{ const next=e.target.value; setLpath(next); refreshLocal(next); }} value={(()=>{ const d=ldrives; if(!d||d.length===0) return ''; const match=d.find(x=> lpath.toUpperCase().startsWith(x.toUpperCase())); return match || ''; })()}>
+        <div className="pane-subheader">
+          <select className="select" onChange={e=>{ const next=e.target.value; setLpath(next); refreshLocal(next); }} value={(()=>{ const d=ldrives; if(!d||d.length===0) return ''; const match=d.find(x=> lpath.toUpperCase().startsWith(x.toUpperCase())); return match || ''; })()}>
             <option value=''>Drive</option>
             {ldrives.map(d=> <option key={d} value={d}>{d}</option>)}
           </select>
-          <button onClick={refreshLocal}>Refresh</button>
+          <button className="btn" onClick={refreshLocal}>Refresh</button>
+          <div className="toolbar-spacer">
+            <button className="btn btn-primary" onClick={doUpload} disabled={!sessionId || !lSelectedPath}>Subir →</button>
+          </div>
         </div>
-        <div style={{flex:1,overflow:'auto'}}>
+  <div className="pane-body scroll-accent">
           {lload? <div style={{padding:8}}>Loading…</div> : (
             <Table cols={["Name","Date Modified","Size","Kind"]}
               rows={ldisplay.map(e=>[
@@ -296,29 +314,31 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
       </div>
 
       {/* Remote */}
-      <div style={{display:'flex',flexDirection:'column',minHeight:0,border:'1px solid var(--border)',borderRadius:12,overflow:'hidden',background:'var(--panel)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderBottom:'1px solid var(--border)'}}>
-          <button title='Atrás' style={{border:'none',background:'transparent'}}>◀</button>
-          <button title='Arriba' style={{border:'none',background:'transparent'}} onClick={()=>{ if(rpath==='/') return; const p=rpath.endsWith('/')? rpath.slice(0,-1): rpath; const idx=p.lastIndexOf('/'); setRpath(idx<=0? '/': p.slice(0,idx)); }}>
+      <div className="pane">
+        <div className="pane-header">
+          <button title='Atrás' className="btn btn-ghost btn-sm">◀</button>
+          <button title='Arriba' className="btn btn-ghost btn-sm" onClick={()=>{ if(rpath==='/') return; const p=rpath.endsWith('/')? rpath.slice(0,-1): rpath; const idx=p.lastIndexOf('/'); setRpath(idx<=0? '/': p.slice(0,idx)); }}>
             ↑
           </button>
           <CrumbBar rootLabel={sessionId || 'Remote'} path={rpath} onNavigate={(p)=> setRpath(p)} />
-          <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
-            <input placeholder='Filter' style={{width:140}} />
-            <button onClick={doRemoteMkdir} disabled={!canUse}>Nueva carpeta</button>
-            <button onClick={doRemoteRename} disabled={!canUse || !rSelectedPath}>Renombrar</button>
-            <button onClick={doRemoteDelete} disabled={!canUse || !rSelectedPath}>Eliminar</button>
-            <button onClick={doDownload} disabled={!canUse || !rSelectedPath}>Descargar ↓</button>
+          <div className="toolbar-spacer">
+            <input placeholder='Filtrar' className="input" style={{width:160}} />
           </div>
         </div>
-        <div style={{display:'flex',gap:8,padding:'8px 12px',borderBottom:'1px solid var(--border)'}}>
-          <select value={sessionId||''} onChange={e=>setSessionId(e.target.value||undefined)}>
+        <div className="pane-subheader">
+          <select className="select" value={sessionId||''} onChange={e=>setSessionId(e.target.value||undefined)} style={{maxWidth: 280}}>
             <option value=''>Session</option>
             {sessions.map(id=> <option key={id} value={id}>{id}</option>)}
           </select>
-          <button onClick={refreshRemote} disabled={!canUse}>Refresh</button>
+          <button className="btn" onClick={refreshRemote} disabled={!canUse}>Refresh</button>
+          <div className="toolbar-spacer">
+            <button className="btn" onClick={doRemoteMkdir} disabled={!canUse}>Nueva carpeta</button>
+            <button className="btn" onClick={doRemoteRename} disabled={!canUse || !rSelectedPath}>Renombrar</button>
+            <button className="btn btn-danger" onClick={doRemoteDelete} disabled={!canUse || !rSelectedPath}>Eliminar</button>
+            <button className="btn btn-primary" onClick={doDownload} disabled={!canUse || !rSelectedPath}>Descargar ↓</button>
+          </div>
         </div>
-        <div style={{flex:1,overflow:'auto'}}>
+  <div className="pane-body scroll-accent">
           {rerr && <div style={{color:'crimson',padding:8}}>Error: {rerr}</div>}
           {rload? <div style={{padding:8}}>Loading…</div> : (
             <Table cols={["Name","Date Modified","Size","Kind"]}
@@ -347,14 +367,14 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
           )}
         </div>
       </div>
-      {/* Transfers Panel */}
-  <div style={{gridColumn:'1 / span 2', border:'1px solid var(--border)',borderRadius:10, padding:10, background:'var(--panel)', maxHeight:180, overflow:'auto'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8, marginBottom:6}}>
+    {/* Transfers Panel */}
+  <div className="pane scroll-accent" style={{gridColumn:'1 / span 2', height:96, overflow:'auto'}}>
+        <div className="pane-header" style={{borderBottom:'none', padding:'8px 12px'}}>
           <strong>Transfers</strong>
           <span style={{opacity:.6}}>({transfers.length})</span>
         </div>
-        {transfers.length===0? <div style={{opacity:.7}}>No hay transferencias</div> : (
-          <div style={{display:'grid', gridTemplateColumns:'auto 1fr auto auto auto', gap:8, alignItems:'center'}}>
+        {transfers.length===0? <div style={{opacity:.7, padding:'6px 12px'}}>No hay transferencias</div> : (
+          <div style={{display:'grid', gridTemplateColumns:'auto 1fr auto auto auto', gap:8, alignItems:'center', padding:'6px 12px'}}>
             {transfers.map(t=>{
               const pct = t.total && t.total>0 ? Math.min(100, Math.floor(((t.bytes||0)/t.total)*100)) : undefined
               return (
@@ -369,7 +389,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
                   <div style={{fontSize:12,opacity:.8}}>
                     {t.status==='running' ? (t.total? `${t.bytes||0} / ${t.total}` : `${t.bytes||0}`) : t.status}
                   </div>
-                  <button onClick={()=> doCancel(t.id)} disabled={t.status!=='running'}>Cancelar</button>
+                  <button className="btn btn-sm" onClick={()=> doCancel(t.id)} disabled={t.status!=='running'}>Cancelar</button>
                   <div style={{fontSize:12,color: t.status==='error'? 'crimson': undefined}}>{t.message}</div>
                 </React.Fragment>
               )
