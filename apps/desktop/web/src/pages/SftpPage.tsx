@@ -294,8 +294,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gridTemplateRows:'1fr auto',height:'100%',columnGap:16,rowGap:8,padding:12}}>
       {/* Local */}
       <div className={`pane ${activePane==='local'? 'active':''}`} onClick={()=> setActivePane('local')}>
-        <div className="pane-header">
-          <button title='Atrás' className="btn btn-ghost btn-sm">◀</button>
+  <div className="pane-header">
           <button title='Arriba' className="btn btn-ghost btn-sm" onClick={()=>{ const p=lpath.replace(/\\/g,'/'); if(p==='/'||/^[A-Za-z]:\\?$/.test(lpath)) return; const idx=p.lastIndexOf('/'); if(idx>0){ const next=p.slice(0,idx); setLpath(next); refreshLocal(next); } }}>
             ↑
           </button>
@@ -350,8 +349,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
 
       {/* Remote */}
       <div className={`pane ${activePane==='remote'? 'active':''}`} onClick={()=> setActivePane('remote')}>
-        <div className="pane-header">
-          <button title='Atrás' className="btn btn-ghost btn-sm">◀</button>
+  <div className="pane-header">
           <button title='Arriba' className="btn btn-ghost btn-sm" onClick={()=>{ if(rpath==='/') return; const p=rpath.endsWith('/')? rpath.slice(0,-1): rpath; const idx=p.lastIndexOf('/'); setRpath(idx<=0? '/': p.slice(0,idx)); }}>
             ↑
           </button>
