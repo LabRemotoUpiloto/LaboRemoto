@@ -8,10 +8,12 @@ use crate::ssh::client::{Session, ChanCmd};
 use crate::storage;
 
 use super::state::{SESSIONS, SessionExt};
+use crate::state::AppState;
 
 #[tauri::command]
 pub async fn ssh_connect(
   app: AppHandle,
+  state: tauri::State<'_, AppState>,
   host: String,
   port: u16,
   user: String,
@@ -29,6 +31,9 @@ pub async fn ssh_connect(
     let mut map = SESSIONS.lock().unwrap();
     map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone(), sftp_cached: None });
   }
+
+  // Limpiar memoria de la sesión (por si se reutiliza el mismo id en algún flujo)
+  state.clear(&id);
 
   let _ = app.emit(&format!("ssh_out_{}", id), Some(format!("Conectado a {user}@{host}:{port}\r\n")));
 
@@ -68,19 +73,22 @@ pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> 
 }
 
 #[tauri::command]
-pub async fn ssh_disconnect(id: String) -> Result<(), String> {
+pub async fn ssh_disconnect(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
   let tx = {
     let mut map = SESSIONS.lock().unwrap();
     let Some(session) = map.remove(&id) else { return Err(AppError::NotFound.to_string()); };
     session.term.tx.clone()
   };
   let _ = tx.send(ChanCmd::Close);
+  // Limpiar memoria de la sesión al desconectar
+  state.clear(&id);
   Ok(())
 }
 
 #[tauri::command]
 pub async fn ssh_connect_stored(
   app: AppHandle,
+  state: tauri::State<'_, AppState>,
   id: String,
   cols: u32,
   rows: u32,
@@ -106,6 +114,9 @@ pub async fn ssh_connect_stored(
     let mut map = SESSIONS.lock().unwrap();
     map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone(), sftp_cached: None });
   }
+
+  // Limpiar memoria al iniciar una nueva sesión
+  state.clear(&id);
 
   let _ = app.emit(&format!("ssh_out_{}", id), Some(format!("Conectado a {user}@{host}:{port}\r\n")));
 
