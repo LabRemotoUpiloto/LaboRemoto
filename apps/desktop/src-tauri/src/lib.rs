@@ -19,21 +19,21 @@ pub fn run() {
       cmd::ssh::ssh_stdin,
       cmd::ssh::ssh_resize,
       cmd::ssh::ssh_disconnect,
-  // SFTP (stubs)
-  cmd::sftp::sftp_open,
-  cmd::sftp::sftp_list,
-  cmd::sftp::sftp_mkdir,
-  cmd::sftp::sftp_rename,
-  cmd::sftp::sftp_remove,
-  cmd::sftp::sftp_download_start,
-  cmd::sftp::sftp_upload_start,
-  cmd::sftp::sftp_cancel,
-  cmd::sftp::sftp_upload_dir_start,
-  cmd::sftp::sftp_download_dir_start,
-  // Local FS (pane izquierdo)
-  cmd::local::local_home_dir,
-  cmd::local::local_list_dir,
-  cmd::local::local_list_drives,
+      // SFTP (stubs)
+      cmd::sftp::sftp_open,
+      cmd::sftp::sftp_list,
+      cmd::sftp::sftp_mkdir,
+      cmd::sftp::sftp_rename,
+      cmd::sftp::sftp_remove,
+      cmd::sftp::sftp_download_start,
+      cmd::sftp::sftp_upload_start,
+      cmd::sftp::sftp_cancel,
+      cmd::sftp::sftp_upload_dir_start,
+      cmd::sftp::sftp_download_dir_start,
+      // Local FS (pane izquierdo)
+      cmd::local::local_home_dir,
+      cmd::local::local_list_dir,
+      cmd::local::local_list_drives,
       // Chat IA
       cmd::ai::ai_chat,
       // Storage (hosts)

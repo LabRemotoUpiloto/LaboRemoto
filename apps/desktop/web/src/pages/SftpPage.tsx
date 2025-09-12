@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import FileIcon from '../components/FileIcon'
 import ContextMenu from '../components/ContextMenu'
+import ConfirmModal from '../components/ConfirmModal'
+import { useToasts } from '../contexts/ToastContext'
 
-type Props = { sessions: string[]; activeSessionId?: string }
+type Props = { sessions: string[]; activeSessionId?: string; sessionsMeta?: Record<string,{ label: string }> }
 type SftpEntry = { name: string; path: string; kind: string; size?: number; perms?: string; mtime?: number }
 type LocalEntry = { name: string; path: string; kind: string; size?: number; mtime?: number }
 
@@ -21,36 +23,57 @@ const CrumbBar: React.FC<{ rootLabel: string; path: string; onNavigate: (p: stri
     }
     return crumbs;
   },[path,prefix]);
+  const displaySegs = useMemo(()=>{
+    // collapse middle when many segments
+    if(segs.length > 5){
+      return [segs[0], segs[1], {name:'…', full:'__ellipsis__'}, segs[segs.length-2], segs[segs.length-1]];
+    }
+    return segs;
+  },[segs]);
+  const shortRoot = useMemo(()=>{
+    const lbl = rootLabel || '';
+    if(lbl.length > 18){ return lbl.slice(0,10)+'…'+lbl.slice(-6) }
+    return lbl;
+  },[rootLabel]);
   return (
-    <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-      <span style={{opacity:.8}}>{rootLabel}</span>
-      <span style={{opacity:.35}}>/</span>
-      {segs.map((c,i)=> (
-        <React.Fragment key={c.full}>
-          <button onClick={()=>onNavigate(c.full)} style={{background:'transparent',border:'none',color:'var(--text)',cursor:'pointer',padding:0}}>{c.name}</button>
-          {i<segs.length-1 && <span style={{opacity:.35}}>/</span>}
+    <div className="crumbs" style={{flex:1,minWidth:0}} title={path}>
+      <span style={{opacity:.8,color:'var(--text-primary)',maxWidth:180,overflow:'hidden',textOverflow:'ellipsis'}} title={rootLabel}>{shortRoot}</span>
+      <span className="crumb-sep">/</span>
+      {displaySegs.map((c,i)=> (
+        <React.Fragment key={c.full + ':' + i}>
+          {c.full==='__ellipsis__'? (
+            <span className="crumb-sep" style={{padding:'0 4px'}}>…</span>
+          ) : (
+            <button onClick={()=>onNavigate(c.full)} className="btn btn-ghost btn-sm crumb-btn" title={c.full}>{c.name}</button>
+          )}
+          {i<displaySegs.length-1 && <span className="crumb-sep">/</span>}
         </React.Fragment>
       ))}
     </div>
   )
 }
 
-const Table: React.FC<{ cols: string[]; rows: React.ReactNode[][]; onRowDoubleClick?: (index: number) => void; onRowClick?: (index:number)=>void; selectedIndex?: number; onSort?: (colIndex:number)=>void; onContextMenuRow?: (index:number, e: React.MouseEvent)=>void }>=({cols,rows,onRowDoubleClick,onRowClick,selectedIndex,onSort,onContextMenuRow})=>{
+const Table: React.FC<{ cols: string[]; rows: React.ReactNode[][]; onRowDoubleClick?: (index: number) => void; onRowClick?: (index:number)=>void; selectedIndex?: number; onSort?: (colIndex:number)=>void; onContextMenuRow?: (index:number, e: React.MouseEvent)=>void; sortIndex?: number; sortDir?: 'asc'|'desc'; busy?: boolean }>=({cols,rows,onRowDoubleClick,onRowClick,selectedIndex,onSort,onContextMenuRow,sortIndex,sortDir,busy})=>{
   return (
-    <table style={{width:'100%',borderCollapse:'collapse'}}>
-      <thead>
+    <table className="table" role="grid" aria-rowcount={rows.length} aria-colcount={cols.length} aria-busy={busy||false}>
+      <thead role="rowgroup">
         <tr>
-          {cols.map((c,i)=> (
-            <th key={c} style={{textAlign:'left',borderBottom:'1px solid var(--border)',padding:'6px 4px'}}>
-              <button onClick={()=>onSort?.(i)} style={{all:'unset',cursor:onSort? 'pointer':'default'}}>{c}</button>
-            </th>
-          ))}
+          {cols.map((c,i)=> {
+            const aria = sortIndex===i? (sortDir==='asc'? 'ascending':'descending') : 'none'
+            return (
+              <th key={c} role="columnheader" aria-sort={aria as any}>
+                <button onClick={()=>onSort?.(i)} title={`Ordenar por ${c}`}>
+                  {c} {sortIndex===i? (sortDir==='asc'? '▲':'▼') : ''}
+                </button>
+              </th>
+            )
+          })}
         </tr>
       </thead>
-      <tbody>
-        {rows.length===0 ? <tr><td colSpan={cols.length} style={{opacity:.7,padding:'8px 4px'}}>Vacío</td></tr> : rows.map((r,i)=> (
-          <tr key={i} className="file-row" onClick={()=> onRowClick?.(i)} onDoubleClick={()=> onRowDoubleClick?.(i)} onContextMenu={(e)=>{ e.preventDefault(); onContextMenuRow?.(i, e) }} style={{cursor: onRowDoubleClick? 'pointer': undefined, background: selectedIndex===i? 'rgba(125,125,200,0.15)': undefined}}>
-            {r.map((cell,j)=> <td key={j} style={{padding:'6px 4px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>{cell}</td>)}
+      <tbody role="rowgroup">
+        {rows.length===0 ? <tr role="row"><td role="gridcell" colSpan={cols.length} style={{opacity:.7,padding:'8px 6px'}}>Vacío</td></tr> : rows.map((r,i)=> (
+          <tr key={i} role="row" className={`file-row ${selectedIndex===i? 'selected':''}`} onClick={()=> onRowClick?.(i)} onDoubleClick={()=> onRowDoubleClick?.(i)} onContextMenu={(e)=>{ e.preventDefault(); onContextMenuRow?.(i, e) }} style={{cursor: onRowDoubleClick? 'pointer': undefined}} aria-selected={selectedIndex===i}>
+            {r.map((cell,j)=> <td key={j} role="gridcell">{cell}</td>)}
           </tr>
         ))}
       </tbody>
@@ -58,10 +81,29 @@ const Table: React.FC<{ cols: string[]; rows: React.ReactNode[][]; onRowDoubleCl
   )
 }
 
-const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
+const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) => {
   const [sessionId, setSessionId] = useState<string | undefined>(activeSessionId)
+  const { push } = useToasts()
   useEffect(()=> setSessionId(activeSessionId), [activeSessionId])
   const canUse = useMemo(()=> !!sessionId, [sessionId])
+  const [activePane, setActivePane] = useState<'local'|'remote'>('local')
+
+  // Intl helpers
+  const fmtDate = useCallback((ts?: number, remote=false)=>{
+    if(!ts) return ''
+    try{
+      const d = new Date(remote? (ts*1000) : ts)
+      return new Intl.DateTimeFormat('es-CO', { dateStyle:'short', timeStyle:'short' }).format(d)
+    }catch{ return '' }
+  },[])
+  const fmtBytes = useCallback((n?: number)=>{
+    if(n==null) return ''
+    const units = ['B','KB','MB','GB','TB']
+    let v = n
+    let u = 0
+    while(v>=1024 && u<units.length-1){ v/=1024; u++ }
+    return `${u===0? Math.round(v): v.toFixed(1)}\u00A0${units[u]}`
+  },[])
 
   // local
   const [lpath, setLpath] = useState<string>('')
@@ -209,12 +251,17 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
     const to = parent==='/'? '/'+name : parent+'/'+name
     try{ await invoke('sftp_rename', { id: sessionId, from: rSelectedPath, to }); refreshRemote() }catch(e:any){ alert('rename: '+(e?.toString?.()||e)) }
   }
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const doRemoteDelete = async ()=>{
     if(!sessionId || !rSelectedPath) return
+    setConfirmOpen(true)
+  }
+  const confirmRemoteDelete = async ()=>{
+    if(!sessionId || !rSelectedPath) { setConfirmOpen(false); return }
     const entry = rrows.find(x=> x.path===rSelectedPath || joinRemote(rpath, x.name)===rSelectedPath)
     const isDir = entry?.kind==='dir' || rSelectedPath.endsWith('/')
-    if(!window.confirm(`Eliminar ${isDir? 'carpeta':'archivo'}?`)) return
-    try{ await invoke('sftp_remove', { id: sessionId, path: rSelectedPath, recursive: isDir }); refreshRemote() }catch(e:any){ alert('remove: '+(e?.toString?.()||e)) }
+    try{ await invoke('sftp_remove', { id: sessionId, path: rSelectedPath, recursive: isDir }); setConfirmOpen(false); refreshRemote(); push({ type:'success', message:'Eliminado' }) }
+    catch(e:any){ setConfirmOpen(false); push({ type:'error', message: 'Error eliminando: '+(e?.toString?.()||e) }) }
   }
   const doDownload = async ()=>{
     if(!sessionId || !rSelectedPath) return
@@ -244,35 +291,38 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
 
   // UI Layout similar al screenshot: barra superior por pane (back/up, breadcrumbs, filter, actions)
   return (
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',height:'100%',gap:16,padding:12}}>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gridTemplateRows:'1fr auto',height:'100%',columnGap:16,rowGap:8,padding:12}}>
       {/* Local */}
-      <div style={{display:'flex',flexDirection:'column',minHeight:0,border:'1px solid var(--border)',borderRadius:12,overflow:'hidden',background:'var(--panel)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderBottom:'1px solid var(--border)'}}>
-          <button title='Atrás' style={{border:'none',background:'transparent'}}>◀</button>
-          <button title='Arriba' style={{border:'none',background:'transparent'}} onClick={()=>{ const p=lpath.replace(/\\/g,'/'); if(p==='/'||/^[A-Za-z]:\\?$/.test(lpath)) return; const idx=p.lastIndexOf('/'); if(idx>0){ const next=p.slice(0,idx); setLpath(next); refreshLocal(next); } }}>
+      <div className={`pane ${activePane==='local'? 'active':''}`} onClick={()=> setActivePane('local')}>
+        <div className="pane-header">
+          <button title='Atrás' className="btn btn-ghost btn-sm">◀</button>
+          <button title='Arriba' className="btn btn-ghost btn-sm" onClick={()=>{ const p=lpath.replace(/\\/g,'/'); if(p==='/'||/^[A-Za-z]:\\?$/.test(lpath)) return; const idx=p.lastIndexOf('/'); if(idx>0){ const next=p.slice(0,idx); setLpath(next); refreshLocal(next); } }}>
             ↑
           </button>
-          <CrumbBar rootLabel='Local' path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
-          <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
-            <input placeholder='Filter' style={{width:140}} />
-            <button onClick={doUpload} disabled={!sessionId || !lSelectedPath}>Upload →</button>
+          <CrumbBar rootLabel={`Local — ${lpath.split('/')[0]||''}`} path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
+          <div className="toolbar-spacer">
+            <span className="status-badge status-ok" title="Conectado">Conectado</span>
+            <input placeholder='Buscar por nombre o extensión' className="input" style={{width:220}} />
           </div>
         </div>
-        <div style={{display:'flex',gap:8,padding:'8px 12px',borderBottom:'1px solid var(--border)'}}>
-          <select onChange={e=>{ const next=e.target.value; setLpath(next); refreshLocal(next); }} value={(()=>{ const d=ldrives; if(!d||d.length===0) return ''; const match=d.find(x=> lpath.toUpperCase().startsWith(x.toUpperCase())); return match || ''; })()}>
-            <option value=''>Drive</option>
+        <div className="pane-subheader">
+          <select className="select" onChange={e=>{ const next=e.target.value; setLpath(next); refreshLocal(next); }} value={(()=>{ const d=ldrives; if(!d||d.length===0) return ''; const match=d.find(x=> lpath.toUpperCase().startsWith(x.toUpperCase())); return match || ''; })()}>
+            <option value=''>Unidad</option>
             {ldrives.map(d=> <option key={d} value={d}>{d}</option>)}
           </select>
-          <button onClick={refreshLocal}>Refresh</button>
+          <button className="btn" onClick={refreshLocal} title="Actualizar">Actualizar</button>
+          <div className="toolbar-spacer">
+            <button className="btn btn-primary" onClick={doUpload} disabled={!sessionId || !lSelectedPath} title="Subir al servidor remoto">Subir →</button>
+          </div>
         </div>
-        <div style={{flex:1,overflow:'auto'}}>
-          {lload? <div style={{padding:8}}>Loading…</div> : (
-            <Table cols={["Name","Date Modified","Size","Kind"]}
+  <div className="pane-body scroll-accent">
+          {lload? <div style={{padding:8}} aria-busy>Cargando…</div> : (
+            <Table cols={["Nombre","Modificado","Tamaño","Tipo"]}
               rows={ldisplay.map(e=>[
                 <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
-                e.mtime? new Date(e.mtime).toLocaleString(): '',
-                e.size ?? '',
-                e.kind,
+                fmtDate(e.mtime||undefined,false),
+                <span style={{fontVariantNumeric:'tabular-nums'}}>{fmtBytes(e.size)}</span>,
+                e.kind==='dir'? 'carpeta':'archivo',
               ])}
               onRowClick={(i)=> setLSelectedPath(ldisplay[i]?.path)}
               onRowDoubleClick={(i)=>{
@@ -290,43 +340,56 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
                 setLSort(s=> ({ key, dir: s.key===key && s.dir==='asc'? 'desc':'asc' }))
               }}
               onContextMenuRow={(i,e)=>{ setLSelectedPath(ldisplay[i]?.path); setCtx({open:true,x:e.clientX,y:e.clientY,side:'local',index:i}) }}
+              sortIndex={{name:0,mtime:1,size:2,kind:3}[lSort.key]}
+              sortDir={lSort.dir}
+              busy={lload}
             />
           )}
         </div>
       </div>
 
       {/* Remote */}
-      <div style={{display:'flex',flexDirection:'column',minHeight:0,border:'1px solid var(--border)',borderRadius:12,overflow:'hidden',background:'var(--panel)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderBottom:'1px solid var(--border)'}}>
-          <button title='Atrás' style={{border:'none',background:'transparent'}}>◀</button>
-          <button title='Arriba' style={{border:'none',background:'transparent'}} onClick={()=>{ if(rpath==='/') return; const p=rpath.endsWith('/')? rpath.slice(0,-1): rpath; const idx=p.lastIndexOf('/'); setRpath(idx<=0? '/': p.slice(0,idx)); }}>
+      <div className={`pane ${activePane==='remote'? 'active':''}`} onClick={()=> setActivePane('remote')}>
+        <div className="pane-header">
+          <button title='Atrás' className="btn btn-ghost btn-sm">◀</button>
+          <button title='Arriba' className="btn btn-ghost btn-sm" onClick={()=>{ if(rpath==='/') return; const p=rpath.endsWith('/')? rpath.slice(0,-1): rpath; const idx=p.lastIndexOf('/'); setRpath(idx<=0? '/': p.slice(0,idx)); }}>
             ↑
           </button>
-          <CrumbBar rootLabel={sessionId || 'Remote'} path={rpath} onNavigate={(p)=> setRpath(p)} />
-          <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
-            <input placeholder='Filter' style={{width:140}} />
-            <button onClick={doRemoteMkdir} disabled={!canUse}>Nueva carpeta</button>
-            <button onClick={doRemoteRename} disabled={!canUse || !rSelectedPath}>Renombrar</button>
-            <button onClick={doRemoteDelete} disabled={!canUse || !rSelectedPath}>Eliminar</button>
-            <button onClick={doDownload} disabled={!canUse || !rSelectedPath}>Descargar ↓</button>
+          <CrumbBar
+            rootLabel={`Remoto — ${sessionId ? (sessionsMeta?.[sessionId]?.label || sessionId) : ''}`}
+            path={rpath}
+            onNavigate={(p)=> setRpath(p)}
+          />
+          <div className="toolbar-spacer">
+            <span className={`status-badge ${canUse? 'status-ok':'status-off'}`} title={canUse? 'Conectado':'Desconectado'}>{canUse? 'Conectado':'Desconectado'}</span>
+            <input placeholder='Buscar por nombre o extensión' className="input" style={{width:220}} />
           </div>
         </div>
-        <div style={{display:'flex',gap:8,padding:'8px 12px',borderBottom:'1px solid var(--border)'}}>
-          <select value={sessionId||''} onChange={e=>setSessionId(e.target.value||undefined)}>
-            <option value=''>Session</option>
-            {sessions.map(id=> <option key={id} value={id}>{id}</option>)}
+        <div className="pane-subheader">
+          <select className="select" value={sessionId||''} onChange={e=>setSessionId(e.target.value||undefined)} style={{maxWidth: 280}} title={sessionId || ''}>
+            <option value=''>Sesión</option>
+            {sessions.map(id=> {
+              const label = sessionsMeta?.[id]?.label || id
+              return <option key={id} value={id} title={id}>{label}</option>
+            })}
           </select>
-          <button onClick={refreshRemote} disabled={!canUse}>Refresh</button>
+          <button className="btn" onClick={refreshRemote} disabled={!canUse} title="Actualizar">Actualizar</button>
+          <div className="toolbar-spacer">
+            <button className="btn" onClick={doRemoteMkdir} disabled={!canUse} title="Crear carpeta en remoto">Nueva carpeta</button>
+            <button className="btn" onClick={doRemoteRename} disabled={!canUse || !rSelectedPath} title="Renombrar en remoto">Renombrar</button>
+            <button className="btn btn-danger" onClick={doRemoteDelete} disabled={!canUse || !rSelectedPath} title="Eliminar en remoto">Eliminar</button>
+            <button className="btn btn-primary" onClick={doDownload} disabled={!canUse || !rSelectedPath} title="Descargar a local">Descargar ↓</button>
+          </div>
         </div>
-        <div style={{flex:1,overflow:'auto'}}>
+  <div className="pane-body scroll-accent">
           {rerr && <div style={{color:'crimson',padding:8}}>Error: {rerr}</div>}
-          {rload? <div style={{padding:8}}>Loading…</div> : (
-            <Table cols={["Name","Date Modified","Size","Kind"]}
+          {rload? <div style={{padding:8}} aria-busy>Cargando…</div> : (
+            <Table cols={["Nombre","Modificado","Tamaño","Tipo"]}
               rows={rdisplay.map(e=>[
                 <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
-                e.mtime? new Date(e.mtime*1000).toLocaleString(): '',
-                e.size ?? '',
-                e.kind,
+                fmtDate(e.mtime||undefined, true),
+                <span style={{fontVariantNumeric:'tabular-nums'}}>{fmtBytes(e.size)}</span>,
+                e.kind==='dir'? 'carpeta':'archivo',
               ])}
               onRowClick={(i)=> setRSelectedPath(rdisplay[i]?.path || joinRemote(rpath, rdisplay[i]?.name || ''))}
               onRowDoubleClick={(i)=>{
@@ -343,18 +406,21 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
                 setRSort(s=> ({ key, dir: s.key===key && s.dir==='asc'? 'desc':'asc' }))
               }}
               onContextMenuRow={(i,e)=>{ const p=rdisplay[i]?.path || joinRemote(rpath, rdisplay[i]?.name || ''); setRSelectedPath(p); setCtx({open:true,x:e.clientX,y:e.clientY,side:'remote',index:i}) }}
+              sortIndex={{name:0,mtime:1,size:2,kind:3}[rSort.key]}
+              sortDir={rSort.dir}
+              busy={rload}
             />
           )}
         </div>
       </div>
-      {/* Transfers Panel */}
-  <div style={{gridColumn:'1 / span 2', border:'1px solid var(--border)',borderRadius:10, padding:10, background:'var(--panel)', maxHeight:180, overflow:'auto'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8, marginBottom:6}}>
-          <strong>Transfers</strong>
+    {/* Transfers Panel */}
+  <div className="pane scroll-accent" style={{gridColumn:'1 / span 2', height:96, overflow:'auto'}}>
+        <div className="pane-header" style={{borderBottom:'none', padding:'8px 12px'}}>
+          <strong>Transferencias</strong>
           <span style={{opacity:.6}}>({transfers.length})</span>
         </div>
-        {transfers.length===0? <div style={{opacity:.7}}>No hay transferencias</div> : (
-          <div style={{display:'grid', gridTemplateColumns:'auto 1fr auto auto auto', gap:8, alignItems:'center'}}>
+        {transfers.length===0? <div style={{opacity:.7, padding:'6px 12px'}} aria-live="polite">No hay transferencias</div> : (
+          <div style={{display:'grid', gridTemplateColumns:'auto 1fr auto auto auto', gap:8, alignItems:'center', padding:'6px 12px'}} aria-live="polite">
             {transfers.map(t=>{
               const pct = t.total && t.total>0 ? Math.min(100, Math.floor(((t.bytes||0)/t.total)*100)) : undefined
               return (
@@ -369,7 +435,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
                   <div style={{fontSize:12,opacity:.8}}>
                     {t.status==='running' ? (t.total? `${t.bytes||0} / ${t.total}` : `${t.bytes||0}`) : t.status}
                   </div>
-                  <button onClick={()=> doCancel(t.id)} disabled={t.status!=='running'}>Cancelar</button>
+                  <button className="btn btn-sm" onClick={()=> doCancel(t.id)} disabled={t.status!=='running'} title="Cancelar transferencia">Cancelar</button>
                   <div style={{fontSize:12,color: t.status==='error'? 'crimson': undefined}}>{t.message}</div>
                 </React.Fragment>
               )
@@ -383,7 +449,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
         open={ctx.open}
         onClose={()=> setCtx(c=> ({...c, open:false}))}
         items={(ctx.side==='local'? [
-          { label: 'Upload', onClick: doUpload, disabled: !sessionId || !lSelectedPath },
+          { label: 'Subir', onClick: doUpload, disabled: !sessionId || !lSelectedPath },
           { label: 'Abrir', onClick: ()=>{ if(lSelectedPath){ const ent=ldisplay.find(e=> e.path===lSelectedPath); if(ent?.kind==='dir'){ const base=lpath; const sep = /^[A-Za-z]:/.test(base)? '\\' : '/'; const next = base && !base.endsWith(sep) ? base+sep+ent.name : base+ent.name; setLpath(next); refreshLocal(next); } } } },
         ] : [
           { label: 'Nueva carpeta', onClick: doRemoteMkdir, disabled: !canUse },
@@ -392,6 +458,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
           { label: 'Descargar', onClick: doDownload, disabled: !canUse || !rSelectedPath },
         ])}
       />
+      <ConfirmModal open={confirmOpen} title="Eliminar en remoto" message={`¿Eliminar "${rSelectedPath?.split('/').pop()||''}" en ${rpath}?`} onCancel={()=> setConfirmOpen(false)} onConfirm={confirmRemoteDelete} />
     </div>
   )
 }

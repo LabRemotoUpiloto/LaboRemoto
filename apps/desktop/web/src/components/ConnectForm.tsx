@@ -6,7 +6,7 @@ import { useLoading } from '../contexts/LoadingContext'
 import { useToasts } from '../contexts/ToastContext'
 
 type Props = {
-  onConnected: (id: string) => void
+  onConnected: (info: { id: string; label?: string }) => void
   getTermSize?: () => { cols: number; rows: number }  // optional
   initialPayload?: any | null
 }
@@ -47,10 +47,11 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
       const parsedPort = parseInt((port || '22').trim(), 10)
       const safePort = (parsedPort > 0 && parsedPort <= 65535) ? parsedPort : 22
       const size = getTermSize ? getTermSize() : { cols: 80, rows: 24 }
-      const id = await invoke<string>('ssh_connect', {
+  const id = await invoke<string>('ssh_connect', {
         host, port: safePort, user, password, cols: size.cols, rows: size.rows,
       })
-      onConnected(id)
+  const label = (user ? `${user}@` : '') + host
+  onConnected({ id, label })
     } catch (e: any) {
       alert(e?.toString?.() ?? 'Error conectando')
     } finally {

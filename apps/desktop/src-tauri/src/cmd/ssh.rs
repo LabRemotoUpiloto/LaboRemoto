@@ -27,7 +27,7 @@ pub async fn ssh_connect(
   let id = Uuid::new_v4().to_string();
   {
     let mut map = SESSIONS.lock().unwrap();
-    map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone() });
+    map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone(), sftp_cached: None });
   }
 
   let _ = app.emit(&format!("ssh_out_{}", id), Some(format!("Conectado a {user}@{host}:{port}\r\n")));
@@ -104,7 +104,7 @@ pub async fn ssh_connect_stored(
   let id = Uuid::new_v4().to_string();
   {
     let mut map = SESSIONS.lock().unwrap();
-    map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone() });
+    map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone(), sftp_cached: None });
   }
 
   let _ = app.emit(&format!("ssh_out_{}", id), Some(format!("Conectado a {user}@{host}:{port}\r\n")));
