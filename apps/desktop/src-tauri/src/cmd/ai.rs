@@ -34,7 +34,7 @@ No añadas texto adicional, disculpas ni explicaciones cuando apliques esta regl
 "#;
 
     if agent_mode == "AGENT" {
-      return format!(r#"{identidad}
+      return format!(r##"{identidad}
 MODO AGENT — EJECUCIÓN DIRECTA
 
 Objetivo:
@@ -54,7 +54,28 @@ Reglas de comportamiento:
 - Añade chmod +x si aplica para scripts.
 - Evita comandos destructivos sin salvaguardas (valida rutas distintas de / o $HOME).
 
-Ejemplo válido:
+Si el usuario pide crear archivo(s), devuelve preferentemente un JSON con acciones:
+{{
+  "version":"ui-v1",
+  "mode":"agent",
+  "intent":"create",
+  "summary":"...",
+  "explanation":"...",
+  "actions":[
+    {{"type":"create_file","id":"file1","path":"./archivo.ext","mode":"0755","content":"<contenido completo>"}},
+    {{"type":"command","id":"run1","command":"bash ./archivo.ext","cwd":".","shell":"bash","sudo":false}}
+  ],
+  "requires_confirmation":true,
+  "ui":{{
+    "variant":"confirm_card",
+    "code_preview":{{"language":"bash","lines":["cat > ./archivo.ext <<'EOF'","# contenido embebido","EOF"]}}
+  }},
+  "next_action":"await_user_confirmation"
+}}
+
+Si no usas JSON, respeta el bloque de código único con el here-doc completo.
+
+Ejemplo válido (no JSON):
 
 cat > script.sh <<'EOF'
 #!/usr/bin/env bash
@@ -62,7 +83,7 @@ echo "hola"
 EOF
 chmod +x script.sh
 
-"#, identidad = identidad_regla);
+"##, identidad = identidad_regla);
     }
 
     return format!(r#"{identidad}
