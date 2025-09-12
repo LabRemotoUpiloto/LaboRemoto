@@ -1,4 +1,4 @@
-use std::sync::{Arc};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::io::{Read, Write};
@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::ssh::ssh2_sftp as sftp2;
+use super::state::{SessionExt, CachedSsh2};
 
 use super::state::{SESSIONS, TRANSFERS, SftpEntry};
 
@@ -18,19 +19,50 @@ pub async fn sftp_open(id: String) -> Result<(), String> {
   Ok(())
 }
 
-#[tauri::command]
-pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, String> {
+// Obtiene una sesión ssh2 en caché para la sesión dada, o la crea si no existe o si falló.
+fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
+  // 1) ¿Ya hay cache?
+  if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
+  // 2) Copiar credenciales y soltar lock antes de conectar
   let (host, port, user, password) = {
-    let map = SESSIONS.lock().unwrap();
-    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    let s = map.get(id).ok_or_else(|| AppError::NotFound.to_string())?;
     (s.host.clone(), s.port, s.user.clone(), s.password.clone())
   };
+  // 3) Crear nueva conexión ssh2
+  let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+  let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess }));
+  // 4) Guardar en el mapa
+  if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); }
+  Ok(arc)
+}
+
+#[tauri::command]
+pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, String> {
   let list = tokio::task::spawn_blocking(move || {
-    let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-    let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
-    let out = sftp2::list_dir(&sftp, &path).map_err(|e| e.to_string())?;
-    drop(sftp); drop(sess); drop(tcp);
-    Ok::<_, String>(out)
+    let mut map = SESSIONS.lock().unwrap();
+    let cached = get_or_connect_cached(&mut map, &id)?;
+    // Intentar usar el SFTP; si falla, reconectar una vez
+    let out_res: Result<_, String> = (||{
+      let guard = cached.lock().unwrap();
+      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
+      sftp2::list_dir(&sftp, &path).map_err(|e| e.to_string())
+    })();
+    match out_res {
+      Ok(v) => Ok(v),
+      Err(_) => {
+        // Reconección
+        let (host, port, user, password) = {
+          let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+          (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+        };
+        let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+        if let Some(s) = map.get_mut(&id) { s.sftp_cached = Some(Arc::new(Mutex::new(CachedSsh2 { tcp, sess }))); }
+        let cached2 = map.get(&id).unwrap().sftp_cached.as_ref().unwrap().clone();
+        let guard = cached2.lock().unwrap();
+        let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
+        sftp2::list_dir(&sftp, &path).map_err(|e| e.to_string())
+      }
+    }
   }).await.map_err(|e| e.to_string())??;
 
   Ok(list.into_iter().map(|e| SftpEntry { name: e.name, path: e.path, kind: e.kind, size: e.size, perms: e.perms, mtime: e.mtime }).collect())
@@ -38,14 +70,11 @@ pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, Strin
 
 #[tauri::command]
 pub async fn sftp_mkdir(id: String, path: String) -> Result<(), String> {
-  let (host, port, user, password) = {
-    let map = SESSIONS.lock().unwrap();
-    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
-    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
-  };
   tokio::task::spawn_blocking(move || {
-    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-    let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+    let mut map = SESSIONS.lock().unwrap();
+    let cached = get_or_connect_cached(&mut map, &id)?;
+    let guard = cached.lock().unwrap();
+    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
     sftp2::mkdir(&sftp, &path).map_err(|e| e.to_string())
   }).await.map_err(|e| e.to_string())??;
   Ok(())
@@ -53,14 +82,11 @@ pub async fn sftp_mkdir(id: String, path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn sftp_rename(id: String, from: String, to: String) -> Result<(), String> {
-  let (host, port, user, password) = {
-    let map = SESSIONS.lock().unwrap();
-    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
-    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
-  };
   tokio::task::spawn_blocking(move || {
-    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-    let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+    let mut map = SESSIONS.lock().unwrap();
+    let cached = get_or_connect_cached(&mut map, &id)?;
+    let guard = cached.lock().unwrap();
+    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
     sftp2::rename(&sftp, &from, &to).map_err(|e| e.to_string())
   }).await.map_err(|e| e.to_string())??;
   Ok(())
@@ -69,14 +95,11 @@ pub async fn sftp_rename(id: String, from: String, to: String) -> Result<(), Str
 #[tauri::command]
 pub async fn sftp_remove(id: String, path: String, recursive: Option<bool>) -> Result<(), String> {
   let rec = recursive.unwrap_or(false);
-  let (host, port, user, password) = {
-    let map = SESSIONS.lock().unwrap();
-    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
-    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
-  };
   tokio::task::spawn_blocking(move || {
-    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-    let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+    let mut map = SESSIONS.lock().unwrap();
+    let cached = get_or_connect_cached(&mut map, &id)?;
+    let guard = cached.lock().unwrap();
+    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
     if !rec {
       match sftp2::remove_file(&sftp, &path) { Ok(_) => return Ok(()), Err(_) => {} }
       return sftp2::remove_dir(&sftp, &path).map_err(|e| e.to_string());
@@ -95,18 +118,17 @@ pub async fn sftp_remove(id: String, path: String, recursive: Option<bool>) -> R
 
 #[tauri::command]
 pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String, local_path: String) -> Result<String, String> {
-  let (host, port, user, password) = {
-    let map = SESSIONS.lock().unwrap();
-    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
-    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  let cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    get_or_connect_cached(&mut map, &id)?
   };
   if let Some(parent) = std::path::Path::new(&local_path).parent() { if !parent.as_os_str().is_empty() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; } }
   let transfer_id = Uuid::new_v4().to_string();
   let cancel = Arc::new(AtomicBool::new(false));
   TRANSFERS.lock().unwrap().insert(transfer_id.clone(), cancel.clone());
-  let total = tokio::task::spawn_blocking({ let host=host.clone(); let user=user.clone(); let password=password.clone(); let remote_path=remote_path.clone(); move || {
-    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password)?;
-    let sftp = sftp2::open_sftp(&sess)?;
+  let total = tokio::task::spawn_blocking({ let cached = cached.clone(); let remote_path=remote_path.clone(); move || {
+    let guard = cached.lock().unwrap();
+    let sftp = sftp2::open_sftp(&guard.sess)?;
     let st = sftp2::stat(&sftp, &remote_path).ok();
     Ok::<_, anyhow::Error>(st.and_then(|s| s.size))
   }}).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
@@ -118,8 +140,8 @@ pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String
   let transfer_id2 = transfer_id.clone();
   tokio::task::spawn_blocking(move || {
     let res: Result<(), String> = (||{
-      let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-      let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+      let guard = cached.lock().unwrap();
+      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
       use std::io::{Read, Write};
       let mut rf = sftp.open(std::path::Path::new(&remote_path)).map_err(|e| e.to_string())?;
       let mut lf = std::fs::File::create(&local_path).map_err(|e| e.to_string())?;
@@ -155,10 +177,9 @@ pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String
 
 #[tauri::command]
 pub async fn sftp_upload_start(app: AppHandle, id: String, local_path: String, remote_path: String) -> Result<String, String> {
-  let (host, port, user, password) = {
-    let map = SESSIONS.lock().unwrap();
-    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
-    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  let cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    get_or_connect_cached(&mut map, &id)?
   };
   let transfer_id = Uuid::new_v4().to_string();
   let cancel = Arc::new(AtomicBool::new(false));
@@ -172,8 +193,8 @@ pub async fn sftp_upload_start(app: AppHandle, id: String, local_path: String, r
   let transfer_id2 = transfer_id.clone();
   tokio::task::spawn_blocking(move || {
     let res: Result<(), String> = (||{
-      let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-      let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+      let guard = cached.lock().unwrap();
+      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
       use std::io::{Read, Write};
       let mut rf = std::fs::File::open(&local_path).map_err(|e| e.to_string())?;
       let mut lf = sftp.create(std::path::Path::new(&remote_path)).map_err(|e| e.to_string())?;
@@ -214,10 +235,9 @@ pub async fn sftp_cancel(_id: String, transfer_id: String) -> Result<(), String>
 #[tauri::command]
 pub async fn sftp_upload_dir_start(app: AppHandle, id: String, local_path: String, remote_path: String) -> Result<String, String> {
   use std::{fs, path::{Path, PathBuf}};
-  let (host, port, user, password) = {
-    let map = SESSIONS.lock().unwrap();
-    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
-    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  let cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    get_or_connect_cached(&mut map, &id)?
   };
   let total = tokio::task::spawn_blocking({ let local_path=local_path.clone(); move || {
     fn sum_dir(p: &Path) -> u64 { let mut s=0; if let Ok(rd) = fs::read_dir(p) { for e in rd.flatten() { let m = e.metadata(); if let Ok(m) = m { if m.is_file() { s += m.len() } else if m.is_dir() { s += sum_dir(&e.path()) } } } } s }
@@ -237,8 +257,8 @@ pub async fn sftp_upload_dir_start(app: AppHandle, id: String, local_path: Strin
   let transfer_id2 = transfer_id.clone();
   tokio::task::spawn_blocking(move || {
     let res: Result<(), String> = (||{
-      let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-      let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+      let guard = cached.lock().unwrap();
+      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
       let base = PathBuf::from(&remote_path);
       let _ = sftp.mkdir(&base, 0o755);
       let mut done: u64 = 0;
@@ -289,15 +309,14 @@ pub async fn sftp_upload_dir_start(app: AppHandle, id: String, local_path: Strin
 #[tauri::command]
 pub async fn sftp_download_dir_start(app: AppHandle, id: String, remote_path: String, local_path: String) -> Result<String, String> {
   use std::{fs, path::{Path, PathBuf}};
-  let (host, port, user, password) = {
-    let map = SESSIONS.lock().unwrap();
-    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
-    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  let cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    get_or_connect_cached(&mut map, &id)?
   };
   if let Some(parent) = std::path::Path::new(&local_path).parent() { if !parent.as_os_str().is_empty() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; } }
-  let total = tokio::task::spawn_blocking({ let host=host.clone(); let user=user.clone(); let password=password.clone(); let remote_path=remote_path.clone(); move || {
-    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password)?;
-    let sftp = sftp2::open_sftp(&sess)?;
+  let total = tokio::task::spawn_blocking({ let remote_path=remote_path.clone(); let cached = cached.clone(); move || {
+    let guard = cached.lock().unwrap();
+    let sftp = sftp2::open_sftp(&guard.sess)?;
     fn sum_remote(sftp: &sftp2::Ssh2Sftp, p: &Path) -> anyhow::Result<u64> {
       let mut s = 0u64;
       for entry in sftp.readdir(p)? { let (pb, st) = entry; if let Some(name) = pb.file_name().and_then(|s| s.to_str()) { if name=="."||name==".." { continue; } }
@@ -320,8 +339,8 @@ pub async fn sftp_download_dir_start(app: AppHandle, id: String, remote_path: St
   let transfer_id2 = transfer_id.clone();
   tokio::task::spawn_blocking(move || {
     let res: Result<(), String> = (||{
-      let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-      let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+      let guard = cached.lock().unwrap();
+      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
       let base_remote = PathBuf::from(&remote_path);
       let base_local = PathBuf::from(&local_path);
       let _ = fs::create_dir_all(&base_local);

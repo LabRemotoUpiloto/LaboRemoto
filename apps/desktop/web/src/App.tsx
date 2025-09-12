@@ -1,5 +1,5 @@
 // App raíz: manejo de pestañas (Inicio persistente + sesiones) y navegación lateral.
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import './App.css'
 import Header from './components/Header'
@@ -23,14 +23,21 @@ const App: React.FC = () => {
   const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_ID, type: 'home', label: 'Inicio' }])
   const [activeTabId, setActiveTabId] = useState<string>(HOME_ID)
   const [isSidebarOpen, setSidebarOpen] = useState(true)
+  const [sessionMeta, setSessionMeta] = useState<Record<string,{ label: string }>>({})
   const [pendingHost, setPendingHost] = useState<any | null>(null)
   const [selectedPage, setSelectedPage] = useState<string>('connect') // subpágina dentro de Inicio
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
   // Abre una nueva sesión si no existe, y la activa
-  const openSession = (id: string) => {
-    setTabs(prev => prev.some(t => t.id === id) ? prev : [...prev, { id, type: 'session', label: id }])
+  const openSession = (id: string, label?: string) => {
+    setTabs(prev => {
+      const exists = prev.some(t => t.id === id)
+      if (exists) {
+        return prev.map(t => (t.id === id && label) ? { ...t, label } : t)
+      }
+      return [...prev, { id, type: 'session', label: label || sessionMeta[id]?.label || id }]
+    })
     setActiveTabId(id)
   }
 
@@ -48,14 +55,25 @@ const App: React.FC = () => {
     })
   }
 
-  const handleNewSession = (id: string | null) => {
-    if (!id) { setActiveTabId(HOME_ID); return }
-    openSession(id)
+  const handleNewSession = (info: { id: string; label?: string } | null) => {
+    if (!info) { setActiveTabId(HOME_ID); return }
+    const { id, label } = info
+    if (label) setSessionMeta(prev => ({ ...prev, [id]: { label } }))
+    openSession(id, label)
   }
 
   const handleTabClick = (id: string) => {
     setActiveTabId(id)
   }
+
+  // Mantiene sincronizadas las etiquetas de pestañas con los alias en sessionMeta
+  useEffect(() => {
+    setTabs(prev => prev.map(t => (
+      t.type === 'session' && sessionMeta[t.id]?.label && t.label !== sessionMeta[t.id].label
+        ? { ...t, label: sessionMeta[t.id].label }
+        : t
+    )))
+  }, [sessionMeta])
 
   // Al cerrar una sesión, pedir al backend que desconecte antes de remover la pestaña
   const handleCloseTab = async (id: string) => {
@@ -95,7 +113,11 @@ const App: React.FC = () => {
                 <SavedHostsPage onConnect={async (h,p,u,pass) => {
                   try {
                     const sessionId = await connectFromHost(h, Number(p), u || '', pass || '')
-                    if (sessionId) openSession(sessionId as any)
+                    if (sessionId) {
+                      const label = (u? `${u}@`:'') + h
+                      setSessionMeta(prev => ({ ...prev, [String(sessionId)]: { label } }))
+                      openSession(String(sessionId), label)
+                    }
                   } catch (e) {
                     alert('Error connecting to host: ' + (e as any)?.toString?.())
                   }
@@ -105,6 +127,7 @@ const App: React.FC = () => {
               ) : selectedPage === 'sftp' ? (
                 <SftpPage
                   sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
+                  sessionsMeta={sessionMeta}
                   activeSessionId={tabs.some(t=>t.id===activeTabId && t.type==='session') ? activeTabId : undefined}
                 />
               ) : (

@@ -262,7 +262,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
               <pre className="code-output">{msg.meta.code_output}</pre>
             )}
-
             {/* Card: comando pendiente */}
             {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
               <div className="confirm-card">
@@ -280,8 +279,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                     preview = 'cd ..';
                   }
                   // Intent: entrar/ir al último directorio creado
-                  const wantsEnterLastDir = /(entra|ingresa|ve|ir)\s+(al|a la)\s*(directorio|carpeta)\s+(que\s+)?(me\s+)?(creaste|reciente|[úu]ltim[oa])/.
-                    test(up) || (/(ve|ir)\s+(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up) && hasDir);
+                  const wantsEnterLastDir = /(entra|ingresa|ve|ir)\s+(al|a la)\s*(directorio|carpeta)\s+(que\s+)?(me\s+)?(creaste|reciente|[úu]ltim[oa])/.test(up)
+                    || (/(ve|ir)\s+(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up) && hasDir);
                   if (hasDir && wantsEnterLastDir) {
                     preview = `cd ${mem.lastPath}`;
                   }

@@ -1,11 +1,13 @@
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::net::TcpStream;
 use std::sync::atomic::AtomicBool;
 
 use serde::{Deserialize, Serialize};
 
 use crate::ssh::client::Session;
+use ssh2::Session as Ssh2Session;
 
 // Sesiones SSH activas en memoria, indexadas por un ID (UUID)
 pub static SESSIONS: Lazy<Mutex<HashMap<String, SessionExt>>> =
@@ -22,6 +24,14 @@ pub struct SessionExt {
   pub port: u16,
   pub user: String,
   pub password: String,
+  // Sesión ssh2 en caché para SFTP (compartida y protegida por Mutex)
+  pub sftp_cached: Option<Arc<Mutex<CachedSsh2>>>,
+}
+
+// Conexión ssh2 reutilizable por sesión
+pub struct CachedSsh2 {
+  pub tcp: TcpStream,
+  pub sess: Ssh2Session,
 }
 
 // ====== SFTP (tipos de datos) ======
