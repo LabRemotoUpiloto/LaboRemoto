@@ -383,6 +383,9 @@ html[data-theme="bold-rainbow"] .btn-primary {
 }
 .file-name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
 
+/* Right-aligned monospace-ish numeric cell for sizes */
+.size-cell { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; display: inline-block; min-width: 68px; }
+
 /* Context menu */
 .ctx-menu { background: var(--background-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); min-width: 180px; }
 .ctx-list { list-style: none; margin: 4px; padding: 4px; }
