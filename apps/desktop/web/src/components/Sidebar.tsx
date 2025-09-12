@@ -13,7 +13,7 @@ const items = [
   // simple emoji icons for now; consider replacing with SVG react components later
   { id: 'hosts', label: 'Hosts', icon: '🧭' },
   { id: 'themes', label: 'Temas', icon: '🎨' },
-    { id: 'port', label: 'Port Forwarding', icon: '�' },
+  { id: 'sftp', label: 'SFTP', icon: '📂' },
     { id: 'snippets', label: 'Snippets', icon: '📎' },
     { id: 'known', label: 'Known Hosts', icon: '📡' },
     { id: 'logs', label: 'Logs', icon: '🕘' },

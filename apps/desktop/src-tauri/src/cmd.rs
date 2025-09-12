@@ -3,9 +3,10 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use crate::error::AppError;
 use crate::ssh::client::{Session, ChanCmd};
+use crate::ssh::ssh2_sftp as sftp2;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 use crate::storage;
@@ -13,6 +14,11 @@ use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use dotenvy::dotenv;
 use std::env;
+use std::fs;
+use std::path::PathBuf;
+use directories::UserDirs;
+use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Petición para el chat con IA.
 #[derive(Serialize, Deserialize)]
@@ -502,8 +508,279 @@ ls -la
 }
 
 // Sesiones SSH activas en memoria, indexadas por un ID (UUID)
-static SESSIONS: Lazy<Mutex<HashMap<String, Session>>> =
+static SESSIONS: Lazy<Mutex<HashMap<String, SessionExt>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
+
+// Envoltorio de sesión: terminal (russh) + credenciales para SFTP (ssh2)
+pub struct SessionExt {
+  pub term: Session,
+  pub host: String,
+  pub port: u16,
+  pub user: String,
+  pub password: String,
+}
+
+// ====== SFTP (Wiring inicial sin implementación real) ======================
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SftpEntry {
+  pub name: String,
+  pub path: String,
+  pub kind: String, // "file" | "dir" | "sym"
+  pub size: Option<u64>,
+  pub perms: Option<String>,
+  pub mtime: Option<u64>,
+}
+
+/// Abre el canal SFTP asociado a la sesión (placeholder MVP)
+#[tauri::command]
+pub async fn sftp_open(id: String) -> Result<(), String> {
+  // Verificar que la sesión existe
+  let map = SESSIONS.lock().unwrap();
+  if !map.contains_key(&id) { return Err(AppError::NotFound.to_string()); }
+  Ok(())
+}
+
+/// Lista el contenido de un path remoto (placeholder devuelve vacío)
+#[tauri::command]
+pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, String> {
+  let (host, port, user, password) = {
+    let map = SESSIONS.lock().unwrap();
+    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  };
+  let list = tokio::task::spawn_blocking(move || {
+    let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+    let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+    let out = sftp2::list_dir(&sftp, &path).map_err(|e| e.to_string())?;
+    drop(sftp); drop(sess); drop(tcp);
+    Ok::<_, String>(out)
+  }).await.map_err(|e| e.to_string())??;
+
+  Ok(list.into_iter().map(|e| SftpEntry { name: e.name, path: e.path, kind: e.kind, size: e.size, perms: e.perms, mtime: e.mtime }).collect())
+}
+
+#[tauri::command]
+pub async fn sftp_mkdir(id: String, path: String) -> Result<(), String> {
+  let (host, port, user, password) = {
+    let map = SESSIONS.lock().unwrap();
+    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  };
+  tokio::task::spawn_blocking(move || {
+    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+    let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+    sftp2::mkdir(&sftp, &path).map_err(|e| e.to_string())
+  }).await.map_err(|e| e.to_string())??;
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn sftp_rename(id: String, from: String, to: String) -> Result<(), String> {
+  let (host, port, user, password) = {
+    let map = SESSIONS.lock().unwrap();
+    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  };
+  tokio::task::spawn_blocking(move || {
+    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+    let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+    sftp2::rename(&sftp, &from, &to).map_err(|e| e.to_string())
+  }).await.map_err(|e| e.to_string())??;
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn sftp_remove(id: String, path: String, recursive: Option<bool>) -> Result<(), String> {
+  let rec = recursive.unwrap_or(false);
+  let (host, port, user, password) = {
+    let map = SESSIONS.lock().unwrap();
+    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  };
+  tokio::task::spawn_blocking(move || {
+    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+    let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+    if !rec {
+      // intentamos archivo, si falla intentamos dir
+      match sftp2::remove_file(&sftp, &path) { Ok(_) => return Ok(()), Err(_) => {} }
+      return sftp2::remove_dir(&sftp, &path).map_err(|e| e.to_string());
+    }
+  fn remove_rec(sftp: &ssh2::Sftp, p: &str) -> Result<(), String> {
+      let list = sftp2::list_dir(sftp, p).map_err(|e| e.to_string())?;
+      for e in list {
+        if e.kind == "dir" { remove_rec(sftp, &e.path)?; } else { sftp2::remove_file(sftp, &e.path).map_err(|e| e.to_string())?; }
+      }
+      sftp2::remove_dir(sftp, p).map_err(|e| e.to_string())
+    }
+    remove_rec(&sftp, &path)
+  }).await.map_err(|e| e.to_string())??;
+  Ok(())
+}
+
+// Registro de cancelación de transferencias
+static TRANSFERS: Lazy<Mutex<HashMap<String, Arc<AtomicBool>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+#[tauri::command]
+pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String, local_path: String) -> Result<String, String> {
+  let (host, port, user, password) = {
+    let map = SESSIONS.lock().unwrap();
+    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  };
+  if let Some(parent) = std::path::Path::new(&local_path).parent() { if !parent.as_os_str().is_empty() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; } }
+  let transfer_id = Uuid::new_v4().to_string();
+  let cancel = Arc::new(AtomicBool::new(false));
+  TRANSFERS.lock().unwrap().insert(transfer_id.clone(), cancel.clone());
+  let total = tokio::task::spawn_blocking({ let host=host.clone(); let user=user.clone(); let password=password.clone(); let remote_path=remote_path.clone(); move || {
+    let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password)?;
+    let sftp = sftp2::open_sftp(&sess)?;
+    let st = sftp2::stat(&sftp, &remote_path).ok();
+    Ok::<_, anyhow::Error>(st.and_then(|s| s.size))
+  }}).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
+  let _ = app.emit("sftp_transfer", Some(serde_json::json!({
+    "type":"started","id":transfer_id,"direction":"download","session_id":id,
+    "remote_path":remote_path,"local_path":local_path,"total":total
+  })));
+  let app2 = app.clone();
+  let transfer_id2 = transfer_id.clone();
+  tokio::task::spawn_blocking(move || {
+    let res: Result<(), String> = (||{
+      let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+      let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+      // Loop manual con progreso
+      use std::io::{Read, Write};
+      let mut rf = sftp.open(std::path::Path::new(&remote_path)).map_err(|e| e.to_string())?;
+      let mut lf = std::fs::File::create(&local_path).map_err(|e| e.to_string())?;
+      let mut buf = vec![0u8; 64*1024];
+      let mut done: u64 = 0;
+      let mut last = std::time::Instant::now();
+      loop {
+        if cancel.load(Ordering::Relaxed) { return Err("__CANCELLED__".into()); }
+        let n = rf.read(&mut buf).map_err(|e| e.to_string())?;
+        if n == 0 { break; }
+        lf.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+        done += n as u64;
+        if last.elapsed() >= Duration::from_millis(150) {
+          let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"progress","id":transfer_id2,"direction":"download","bytes":done,"total":total})));
+          last = std::time::Instant::now();
+        }
+      }
+      let _ = lf.flush();
+      Ok(())
+    })();
+    match res {
+      Ok(()) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"done","id":transfer_id2}))); }
+      Err(e) if e == "__CANCELLED__" => {
+        let _ = std::fs::remove_file(&local_path);
+        let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"canceled","id":transfer_id2})));
+      }
+      Err(e) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":e}))); }
+    }
+    TRANSFERS.lock().unwrap().remove(&transfer_id2);
+  });
+  Ok(transfer_id)
+}
+
+#[tauri::command]
+pub async fn sftp_upload_start(app: AppHandle, id: String, local_path: String, remote_path: String) -> Result<String, String> {
+  let (host, port, user, password) = {
+    let map = SESSIONS.lock().unwrap();
+    let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+  };
+  let transfer_id = Uuid::new_v4().to_string();
+  let cancel = Arc::new(AtomicBool::new(false));
+  TRANSFERS.lock().unwrap().insert(transfer_id.clone(), cancel.clone());
+  let total = std::fs::metadata(&local_path).ok().map(|m| m.len());
+  let _ = app.emit("sftp_transfer", Some(serde_json::json!({
+    "type":"started","id":transfer_id,"direction":"upload","session_id":id,
+    "remote_path":remote_path,"local_path":local_path,"total":total
+  })));
+  let app2 = app.clone();
+  let transfer_id2 = transfer_id.clone();
+  tokio::task::spawn_blocking(move || {
+    let res: Result<(), String> = (||{
+      let (_tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+      let sftp = sftp2::open_sftp(&sess).map_err(|e| e.to_string())?;
+      use std::io::{Read, Write};
+      let mut rf = std::fs::File::open(&local_path).map_err(|e| e.to_string())?;
+      let mut lf = sftp.create(std::path::Path::new(&remote_path)).map_err(|e| e.to_string())?;
+      let mut buf = vec![0u8; 64*1024];
+      let mut done: u64 = 0;
+      let mut last = std::time::Instant::now();
+      loop {
+        if cancel.load(Ordering::Relaxed) { return Err("__CANCELLED__".into()); }
+        let n = rf.read(&mut buf).map_err(|e| e.to_string())?;
+        if n == 0 { break; }
+        lf.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+        done += n as u64;
+        if last.elapsed() >= Duration::from_millis(150) {
+          let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"progress","id":transfer_id2,"direction":"upload","bytes":done,"total":total})));
+          last = std::time::Instant::now();
+        }
+      }
+      let _ = lf.flush();
+      Ok(())
+    })();
+    match res {
+      Ok(()) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"done","id":transfer_id2}))); }
+      Err(e) if e == "__CANCELLED__" => {
+        // intentar borrar remoto parcial no es trivial sin ruta; lo ignoramos
+        let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"canceled","id":transfer_id2})));
+      }
+      Err(e) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":e}))); }
+    }
+    TRANSFERS.lock().unwrap().remove(&transfer_id2);
+  });
+  Ok(transfer_id)
+}
+
+#[tauri::command]
+pub async fn sftp_cancel(_id: String, transfer_id: String) -> Result<(), String> {
+  if let Some(flag) = TRANSFERS.lock().unwrap().get(&transfer_id) { flag.store(true, Ordering::Relaxed); Ok(()) } else { Err("transfer not found".into()) }
+}
+
+// ====== Local FS helpers (panel izquierdo) ========================
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LocalEntry {
+  pub name: String,
+  pub path: String,
+  pub kind: String,
+  pub size: Option<u64>,
+  pub mtime: Option<i64>,
+}
+
+#[tauri::command]
+pub async fn local_home_dir() -> Result<String, String> {
+  if let Some(ud) = UserDirs::new() { Ok(ud.home_dir().to_string_lossy().to_string()) } else { Err("No se pudo resolver el home".into()) }
+}
+
+#[tauri::command]
+pub async fn local_list_dir(path: String) -> Result<Vec<LocalEntry>, String> {
+  let mut out: Vec<LocalEntry> = Vec::new();
+  let rd = fs::read_dir(&path).map_err(|e| e.to_string())?;
+  for ent in rd { let ent = ent.map_err(|e| e.to_string())?; let p: PathBuf = ent.path(); let name = ent.file_name().to_string_lossy().to_string(); let meta = fs::symlink_metadata(&p).map_err(|e| e.to_string())?; let ft = meta.file_type(); let kind = if ft.is_dir() { "dir" } else if ft.is_symlink() { "sym" } else { "file" }.to_string(); let size = if ft.is_file() { Some(meta.len()) } else { None }; let mtime = meta.modified().ok().and_then(|st| st.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as i64); out.push(LocalEntry { name, path: p.to_string_lossy().to_string(), kind, size, mtime }); }
+  out.sort_by(|a,b| if a.kind!=b.kind { if a.kind=="dir" { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater } } else { a.name.to_lowercase().cmp(&b.name.to_lowercase()) });
+  Ok(out)
+}
+
+#[tauri::command]
+pub async fn local_list_drives() -> Result<Vec<String>, String> {
+  #[cfg(target_os = "windows")]
+  {
+    let mut drives = Vec::new();
+    for letter in b'A'..=b'Z' {
+      let p = format!("{}:\\", letter as char);
+      if std::path::Path::new(&p).exists() { drives.push(p); }
+    }
+    if drives.is_empty() { drives.push("C:\\".to_string()); }
+    return Ok(drives);
+  }
+  #[cfg(not(target_os = "windows"))]
+  {
+    Ok(vec!["/".to_string()])
+  }
+}
 
 /// Establece una sesión SSH (usuario/clave), abre un PTY y reenvía la salida a la UI por eventos.
 #[tauri::command]
@@ -524,7 +801,7 @@ pub async fn ssh_connect(
   let id = Uuid::new_v4().to_string();
   {
     let mut map = SESSIONS.lock().unwrap();
-    map.insert(id.clone(), session);
+    map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone() });
   }
 
   // Mensaje inicial
@@ -548,7 +825,7 @@ pub async fn ssh_connect(
 pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Result<(), String> {
   let tx = {
     let map = SESSIONS.lock().unwrap();
-    map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?.tx.clone()
+  map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?.term.tx.clone()
   };
   let bytes = if let Some(enc) = encoding {
     if enc == "base64" {
@@ -571,7 +848,7 @@ pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Re
 pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> {
   let tx = {
     let map = SESSIONS.lock().unwrap();
-    map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?.tx.clone()
+  map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?.term.tx.clone()
   };
   tx.send(ChanCmd::Resize { cols, rows })
     .map_err(|e| e.to_string())
@@ -585,7 +862,7 @@ pub async fn ssh_disconnect(id: String) -> Result<(), String> {
     let Some(session) = map.remove(&id) else {
       return Err(AppError::NotFound.to_string());
     };
-    session.tx.clone()
+  session.term.tx.clone()
   };
   let _ = tx.send(ChanCmd::Close);
   Ok(())
@@ -652,7 +929,7 @@ pub async fn ssh_connect_stored(
   let id = Uuid::new_v4().to_string();
   {
     let mut map = SESSIONS.lock().unwrap();
-    map.insert(id.clone(), session);
+    map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone() });
   }
 
   let _ = app.emit(&format!("ssh_out_{}", id), Some(format!("Conectado a {user}@{host}:{port}\r\n")));

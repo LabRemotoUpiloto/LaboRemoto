@@ -14,6 +14,7 @@ import { ToastProvider } from './contexts/ToastContext'
 import ToastContainer from './components/ToastContainer'
 import { ThemeProvider } from './contexts/ThemeContext'
 import ThemesPage from './pages/ThemesPage'
+import SftpPage from './pages/SftpPage'
 
 const App: React.FC = () => {
   // Representa una pestaña: 'home' (persistente) o 'session' (SSH)
@@ -101,6 +102,11 @@ const App: React.FC = () => {
                 }} />
               ) : selectedPage === 'themes' ? (
                 <ThemesPage />
+              ) : selectedPage === 'sftp' ? (
+                <SftpPage
+                  sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
+                  activeSessionId={tabs.some(t=>t.id===activeTabId && t.type==='session') ? activeTabId : undefined}
+                />
               ) : (
                 <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
               )}

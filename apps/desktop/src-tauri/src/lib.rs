@@ -2,7 +2,7 @@
 
 // Módulos públicos expuestos al resto de la app.
 pub mod error;   // Tipos de error compartidos
-pub mod ssh;     // Cliente SSH basado en russh
+pub mod ssh;     // Cliente SSH basado en russh (para terminal) + ssh2_sftp
 pub mod cmd;     // Comandos invocables desde el frontend (Tauri commands)
 pub mod storage; // Utilidades de almacenamiento cifrado de hosts
 
@@ -17,6 +17,19 @@ pub fn run() {
       cmd::ssh_stdin,
       cmd::ssh_resize,
       cmd::ssh_disconnect,
+  // SFTP (stubs)
+  cmd::sftp_open,
+  cmd::sftp_list,
+  cmd::sftp_mkdir,
+  cmd::sftp_rename,
+  cmd::sftp_remove,
+  cmd::sftp_download_start,
+  cmd::sftp_upload_start,
+  cmd::sftp_cancel,
+  // Local FS (pane izquierdo)
+  cmd::local_home_dir,
+  cmd::local_list_dir,
+  cmd::local_list_drives,
       // Chat IA
       cmd::ai_chat,
       // Storage (hosts)
