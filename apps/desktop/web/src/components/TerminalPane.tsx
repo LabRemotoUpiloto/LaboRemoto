@@ -7,16 +7,50 @@ import 'xterm/css/xterm.css';
 import './TerminalPane.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useTheme } from '../contexts/ThemeContext';
 
 type Props = { sessionId: string | null };
 
 const sanitize = (id: string) => (id || '').replace(/[^a-zA-Z0-9_:\-\/]/g, '_');
 
 const TerminalPane: React.FC<Props> = ({ sessionId }) => {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const unlistenRef = useRef<(() => void) | null>(null);
+
+  // Apply xterm theme from CSS variables
+  const applyXtermTheme = () => {
+    const term = termRef.current;
+    if (!term) return;
+    const styles = getComputedStyle(document.documentElement);
+    const get = (name: string) => styles.getPropertyValue(name).trim() || undefined;
+    term.options.theme = {
+      foreground: get('--terminal-foreground'),
+      background: 'transparent',
+      cursor: get('--accent-primary'),
+      cursorAccent: get('--background-primary'),
+      selectionBackground: get('--selection-bg'),
+      selectionForeground: get('--selection-fg'),
+      black: get('--ansi-black'),
+      red: get('--ansi-red'),
+      green: get('--ansi-green'),
+      yellow: get('--ansi-yellow'),
+      blue: get('--ansi-blue'),
+      magenta: get('--ansi-magenta'),
+      cyan: get('--ansi-cyan'),
+      white: get('--ansi-white'),
+      brightBlack: get('--ansi-bright-black'),
+      brightRed: get('--ansi-bright-red'),
+      brightGreen: get('--ansi-bright-green'),
+      brightYellow: get('--ansi-bright-yellow'),
+      brightBlue: get('--ansi-bright-blue'),
+      brightMagenta: get('--ansi-bright-magenta'),
+      brightCyan: get('--ansi-bright-cyan'),
+      brightWhite: get('--ansi-bright-white'),
+    } as any;
+  };
 
   // Montaje del terminal (una sola vez)
   useEffect(() => {
@@ -30,8 +64,10 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     term.open(container);
     try { fit.fit(); } catch {}
 
-    termRef.current = term;
+  termRef.current = term;
     fitRef.current = fit;
+  // Initial theme
+  try { applyXtermTheme(); } catch {}
 
   // Ajustar tamaño al cambiar ventana y notificar al backend
   const onResize = () => {
@@ -52,6 +88,11 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-apply theme when app theme changes
+  useEffect(() => {
+    applyXtermTheme();
+  }, [theme]);
 
   // Suscribirse a la sesión SSH específica (cambio de sessionId)
   useEffect(() => {
