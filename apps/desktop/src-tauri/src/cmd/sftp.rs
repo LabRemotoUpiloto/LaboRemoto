@@ -19,6 +19,25 @@ pub async fn sftp_open(id: String) -> Result<(), String> {
   Ok(())
 }
 
+// Devuelve un path "home" estimado para el usuario remoto.
+// Intenta $HOME via shell, luego "~" expandido, y como fallback /home/<user> o /root.
+#[tauri::command]
+pub async fn sftp_home(id: String) -> Result<String, String> {
+  let home = tokio::task::spawn_blocking(move || {
+    let mut map = SESSIONS.lock().unwrap();
+    let user = {
+      let sref = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+      sref.user.clone()
+    };
+    // Intentar conectar (rellena cache si no existe)
+    let _ = get_or_connect_cached(&mut map, &id)?;
+    // Heurística típica Linux
+    let guess = if user == "root" { "/root".to_string() } else { format!("/home/{}", user) };
+    Ok::<String,String>(guess)
+  }).await.map_err(|e| e.to_string())??;
+  Ok(home)
+}
+
 // Obtiene una sesión ssh2 en caché para la sesión dada, o la crea si no existe o si falló.
 fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
   // 1) ¿Ya hay cache?
