@@ -5,9 +5,16 @@ use std::env;
 
 /// Petición para el chat con IA.
 #[derive(Serialize, Deserialize)]
+pub struct ChatHistoryItem {
+  pub role: String,    // "user" | "assistant" | "system"
+  pub content: String,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct AiChatRequest {
   pub user_input: String,
   pub mode: Option<String>,
+  pub history: Option<Vec<ChatHistoryItem>>, // Conversación previa opcional
 }
 
 /// Respuesta del chat con IA (algunos campos son opcionales según el modo).
@@ -107,17 +114,34 @@ ls -la
 "#, identidad = identidad_regla);
   }
 
-  let mode = req.mode.clone().unwrap_or_else(|| "ASK".to_string());
+  // Mover campos del request a variables locales para evitar clones innecesarios
+  let AiChatRequest { user_input, mode, history } = req;
+  let mode = mode.unwrap_or_else(|| "ASK".to_string());
   let system_prompt = get_system_prompt(&mode);
 
-  // Build the request payload for OpenAI Chat completions
+  // Construir historial de mensajes para OpenAI: system + (historial opcional) + user actual
   let client = Client::builder().build().map_err(|e| e.to_string())?;
+  let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({"role":"system","content": system_prompt})];
+  if let Some(mut hist) = history {
+    // Limitar a los últimos 12 turnos para no crecer demasiado
+    let take_from = if hist.len() > 12 { hist.len() - 12 } else { 0 };
+    hist = hist.into_iter().skip(take_from).collect();
+    for item in hist {
+      let role = match item.role.as_str() {
+        "assistant" | "user" | "system" => item.role,
+        // Fallbacks comunes
+        "ai" | "bot" => "assistant".to_string(),
+        _ => "user".to_string(),
+      };
+      messages.push(serde_json::json!({"role": role, "content": item.content}));
+    }
+  }
+  messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
+
+  // Build the request payload for OpenAI Chat completions
   let payload = serde_json::json!({
     "model": "gpt-3.5-turbo",
-    "messages": [
-      {"role": "system", "content": system_prompt},
-      {"role": "user", "content": req.user_input}
-    ],
+    "messages": messages,
     "max_tokens": 800,
     "temperature": 0.2
   });
@@ -436,7 +460,7 @@ ls -la
   }
 
   Ok(AiChatResponse {
-    user_input: req.user_input,
+    user_input,
     ai_response,
     code_output,
     explanation,
