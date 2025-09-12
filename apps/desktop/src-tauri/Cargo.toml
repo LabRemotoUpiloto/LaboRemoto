@@ -32,6 +32,9 @@ tokio = { version = "1.39", features = ["rt-multi-thread", "macros", "sync", "io
 russh = "=0.50.3"
 ssh-key = "0.6"
 
+# SFTP estable vía libssh2 (bloqueante, usamos spawn_blocking). Vendored OpenSSL para Windows.
+ssh2 = "0.9"
+
 # Tauri v2
 tauri = { version = "2", features = [] }
 
