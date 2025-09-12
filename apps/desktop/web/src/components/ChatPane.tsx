@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './ChatPane.css';
 import { invoke } from '@tauri-apps/api/core';
+import { useSessionMemory } from '../hooks/useSessionMemory';
 
 type ChatMode = 'ask' | 'agent';
 
@@ -26,9 +27,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
-  const [memory, setMemory] = useState<{ lastFile?: string }>({});
   const [isSending, setIsSending] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  // Nueva memoria sincronizada con Rust (fuente de verdad) + cache UI
+  const { mem, setLastFile, setLastCommand, setLastPath, buildContextAppendix, clear } = useSessionMemory(sessionId ?? null);
 
   // Referencia para el contenedor de mensajes (auto-scroll inteligente)
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -48,36 +51,47 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     }
   }, [messages]);
 
-  // Limpiar mensajes automáticamente al cambiar de modo
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setMode(e.target.value as ChatMode);
     setMessages([]);
-    setMemory({});
+    // limpiar memoria en backend también
+    clear();
   };
-
-  // No se envía stdin directo desde aquí: la ejecución ocurre en el TerminalPane.
 
   const handleNewChat = () => {
     setMessages([]);
-    // clear ephemeral memory for this chat
-    setMemory({});
+    clear();
   };
+
+  // --- Helpers ---
+  const extractCodeBlock = (s: string): string | null => {
+    if (!s) return null;
+    const m = s.match(/```(?:bash|sh)?\s*([\s\S]*?)```/m);
+    return m ? m[1].trim() : null;
+  };
+
+  const tryParseJson = (s: string | null | undefined): any | null => {
+    if (!s) return null;
+    const text = s.trim();
+    if (!text) return null;
+    try { return JSON.parse(text); } catch { return null; }
+  };
+
+  const cleanText = (text: string) => (text || '')
+    .replace(/```(?:bash|sh)?\s*|\s*```/g, '')  // fences
+    .replace(/^Comando sugerido:\s*/gmi, '')     // rótulo
+    .replace(/"""/g, '')                       // triple comilla
+    .replace(/^\s+|\s+$/g, '')
+    .trim();
 
   // Enviar prompt al backend (Tauri -> ai_chat) y procesar respuesta
   const handleSend = async () => {
-    if (isSending) return; // previene duplicados
+    if (isSending) return;
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // If the user input uses pronouns/commands and doesn't include a filename, try to inject context
-    const pronounCmdRegex = /\b(ejecuta|ejecutalo|ejecutamelo|ejecuta\s+lo|borralo|borramelo|bórralo|elimínalo|ábrelo|abrelo|ejecutar|ejecutame)\b/i;
-    const filenamePattern = /[\w\-.]+\.(py|sh|txt|md|json|js|ts)$/i;
-    let finalInput = trimmed;
-    if (pronounCmdRegex.test(trimmed) && !filenamePattern.test(trimmed)) {
-      if (memory.lastFile) {
-        finalInput = `${trimmed} (Contexto: me refiero al archivo '${memory.lastFile}')`;
-      }
-    }
+    // Siempre anexar el contexto de memoria como un "cache" para el modelo (sin heurísticas en UI)
+    const finalInput = trimmed + buildContextAppendix();
 
     const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed };
     setMessages(prev => [...prev, userMsg]);
@@ -86,138 +100,119 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     try {
       setIsSending(true);
       const modeValue = mode === 'agent' ? 'AGENT' : 'ASK';
-      // Call Tauri command ai_chat
-      const res = await invoke<AiResponse>('ai_chat', {
-        req: { user_input: finalInput, mode: modeValue }
-      });
+      const history = messages.map(m => ({
+        role: m.sender === 'ai' ? 'assistant' : (m.sender === 'system' ? 'system' : 'user'),
+        content: m.text,
+      }));
+      const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history } });
 
-      // Debug: surface the raw AI response in the browser console to inspect fields
-      try { console.log('ai_chat response', res); } catch (e) {}
+      // Visualización: en AGENT priorizar summary; en ASK usar explicación
+      const aiText = mode === 'agent'
+        ? ((res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '')
+        : ((res as any).explanation ?? (res as any).ai_response ?? '');
 
-  // Intentar detectar nombre de archivo creado (here-doc o explicación)
-      try {
-        // look for here-doc pattern in ai_response or explanation
-        const aiResp = (res as any).ai_response ?? '';
-        const expl = (res as any).explanation ?? '';
-        const combined = `${aiResp}\n${expl}`;
-        // regex to capture: cat > filename
-        const m = combined.match(/cat\s*>\s*([^\s<\n]+)/i);
-        if (m && m[1]) {
-          setMemory(prev => ({ ...prev, lastFile: m[1].trim() }));
-        } else {
-          // try pattern from explanation like: Se creó el archivo 'name'
-          const m2 = combined.match(/Se cre(ó|o) el archivo '?"?([^'"\s]+)'?"?/i);
-          if (m2 && m2[2]) {
-            setMemory(prev => ({ ...prev, lastFile: m2[2].trim() }));
-          }
+      // 1) Intentar extraer JSON de acciones (create_file / command)
+      let agentJson: any | null = null;
+      {
+        const candidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary, aiText];
+        for (const candidate of candidates) {
+          if (!candidate) continue;
+          const block = extractCodeBlock(candidate as string);
+          agentJson = tryParseJson(block ?? (candidate as string));
+          if (agentJson && agentJson.actions) break;
+          agentJson = null;
         }
-      } catch (e) {
-        // non-fatal
       }
 
-  // Limpiar texto de respuesta quitando fences y rótulos redundantes
-      const cleanText = (text: string) => {
-        if (!text) return '';
-        return text
-          .replace(/```(bash|sh)?\s*|\s*```/g, '') // remove code block markers
-          .replace(/Comando sugerido:\s*/gi, '')    // remove "Comando sugerido:" text
-          .replace(/"""/g, '')                      // remove triple quotes
-          .replace(/^[\s`]+|[\s`]+$/g, '')         // remove leading/trailing spaces and backticks
-          .trim();
-      };
-
-      // Clean all response fields
-      if ((res as any).summary) (res as any).summary = cleanText((res as any).summary);
-      if ((res as any).explanation) (res as any).explanation = cleanText((res as any).explanation);
-      if ((res as any).ai_response) (res as any).ai_response = cleanText((res as any).ai_response);
-
-  // Visualización: en AGENT priorizar summary; en ASK usar explicación
-      const aiText =
-        mode === 'agent'
-          ? ((res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '')
-          : ((res as any).explanation ?? (res as any).ai_response ?? '');
-
-  // Detectar comando en ai_response/explanation/summary o en el texto final
+      // 2) Detectar comando u here-doc
       const runPrefix = 'RUN_CMD:';
       let cmd: string | null = null;
-      const candidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary, aiText];
-      for (const candidate of candidates) {
+      const cmdCandidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary, aiText];
+      for (const candidate of cmdCandidates) {
         if (!candidate) continue;
+        const block = extractCodeBlock(candidate as string);
+        if (block) { cmd = block; break; }
         const out = cleanText(candidate as string);
-        if (out.includes(runPrefix)) {
-          cmd = out.split(runPrefix)[1].trim();
-          break;
-        }
-        // detect code blocks or first command-looking line
+        if (out.includes(runPrefix)) { cmd = out.split(runPrefix)[1].trim(); break; }
         const m = out.match(/(?:^|\n)\$?\s*([^\n]+)\n?/m);
-        if (m && m[1]) {
-          cmd = m[1].trim();
-          break;
-        }
+        if (m && m[1]) { cmd = m[1].trim(); break; }
       }
 
-      let sentToTerminal = false;
-
-  // En modo AGENT: generar mensaje de confirmación (comando o creación de archivo)
+      // Generar tarjeta de confirmación en modo AGENT
       let confirmationMsgId: string | null = null;
       if (mode === 'agent' && cmd) {
-        const catMatch = cmd.match(/cat\s*>\s*([^\s]+)\s*<<\s*EOF\n([\s\S]+)\nEOF/);
-        if (catMatch) {
-          // This is a file creation command
-          const [, fileName, fileContent] = catMatch;
-          const sysId = String(Date.now() + 5);
-          const sysText = `El agente quiere crear el archivo '${fileName}'. ¿Deseas continuar?`;
-          const sysMeta = {
-            pendingFileCreation: { fileName, fileContent, command: cmd },
-            summary: (res as any).summary,
-            explanation: (res as any).explanation,
-          };
-          const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
-          setMessages(prev => [...prev, sysMsg]);
-          confirmationMsgId = sysId;
-        } else {
-          // This is a regular command execution
+        // a) JSON action format
+        if (agentJson && Array.isArray(agentJson.actions)) {
+          const create = agentJson.actions.find((a: any) => a.type === 'create_file')
+            || (agentJson.actions.find((a: any) => a.type === 'file_bundle')?.files?.[0]);
+          const run = agentJson.actions.find((a: any) => a.type === 'command');
+          if (create && (create.path || create.fileName)) {
+            const fileName = (create.path || create.fileName) as string;
+            const fileContent = (create.content || create.fileContent || '') as string;
+            await setLastFile(fileName, fileContent);
+            const sysId = String(Date.now() + 5);
+            const sysText = `El agente quiere crear el archivo '${fileName}'. ¿Deseas continuar?`;
+            const sysMeta = {
+              pendingFileCreation: { fileName, fileContent, command: cmd },
+              followUpCommand: run?.command || null,
+              summary: agentJson.summary ?? (res as any).summary,
+              explanation: agentJson.explanation ?? (res as any).explanation,
+              userPrompt: trimmed,
+            };
+            const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
+            setMessages(prev => [...prev, sysMsg]);
+            confirmationMsgId = sysId;
+          }
+        }
+        // b) Here-doc tolerante a comillas
+        if (!confirmationMsgId) {
+          const HEREDOC = /cat\s*>\s*([^\s]+)\s*<<\s*['"]?EOF['"]?\s*\n([\s\S]*?)\nEOF/gm;
+          const docs = [...cmd.matchAll(HEREDOC)];
+          if (docs.length > 0) {
+            const [, fileName, fileContent] = docs[0];
+            await setLastFile(fileName, fileContent);
+            const sysId = String(Date.now() + 5);
+            const sysText = `El agente quiere crear el archivo '${fileName}'. ¿Deseas continuar?`;
+            const sysMeta = {
+              pendingFileCreation: { fileName, fileContent, command: cmd },
+              summary: (res as any).summary,
+              explanation: (res as any).explanation,
+              userPrompt: trimmed,
+            };
+            const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
+            setMessages(prev => [...prev, sysMsg]);
+            confirmationMsgId = sysId;
+          }
+        }
+        // c) Comando simple
+        if (!confirmationMsgId) {
           const sysId = String(Date.now() + 5);
           const sysText = 'El agente quiere ejecutar un comando para ' + ((res as any).summary || 'realizar una acción') + '.';
-          const sysMeta = { pendingCommand: cmd, summary: (res as any).summary, explanation: (res as any).explanation };
+          const sysMeta = { pendingCommand: cmd, summary: (res as any).summary, explanation: (res as any).explanation, userPrompt: trimmed };
           const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
           setMessages(prev => [...prev, sysMsg]);
           confirmationMsgId = sysId;
         }
       }
 
-  // Si ya se había enviado a terminal (flujo previo), mostrar confirmación; si no, usar aiText
-      const displayText = sentToTerminal
-        ? ((res as any).summary ?? (res as any).explanation ?? 'Comando ejecutado en la terminal.')
-        : aiText;
+      // Construir texto visible y limpiarlo
+      const displayText = ((res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '') || aiText;
+      const displayTextClean = cleanText(displayText);
 
-  // Incluir bandera sentToTerminal en meta para ajustar renderizado
-      const metaWithFlag: any = { ...(res as any), sentToTerminal };
-      // sanitize summary/ai_response to remove stray backticks and repetitive 'Comando sugerido:' artifacts
-      try {
-        if (metaWithFlag.summary && typeof metaWithFlag.summary === 'string') {
-          let s: string = metaWithFlag.summary;
-          s = s.replace(/```/g, '').replace(/`/g, '').trim();
-          s = s.replace(/^Comando sugerido:\s*/i, '');
-          if (s === '') delete metaWithFlag.summary; else metaWithFlag.summary = s;
-        }
-        if (metaWithFlag.ai_response && typeof metaWithFlag.ai_response === 'string') {
-          let a: string = metaWithFlag.ai_response;
-          a = a.replace(/```/g, '').replace(/`/g, '').trim();
-          a = a.replace(/^Comando sugerido:\s*/i, '');
-          if (a === '') delete metaWithFlag.ai_response; else metaWithFlag.ai_response = a;
-        }
-      } catch (e) { /* non-fatal */ }
+      // Limpiar meta
+      const metaWithFlag: any = { ...(res as any) };
+      const cleanedMeta = { ...metaWithFlag } as any;
+      if (cleanedMeta.summary) cleanedMeta.summary = cleanText(cleanedMeta.summary);
+      if (cleanedMeta.explanation) cleanedMeta.explanation = cleanText(cleanedMeta.explanation);
+      if (cleanedMeta.ai_response) cleanedMeta.ai_response = cleanText(cleanedMeta.ai_response);
 
-  // Si se creó mensaje de confirmación, evita duplicar summary/explanation en el mensaje de IA
+      // Si se creó confirmación, evitar duplicados en meta
       if (confirmationMsgId) {
-        try {
-          if (metaWithFlag.summary) delete metaWithFlag.summary;
-          if (metaWithFlag.explanation) delete metaWithFlag.explanation;
-        } catch (e) { /* non-fatal */ }
+        delete cleanedMeta.summary;
+        delete cleanedMeta.explanation;
       }
 
-      const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayText, meta: metaWithFlag };
+      const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
       setMessages(prev => [...prev, aiMsg]);
 
     } catch (e: any) {
@@ -235,174 +230,129 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           <option value="ask">Modo Consulta</option>
           <option value="agent">Modo Agente</option>
         </select>
-        {/* No SSH session id field anymore */}
+        {/* removed Clear button per user request */}
       </div>
 
       <div
         className="chat-messages"
         ref={messagesRef}
         role="log"
-        aria-live="polite"
+        aria-live={isSending ? true : undefined}
         aria-busy={isSending ? true : undefined}
         onScroll={(e) => {
           const el = e.currentTarget as HTMLDivElement;
           setShowScrollToBottom(!isNearBottom(el));
         }}
       >
-        {messages.map((msg) => {
-          // detect command candidates in AI response (si lo quieres usar luego)
-          let cmdCandidate: string | null = null;
-          if (msg.sender === 'ai') {
-            const out = (msg.meta && msg.meta.ai_response) || msg.text || '';
-            const runPrefix = 'RUN_CMD:';
-            if (typeof out === 'string' && out.includes(runPrefix)) {
-              cmdCandidate = out.split(runPrefix)[1].trim();
-            } else if (typeof out === 'string') {
-              const m =
-                out.match(/```bash\s*([\s\S]*?)```/m) ||
-                out.match(/```sh\s*([\s\S]*?)```/m) ||
-                out.match(/(?:^|\n)\$?\s*([^\n]+)\n?/m);
-              if (m && m[1]) cmdCandidate = m[1].trim();
-            }
-          }
+        {messages.map((msg) => (
+          <div key={msg.id} className={`message ${msg.sender}`}>
+            <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.text}</pre>
 
-          return (
-            <div key={msg.id} className={`message ${msg.sender}`}>
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.text}</pre>
+            {msg.meta?.summary && (
+              <div className="summary">{msg.meta.summary}</div>
+            )}
 
-              {/* Si existe un resumen corto, muéstralo */}
-              {msg.meta?.summary && (
-                <div className="summary">{msg.meta.summary}</div>
-              )}
+            {msg.meta?.explanation && msg.meta.explanation !== msg.text && (
+              <div className="explanation">{msg.meta.explanation}</div>
+            )}
 
-              {/* Mostrar explicación detallada si existe y no es igual al texto principal */}
-              {msg.meta?.explanation && msg.meta.explanation !== msg.text && (
-                <div className="explanation">{msg.meta.explanation}</div>
-              )}
-
-              {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
-                <pre className="code-output">{msg.meta.code_output}</pre>
-              )}
-
-              {/* Confirmation UI para comando pendiente */}
-              {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
-                <div className="confirm-card" tabIndex={0}>
-                  <p className="confirm-text">{msg.text}</p>
-
-                  <div className="confirm-code">
-                    <pre className="code-output">{msg.meta.pendingCommand}</pre>
-                  </div>
-
-                  <p className="confirm-question">¿Deseas ejecutar este comando en la terminal?</p>
-
-                  <div className="confirm-actions">
-                    <button
-                      onClick={async () => {
-                        try {
-                          await invoke('ssh_stdin', { id: sessionId, data: (msg.meta.pendingCommand as string) + '\n' });
-                          setMessages(prev => prev.map(m => m.id === msg.id ? 
-                            { ...m, text: 'Comando enviado a la terminal.', meta: { ...m.meta, processed: true } } : m
-                          ));
-                          setMessages(prev => {
-                            const pending = msg.meta.pendingCommand as string;
-                            let marked = false;
-                            return prev.map(m => {
-                              if (!marked && m.sender === 'ai' && m.meta) {
-                                const out = (m.meta.ai_response as string) || (m.meta.summary as string) || m.text || '';
-                                if (typeof out === 'string' && out.includes(pending)) {
-                                  marked = true;
-                                  return { ...m, meta: { ...m.meta, sentToTerminal: true } };
-                                }
-                              }
-                              return m;
-                            });
-                          });
-                        } catch (e: any) {
-                          setMessages(prev => [
-                            ...prev,
-                            {
-                              id: String(Date.now()),
-                              sender: 'system',
-                              text: `Error enviando a la terminal: ${String(e)}`
-                            }
-                          ]);
-                        }
-                      }}
-                      className="send-button"
-                      aria-label="Confirmar ejecución"
-                    >
-                      Confirmar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMessages(prev =>
-                          prev.map(m =>
-                            m.id === msg.id
-                              ? { ...m, text: 'Comando cancelado por el usuario.', meta: { ...m.meta, processed: true } }
-                              : m
-                          )
-                        );
-                      }}
-                      className="cancel-button"
-                      aria-label="Cancelar ejecución"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Confirmation UI para creación de archivo pendiente */}
-              {msg.sender === 'system' && msg.meta?.pendingFileCreation && (
-                <div className="confirm-card" style={{ marginTop: 8 }}>
-                  <p className="confirm-text">{msg.text}</p>
-                  <p className="confirm-sub">Contenido del archivo:</p>
-                  <div className="confirm-code">
-                    <pre className="code-output">{msg.meta.pendingFileCreation.fileContent}</pre>
-                  </div>
+            {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
+              <pre className="code-output">{msg.meta.code_output}</pre>
+            )}
+            {/* Card: comando pendiente */}
+            {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
+              <div className="confirm-card">
+                <div className="confirm-title">El agente sugiere ejecutar este comando</div>
+                <pre className="code-block"><code>{String(msg.meta.pendingCommand || '').trim()}</code></pre>
+                <div className="confirm-actions">
                   <button
+                    className="btn confirm"
                     onClick={async () => {
                       try {
-                        await invoke('ssh_stdin', { id: sessionId, data: (msg.meta.pendingFileCreation.command as string) + '\n' });
-                        setMessages(prev =>
-                          prev.map(m =>
-                            m.id === msg.id
-                              ? { ...m, text: `Archivo '${msg.meta.pendingFileCreation.fileName}' creado exitosamente.` }
-                              : m
-                          )
-                        );
-                      } catch (e: any) {
-                        setMessages(prev => [
-                          ...prev,
-                          { id: String(Date.now()), sender: 'system', text: `Error creando el archivo: ${String(e)}` }
-                        ]);
-                      }
+                        const toSend = String(msg.meta?.pendingCommand || '').trim();
+                        await invoke('ssh_stdin', { id: sessionId, data: toSend + '\n' });
+                        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
+                        await setLastCommand(toSend);
+                        // Si es un 'cd <dir>', registra ese directorio como lastPath
+                        try {
+                          const mCd = toSend.match(/^\s*cd\s+(.+)$/);
+                          if (mCd && mCd[1]) {
+                            const raw = mCd[1].trim();
+                            const dir = raw.replace(/^"|"$/g, '');
+                            await setLastPath(dir, 'dir');
+                          }
+                        } catch {}
+                        // Si es un mkdir, guarda el directorio creado como lastPath
+                        const mk = toSend.match(/^\s*mkdir\s+([^\s]+)/);
+                        if (mk && mk[1]) {
+                          try { await setLastPath(mk[1].trim(), 'dir'); } catch {}
+                        }
+                        // Si creamos archivo con touch/echo/printf/tee/cat >, también registra lastFile y lastPath(file)
+                        try {
+                          let created: string | null = null;
+                          const mTouch = toSend.match(/^\s*touch\s+(\S+)/);
+                          if (mTouch) created = mTouch[1];
+                          const mRedir = toSend.match(/>\>?\s*([^\s]+)/);
+                          if (!created && mRedir) created = mRedir[1];
+                          const mHeredoc = toSend.match(/^(?:cat\s+>\s*|tee\s+)(\S+)\s*<</);
+                          if (!created && mHeredoc) created = mHeredoc[1];
+                          if (created) {
+                            await setLastFile(created, "");
+                            await setLastPath(created, 'file');
+                          }
+                        } catch {}
+                      } catch (e) {}
                     }}
-                    className="send-button"
-                    aria-label="Confirmar creación de archivo"
-                  >
-                    Confirmar
-                  </button>
+                  >Ejecutar ahora</button>
                   <button
+                    className="btn cancel"
                     onClick={() => {
-                      setMessages(prev =>
-                        prev.map(m =>
-                          m.id === msg.id
-                            ? { ...m, text: 'Creación de archivo cancelada por el usuario.', meta: undefined }
-                            : m
-                        )
-                      );
+                      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
                     }}
-                    className="cancel-button"
-                    aria-label="Cancelar creación de archivo"
-                  >
-                    Cancelar
-                  </button>
+                  >Cancelar</button>
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            )}
+
+            {/* Card: creación de archivo pendiente */}
+            {msg.sender === 'system' && msg.meta?.pendingFileCreation && !msg.meta?.processed && (
+              <div className="confirm-card">
+                <div className="confirm-title">El agente quiere crear un archivo</div>
+                <div className="confirm-subtitle">{String(msg.meta.pendingFileCreation.fileName || '')}</div>
+                <pre className="code-block"><code>{msg.meta.pendingFileCreation.fileContent}</code></pre>
+                <div className="confirm-actions">
+                  <button
+                    className="btn confirm"
+                    onClick={async () => {
+                      try {
+                        const cmdToSend = String(msg.meta.pendingFileCreation.command || '');
+                        await invoke('ssh_stdin', { id: sessionId, data: cmdToSend + '\n' });
+                        setMessages(prev => prev.map(m => m.id === msg.id ? {
+                          ...m,
+                          text: `Archivo '${msg.meta!.pendingFileCreation!.fileName}' creado exitosamente.`,
+                          meta: { ...m.meta, processed: true, pendingFileCreation: undefined }
+                        } : m));
+                        const name = String(msg.meta!.pendingFileCreation!.fileName as string);
+                        await setLastFile(name, msg.meta!.pendingFileCreation!.fileContent as string);
+                        try { await setLastPath(name, 'file'); } catch {}
+                      } catch (e) {}
+                    }}
+                  >Ejecutar ahora</button>
+                  <button
+                    className="btn cancel"
+                    onClick={() => {
+                      setMessages(prev => prev.map(m => m.id === msg.id ? ({
+                        ...m,
+                        text: 'Creación de archivo cancelada por el usuario.',
+                        meta: { ...m.meta, processed: true, pendingFileCreation: undefined }
+                      }) : m));
+                    }}
+                  >Cancelar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
         {showScrollToBottom && (
           <button
             className="scroll-to-bottom"
