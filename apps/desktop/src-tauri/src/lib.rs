@@ -13,10 +13,10 @@ pub fn run() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
       // SSH
-      cmd::ssh::ssh_connect,
-      cmd::ssh::ssh_stdin,
-      cmd::ssh::ssh_resize,
-      cmd::ssh::ssh_disconnect,
+    cmd::ssh::ssh_connect,
+    cmd::ssh::ssh_stdin,
+    cmd::ssh::ssh_resize,
+    cmd::ssh::ssh_disconnect,
   // SFTP (stubs)
   cmd::sftp::sftp_open,
   cmd::sftp::sftp_list,
@@ -33,16 +33,16 @@ pub fn run() {
   cmd::local::local_list_dir,
   cmd::local::local_list_drives,
       // Chat IA
-      cmd::ai::ai_chat,
+    cmd::ai::ai_chat,
       // Storage (hosts)
-      cmd::hosts::save_host_encrypted,
-      cmd::hosts::load_host_encrypted,
-      cmd::hosts::save_host_master,
-      cmd::hosts::load_host_master,
-      cmd::hosts::list_hosts_entries,
-      cmd::ssh::ssh_connect_stored,
-      cmd::hosts::list_hosts_files,
-      cmd::hosts::delete_host_file,
+    cmd::hosts::save_host_encrypted,
+    cmd::hosts::load_host_encrypted,
+    cmd::hosts::save_host_master,
+    cmd::hosts::load_host_master,
+    cmd::hosts::list_hosts_entries,
+    cmd::ssh::ssh_connect_stored,
+    cmd::hosts::list_hosts_files,
+    cmd::hosts::delete_host_file,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
