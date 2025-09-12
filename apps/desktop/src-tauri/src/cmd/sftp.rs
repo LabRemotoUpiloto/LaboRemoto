@@ -19,6 +19,40 @@ pub async fn sftp_open(id: String) -> Result<(), String> {
   Ok(())
 }
 
+// Devuelve un path "home" estimado para el usuario remoto.
+// Intenta $HOME via shell, luego "~" expandido, y como fallback /home/<user> o /root.
+#[tauri::command]
+pub async fn sftp_home(id: String) -> Result<String, String> {
+  let home = tokio::task::spawn_blocking(move || {
+    let mut map = SESSIONS.lock().unwrap();
+    let user = {
+      let sref = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+      sref.user.clone()
+    };
+    // Intentar conectar (rellena cache si no existe)
+    let cached = get_or_connect_cached(&mut map, &id)?;
+    let guard = cached.lock().unwrap();
+    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
+    use std::path::Path;
+    // 1) Intentar obtener el directorio inicial real (normalmente home/chroot) via realpath('.')
+    if let Ok(p) = sftp.realpath(Path::new(".")) {
+      if let Some(s) = p.to_str() { if !s.is_empty() { return Ok::<String,String>(s.to_string()); } }
+    }
+    // 2) Intentar realpath('~') (algunos servidores lo permiten)
+    if let Ok(p) = sftp.realpath(Path::new("~")) {
+      if let Some(s) = p.to_str() { if s.starts_with('/') { return Ok::<String,String>(s.to_string()); } }
+    }
+    // 3) Sanitizar usuario (remover dominio tipo DOM\\user)
+    let user_sanit = user.split(|c| c=='\\' || c=='/').last().unwrap_or(&user);
+    // 4) Heurísticos: /home/<user> o /root
+    let guess = if user_sanit == "root" { "/root".to_string() } else { format!("/home/{}", user_sanit) };
+    // Validar list_dir en guess; si falla devolver '/'
+    if let Ok(_cached2) = sftp2::list_dir(&sftp, &guess) { return Ok(guess); }
+    Ok::<String,String>("/".to_string())
+  }).await.map_err(|e| e.to_string())??;
+  Ok(home)
+}
+
 // Obtiene una sesión ssh2 en caché para la sesión dada, o la crea si no existe o si falló.
 fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
   // 1) ¿Ya hay cache?
