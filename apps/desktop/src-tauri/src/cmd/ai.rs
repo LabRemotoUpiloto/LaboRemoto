@@ -32,6 +32,7 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   // Load .env to pick up OPENAI_API_KEY (dotenvy is safe on desktop)
   let _ = dotenv();
   let api_key = env::var("OPENAI_API_KEY").map_err(|_| "OPENAI_API_KEY not set".to_string())?;
+  let model_id = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".to_string());
 
   fn get_system_prompt(agent_mode: &str) -> String {
     let identidad_regla = r#"REGLA DE IDENTIDAD:
@@ -55,6 +56,7 @@ Formato de salida (OBLIGATORIO):
 4. Si son varios comandos, cada uno en su propia línea.
 5. No uses etiquetas de lenguaje en el bloque (sin 'bash').
 6. Nunca uses editores interactivos (nano, vim, etc.).
+7. Si creas archivo(s) con here-doc o redirecciones, DESPUÉS añade una línea `cat <ruta>` para mostrar su contenido en la terminal.
 
 Reglas de comportamiento:
 - Si el usuario pide crear un archivo o programa, SIEMPRE usa here-doc con cat > archivo <<'EOF' … EOF.
@@ -89,6 +91,7 @@ cat > script.sh <<'EOF'
 echo "hola"
 EOF
 chmod +x script.sh
+cat script.sh
 
 "##, identidad = identidad_regla);
     }
@@ -140,10 +143,10 @@ ls -la
 
   // Build the request payload for OpenAI Chat completions
   let payload = serde_json::json!({
-    "model": "gpt-3.5-turbo",
+    "model": model_id,
     "messages": messages,
     "max_tokens": 800,
-    "temperature": 0.2
+    "temperature": if mode == "AGENT" { 0.1 } else { 0.2 }
   });
 
   let resp = client
@@ -172,21 +175,131 @@ ls -la
     .unwrap_or("")
     .to_string();
 
+  // Heurística simple para detectar comandos de shell o here-docs
+  fn looks_like_shell(s: &str) -> bool {
+    let t = s.trim();
+    if t.is_empty() { return false; }
+    let first_line = t.lines().next().unwrap_or("").trim();
+    let starters = [
+      "cd ", "ls", "mkdir ", "rm ", "touch ", "echo ", "printf ", "cat ", "tee ",
+      "bash ", "sh ", "python", "python3", "pip ", "chmod ", "curl ", "wget ", "grep ", "sed ",
+      "awk ", "tar ", "zip ", "unzip ", "git ", "#!/usr/bin/env",
+    ];
+    if starters.iter().any(|p| first_line.starts_with(p)) { return true; }
+    if t.contains("cat >") || t.contains("<<EOF") || t.contains("<<'EOF'") { return true; }
+    if t.contains("&&") || t.contains('|') || t.contains('>') || t.contains("chmod +x") { return true; }
+    false
+  }
+
+  
+
+  // Variables de salida que iremos completando según el flujo
+  let mut ai_response = String::new();
+  let mut code_output: Option<String> = None;
+  let mut explanation: Option<String> = None;
+  let mut summary: Option<String> = None;
+
   // If the assistant returned a fenced code block, extract it for later use
   let mut extracted_code_block: Option<String> = None;
   if assistant_text.contains("```") {
     let after = assistant_text.splitn(2, "```").nth(1).unwrap_or("").to_string();
     let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
     if !code_inner.trim().is_empty() {
-      extracted_code_block = Some(code_inner);
+      extracted_code_block = Some(code_inner.clone());
+      // Expose normalized commands/content to the frontend explicitly
+      code_output = Some(code_inner);
+    }
+  } else if mode == "AGENT" {
+    // Sin fences: si parece shell, expónlo como code_output para que el frontend muestre confirmación
+    if looks_like_shell(&assistant_text) {
+      code_output = Some(assistant_text.trim().to_string());
+    }
+  }
+
+  // Fallback de coerción: en modo AGENT, si no hay bloque de código ni JSON, pedir al modelo que lo genere siguiendo las reglas
+  if mode == "AGENT" && extracted_code_block.is_none() {
+    let trimmed = assistant_text.trim();
+    let looks_json = trimmed.starts_with('{') && trimmed.ends_with('}');
+    if !looks_json {
+      let repair_prompt = format!(
+        "Convierte la siguiente intención en comandos válidos siguiendo MODO AGENT. Salida: SOLO un bloque de código (sin comentarios ni texto externo), usa here-doc para crear archivos y añade 'cat <ruta>' al final para mostrar su contenido. Intención:\n\n{}",
+        user_input
+      );
+      let payload_fix = serde_json::json!({
+        "model": model_id,
+        "messages": [
+          {"role": "system", "content": get_system_prompt("AGENT")},
+          {"role": "user", "content": repair_prompt}
+        ],
+        "max_tokens": 700,
+        "temperature": 0.2
+      });
+      let resp_fix = client
+        .post("https://api.openai.com/v1/chat/completions")
+        .bearer_auth(&api_key)
+        .json(&payload_fix)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+      if resp_fix.status().is_success() {
+        let body_fix: serde_json::Value = resp_fix.json().await.map_err(|e| e.to_string())?;
+        if let Some(content) = body_fix.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+          if content.contains("```") {
+            let after = content.splitn(2, "```").nth(1).unwrap_or("").to_string();
+            let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+            if !code_inner.trim().is_empty() {
+              extracted_code_block = Some(code_inner.clone());
+              code_output = Some(code_inner);
+            }
+          } else if looks_like_shell(content) {
+            // Reparación devolvió texto sin fences pero con comandos válidos
+            code_output = Some(content.trim().to_string());
+          }
+        }
+      }
+    }
+  }
+
+  // Segundo intento estricto: aún sin bloque ni code_output en modo AGENT
+  if mode == "AGENT" && extracted_code_block.is_none() && code_output.is_none() {
+    let force_prompt = format!(
+      "Devuelve SOLO un bloque de código con triple backticks (sin etiqueta de lenguaje) y nada más. Si creas archivos, usa here-doc con cat > archivo <<'EOF' ... EOF, añade chmod +x si aplica, y termina con cat <archivo> para mostrar contenido. Intención:\n\n{}",
+      user_input
+    );
+    let payload_force = serde_json::json!({
+      "model": model_id,
+      "messages": [
+        {"role": "system", "content": get_system_prompt("AGENT")},
+        {"role": "user", "content": force_prompt}
+      ],
+      "max_tokens": 700,
+      "temperature": 0.1
+    });
+    let resp_force = client
+      .post("https://api.openai.com/v1/chat/completions")
+      .bearer_auth(&api_key)
+      .json(&payload_force)
+      .send()
+      .await
+      .map_err(|e| e.to_string())?;
+    if resp_force.status().is_success() {
+      let body_force: serde_json::Value = resp_force.json().await.map_err(|e| e.to_string())?;
+      if let Some(content) = body_force.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+        if content.contains("```") {
+          let after = content.splitn(2, "```").nth(1).unwrap_or("").to_string();
+          let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+          if !code_inner.trim().is_empty() {
+            extracted_code_block = Some(code_inner.clone());
+            code_output = Some(code_inner);
+          }
+        } else if looks_like_shell(content) {
+          code_output = Some(content.trim().to_string());
+        }
+      }
     }
   }
 
   // Attempt to parse assistant_text as JSON; if fails, use heuristics
-  let mut ai_response = String::new();
-  let mut code_output: Option<String> = None;
-  let mut explanation: Option<String> = None;
-  let mut summary: Option<String> = None;
 
   if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&assistant_text) {
     ai_response = parsed.get("ai_response").and_then(|v| v.as_str()).unwrap_or(&ai_response).to_string();
@@ -341,7 +454,7 @@ ls -la
       let ask_system = get_system_prompt("ASK");
       let ask_user = format!("Por favor, explica EN ESPAÑOL a un usuario sin conocimientos técnicos qué hará el siguiente bloque de comandos/archivo y cómo se creó. No repitas el código, explica en lenguaje sencillo paso a paso lo que se hizo y qué resultado produce. Código:\n\n{}\n", code_inner);
       let payload2 = serde_json::json!({
-        "model": "gpt-3.5-turbo",
+        "model": model_id,
         "messages": [
           {"role": "system", "content": ask_system},
           {"role": "user", "content": ask_user}
