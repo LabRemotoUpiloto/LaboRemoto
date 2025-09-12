@@ -35,9 +35,9 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   let model_id = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".to_string());
 
   fn get_system_prompt(agent_mode: &str) -> String {
-    let identidad_regla = r#"REGLA DE IDENTIDAD:
+  let identidad_regla = r#"REGLA DE IDENTIDAD:
 Si, y SOLO SI, la pregunta del usuario es explícitamente sobre tu identidad (por ejemplo: '¿quién eres?', 'qué eres', 'cuál es tu identidad', 'quién es el agente'), responde EXACTAMENTE:
-"Soy un agente en consola diseñado para apoyar el aprendizaje en el uso de Linux."
+"Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general."
 No añadas texto adicional, disculpas ni explicaciones cuando apliques esta regla.
 "#;
 
@@ -122,6 +122,22 @@ ls -la
   let mode = mode.unwrap_or_else(|| "ASK".to_string());
   let system_prompt = get_system_prompt(&mode);
 
+  // Atajo: si el usuario pregunta por la identidad, responder de forma canónica sin llamar al modelo
+  fn is_identity_query(s: &str) -> bool {
+    let lc = s.to_lowercase();
+    // contemplar variantes con/ sin tilde y redacción común
+    lc.contains("quien eres") || lc.contains("quién eres") || lc.contains("quien es el agente") || lc.contains("identidad") || lc.contains("who are you")
+  }
+  if is_identity_query(&user_input) {
+    return Ok(AiChatResponse {
+      user_input,
+      ai_response: "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.".to_string(),
+      code_output: None,
+      explanation: None,
+      summary: None,
+    });
+  }
+
   // Construir historial de mensajes para OpenAI: system + (historial opcional) + user actual
   let client = Client::builder().build().map_err(|e| e.to_string())?;
   let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({"role":"system","content": system_prompt})];
@@ -166,7 +182,7 @@ ls -la
   let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
 
   // Try to extract the assistant message text
-  let assistant_text = body
+  let mut assistant_text = body
     .get("choices")
     .and_then(|c| c.get(0))
     .and_then(|c0| c0.get("message"))
@@ -174,6 +190,20 @@ ls -la
     .and_then(|v| v.as_str())
     .unwrap_or("")
     .to_string();
+
+  // Evitar que el modelo devuelva la identidad cuando NO se preguntó por ella en modo ASK
+  if mode == "ASK" && !is_identity_query(&user_input) {
+    let ident = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
+    if assistant_text.contains(ident) {
+      let cleaned = assistant_text.replace(ident, "").trim().to_string();
+      if !cleaned.is_empty() { assistant_text = cleaned; }
+    }
+    // Si quedó vacío o sigue siendo una variante de identidad, devuelve una respuesta corta de capacidades
+    let at_lower = assistant_text.trim().to_lowercase();
+    if assistant_text.trim().is_empty() || at_lower == ident.to_lowercase() || at_lower.contains("universidad piloto de colombia") {
+      assistant_text = "Puedo ayudarte con Linux y la terminal: explicar comandos y opciones, resolver errores, crear y revisar scripts (bash, python), navegar archivos y permisos, instalar herramientas y automatizar tareas paso a paso.".to_string();
+    }
+  }
 
   // Heurística simple para detectar comandos de shell o here-docs
   fn looks_like_shell(s: &str) -> bool {
