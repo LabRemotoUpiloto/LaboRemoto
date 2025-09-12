@@ -90,16 +90,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // Inyección de contexto: pronombres/errores sin mencionar archivo
-    const pronounCmdRegex = /\b(ejecuta(|lo|me|r)|borra(|lo)|elim(ina|ínalo)|abre(|lo))\b/i;
-    const needsContextRegex = /\b(error|falla|no\s+funciona|traceback|exception)\b/i;
-    const filenamePattern = /[\w\-.]+\.(py|sh|txt|md|json|js|ts)$/i;
-
-    let finalInput = trimmed;
-    const mentionsFile = filenamePattern.test(trimmed) || (mem.lastFile && trimmed.includes(mem.lastFile));
-    if ((pronounCmdRegex.test(trimmed) || needsContextRegex.test(trimmed)) && mem.lastFile && !mentionsFile) {
-      finalInput += buildContextAppendix();
-    }
+    // Siempre anexar el contexto de memoria como un "cache" para el modelo (sin heurísticas en UI)
+    const finalInput = trimmed + buildContextAppendix();
 
     const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed };
     setMessages(prev => [...prev, userMsg]);
@@ -108,7 +100,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     try {
       setIsSending(true);
       const modeValue = mode === 'agent' ? 'AGENT' : 'ASK';
-      const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue } });
+      const history = messages.map(m => ({
+        role: m.sender === 'ai' ? 'assistant' : (m.sender === 'system' ? 'system' : 'user'),
+        content: m.text,
+      }));
+      const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history } });
 
       // Visualización: en AGENT priorizar summary; en ASK usar explicación
       const aiText = mode === 'agent'
@@ -234,6 +230,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           <option value="ask">Modo Consulta</option>
           <option value="agent">Modo Agente</option>
         </select>
+        {/* removed Clear button per user request */}
       </div>
 
       <div
@@ -266,245 +263,25 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
               <div className="confirm-card">
                 <div className="confirm-title">El agente sugiere ejecutar este comando</div>
-                <pre className="code-block"><code>{(() => {
-                  let preview = String(msg.meta.pendingCommand || '').trim();
-                  const up: string = String(msg.meta?.userPrompt || '').toLowerCase();
-                  const hasDir = mem.lastPath && mem.lastPathKind === 'dir';
-                  const hasFile = mem.lastPath && mem.lastPathKind === 'file';
-                  const implyThere = /(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up);
-                  // Intent: salir del directorio
-                  const wantsLeaveDir = /(sal|salte|salir|regresa|regresar|volver)\s+(del\s+)?directorio|\b(subir|sube)\b.*(nivel|carpeta)|\b(arriba|atr[aá]s)\b/.test(up);
-                  const leaveOverride = wantsLeaveDir;
-                  if (leaveOverride) {
-                    preview = 'cd ..';
-                  }
-                  // Intent: entrar/ir al último directorio creado
-                  const wantsEnterLastDir = /(entra|ingresa|ve|ir)\s+(al|a la)\s*(directorio|carpeta)\s+(que\s+)?(me\s+)?(creaste|reciente|[úu]ltim[oa])/.test(up)
-                    || (/(ve|ir)\s+(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up) && hasDir);
-                  if (hasDir && wantsEnterLastDir) {
-                    preview = `cd ${mem.lastPath}`;
-                  }
-                  // Intent: abrir/editar último archivo recordado
-                  const srcFile = hasFile ? mem.lastPath! : (mem.lastFile ?? undefined);
-                  const wantsOpen = /(abre|[áa]brelo|mostrar|muestra|ver)\b/.test(up);
-                  const wantsEdit = /(edita|editar|ed[íi]talo|modifica|modificar)\b/.test(up);
-                  if (srcFile && wantsEdit) {
-                    preview = `nano ${srcFile}`;
-                  } else if (srcFile && wantsOpen) {
-                    preview = `cat ${srcFile}`;
-                  }
-                  // Intent: renombrar último archivo: "renómbralo como X" / "cámbiale el nombre a X"
-                  const mRename = up.match(/(?:renombr[^\s]*|c[áa]mbiale?\s+el\s+nombre(?:\s+(?:a|por))?)\s+(\S+)/);
-                  if (srcFile && mRename && mRename[1]) {
-                    const newName = mRename[1];
-                    const norm = srcFile.replace(/\\/g, '/');
-                    const dir = norm.includes('/') ? norm.replace(/[^\/]+$/, '') : '';
-                    const dst = dir ? `${dir}${newName}` : newName;
-                    preview = `mv ${srcFile} ${dst}`;
-                  }
-                  // Intent: mover/copiar todo "ahí"
-                  const wantsMoveAll = /(muev[ea]|mover|mu[ée]velo|traslada|lleva)\s+(todo|los\s+archivos|el\s+contenido|contenido)/.test(up);
-                  const wantsCopyAll = /(copi[ae]|copiar|c[óo]pialo)\s+(todo|los\s+archivos|el\s+contenido|contenido)/.test(up);
-                  if (hasDir && (wantsMoveAll || wantsCopyAll) && (implyThere || /(en|hacia)\s+(el|la)?\s*(directorio|carpeta)\s+(que\s+)?(me\s+)?(creaste|reciente|[úu]ltim[oa])/.test(up))) {
-                    preview = wantsCopyAll ? `cp -r * ${mem.lastPath}` : `mv * ${mem.lastPath}`;
-                  }
-                  // cd autocorrección
-                  if (!leaveOverride && /^cd\s+\S+/.test(preview) && hasDir) {
-                    preview = preview.replace(/^(cd)\s+(\S+)/, (_m, c, arg) => {
-                      if (arg === '.' || arg === '..' || arg === '-') return `${c} ${arg}`;
-                      return `${c} ${mem.lastPath}`;
-                    });
-                  }
-                  // rm / rmdir autocorrección
-                  if (/^(rm|rmdir)\b/.test(preview) && mem.lastPath) {
-                    preview = hasDir ? `rm -rf ${mem.lastPath}` : `rm ${mem.lastPath}`;
-                  }
-                  // editores/ver contenido: vim, nano, less, cat, tail
-                  if (/^(vim|nano|less|cat|tail)\b/.test(preview) && mem.lastPath) {
-                    const m = preview.match(/^(vim|nano|less|cat|tail)\b/);
-                    if (m) preview = `${m[1]} ${mem.lastPath}`;
-                  }
-                  // mv/cp completar con memoria y pronombres
-                  if (/^(mv|cp)\b/.test(preview)) {
-                    const tokens = preview.split(/\s+/);
-                    const cmdName = tokens[0];
-                    const args = tokens.slice(1);
-                    if (args.length === 1 && hasDir && implyThere) {
-                      preview = `${cmdName} ${args[0]} ${mem.lastPath}`;
-                    } else if (args.length === 1 && (mem.lastPath || mem.lastFile)) {
-                      const src = hasFile ? mem.lastPath! : (mem.lastFile ?? args[0]);
-                      const dst = hasDir ? mem.lastPath! : args[0];
-                      preview = `${cmdName} ${src} ${dst}`;
-                    }
-                  }
-                  // Crear archivo dentro del dir recordado si el prompt lo indica
-                  const wantsInCreatedDir = /(en|dentro de|ponlo en|col[óo]calo en|m[ée]telo en|gu[áa]rdalo en)\s+(el|la)?\s*(directorio|carpeta|dir|direc[^\s]*rio)\s+(que\s+)?(me\s+)?(creaste|cre[ó]s|acabamos?\s+de\s+crear|reciente|[úu]ltim[oa])/.test(up) || /(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up);
-                  if (hasDir && wantsInCreatedDir) {
-                    // mkdir nombre
-                    if (/^mkdir\s+\S+/.test(preview)) {
-                      preview = preview.replace(/^mkdir\s+(\S+)/, (_m, d) => {
-                        const isAbs = d.startsWith('/') || d.startsWith('./') || d.startsWith('../');
-                        if (isAbs) return `mkdir ${d}`;
-                        return mem.lastPath!.endsWith('/') ? `mkdir ${mem.lastPath}${d}` : `mkdir ${mem.lastPath}/${d}`;
-                      });
-                    }
-                    if (/^touch\s+\S+/.test(preview)) {
-                      preview = preview.replace(/^touch\s+(\S+)/, (_m, f) => mem.lastPath!.endsWith('/') ? `touch ${mem.lastPath}${f}` : `touch ${mem.lastPath}/${f}`);
-                    }
-                    if (/(>|>>)/.test(preview)) {
-                      preview = preview.replace(/(>\>?\s*)([^\s]+)/, (_m, op, f) => {
-                        const isAbs = f.startsWith('/') || f.startsWith('./') || f.startsWith('../');
-                        if (isAbs) return `${op}${f}`;
-                        return mem.lastPath!.endsWith('/') ? `${op}${mem.lastPath}${f}` : `${op}${mem.lastPath}/${f}`;
-                      });
-                    }
-                    if (/^cat\s+>\s*\S+\s*<</.test(preview)) {
-                      preview = preview.replace(/^(cat\s+>\s*)(\S+)(\s*<\<)/, (_m, p1, f, p3) => {
-                        const isAbs = f.startsWith('/') || f.startsWith('./') || f.startsWith('../');
-                        const joined = isAbs ? f : (mem.lastPath!.endsWith('/') ? `${mem.lastPath}${f}` : `${mem.lastPath}/${f}`);
-                        return `${p1}${joined}${p3}`;
-                      });
-                    }
-                    if (/^tee\s+\S+\s*<</.test(preview)) {
-                      preview = preview.replace(/^(tee\s+)(\S+)(\s*<\<)/, (_m, p1, f, p3) => {
-                        const isAbs = f.startsWith('/') || f.startsWith('./') || f.startsWith('../');
-                        const joined = isAbs ? f : (mem.lastPath!.endsWith('/') ? `${mem.lastPath}${f}` : `${mem.lastPath}/${f}`);
-                        return `${p1}${joined}${p3}`;
-                      });
-                    }
-                  }
-                  return preview;
-                })()}</code></pre>
+                <pre className="code-block"><code>{String(msg.meta.pendingCommand || '').trim()}</code></pre>
                 <div className="confirm-actions">
                   <button
                     className="btn confirm"
                     onClick={async () => {
                       try {
-                        let toSend = String(msg.meta?.pendingCommand || '').trim();
-                        const up: string = String(msg.meta?.userPrompt || '').toLowerCase();
-                        const hasDir = mem.lastPath && mem.lastPathKind === 'dir';
-                        const hasFile = mem.lastPath && mem.lastPathKind === 'file';
-                        const implyThere = /(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up);
-                        // 1) Comandos derivados del intent del usuario (sin depender del comando sugerido)
-                        // Salir del directorio actual
-                        const wantsLeaveDir = /(sal|salte|salir|regresa|regresar|volver)\s+(del\s+)?directorio|\b(subir|sube)\b.*(nivel|carpeta)|\b(arriba|atr[aá]s)\b/.test(up);
-                        const leaveOverride = wantsLeaveDir;
-                        if (leaveOverride) {
-                          toSend = 'cd ..';
-                        }
-                        // Entrar/ir al último directorio creado
-                        const wantsEnterLastDir = /(entra|ingresa|ve|ir)\s+(al|a la)\s*(directorio|carpeta)\s+(que\s+)?(me\s+)?(creaste|reciente|[úu]ltim[oa])/.test(up) || (/(ve|ir)\s+(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up) && hasDir);
-                        if (hasDir && wantsEnterLastDir) {
-                          toSend = `cd ${mem.lastPath}`;
-                        }
-                        // Abrir/editar último archivo recordado
-                        const srcFile = hasFile ? mem.lastPath! : (mem.lastFile ?? undefined);
-                        const wantsOpen = /(abre|[áa]brelo|mostrar|muestra|ver)\b/.test(up);
-                        const wantsEdit = /(edita|editar|ed[íi]talo|modifica|modificar)\b/.test(up);
-                        if (srcFile && wantsEdit) {
-                          toSend = `nano ${srcFile}`;
-                        } else if (srcFile && wantsOpen) {
-                          toSend = `cat ${srcFile}`;
-                        }
-                        // Renombrar último archivo: "renómbralo como X" / "cámbiale el nombre a X"
-                        const mRename = up.match(/(?:renombr[^\s]*|c[áa]mbiale?\s+el\s+nombre(?:\s+(?:a|por))?)\s+(\S+)/);
-                        if (srcFile && mRename && mRename[1]) {
-                          const newName = mRename[1];
-                          const norm = srcFile.replace(/\\/g, '/');
-                          const dir = norm.includes('/') ? norm.replace(/[^\/]+$/, '') : '';
-                          const dst = dir ? `${dir}${newName}` : newName;
-                          toSend = `mv ${srcFile} ${dst}`;
-                        }
-                        // Mover/copiar todo "ahí"
-                        const wantsMoveAll = /(muev[ea]|mover|mu[ée]velo|traslada|lleva)\s+(todo|los\s+archivos|el\s+contenido|contenido)/.test(up);
-                        const wantsCopyAll = /(copi[ae]|copiar|c[óo]pialo)\s+(todo|los\s+archivos|el\s+contenido|contenido)/.test(up);
-                        if (hasDir && (wantsMoveAll || wantsCopyAll) && (implyThere || /(en|hacia)\s+(el|la)?\s*(directorio|carpeta)\s+(que\s+)?(me\s+)?(creaste|reciente|[úu]ltim[oa])/.test(up))) {
-                          toSend = wantsCopyAll ? `cp -r * ${mem.lastPath}` : `mv * ${mem.lastPath}`;
-                        }
-                        // Autocorregir 'cd <algo>'
-                        if (!leaveOverride && /^cd\s+\S+/.test(toSend) && hasDir) {
-                          toSend = toSend.replace(/^(cd)\s+(\S+)/, (_m, c, arg) => {
-                            if (arg === '.' || arg === '..' || arg === '-') return `${c} ${arg}`;
-                            return `${c} ${mem.lastPath}`;
-                          });
-                        }
-                        // Autocorregir rm/rmdir con lastPath
-                        if (/^(rm|rmdir)\b/.test(toSend) && mem.lastPath) {
-                          toSend = hasDir ? `rm -rf ${mem.lastPath}` : `rm ${mem.lastPath}`;
-                        }
-                        // Autocorregir editores (vim/nano/less/cat/tail)
-                        if (/^(vim|nano|less|cat|tail)\b/.test(toSend) && mem.lastPath) {
-                          const m = toSend.match(/^(vim|nano|less|cat|tail)\b/);
-                          if (m) toSend = `${m[1]} ${mem.lastPath}`;
-                        }
-                        // Autocorregir mv/cp según pronombres y memoria
-                        if (/^(mv|cp)\b/.test(toSend)) {
-                          const tokens = toSend.split(/\s+/);
-                          const cmdName = tokens[0];
-                          const args = tokens.slice(1);
-                          // Si falta destino pero hay lastPath dir y el prompt dice 'ahí', úsalo como destino
-                          if (args.length === 1 && hasDir && implyThere) {
-                            toSend = `${cmdName} ${args[0]} ${mem.lastPath}`;
-                          }
-                          // Si falta origen pero hay lastFile/lastPath file, úsalo como origen
-                          else if (args.length === 1 && (mem.lastPath || mem.lastFile)) {
-                            const src = hasFile ? mem.lastPath! : (mem.lastFile ?? args[0]);
-                            // si args[0] parece destino (p.ej. termina en '/') o prompt dice ahí y tenemos dir
-                            const dst = hasDir ? mem.lastPath! : args[0];
-                            toSend = `${cmdName} ${src} ${dst}`;
-                          }
-                        }
-                        // 2) Crear archivo "en el directorio que me creaste":
-                        //    Si el prompt lo indica y hay lastPath dir, forzar destino dentro de esa carpeta.
-                        const wantsInCreatedDir = /(en|dentro de|ponlo en|col[óo]calo en|m[ée]telo en|gu[áa]rdalo en)\s+(el|la)?\s*(directorio|carpeta|dir|direc[^\s]*rio)\s+(que\s+)?(me\s+)?(creaste|cre[ó]s|acabamos?\s+de\s+crear|reciente|[úu]ltim[oa])/.test(up)
-                          || /(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up);
-                        if (hasDir && wantsInCreatedDir) {
-                          // mkdir nombre
-                          if (/^mkdir\s+\S+/.test(toSend)) {
-                            toSend = toSend.replace(/^mkdir\s+(\S+)/, (_m, d) => {
-                              const isAbs = d.startsWith('/') || d.startsWith('./') || d.startsWith('../');
-                              if (isAbs) return `mkdir ${d}`;
-                              const joined = mem.lastPath!.endsWith('/') ? `${mem.lastPath}${d}` : `${mem.lastPath}/${d}`;
-                              return `mkdir ${joined}`;
-                            });
-                          }
-                          // touch filename
-                          if (/^touch\s+\S+/.test(toSend)) {
-                            toSend = toSend.replace(/^touch\s+(\S+)/, (_m, f) => {
-                              const joined = mem.lastPath!.endsWith('/') ? `${mem.lastPath}${f}` : `${mem.lastPath}/${f}`;
-                              return `touch ${joined}`;
-                            });
-                          }
-                          // echo/printf ... > filename  (also >>)
-                          if (/(>|>>)/.test(toSend)) {
-                            toSend = toSend.replace(/(>\>?\s*)([^\s]+)/, (_m, op, f) => {
-                              // do not change if absolute path
-                              const isAbs = f.startsWith('/') || f.startsWith('./') || f.startsWith('../');
-                              if (isAbs) return `${op}${f}`;
-                              const joined = mem.lastPath!.endsWith('/') ? `${mem.lastPath}${f}` : `${mem.lastPath}/${f}`;
-                              return `${op}${joined}`;
-                            });
-                          }
-                          // cat > filename << EOF (heredoc)
-                          if (/^cat\s+>\s*\S+\s*<</.test(toSend)) {
-                            toSend = toSend.replace(/^(cat\s+>\s*)(\S+)(\s*<\<)/, (_m, p1, f, p3) => {
-                              const isAbs = f.startsWith('/') || f.startsWith('./') || f.startsWith('../');
-                              const joined = isAbs ? f : (mem.lastPath!.endsWith('/') ? `${mem.lastPath}${f}` : `${mem.lastPath}/${f}`);
-                              return `${p1}${joined}${p3}`;
-                            });
-                          }
-                          // tee filename << EOF
-                          if (/^tee\s+\S+\s*<</.test(toSend)) {
-                            toSend = toSend.replace(/^(tee\s+)(\S+)(\s*<\<)/, (_m, p1, f, p3) => {
-                              const isAbs = f.startsWith('/') || f.startsWith('./') || f.startsWith('../');
-                              const joined = isAbs ? f : (mem.lastPath!.endsWith('/') ? `${mem.lastPath}${f}` : `${mem.lastPath}/${f}`);
-                              return `${p1}${joined}${p3}`;
-                            });
-                          }
-                        }
+                        const toSend = String(msg.meta?.pendingCommand || '').trim();
                         await invoke('ssh_stdin', { id: sessionId, data: toSend + '\n' });
                         setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
                         await setLastCommand(toSend);
+                        // Si es un 'cd <dir>', registra ese directorio como lastPath
+                        try {
+                          const mCd = toSend.match(/^\s*cd\s+(.+)$/);
+                          if (mCd && mCd[1]) {
+                            const raw = mCd[1].trim();
+                            const dir = raw.replace(/^"|"$/g, '');
+                            await setLastPath(dir, 'dir');
+                          }
+                        } catch {}
                         // Si es un mkdir, guarda el directorio creado como lastPath
                         const mk = toSend.match(/^\s*mkdir\s+([^\s]+)/);
                         if (mk && mk[1]) {
@@ -541,48 +318,23 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {msg.sender === 'system' && msg.meta?.pendingFileCreation && !msg.meta?.processed && (
               <div className="confirm-card">
                 <div className="confirm-title">El agente quiere crear un archivo</div>
-                <div className="confirm-subtitle">{(() => {
-                  const up: string = String(msg.meta?.userPrompt || '').toLowerCase();
-                  const hasDir = mem.lastPath && mem.lastPathKind === 'dir';
-                  const wantsInCreatedDir = /(en|dentro de|ponlo en|col[óo]calo en|m[ée]telo en|gu[áa]rdalo en)\s+(el|la)?\s*(directorio|carpeta|dir|direc[^\s]*rio)\s+(que\s+)?(me\s+)?(creaste|cre[ó]s|acabamos?\s+de\s+crear|reciente|[úu]ltim[oa])/.test(up)
-                    || /(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up);
-                  const name = String(msg.meta.pendingFileCreation.fileName || '');
-                  if (hasDir && wantsInCreatedDir) {
-                    return mem.lastPath!.endsWith('/') ? `${mem.lastPath}${name}` : `${mem.lastPath}/${name}`;
-                  }
-                  return name;
-                })()}</div>
+                <div className="confirm-subtitle">{String(msg.meta.pendingFileCreation.fileName || '')}</div>
                 <pre className="code-block"><code>{msg.meta.pendingFileCreation.fileContent}</code></pre>
                 <div className="confirm-actions">
                   <button
                     className="btn confirm"
                     onClick={async () => {
                       try {
-                        let cmdToSend = String(msg.meta.pendingFileCreation.command || '');
-                        const up: string = String(msg.meta?.userPrompt || '').toLowerCase();
-                        const hasDir = mem.lastPath && mem.lastPathKind === 'dir';
-                        const wantsInCreatedDir = /(en|dentro de|ponlo en|col[óo]calo en|m[ée]telo en|gu[áa]rdalo en)\s+(el|la)?\s*(directorio|carpeta|dir|direc[^\s]*rio)\s+(que\s+)?(me\s+)?(creaste|cre[ó]s|acabamos?\s+de\s+crear|reciente|[úu]ltim[oa])/.test(up)
-                          || /(ah[ií]|ahi|all[ií]|alli|all[aá]|allá)/.test(up);
-                        if (hasDir && wantsInCreatedDir) {
-                          const p = String(mem.lastPath);
-                          const cdPart = p.startsWith('~') ? `cd ${p}` : (p.includes(' ') ? `cd "${p}"` : `cd ${p}`);
-                          cmdToSend = `${cdPart} && ${cmdToSend}`;
-                        }
+                        const cmdToSend = String(msg.meta.pendingFileCreation.command || '');
                         await invoke('ssh_stdin', { id: sessionId, data: cmdToSend + '\n' });
                         setMessages(prev => prev.map(m => m.id === msg.id ? {
                           ...m,
                           text: `Archivo '${msg.meta!.pendingFileCreation!.fileName}' creado exitosamente.`,
                           meta: { ...m.meta, processed: true, pendingFileCreation: undefined }
                         } : m));
-                        const effectiveName = (() => {
-                          const name = String(msg.meta!.pendingFileCreation!.fileName as string);
-                          if (hasDir && wantsInCreatedDir) {
-                            return mem.lastPath!.endsWith('/') ? `${mem.lastPath}${name}` : `${mem.lastPath}/${name}`;
-                          }
-                          return name;
-                        })();
-                        await setLastFile(effectiveName, msg.meta!.pendingFileCreation!.fileContent as string);
-                        try { await setLastPath(effectiveName, 'file'); } catch {}
+                        const name = String(msg.meta!.pendingFileCreation!.fileName as string);
+                        await setLastFile(name, msg.meta!.pendingFileCreation!.fileContent as string);
+                        try { await setLastPath(name, 'file'); } catch {}
                       } catch (e) {}
                     }}
                   >Ejecutar ahora</button>
