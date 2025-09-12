@@ -72,8 +72,9 @@
   align-self: flex-end;
 }
 
-.message.ai {
-  /* Accent-tinted bubble so AI responses stand out */
+.message.ai,
+.message.system {
+  /* exact same tone for both bubbles */
   background-color: color-mix(in srgb, var(--accent-primary) 16%, var(--background-tertiary));
   border-left: 3px solid var(--accent-primary);
   box-shadow: 0 1px 0 rgba(0,0,0,0.08);
@@ -116,11 +117,26 @@
   margin-bottom: 6px;
   color: var(--text-primary);
 }
+.message .explanation p { margin: 0 0 8px 0; }
+.message .explanation .explanation-list {
+  margin: 0 0 8px 20px;
+  padding-left: 18px;
+}
+.message .explanation .explanation-list li { margin: 4px 0; }
+
+/* In AGENT (system) bubble, make explanation look like normal text (no inner panel) */
+.message.system .explanation {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
 
 /* acciones rápidas en mensajes (removidas) */
 
 .chat-input {
   display: flex;
+  align-items: flex-end; /* button aligns to the bottom of textarea */
+  gap: 10px;
   padding: 10px;
   border-top: 1px solid var(--border-color);
 }
@@ -131,9 +147,13 @@
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-primary);
-  padding: 10px;
-  resize: none;
-  margin-right: 10px;
+  padding: 10px 12px;
+  resize: none; /* we manage height in JS */
+  margin: 0;
+  min-height: 42px; /* start small */
+  /* no fixed max-height here; JS caps at 5 lines */
+  overflow-y: hidden; /* JS toggles to auto when needed */
+  line-height: 20px; /* predictable for 5-line cap */
 }
 
 .chat-input button {
@@ -142,7 +162,7 @@
   border: none;
   box-shadow: var(--accent-guard-inset), 0 0 0 rgba(0,0,0,0);
   text-shadow: var(--accent-guard-shadow);
-  padding: 0 20px;
+  padding: 10px 16px;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 160ms ease, transform 80ms ease;
@@ -208,6 +228,22 @@
   white-space: pre;
   overflow: auto;
   max-height: 320px; /* evita tarjetas interminables */
+}
+
+/* Inside AI/System bubbles, visually merge the confirm card with the bubble */
+.message.ai .confirm-card,
+.message.system .confirm-card {
+  background: transparent;            /* use the bubble's background */
+  border-top: 0;                      /* remove top border to attach */
+  border-radius: 0 0 8px 8px;         /* rounded only at the bottom */
+  margin-top: 6px;                    /* slightly tighter spacing */
+  padding-top: 8px;                   /* keep inner spacing */
+}
+
+/* Keep the code block legible while merged */
+.message.ai .confirm-code,
+.message.system .confirm-code {
+  background: var(--background-secondary);
 }
 .code-output {
   margin: 0;
