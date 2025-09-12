@@ -35,6 +35,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
   // Referencia para el contenedor de mensajes (auto-scroll inteligente)
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const isNearBottom = (el: HTMLElement, threshold = 4) =>
     el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
@@ -50,6 +51,22 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       setShowScrollToBottom(true);
     }
   }, [messages]);
+
+  // Auto-resize the input textarea like ChatGPT: grow with content up to a max of 5 lines
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const style = window.getComputedStyle(el);
+    const lineHeight = parseFloat(style.lineHeight) || 20;
+    const paddingTop = parseFloat(style.paddingTop) || 0;
+    const paddingBottom = parseFloat(style.paddingBottom) || 0;
+    const maxLines = 5; // cap growth to 5 lines max
+    const maxPx = Math.round(paddingTop + paddingBottom + lineHeight * maxLines);
+    const newH = Math.min(el.scrollHeight, maxPx);
+    el.style.height = newH + 'px';
+    el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
+  }, [input]);
 
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setMode(e.target.value as ChatMode);
@@ -110,6 +127,32 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     .replace(/^\s+|\s+$/g, '')
     .trim();
 
+  // Formatear explicación con título y estructura más legible (lista numerada si hay varias líneas)
+  const renderExplanation = (text: string): React.ReactNode => {
+    const t = (text || '').trim();
+    if (!t) return null;
+    // Dividir por líneas no vacías
+    const lines = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const looksLikeList = lines.length >= 2;
+    return (
+      <>
+        <div className="explanation-title">Explicación de lo que se va a realizar</div>
+        {looksLikeList ? (
+          <ol className="explanation-list">
+            {lines.map((l, i) => (
+              <li key={i}>{l}</li>
+            ))}
+          </ol>
+        ) : (
+          // Si es un solo bloque, respetar saltos de línea dobles como párrafos
+          t.split(/\n{2,}/).map((p, i) => (
+            <p key={i}>{p}</p>
+          ))
+        )}
+      </>
+    );
+  };
+
   // Enviar prompt al backend (Tauri -> ai_chat) y procesar respuesta
   const handleSend = async () => {
     if (isSending) return;
@@ -144,10 +187,23 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         }));
       const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history } });
 
-      // Visualización: en AGENT priorizar summary; en ASK usar explicación
-      const aiText = effectiveMode === 'agent'
-        ? ((res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '')
-        : ((res as any).explanation ?? (res as any).ai_response ?? '');
+      // Visualización: en AGENT priorizar summary; en ASK combinar summary + explanation
+      const aiText = (() => {
+        if (effectiveMode === 'agent') {
+          return (res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '';
+        } else {
+          const sumRaw = (res as any).summary as string | undefined;
+          const expRaw = (res as any).explanation as string | undefined;
+          const respRaw = (res as any).ai_response as string | undefined;
+          const sum = sumRaw ? cleanText(sumRaw) : '';
+          const exp = expRaw ? cleanText(expRaw) : '';
+          const normalize = (s: string) => s.replace(/[.,;:!?¡¿"'`]+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+          if (sum && exp) {
+            return normalize(sum) === normalize(exp) ? exp : `${sum}\n\n${exp}`;
+          }
+          return exp || sum || respRaw || '';
+        }
+      })();
 
   // 1) Intentar extraer JSON de acciones (create_file / command)
       let agentJson: any | null = null;
@@ -231,15 +287,29 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       }
 
       // Construir texto visible y limpiarlo
-      const displayText = ((res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '') || aiText;
+      const displayText = aiText;
       const displayTextClean = cleanText(displayText);
 
       // Limpiar meta
       const metaWithFlag: any = { ...(res as any) };
       const cleanedMeta = { ...metaWithFlag } as any;
+      cleanedMeta.chat_mode = effectiveMode; // tag to control rendering later
       if (cleanedMeta.summary) cleanedMeta.summary = cleanText(cleanedMeta.summary);
       if (cleanedMeta.explanation) cleanedMeta.explanation = cleanText(cleanedMeta.explanation);
       if (cleanedMeta.ai_response) cleanedMeta.ai_response = cleanText(cleanedMeta.ai_response);
+
+      // Deduplicar: si summary/explanation coinciden con el texto mostrado o entre sí, ocultarlos
+      const norm = (s?: string | null) => (s || '')
+        .replace(/[`]/g, '')
+        .replace(/[.,;:!?¡¿\"']+/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+      if (norm(cleanedMeta.summary) === norm(displayTextClean)) cleanedMeta.summary = undefined;
+      if (norm(cleanedMeta.explanation) === norm(displayTextClean)) cleanedMeta.explanation = undefined;
+      if (norm(cleanedMeta.summary) && norm(cleanedMeta.summary) === norm(cleanedMeta.explanation)) cleanedMeta.summary = undefined;
+      // En ASK, como ya combinamos summary + explanation en el texto principal, ocultar ambos metadatos para evitar duplicados visuales
+      if (effectiveMode === 'ask') { cleanedMeta.summary = undefined; cleanedMeta.explanation = undefined; }
 
       // Adjuntar code_output normalizado para facilitar copia/ejecución cuando no haya confirmación
       if (cmd && !cleanedMeta.code_output) {
@@ -247,7 +317,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       }
 
       // En modo AGENT, si se creó tarjeta de confirmación, no añadimos el mensaje de IA
-  if (!(effectiveMode === 'agent' && createdConfirmation)) {
+      if (!(effectiveMode === 'agent' && createdConfirmation)) {
         const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
         setMessages(prev => [...prev, aiMsg]);
       }
@@ -288,19 +358,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
               <div className="message-text">{msg.text}</div>
             )}
 
-            {/* No mostrar el resumen en la tarjeta de confirmación */}
-            {!(msg.sender === 'system' && msg.meta?.pendingCommand) && msg.meta?.summary && (
-              <div className="summary">{msg.meta.summary}</div>
-            )}
+            {/* No mostrar el resumen en la tarjeta de confirmación ni en ASK */}
+            {!(msg.sender === 'system' && msg.meta?.pendingCommand) && msg.meta?.summary && msg.meta?.chat_mode === 'agent' && (
+               <div className="summary">{msg.meta.summary}</div>
+             )}
 
             {msg.meta?.explanation && msg.meta.explanation !== msg.text && (
-              msg.sender === 'system' && msg.meta?.pendingCommand ? (
-                <div className="explanation">
-                  <div className="explanation-title">Respuesta del agente</div>
-                  <div>{msg.meta.explanation}</div>
-                </div>
-              ) : (
-                <div className="explanation">{msg.meta.explanation}</div>
+              (msg.sender === 'system' && msg.meta?.pendingCommand) ? null : (
+                <div className="explanation">{renderExplanation(msg.meta.explanation)}</div>
               )
             )}
 
@@ -310,66 +375,69 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {/* Card: comando pendiente */}
             {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
               <div className="confirm-card">
-                <div className="confirm-title">Código generado</div>
-                <pre className="confirm-code"><code>{String(msg.meta.pendingCommand || '').trim()}</code></pre>
-                <div className="confirm-actions">
-                  <button
-                    className="btn confirm"
-                    onClick={async () => {
-                      try {
-                        const toSend = String(msg.meta?.pendingCommand || '').trim();
-                        await invoke('ssh_stdin', { id: sessionId, data: toSend + '\n' });
-                        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
-                        await setLastCommand(toSend);
-                        // Si es un 'cd <dir>', registra ese directorio como lastPath
-                        try {
-                          const mCd = toSend.match(/^\s*cd\s+(.+)$/);
-                          if (mCd && mCd[1]) {
-                            const raw = mCd[1].trim();
-                            const dir = raw.replace(/^"|"$/g, '');
-                            await setLastPath(dir, 'dir');
-                          }
-                        } catch {}
-                        // Si es un mkdir, guarda el directorio creado como lastPath
-                        const mk = toSend.match(/^\s*mkdir\s+([^\s]+)/);
-                        if (mk && mk[1]) {
-                          try { await setLastPath(mk[1].trim(), 'dir'); } catch {}
-                        }
-                        // Si creamos archivo con touch/echo/printf/tee/cat >, también registra lastFile y lastPath(file)
-                        try {
-                          let created: string | null = null;
-                          const mTouch = toSend.match(/^\s*touch\s+(\S+)/);
-                          if (mTouch) created = mTouch[1];
-                          const mRedir = toSend.match(/>\>?\s*([^\s]+)/);
-                          if (!created && mRedir) created = mRedir[1];
-                          const mHeredoc = toSend.match(/^(?:cat\s+>\s*|tee\s+)(\S+)\s*<</);
-                          if (!created && mHeredoc) created = mHeredoc[1];
-                          if (created) {
-                            await setLastFile(created, "");
-                            await setLastPath(created, 'file');
-                          }
-                        } catch {}
-                        // Si ya tenemos metadata de creación, úsala para memoria
-                        try {
-                          if (msg.meta?.pendingFileCreation?.fileName) {
-                            const name = String(msg.meta.pendingFileCreation.fileName);
-                            const content = String(msg.meta.pendingFileCreation.fileContent || '');
-                            await setLastFile(name, content);
-                            await setLastPath(name, 'file');
-                          }
-                        } catch {}
-                      } catch (e) {}
-                    }}
-                  >Ejecutar ahora</button>
-                  <button
-                    className="btn cancel"
-                    onClick={() => {
-                      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
-                    }}
-                  >Cancelar</button>
-                </div>
-              </div>
-            )}
+                {msg.meta?.explanation && (
+                  <div className="explanation">{renderExplanation(msg.meta.explanation)}</div>
+                )}
+                 <div className="confirm-title">Código generado</div>
+                 <pre className="confirm-code"><code>{String(msg.meta.pendingCommand || '').trim()}</code></pre>
+                 <div className="confirm-actions">
+                   <button
+                     className="btn confirm"
+                     onClick={async () => {
+                       try {
+                         const toSend = String(msg.meta?.pendingCommand || '').trim();
+                         await invoke('ssh_stdin', { id: sessionId, data: toSend + '\n' });
+                         setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
+                         await setLastCommand(toSend);
+                         // Si es un 'cd <dir>', registra ese directorio como lastPath
+                         try {
+                           const mCd = toSend.match(/^\s*cd\s+(.+)$/);
+                           if (mCd && mCd[1]) {
+                             const raw = mCd[1].trim();
+                             const dir = raw.replace(/^"|"$/g, '');
+                             await setLastPath(dir, 'dir');
+                           }
+                         } catch {}
+                         // Si es un mkdir, guarda el directorio creado como lastPath
+                         const mk = toSend.match(/^\s*mkdir\s+([^\s]+)/);
+                         if (mk && mk[1]) {
+                           try { await setLastPath(mk[1].trim(), 'dir'); } catch {}
+                         }
+                         // Si creamos archivo con touch/echo/printf/tee/cat >, también registra lastFile y lastPath(file)
+                         try {
+                           let created: string | null = null;
+                           const mTouch = toSend.match(/^\s*touch\s+(\S+)/);
+                           if (mTouch) created = mTouch[1];
+                           const mRedir = toSend.match(/>\>?\s*([^\s]+)/);
+                           if (!created && mRedir) created = mRedir[1];
+                           const mHeredoc = toSend.match(/^(?:cat\s+>\s*|tee\s+)(\S+)\s*<</);
+                           if (!created && mHeredoc) created = mHeredoc[1];
+                           if (created) {
+                             await setLastFile(created, "");
+                             await setLastPath(created, 'file');
+                           }
+                         } catch {}
+                         // Si ya tenemos metadata de creación, úsala para memoria
+                         try {
+                           if (msg.meta?.pendingFileCreation?.fileName) {
+                             const name = String(msg.meta.pendingFileCreation.fileName);
+                             const content = String(msg.meta.pendingFileCreation.fileContent || '');
+                             await setLastFile(name, content);
+                             await setLastPath(name, 'file');
+                           }
+                         } catch {}
+                       } catch (e) {}
+                     }}
+                   >Ejecutar ahora</button>
+                   <button
+                     className="btn cancel"
+                     onClick={() => {
+                       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
+                     }}
+                   >Cancelar</button>
+                 </div>
+               </div>
+             )}
           </div>
         ))}
         {showScrollToBottom && (
@@ -390,6 +458,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
       <div className="chat-input">
         <textarea
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={mode === 'agent' ? 'Escribe tu mensaje… (Se pedirá confirmación para comandos)' : 'Escribe tu mensaje…'}
