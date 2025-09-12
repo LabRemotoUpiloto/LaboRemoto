@@ -53,9 +53,9 @@ const CrumbBar: React.FC<{ rootLabel: string; path: string; onNavigate: (p: stri
   )
 }
 
-const Table: React.FC<{ cols: string[]; rows: React.ReactNode[][]; onRowDoubleClick?: (index: number) => void; onRowClick?: (index:number)=>void; selectedIndex?: number; onSort?: (colIndex:number)=>void; onContextMenuRow?: (index:number, e: React.MouseEvent)=>void; sortIndex?: number; sortDir?: 'asc'|'desc'; busy?: boolean }>=({cols,rows,onRowDoubleClick,onRowClick,selectedIndex,onSort,onContextMenuRow,sortIndex,sortDir,busy})=>{
+const Table: React.FC<{ className?: string; cols: string[]; rows: React.ReactNode[][]; onRowDoubleClick?: (index: number) => void; onRowClick?: (index:number)=>void; selectedIndex?: number; onSort?: (colIndex:number)=>void; onContextMenuRow?: (index:number, e: React.MouseEvent)=>void; sortIndex?: number; sortDir?: 'asc'|'desc'; busy?: boolean }>=({className,cols,rows,onRowDoubleClick,onRowClick,selectedIndex,onSort,onContextMenuRow,sortIndex,sortDir,busy})=>{
   return (
-    <table className="table" role="grid" aria-rowcount={rows.length} aria-colcount={cols.length} aria-busy={busy||false}>
+  <table className={`table ${className||''}`.trim()} role="grid" aria-rowcount={rows.length} aria-colcount={cols.length} aria-busy={busy||false}>
       <thead role="rowgroup">
         <tr>
           {cols.map((c,i)=> {
@@ -333,7 +333,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
         </div>
   <div className="pane-body scroll-accent">
           {lload? <div style={{padding:8}} aria-busy>Cargando…</div> : (
-            <Table cols={["Nombre","Modificado","Tamaño","Tipo"]}
+            <Table className="file-table" cols={["Nombre","Modificado","Tamaño","Tipo"]}
               rows={ldisplay.map(e=>[
                 <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
                 fmtDate(e.mtime||undefined,false),
@@ -400,7 +400,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
   <div className="pane-body scroll-accent">
           {rerr && <div style={{color:'crimson',padding:8}}>Error: {rerr}</div>}
           {rload? <div style={{padding:8}} aria-busy>Cargando…</div> : (
-      <Table cols={["Nombre","Modificado","Tamaño","Tipo"]}
+            <Table className="file-table" cols={["Nombre","Modificado","Tamaño","Tipo"]}
               rows={rdisplay.map(e=>[
                 <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
                 fmtDate(e.mtime||undefined, true),
