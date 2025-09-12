@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import FileIcon from '../components/FileIcon'
+import ContextMenu from '../components/ContextMenu'
 
 type Props = { sessions: string[]; activeSessionId?: string }
 type SftpEntry = { name: string; path: string; kind: string; size?: number; perms?: string; mtime?: number }
@@ -33,7 +35,7 @@ const CrumbBar: React.FC<{ rootLabel: string; path: string; onNavigate: (p: stri
   )
 }
 
-const Table: React.FC<{ cols: string[]; rows: React.ReactNode[][]; onRowDoubleClick?: (index: number) => void; onRowClick?: (index:number)=>void; selectedIndex?: number; onSort?: (colIndex:number)=>void }>=({cols,rows,onRowDoubleClick,onRowClick,selectedIndex,onSort})=>{
+const Table: React.FC<{ cols: string[]; rows: React.ReactNode[][]; onRowDoubleClick?: (index: number) => void; onRowClick?: (index:number)=>void; selectedIndex?: number; onSort?: (colIndex:number)=>void; onContextMenuRow?: (index:number, e: React.MouseEvent)=>void }>=({cols,rows,onRowDoubleClick,onRowClick,selectedIndex,onSort,onContextMenuRow})=>{
   return (
     <table style={{width:'100%',borderCollapse:'collapse'}}>
       <thead>
@@ -47,7 +49,7 @@ const Table: React.FC<{ cols: string[]; rows: React.ReactNode[][]; onRowDoubleCl
       </thead>
       <tbody>
         {rows.length===0 ? <tr><td colSpan={cols.length} style={{opacity:.7,padding:'8px 4px'}}>Vacío</td></tr> : rows.map((r,i)=> (
-          <tr key={i} onClick={()=> onRowClick?.(i)} onDoubleClick={()=> onRowDoubleClick?.(i)} style={{cursor: onRowDoubleClick? 'pointer': undefined, background: selectedIndex===i? 'rgba(125,125,200,0.15)': undefined}}>
+          <tr key={i} className="file-row" onClick={()=> onRowClick?.(i)} onDoubleClick={()=> onRowDoubleClick?.(i)} onContextMenu={(e)=>{ e.preventDefault(); onContextMenuRow?.(i, e) }} style={{cursor: onRowDoubleClick? 'pointer': undefined, background: selectedIndex===i? 'rgba(125,125,200,0.15)': undefined}}>
             {r.map((cell,j)=> <td key={j} style={{padding:'6px 4px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>{cell}</td>)}
           </tr>
         ))}
@@ -120,6 +122,21 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
     arr.sort(cmp as any)
     return arr
   },[rrows,rSort])
+  const [ctx, setCtx] = useState<{open:boolean; x:number; y:number; side:'local'|'remote'; index:number|null}>({open:false,x:0,y:0,side:'local',index:null})
+  useEffect(()=>{
+    const close = ()=> setCtx(c=> ({...c, open:false}))
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('click', (e)=>{
+      // Close when clicking outside tables (ContextMenu itself handles inside click)
+      if ((e.target as HTMLElement)?.closest('table')) return
+      close()
+    })
+    return ()=>{
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  },[])
   const refreshRemote = async ()=>{
     if(!sessionId) return
     setRload(true); setRerr(undefined)
@@ -252,7 +269,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
           {lload? <div style={{padding:8}}>Loading…</div> : (
             <Table cols={["Name","Date Modified","Size","Kind"]}
               rows={ldisplay.map(e=>[
-                e.name,
+                <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
                 e.mtime? new Date(e.mtime).toLocaleString(): '',
                 e.size ?? '',
                 e.kind,
@@ -272,6 +289,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
                 const key = map[col]
                 setLSort(s=> ({ key, dir: s.key===key && s.dir==='asc'? 'desc':'asc' }))
               }}
+              onContextMenuRow={(i,e)=>{ setLSelectedPath(ldisplay[i]?.path); setCtx({open:true,x:e.clientX,y:e.clientY,side:'local',index:i}) }}
             />
           )}
         </div>
@@ -305,7 +323,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
           {rload? <div style={{padding:8}}>Loading…</div> : (
             <Table cols={["Name","Date Modified","Size","Kind"]}
               rows={rdisplay.map(e=>[
-                e.name,
+                <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
                 e.mtime? new Date(e.mtime*1000).toLocaleString(): '',
                 e.size ?? '',
                 e.kind,
@@ -324,12 +342,13 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
                 const key = map[col]
                 setRSort(s=> ({ key, dir: s.key===key && s.dir==='asc'? 'desc':'asc' }))
               }}
+              onContextMenuRow={(i,e)=>{ const p=rdisplay[i]?.path || joinRemote(rpath, rdisplay[i]?.name || ''); setRSelectedPath(p); setCtx({open:true,x:e.clientX,y:e.clientY,side:'remote',index:i}) }}
             />
           )}
         </div>
       </div>
       {/* Transfers Panel */}
-      <div style={{gridColumn:'1 / span 2', border:'1px solid var(--border)',borderRadius:10, padding:10, background:'var(--panel)', maxHeight:180, overflow:'auto'}}>
+  <div style={{gridColumn:'1 / span 2', border:'1px solid var(--border)',borderRadius:10, padding:10, background:'var(--panel)', maxHeight:180, overflow:'auto'}}>
         <div style={{display:'flex',alignItems:'center',gap:8, marginBottom:6}}>
           <strong>Transfers</strong>
           <span style={{opacity:.6}}>({transfers.length})</span>
@@ -358,6 +377,21 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId }) => {
           </div>
         )}
       </div>
+      <ContextMenu
+        x={ctx.x}
+        y={ctx.y}
+        open={ctx.open}
+        onClose={()=> setCtx(c=> ({...c, open:false}))}
+        items={(ctx.side==='local'? [
+          { label: 'Upload', onClick: doUpload, disabled: !sessionId || !lSelectedPath },
+          { label: 'Abrir', onClick: ()=>{ if(lSelectedPath){ const ent=ldisplay.find(e=> e.path===lSelectedPath); if(ent?.kind==='dir'){ const base=lpath; const sep = /^[A-Za-z]:/.test(base)? '\\' : '/'; const next = base && !base.endsWith(sep) ? base+sep+ent.name : base+ent.name; setLpath(next); refreshLocal(next); } } } },
+        ] : [
+          { label: 'Nueva carpeta', onClick: doRemoteMkdir, disabled: !canUse },
+          { label: 'Renombrar', onClick: doRemoteRename, disabled: !canUse || !rSelectedPath },
+          { label: 'Eliminar', onClick: doRemoteDelete, disabled: !canUse || !rSelectedPath, danger: true },
+          { label: 'Descargar', onClick: doDownload, disabled: !canUse || !rSelectedPath },
+        ])}
+      />
     </div>
   )
 }

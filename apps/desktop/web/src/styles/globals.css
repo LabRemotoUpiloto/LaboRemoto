@@ -328,6 +328,24 @@ html[data-theme="bold-rainbow"] .app-header{
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
+/* File table UX improvements */
+.file-row:hover {
+  background: rgba(255,255,255,0.03);
+}
+.file-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Context menu */
+.ctx-menu { background: var(--background-secondary); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); min-width: 180px; }
+.ctx-list { list-style: none; margin: 4px; padding: 4px; }
+.ctx-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--text-primary); }
+.ctx-item:hover { background: rgba(255,255,255,0.06); }
+.ctx-item.disabled { opacity: .5; pointer-events: none; }
+.ctx-item.danger { color: var(--danger); }
+
 
 @keyframes headerRgbShift{
   0% { background-position: 0% 50% }
