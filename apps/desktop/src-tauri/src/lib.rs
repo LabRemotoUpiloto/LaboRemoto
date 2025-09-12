@@ -5,12 +5,14 @@ pub mod error;   // Tipos de error compartidos
 pub mod ssh;     // Cliente SSH basado en russh (para terminal) + ssh2_sftp
 pub mod cmd;     // Comandos invocables desde el frontend (Tauri commands)
 pub mod storage; // Utilidades de almacenamiento cifrado de hosts
+pub mod state;   // Memoria efímera por sesión (AppState)
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   // Construye la aplicación Tauri y registra los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
+    .manage(crate::state::AppState::new())
     .invoke_handler(tauri::generate_handler![
       // SSH
       cmd::ssh::ssh_connect,
@@ -43,6 +45,12 @@ pub fn run() {
       cmd::ssh::ssh_connect_stored,
       cmd::hosts::list_hosts_files,
       cmd::hosts::delete_host_file,
+      // Session ephemeral memory
+      crate::state::mem_put,
+      crate::state::mem_get,
+      crate::state::mem_clear,
+      crate::state::mem_push_terminal_result,
+      // (Persistence happens automatically on put/get/clear; explicit commands not needed)
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

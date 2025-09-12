@@ -41,6 +41,8 @@ tauri = { version = "2", features = [] }
 # HTTP client and dotenv for reading OPENAI_API_KEY
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 dotenvy = "0.15"
+parking_lot = "0.12"
+chrono = { version = "0.4", features = ["clock"] }
 
 
 [build-dependencies]
