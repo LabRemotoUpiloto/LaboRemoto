@@ -66,8 +66,34 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   // --- Helpers ---
   const extractCodeBlock = (s: string): string | null => {
     if (!s) return null;
-    const m = s.match(/```(?:bash|sh)?\s*([\s\S]*?)```/m);
+    // Acepta cualquier etiqueta opcional tras ``` (bash, sh, json, text, vacío, etc.)
+    const m = s.match(/```[a-zA-Z0-9_\-]*\s*([\s\S]*?)```/m);
     return m ? m[1].trim() : null;
+  };
+
+  // Heurística simple: ¿parece un comando de shell?
+  const isLikelyShell = (s: string | null | undefined): boolean => {
+    if (!s) return false;
+    const t = String(s).trim();
+    if (!t) return false;
+    const firstLine = t.split(/\r?\n/)[0]?.trim() || '';
+    const basic = /^(cd|ls|mkdir|rm|touch|echo|printf|cat|tee|bash|sh|python3?|pip|chmod|curl|wget|grep|sed|awk|tar|zip|unzip|git)\b/;
+    if (basic.test(firstLine)) return true;
+    if (t.includes('cat >') || t.includes('<<EOF') || t.includes("<<'EOF'")) return true;
+    if (t.includes('&&') || t.includes('|') || t.includes('>') || t.includes('chmod +x')) return true;
+    return false;
+  };
+
+  // Si el modelo devuelve un here-doc en texto sin fences, intenta reconstruirlo
+  const extractHeredocLoose = (s: string): string | null => {
+    if (!s) return null;
+    const HEREDOC = /cat\s*>\s*([^\s]+)\s*<<\s*(['"]?)EOF\2\s*\n([\s\S]*?)\nEOF/m;
+    const m = s.match(HEREDOC);
+    if (m) {
+      const [, fileName, , content] = m;
+      return `cat > ${fileName} <<'EOF'\n${content}\nEOF`;
+    }
+    return null;
   };
 
   const tryParseJson = (s: string | null | undefined): any | null => {
@@ -90,6 +116,15 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
+    // Si el usuario está en ASK pero la intención es claramente de acción, auto-escalar a AGENT para obtener comandos ejecutables
+    const ACTION_INTENT = /(\bcrea(r)?\b|\bhaz\b|\bhaga\b|\bgenera(r)?\b|\binstala(r)?\b|\bmueve(r)?\b|\bborra(r)?\b|\belimina(r)?\b|\bescribe(r)?\b|\bconfigura(r)?\b|\bejecuta(r)?\b|\bcompila(r)?\b)/i;
+    let effectiveMode: ChatMode = mode;
+    if (mode === 'ask' && ACTION_INTENT.test(trimmed)) {
+      effectiveMode = 'agent';
+      // Reflejar el cambio en el selector para siguientes mensajes (sin contaminar historial)
+      setMode('agent');
+    }
+
     // Siempre anexar el contexto de memoria como un "cache" para el modelo (sin heurísticas en UI)
     const finalInput = trimmed + buildContextAppendix();
 
@@ -99,19 +134,22 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
     try {
       setIsSending(true);
-      const modeValue = mode === 'agent' ? 'AGENT' : 'ASK';
-      const history = messages.map(m => ({
-        role: m.sender === 'ai' ? 'assistant' : (m.sender === 'system' ? 'system' : 'user'),
-        content: m.text,
-      }));
+  const modeValue = effectiveMode === 'agent' ? 'AGENT' : 'ASK';
+      const history = messages
+        // Evitar enviar mensajes 'system' de la UI al modelo; solo user/assistant
+        .filter(m => m.sender !== 'system')
+        .map(m => ({
+          role: m.sender === 'ai' ? 'assistant' : 'user',
+          content: m.text,
+        }));
       const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history } });
 
       // Visualización: en AGENT priorizar summary; en ASK usar explicación
-      const aiText = mode === 'agent'
+      const aiText = effectiveMode === 'agent'
         ? ((res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '')
         : ((res as any).explanation ?? (res as any).ai_response ?? '');
 
-      // 1) Intentar extraer JSON de acciones (create_file / command)
+  // 1) Intentar extraer JSON de acciones (create_file / command)
       let agentJson: any | null = null;
       {
         const candidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary, aiText];
@@ -127,72 +165,69 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       // 2) Detectar comando u here-doc
       const runPrefix = 'RUN_CMD:';
       let cmd: string | null = null;
-      const cmdCandidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary, aiText];
-      for (const candidate of cmdCandidates) {
-        if (!candidate) continue;
-        const block = extractCodeBlock(candidate as string);
-        if (block) { cmd = block; break; }
-        const out = cleanText(candidate as string);
-        if (out.includes(runPrefix)) { cmd = out.split(runPrefix)[1].trim(); break; }
-        const m = out.match(/(?:^|\n)\$?\s*([^\n]+)\n?/m);
-        if (m && m[1]) { cmd = m[1].trim(); break; }
+      // Priorizar code_output explícito del backend: si existe, úsalo completo y NO re-detectes
+      const codeFromBackend = (res as any).code_output && String((res as any).code_output).trim() ? String((res as any).code_output).trim() : null;
+      if (codeFromBackend) {
+        cmd = codeFromBackend;
+      } else {
+        const candidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary, aiText];
+        for (const candidate of candidates) {
+          if (!candidate) continue;
+          // 1) Bloque con fences
+          const block = extractCodeBlock(candidate as string);
+          if (block && isLikelyShell(block)) { cmd = block; break; }
+          // 2) Here-doc suelto (sin fences)
+          const loose = extractHeredocLoose(candidate as string);
+          if (loose && isLikelyShell(loose)) { cmd = loose; break; }
+          // 3) RUN_CMD: explícito
+          const out = cleanText(candidate as string);
+          if (out.includes(runPrefix)) {
+            const maybe = out.split(runPrefix)[1].trim();
+            if (isLikelyShell(maybe)) { cmd = maybe; break; }
+          }
+          // 4) Último recurso (solo si parece shell): toma la primera línea
+          const first = out.split(/\r?\n/)[0]?.trim();
+          if (first && isLikelyShell(first)) { cmd = first; break; }
+        }
       }
 
-      // Generar tarjeta de confirmación en modo AGENT
-      let confirmationMsgId: string | null = null;
-      if (mode === 'agent' && cmd) {
-        // a) JSON action format
-        if (agentJson && Array.isArray(agentJson.actions)) {
+  // Generar tarjeta de confirmación en modo AGENT
+  let createdConfirmation = false;
+  if (effectiveMode === 'agent' && cmd && isLikelyShell(cmd)) {
+        // Detectar here-doc para registrar memoria, pero siempre mostrar UNA tarjeta con el bloque completo
+        const HEREDOC = /cat\s*>\s*([^\s]+)\s*<<\s*['"]?EOF['"]?\s*\n([\s\S]*?)\nEOF/gm;
+        const docs = [...cmd.matchAll(HEREDOC)];
+        let pendingFileCreation: any = null;
+        if (docs.length > 0) {
+          const [, fileName, fileContent] = docs[0];
+          pendingFileCreation = { fileName, fileContent, command: cmd };
+          try { await setLastFile(fileName, fileContent); } catch {}
+        } else if (agentJson && Array.isArray(agentJson.actions)) {
           const create = agentJson.actions.find((a: any) => a.type === 'create_file')
             || (agentJson.actions.find((a: any) => a.type === 'file_bundle')?.files?.[0]);
-          const run = agentJson.actions.find((a: any) => a.type === 'command');
           if (create && (create.path || create.fileName)) {
             const fileName = (create.path || create.fileName) as string;
             const fileContent = (create.content || create.fileContent || '') as string;
-            await setLastFile(fileName, fileContent);
-            const sysId = String(Date.now() + 5);
-            const sysText = `El agente quiere crear el archivo '${fileName}'. ¿Deseas continuar?`;
-            const sysMeta = {
-              pendingFileCreation: { fileName, fileContent, command: cmd },
-              followUpCommand: run?.command || null,
-              summary: agentJson.summary ?? (res as any).summary,
-              explanation: agentJson.explanation ?? (res as any).explanation,
-              userPrompt: trimmed,
-            };
-            const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
-            setMessages(prev => [...prev, sysMsg]);
-            confirmationMsgId = sysId;
+            pendingFileCreation = { fileName, fileContent, command: cmd };
+            try { await setLastFile(fileName, fileContent); } catch {}
           }
         }
-        // b) Here-doc tolerante a comillas
-        if (!confirmationMsgId) {
-          const HEREDOC = /cat\s*>\s*([^\s]+)\s*<<\s*['"]?EOF['"]?\s*\n([\s\S]*?)\nEOF/gm;
-          const docs = [...cmd.matchAll(HEREDOC)];
-          if (docs.length > 0) {
-            const [, fileName, fileContent] = docs[0];
-            await setLastFile(fileName, fileContent);
-            const sysId = String(Date.now() + 5);
-            const sysText = `El agente quiere crear el archivo '${fileName}'. ¿Deseas continuar?`;
-            const sysMeta = {
-              pendingFileCreation: { fileName, fileContent, command: cmd },
-              summary: (res as any).summary,
-              explanation: (res as any).explanation,
-              userPrompt: trimmed,
-            };
-            const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
-            setMessages(prev => [...prev, sysMsg]);
-            confirmationMsgId = sysId;
-          }
-        }
-        // c) Comando simple
-        if (!confirmationMsgId) {
-          const sysId = String(Date.now() + 5);
-          const sysText = 'El agente quiere ejecutar un comando para ' + ((res as any).summary || 'realizar una acción') + '.';
-          const sysMeta = { pendingCommand: cmd, summary: (res as any).summary, explanation: (res as any).explanation, userPrompt: trimmed };
-          const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
-          setMessages(prev => [...prev, sysMsg]);
-          confirmationMsgId = sysId;
-        }
+
+        const sysId = String(Date.now() + 5);
+        const sysText = 'El agente sugiere ejecutar este comando';
+        const sysSummaryRaw = ((res as any).summary ?? agentJson?.summary ?? '') as string;
+        const sysExplRaw = ((res as any).explanation ?? agentJson?.explanation ?? '') as string;
+        const sysMeta = {
+          pendingCommand: cmd,
+          pendingFileCreation,
+          // Ocultar el resumen para la tarjeta de confirmación per user request
+          summary: undefined,
+          explanation: cleanText(sysExplRaw),
+          userPrompt: trimmed,
+        };
+        const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
+        setMessages(prev => [...prev, sysMsg]);
+        createdConfirmation = true;
       }
 
       // Construir texto visible y limpiarlo
@@ -206,14 +241,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       if (cleanedMeta.explanation) cleanedMeta.explanation = cleanText(cleanedMeta.explanation);
       if (cleanedMeta.ai_response) cleanedMeta.ai_response = cleanText(cleanedMeta.ai_response);
 
-      // Si se creó confirmación, evitar duplicados en meta
-      if (confirmationMsgId) {
-        delete cleanedMeta.summary;
-        delete cleanedMeta.explanation;
+      // Adjuntar code_output normalizado para facilitar copia/ejecución cuando no haya confirmación
+      if (cmd && !cleanedMeta.code_output) {
+        cleanedMeta.code_output = cmd;
       }
 
-      const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
-      setMessages(prev => [...prev, aiMsg]);
+      // En modo AGENT, si se creó tarjeta de confirmación, no añadimos el mensaje de IA
+  if (!(effectiveMode === 'agent' && createdConfirmation)) {
+        const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
+        setMessages(prev => [...prev, aiMsg]);
+      }
 
     } catch (e: any) {
       setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
@@ -246,14 +283,25 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       >
         {messages.map((msg) => (
           <div key={msg.id} className={`message ${msg.sender}`}>
-            <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.text}</pre>
+            {/* Ocultar el texto superior para los mensajes de sistema con tarjeta de confirmación */}
+            {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
+              <div className="message-text">{msg.text}</div>
+            )}
 
-            {msg.meta?.summary && (
+            {/* No mostrar el resumen en la tarjeta de confirmación */}
+            {!(msg.sender === 'system' && msg.meta?.pendingCommand) && msg.meta?.summary && (
               <div className="summary">{msg.meta.summary}</div>
             )}
 
             {msg.meta?.explanation && msg.meta.explanation !== msg.text && (
-              <div className="explanation">{msg.meta.explanation}</div>
+              msg.sender === 'system' && msg.meta?.pendingCommand ? (
+                <div className="explanation">
+                  <div className="explanation-title">Respuesta del agente</div>
+                  <div>{msg.meta.explanation}</div>
+                </div>
+              ) : (
+                <div className="explanation">{msg.meta.explanation}</div>
+              )
             )}
 
             {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
@@ -262,8 +310,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {/* Card: comando pendiente */}
             {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
               <div className="confirm-card">
-                <div className="confirm-title">El agente sugiere ejecutar este comando</div>
-                <pre className="code-block"><code>{String(msg.meta.pendingCommand || '').trim()}</code></pre>
+                <div className="confirm-title">Código generado</div>
+                <pre className="confirm-code"><code>{String(msg.meta.pendingCommand || '').trim()}</code></pre>
                 <div className="confirm-actions">
                   <button
                     className="btn confirm"
@@ -301,6 +349,15 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                             await setLastPath(created, 'file');
                           }
                         } catch {}
+                        // Si ya tenemos metadata de creación, úsala para memoria
+                        try {
+                          if (msg.meta?.pendingFileCreation?.fileName) {
+                            const name = String(msg.meta.pendingFileCreation.fileName);
+                            const content = String(msg.meta.pendingFileCreation.fileContent || '');
+                            await setLastFile(name, content);
+                            await setLastPath(name, 'file');
+                          }
+                        } catch {}
                       } catch (e) {}
                     }}
                   >Ejecutar ahora</button>
@@ -308,44 +365,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                     className="btn cancel"
                     onClick={() => {
                       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
-                    }}
-                  >Cancelar</button>
-                </div>
-              </div>
-            )}
-
-            {/* Card: creación de archivo pendiente */}
-            {msg.sender === 'system' && msg.meta?.pendingFileCreation && !msg.meta?.processed && (
-              <div className="confirm-card">
-                <div className="confirm-title">El agente quiere crear un archivo</div>
-                <div className="confirm-subtitle">{String(msg.meta.pendingFileCreation.fileName || '')}</div>
-                <pre className="code-block"><code>{msg.meta.pendingFileCreation.fileContent}</code></pre>
-                <div className="confirm-actions">
-                  <button
-                    className="btn confirm"
-                    onClick={async () => {
-                      try {
-                        const cmdToSend = String(msg.meta.pendingFileCreation.command || '');
-                        await invoke('ssh_stdin', { id: sessionId, data: cmdToSend + '\n' });
-                        setMessages(prev => prev.map(m => m.id === msg.id ? {
-                          ...m,
-                          text: `Archivo '${msg.meta!.pendingFileCreation!.fileName}' creado exitosamente.`,
-                          meta: { ...m.meta, processed: true, pendingFileCreation: undefined }
-                        } : m));
-                        const name = String(msg.meta!.pendingFileCreation!.fileName as string);
-                        await setLastFile(name, msg.meta!.pendingFileCreation!.fileContent as string);
-                        try { await setLastPath(name, 'file'); } catch {}
-                      } catch (e) {}
-                    }}
-                  >Ejecutar ahora</button>
-                  <button
-                    className="btn cancel"
-                    onClick={() => {
-                      setMessages(prev => prev.map(m => m.id === msg.id ? ({
-                        ...m,
-                        text: 'Creación de archivo cancelada por el usuario.',
-                        meta: { ...m.meta, processed: true, pendingFileCreation: undefined }
-                      }) : m));
                     }}
                   >Cancelar</button>
                 </div>
