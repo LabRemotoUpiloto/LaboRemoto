@@ -356,6 +356,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
               {msg.sender === 'system' && msg.meta?.pendingFileCreation && (
                 <div className="confirm-card" style={{ marginTop: 8 }}>
                   <p className="confirm-text">{msg.text}</p>
+                  {msg.meta?.pendingFileCreation?.isIncomplete && (
+                    <div className="warning" style={{
+                      background: '#fff3cd', color: '#856404', padding: '8px', borderRadius: 4, marginBottom: 8,
+                      border: '1px solid #ffeeba'
+                    }}>
+                      Advertencia: el contenido parece incompleto (p.ej., muy corto, contiene "..." o carece de shebang). Considera pedir al agente que lo regenere con un script completo.
+                    </div>
+                  )}
                   <p className="confirm-sub">Contenido del archivo:</p>
                   <div className="confirm-code">
                     <pre className="code-output">{msg.meta.pendingFileCreation.fileContent}</pre>
@@ -396,7 +404,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                     className="cancel-button"
                     aria-label="Cancelar creación de archivo"
                   >
-                    Cancelar
+                      {msg.meta?.ui?.actions?.find?.((a: any) => a.id === 'cancel')?.label || 'Cancelar'}
                   </button>
                 </div>
               )}
