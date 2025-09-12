@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
 // Lista de temas soportados (coincide con css en globals.css)
-type Theme = 'dracula' | 'light' | 'default' | 'midnight-muse' | 'obsidian-rose' | 'mist-harbor' | 'paper-sand' | 'aurora-coral' | 'verdant-neon' | 'sunset-blush' | 'emerald-dusk' | 'moody-purple' | 'oceanic-teal' | 'ruby-night' | 'forest-moss' | 'sunburst-rainbow' | 'lime-electric' | 'berry-soda' | 'citrus-pop' | 'violet-ember' | 'bold-rainbow' | 'granite-fog'
+type Theme = 'dracula' | 'light' | 'default' | 'midnight-muse' | 'obsidian-rose' | 'mist-harbor' | 'paper-sand' | 'aurora-coral' | 'verdant-neon' | 'sunset-blush' | 'moody-purple' | 'oceanic-teal' | 'ruby-night' | 'forest-moss' | 'sunburst-rainbow' | 'berry-soda' | 'violet-ember' | 'bold-rainbow' | 'granite-fog'
 
 type ThemeContextType = { theme: Theme; setTheme: (t: Theme)=>void }
 
