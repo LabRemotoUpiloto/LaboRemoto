@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './Header.css';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { useToasts } from '../contexts/ToastContext';
+import { getVersion } from '@tauri-apps/api/app';
 
 type Tab = { id: string; type: 'home' | 'session'; label: string }
 interface HeaderProps {
@@ -17,6 +18,12 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseTab, onNewSession, toggleSidebar }) => {
   const { push } = useToasts();
   const [checking, setChecking] = useState(false)
+  const [appVersion, setAppVersion] = useState<string>('');
+
+  useEffect(() => {
+    // Fetch app version to show a small badge (helps visually confirm updates)
+    getVersion().then(v => setAppVersion(v)).catch(() => setAppVersion(''));
+  }, []);
   const onCheckUpdate = async () => {
     try {
       setChecking(true)
@@ -61,6 +68,9 @@ const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseT
     <header className="app-header">
       <div style={{display:'flex',alignItems:'center',gap:8}}>
         <img src="/descarga.png" alt="App" width={20} height={20} style={{borderRadius:4,boxShadow:'0 0 0 1px rgba(255,255,255,0.08)'}} />
+        {appVersion && (
+          <span className="version-badge" title={`Versión ${appVersion}`}>v{appVersion}</span>
+        )}
       </div>
       <div className="sidebar-toggle" onClick={toggleSidebar}>
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>

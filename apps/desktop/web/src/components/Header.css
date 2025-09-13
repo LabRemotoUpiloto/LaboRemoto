@@ -204,3 +204,17 @@ html[data-theme="bold-rainbow"] .close-tab:hover, html[data-theme="sunburst-rain
 }
 
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+/* Small version badge next to the app icon */
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.08);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+}
