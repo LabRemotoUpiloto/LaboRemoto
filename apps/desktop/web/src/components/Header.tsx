@@ -2,6 +2,7 @@ import React from 'react';
 import './Header.css';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { useToasts } from '../contexts/ToastContext';
 
 type Tab = { id: string; type: 'home' | 'session'; label: string }
 interface HeaderProps {
@@ -14,10 +15,13 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseTab, onNewSession, toggleSidebar }) => {
+  const { push } = useToasts();
   const onCheckUpdate = async () => {
     try {
+      push({ type: 'info', message: 'Buscando actualización…' }, 2500);
       const update = await check();
       if (update) {
+        push({ type: 'info', message: `Actualización ${update.version} disponible. Descargando…` }, 4000);
         await update.downloadAndInstall((event) => {
           switch (event.event) {
             case 'Started':
@@ -31,12 +35,15 @@ const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseT
               break;
           }
         });
+        push({ type: 'success', message: 'Actualización instalada. Reiniciando…' }, 3000);
         await relaunch();
       } else {
         console.log('No updates available');
+        push({ type: 'info', message: 'No hay actualizaciones disponibles' }, 3500);
       }
     } catch (e) {
       console.error('Updater error', e);
+      push({ type: 'error', message: 'Error al buscar/instalar actualización. Revisa tu conexión o inténtalo más tarde.' }, 5000);
     }
   }
   return (
