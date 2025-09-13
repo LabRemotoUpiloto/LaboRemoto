@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install Tauri Node CLI
+        run: npm i -g @tauri-apps/cli@2
+
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
@@ -38,12 +41,12 @@ jobs:
           echo "Adding $env:USERPROFILE\.cargo\bin to PATH"
           echo "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Verify tauri-cli
+      - name: Verify Tauri CLI
         shell: pwsh
         run: |
-          cargo --version
-          Get-Command cargo-tauri -ErrorAction SilentlyContinue | Format-List *
-          cargo tauri --version
+          node --version
+          npm --version
+          tauri --version
 
       - name: Install frontend deps
         working-directory: apps/desktop/web
@@ -55,7 +58,7 @@ jobs:
 
       - name: Build Tauri app (Windows)
         working-directory: apps/desktop/src-tauri
-        run: cargo tauri build
+        run: tauri build
 
       - name: Upload Release Artifacts
         uses: softprops/action-gh-release@v2
