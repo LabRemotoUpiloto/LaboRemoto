@@ -87,6 +87,43 @@ jobs:
         working-directory: apps/desktop/src-tauri
         run: tauri build
 
+      - name: Generate latest.json (fallback)
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          $bundle = "apps/desktop/src-tauri/target/release/bundle"
+          $nsis = Join-Path $bundle 'nsis'
+          if (-not (Test-Path $nsis)) { Write-Host "NSIS dir not found: $nsis"; exit 0 }
+
+          # Pick most recent .exe and .sig
+          $exe = Get-ChildItem -Path $nsis -Filter *.exe -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $sig = Get-ChildItem -Path $nsis -Filter *.sig -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $exe -or -not $sig) { Write-Host "Missing exe or sig; skipping latest.json generation"; exit 0 }
+
+          # Read version from tauri.conf.json
+          $confPath = "apps/desktop/src-tauri/tauri.conf.json"
+          $conf = Get-Content $confPath -Raw | ConvertFrom-Json
+          $version = $conf.version
+
+          # Compose download URL using the current tag name
+          $tag = "${{ github.ref_name }}"
+          $repo = "${{ github.repository }}"
+          $downloadUrl = "https://github.com/$repo/releases/download/$tag/$($exe.Name)"
+
+          $signature = (Get-Content $sig.FullName -Raw).Trim()
+          $pubDate = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+
+          $obj = [ordered]@{
+            version   = $version
+            notes     = ""
+            pub_date  = $pubDate
+            platforms = @{ "windows-x86_64" = @{ signature = $signature; url = $downloadUrl } }
+          }
+          $json = $obj | ConvertTo-Json -Depth 5
+          $out = Join-Path $bundle 'latest.json'
+          Set-Content -Path $out -Value $json -Encoding utf8
+          Write-Host "latest.json generated at $out"
+
       - name: Locate latest.json
         id: find_latest
         shell: pwsh
