@@ -25,6 +25,13 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Install NSIS (for bundling)
+        shell: powershell
+        run: choco install nsis -y
+
       - name: Install frontend deps
         working-directory: apps/desktop/web
         run: npm ci
