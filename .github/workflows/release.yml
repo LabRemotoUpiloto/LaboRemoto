@@ -87,6 +87,19 @@ jobs:
         working-directory: apps/desktop/src-tauri
         run: tauri build
 
+      - name: Locate latest.json
+        id: find_latest
+        shell: pwsh
+        run: |
+          $bundle = "apps/desktop/src-tauri/target/release/bundle"
+          Write-Host "Searching for latest.json under $bundle ..."
+          $latest = Get-ChildItem -Recurse $bundle -Filter latest.json -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($latest) {
+            Write-Host "Found: $($latest.FullName)"
+            "path=$($latest.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          } else {
+            Write-Host "latest.json not found"
+          }
       - name: Upload Release Artifacts
         uses: softprops/action-gh-release@v2
         with:
@@ -98,5 +111,6 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/nsis/*.sig
             apps/desktop/src-tauri/target/release/bundle/latest.json
             apps/desktop/src-tauri/target/release/bundle/**/latest.json
+            ${{ steps.find_latest.outputs.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
