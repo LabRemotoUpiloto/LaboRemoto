@@ -44,8 +44,16 @@ const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseT
         push({ type: 'info', message: 'No hay actualizaciones disponibles' }, 3500);
       }
     } catch (e) {
+      // Surface detailed error to help diagnose (network 404, signature mismatch, etc.)
       console.error('Updater error', e);
-      push({ type: 'error', message: 'Error al buscar/instalar actualización. Revisa tu conexión o inténtalo más tarde.' }, 5000);
+      let detail = '';
+      if (typeof e === 'string') detail = e;
+      else if (e && typeof (e as any).message === 'string') detail = (e as any).message;
+      else {
+        try { detail = JSON.stringify(e); } catch { detail = String(e); }
+      }
+      const msg = detail ? `Error al buscar/instalar actualización: ${detail}` : 'Error al buscar/instalar actualización. Revisa tu conexión o inténtalo más tarde.';
+      push({ type: 'error', message: msg }, 7000);
     }
     finally { setChecking(false) }
   }
