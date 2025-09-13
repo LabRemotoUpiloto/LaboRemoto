@@ -103,7 +103,10 @@ jobs:
       - name: Upload Release Artifacts
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          # Publish release so that /releases/latest resolves and assets are public
+          draft: false
+          prerelease: false
+          make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: false
           files: |
