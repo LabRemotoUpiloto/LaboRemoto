@@ -17,8 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -53,6 +56,8 @@ jobs:
           node --version
           npm --version
           tauri --version
+          cargo --version
+          cargo tauri --version
 
       - name: Install frontend deps
         working-directory: apps/desktop/web
