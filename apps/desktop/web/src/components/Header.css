@@ -176,3 +176,31 @@ html[data-theme="bold-rainbow"] .close-tab:hover, html[data-theme="sunburst-rain
   color: #fff;
   box-shadow: none;
 }
+
+/* Updater button */
+.btn-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  margin-left: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--interactive-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 100ms ease;
+}
+.btn-update:hover { background: var(--interactive-hover); border-color: var(--border-strong); }
+.btn-update:active { transform: translateY(1px); }
+.btn-update .icon {
+  width: 16px; height: 16px; display: inline-block;
+}
+.btn-update.loading { cursor: progress; opacity: .8; }
+.btn-update.loading .spinner {
+  width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-primary);
+  border-radius: 50%; animation: spin 900ms linear infinite;
+}
+
+@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
