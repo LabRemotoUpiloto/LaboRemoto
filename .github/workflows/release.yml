@@ -67,6 +67,19 @@ jobs:
         working-directory: apps/desktop/web
         run: npm run build
 
+      - name: Normalize signing key (no output)
+        shell: pwsh
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw "TAURI_SIGNING_PRIVATE_KEY missing" }
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD missing" }
+          $k = $env:TAURI_SIGNING_PRIVATE_KEY -replace "\s",""
+          $mod = $k.Length % 4
+          if ($mod -ne 0) { $k = $k + ('=' * (4 - $mod)) }
+          # Validate silently
+          [void][System.Convert]::FromBase64String($k)
+          # Overwrite env var for subsequent steps
+          Add-Content -Path $env:GITHUB_ENV -Value "TAURI_SIGNING_PRIVATE_KEY=$k"
+
       - name: Build Tauri app (Windows)
         working-directory: apps/desktop/src-tauri
         run: tauri build
