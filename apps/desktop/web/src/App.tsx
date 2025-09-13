@@ -15,6 +15,9 @@ import ToastContainer from './components/ToastContainer'
 import { ThemeProvider } from './contexts/ThemeContext'
 import ThemesPage from './pages/ThemesPage'
 import SftpPage from './pages/SftpPage'
+import ConfirmModal from './components/ConfirmModal'
+import { check } from '@tauri-apps/plugin-updater'
+import { relaunch } from '@tauri-apps/plugin-process'
 
 const App: React.FC = () => {
   // Representa una pestaña: 'home' (persistente) o 'session' (SSH)
@@ -26,6 +29,8 @@ const App: React.FC = () => {
   const [sessionMeta, setSessionMeta] = useState<Record<string,{ label: string }>>({})
   const [pendingHost, setPendingHost] = useState<any | null>(null)
   const [selectedPage, setSelectedPage] = useState<string>('connect') // subpágina dentro de Inicio
+  const [updateInfo, setUpdateInfo] = useState<null | { version: string; notes?: string }>(null)
+  const [updating, setUpdating] = useState(false)
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
@@ -89,6 +94,39 @@ const App: React.FC = () => {
     setSidebarOpen(!isSidebarOpen)
   }
 
+  // Check for updates on startup (once)
+  useEffect(() => {
+    (async () => {
+      try {
+        const upd = await check()
+        if (upd) {
+          setUpdateInfo({ version: upd.version, notes: upd.body })
+        }
+      } catch (e) {
+        console.warn('Auto-update check failed', e)
+      }
+    })()
+  }, [])
+
+  const confirmInstallUpdate = async () => {
+    if (!updateInfo) return
+    try {
+      setUpdating(true)
+      const upd = await check()
+      if (upd) {
+        await upd.downloadAndInstall()
+        await relaunch()
+      } else {
+        setUpdateInfo(null)
+      }
+    } catch (e) {
+      console.error('Update install failed', e)
+      setUpdateInfo(null)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   return (
     <LoadingProvider>
       <ToastProvider>
@@ -144,6 +182,17 @@ const App: React.FC = () => {
         </div>
           <GlobalLoader />
           <ToastContainer />
+          <ConfirmModal
+            open={!!updateInfo}
+            title={updateInfo ? `Nueva versión ${updateInfo.version}` : 'Actualización disponible'}
+            message={updateInfo?.notes || 'Hay una actualización disponible. ¿Deseas instalarla ahora?'}
+            onConfirm={confirmInstallUpdate}
+            onCancel={() => setUpdateInfo(null)}
+            confirmLabel="Instalar y reiniciar"
+            cancelLabel="Ahora no"
+            confirmClassName="new"
+            loading={updating}
+          />
         </div>
         </ThemeProvider>
       </ToastProvider>
