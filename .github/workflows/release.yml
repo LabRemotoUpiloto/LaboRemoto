@@ -28,6 +28,12 @@ jobs:
       - name: Install Tauri Node CLI
         run: npm i -g @tauri-apps/cli@2
 
+      - name: Add npm global bin to PATH
+        shell: pwsh
+        run: |
+          echo "Adding $env:APPDATA\\npm to PATH"
+          echo "$env:APPDATA\\npm" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
