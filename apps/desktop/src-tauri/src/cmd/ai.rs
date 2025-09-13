@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use dotenvy::dotenv;
-use std::env;
+use std::{env, fs};
+use std::path::PathBuf;
 
 /// Petición para el chat con IA.
 #[derive(Serialize, Deserialize)]
@@ -31,7 +32,100 @@ pub struct AiChatResponse {
 pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   // Load .env to pick up OPENAI_API_KEY (dotenvy is safe on desktop)
   let _ = dotenv();
-  let api_key = env::var("OPENAI_API_KEY").map_err(|_| "OPENAI_API_KEY not set".to_string())?;
+  // Try multiple sources for the API key so packaged apps work for end users
+  fn load_api_key_multi() -> Option<String> {
+    // 1) Environment variable
+    if let Ok(v) = env::var("OPENAI_API_KEY") { if !v.trim().is_empty() { return Some(v); } }
+
+    // 2) %APPDATA%/ssh-ai-client/config.json (Windows) or ~/.config/ssh-ai-client/config.json (others)
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(appdata) = env::var("APPDATA") { // Windows
+      candidates.push(PathBuf::from(appdata).join("ssh-ai-client").join("config.json"));
+    }
+    if let Ok(home) = env::var("HOME") { // Unix-like fallback
+      candidates.push(PathBuf::from(home).join(".config").join("ssh-ai-client").join("config.json"));
+    }
+    // 3) Next to the executable (portable distribution)
+    if let Ok(exe) = env::current_exe() {
+      let base = exe.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
+      candidates.push(base.join("config.json"));
+      candidates.push(base.join("openai_api_key.txt"));
+    }
+
+    for path in candidates {
+      if let Ok(meta) = fs::metadata(&path) {
+        if meta.is_file() {
+          // Try JSON with several key names first
+          if path.extension().and_then(|s| s.to_str()).map(|s| s.eq_ignore_ascii_case("json")).unwrap_or(false) {
+            if let Ok(txt) = fs::read_to_string(&path) {
+              if let Ok(json) = serde_json::from_str::<serde_json::Value>(&txt) {
+                let k = json.get("OPENAI_API_KEY").or_else(|| json.get("openai_api_key")).or_else(|| json.get("apiKey"));
+                if let Some(val) = k.and_then(|v| v.as_str()) { if !val.trim().is_empty() { return Some(val.to_string()); } }
+              }
+            }
+          } else {
+            // Plain text file: first non-empty line is the key
+            if let Ok(txt) = fs::read_to_string(&path) {
+              if let Some(line) = txt.lines().map(|l| l.trim()).find(|l| !l.is_empty()) {
+                return Some(line.to_string());
+              }
+            }
+          }
+        }
+      }
+    }
+    None
+  }
+
+  // Load proxy settings (URL and optional bearer token) from env or config files
+  fn load_proxy_settings() -> (Option<String>, Option<String>) {
+    let env_url = env::var("AI_PROXY_URL").ok();
+    let env_auth = env::var("AI_PROXY_AUTH").ok();
+    if env_url.is_some() || env_auth.is_some() {
+      return (env_url, env_auth);
+    }
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(appdata) = env::var("APPDATA") {
+      candidates.push(PathBuf::from(appdata).join("ssh-ai-client").join("config.json"));
+    }
+    if let Ok(home) = env::var("HOME") {
+      candidates.push(PathBuf::from(home).join(".config").join("ssh-ai-client").join("config.json"));
+    }
+    if let Ok(exe) = env::current_exe() {
+      let base = exe.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
+      candidates.push(base.join("config.json"));
+    }
+    for path in candidates {
+      if let Ok(meta) = fs::metadata(&path) {
+        if meta.is_file() {
+          if let Ok(txt) = fs::read_to_string(&path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&txt) {
+              let url = json.get("AI_PROXY_URL").or_else(|| json.get("ai_proxy_url")).or_else(|| json.get("apiProxyUrl"))
+                .and_then(|v| v.as_str()).map(|s| s.to_string());
+              let auth = json.get("AI_PROXY_AUTH").or_else(|| json.get("ai_proxy_auth")).or_else(|| json.get("apiProxyAuth"))
+                .and_then(|v| v.as_str()).map(|s| s.to_string());
+              if url.is_some() || auth.is_some() { return (url, auth); }
+            }
+          }
+        }
+      }
+    }
+    (None, None)
+  }
+
+  let (cfg_proxy_url, cfg_proxy_auth) = load_proxy_settings();
+  let proxy_url = cfg_proxy_url.or_else(|| env::var("AI_PROXY_URL").ok());
+  let proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
+  let mut api_key = if proxy_url.is_none() { load_api_key_multi() } else { None };
+  // Last-resort: embed key at compile time if provided during build
+  if proxy_url.is_none() && api_key.is_none() {
+    if let Some(k) = option_env!("APP_EMBED_OPENAI_API_KEY") {
+      if !k.trim().is_empty() { api_key = Some(k.to_string()); }
+    }
+  }
+  if proxy_url.is_none() && api_key.as_ref().map(|s| s.is_empty()).unwrap_or(true) {
+    return Err("OPENAI_API_KEY not set".to_string());
+  }
   let model_id = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".to_string());
 
   fn get_system_prompt(agent_mode: &str) -> String {
@@ -165,13 +259,11 @@ ls -la
     "temperature": if mode == "AGENT" { 0.1 } else { 0.2 }
   });
 
-  let resp = client
-    .post("https://api.openai.com/v1/chat/completions")
-    .bearer_auth(&api_key)
-    .json(&payload)
-    .send()
-    .await
-    .map_err(|e| e.to_string())?;
+  let base_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
+  let mut req_builder = client.post(&base_url).json(&payload);
+  if let Some(ref token) = proxy_auth { req_builder = req_builder.bearer_auth(token); }
+  else if let Some(ref key) = api_key { req_builder = req_builder.bearer_auth(key); }
+  let resp = req_builder.send().await.map_err(|e| e.to_string())?;
 
   if !resp.status().is_success() {
     let status = resp.status();
@@ -264,13 +356,10 @@ ls -la
         "max_tokens": 700,
         "temperature": 0.2
       });
-      let resp_fix = client
-        .post("https://api.openai.com/v1/chat/completions")
-        .bearer_auth(&api_key)
-        .json(&payload_fix)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+      let mut req_fix = client.post(&base_url).json(&payload_fix);
+      if let Some(ref token) = proxy_auth { req_fix = req_fix.bearer_auth(token); }
+      else if let Some(ref key) = api_key { req_fix = req_fix.bearer_auth(key); }
+      let resp_fix = req_fix.send().await.map_err(|e| e.to_string())?;
       if resp_fix.status().is_success() {
         let body_fix: serde_json::Value = resp_fix.json().await.map_err(|e| e.to_string())?;
         if let Some(content) = body_fix.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
@@ -305,13 +394,10 @@ ls -la
       "max_tokens": 700,
       "temperature": 0.1
     });
-    let resp_force = client
-      .post("https://api.openai.com/v1/chat/completions")
-      .bearer_auth(&api_key)
-      .json(&payload_force)
-      .send()
-      .await
-      .map_err(|e| e.to_string())?;
+    let mut req_force = client.post(&base_url).json(&payload_force);
+    if let Some(ref token) = proxy_auth { req_force = req_force.bearer_auth(token); }
+    else if let Some(ref key) = api_key { req_force = req_force.bearer_auth(key); }
+    let resp_force = req_force.send().await.map_err(|e| e.to_string())?;
     if resp_force.status().is_success() {
       let body_force: serde_json::Value = resp_force.json().await.map_err(|e| e.to_string())?;
       if let Some(content) = body_force.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
@@ -493,10 +579,10 @@ ls -la
         "temperature": 0.2
       });
 
-      let resp2 = client
-        .post("https://api.openai.com/v1/chat/completions")
-        .bearer_auth(&api_key)
-        .json(&payload2)
+      let mut req2 = client.post(&base_url).json(&payload2);
+      if let Some(ref token) = proxy_auth { req2 = req2.bearer_auth(token); }
+      else if let Some(ref key) = api_key { req2 = req2.bearer_auth(key); }
+      let resp2 = req2
         .send()
         .await
         .map_err(|e| e.to_string())?;

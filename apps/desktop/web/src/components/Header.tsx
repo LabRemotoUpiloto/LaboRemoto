@@ -1,5 +1,7 @@
 import React from 'react';
 import './Header.css';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 
 type Tab = { id: string; type: 'home' | 'session'; label: string }
 interface HeaderProps {
@@ -12,6 +14,31 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseTab, onNewSession, toggleSidebar }) => {
+  const onCheckUpdate = async () => {
+    try {
+      const update = await check();
+      if (update) {
+        await update.downloadAndInstall((event) => {
+          switch (event.event) {
+            case 'Started':
+              console.log(`Update download started: ${event.data.contentLength} bytes`);
+              break;
+            case 'Progress':
+              console.log(`Downloaded ${event.data.chunkLength} bytes chunk`);
+              break;
+            case 'Finished':
+              console.log('Update download finished');
+              break;
+          }
+        });
+        await relaunch();
+      } else {
+        console.log('No updates available');
+      }
+    } catch (e) {
+      console.error('Updater error', e);
+    }
+  }
   return (
     <header className="app-header">
       <div className="sidebar-toggle" onClick={toggleSidebar}>
@@ -27,6 +54,7 @@ const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseT
           </div>
         ))}
         <button className="new-tab" onClick={onNewSession}>+</button>
+        <button onClick={onCheckUpdate} className="new">Buscar actualización</button>
       </nav>
     </header>
   );

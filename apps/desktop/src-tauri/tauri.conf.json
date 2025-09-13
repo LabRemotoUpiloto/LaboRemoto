@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ssh-ai-client",
-  "version": "0.1.0",
-  "identifier": "com.tauri.dev",
-    "build": {
-  "frontendDist": "../desktop/web/dist",
-  "devUrl": "http://localhost:5173",
-  "beforeDevCommand": "npm --prefix ../desktop/web run dev",
-  "beforeBuildCommand": "npm --prefix ../desktop/web run build"
+  "version": "0.1.2",
+  "identifier": "co.unipiloto.sshclient",
+  "build": {
+    "frontendDist": "../web/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm --prefix ./web run dev",
+    "beforeBuildCommand": "npm --prefix ./web run build"
   },
   "app": {
     "windows": [
@@ -26,8 +26,9 @@
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -35,5 +36,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Haider2231/Cliente-Rust/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2MzQ0QzE0RTUyQzI4NzIKUldSeUtDemxGRXcwaG1pOXFoQXhMSHRzdUVpazQ2Q0F3bnNpakFLSnRHOG1lNmduZVBnaTMrVzYK"
+    }
   }
 }
