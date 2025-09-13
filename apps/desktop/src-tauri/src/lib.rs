@@ -13,6 +13,8 @@ pub fn run() {
   // Construye la aplicación Tauri y registra los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
     .manage(crate::state::AppState::new())
+    .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_process::init())
     .invoke_handler(tauri::generate_handler![
       // SSH
       cmd::ssh::ssh_connect,

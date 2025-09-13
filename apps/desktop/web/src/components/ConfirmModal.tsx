@@ -7,9 +7,13 @@ type Props = {
   message?: string
   onConfirm: () => void
   onCancel: () => void
+  confirmLabel?: string
+  cancelLabel?: string
+  confirmClassName?: string
+  loading?: boolean
 }
 
-export default function ConfirmModal({ open, title='Confirm', message='Are you sure?', onConfirm, onCancel }: Props){
+export default function ConfirmModal({ open, title='Confirm', message='Are you sure?', onConfirm, onCancel, confirmLabel='Eliminar', cancelLabel='Cancelar', confirmClassName='danger', loading=false }: Props){
   if (!open) return null
   return (
     <div className="modal-overlay">
@@ -17,8 +21,10 @@ export default function ConfirmModal({ open, title='Confirm', message='Are you s
         <h3>{title}</h3>
         <p>{message}</p>
         <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
-          <button onClick={onCancel}>Cancelar</button>
-          <button className="danger" onClick={onConfirm}>Eliminar</button>
+          <button onClick={onCancel} disabled={loading}>{cancelLabel}</button>
+          <button className={confirmClassName} onClick={onConfirm} disabled={loading}>
+            {loading ? 'Procesando…' : confirmLabel}
+          </button>
         </div>
       </div>
     </div>
