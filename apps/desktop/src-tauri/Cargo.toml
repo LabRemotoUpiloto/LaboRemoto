@@ -32,7 +32,7 @@ tokio = { version = "1.39", features = ["rt-multi-thread", "macros", "sync", "io
 russh = "=0.50.3"
 ssh-key = "0.6"
 
-# SFTP estable vía libssh2 (bloqueante, usamos spawn_blocking). Vendored OpenSSL para Windows.
+# SFTP estable vía libssh2 (bloqueante, usamos spawn_blocking)
 ssh2 = "0.9"
 
 # Tauri v2
@@ -40,12 +40,12 @@ tauri = { version = "2", features = [] }
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 
-# HTTP client and dotenv for reading OPENAI_API_KEY
+# HTTP client y otros
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 dotenvy = "0.15"
 parking_lot = "0.12"
-chrono = { version = "0.4", features = ["clock"] }
-
+chrono = { version = "0.4", features = ["clock", "serde"] }
+wildmatch = "2.1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

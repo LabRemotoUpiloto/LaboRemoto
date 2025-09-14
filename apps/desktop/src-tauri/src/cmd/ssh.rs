@@ -2,6 +2,8 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::error::AppError;
 use crate::ssh::client::{Session, ChanCmd};
@@ -29,24 +31,77 @@ pub async fn ssh_connect(
   let id = Uuid::new_v4().to_string();
   {
     let mut map = SESSIONS.lock().unwrap();
-    map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone(), sftp_cached: None });
+    map.insert(id.clone(), SessionExt {
+      term: session,
+      host: host.clone(),
+      port,
+      user: user.clone(),
+      password: password.clone(),
+      sftp_cached: None,
+      out_buffer: Arc::new(Mutex::new(Some(String::new()))),
+      ui_ready: Arc::new(AtomicBool::new(false)),
+    });
   }
 
   // Limpiar memoria de la sesión (por si se reutiliza el mismo id en algún flujo)
   state.clear(&id);
 
-  let _ = app.emit(&format!("ssh_out_{}", id), Some(format!("Conectado a {user}@{host}:{port}\r\n")));
+  // Encolar mensaje inicial en buffer si la UI aún no está lista; emitir directo si ya lo está
+  {
+    let (out_buf, ready) = {
+      let map = SESSIONS.lock().unwrap();
+      let sess = map.get(&id).unwrap();
+      (sess.out_buffer.clone(), sess.ui_ready.clone())
+    };
+    let msg = format!("Conectado a {user}@{host}:{port}\r\n");
+    if ready.load(Ordering::SeqCst) {
+      let _ = app.emit(&format!("ssh_out_{}", id), Some(msg));
+    } else if let Ok(mut opt) = out_buf.lock() { opt.get_or_insert_with(String::new).push_str(&msg); }
+  }
 
   let app2 = app.clone();
   let id_spawn = id.clone();
+  let buffer_ref = {
+    let map = SESSIONS.lock().unwrap();
+    map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone()))
+  };
   tokio::spawn(async move {
     while let Some(buf) = rx_out.recv().await {
       let s = String::from_utf8_lossy(&buf).into_owned();
-      let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+      if let Some((out_buf, ready)) = &buffer_ref {
+        if ready.load(Ordering::SeqCst) {
+          let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+        } else {
+          if let Ok(mut opt) = out_buf.lock() {
+            let bufref = opt.get_or_insert_with(String::new);
+            bufref.push_str(&s);
+          }
+        }
+      } else {
+        let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+      }
     }
   });
 
   Ok(id)
+}
+
+#[tauri::command]
+pub async fn ssh_ui_ready(app: AppHandle, id: String) -> Result<(), String> {
+  let (out_buffer, ui_ready) = {
+    let map = SESSIONS.lock().unwrap();
+    let Some(sess) = map.get(&id) else { return Err(AppError::NotFound.to_string()); };
+    (sess.out_buffer.clone(), sess.ui_ready.clone())
+  };
+
+  // Marcar UI como lista y volcar el buffer
+  ui_ready.store(true, Ordering::SeqCst);
+  if let Ok(mut opt) = out_buffer.lock() {
+    if let Some(pending) = opt.take() {
+      if !pending.is_empty() { let _ = app.emit(&format!("ssh_out_{}", id), Some(pending)); }
+    }
+  }
+  Ok(())
 }
 
 #[tauri::command]
@@ -112,20 +167,55 @@ pub async fn ssh_connect_stored(
   let id = Uuid::new_v4().to_string();
   {
     let mut map = SESSIONS.lock().unwrap();
-    map.insert(id.clone(), SessionExt { term: session, host: host.clone(), port, user: user.clone(), password: password.clone(), sftp_cached: None });
+    map.insert(id.clone(), SessionExt {
+      term: session,
+      host: host.clone(),
+      port,
+      user: user.clone(),
+      password: password.clone(),
+      sftp_cached: None,
+      out_buffer: Arc::new(Mutex::new(Some(String::new()))),
+      ui_ready: Arc::new(AtomicBool::new(false)),
+    });
   }
 
   // Limpiar memoria al iniciar una nueva sesión
   state.clear(&id);
 
-  let _ = app.emit(&format!("ssh_out_{}", id), Some(format!("Conectado a {user}@{host}:{port}\r\n")));
+  // Encolar mensaje inicial en buffer si la UI aún no está lista; emitir directo si ya lo está
+  {
+    let (out_buf, ready) = {
+      let map = SESSIONS.lock().unwrap();
+      let sess = map.get(&id).unwrap();
+      (sess.out_buffer.clone(), sess.ui_ready.clone())
+    };
+    let msg = format!("Conectado a {user}@{host}:{port}\r\n");
+    if ready.load(Ordering::SeqCst) {
+      let _ = app.emit(&format!("ssh_out_{}", id), Some(msg));
+    } else if let Ok(mut opt) = out_buf.lock() { opt.get_or_insert_with(String::new).push_str(&msg); }
+  }
 
   let app2 = app.clone();
   let id_spawn = id.clone();
+  let buffer_ref = {
+    let map = SESSIONS.lock().unwrap();
+    map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone()))
+  };
   tokio::spawn(async move {
     while let Some(buf) = rx_out.recv().await {
       let s = String::from_utf8_lossy(&buf).into_owned();
-      let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+      if let Some((out_buf, ready)) = &buffer_ref {
+        if ready.load(Ordering::SeqCst) {
+          let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+        } else {
+          if let Ok(mut opt) = out_buf.lock() {
+            let bufref = opt.get_or_insert_with(String::new);
+            bufref.push_str(&s);
+          }
+        }
+      } else {
+        let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+      }
     }
   });
 

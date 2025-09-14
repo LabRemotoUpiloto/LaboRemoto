@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ssh-ai-client",
-  "version": "0.1.2",
+  "version": "0.1.6",
   "identifier": "co.unipiloto.sshclient",
   "build": {
     "frontendDist": "../web/dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm --prefix ./web run dev",
-    "beforeBuildCommand": "npm --prefix ./web run build"
+    "devUrl": "http://localhost:5174",
+    "beforeDevCommand": "cd C:\\Users\\ASUS\\Documents\\Cliente-Rust\\apps\\desktop\\web && npm run dev",
+    "beforeBuildCommand": "cd C:\\Users\\ASUS\\Documents\\Cliente-Rust\\apps\\desktop\\web && npm run build"
   },
   "app": {
     "windows": [

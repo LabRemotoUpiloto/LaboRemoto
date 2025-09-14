@@ -4,13 +4,35 @@ import './ChatPane.css';
 import { invoke } from '@tauri-apps/api/core';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 
-type ChatMode = 'ask' | 'agent';
+type ChatMode = 'ask' | 'agent' | 'super';
+
+type AgentState = {
+  cwd: string;
+  lastExitCode?: number;
+  lastStdoutTail?: string;
+  lastFile?: string;
+};
+
+type MessageMeta = {
+  requiresConfirmation?: boolean;
+  backupPath?: string;
+  state?: AgentState;
+  pendingCommand?: string;
+  pendingFileCreation?: any;
+  summary?: string;
+  explanation?: string;
+  userPrompt?: string;
+  command?: string;
+  riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+  // Solo para modo ASK/CONSULTA: mostrar comandos sugeridos como bloque de referencia (no ejecutable)
+  suggestedCommands?: string;
+};
 
 type Message = {
   id: string;
   sender: 'user' | 'ai' | 'system';
   text: string;
-  meta?: any;
+  meta?: MessageMeta;
 };
 
 type AiResponse = {
@@ -19,6 +41,9 @@ type AiResponse = {
   code_output?: string | null;
   explanation?: string | null;
   summary?: string | null;
+  state?: AgentState;
+  requires_confirmation?: boolean;
+  backup_path?: string;
 };
 
 type Props = { sessionId?: string | null };
@@ -27,6 +52,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
+  const [agentState, setAgentState] = useState<AgentState>({
+    cwd: '/',
+    lastExitCode: undefined,
+    lastStdoutTail: undefined,
+    lastFile: undefined,
+  });
   const [isSending, setIsSending] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
@@ -87,6 +118,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const m = s.match(/```[a-zA-Z0-9_\-]*\s*([\s\S]*?)```/m);
     return m ? m[1].trim() : null;
   };
+  // ...
 
   // Heurística simple: ¿parece un comando de shell?
   const isLikelyShell = (s: string | null | undefined): boolean => {
@@ -121,7 +153,9 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   };
 
   const cleanText = (text: string) => (text || '')
-    .replace(/```(?:bash|sh)?\s*|\s*```/g, '')  // fences
+    // Mantener fences por defecto; solo normalizar basura visual conocida
+    .replace(/\b(?:bash|sh|shell)\b\s*:?\s*$/gmi, '') // etiqueta suelta al final de línea
+    .replace(/:\s*\b(?:bash|sh|shell)\b/gmi, ': ')     // '...:bash' -> '...:'
     .replace(/^Comando sugerido:\s*/gmi, '')     // rótulo
     .replace(/"""/g, '')                       // triple comilla
     .replace(/^\s+|\s+$/g, '')
@@ -153,55 +187,198 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     );
   };
 
+  // Renderizado simple copy-friendly para ASK: respeta headings (###), listas, y fences
+  const RenderAsk: React.FC<{ content: string }> = ({ content }) => {
+    const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string }> = [];
+    const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
+    let lastIndex = 0; let m: RegExpExecArray | null;
+    while ((m = fenceRe.exec(content)) !== null) {
+      if (m.index > lastIndex) {
+        blocks.push({ type: 'para', body: content.slice(lastIndex, m.index) });
+      }
+      blocks.push({ type: 'code', lang: (m[1] || '').trim() || undefined, body: (m[2] || '').replace(/\n$/,'') });
+      lastIndex = fenceRe.lastIndex;
+    }
+    if (lastIndex < content.length) blocks.push({ type: 'para', body: content.slice(lastIndex) });
+
+    // Simple formatting for headings and lists
+    const renderPara = (txt: string) => {
+      const lines = txt.split(/\r?\n/);
+      const nodes: React.ReactNode[] = [];
+      let buf: string[] = [];
+      const flush = () => {
+        if (buf.length) {
+          nodes.push(<p key={`p-${nodes.length}`}>{buf.join('\n')}</p>);
+          buf = [];
+        }
+      };
+      for (const raw of lines) {
+        const line = raw.replace(/\s+$/,'');
+        if (/^\s*$/.test(line)) { flush(); continue; }
+        const h = line.match(/^(#{1,4})\s+(.*)$/);
+        if (h) {
+          flush();
+          const level = h[1].length; const text = h[2];
+          const Tag = (`h${Math.min(4, level)}` as any);
+          nodes.push(<Tag key={`h-${nodes.length}`}>{text}</Tag>);
+          continue;
+        }
+        // Bulleted list
+        const li = line.match(/^\s*[-*]\s+(.*)$/);
+        if (li) {
+          // Start or continue a list
+          const last = nodes[nodes.length - 1] as any;
+          if (!last || (last.type !== 'ul')) {
+            nodes.push(React.createElement('ul', { key: `ul-${nodes.length}` }, [React.createElement('li', { key: `li-${nodes.length}-0` }, li[1])]));
+          } else {
+            (last.props.children as any[]).push(React.createElement('li', { key: `li-${nodes.length}-${(last.props.children as any[]).length}` }, li[1]));
+          }
+          continue;
+        }
+        // Ordered list (1., 2., ...)
+        const oli = line.match(/^\s*\d+\)\s+(.*)$|^\s*\d+\.\s+(.*)$/);
+        if (oli) {
+          const text = oli[1] || oli[2] || '';
+          const last = nodes[nodes.length - 1] as any;
+          if (!last || (last.type !== 'ol')) {
+            nodes.push(React.createElement('ol', { key: `ol-${nodes.length}` }, [React.createElement('li', { key: `oli-${nodes.length}-0` }, text)]));
+          } else {
+            (last.props.children as any[]).push(React.createElement('li', { key: `oli-${nodes.length}-${(last.props.children as any[]).length}` }, text));
+          }
+          continue;
+        }
+        buf.push(line);
+      }
+      flush();
+      return nodes;
+    };
+
+    const onCopy = async (text: string, btn: HTMLButtonElement | null) => {
+      let ok = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        }
+      } catch { /* noop */ }
+      if (!ok) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+        } catch { ok = false; }
+      }
+      if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = ok ? 'Copiado' : 'Error';
+        btn.disabled = true;
+        setTimeout(() => { btn.textContent = prev || 'Copiar'; btn.disabled = false; }, 1200);
+      }
+    };
+
+    return (
+      <div>
+        {blocks.map((b, i) => b.type === 'code' ? (
+          <div className="copyable-block" key={`c-${i}`}>
+            <button
+              className="copy-btn"
+              onClick={(e) => onCopy(b.body, e.currentTarget)}
+              aria-label="Copiar código"
+              type="button"
+            >Copiar</button>
+            <pre><code>{b.body}</code></pre>
+          </div>
+        ) : (
+          <div key={`p-${i}`}>{renderPara(b.body)}</div>
+        ))}
+      </div>
+    );
+  };
+
+  // Componente para mostrar el panel de confirmación
+  const ConfirmationPanel: React.FC<{
+    title: string;
+    description: string;
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+    onConfirm: () => void;
+    onCancel: () => void;
+  }> = ({ title, description, riskLevel, onConfirm, onCancel }) => (
+    <div className="confirmation-panel">
+      <div className="title">{title}</div>
+      <div className={`risk ${riskLevel}`}>{riskLevel.toUpperCase()}</div>
+      <div className="description">{description}</div>
+      <div className="actions">
+        <button className="confirm" onClick={onConfirm}>Confirmar</button>
+        <button className="cancel" onClick={onCancel}>Cancelar</button>
+      </div>
+    </div>
+  );
+
+  // Mostrar información del estado del agente
+  const StateInfo: React.FC<{ state: AgentState }> = ({ state }) => (
+    <div className="state-info">
+      <div className="path">Directorio: {state.cwd}</div>
+      {state.lastExitCode !== undefined && (
+        <div className={`exit-code ${state.lastExitCode === 0 ? 'success' : 'error'}`}>
+          Último código de salida: {state.lastExitCode}
+        </div>
+      )}
+      {state.lastFile && <div>Último archivo: {state.lastFile}</div>}
+    </div>
+  );
+
   // Enviar prompt al backend (Tauri -> ai_chat) y procesar respuesta
+  const computeRiskLevel = (cmd: string): 'low' | 'medium' | 'high' | 'critical' => {
+    const t = (cmd || '').toLowerCase();
+    if (/\brm\s+-rf\b/.test(t) || /\bmkfs\b/.test(t) || /\bdd\b/.test(t)) return 'critical';
+    if (/\brm\s+-r\b/.test(t) || /\bsudo\b/.test(t) || /\bmv\b/.test(t) || />\>?\s*\S+/.test(t) || /\bchmod\s+7/.test(t)) return 'high';
+    if (/\bmkdir\b/.test(t) || /\bcd\b/.test(t) || /\bls\b/.test(t)) return 'low';
+    return 'medium';
+  };
+
   const handleSend = async () => {
     if (isSending) return;
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // Si el usuario está en ASK pero la intención es claramente de acción, auto-escalar a AGENT para obtener comandos ejecutables
-    const ACTION_INTENT = /(\bcrea(r)?\b|\bhaz\b|\bhaga\b|\bgenera(r)?\b|\binstala(r)?\b|\bmueve(r)?\b|\bborra(r)?\b|\belimina(r)?\b|\bescribe(r)?\b|\bconfigura(r)?\b|\bejecuta(r)?\b|\bcompila(r)?\b)/i;
+    // Mantener el modo seleccionado por el usuario sin auto-cambio
     let effectiveMode: ChatMode = mode;
-    if (mode === 'ask' && ACTION_INTENT.test(trimmed)) {
-      effectiveMode = 'agent';
-      // Reflejar el cambio en el selector para siguientes mensajes (sin contaminar historial)
-      setMode('agent');
-    }
 
-    // Siempre anexar el contexto de memoria como un "cache" para el modelo (sin heurísticas en UI)
-    const finalInput = trimmed + buildContextAppendix();
+    // No adjuntar historial/contexto al prompt visible; el estado se envía como campo separado
+    const finalInput = trimmed;
 
-    const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed };
-    setMessages(prev => [...prev, userMsg]);
+  const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed };
+  setMessages(prev => [...prev, userMsg]);
     setInput('');
 
     try {
       setIsSending(true);
-  const modeValue = effectiveMode === 'agent' ? 'AGENT' : 'ASK';
-      const history = messages
-        // Evitar enviar mensajes 'system' de la UI al modelo; solo user/assistant
+  const modeValue = effectiveMode.toUpperCase();
+      // API sin estado: enviar todo el historial user/assistant de la sesión actual
+      const history = [...messages, userMsg]
         .filter(m => m.sender !== 'system')
         .map(m => ({
           role: m.sender === 'ai' ? 'assistant' : 'user',
           content: m.text,
         }));
-      const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history } });
+  const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history, state: agentState } });
 
       // Visualización: en AGENT priorizar summary; en ASK combinar summary + explanation
       const aiText = (() => {
         if (effectiveMode === 'agent') {
           return (res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '';
         } else {
-          const sumRaw = (res as any).summary as string | undefined;
+          // En ASK: priorizar SOLO la explicación para evitar encabezados tipo "Ejecuta:" en el resumen
           const expRaw = (res as any).explanation as string | undefined;
           const respRaw = (res as any).ai_response as string | undefined;
-          const sum = sumRaw ? cleanText(sumRaw) : '';
-          const exp = expRaw ? cleanText(expRaw) : '';
-          const normalize = (s: string) => s.replace(/[.,;:!?¡¿"'`]+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-          if (sum && exp) {
-            return normalize(sum) === normalize(exp) ? exp : `${sum}\n\n${exp}`;
-          }
-          return exp || sum || respRaw || '';
+          const exp = expRaw ? String(expRaw) : '';
+          return exp || String(respRaw || '');
         }
       })();
 
@@ -273,6 +450,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         const sysText = 'El agente sugiere ejecutar este comando';
         const sysSummaryRaw = ((res as any).summary ?? agentJson?.summary ?? '') as string;
         const sysExplRaw = ((res as any).explanation ?? agentJson?.explanation ?? '') as string;
+        const risk = computeRiskLevel(cmd);
         const sysMeta = {
           pendingCommand: cmd,
           pendingFileCreation,
@@ -280,15 +458,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           summary: undefined,
           explanation: cleanText(sysExplRaw),
           userPrompt: trimmed,
+          riskLevel: risk,
         };
         const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
         setMessages(prev => [...prev, sysMsg]);
         createdConfirmation = true;
       }
 
-      // Construir texto visible y limpiarlo
+      // Construir texto visible: mantener el contenido tal cual (incluido el bloque de código) en modo ASK
       const displayText = aiText;
-      const displayTextClean = cleanText(displayText);
+  // En ASK mantener fences y etiqueta de lenguaje para copiar/pegar; en otros modos, limpiar
+  const displayTextClean = (effectiveMode === 'ask') ? (displayText || '') : cleanText(displayText);
 
       // Limpiar meta
       const metaWithFlag: any = { ...(res as any) };
@@ -311,13 +491,52 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       // En ASK, como ya combinamos summary + explanation en el texto principal, ocultar ambos metadatos para evitar duplicados visuales
       if (effectiveMode === 'ask') { cleanedMeta.summary = undefined; cleanedMeta.explanation = undefined; }
 
-      // Adjuntar code_output normalizado para facilitar copia/ejecución cuando no haya confirmación
-      if (cmd && !cleanedMeta.code_output) {
-        cleanedMeta.code_output = cmd;
+      // En modo ASK/CONSULTA no exponer code_output; solo en modos con ejecución
+      if (effectiveMode !== 'ask') {
+        if (cmd && !cleanedMeta.code_output) {
+          cleanedMeta.code_output = cmd;
+        }
+      } else {
+        cleanedMeta.code_output = undefined;
+        // En modo ASK no mostrar bloques accesorios; el contenido (incluido el código) va en el mensaje principal
+        cleanedMeta.suggestedCommands = undefined;
       }
 
-      // En modo AGENT, si se creó tarjeta de confirmación, no añadimos el mensaje de IA
-      if (!(effectiveMode === 'agent' && createdConfirmation)) {
+      // Manejar respuestas según el modo
+      if (effectiveMode === 'super') {
+        // En modo SUPER, mostrar plan de ejecución y estado
+        if (cleanedMeta.state) {
+          const stateMsg: Message = {
+            id: String(Date.now()),
+            sender: 'system',
+            text: '',
+            meta: {
+              state: cleanedMeta.state,
+              requiresConfirmation: cleanedMeta.requires_confirmation,
+              backupPath: cleanedMeta.backup_path,
+            }
+          };
+          setMessages(prev => [...prev, stateMsg]);
+        }
+      }
+
+      // En modos AGENT y SUPER, mostrar un banner de confirmación mientras esté pendiente
+      if ((effectiveMode === 'agent' || effectiveMode === 'super') && createdConfirmation) {
+        const risk2 = computeRiskLevel(String(cmd || ''));
+        const confirmationMsg: Message = {
+          id: String(Date.now() + 2),
+          sender: 'system',
+          text: 'Se requiere confirmación para ejecutar:',
+          meta: {
+            requiresConfirmation: true,
+            backupPath: cleanedMeta.backup_path,
+            command: cmd || '',
+            riskLevel: risk2
+          }
+        };
+        setMessages(prev => [...prev, confirmationMsg]);
+      } else {
+        // Si no hay confirmación pendiente, mostrar mensaje de IA normalmente
         const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
         setMessages(prev => [...prev, aiMsg]);
       }
@@ -333,7 +552,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     <div className="chat-pane">
       <div className="chat-header">
         <button onClick={handleNewChat} aria-label="Nuevo chat">Nuevo chat</button>
-        <select value={mode} onChange={handleModeChange} aria-label="Seleccionar modo de chat">
+        <select className="mode-select" value={mode} onChange={handleModeChange} aria-label="Seleccionar modo de chat">
           <option value="ask">Modo Consulta</option>
           <option value="agent">Modo Agente</option>
         </select>
@@ -344,7 +563,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         className="chat-messages"
         ref={messagesRef}
         role="log"
-        aria-live={isSending ? true : undefined}
+        aria-live={isSending ? 'polite' : undefined}
         aria-busy={isSending ? true : undefined}
         onScroll={(e) => {
           const el = e.currentTarget as HTMLDivElement;
@@ -352,10 +571,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         }}
       >
         {messages.map((msg) => (
-          <div key={msg.id} className={`message ${msg.sender}`}>
+          <div
+            key={msg.id}
+            className={`message ${msg.sender} ${msg.meta?.chat_mode === 'ask' ? 'ask' : msg.meta?.chat_mode === 'agent' ? 'agent' : ''}`}
+          >
             {/* Ocultar el texto superior para los mensajes de sistema con tarjeta de confirmación */}
             {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
-              <div className="message-text">{msg.text}</div>
+              <div className="message-text">
+                {msg.sender === 'ai' && msg.meta?.chat_mode === 'ask'
+                  ? <RenderAsk content={msg.text} />
+                  : msg.text}
+              </div>
             )}
 
             {/* No mostrar el resumen en la tarjeta de confirmación ni en ASK */}
@@ -372,22 +598,28 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
               <pre className="code-output">{msg.meta.code_output}</pre>
             )}
-            {/* Card: comando pendiente */}
-            {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
+            {/* En modo ASK ya no mostramos bloques separados; el código queda inline en el texto principal */}
+            {/* Card: comando pendiente (mantener visible tras confirmar/cancelar; solo ocultar botones) */}
+            {msg.sender === 'system' && msg.meta?.pendingCommand && (
               <div className="confirm-card">
                 {msg.meta?.explanation && (
                   <div className="explanation">{renderExplanation(msg.meta.explanation)}</div>
                 )}
                  <div className="confirm-title">Código generado</div>
                  <pre className="confirm-code"><code>{String(msg.meta.pendingCommand || '').trim()}</code></pre>
-                 <div className="confirm-actions">
-                   <button
-                     className="btn confirm"
-                     onClick={async () => {
+                 {!msg.meta?.processed && (
+                   <div className="confirm-actions">
+                     <button
+                       className="btn confirm"
+                       onClick={async () => {
                        try {
                          const toSend = String(msg.meta?.pendingCommand || '').trim();
                          await invoke('ssh_stdin', { id: sessionId, data: toSend + '\n' });
-                         setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
+                         // Marcar tarjeta como procesada y eliminar el banner correspondiente
+                         setMessages(prev => prev
+                           .map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m)
+                           .filter(m => !(m.sender === 'system' && m.meta?.requiresConfirmation && m.meta?.command && String(m.meta.command).trim() === toSend))
+                         );
                          await setLastCommand(toSend);
                          // Si es un 'cd <dir>', registra ese directorio como lastPath
                          try {
@@ -427,15 +659,29 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                            }
                          } catch {}
                        } catch (e) {}
-                     }}
-                   >Ejecutar ahora</button>
-                   <button
-                     className="btn cancel"
-                     onClick={() => {
-                       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
-                     }}
-                   >Cancelar</button>
-                 </div>
+                       }}
+                     >Ejecutar ahora</button>
+                     <button
+                       className="btn cancel"
+                       onClick={() => {
+                       const toSend = String(msg.meta?.pendingCommand || '').trim();
+                       setMessages(prev => {
+                         const next = prev
+                           .map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m)
+                           .filter(m => !(m.sender === 'system' && m.meta?.requiresConfirmation && m.meta?.command && String(m.meta.command).trim() === toSend));
+                         // Mantener el flujo conversacional: añadir un mensaje AI breve y seguir sin perder memoria
+                         const ack: Message = {
+                           id: String(Date.now() + 7),
+                           sender: 'ai',
+                           text: 'Entendido, no ejecuto el comando. ¿Deseas que proponga otra alternativa o continúo con la explicación?',
+                           meta: {}
+                         };
+                         return [...next, ack];
+                       });
+                       }}
+                     >Cancelar</button>
+                   </div>
+                 )}
                </div>
              )}
           </div>
@@ -464,7 +710,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           placeholder={mode === 'agent' ? 'Escribe tu mensaje… (Se pedirá confirmación para comandos)' : 'Escribe tu mensaje…'}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         />
-        <button onClick={handleSend} disabled={isSending} aria-label="Enviar mensaje">
+        <button className="send-btn" onClick={handleSend} disabled={isSending} aria-label="Enviar mensaje">
           {isSending ? 'Enviando…' : 'Enviar'}
         </button>
       </div>
