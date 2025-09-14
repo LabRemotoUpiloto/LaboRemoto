@@ -24,6 +24,8 @@ type MessageMeta = {
   userPrompt?: string;
   command?: string;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+  // Solo para modo ASK/CONSULTA: mostrar comandos sugeridos como bloque de referencia (no ejecutable)
+  suggestedCommands?: string;
 };
 
 type Message = {
@@ -116,6 +118,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const m = s.match(/```[a-zA-Z0-9_\-]*\s*([\s\S]*?)```/m);
     return m ? m[1].trim() : null;
   };
+  // ...
 
   // Heurística simple: ¿parece un comando de shell?
   const isLikelyShell = (s: string | null | undefined): boolean => {
@@ -151,6 +154,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
   const cleanText = (text: string) => (text || '')
     .replace(/```(?:bash|sh)?\s*|\s*```/g, '')  // fences
+    .replace(/\b(?:bash|sh|shell)\b\s*:?\s*$/gmi, '') // etiqueta suelta al final de línea
+    .replace(/:\s*\b(?:bash|sh|shell)\b/gmi, ': ')     // '...:bash' -> '...:'
     .replace(/^Comando sugerido:\s*/gmi, '')     // rótulo
     .replace(/"""/g, '')                       // triple comilla
     .replace(/^\s+|\s+$/g, '')
@@ -228,33 +233,21 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // Detectar intención de acción y escalar modo si es necesario
-    const ACTION_INTENT = /(\bcrea(r)?\b|\bhaz\b|\bhaga\b|\bgenera(r)?\b|\binstala(r)?\b|\bmueve(r)?\b|\bborra(r)?\b|\belimina(r)?\b|\bescribe(r)?\b|\bconfigura(r)?\b|\bejecuta(r)?\b|\bcompila(r)?\b)/i;
+    // Mantener el modo seleccionado por el usuario sin auto-cambio
     let effectiveMode: ChatMode = mode;
-    
-    if (mode === 'ask' && ACTION_INTENT.test(trimmed)) {
-      effectiveMode = 'agent';
-      setMode('agent');
-    } else if (mode === 'agent' && 
-      (trimmed.toLowerCase().includes('automatiza') || 
-       trimmed.toLowerCase().includes('optimiza') ||
-       trimmed.toLowerCase().includes('refactoriza'))) {
-      effectiveMode = 'super';
-      setMode('super');
-    }
 
     // No adjuntar historial/contexto al prompt visible; el estado se envía como campo separado
     const finalInput = trimmed;
 
-    const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed };
-    setMessages(prev => [...prev, userMsg]);
+  const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed };
+  setMessages(prev => [...prev, userMsg]);
     setInput('');
 
     try {
       setIsSending(true);
-  const modeValue = effectiveMode === 'agent' ? 'AGENT' : 'ASK';
-      const history = messages
-        // Evitar enviar mensajes 'system' de la UI al modelo; solo user/assistant
+  const modeValue = effectiveMode.toUpperCase();
+      // API sin estado: enviar todo el historial user/assistant de la sesión actual
+      const history = [...messages, userMsg]
         .filter(m => m.sender !== 'system')
         .map(m => ({
           role: m.sender === 'ai' ? 'assistant' : 'user',
@@ -267,16 +260,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         if (effectiveMode === 'agent') {
           return (res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '';
         } else {
-          const sumRaw = (res as any).summary as string | undefined;
+          // En ASK: priorizar SOLO la explicación para evitar encabezados tipo "Ejecuta:" en el resumen
           const expRaw = (res as any).explanation as string | undefined;
           const respRaw = (res as any).ai_response as string | undefined;
-          const sum = sumRaw ? cleanText(sumRaw) : '';
-          const exp = expRaw ? cleanText(expRaw) : '';
-          const normalize = (s: string) => s.replace(/[.,;:!?¡¿"'`]+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-          if (sum && exp) {
-            return normalize(sum) === normalize(exp) ? exp : `${sum}\n\n${exp}`;
-          }
-          return exp || sum || respRaw || '';
+          const exp = expRaw ? String(expRaw) : '';
+          return exp || String(respRaw || '');
         }
       })();
 
@@ -363,9 +351,10 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         createdConfirmation = true;
       }
 
-      // Construir texto visible y limpiarlo
+      // Construir texto visible: mantener el contenido tal cual (incluido el bloque de código) en modo ASK
       const displayText = aiText;
-      const displayTextClean = cleanText(displayText);
+  // En ASK mantener fences y etiqueta de lenguaje para copiar/pegar; en otros modos, limpiar
+  const displayTextClean = (effectiveMode === 'ask') ? (displayText || '') : cleanText(displayText);
 
       // Limpiar meta
       const metaWithFlag: any = { ...(res as any) };
@@ -388,9 +377,15 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       // En ASK, como ya combinamos summary + explanation en el texto principal, ocultar ambos metadatos para evitar duplicados visuales
       if (effectiveMode === 'ask') { cleanedMeta.summary = undefined; cleanedMeta.explanation = undefined; }
 
-      // Adjuntar code_output normalizado para facilitar copia/ejecución cuando no haya confirmación
-      if (cmd && !cleanedMeta.code_output) {
-        cleanedMeta.code_output = cmd;
+      // En modo ASK/CONSULTA no exponer code_output; solo en modos con ejecución
+      if (effectiveMode !== 'ask') {
+        if (cmd && !cleanedMeta.code_output) {
+          cleanedMeta.code_output = cmd;
+        }
+      } else {
+        cleanedMeta.code_output = undefined;
+        // En modo ASK no mostrar bloques accesorios; el contenido (incluido el código) va en el mensaje principal
+        cleanedMeta.suggestedCommands = undefined;
       }
 
       // Manejar respuestas según el modo
@@ -459,7 +454,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         className="chat-messages"
         ref={messagesRef}
         role="log"
-        aria-live={isSending ? true : undefined}
+        aria-live={isSending ? 'polite' : undefined}
         aria-busy={isSending ? true : undefined}
         onScroll={(e) => {
           const el = e.currentTarget as HTMLDivElement;
@@ -487,6 +482,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
               <pre className="code-output">{msg.meta.code_output}</pre>
             )}
+            {/* En modo ASK ya no mostramos bloques separados; el código queda inline en el texto principal */}
             {/* Card: comando pendiente (mantener visible tras confirmar/cancelar; solo ocultar botones) */}
             {msg.sender === 'system' && msg.meta?.pendingCommand && (
               <div className="confirm-card">

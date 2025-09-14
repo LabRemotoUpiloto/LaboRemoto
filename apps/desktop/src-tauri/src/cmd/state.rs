@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::net::TcpStream;
 use std::sync::atomic::AtomicBool;
+// Ordering is used in ssh.rs; not needed here
 
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +27,10 @@ pub struct SessionExt {
   pub password: String,
   // Sesión ssh2 en caché para SFTP (compartida y protegida por Mutex)
   pub sftp_cached: Option<Arc<Mutex<CachedSsh2>>>,
+  // Buffer efímero de arranque para la salida del terminal
+  pub out_buffer: Arc<Mutex<Option<String>>>,
+  // Flag: ¿UI lista para recibir streaming?
+  pub ui_ready: Arc<AtomicBool>,
 }
 
 // Conexión ssh2 reutilizable por sesión

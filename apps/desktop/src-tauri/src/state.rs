@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, time::{Duration, Instant}};
-use std::{fs, path::PathBuf};
-use directories::ProjectDirs;
-use sha2::{Digest, Sha256};
+// Nota: memoria efímera en RAM solamente; se elimina persistencia en disco
+// use std::{fs, path::PathBuf};
+// use directories::ProjectDirs;
+// use sha2::{Digest, Sha256};
 use parking_lot::RwLock;
 use tauri::Emitter; // required for AppHandle::emit in Tauri v2
 
@@ -79,26 +80,12 @@ impl AppState {
   }
 
   pub fn get(&self, sid: &str) -> Option<SessionMem> {
-    // Fast path: in-memory
-    {
-      let r = self.by_session.read();
-      if let Some((m,_)) = r.get(sid) {
-        return Some(m.clone());
-      }
-    }
-    // Fallback: load from disk and cache
-    if let Some(loaded) = persist_load(sid) {
-      let mut w = self.by_session.write();
-      w.insert(sid.to_string(), (loaded.clone(), Instant::now()));
-      return Some(loaded);
-    }
-    None
+    let r = self.by_session.read();
+    r.get(sid).map(|(m,_)| m.clone())
   }
 
   pub fn clear(&self, sid: &str) {
     self.by_session.write().remove(sid);
-    // Also delete persisted file
-    let _ = persist_delete(sid);
   }
 
   pub fn gc(&self) {
@@ -118,10 +105,6 @@ pub struct TerminalResultPayload {
 #[tauri::command]
 pub fn mem_put(state: tauri::State<AppState>, session_id: String, patch: SessionMemPatch) {
   state.put_patch(&session_id, patch);
-  // Save to disk after every change
-  if let Some(mem) = state.get(&session_id) {
-    let _ = persist_save(&session_id, &mem);
-  }
 }
 
 #[tauri::command]
@@ -154,46 +137,5 @@ pub fn mem_push_terminal_result(
     last_exit_code: Some(exit_code),
     ..Default::default()
   });
-  // Persist tails as well
-  if let Some(mem) = state.get(&session_id) {
-    let _ = persist_save(&session_id, &mem);
-  }
 }
 
-// ===== Persistence: save/load SessionMem to disk (JSON) per session =====
-
-fn app_mem_dir() -> Option<PathBuf> {
-  let proj = ProjectDirs::from("com", "example", "ssh-ai-client")?;
-  let dir = proj.data_dir().join("mem");
-  if let Err(_e) = fs::create_dir_all(&dir) {
-    // ignore
-  }
-  Some(dir)
-}
-
-fn file_for_session(id: &str) -> Option<PathBuf> {
-  let mut hasher = Sha256::new();
-  hasher.update(id.as_bytes());
-  let hex = hex::encode(hasher.finalize());
-  let dir = app_mem_dir()?;
-  Some(dir.join(format!("{}.json", &hex[..16])))
-}
-
-fn persist_save(session_id: &str, mem: &SessionMem) -> Option<()> {
-  let path = file_for_session(session_id)?;
-  let data = match serde_json::to_vec_pretty(mem) { Ok(v) => v, Err(_) => return None };
-  let _ = fs::write(path, data);
-  Some(())
-}
-
-fn persist_load(session_id: &str) -> Option<SessionMem> {
-  let path = file_for_session(session_id)?;
-  let data = fs::read_to_string(path).ok()?;
-  serde_json::from_str(&data).ok()
-}
-
-fn persist_delete(session_id: &str) -> Option<()> {
-  let path = file_for_session(session_id)?;
-  let _ = fs::remove_file(path);
-  Some(())
-}
