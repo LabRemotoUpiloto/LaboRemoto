@@ -4,6 +4,11 @@ use dotenvy::dotenv;
 use std::{env, fs};
 use std::path::PathBuf;
 
+// Mensajes canónicos
+const MENSAJE_IDENTIDAD: &str = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
+const MENSAJE_FUERA_DE_ALCANCE: &str = "No tengo contenido para esa solicitud. Puedo ayudarte con temas de Linux por terminal (comandos, scripts, configuración). Intenta con una pregunta relacionada o escribe de nuevo tu solicitud.";
+const MENSAJE_CAPACIDADES: &str = "Puedo ayudarte con temas de Linux por terminal:\n\n- Explicar comandos, rutas, permisos y procesos.\n- Sugerir y componer comandos seguros para tu objetivo.\n- Crear guías paso a paso para principiantes (usando nano).\n- Generar scripts sencillos (bash/python) y explicar cómo usarlos.\n- Resolver errores de la terminal y configurar servicios comunes (systemctl, apt/yum/pacman, etc.).\n\nDime qué quieres lograr y te doy los pasos o el comando adecuado.";
+
 /// Tipo de modo del chat
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "lowercase")]
@@ -162,11 +167,11 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   let model_id = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".to_string());
 
   fn get_system_prompt(agent_mode: &ChatMode) -> String {
-  let identidad_regla = r#"REGLA DE IDENTIDAD:
+  let identidad_regla = format!(r#"REGLA DE IDENTIDAD:
 Si, y SOLO SI, la pregunta del usuario es explícitamente sobre tu identidad (por ejemplo: '¿quién eres?', 'qué eres', 'cuál es tu identidad', 'quién es el agente'), responde EXACTAMENTE:
-"Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general."
+"{ident_msg}"
 No añadas texto adicional, disculpas ni explicaciones cuando apliques esta regla.
-"#;
+"#, ident_msg = MENSAJE_IDENTIDAD);
 
     if matches!(agent_mode, ChatMode::Agent) {
       return format!(r##"{identidad}
@@ -318,18 +323,89 @@ Reglas del formato paso a paso:
 
   // Mover campos del request a variables locales para evitar clones innecesarios
   let AiChatRequest { user_input, mode, history, state } = req;
-  let system_prompt = get_system_prompt(&mode);
 
-  // Atajo: si el usuario pregunta por la identidad, responder de forma canónica sin llamar al modelo
-  fn is_identity_query(s: &str) -> bool {
-    let lc = s.to_lowercase();
-    // contemplar variantes con/ sin tilde y redacción común
-    lc.contains("quien eres") || lc.contains("quién eres") || lc.contains("quien es el agente") || lc.contains("identidad") || lc.contains("who are you")
+  // Utilidades ligeras para normalización/detección
+  fn strip_diacritics_basic(input: &str) -> String {
+    input.chars().map(|ch| match ch {
+      'á' | 'Á' => 'a',
+      'é' | 'É' => 'e',
+      'í' | 'Í' => 'i',
+      'ó' | 'Ó' => 'o',
+      'ú' | 'Ú' => 'u',
+      'ñ' | 'Ñ' => 'n',
+      _ => ch,
+    }).collect()
   }
-  if is_identity_query(&user_input) {
+  fn normalize_for_checks(s: &str) -> String {
+    let no_diac = strip_diacritics_basic(&s.to_lowercase());
+    no_diac
+      .chars()
+      .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+      .collect::<String>()
+      .split_whitespace()
+      .collect::<Vec<_>>()
+      .join(" ")
+  }
+  fn is_identity_query_strict(s: &str) -> bool {
+    // Solo dispara con la frase literal "quien eres" (insensible a tildes, mayúsculas y puntuación final)
+    let mut n = normalize_for_checks(s).trim().to_string(); // e.g., "¿Quién eres?" -> "quien eres ?"
+    // Elimina signos de interrogación/exclamación al final
+    if n.ends_with(" ?") { n = n.trim_end_matches(" ?").to_string(); }
+    if n.ends_with('?') { n.pop(); }
+    if n.ends_with('!') { n.pop(); }
+    n = n.trim().to_string();
+    n == "quien eres"
+  }
+  fn is_noise_or_out_of_domain(s: &str) -> bool {
+    let t = s.trim();
+    if t.is_empty() { return true; }
+    let simple_noise = ["?","??","???","/","//","////","...","….","…","asdf","asdfasdf","aaaa","aaaaa","jeje","jaja"]; // casos típicos
+    if simple_noise.iter().any(|n| t.eq_ignore_ascii_case(n)) { return true; }
+    // Relación alfanuméricos vs otros
+    let mut alnum = 0usize; let mut other = 0usize; let mut max_run = 1usize; let mut cur_run = 1usize; let mut prev: Option<char> = None;
+    for ch in t.chars() {
+      if ch.is_alphanumeric() { alnum += 1; } else if !ch.is_whitespace() { other += 1; }
+      if let Some(p) = prev { if p == ch { cur_run += 1; if cur_run > max_run { max_run = cur_run; } } else { cur_run = 1; } } else { cur_run = 1; }
+      prev = Some(ch);
+    }
+    let total = alnum + other;
+    if total > 0 {
+      let ratio = (alnum as f32) / (total as f32);
+      if ratio < 0.3 || max_run >= 5 { return true; }
+    }
+    // Fuera de dominio: deportes, farándula, recetas, clima, etc., sin términos de Linux
+    let n = normalize_for_checks(t);
+    let ood = [
+      "partido","marcador","gol","futbol","nba","premier","tenis","receta","cocina","novela","fara ndula","farándula","chisme","actor","pelicula","cine","clima","horoscopo","salud","medicina","doct or","medico","medico","enfermedad"
+    ];
+    let domain = [
+      "linux","bash","terminal","comando","comandos","script","shell","ubuntu","debian","fedora","arch","centos","red hat","systemctl","apt","yum","pacman","ssh","sftp","scp","servidor","proceso","servicio","archivo","carpeta","directorio"
+    ];
+    if ood.iter().any(|k| n.contains(k)) && !domain.iter().any(|k| n.contains(k)) {
+      return true;
+    }
+    false
+  }
+  fn is_capabilities_query(s: &str) -> bool {
+    let n = normalize_for_checks(s);
+    let patterns = [
+      "que puedes hacer",
+      "que sabes hacer",
+      "como puedes ayudar",
+      "en que me puedes ayudar",
+      "cuales son tus funciones",
+      "que funciones tienes",
+      "tus capacidades",
+      "que haces",
+    ];
+    patterns.iter().any(|p| n.contains(p))
+  }
+
+  // Orden de evaluación previo a cualquier flujo ASK/AGENT/SUPER
+  if is_identity_query_strict(&user_input) {
     return Ok(AiChatResponse {
       user_input,
-      ai_response: "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.".to_string(),
+      ai_response: MENSAJE_IDENTIDAD.to_string(),
       code_output: None,
       explanation: None,
       summary: None,
@@ -338,6 +414,34 @@ Reglas del formato paso a paso:
       state: state,
     });
   }
+  if is_noise_or_out_of_domain(&user_input) {
+    return Ok(AiChatResponse {
+      user_input,
+      ai_response: MENSAJE_FUERA_DE_ALCANCE.to_string(),
+      code_output: None,
+      explanation: None,
+      summary: None,
+      backup_path: None,
+      requires_confirmation: false,
+      state: state,
+    });
+  }
+
+  // Preguntas sobre capacidades/funciones del asistente
+  if is_capabilities_query(&user_input) {
+    return Ok(AiChatResponse {
+      user_input,
+      ai_response: MENSAJE_CAPACIDADES.to_string(),
+      code_output: None,
+      explanation: None,
+      summary: None,
+      backup_path: None,
+      requires_confirmation: false,
+      state: state,
+    });
+  }
+
+  let system_prompt = get_system_prompt(&mode);
 
   // Construir historial de mensajes para OpenAI: system + historial completo del cliente + user actual
   let client = Client::builder().build().map_err(|e| e.to_string())?;
@@ -405,16 +509,19 @@ Reglas del formato paso a paso:
   // (Heurísticas desactivadas por pedido: no se hará clasificación difusa de identidad)
 
   // Evitar identidad redundante en ASK: eliminar la frase exacta si vino pegada accidentalmente
-  if matches!(mode, ChatMode::Ask) && !is_identity_query(&user_input) {
-    let ident = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
-    if assistant_text.contains(ident) {
-      // Siempre aplique el reemplazo; si queda vacío, forzará el reintento más abajo
-      assistant_text = assistant_text.replace(ident, "").trim().to_string();
-    }
+  if matches!(mode, ChatMode::Ask) && !is_identity_query_strict(&user_input) {
+    let mut cleaned = assistant_text.replace(MENSAJE_IDENTIDAD, "");
+    // Variante con espacio antes del punto
+    let ident_spaced = MENSAJE_IDENTIDAD.replace(".", " .");
+    cleaned = cleaned.replace(&ident_spaced, "");
+    // Variante sin punto final
+    let ident_nopunct = MENSAJE_IDENTIDAD.trim_end_matches('.');
+    cleaned = cleaned.replace(ident_nopunct, "");
+    assistant_text = cleaned.trim().to_string();
   }
 
   // Si en ASK la salida quedó vacía o parece solo identidad, reintenta una vez con instrucción más estricta (API genera el contenido)
-  if matches!(mode, ChatMode::Ask) && !is_identity_query(&user_input) {
+  if matches!(mode, ChatMode::Ask) && !is_identity_query_strict(&user_input) {
     // Normalización con eliminación de tildes para comparar identidad de forma robusta
     fn strip_diacritics(input: &str) -> String {
       input.chars().map(|ch| match ch {
@@ -427,7 +534,7 @@ Reglas del formato paso a paso:
         _ => ch,
       }).collect()
     }
-    let ident_norm = strip_diacritics("Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.").to_lowercase();
+  let ident_norm = strip_diacritics(MENSAJE_IDENTIDAD).to_lowercase();
     let norm = |s: &str| strip_diacritics(s)
       .chars()
       .map(|c| if c.is_alphanumeric() { c } else { ' ' })
@@ -841,12 +948,15 @@ Reglas del formato paso a paso:
           .to_string();
         if !assistant2.trim().is_empty() {
           // Sanear: nunca mostrar mensaje de identidad como explicación si no fue pedido
-          let ident = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
-          let mut cleaned2 = assistant2.replace(ident, "").trim().to_string();
+          let mut cleaned2 = assistant2.replace(MENSAJE_IDENTIDAD, "").trim().to_string();
+          if cleaned2 == assistant2 {
+            let ident_spaced = MENSAJE_IDENTIDAD.replace(".", " .");
+            cleaned2 = cleaned2.replace(&ident_spaced, "").trim().to_string();
+          }
           if cleaned2.is_empty() { cleaned2 = assistant2.clone(); }
           let at_lower = cleaned2.trim().to_lowercase();
           // Si quedó vacío o sigue siendo identidad, omitir explicación
-          if cleaned2.trim().is_empty() || at_lower == ident.to_lowercase() || at_lower.contains("universidad piloto de colombia") {
+          if cleaned2.trim().is_empty() || at_lower == MENSAJE_IDENTIDAD.to_lowercase() || at_lower.contains("universidad piloto de colombia") {
             // no establecer explanation
           } else {
             explanation = Some(cleaned2.clone());
