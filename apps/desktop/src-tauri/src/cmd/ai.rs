@@ -4,34 +4,67 @@ use dotenvy::dotenv;
 use std::{env, fs};
 use std::path::PathBuf;
 
-/// Petición para el chat con IA.
+/// Tipo de modo del chat
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ChatMode {
+  #[default]
+  #[serde(alias = "ASK", alias = "Ask", alias = "consulta", alias = "CONSULTA", alias = "Consulta")]
+  Ask,    // Modo consulta
+  #[serde(alias = "AGENT", alias = "Agent")]
+  Agent,  // Modo agente
+  #[serde(alias = "SUPER", alias = "Super")]
+  Super   // Modo súper-agente
+}
+
+/// Estado de memoria del agente
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct AgentState {
+    pub cwd: String,
+    pub last_exit_code: Option<i32>,
+    pub last_stdout_tail: Option<String>,
+    pub last_file: Option<String>,
+}
+
+/// Petición para el chat con IA
 #[derive(Serialize, Deserialize)]
 pub struct ChatHistoryItem {
-  pub role: String,    // "user" | "assistant" | "system"
-  pub content: String,
+    pub role: String,    // "user" | "assistant" | "system"
+    pub content: String,
+    pub timestamp: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct AiChatRequest {
-  pub user_input: String,
-  pub mode: Option<String>,
-  pub history: Option<Vec<ChatHistoryItem>>, // Conversación previa opcional
+    pub user_input: String,
+    pub mode: ChatMode,
+    pub history: Option<Vec<ChatHistoryItem>>,
+    pub state: Option<AgentState>,
 }
 
-/// Respuesta del chat con IA (algunos campos son opcionales según el modo).
+/// Respuesta del chat con IA
 #[derive(Serialize, Deserialize)]
 pub struct AiChatResponse {
-  pub user_input: String,
-  pub ai_response: String,
-  pub code_output: Option<String>,
-  pub explanation: Option<String>,
-  pub summary: Option<String>,
+    pub user_input: String,
+    pub ai_response: String,
+    pub code_output: Option<String>,
+    pub explanation: Option<String>,
+    pub summary: Option<String>,
+    pub state: Option<AgentState>,
+    pub requires_confirmation: bool,
+    pub backup_path: Option<String>,
 }
 
 #[tauri::command]
 pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
+  use crate::security::SecurityManager;
+
+  
   // Load .env to pick up OPENAI_API_KEY (dotenvy is safe on desktop)
   let _ = dotenv();
+  
+  // Inicializar el gestor de seguridad (actualmente no usado directamente)
+  let _security = SecurityManager::new();
   // Try multiple sources for the API key so packaged apps work for end users
   fn load_api_key_multi() -> Option<String> {
     // 1) Environment variable
@@ -128,14 +161,14 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   }
   let model_id = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".to_string());
 
-  fn get_system_prompt(agent_mode: &str) -> String {
+  fn get_system_prompt(agent_mode: &ChatMode) -> String {
   let identidad_regla = r#"REGLA DE IDENTIDAD:
 Si, y SOLO SI, la pregunta del usuario es explícitamente sobre tu identidad (por ejemplo: '¿quién eres?', 'qué eres', 'cuál es tu identidad', 'quién es el agente'), responde EXACTAMENTE:
 "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general."
 No añadas texto adicional, disculpas ni explicaciones cuando apliques esta regla.
 "#;
 
-    if agent_mode == "AGENT" {
+    if matches!(agent_mode, ChatMode::Agent) {
       return format!(r##"{identidad}
 MODO AGENT — EJECUCIÓN DIRECTA
 
@@ -151,6 +184,12 @@ Formato de salida (OBLIGATORIO):
 5. No uses etiquetas de lenguaje en el bloque (sin 'bash').
 6. Nunca uses editores interactivos (nano, vim, etc.).
 7. Si creas archivo(s) con here-doc o redirecciones, DESPUÉS añade una línea `cat <ruta>` para mostrar su contenido en la terminal.
+
+Memoria de sesión ≠ Salida (IMPORTANTE):
+- Usa el estado de la sesión (cwd, archivos recientes, etc.) para decidir QUÉ hacer.
+- NO imprimas el historial ni pasos previos. Emite SOLO el DELTA mínimo necesario para cumplir la petición actual.
+- Evita comandos de sondeo (ls, pwd) o navegación innecesaria; asume el cwd indicado por el sistema.
+- Evita secuencias redundantes como `cd ..` seguido de `cd dir`.
 
 Reglas de comportamiento:
 - Si el usuario pide crear un archivo o programa, SIEMPRE usa here-doc con cat > archivo <<'EOF' … EOF.
@@ -190,30 +229,95 @@ cat script.sh
 "##, identidad = identidad_regla);
     }
 
-    return format!(r#"{identidad}
-MODO ASK — ENSEÑANZA Y GUÍA
+  return format!(r#"{identidad}
+MODO CONSULTA (ASK) — GENERAL
 
-Objetivo:
-Responder con claridad, paso a paso y de forma pedagógica.
-Prioriza el qué/por qué/cómo antes que el comando.
+Eres un asistente de terminal Linux. Usa la memoria de sesión (cwd, archivos creados, últimos resultados) para decidir contexto, PERO no imprimas historial previo a menos que el usuario lo pida.
 
-Reglas de salida:
-- Responde en texto normal (explicación clara y breve).
-- SOLO si el usuario pide pasos o un comando ayudaría, incluye al FINAL un bloque fenced con triple backticks y etiqueta bash.
-- Si la pregunta es conceptual, NO incluyas ningún bloque de código.
-- Nunca asumas credenciales ni ejecutes nada: el código es solo sugerencia.
+0) Detecta intención del usuario
+- Si la petición es explicativa/teórica ("explica…", "qué es…", "por qué…", "diferencias…", "cómo funciona…", "mejores prácticas…")
+  → Usa FORMATO INFORMATIVO (sin comandos ni código ejecutable; solo mini-ejemplos no ejecutables si ayudan).
+- Si la petición implica crear/hacer algo ("crea…", "configura…", "instala…", "genera un script…", "edita…", "prepara…", "paso a paso…")
+  → Usa FORMATO PASO A PASO (principiantes) con nano (interactivo).
+- Si explícitamente pide "solo el comando" o "un script listo"
+  → Entrega SOLO lo pedido al final, pero antecede un Resumen breve.
 
-Ejemplo válido:
-Para listar archivos ocultos puedes usar la opción -a de ls, que muestra también los que empiezan con punto.
-bash
-ls -la
+1) FORMATO INFORMATIVO (cuando NO toca crear código)
+Estructura obligatoria:
+1) Resumen (1–2 líneas)
+   - Qué es y para qué sirve, sin jerga.
+2) Idea clave
+   - Síntesis conceptual en 1–3 bullets.
+3) Cómo funciona (conceptos)
+   - Bullets cortos: componentes, flujo, cuándo usarlo/cuándo no.
+4) Ejemplos conceptuales (opcionales, NO ejecutables)
+   - Pseudocaso o salida de ejemplo como texto (no `bash`).
+5) Buenas prácticas y errores comunes
+   - 3–6 bullets accionables.
+6) FAQ rápida (opcional)
+   - 2–4 preguntas y respuestas cortas.
+7) Siguiente paso (opcional)
+   - Si luego quieren hacerlo, indica: "Dime y te muestro los pasos con comandos."
 
+Reglas del formato informativo:
+- No incluyas bloques `bash` ni editores; si necesitas mostrar algo, usa bloque sin sintaxis (o `text`).
+- Mantén lenguaje claro, para principiantes.
+- Si el usuario luego pide acción, cambia a PASO A PASO.
+
+2) FORMATO PASO A PASO (principiantes, cuando SÍ hay que crear/hacer)
+Estructura obligatoria:
+0) Prerrequisitos (solo si faltan)
+   - Paquetes mínimos y cómo instalarlos (1 línea por distro).
+1) Paso 1 — Abrir/crear archivo con nano (si aplica)
+   - "Escribe este comando y presiona Enter:"
+   ```bash
+   nano <NOMBRE_DEL_ARCHIVO>
+   ```
+   - "Copia y pega ESTE código dentro de nano:" (bloque completo del código)
+   - "Guarda y cierra: Ctrl+O, Enter; Ctrl+X."
+2) Paso 2 — Permisos (si aplica)
+   ```bash
+   chmod +x <NOMBRE_DEL_ARCHIVO>
+   ```
+3) Paso 3 — Ejecutar/usar
+   ```bash
+   ./<NOMBRE_DEL_ARCHIVO> <argumentos_si_aplican>
+   ```
+
+¿Qué deberías ver?
+- 1–3 líneas con salida esperada (texto literal simple).
+
+Verificación rápida (opcional)
+- 1–2 comandos simples extra (otro ejemplo de uso).
+
+Errores comunes y solución
+- 2–4 bullets con correcciones directas.
+
+(Opcional) Alternativa sin nano (avanzado)
+- Solo si el usuario lo pide: here-doc en bloque aparte.
+
+Reglas del formato paso a paso:
+- Un comando por bloque (no encadenes con && ni ;).
+- Evita here-doc y banderas avanzadas en el flujo principal.
+- No uses ls/history/cd .. salvo que el usuario lo pida.
+- Usa español claro: "Escribe… Presiona Enter… Copia y pega…".
+- No imprimas historial; usa la memoria solo para decidir rutas o nombres.
+- Mantén consistencia de nombres de archivo (por ejemplo, "calculadora.sh" en todos los pasos).
+
+3) EXCEPCIONES DE RENDER
+- Si el usuario dice "solo el comando": entrega una sola línea en bash + una línea de contexto.
+- Si dice "un script listo": entrega un bloque bash con shebang y `set -euo pipefail`.
+- Si pide ver el historial: muestra una sección "Historial de sesión" fuera de los bloques de pasos.
+
+4) TONO Y ESTILO
+- Didáctico, directo, para principiantes. Primero el "qué es/por qué", luego el "cómo".
+- Respuestas compactas; si el tema es amplio, prioriza claridad y bullets.
+- Responde en español.
 "#, identidad = identidad_regla);
   }
 
   // Mover campos del request a variables locales para evitar clones innecesarios
-  let AiChatRequest { user_input, mode, history } = req;
-  let mode = mode.unwrap_or_else(|| "ASK".to_string());
+  let AiChatRequest { user_input, mode, history, state } = req;
   let system_prompt = get_system_prompt(&mode);
 
   // Atajo: si el usuario pregunta por la identidad, responder de forma canónica sin llamar al modelo
@@ -229,24 +333,39 @@ ls -la
       code_output: None,
       explanation: None,
       summary: None,
+      backup_path: None,
+      requires_confirmation: false,
+      state: state,
     });
   }
 
-  // Construir historial de mensajes para OpenAI: system + (historial opcional) + user actual
+  // Construir historial de mensajes para OpenAI: system + historial completo del cliente + user actual
   let client = Client::builder().build().map_err(|e| e.to_string())?;
   let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({"role":"system","content": system_prompt})];
-  if let Some(mut hist) = history {
-    // Limitar a los últimos 12 turnos para no crecer demasiado
-    let take_from = if hist.len() > 12 { hist.len() - 12 } else { 0 };
-    hist = hist.into_iter().skip(take_from).collect();
-    for item in hist {
+  // Inyectar pista de sesión como mensaje de sistema (NO imprimir)
+  if let Some(ref st) = state {
+    let mut hints: Vec<String> = Vec::new();
+    if !st.cwd.is_empty() { hints.push(format!("cwd={}", st.cwd)); }
+    if let Some(ref f) = st.last_file { hints.push(format!("last_file={}", f)); }
+    if let Some(code) = st.last_exit_code { hints.push(format!("last_exit_code={}", code)); }
+    if let Some(ref tail) = st.last_stdout_tail {
+      let short: String = tail.split('\n').rev().take(5).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
+      if !short.trim().is_empty() { hints.push(format!("last_stdout_tail=<<\n{}\n>>", short)); }
+    }
+    if !hints.is_empty() {
+      messages.push(serde_json::json!({"role":"system","content": format!("Contexto de sesión (NO imprimir): {}", hints.join(", "))}));
+    }
+  }
+  if let Some(ref hist) = history {
+    // API sin estado: el cliente controla y envía todo el historial
+    for item in hist.iter() {
       let role = match item.role.as_str() {
-        "assistant" | "user" | "system" => item.role,
+        "assistant" | "user" | "system" => item.role.clone(),
         // Fallbacks comunes
         "ai" | "bot" => "assistant".to_string(),
         _ => "user".to_string(),
       };
-      messages.push(serde_json::json!({"role": role, "content": item.content}));
+      messages.push(serde_json::json!({"role": role, "content": item.content.clone()}));
     }
   }
   messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
@@ -256,7 +375,7 @@ ls -la
     "model": model_id,
     "messages": messages,
     "max_tokens": 800,
-    "temperature": if mode == "AGENT" { 0.1 } else { 0.2 }
+    "temperature": if matches!(mode, ChatMode::Agent) { 0.1 } else { 0.1 }
   });
 
   let base_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
@@ -283,17 +402,86 @@ ls -la
     .unwrap_or("")
     .to_string();
 
-  // Evitar que el modelo devuelva la identidad cuando NO se preguntó por ella en modo ASK
-  if mode == "ASK" && !is_identity_query(&user_input) {
+  // (Heurísticas desactivadas por pedido: no se hará clasificación difusa de identidad)
+
+  // Evitar identidad redundante en ASK: eliminar la frase exacta si vino pegada accidentalmente
+  if matches!(mode, ChatMode::Ask) && !is_identity_query(&user_input) {
     let ident = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
     if assistant_text.contains(ident) {
-      let cleaned = assistant_text.replace(ident, "").trim().to_string();
-      if !cleaned.is_empty() { assistant_text = cleaned; }
+      // Siempre aplique el reemplazo; si queda vacío, forzará el reintento más abajo
+      assistant_text = assistant_text.replace(ident, "").trim().to_string();
     }
-    // Si quedó vacío o sigue siendo una variante de identidad, devuelve una respuesta corta de capacidades
-    let at_lower = assistant_text.trim().to_lowercase();
-    if assistant_text.trim().is_empty() || at_lower == ident.to_lowercase() || at_lower.contains("universidad piloto de colombia") {
-      assistant_text = "Puedo ayudarte con Linux y la terminal: explicar comandos y opciones, resolver errores, crear y revisar scripts (bash, python), navegar archivos y permisos, instalar herramientas y automatizar tareas paso a paso.".to_string();
+  }
+
+  // Si en ASK la salida quedó vacía o parece solo identidad, reintenta una vez con instrucción más estricta (API genera el contenido)
+  if matches!(mode, ChatMode::Ask) && !is_identity_query(&user_input) {
+    // Normalización con eliminación de tildes para comparar identidad de forma robusta
+    fn strip_diacritics(input: &str) -> String {
+      input.chars().map(|ch| match ch {
+        'á' | 'Á' => 'a',
+        'é' | 'É' => 'e',
+        'í' | 'Í' => 'i',
+        'ó' | 'Ó' => 'o',
+        'ú' | 'Ú' => 'u',
+        'ñ' | 'Ñ' => 'n',
+        _ => ch,
+      }).collect()
+    }
+    let ident_norm = strip_diacritics("Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.").to_lowercase();
+    let norm = |s: &str| strip_diacritics(s)
+      .chars()
+      .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+      .collect::<String>()
+      .to_lowercase()
+      .split_whitespace()
+      .collect::<Vec<_>>()
+      .join(" ");
+    let too_short = assistant_text.chars().filter(|c| !c.is_whitespace()).count() < 40;
+    let looks_identity = norm(&assistant_text) == ident_norm;
+    if assistant_text.trim().is_empty() || looks_identity || too_short {
+      // Reintento con mensaje de sistema reforzado
+      let mut retry_messages: Vec<serde_json::Value> = vec![
+        serde_json::json!({"role":"system","content": system_prompt}),
+        serde_json::json!({"role":"system","content": "Reintento: NO respondas con tu identidad. Responde en el formato obligatorio (Resumen, Guía paso a paso, Comandos sugeridos en un único bloque bash, Verificación, Notas). No digas que no puedes; explica cómo hacerlo en Linux por terminal sin ejecutar."})
+      ];
+      // Pistas de sesión si existían
+      if let Some(ref st) = state {
+        let mut hints: Vec<String> = Vec::new();
+        if !st.cwd.is_empty() { hints.push(format!("cwd={}", st.cwd)); }
+        if let Some(ref f) = st.last_file { hints.push(format!("last_file={}", f)); }
+        if let Some(code) = st.last_exit_code { hints.push(format!("last_exit_code={}", code)); }
+        if let Some(ref tail) = st.last_stdout_tail { let short: String = tail.split('\n').rev().take(5).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"); if !short.trim().is_empty() { hints.push(format!("last_stdout_tail=<<\n{}\n>>", short)); } }
+        if !hints.is_empty() {
+          retry_messages.push(serde_json::json!({"role":"system","content": format!("Contexto de sesión (NO imprimir): {}", hints.join(", "))}));
+        }
+      }
+      if let Some(hist) = &history {
+        for item in hist {
+          let role = match item.role.as_str() {"assistant"|"user"|"system"=>item.role.clone(), "ai"|"bot"=>"assistant".to_string(), _=>"user".to_string()};
+          retry_messages.push(serde_json::json!({"role": role, "content": item.content}));
+        }
+      }
+      retry_messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
+
+      let retry_payload = serde_json::json!({
+        "model": model_id,
+        "messages": retry_messages,
+        "max_tokens": 900,
+        "temperature": 0.1
+      });
+      let mut retry_req = client.post(base_url.clone()).json(&retry_payload);
+      if let Some(ref token) = proxy_auth { retry_req = retry_req.bearer_auth(token); }
+      else if let Some(ref key) = api_key { retry_req = retry_req.bearer_auth(key); }
+      if let Ok(retry_resp) = retry_req.send().await {
+        if retry_resp.status().is_success() {
+          if let Ok(v) = retry_resp.json::<serde_json::Value>().await {
+            if let Some(text) = v.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+              let txt = text.trim();
+              if !txt.is_empty() { assistant_text = txt.to_string(); }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -313,6 +501,25 @@ ls -la
     false
   }
 
+  // Si un bloque de código tiene una primera línea que es solo una etiqueta de lenguaje (p. ej. "bash"), elimínala
+  fn strip_leading_lang_tag(code: &str) -> String {
+    let mut it = code.lines();
+    if let Some(first) = it.next() {
+      let t = first.trim().to_lowercase();
+      let tags = [
+        "bash", "sh", "shell", "zsh", "powershell", "ps1",
+        "json", "yaml", "yml", "toml", "ini", "txt", "text",
+        "javascript", "typescript", "ts", "js", "python", "py"
+      ];
+      if tags.contains(&t.as_str()) {
+        return it.collect::<Vec<_>>().join("\n");
+      }
+    }
+    code.to_string()
+  }
+
+  // En modo ASK/CONSULTA se permiten bloques de código como "Comandos sugeridos"; no ejecutar
+
   
 
   // Variables de salida que iremos completando según el flujo
@@ -321,36 +528,65 @@ ls -la
   let mut explanation: Option<String> = None;
   let mut summary: Option<String> = None;
 
-  // If the assistant returned a fenced code block, extract it for later use
+  // Solo en modo AGENT extraer/propagar code_output; ASK/CONSULTA no deben emitir código
+  // If the assistant returned a fenced code block, extract it for later use (AGENT solo)
   let mut extracted_code_block: Option<String> = None;
-  if assistant_text.contains("```") {
-    let after = assistant_text.splitn(2, "```").nth(1).unwrap_or("").to_string();
-    let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
-    if !code_inner.trim().is_empty() {
-      extracted_code_block = Some(code_inner.clone());
-      // Expose normalized commands/content to the frontend explicitly
-      code_output = Some(code_inner);
-    }
-  } else if mode == "AGENT" {
-    // Sin fences: si parece shell, expónlo como code_output para que el frontend muestre confirmación
-    if looks_like_shell(&assistant_text) {
-      code_output = Some(assistant_text.trim().to_string());
+  if matches!(mode, ChatMode::Agent) {
+    if assistant_text.contains("```") {
+      let after = assistant_text.splitn(2, "```").nth(1).unwrap_or("").to_string();
+      let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+      let code_inner = strip_leading_lang_tag(&raw);
+      if !code_inner.trim().is_empty() {
+        extracted_code_block = Some(code_inner.clone());
+        // Expose normalized commands/content to the frontend explicitly
+        code_output = Some(code_inner);
+      }
+    } else {
+      // Sin fences: si parece shell, expónlo como code_output para que el frontend muestre confirmación
+      if looks_like_shell(&assistant_text) {
+        code_output = Some(assistant_text.trim().to_string());
+      }
     }
   }
 
+  // Sanitizador: elimina comandos de historial/sondeo del bloque en modo AGENT (ls/pwd, cd ..)
+  fn sanitize_agent_commands(s: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    let mut in_heredoc = false;
+    for raw in s.lines() {
+      let line = raw.trim_end();
+      let trimmed = line.trim();
+      // Detectar inicio/fin de heredoc
+      if trimmed.contains("<<'EOF'") || trimmed.contains("<<EOF") { in_heredoc = true; out.push(line.to_string()); continue; }
+      if in_heredoc {
+        out.push(line.to_string());
+        if trimmed == "EOF" { in_heredoc = false; }
+        continue;
+      }
+      // Filtrar comandos de sondeo/historial
+      let lower = trimmed.to_lowercase();
+      if lower == "ls" || lower.starts_with("ls ") || lower == "pwd" { continue; }
+      if lower == "cd .." { continue; }
+      if trimmed.is_empty() || trimmed.starts_with('#') { continue; }
+      out.push(line.to_string());
+    }
+    let result = out.join("\n").trim().to_string();
+    if result.is_empty() { s.trim().to_string() } else { result }
+  }
+
   // Fallback de coerción: en modo AGENT, si no hay bloque de código ni JSON, pedir al modelo que lo genere siguiendo las reglas
-  if mode == "AGENT" && extracted_code_block.is_none() {
+  if matches!(mode, ChatMode::Agent) && extracted_code_block.is_none() {
     let trimmed = assistant_text.trim();
     let looks_json = trimmed.starts_with('{') && trimmed.ends_with('}');
     if !looks_json {
       let repair_prompt = format!(
-        "Convierte la siguiente intención en comandos válidos siguiendo MODO AGENT. Salida: SOLO un bloque de código (sin comentarios ni texto externo), usa here-doc para crear archivos y añade 'cat <ruta>' al final para mostrar su contenido. Intención:\n\n{}",
+        "Convierte la intención en comandos válidos siguiendo MODO AGENT. Reglas: SOLO un bloque de código (sin comentarios ni texto), DELTA mínimo (no imprimas historial), asume CWD dado, evita 'ls'/'pwd' y 'cd' redundantes, usa here-doc seguro y termina con 'cat <ruta>' si aplica. Intención:\n\n{}",
         user_input
       );
       let payload_fix = serde_json::json!({
         "model": model_id,
         "messages": [
-          {"role": "system", "content": get_system_prompt("AGENT")},
+          {"role": "system", "content": get_system_prompt(&ChatMode::Agent)},
           {"role": "user", "content": repair_prompt}
         ],
         "max_tokens": 700,
@@ -365,14 +601,15 @@ ls -la
         if let Some(content) = body_fix.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
           if content.contains("```") {
             let after = content.splitn(2, "```").nth(1).unwrap_or("").to_string();
-            let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+            let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+            let code_inner = strip_leading_lang_tag(&raw);
             if !code_inner.trim().is_empty() {
               extracted_code_block = Some(code_inner.clone());
-              code_output = Some(code_inner);
+              code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(&code_inner) } else { code_inner });
             }
           } else if looks_like_shell(content) {
             // Reparación devolvió texto sin fences pero con comandos válidos
-            code_output = Some(content.trim().to_string());
+            code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(content) } else { content.to_string() }.trim().to_string());
           }
         }
       }
@@ -380,15 +617,15 @@ ls -la
   }
 
   // Segundo intento estricto: aún sin bloque ni code_output en modo AGENT
-  if mode == "AGENT" && extracted_code_block.is_none() && code_output.is_none() {
+  if matches!(mode, ChatMode::Agent) && extracted_code_block.is_none() && code_output.is_none() {
     let force_prompt = format!(
-      "Devuelve SOLO un bloque de código con triple backticks (sin etiqueta de lenguaje) y nada más. Si creas archivos, usa here-doc con cat > archivo <<'EOF' ... EOF, añade chmod +x si aplica, y termina con cat <archivo> para mostrar contenido. Intención:\n\n{}",
+      "Devuelve SOLO un bloque de código (sin etiqueta de lenguaje) con el DELTA mínimo para cumplir la petición. No imprimas historial ni pasos previos. Evita 'ls'/'pwd' y 'cd' innecesarios; asume CWD del sistema. Para archivos, usa here-doc con cat > archivo <<'EOF' ... EOF y finaliza con cat <archivo> si corresponde. Intención:\n\n{}",
       user_input
     );
     let payload_force = serde_json::json!({
       "model": model_id,
       "messages": [
-        {"role": "system", "content": get_system_prompt("AGENT")},
+        {"role": "system", "content": get_system_prompt(&ChatMode::Agent)},
         {"role": "user", "content": force_prompt}
       ],
       "max_tokens": 700,
@@ -403,13 +640,14 @@ ls -la
       if let Some(content) = body_force.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
         if content.contains("```") {
           let after = content.splitn(2, "```").nth(1).unwrap_or("").to_string();
-          let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+          let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+          let code_inner = strip_leading_lang_tag(&raw);
           if !code_inner.trim().is_empty() {
             extracted_code_block = Some(code_inner.clone());
-            code_output = Some(code_inner);
+            code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(&code_inner) } else { code_inner });
           }
         } else if looks_like_shell(content) {
-          code_output = Some(content.trim().to_string());
+          code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(content) } else { content.to_string() }.trim().to_string());
         }
       }
     }
@@ -439,7 +677,8 @@ ls -la
         ai_response = assistant_text.clone();
         if extracted_code_block.is_none() {
           let after = assistant_text.splitn(2, "```").nth(1).unwrap_or("").to_string();
-          let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+          let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+          let code_inner = strip_leading_lang_tag(&raw);
           if !code_inner.trim().is_empty() { extracted_code_block = Some(code_inner); }
         }
       } else {
@@ -449,12 +688,13 @@ ls -la
   }
 
   // If explanation exists but is only a fenced code block and we're in AGENT mode, synthesize explanation
-  if mode == "AGENT" {
+  if matches!(mode, ChatMode::Agent) {
     if let Some(ref expl_text) = explanation {
       let t = expl_text.trim();
       if t.starts_with("```") {
         let after = t.splitn(2, "```").nth(1).unwrap_or("").to_string();
-        let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+        let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+        let code_inner = strip_leading_lang_tag(&raw);
 
         let mut parts: Vec<String> = Vec::new();
         if let Some(idx) = code_inner.find("cat >") {
@@ -528,7 +768,8 @@ ls -la
     if let Some(ref expl) = explanation {
       if expl.contains("```") {
         let after = expl.splitn(2, "```").nth(1).unwrap_or("").to_string();
-        let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+        let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+        let code_inner = strip_leading_lang_tag(&raw);
         if let Some(first_line) = code_inner.lines().find(|l| !l.trim().is_empty()) {
           let fl = first_line.trim();
           summary = Some(format!("Ejecuta: {}.", fl));
@@ -555,19 +796,20 @@ ls -la
     }
   }
 
-  if mode == "AGENT" && explanation.is_none() {
+  if matches!(mode, ChatMode::Agent) && explanation.is_none() {
     let code_inner = if let Some(cb) = extracted_code_block.clone() {
-      cb
+      strip_leading_lang_tag(&cb)
     } else {
       let code_source = if !ai_response.is_empty() { ai_response.clone() } else { assistant_text.clone() };
       if let Some(start) = code_source.find("```") {
         let after = &code_source[start + 3..];
-        if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() }
+        let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+        strip_leading_lang_tag(&raw)
       } else { code_source.clone() }
     };
 
     if !code_inner.trim().is_empty() {
-      let ask_system = get_system_prompt("ASK");
+      let ask_system = get_system_prompt(&ChatMode::Ask);
       let ask_user = format!("Por favor, explica EN ESPAÑOL a un usuario sin conocimientos técnicos qué hará el siguiente bloque de comandos/archivo y cómo se creó. No repitas el código, explica en lenguaje sencillo paso a paso lo que se hizo y qué resultado produce. Código:\n\n{}\n", code_inner);
       let payload2 = serde_json::json!({
         "model": model_id,
@@ -598,9 +840,19 @@ ls -la
           .unwrap_or("")
           .to_string();
         if !assistant2.trim().is_empty() {
-          explanation = Some(assistant2.clone());
+          // Sanear: nunca mostrar mensaje de identidad como explicación si no fue pedido
+          let ident = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
+          let mut cleaned2 = assistant2.replace(ident, "").trim().to_string();
+          if cleaned2.is_empty() { cleaned2 = assistant2.clone(); }
+          let at_lower = cleaned2.trim().to_lowercase();
+          // Si quedó vacío o sigue siendo identidad, omitir explicación
+          if cleaned2.trim().is_empty() || at_lower == ident.to_lowercase() || at_lower.contains("universidad piloto de colombia") {
+            // no establecer explanation
+          } else {
+            explanation = Some(cleaned2.clone());
+          }
           if summary.is_none() {
-            let first_sentence = assistant2.split(|c| c == '.' || c == '\n').find(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
+            let first_sentence = cleaned2.split(|c| c == '.' || c == '\n').find(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
             if let Some(mut s) = first_sentence {
               if !s.ends_with('.') { s.push('.'); }
               summary = Some(s);
@@ -688,11 +940,19 @@ ls -la
     }
   }
 
+  // En modo ASK/CONSULTA nunca devolver comandos ejecutables
+  if matches!(mode, ChatMode::Ask) {
+    code_output = None;
+  }
+
   Ok(AiChatResponse {
     user_input,
     ai_response,
     code_output,
     explanation,
     summary,
+    backup_path: None,
+    requires_confirmation: false,
+    state: state,
   })
 }
