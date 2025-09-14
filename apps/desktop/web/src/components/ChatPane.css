@@ -582,3 +582,92 @@
   .chat-header .mode-select,
   .chat-input .send-btn { height: 36px; padding: 0 12px; }
 }
+
+/* === Full-width message layout (no right-side gutter), no horizontal growth === */
+/* Map provided class names to existing ones: chat-root -> .chat-pane, chat-scroll -> .chat-messages */
+.chat-root, .chat-pane { min-width: 0; }
+.chat-scroll, .chat-messages { min-width: 0; overflow-x: hidden; }
+
+/* 1) Baseline: message item spans row; card sets the visual width */
+.chat-messages .message { width: 100%; max-width: none; align-self: stretch; display: flex; }
+
+/* 2) Stretch the visual card/content inside the message */
+/* 2) Role-based widths: assistant full-width; user compact & right-aligned */
+.message--assistant { justify-content: flex-start; }
+.message--assistant .message-card { width: 100%; max-width: none; min-width: 0; }
+.message--user { justify-content: flex-end; }
+.message--user .message-card { flex: 0 0 auto; width: auto; max-width: clamp(220px, 62ch, 72%); margin-left: auto; display: inline-flex; }
+.message-content { width: 100%; max-width: none; min-width: 0; }
+
+/* 3) Long text safety: do not expand layout horizontally */
+.message-content, .message .message-text {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 4) Code blocks: scroll internally, never expand width */
+.message pre,
+.message code,
+.message .message-text pre,
+.message .message-text code {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* === Bubble visuals by role (move styles from outer .message to inner .message-card) === */
+/* Reset legacy outer backgrounds so the full row is not painted */
+.message.user,
+.message.ai,
+.message.system { background: transparent; box-shadow: none; border-left: 0; color: inherit; }
+
+/* Common card base */
+.message-card {
+  padding: 10px;
+  border-radius: 8px;
+  width: auto; /* base: no forzar ancho; el rol lo define */
+}
+
+/* Assistant: full-width card with subtle background */
+.message--assistant .message-card {
+  background-color: color-mix(in srgb, var(--accent-primary) 16%, var(--background-tertiary));
+  border-left: 3px solid var(--accent-primary);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.08);
+  color: var(--text-primary);
+}
+
+/* User: compact right-aligned card with accent background */
+.message--user .message-card {
+  background-color: var(--accent-primary);
+  color: var(--accent-contrast);
+  box-shadow: var(--accent-guard-inset);
+  text-shadow: var(--accent-guard-shadow);
+}
+
+/* 5) Input composer: keep width stable; allow vertical grow up to 5 lines (no horizontal growth) */
+.chat-input textarea {
+  resize: none;          /* no drag horizontal */
+  overflow-y: auto;      /* scroll vertical cuando supera el tope en JS */
+}
+
+/* === Stable width + sticky toolbar + fixed composer (overrides) === */
+.chat-pane { min-width: 0; }
+.chat-header { position: sticky; top: 0; z-index: 3; background: var(--background-secondary); }
+.chat-messages { overflow-x: hidden; min-width: 0; }
+.message { min-width: 0; }
+.message .message-text { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+.message pre, .message.ai .message-text pre, .copyable-block pre, .confirm-code, .code-output { max-width: 100%; overflow: auto; }
+.chat-input { min-width: 0; }
+.chat-input textarea {
+  height: 40px;
+  line-height: 20px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  resize: none;
+  box-sizing: border-box;
+}
+.chat-input textarea:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer); }
+@media (max-width: 480px) {
+  .chat-input textarea { height: 36px; padding: 8px 12px; }
+}

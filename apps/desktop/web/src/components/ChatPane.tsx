@@ -83,7 +83,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     }
   }, [messages]);
 
-  // Auto-resize the input textarea like ChatGPT: grow with content up to a max of 5 lines
+  // Auto-resize vertical del textarea hasta 5 líneas (sin crecer a lo ancho)
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -92,7 +92,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const lineHeight = parseFloat(style.lineHeight) || 20;
     const paddingTop = parseFloat(style.paddingTop) || 0;
     const paddingBottom = parseFloat(style.paddingBottom) || 0;
-    const maxLines = 5; // cap growth to 5 lines max
+    const maxLines = 5;
     const maxPx = Math.round(paddingTop + paddingBottom + lineHeight * maxLines);
     const newH = Math.min(el.scrollHeight, maxPx);
     el.style.height = newH + 'px';
@@ -573,14 +573,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`message ${msg.sender} ${msg.meta?.chat_mode === 'ask' ? 'ask' : msg.meta?.chat_mode === 'agent' ? 'agent' : ''}`}
+            className={`message ${msg.sender} ${msg.sender === 'user' ? 'message--user' : 'message--assistant'} ${msg.meta?.chat_mode === 'ask' ? 'ask' : msg.meta?.chat_mode === 'agent' ? 'agent' : ''}`}
           >
             {/* Ocultar el texto superior para los mensajes de sistema con tarjeta de confirmación */}
             {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
-              <div className="message-text">
-                {msg.sender === 'ai' && msg.meta?.chat_mode === 'ask'
-                  ? <RenderAsk content={msg.text} />
-                  : msg.text}
+              <div className="message-text message-card">
+                <div className="message-content">
+                  {msg.sender === 'ai' && msg.meta?.chat_mode === 'ask'
+                    ? <RenderAsk content={msg.text} />
+                    : msg.text}
+                </div>
               </div>
             )}
 
