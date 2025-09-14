@@ -143,6 +143,8 @@
   align-items: center;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-color);
+  gap: 8px;
+  flex-wrap: wrap; /* evita desbordes cuando hay poco ancho */
 }
 .chat-header button:focus-visible, .chat-header select:focus-visible {
   outline: none;
@@ -174,6 +176,11 @@
   color: var(--text-primary);
   border: 1px solid var(--accent-primary);
   cursor: pointer;
+  flex: 0 1 200px;       /* puede encoger y crecer hasta 200px */
+  max-width: 50%;        /* no invadir todo el header */
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 .chat-header select:hover { border-color: var(--accent-primary-hover); }
 .chat-header select:focus { outline: 2px solid var(--accent-primary-hover); outline-offset: 2px; }
@@ -219,7 +226,7 @@
 }
 .message .message-text {
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--text-primary);
   white-space: pre-wrap;
 }
@@ -265,15 +272,17 @@
 /* acciones rápidas en mensajes (removidas) */
 
 .chat-input {
-  display: flex;
-  align-items: flex-end; /* button aligns to the bottom of textarea */
+  display: grid; /* mantiene botón visible en la misma fila */
+  grid-template-columns: 1fr auto;
+  align-items: end; /* botón al borde inferior */
   gap: 10px;
   padding: 10px;
   border-top: 1px solid var(--border-color);
 }
 
 .chat-input textarea {
-  flex-grow: 1;
+  width: 100%;
+  min-width: 0; /* crucial para que no fuerce el ancho de la columna */
   background-color: var(--background-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -297,10 +306,19 @@
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 160ms ease, transform 80ms ease;
+  min-width: 96px; /* tamaño táctil y visible */
+  justify-self: end; /* pegado a la derecha */
 }
 .chat-input button:hover { background-color: var(--accent-primary-hover) }
 .chat-input button:active { transform: translateY(1px) }
 .chat-input button[disabled] { opacity: .7; cursor: not-allowed }
+
+/* Responsive: cuando el panel es muy estrecho, apilar el botón debajo */
+@media (max-width: 520px) {
+  .chat-input { grid-template-columns: 1fr; }
+  .chat-input button { justify-self: stretch; width: 100%; }
+  .chat-header { gap: 6px; }
+}
 
 /* Estilos para los botones de confirmación */
 .send-button {
@@ -390,6 +408,63 @@
   border-radius: 6px;
 }
 
+/* Copy-friendly ASK rendering */
+.message.ai .message-text h1,
+.message.ai .message-text h2,
+.message.ai .message-text h3,
+.message.ai .message-text h4 { 
+  margin: 8px 0 6px 0; 
+  font-weight: 700; 
+  color: var(--text-primary);
+}
+.message.ai .message-text h1 { font-size: 18px }
+.message.ai .message-text h2 { font-size: 16px }
+.message.ai .message-text h3 { font-size: 15px }
+.message.ai .message-text h4 { font-size: 14px }
+
+.message.ai .message-text p { margin: 0 0 8px 0 }
+.message.ai .message-text ul, .message.ai .message-text ol { margin: 6px 0 10px 22px }
+.message.ai .message-text li { margin: 4px 0 }
+
+.message.ai .message-text pre, .message.ai .message-text code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+.message.ai .message-text pre {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow: auto;
+  margin: 8px 0;
+}
+.message.ai .message-text code { 
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--background-secondary));
+  padding: 1px 4px; border-radius: 4px; 
+}
+
+/* Step callouts (emojis are rendered in text) */
+.message.ai .message-text .step-title { 
+  font-weight: 700; 
+  display: block; 
+  margin: 10px 0 6px 0; 
+}
+
+/* Copy button overlay for code blocks (optional; JS hooks add the button) */
+.copyable-block { position: relative }
+.copyable-block .copy-btn {
+  position: absolute;
+  top: 6px; right: 6px;
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+  z-index: 2;
+}
+.copyable-block .copy-btn:hover { background: var(--background-tertiary); }
+
 /* Botón flota para bajar al último mensaje */
 .scroll-to-bottom {
   position: sticky; /* permanece visible al desplazarse */
@@ -455,3 +530,55 @@
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 2px 4px rgba(0,0,0,0.35);
 }
 .chat-input textarea::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--accent-primary), var(--accent-primary-hover)); }
+
+/* === Pill-style controls: mode select + send button (copy-friendly spec) === */
+/* Base sizes and typography */
+.chat-header .mode-select,
+.chat-input .send-btn {
+  height: 40px;            /* desktop */
+  padding: 0 16px;         /* desktop */
+  border-radius: 9999px;   /* pill */
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Send button visuals */
+.chat-input .send-btn {
+  background-color: var(--accent-primary);
+  color: var(--accent-contrast);
+  border: 1px solid var(--accent-primary);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.08);
+  min-width: 96px;
+  justify-self: end;
+}
+.chat-input .send-btn:hover { background-color: var(--accent-primary-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.chat-input .send-btn:active { transform: translateY(0); }
+.chat-input .send-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
+.chat-input .send-btn[disabled] { opacity: .6; cursor: not-allowed; }
+
+/* Mode select visuals */
+.chat-header .mode-select {
+  background-color: color-mix(in srgb, var(--accent-primary) 12%, var(--background-tertiary));
+  color: var(--text-primary);
+  border: 1px solid var(--accent-primary);
+  cursor: pointer;
+  flex: 0 1 220px;     /* flexible pero acotado */
+  max-width: 60%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  appearance: none;     /* quitar flecha nativa */
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="%23ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 36px;  /* espacio para la flecha */
+}
+.chat-header .mode-select:hover { border-color: var(--accent-primary-hover); }
+.chat-header .mode-select:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
+.chat-header .mode-select[disabled] { opacity: .6; cursor: not-allowed; }
+
+/* Compact sizes for small screens */
+@media (max-width: 480px) {
+  .chat-header .mode-select,
+  .chat-input .send-btn { height: 36px; padding: 0 12px; }
+}

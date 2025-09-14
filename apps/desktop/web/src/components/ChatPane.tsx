@@ -153,7 +153,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   };
 
   const cleanText = (text: string) => (text || '')
-    .replace(/```(?:bash|sh)?\s*|\s*```/g, '')  // fences
+    // Mantener fences por defecto; solo normalizar basura visual conocida
     .replace(/\b(?:bash|sh|shell)\b\s*:?\s*$/gmi, '') // etiqueta suelta al final de línea
     .replace(/:\s*\b(?:bash|sh|shell)\b/gmi, ': ')     // '...:bash' -> '...:'
     .replace(/^Comando sugerido:\s*/gmi, '')     // rótulo
@@ -184,6 +184,120 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           ))
         )}
       </>
+    );
+  };
+
+  // Renderizado simple copy-friendly para ASK: respeta headings (###), listas, y fences
+  const RenderAsk: React.FC<{ content: string }> = ({ content }) => {
+    const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string }> = [];
+    const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
+    let lastIndex = 0; let m: RegExpExecArray | null;
+    while ((m = fenceRe.exec(content)) !== null) {
+      if (m.index > lastIndex) {
+        blocks.push({ type: 'para', body: content.slice(lastIndex, m.index) });
+      }
+      blocks.push({ type: 'code', lang: (m[1] || '').trim() || undefined, body: (m[2] || '').replace(/\n$/,'') });
+      lastIndex = fenceRe.lastIndex;
+    }
+    if (lastIndex < content.length) blocks.push({ type: 'para', body: content.slice(lastIndex) });
+
+    // Simple formatting for headings and lists
+    const renderPara = (txt: string) => {
+      const lines = txt.split(/\r?\n/);
+      const nodes: React.ReactNode[] = [];
+      let buf: string[] = [];
+      const flush = () => {
+        if (buf.length) {
+          nodes.push(<p key={`p-${nodes.length}`}>{buf.join('\n')}</p>);
+          buf = [];
+        }
+      };
+      for (const raw of lines) {
+        const line = raw.replace(/\s+$/,'');
+        if (/^\s*$/.test(line)) { flush(); continue; }
+        const h = line.match(/^(#{1,4})\s+(.*)$/);
+        if (h) {
+          flush();
+          const level = h[1].length; const text = h[2];
+          const Tag = (`h${Math.min(4, level)}` as any);
+          nodes.push(<Tag key={`h-${nodes.length}`}>{text}</Tag>);
+          continue;
+        }
+        // Bulleted list
+        const li = line.match(/^\s*[-*]\s+(.*)$/);
+        if (li) {
+          // Start or continue a list
+          const last = nodes[nodes.length - 1] as any;
+          if (!last || (last.type !== 'ul')) {
+            nodes.push(React.createElement('ul', { key: `ul-${nodes.length}` }, [React.createElement('li', { key: `li-${nodes.length}-0` }, li[1])]));
+          } else {
+            (last.props.children as any[]).push(React.createElement('li', { key: `li-${nodes.length}-${(last.props.children as any[]).length}` }, li[1]));
+          }
+          continue;
+        }
+        // Ordered list (1., 2., ...)
+        const oli = line.match(/^\s*\d+\)\s+(.*)$|^\s*\d+\.\s+(.*)$/);
+        if (oli) {
+          const text = oli[1] || oli[2] || '';
+          const last = nodes[nodes.length - 1] as any;
+          if (!last || (last.type !== 'ol')) {
+            nodes.push(React.createElement('ol', { key: `ol-${nodes.length}` }, [React.createElement('li', { key: `oli-${nodes.length}-0` }, text)]));
+          } else {
+            (last.props.children as any[]).push(React.createElement('li', { key: `oli-${nodes.length}-${(last.props.children as any[]).length}` }, text));
+          }
+          continue;
+        }
+        buf.push(line);
+      }
+      flush();
+      return nodes;
+    };
+
+    const onCopy = async (text: string, btn: HTMLButtonElement | null) => {
+      let ok = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        }
+      } catch { /* noop */ }
+      if (!ok) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+        } catch { ok = false; }
+      }
+      if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = ok ? 'Copiado' : 'Error';
+        btn.disabled = true;
+        setTimeout(() => { btn.textContent = prev || 'Copiar'; btn.disabled = false; }, 1200);
+      }
+    };
+
+    return (
+      <div>
+        {blocks.map((b, i) => b.type === 'code' ? (
+          <div className="copyable-block" key={`c-${i}`}>
+            <button
+              className="copy-btn"
+              onClick={(e) => onCopy(b.body, e.currentTarget)}
+              aria-label="Copiar código"
+              type="button"
+            >Copiar</button>
+            <pre><code>{b.body}</code></pre>
+          </div>
+        ) : (
+          <div key={`p-${i}`}>{renderPara(b.body)}</div>
+        ))}
+      </div>
     );
   };
 
@@ -423,12 +537,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         setMessages(prev => [...prev, confirmationMsg]);
       } else {
         // Si no hay confirmación pendiente, mostrar mensaje de IA normalmente
-        const aiMsg: Message = {
-          id: String(Date.now() + 1),
-          sender: 'ai',
-          text: displayTextClean,
-          meta: cleanedMeta
-        };
+        const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
         setMessages(prev => [...prev, aiMsg]);
       }
 
@@ -443,7 +552,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     <div className="chat-pane">
       <div className="chat-header">
         <button onClick={handleNewChat} aria-label="Nuevo chat">Nuevo chat</button>
-        <select value={mode} onChange={handleModeChange} aria-label="Seleccionar modo de chat">
+        <select className="mode-select" value={mode} onChange={handleModeChange} aria-label="Seleccionar modo de chat">
           <option value="ask">Modo Consulta</option>
           <option value="agent">Modo Agente</option>
         </select>
@@ -462,10 +571,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         }}
       >
         {messages.map((msg) => (
-          <div key={msg.id} className={`message ${msg.sender}`}>
+          <div
+            key={msg.id}
+            className={`message ${msg.sender} ${msg.meta?.chat_mode === 'ask' ? 'ask' : msg.meta?.chat_mode === 'agent' ? 'agent' : ''}`}
+          >
             {/* Ocultar el texto superior para los mensajes de sistema con tarjeta de confirmación */}
             {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
-              <div className="message-text">{msg.text}</div>
+              <div className="message-text">
+                {msg.sender === 'ai' && msg.meta?.chat_mode === 'ask'
+                  ? <RenderAsk content={msg.text} />
+                  : msg.text}
+              </div>
             )}
 
             {/* No mostrar el resumen en la tarjeta de confirmación ni en ASK */}
@@ -594,7 +710,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           placeholder={mode === 'agent' ? 'Escribe tu mensaje… (Se pedirá confirmación para comandos)' : 'Escribe tu mensaje…'}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         />
-        <button onClick={handleSend} disabled={isSending} aria-label="Enviar mensaje">
+        <button className="send-btn" onClick={handleSend} disabled={isSending} aria-label="Enviar mensaje">
           {isSending ? 'Enviando…' : 'Enviar'}
         </button>
       </div>
