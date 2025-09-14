@@ -6,6 +6,137 @@
   background-color: var(--background-secondary);
 }
 
+.chat-modes {
+  padding: 10px;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.chat-modes select {
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  background: var(--background-primary);
+  color: var(--text-primary);
+}
+
+.mode-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Estilos para los diferentes modos */
+.message.ask {
+  border-left: 3px solid #4CAF50;
+}
+
+.message.agent {
+  border-left: 3px solid #2196F3;
+}
+
+.message.super {
+  border-left: 3px solid #9C27B0;
+}
+
+.confirmation-panel {
+  background: var(--background-warning);
+  border: 1px solid var(--border-warning);
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+}
+
+.confirmation-panel .title {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.confirmation-panel .description {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.confirmation-panel .risk {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.confirmation-panel .risk.low {
+  background: #4CAF50;
+  color: white;
+}
+
+.confirmation-panel .risk.medium {
+  background: #FF9800;
+  color: white;
+}
+
+.confirmation-panel .risk.high {
+  background: #f44336;
+  color: white;
+}
+
+.confirmation-panel .risk.critical {
+  background: #B71C1C;
+  color: white;
+}
+
+.confirmation-panel .actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.confirmation-panel button {
+  padding: 5px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.confirmation-panel button.confirm {
+  background: var(--accent-color);
+  color: white;
+}
+
+.confirmation-panel button.cancel {
+  background: var(--danger-color);
+  color: white;
+}
+
+.state-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  background: var(--background-tertiary);
+  border-radius: 4px;
+  margin: 5px 0;
+}
+
+.state-info .path {
+  font-family: monospace;
+}
+
+.state-info .exit-code {
+  font-weight: bold;
+}
+
+.state-info .exit-code.success {
+  color: var(--success-color);
+}
+
+.state-info .exit-code.error {
+  color: var(--danger-color);
+}
+
 .chat-header {
   display: flex;
   justify-content: space-between;

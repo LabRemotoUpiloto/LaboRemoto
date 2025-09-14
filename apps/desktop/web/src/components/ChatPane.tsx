@@ -4,13 +4,33 @@ import './ChatPane.css';
 import { invoke } from '@tauri-apps/api/core';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 
-type ChatMode = 'ask' | 'agent';
+type ChatMode = 'ask' | 'agent' | 'super';
+
+type AgentState = {
+  cwd: string;
+  lastExitCode?: number;
+  lastStdoutTail?: string;
+  lastFile?: string;
+};
+
+type MessageMeta = {
+  requiresConfirmation?: boolean;
+  backupPath?: string;
+  state?: AgentState;
+  pendingCommand?: string;
+  pendingFileCreation?: any;
+  summary?: string;
+  explanation?: string;
+  userPrompt?: string;
+  command?: string;
+  riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+};
 
 type Message = {
   id: string;
   sender: 'user' | 'ai' | 'system';
   text: string;
-  meta?: any;
+  meta?: MessageMeta;
 };
 
 type AiResponse = {
@@ -19,6 +39,9 @@ type AiResponse = {
   code_output?: string | null;
   explanation?: string | null;
   summary?: string | null;
+  state?: AgentState;
+  requires_confirmation?: boolean;
+  backup_path?: string;
 };
 
 type Props = { sessionId?: string | null };
@@ -27,6 +50,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
+  const [agentState, setAgentState] = useState<AgentState>({
+    cwd: '/',
+    lastExitCode: undefined,
+    lastStdoutTail: undefined,
+    lastFile: undefined,
+  });
   const [isSending, setIsSending] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
@@ -153,23 +182,69 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     );
   };
 
+  // Componente para mostrar el panel de confirmación
+  const ConfirmationPanel: React.FC<{
+    title: string;
+    description: string;
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+    onConfirm: () => void;
+    onCancel: () => void;
+  }> = ({ title, description, riskLevel, onConfirm, onCancel }) => (
+    <div className="confirmation-panel">
+      <div className="title">{title}</div>
+      <div className={`risk ${riskLevel}`}>{riskLevel.toUpperCase()}</div>
+      <div className="description">{description}</div>
+      <div className="actions">
+        <button className="confirm" onClick={onConfirm}>Confirmar</button>
+        <button className="cancel" onClick={onCancel}>Cancelar</button>
+      </div>
+    </div>
+  );
+
+  // Mostrar información del estado del agente
+  const StateInfo: React.FC<{ state: AgentState }> = ({ state }) => (
+    <div className="state-info">
+      <div className="path">Directorio: {state.cwd}</div>
+      {state.lastExitCode !== undefined && (
+        <div className={`exit-code ${state.lastExitCode === 0 ? 'success' : 'error'}`}>
+          Último código de salida: {state.lastExitCode}
+        </div>
+      )}
+      {state.lastFile && <div>Último archivo: {state.lastFile}</div>}
+    </div>
+  );
+
   // Enviar prompt al backend (Tauri -> ai_chat) y procesar respuesta
+  const computeRiskLevel = (cmd: string): 'low' | 'medium' | 'high' | 'critical' => {
+    const t = (cmd || '').toLowerCase();
+    if (/\brm\s+-rf\b/.test(t) || /\bmkfs\b/.test(t) || /\bdd\b/.test(t)) return 'critical';
+    if (/\brm\s+-r\b/.test(t) || /\bsudo\b/.test(t) || /\bmv\b/.test(t) || />\>?\s*\S+/.test(t) || /\bchmod\s+7/.test(t)) return 'high';
+    if (/\bmkdir\b/.test(t) || /\bcd\b/.test(t) || /\bls\b/.test(t)) return 'low';
+    return 'medium';
+  };
+
   const handleSend = async () => {
     if (isSending) return;
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // Si el usuario está en ASK pero la intención es claramente de acción, auto-escalar a AGENT para obtener comandos ejecutables
+    // Detectar intención de acción y escalar modo si es necesario
     const ACTION_INTENT = /(\bcrea(r)?\b|\bhaz\b|\bhaga\b|\bgenera(r)?\b|\binstala(r)?\b|\bmueve(r)?\b|\bborra(r)?\b|\belimina(r)?\b|\bescribe(r)?\b|\bconfigura(r)?\b|\bejecuta(r)?\b|\bcompila(r)?\b)/i;
     let effectiveMode: ChatMode = mode;
+    
     if (mode === 'ask' && ACTION_INTENT.test(trimmed)) {
       effectiveMode = 'agent';
-      // Reflejar el cambio en el selector para siguientes mensajes (sin contaminar historial)
       setMode('agent');
+    } else if (mode === 'agent' && 
+      (trimmed.toLowerCase().includes('automatiza') || 
+       trimmed.toLowerCase().includes('optimiza') ||
+       trimmed.toLowerCase().includes('refactoriza'))) {
+      effectiveMode = 'super';
+      setMode('super');
     }
 
-    // Siempre anexar el contexto de memoria como un "cache" para el modelo (sin heurísticas en UI)
-    const finalInput = trimmed + buildContextAppendix();
+    // No adjuntar historial/contexto al prompt visible; el estado se envía como campo separado
+    const finalInput = trimmed;
 
     const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed };
     setMessages(prev => [...prev, userMsg]);
@@ -185,7 +260,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           role: m.sender === 'ai' ? 'assistant' : 'user',
           content: m.text,
         }));
-      const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history } });
+  const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history, state: agentState } });
 
       // Visualización: en AGENT priorizar summary; en ASK combinar summary + explanation
       const aiText = (() => {
@@ -273,6 +348,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         const sysText = 'El agente sugiere ejecutar este comando';
         const sysSummaryRaw = ((res as any).summary ?? agentJson?.summary ?? '') as string;
         const sysExplRaw = ((res as any).explanation ?? agentJson?.explanation ?? '') as string;
+        const risk = computeRiskLevel(cmd);
         const sysMeta = {
           pendingCommand: cmd,
           pendingFileCreation,
@@ -280,6 +356,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           summary: undefined,
           explanation: cleanText(sysExplRaw),
           userPrompt: trimmed,
+          riskLevel: risk,
         };
         const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
         setMessages(prev => [...prev, sysMsg]);
@@ -316,9 +393,47 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         cleanedMeta.code_output = cmd;
       }
 
-      // En modo AGENT, si se creó tarjeta de confirmación, no añadimos el mensaje de IA
-      if (!(effectiveMode === 'agent' && createdConfirmation)) {
-        const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
+      // Manejar respuestas según el modo
+      if (effectiveMode === 'super') {
+        // En modo SUPER, mostrar plan de ejecución y estado
+        if (cleanedMeta.state) {
+          const stateMsg: Message = {
+            id: String(Date.now()),
+            sender: 'system',
+            text: '',
+            meta: {
+              state: cleanedMeta.state,
+              requiresConfirmation: cleanedMeta.requires_confirmation,
+              backupPath: cleanedMeta.backup_path,
+            }
+          };
+          setMessages(prev => [...prev, stateMsg]);
+        }
+      }
+
+      // En modos AGENT y SUPER, mostrar un banner de confirmación mientras esté pendiente
+      if ((effectiveMode === 'agent' || effectiveMode === 'super') && createdConfirmation) {
+        const risk2 = computeRiskLevel(String(cmd || ''));
+        const confirmationMsg: Message = {
+          id: String(Date.now() + 2),
+          sender: 'system',
+          text: 'Se requiere confirmación para ejecutar:',
+          meta: {
+            requiresConfirmation: true,
+            backupPath: cleanedMeta.backup_path,
+            command: cmd || '',
+            riskLevel: risk2
+          }
+        };
+        setMessages(prev => [...prev, confirmationMsg]);
+      } else {
+        // Si no hay confirmación pendiente, mostrar mensaje de IA normalmente
+        const aiMsg: Message = {
+          id: String(Date.now() + 1),
+          sender: 'ai',
+          text: displayTextClean,
+          meta: cleanedMeta
+        };
         setMessages(prev => [...prev, aiMsg]);
       }
 
@@ -372,22 +487,27 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
               <pre className="code-output">{msg.meta.code_output}</pre>
             )}
-            {/* Card: comando pendiente */}
-            {msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed && (
+            {/* Card: comando pendiente (mantener visible tras confirmar/cancelar; solo ocultar botones) */}
+            {msg.sender === 'system' && msg.meta?.pendingCommand && (
               <div className="confirm-card">
                 {msg.meta?.explanation && (
                   <div className="explanation">{renderExplanation(msg.meta.explanation)}</div>
                 )}
                  <div className="confirm-title">Código generado</div>
                  <pre className="confirm-code"><code>{String(msg.meta.pendingCommand || '').trim()}</code></pre>
-                 <div className="confirm-actions">
-                   <button
-                     className="btn confirm"
-                     onClick={async () => {
+                 {!msg.meta?.processed && (
+                   <div className="confirm-actions">
+                     <button
+                       className="btn confirm"
+                       onClick={async () => {
                        try {
                          const toSend = String(msg.meta?.pendingCommand || '').trim();
                          await invoke('ssh_stdin', { id: sessionId, data: toSend + '\n' });
-                         setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
+                         // Marcar tarjeta como procesada y eliminar el banner correspondiente
+                         setMessages(prev => prev
+                           .map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m)
+                           .filter(m => !(m.sender === 'system' && m.meta?.requiresConfirmation && m.meta?.command && String(m.meta.command).trim() === toSend))
+                         );
                          await setLastCommand(toSend);
                          // Si es un 'cd <dir>', registra ese directorio como lastPath
                          try {
@@ -427,15 +547,29 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                            }
                          } catch {}
                        } catch (e) {}
-                     }}
-                   >Ejecutar ahora</button>
-                   <button
-                     className="btn cancel"
-                     onClick={() => {
-                       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m));
-                     }}
-                   >Cancelar</button>
-                 </div>
+                       }}
+                     >Ejecutar ahora</button>
+                     <button
+                       className="btn cancel"
+                       onClick={() => {
+                       const toSend = String(msg.meta?.pendingCommand || '').trim();
+                       setMessages(prev => {
+                         const next = prev
+                           .map(m => m.id === msg.id ? { ...m, meta: { ...m.meta, processed: true } } : m)
+                           .filter(m => !(m.sender === 'system' && m.meta?.requiresConfirmation && m.meta?.command && String(m.meta.command).trim() === toSend));
+                         // Mantener el flujo conversacional: añadir un mensaje AI breve y seguir sin perder memoria
+                         const ack: Message = {
+                           id: String(Date.now() + 7),
+                           sender: 'ai',
+                           text: 'Entendido, no ejecuto el comando. ¿Deseas que proponga otra alternativa o continúo con la explicación?',
+                           meta: {}
+                         };
+                         return [...next, ack];
+                       });
+                       }}
+                     >Cancelar</button>
+                   </div>
+                 )}
                </div>
              )}
           </div>

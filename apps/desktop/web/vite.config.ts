@@ -5,8 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     strictPort: true,
-    port: 5173,
+    port: 5174,
     watch: { ignored: ["**/src-tauri/**"] }
+  },
+  preview: {
+    port: 5174
   },
   build: { target: ["es2020"], outDir: "dist" }
 })
