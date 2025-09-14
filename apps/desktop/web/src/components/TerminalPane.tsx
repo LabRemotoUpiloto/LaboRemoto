@@ -115,8 +115,10 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
         if (event.payload) term.write(event.payload);
       }).then(un => { unlistenRef.current = un }).catch(() => {});
 
-  // Redimensionado inicial
+      // Redimensionado inicial y señal de "UI lista" para volcar el buffer efímero
       invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
+      // Señal de readiness: después de montar y ajustar tamaño
+      invoke('ssh_ui_ready', { id: sessionId }).catch(() => {});
     }
 
     return () => {
