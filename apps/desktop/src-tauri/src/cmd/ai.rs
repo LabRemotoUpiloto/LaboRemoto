@@ -4,34 +4,67 @@ use dotenvy::dotenv;
 use std::{env, fs};
 use std::path::PathBuf;
 
-/// Petición para el chat con IA.
+/// Tipo de modo del chat
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ChatMode {
+  #[default]
+  #[serde(alias = "ASK", alias = "Ask")]
+  Ask,    // Modo consulta
+  #[serde(alias = "AGENT", alias = "Agent")]
+  Agent,  // Modo agente
+  #[serde(alias = "SUPER", alias = "Super")]
+  Super   // Modo súper-agente
+}
+
+/// Estado de memoria del agente
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct AgentState {
+    pub cwd: String,
+    pub last_exit_code: Option<i32>,
+    pub last_stdout_tail: Option<String>,
+    pub last_file: Option<String>,
+}
+
+/// Petición para el chat con IA
 #[derive(Serialize, Deserialize)]
 pub struct ChatHistoryItem {
-  pub role: String,    // "user" | "assistant" | "system"
-  pub content: String,
+    pub role: String,    // "user" | "assistant" | "system"
+    pub content: String,
+    pub timestamp: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct AiChatRequest {
-  pub user_input: String,
-  pub mode: Option<String>,
-  pub history: Option<Vec<ChatHistoryItem>>, // Conversación previa opcional
+    pub user_input: String,
+    pub mode: ChatMode,
+    pub history: Option<Vec<ChatHistoryItem>>,
+    pub state: Option<AgentState>,
 }
 
-/// Respuesta del chat con IA (algunos campos son opcionales según el modo).
+/// Respuesta del chat con IA
 #[derive(Serialize, Deserialize)]
 pub struct AiChatResponse {
-  pub user_input: String,
-  pub ai_response: String,
-  pub code_output: Option<String>,
-  pub explanation: Option<String>,
-  pub summary: Option<String>,
+    pub user_input: String,
+    pub ai_response: String,
+    pub code_output: Option<String>,
+    pub explanation: Option<String>,
+    pub summary: Option<String>,
+    pub state: Option<AgentState>,
+    pub requires_confirmation: bool,
+    pub backup_path: Option<String>,
 }
 
 #[tauri::command]
 pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
+  use crate::security::SecurityManager;
+
+  
   // Load .env to pick up OPENAI_API_KEY (dotenvy is safe on desktop)
   let _ = dotenv();
+  
+  // Inicializar el gestor de seguridad (actualmente no usado directamente)
+  let _security = SecurityManager::new();
   // Try multiple sources for the API key so packaged apps work for end users
   fn load_api_key_multi() -> Option<String> {
     // 1) Environment variable
@@ -128,14 +161,14 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   }
   let model_id = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".to_string());
 
-  fn get_system_prompt(agent_mode: &str) -> String {
+  fn get_system_prompt(agent_mode: &ChatMode) -> String {
   let identidad_regla = r#"REGLA DE IDENTIDAD:
 Si, y SOLO SI, la pregunta del usuario es explícitamente sobre tu identidad (por ejemplo: '¿quién eres?', 'qué eres', 'cuál es tu identidad', 'quién es el agente'), responde EXACTAMENTE:
 "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general."
 No añadas texto adicional, disculpas ni explicaciones cuando apliques esta regla.
 "#;
 
-    if agent_mode == "AGENT" {
+    if matches!(agent_mode, ChatMode::Agent) {
       return format!(r##"{identidad}
 MODO AGENT — EJECUCIÓN DIRECTA
 
@@ -151,6 +184,12 @@ Formato de salida (OBLIGATORIO):
 5. No uses etiquetas de lenguaje en el bloque (sin 'bash').
 6. Nunca uses editores interactivos (nano, vim, etc.).
 7. Si creas archivo(s) con here-doc o redirecciones, DESPUÉS añade una línea `cat <ruta>` para mostrar su contenido en la terminal.
+
+Memoria de sesión ≠ Salida (IMPORTANTE):
+- Usa el estado de la sesión (cwd, archivos recientes, etc.) para decidir QUÉ hacer.
+- NO imprimas el historial ni pasos previos. Emite SOLO el DELTA mínimo necesario para cumplir la petición actual.
+- Evita comandos de sondeo (ls, pwd) o navegación innecesaria; asume el cwd indicado por el sistema.
+- Evita secuencias redundantes como `cd ..` seguido de `cd dir`.
 
 Reglas de comportamiento:
 - Si el usuario pide crear un archivo o programa, SIEMPRE usa here-doc con cat > archivo <<'EOF' … EOF.
@@ -212,8 +251,7 @@ ls -la
   }
 
   // Mover campos del request a variables locales para evitar clones innecesarios
-  let AiChatRequest { user_input, mode, history } = req;
-  let mode = mode.unwrap_or_else(|| "ASK".to_string());
+  let AiChatRequest { user_input, mode, history, state } = req;
   let system_prompt = get_system_prompt(&mode);
 
   // Atajo: si el usuario pregunta por la identidad, responder de forma canónica sin llamar al modelo
@@ -229,12 +267,31 @@ ls -la
       code_output: None,
       explanation: None,
       summary: None,
+      backup_path: None,
+      requires_confirmation: false,
+      state: state,
     });
   }
 
   // Construir historial de mensajes para OpenAI: system + (historial opcional) + user actual
   let client = Client::builder().build().map_err(|e| e.to_string())?;
   let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({"role":"system","content": system_prompt})];
+  // Inyectar memoria de sesión como mensaje de sistema adicional (NO imprimir en salida)
+  if let Some(ref st) = state {
+    let mut mem_lines: Vec<String> = Vec::new();
+    if !st.cwd.is_empty() { mem_lines.push(format!("cwd={}", st.cwd)); }
+    if let Some(code) = st.last_exit_code { mem_lines.push(format!("last_exit_code={}", code)); }
+    if let Some(ref f) = st.last_file { mem_lines.push(format!("last_file={}", f)); }
+    if !mem_lines.is_empty() {
+      messages.push(serde_json::json!({
+        "role": "system",
+        "content": format!(
+          "Contexto de sesión (NO imprimir en salida): {}",
+          mem_lines.join(", ")
+        )
+      }));
+    }
+  }
   if let Some(mut hist) = history {
     // Limitar a los últimos 12 turnos para no crecer demasiado
     let take_from = if hist.len() > 12 { hist.len() - 12 } else { 0 };
@@ -256,7 +313,7 @@ ls -la
     "model": model_id,
     "messages": messages,
     "max_tokens": 800,
-    "temperature": if mode == "AGENT" { 0.1 } else { 0.2 }
+    "temperature": if matches!(mode, ChatMode::Agent) { 0.1 } else { 0.2 }
   });
 
   let base_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
@@ -284,7 +341,7 @@ ls -la
     .to_string();
 
   // Evitar que el modelo devuelva la identidad cuando NO se preguntó por ella en modo ASK
-  if mode == "ASK" && !is_identity_query(&user_input) {
+  if matches!(mode, ChatMode::Ask) && !is_identity_query(&user_input) {
     let ident = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
     if assistant_text.contains(ident) {
       let cleaned = assistant_text.replace(ident, "").trim().to_string();
@@ -331,26 +388,51 @@ ls -la
       // Expose normalized commands/content to the frontend explicitly
       code_output = Some(code_inner);
     }
-  } else if mode == "AGENT" {
+  } else if matches!(mode, ChatMode::Agent) {
     // Sin fences: si parece shell, expónlo como code_output para que el frontend muestre confirmación
     if looks_like_shell(&assistant_text) {
       code_output = Some(assistant_text.trim().to_string());
     }
   }
 
+  // Sanitizador: elimina comandos de historial/sondeo del bloque en modo AGENT (ls/pwd, cd ..)
+  fn sanitize_agent_commands(s: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    let mut in_heredoc = false;
+    for raw in s.lines() {
+      let line = raw.trim_end();
+      let trimmed = line.trim();
+      // Detectar inicio/fin de heredoc
+      if trimmed.contains("<<'EOF'") || trimmed.contains("<<EOF") { in_heredoc = true; out.push(line.to_string()); continue; }
+      if in_heredoc {
+        out.push(line.to_string());
+        if trimmed == "EOF" { in_heredoc = false; }
+        continue;
+      }
+      // Filtrar comandos de sondeo/historial
+      let lower = trimmed.to_lowercase();
+      if lower == "ls" || lower.starts_with("ls ") || lower == "pwd" { continue; }
+      if lower == "cd .." { continue; }
+      if trimmed.is_empty() || trimmed.starts_with('#') { continue; }
+      out.push(line.to_string());
+    }
+    let result = out.join("\n").trim().to_string();
+    if result.is_empty() { s.trim().to_string() } else { result }
+  }
+
   // Fallback de coerción: en modo AGENT, si no hay bloque de código ni JSON, pedir al modelo que lo genere siguiendo las reglas
-  if mode == "AGENT" && extracted_code_block.is_none() {
+  if matches!(mode, ChatMode::Agent) && extracted_code_block.is_none() {
     let trimmed = assistant_text.trim();
     let looks_json = trimmed.starts_with('{') && trimmed.ends_with('}');
     if !looks_json {
       let repair_prompt = format!(
-        "Convierte la siguiente intención en comandos válidos siguiendo MODO AGENT. Salida: SOLO un bloque de código (sin comentarios ni texto externo), usa here-doc para crear archivos y añade 'cat <ruta>' al final para mostrar su contenido. Intención:\n\n{}",
+        "Convierte la intención en comandos válidos siguiendo MODO AGENT. Reglas: SOLO un bloque de código (sin comentarios ni texto), DELTA mínimo (no imprimas historial), asume CWD dado, evita 'ls'/'pwd' y 'cd' redundantes, usa here-doc seguro y termina con 'cat <ruta>' si aplica. Intención:\n\n{}",
         user_input
       );
       let payload_fix = serde_json::json!({
         "model": model_id,
         "messages": [
-          {"role": "system", "content": get_system_prompt("AGENT")},
+          {"role": "system", "content": get_system_prompt(&ChatMode::Agent)},
           {"role": "user", "content": repair_prompt}
         ],
         "max_tokens": 700,
@@ -368,11 +450,11 @@ ls -la
             let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
             if !code_inner.trim().is_empty() {
               extracted_code_block = Some(code_inner.clone());
-              code_output = Some(code_inner);
+              code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(&code_inner) } else { code_inner });
             }
           } else if looks_like_shell(content) {
             // Reparación devolvió texto sin fences pero con comandos válidos
-            code_output = Some(content.trim().to_string());
+            code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(content) } else { content.to_string() }.trim().to_string());
           }
         }
       }
@@ -380,15 +462,15 @@ ls -la
   }
 
   // Segundo intento estricto: aún sin bloque ni code_output en modo AGENT
-  if mode == "AGENT" && extracted_code_block.is_none() && code_output.is_none() {
+  if matches!(mode, ChatMode::Agent) && extracted_code_block.is_none() && code_output.is_none() {
     let force_prompt = format!(
-      "Devuelve SOLO un bloque de código con triple backticks (sin etiqueta de lenguaje) y nada más. Si creas archivos, usa here-doc con cat > archivo <<'EOF' ... EOF, añade chmod +x si aplica, y termina con cat <archivo> para mostrar contenido. Intención:\n\n{}",
+      "Devuelve SOLO un bloque de código (sin etiqueta de lenguaje) con el DELTA mínimo para cumplir la petición. No imprimas historial ni pasos previos. Evita 'ls'/'pwd' y 'cd' innecesarios; asume CWD del sistema. Para archivos, usa here-doc con cat > archivo <<'EOF' ... EOF y finaliza con cat <archivo> si corresponde. Intención:\n\n{}",
       user_input
     );
     let payload_force = serde_json::json!({
       "model": model_id,
       "messages": [
-        {"role": "system", "content": get_system_prompt("AGENT")},
+        {"role": "system", "content": get_system_prompt(&ChatMode::Agent)},
         {"role": "user", "content": force_prompt}
       ],
       "max_tokens": 700,
@@ -406,10 +488,10 @@ ls -la
           let code_inner = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
           if !code_inner.trim().is_empty() {
             extracted_code_block = Some(code_inner.clone());
-            code_output = Some(code_inner);
+            code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(&code_inner) } else { code_inner });
           }
         } else if looks_like_shell(content) {
-          code_output = Some(content.trim().to_string());
+          code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(content) } else { content.to_string() }.trim().to_string());
         }
       }
     }
@@ -449,7 +531,7 @@ ls -la
   }
 
   // If explanation exists but is only a fenced code block and we're in AGENT mode, synthesize explanation
-  if mode == "AGENT" {
+  if matches!(mode, ChatMode::Agent) {
     if let Some(ref expl_text) = explanation {
       let t = expl_text.trim();
       if t.starts_with("```") {
@@ -555,7 +637,7 @@ ls -la
     }
   }
 
-  if mode == "AGENT" && explanation.is_none() {
+  if matches!(mode, ChatMode::Agent) && explanation.is_none() {
     let code_inner = if let Some(cb) = extracted_code_block.clone() {
       cb
     } else {
@@ -567,7 +649,7 @@ ls -la
     };
 
     if !code_inner.trim().is_empty() {
-      let ask_system = get_system_prompt("ASK");
+      let ask_system = get_system_prompt(&ChatMode::Ask);
       let ask_user = format!("Por favor, explica EN ESPAÑOL a un usuario sin conocimientos técnicos qué hará el siguiente bloque de comandos/archivo y cómo se creó. No repitas el código, explica en lenguaje sencillo paso a paso lo que se hizo y qué resultado produce. Código:\n\n{}\n", code_inner);
       let payload2 = serde_json::json!({
         "model": model_id,
@@ -598,9 +680,19 @@ ls -la
           .unwrap_or("")
           .to_string();
         if !assistant2.trim().is_empty() {
-          explanation = Some(assistant2.clone());
+          // Sanear: nunca mostrar mensaje de identidad como explicación si no fue pedido
+          let ident = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
+          let mut cleaned2 = assistant2.replace(ident, "").trim().to_string();
+          if cleaned2.is_empty() { cleaned2 = assistant2.clone(); }
+          let at_lower = cleaned2.trim().to_lowercase();
+          // Si quedó vacío o sigue siendo identidad, omitir explicación
+          if cleaned2.trim().is_empty() || at_lower == ident.to_lowercase() || at_lower.contains("universidad piloto de colombia") {
+            // no establecer explanation
+          } else {
+            explanation = Some(cleaned2.clone());
+          }
           if summary.is_none() {
-            let first_sentence = assistant2.split(|c| c == '.' || c == '\n').find(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
+            let first_sentence = cleaned2.split(|c| c == '.' || c == '\n').find(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
             if let Some(mut s) = first_sentence {
               if !s.ends_with('.') { s.push('.'); }
               summary = Some(s);
@@ -694,5 +786,8 @@ ls -la
     code_output,
     explanation,
     summary,
+    backup_path: None,
+    requires_confirmation: false,
+    state: state,
   })
 }

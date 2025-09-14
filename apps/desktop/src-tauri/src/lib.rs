@@ -6,6 +6,8 @@ pub mod ssh;     // Cliente SSH basado en russh (para terminal) + ssh2_sftp
 pub mod cmd;     // Comandos invocables desde el frontend (Tauri commands)
 pub mod storage; // Utilidades de almacenamiento cifrado de hosts
 pub mod state;   // Memoria efímera por sesión (AppState)
+pub mod security; // Validaciones de seguridad y backups
+pub mod tools;   // Herramientas internas del agente
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
