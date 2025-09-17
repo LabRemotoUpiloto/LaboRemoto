@@ -100,7 +100,7 @@ impl Session {
                         let left_ok = if i == 0 { true } else { buf[i-1] == b'\n' || buf[i-1] == b'\r' };
                         if !left_ok { i += 1; continue; }
                         // Verificar borde derecho (fin de línea con \r?\n)
-                        let mut j = i + marker.len();
+                        let j = i + marker.len();
                         if j < buf.len() {
                             if buf[j] == b'\r' && j + 1 < buf.len() && buf[j+1] == b'\n' { return Some(j + 2); }
                             if buf[j] == b'\n' { return Some(j + 1); }
