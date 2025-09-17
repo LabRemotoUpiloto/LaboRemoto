@@ -85,10 +85,32 @@ impl Session {
 
         // Tarea propietaria del Channel: multiplexa lectura (wait) y comandos (mpsc)
         tokio::spawn(async move {
-            // Silenciar salida inicial hasta ver el marcador
+            // Silenciar salida inicial hasta ver el marcador en una línea completa
             let marker: &[u8] = b"__TERM_READY__";
             let mut squelch = true;
             let mut pending: Vec<u8> = Vec::with_capacity(1024);
+
+            // Busca una línea que contenga exactamente el marcador y devuelve el índice después del fin de línea
+            let find_marker_line_end = |buf: &[u8]| -> Option<usize> {
+                if buf.len() < marker.len() { return None; }
+                let mut i = 0usize;
+                while i + marker.len() <= buf.len() {
+                    if &buf[i..i + marker.len()] == marker {
+                        // Verificar borde izquierdo (inicio de línea)
+                        let left_ok = if i == 0 { true } else { buf[i-1] == b'\n' || buf[i-1] == b'\r' };
+                        if !left_ok { i += 1; continue; }
+                        // Verificar borde derecho (fin de línea con \r?\n)
+                        let mut j = i + marker.len();
+                        if j < buf.len() {
+                            if buf[j] == b'\r' && j + 1 < buf.len() && buf[j+1] == b'\n' { return Some(j + 2); }
+                            if buf[j] == b'\n' { return Some(j + 1); }
+                            // si no hay salto de línea aún, esperar más datos
+                        }
+                    }
+                    i += 1;
+                }
+                None
+            };
             loop {
                 tokio::select! {
                     // 1) Comandos desde UI
@@ -121,9 +143,14 @@ impl Session {
                                 let bytes = data.as_ref();
                                 if squelch {
                                     pending.extend_from_slice(bytes);
-                                    if pending.windows(marker.len()).any(|w| w == marker) {
-                                        squelch = false;
+                                    if let Some(end_idx) = find_marker_line_end(&pending) {
+                                        // Descarta todo lo acumulado hasta el final de la línea del marcador
+                                        let remainder = if end_idx < pending.len() {
+                                            Some(pending[end_idx..].to_vec())
+                                        } else { None };
                                         pending.clear();
+                                        squelch = false;
+                                        if let Some(rest) = remainder { let _ = tx_out.send(rest); }
                                     }
                                 } else {
                                     let _ = tx_out.send(bytes.to_vec());
@@ -133,9 +160,13 @@ impl Session {
                                 let bytes = data.as_ref();
                                 if squelch {
                                     pending.extend_from_slice(bytes);
-                                    if pending.windows(marker.len()).any(|w| w == marker) {
-                                        squelch = false;
+                                    if let Some(end_idx) = find_marker_line_end(&pending) {
+                                        let remainder = if end_idx < pending.len() {
+                                            Some(pending[end_idx..].to_vec())
+                                        } else { None };
                                         pending.clear();
+                                        squelch = false;
+                                        if let Some(rest) = remainder { let _ = tx_out.send(rest); }
                                     }
                                 } else {
                                     let _ = tx_out.send(bytes.to_vec());
