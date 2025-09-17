@@ -8,7 +8,8 @@ export default function GlobalLoader() {
   return (
     <div className="global-loading-overlay" role="status" aria-live="polite">
       <div className="global-loading-box">
-        <div className="spinner" aria-hidden></div>
+        {/* Spinner con clase única para evitar colisiones con otras .spinner globales */}
+        <div className="global-spinner" aria-hidden></div>
         <div className="loading-text">{label ?? 'Cargando...'}</div>
       </div>
     </div>
