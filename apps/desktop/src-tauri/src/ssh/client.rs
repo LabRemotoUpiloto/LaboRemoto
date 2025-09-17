@@ -70,12 +70,25 @@ impl Session {
             .await?;
         ch.request_shell(true).await?;
 
+        // Enviar un marcador para saber cuándo la shell está lista y descartar el banner/MOTD inicial
+        // Ej.: echo __TERM_READY__ (cualquier salida previa se silencia hasta ver este token)
+        {
+            let init_cmd: &[u8] = b"echo __TERM_READY__\r"; // simple y compatible
+            let mut reader: &[u8] = init_cmd;
+            // Ignorar error aquí (algunos shells muy antiguos podrían fallar); no es crítico
+            let _ = ch.data(&mut reader).await;
+        }
+
         // mpsc: comandos -> channel ; salida -> UI
         let (tx_cmd, mut rx_cmd) = mpsc::unbounded_channel::<ChanCmd>();
         let (tx_out, rx_out) = mpsc::unbounded_channel::<Vec<u8>>();
 
         // Tarea propietaria del Channel: multiplexa lectura (wait) y comandos (mpsc)
         tokio::spawn(async move {
+            // Silenciar salida inicial hasta ver el marcador
+            let marker: &[u8] = b"__TERM_READY__";
+            let mut squelch = true;
+            let mut pending: Vec<u8> = Vec::with_capacity(1024);
             loop {
                 tokio::select! {
                     // 1) Comandos desde UI
@@ -105,10 +118,28 @@ impl Session {
                     msg = ch.wait() => {
                         match msg {
                             Some(ChannelMsg::Data { data }) => {
-                                let _ = tx_out.send(data.to_vec());
+                                let bytes = data.as_ref();
+                                if squelch {
+                                    pending.extend_from_slice(bytes);
+                                    if pending.windows(marker.len()).any(|w| w == marker) {
+                                        squelch = false;
+                                        pending.clear();
+                                    }
+                                } else {
+                                    let _ = tx_out.send(bytes.to_vec());
+                                }
                             }
                             Some(ChannelMsg::ExtendedData { data, .. }) => {
-                                let _ = tx_out.send(data.to_vec());
+                                let bytes = data.as_ref();
+                                if squelch {
+                                    pending.extend_from_slice(bytes);
+                                    if pending.windows(marker.len()).any(|w| w == marker) {
+                                        squelch = false;
+                                        pending.clear();
+                                    }
+                                } else {
+                                    let _ = tx_out.send(bytes.to_vec());
+                                }
                             }
                             Some(_) => { /* otros eventos: ignorados */ }
                             None => {

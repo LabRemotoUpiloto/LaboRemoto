@@ -46,18 +46,7 @@ pub async fn ssh_connect(
   // Limpiar memoria de la sesión (por si se reutiliza el mismo id en algún flujo)
   state.clear(&id);
 
-  // Encolar mensaje inicial en buffer si la UI aún no está lista; emitir directo si ya lo está
-  {
-    let (out_buf, ready) = {
-      let map = SESSIONS.lock().unwrap();
-      let sess = map.get(&id).unwrap();
-      (sess.out_buffer.clone(), sess.ui_ready.clone())
-    };
-    let msg = format!("Conectado a {user}@{host}:{port}\r\n");
-    if ready.load(Ordering::SeqCst) {
-      let _ = app.emit(&format!("ssh_out_{}", id), Some(msg));
-    } else if let Ok(mut opt) = out_buf.lock() { opt.get_or_insert_with(String::new).push_str(&msg); }
-  }
+  // Ya no emitimos mensaje de "Conectado a ..." para mantener la terminal limpia.
 
   let app2 = app.clone();
   let id_spawn = id.clone();
@@ -182,18 +171,7 @@ pub async fn ssh_connect_stored(
   // Limpiar memoria al iniciar una nueva sesión
   state.clear(&id);
 
-  // Encolar mensaje inicial en buffer si la UI aún no está lista; emitir directo si ya lo está
-  {
-    let (out_buf, ready) = {
-      let map = SESSIONS.lock().unwrap();
-      let sess = map.get(&id).unwrap();
-      (sess.out_buffer.clone(), sess.ui_ready.clone())
-    };
-    let msg = format!("Conectado a {user}@{host}:{port}\r\n");
-    if ready.load(Ordering::SeqCst) {
-      let _ = app.emit(&format!("ssh_out_{}", id), Some(msg));
-    } else if let Ok(mut opt) = out_buf.lock() { opt.get_or_insert_with(String::new).push_str(&msg); }
-  }
+  // No emitimos mensaje de "Conectado a ..." para mantener la terminal limpia.
 
   let app2 = app.clone();
   let id_spawn = id.clone();

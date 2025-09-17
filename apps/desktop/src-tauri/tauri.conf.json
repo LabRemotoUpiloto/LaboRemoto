@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../web/dist",
     "devUrl": "http://localhost:5174",
-    "beforeDevCommand": "cd C:\\Users\\ASUS\\Documents\\Cliente-Rust\\apps\\desktop\\web && npm run dev",
-    "beforeBuildCommand": "cd C:\\Users\\ASUS\\Documents\\Cliente-Rust\\apps\\desktop\\web && npm run build"
+    "beforeDevCommand": "npm run dev --prefix web",
+    "beforeBuildCommand": "npm run build --prefix web"
   },
   "app": {
     "windows": [
