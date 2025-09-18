@@ -301,6 +301,359 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     );
   };
 
+  // Renderizado para AGENT: igual a RenderAsk pero el botón ejecuta en terminal
+  // Importante: el componente se memoiza para mantener su identidad entre renders
+  const RenderAgent = React.useMemo(() => {
+    const Comp: React.FC<{ content: string; sessionId?: string | null; onExecuted?: (cmd: string) => void; cacheKey?: string }>
+      = ({ content, sessionId, onExecuted, cacheKey }) => {
+      // Persistir estado por mensaje para no perder progreso en re-renders
+      const getStore = (): Record<string, boolean> => {
+        try {
+          const g: any = (window as any);
+          if (!g.__agentProgress) g.__agentProgress = {};
+          return g.__agentProgress[cacheKey || content] || {};
+        } catch { return {}; }
+      };
+      const saveStore = (obj: Record<string, boolean>) => {
+        try {
+          const g: any = (window as any);
+          if (!g.__agentProgress) g.__agentProgress = {};
+          g.__agentProgress[cacheKey || content] = obj;
+        } catch {}
+      };
+  const [executed, setExecuted] = useState<Record<string, boolean>>(() => getStore());
+  const runningRef = useRef(false);
+      useEffect(() => { saveStore(executed); }, [executed]);
+    // reutilizar el parser de RenderAsk
+    const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string }> = [];
+    const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
+    let lastIndex = 0; let m: RegExpExecArray | null;
+    while ((m = fenceRe.exec(content)) !== null) {
+      if (m.index > lastIndex) {
+        blocks.push({ type: 'para', body: content.slice(lastIndex, m.index) });
+      }
+      blocks.push({ type: 'code', lang: (m[1] || '').trim() || undefined, body: (m[2] || '').replace(/\n$/, '') });
+      lastIndex = fenceRe.lastIndex;
+    }
+    if (lastIndex < content.length) blocks.push({ type: 'para', body: content.slice(lastIndex) });
+
+    const renderPara = (txt: string) => {
+      const lines = txt.split(/\r?\n/);
+      const nodes: React.ReactNode[] = [];
+      let buf: string[] = [];
+      const flush = () => { if (buf.length) { nodes.push(<p key={`p-${nodes.length}`}>{buf.join('\n')}</p>); buf = []; } };
+      for (const raw of lines) {
+        const line = raw.replace(/\s+$/, '');
+        if (/^\s*$/.test(line)) { flush(); continue; }
+        const h = line.match(/^(#{1,4})\s+(.*)$/);
+        if (h) { flush(); const level = h[1].length; const text = h[2]; const Tag = (`h${Math.min(4, level)}` as any); nodes.push(<Tag key={`h-${nodes.length}`}>{text}</Tag>); continue; }
+        const li = line.match(/^\s*[-*]\s+(.*)$/);
+        if (li) { const last = nodes[nodes.length - 1] as any; if (!last || (last.type !== 'ul')) { nodes.push(React.createElement('ul', { key: `ul-${nodes.length}` }, [React.createElement('li', { key: `li-${nodes.length}-0` }, li[1]) ])); } else { (last.props.children as any[]).push(React.createElement('li', { key: `li-${nodes.length}-${(last.props.children as any[]).length}` }, li[1])); } continue; }
+        const oli = line.match(/^\s*\d+\)\s+(.*)$|^\s*\d+\.\s+(.*)$/);
+        if (oli) { const text = oli[1] || oli[2] || ''; const last = nodes[nodes.length - 1] as any; if (!last || (last.type !== 'ol')) { nodes.push(React.createElement('ol', { key: `ol-${nodes.length}` }, [React.createElement('li', { key: `oli-${nodes.length}-0` }, text)])); } else { (last.props.children as any[]).push(React.createElement('li', { key: `oli-${nodes.length}-${(last.props.children as any[]).length}` }, text)); } continue; }
+        buf.push(line);
+      }
+      flush();
+      return nodes;
+    };
+
+    // Obtiene el primer comando atómico (una sola instrucción) respetando comillas; no divide pipelines ni heredocs
+    const getFirstAtomic = (s: string): string => {
+      const src = (s || '').trim();
+      if (!src) return '';
+      if (/<<\s*['"]?EOF['"]?/m.test(src)) return src; // here-doc completo como atómico
+      // Unir continuaciones \\ y tomar solo la primera línea significativa
+      const join = src.replace(/\\\r?\n/g, ' ');
+      let cur = '';
+      let q: '"' | "'" | '`' | null = null;
+      for (let i = 0; i < join.length; i++) {
+        const ch = join[i];
+        const next = join[i + 1];
+        if (q) { cur += ch; if (ch === q) q = null; continue; }
+        if (ch === '"' || ch === "'" || ch === '`') { q = ch as any; cur += ch; continue; }
+        if ((ch === '&' && next === '&') || (ch === '|' && next === '|') || ch === ';' || ch === '\n') {
+          // cortar al encontrar &&, ||, ; o salto de línea (pero no cortar en '|')
+          if (cur.trim()) break; else { i++; continue; }
+        }
+        if (ch === '#') break; // comentario
+        cur += ch;
+      }
+      const first = (cur || join).split(/\r?\n/)[0].trim();
+      return first;
+    };
+
+    const onRun = async (text: string, btn: HTMLButtonElement | null, key?: string) => {
+      const cmdRaw = (text || '').trim();
+      if (!cmdRaw) return;
+      const toExec = getFirstAtomic(cmdRaw);
+      if (!toExec) return;
+  const markDone = () => { if (key) setExecuted(prev => { const n = { ...prev, [key!]: true }; return n; }); };
+  const undoDone = () => { if (key) setExecuted(prev => { const n = { ...prev }; delete n[key!]; return n; }); };
+      if (runningRef.current) return; // evita ejecuciones múltiples
+      runningRef.current = true;
+      if (btn) {
+        btn.disabled = true; const prev = btn.textContent; btn.textContent = 'Ejecutando…';
+        // Optimista: avanza el paso inmediatamente
+        markDone();
+        try {
+          await invoke('ssh_stdin', { id: sessionId, data: toExec + '\n' });
+          if (onExecuted) onExecuted(toExec);
+          btn.textContent = 'Ejecutado';
+        } catch (e) {
+          // Revertir si falló
+          undoDone();
+          btn.textContent = 'Error';
+        } finally {
+          setTimeout(() => { if (btn) { btn.textContent = prev || 'Ejecutar'; btn.disabled = false; } runningRef.current = false; }, 300);
+        }
+      } else {
+        markDone();
+        try {
+          await invoke('ssh_stdin', { id: sessionId, data: toExec + '\n' });
+          if (onExecuted) onExecuted(toExec);
+        } catch {
+          undoDone();
+        } finally { runningRef.current = false; }
+      }
+    };
+    // Detecta si el bloque representa pasos independientes (no scripts complejos)
+    const splitIntoSteps = (code: string): string[] | null => {
+      const txt0 = (code || '').trim();
+      if (!txt0) return null;
+      // Evitar dividir here-docs o estructuras de control/funciones
+      if (/<<\s*['"]?EOF['"]?/m.test(txt0)) return null;
+      if (/[{}]/.test(txt0)) return null;
+      if (/^\s*(if|for|while|case|function)\b/m.test(txt0)) return null;
+
+      // Unir líneas con continuación \\ y normalizar saltos
+      const txt = txt0.replace(/\\\r?\n/g, ' ');
+
+      // Helpers para respetar comillas y evitar cortar dentro de ellas
+      const splitByOps = (line: string): string[] => {
+        const parts: string[] = [];
+        let cur = '';
+        let q: '"' | "'" | '`' | null = null;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          const next = line[i + 1];
+          if (q) {
+            cur += ch;
+            if (ch === q) q = null;
+            continue;
+          }
+          if (ch === '"' || ch === "'" || ch === '`') { q = ch as any; cur += ch; continue; }
+          // No dividir pipelines: mantener "a | b" como una sola unidad
+          if ((ch === '&' && next === '&') || (ch === '|' && next === '|') || ch === ';') {
+            // cortar en &&, ||, ;
+            if (ch === '|' && next === '|') { /* allow split on || */ }
+            // push acumulado
+            if (cur.trim()) parts.push(cur.trim());
+            // saltar operador completo
+            if ((ch === '&' && next === '&') || (ch === '|' && next === '|')) { i++; }
+            cur = '';
+            continue;
+          }
+          // comentarios inline: # ... (solo si comienza un comentario y no hay texto antes?)
+          if (ch === '#') { break; }
+          cur += ch;
+        }
+        if (cur.trim()) parts.push(cur.trim());
+        return parts;
+      };
+
+      // Procesar por líneas y luego por operadores (&&, ||, ;) respetando comillas
+      const cmds: string[] = [];
+      for (const raw of txt.split(/\r?\n/)) {
+        const line = raw.trim();
+        if (!line || line.startsWith('#')) continue;
+        const sub = splitByOps(line);
+        for (const s of sub) if (s) cmds.push(s);
+      }
+
+      // Heurística: al menos 2 comandos y todos parecen shell sencillos
+      const simpleCmds = cmds.filter(c => isLikelyShell(c));
+      if (simpleCmds.length >= 2 && simpleCmds.length === cmds.length) return cmds;
+      return null;
+  };
+
+    // Detect plan composed of multiple separate code blocks
+    const codeBlockIndices = blocks.map((b, i) => ({ i, b })).filter(x => x.b.type === 'code').map(x => x.i);
+    const isMultiCodePlan = codeBlockIndices.length >= 2;
+
+    return (
+      <div>
+        {!isMultiCodePlan && blocks.map((b, i) => b.type === 'code' ? (() => {
+          const steps = splitIntoSteps(b.body);
+          if (steps) {
+            // Mostrar solo el siguiente paso pendiente; al ejecutar, se revela el siguiente
+            const keys = steps.map((_, idx) => `c-${i}-step-${idx}`);
+            const nextIdx = steps.findIndex((_, idx) => !executed[keys[idx]]);
+            const doneCount = steps.reduce((acc, _, idx) => acc + (executed[keys[idx]] ? 1 : 0), 0);
+            if (nextIdx === -1) {
+              return (
+                <div className="copyable-block" key={`c-${i}`}>
+                  <div className="confirm-title">Plan completado</div>
+                </div>
+              );
+            }
+            const s = steps[nextIdx];
+            const k = keys[nextIdx];
+            return (
+              <div className="copyable-block" key={`c-${i}`}>
+                <div className="confirm-title">Paso {nextIdx + 1} de {steps.length}</div>
+                <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>
+                  Progreso: {doneCount} / {steps.length} {doneCount>0 ? `— ✓ Paso ${doneCount} ejecutado` : ''}
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <button
+                    className="copy-btn"
+                    onClick={(e) => onRun(s, e.currentTarget, k)}
+                    aria-label={`Ejecutar paso ${nextIdx + 1}`}
+                    type="button"
+                  >Ejecutar paso</button>
+                  <code>{s}</code>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {doneCount > 0 && (
+                    <button
+                      className="copy-btn"
+                      onClick={async () => {
+                        // Ejecutar en secuencia todos los pasos restantes
+                        for (let idx = nextIdx; idx < steps.length; idx++) {
+                          const key = keys[idx];
+                          if (!executed[key]) {
+                            await onRun(steps[idx], null, key);
+                          }
+                        }
+                      }}
+                      type="button"
+                    >Ejecutar todos</button>
+                  )}
+                  {doneCount > 0 && (
+                    <button
+                      className="copy-btn"
+                      onClick={() => {
+                        // Retroceder un paso: marca el último ejecutado como pendiente
+                        for (let idx = steps.length - 1; idx >= 0; idx--) {
+                          const key = keys[idx];
+                          if (executed[key]) { setExecuted(prev => { const n = { ...prev }; delete n[key]; return n; }); break; }
+                        }
+                      }}
+                      type="button"
+                    >Retroceder</button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div className="copyable-block" key={`c-${i}`}>
+              <button
+                className="copy-btn"
+                onClick={(e) => onRun(b.body, e.currentTarget)}
+                aria-label="Ejecutar código"
+                type="button"
+              >Ejecutar</button>
+              <pre><code>{b.body}</code></pre>
+            </div>
+          );
+        })() : (
+          <div key={`p-${i}`}>{renderPara(b.body)}</div>
+        ))}
+
+        {isMultiCodePlan && (() => {
+          // Multi-code-block plan: render paragraphs always; show only the next unexecuted code block
+          const keys = codeBlockIndices.map((_, idx) => `c-multi-${idx}`);
+          const doneCount = codeBlockIndices.reduce((acc, _, idx) => acc + (executed[keys[idx]] ? 1 : 0), 0);
+          const nextIdx = codeBlockIndices.findIndex((_, idx) => !executed[keys[idx]]);
+          const total = codeBlockIndices.length;
+          const header = (
+            <div className="copyable-block" key={`plan-h`}>
+              {nextIdx === -1 ? (
+                <div className="confirm-title">Plan completado</div>
+              ) : (
+                <>
+                  <div className="confirm-title">Paso {doneCount + 1} de {total}</div>
+                  <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>
+                    Progreso: {doneCount} / {total} {doneCount>0 ? `— ✓ Paso ${doneCount} ejecutado` : ''}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+
+          const bodyNodes: React.ReactNode[] = [];
+          // Render paragraphs
+          blocks.forEach((b, i) => {
+            if (b.type === 'para') bodyNodes.push(<div key={`p2-${i}`}>{renderPara(b.body)}</div>);
+          });
+
+          // Render next code block only
+          if (nextIdx >= 0) {
+            const codeBlockIndex = codeBlockIndices[nextIdx];
+            const b = blocks[codeBlockIndex];
+            const s = b.body;
+            const sAtomic = getFirstAtomic(s);
+            const k = keys[nextIdx];
+            bodyNodes.push(
+              <div className="copyable-block" key={`c2-${codeBlockIndex}`}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <button
+                    className="copy-btn"
+                    onClick={(e) => onRun(sAtomic, e.currentTarget, k)}
+                    aria-label={`Ejecutar paso ${doneCount + 1}`}
+                    type="button"
+                  >Ejecutar paso</button>
+                  <code>{sAtomic}</code>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {doneCount > 0 && (
+                    <button
+                      className="copy-btn"
+                      onClick={async () => {
+                        // Ejecutar en secuencia todos los pasos restantes (cada code block)
+                        for (let idx = nextIdx; idx < total; idx++) {
+                          const key = keys[idx];
+                          if (!executed[key]) {
+                            const nextBlock = blocks[codeBlockIndices[idx]].body;
+                            await onRun(getFirstAtomic(nextBlock), null, key);
+                          }
+                        }
+                      }}
+                      type="button"
+                    >Ejecutar todos</button>
+                  )}
+                  {doneCount > 0 && (
+                    <button
+                      className="copy-btn"
+                      onClick={() => {
+                        // Retroceder un paso (code block)
+                        for (let idx = total - 1; idx >= 0; idx--) {
+                          const key = keys[idx];
+                          if (executed[key]) { setExecuted(prev => { const n = { ...prev }; delete n[key]; return n; }); break; }
+                        }
+                      }}
+                      type="button"
+                    >Retroceder</button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <>
+              {header}
+              {bodyNodes}
+            </>
+          );
+        })()}
+      </div>
+    );
+    };
+    return Comp;
+  }, []);
+
   // Componente para mostrar el panel de confirmación
   const ConfirmationPanel: React.FC<{
     title: string;
@@ -347,8 +700,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // Mantener el modo seleccionado por el usuario sin auto-cambio
-    let effectiveMode: ChatMode = mode;
+  // Mantener el modo seleccionado por el usuario para UI; para backend en AGENT reutilizamos ASK
+  let effectiveMode: ChatMode = mode;
 
     // No adjuntar historial/contexto al prompt visible; el estado se envía como campo separado
     const finalInput = trimmed;
@@ -359,7 +712,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
     try {
       setIsSending(true);
-  const modeValue = effectiveMode.toUpperCase();
+  // Para que AGENT reutilice el mismo contexto y comportamiento del modo CONSULTA en el backend
+  const modeValue = (effectiveMode === 'agent') ? 'ASK' : effectiveMode.toUpperCase();
       // API sin estado: enviar todo el historial user/assistant de la sesión actual
       const history = [...messages, userMsg]
         .filter(m => m.sender !== 'system')
@@ -370,16 +724,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: modeValue, history, state: agentState } });
 
       // Visualización: en AGENT priorizar summary; en ASK combinar summary + explanation
+      // En AGENT reutilizamos completamente la lógica de visualización de ASK
       const aiText = (() => {
-        if (effectiveMode === 'agent') {
-          return (res as any).summary ?? (res as any).explanation ?? (res as any).ai_response ?? '';
-        } else {
-          // En ASK: priorizar SOLO la explicación para evitar encabezados tipo "Ejecuta:" en el resumen
-          const expRaw = (res as any).explanation as string | undefined;
-          const respRaw = (res as any).ai_response as string | undefined;
-          const exp = expRaw ? String(expRaw) : '';
-          return exp || String(respRaw || '');
-        }
+        const expRaw = (res as any).explanation as string | undefined;
+        const respRaw = (res as any).ai_response as string | undefined;
+        const exp = expRaw ? String(expRaw) : '';
+        return exp || String(respRaw || '');
       })();
 
   // 1) Intentar extraer JSON de acciones (create_file / command)
@@ -425,50 +775,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       }
 
   // Generar tarjeta de confirmación en modo AGENT
-  let createdConfirmation = false;
-  if (effectiveMode === 'agent' && cmd && isLikelyShell(cmd)) {
-        // Detectar here-doc para registrar memoria, pero siempre mostrar UNA tarjeta con el bloque completo
-        const HEREDOC = /cat\s*>\s*([^\s]+)\s*<<\s*['"]?EOF['"]?\s*\n([\s\S]*?)\nEOF/gm;
-        const docs = [...cmd.matchAll(HEREDOC)];
-        let pendingFileCreation: any = null;
-        if (docs.length > 0) {
-          const [, fileName, fileContent] = docs[0];
-          pendingFileCreation = { fileName, fileContent, command: cmd };
-          try { await setLastFile(fileName, fileContent); } catch {}
-        } else if (agentJson && Array.isArray(agentJson.actions)) {
-          const create = agentJson.actions.find((a: any) => a.type === 'create_file')
-            || (agentJson.actions.find((a: any) => a.type === 'file_bundle')?.files?.[0]);
-          if (create && (create.path || create.fileName)) {
-            const fileName = (create.path || create.fileName) as string;
-            const fileContent = (create.content || create.fileContent || '') as string;
-            pendingFileCreation = { fileName, fileContent, command: cmd };
-            try { await setLastFile(fileName, fileContent); } catch {}
-          }
-        }
-
-        const sysId = String(Date.now() + 5);
-        const sysText = 'El agente sugiere ejecutar este comando';
-        const sysSummaryRaw = ((res as any).summary ?? agentJson?.summary ?? '') as string;
-        const sysExplRaw = ((res as any).explanation ?? agentJson?.explanation ?? '') as string;
-        const risk = computeRiskLevel(cmd);
-        const sysMeta = {
-          pendingCommand: cmd,
-          pendingFileCreation,
-          // Ocultar el resumen para la tarjeta de confirmación per user request
-          summary: undefined,
-          explanation: cleanText(sysExplRaw),
-          userPrompt: trimmed,
-          riskLevel: risk,
-        };
-        const sysMsg: Message = { id: sysId, sender: 'system', text: sysText, meta: sysMeta };
-        setMessages(prev => [...prev, sysMsg]);
-        createdConfirmation = true;
-      }
+      // En AGENT no mostramos tarjetas de confirmación; el usuario puede ejecutar desde el botón "Ejecutar" del bloque
+      let createdConfirmation = false;
 
       // Construir texto visible: mantener el contenido tal cual (incluido el bloque de código) en modo ASK
       const displayText = aiText;
   // En ASK mantener fences y etiqueta de lenguaje para copiar/pegar; en otros modos, limpiar
-  const displayTextClean = (effectiveMode === 'ask') ? (displayText || '') : cleanText(displayText);
+  const askLike = (effectiveMode === 'ask' || effectiveMode === 'agent');
+  const displayTextClean = askLike ? (displayText || '') : cleanText(displayText);
 
       // Limpiar meta
       const metaWithFlag: any = { ...(res as any) };
@@ -487,19 +801,18 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         .toLowerCase();
       if (norm(cleanedMeta.summary) === norm(displayTextClean)) cleanedMeta.summary = undefined;
       if (norm(cleanedMeta.explanation) === norm(displayTextClean)) cleanedMeta.explanation = undefined;
-      if (norm(cleanedMeta.summary) && norm(cleanedMeta.summary) === norm(cleanedMeta.explanation)) cleanedMeta.summary = undefined;
-      // En ASK, como ya combinamos summary + explanation en el texto principal, ocultar ambos metadatos para evitar duplicados visuales
-      if (effectiveMode === 'ask') { cleanedMeta.summary = undefined; cleanedMeta.explanation = undefined; }
+  if (norm(cleanedMeta.summary) && norm(cleanedMeta.summary) === norm(cleanedMeta.explanation)) cleanedMeta.summary = undefined;
+  // En AGENT reutilizamos ASK: ocultar summary/explanation para evitar duplicados
+  if (askLike) { cleanedMeta.summary = undefined; cleanedMeta.explanation = undefined; }
 
-      // En modo ASK/CONSULTA no exponer code_output; solo en modos con ejecución
-      if (effectiveMode !== 'ask') {
+      // En AGENT reutilizamos ASK: no exponer code_output separado ni bloques accesorios; el código va inline
+      if (askLike) {
+        cleanedMeta.code_output = undefined;
+        cleanedMeta.suggestedCommands = undefined;
+      } else {
         if (cmd && !cleanedMeta.code_output) {
           cleanedMeta.code_output = cmd;
         }
-      } else {
-        cleanedMeta.code_output = undefined;
-        // En modo ASK no mostrar bloques accesorios; el contenido (incluido el código) va en el mensaje principal
-        cleanedMeta.suggestedCommands = undefined;
       }
 
       // Manejar respuestas según el modo
@@ -520,26 +833,9 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         }
       }
 
-      // En modos AGENT y SUPER, mostrar un banner de confirmación mientras esté pendiente
-      if ((effectiveMode === 'agent' || effectiveMode === 'super') && createdConfirmation) {
-        const risk2 = computeRiskLevel(String(cmd || ''));
-        const confirmationMsg: Message = {
-          id: String(Date.now() + 2),
-          sender: 'system',
-          text: 'Se requiere confirmación para ejecutar:',
-          meta: {
-            requiresConfirmation: true,
-            backupPath: cleanedMeta.backup_path,
-            command: cmd || '',
-            riskLevel: risk2
-          }
-        };
-        setMessages(prev => [...prev, confirmationMsg]);
-      } else {
-        // Si no hay confirmación pendiente, mostrar mensaje de IA normalmente
-        const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
-        setMessages(prev => [...prev, aiMsg]);
-      }
+      // Mostrar el mensaje de IA normalmente (sin tarjetas de confirmación en AGENT)
+      const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
+      setMessages(prev => [...prev, aiMsg]);
 
     } catch (e: any) {
       setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
@@ -581,7 +877,37 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                 <div className="message-content">
                   {msg.sender === 'ai' && msg.meta?.chat_mode === 'ask'
                     ? <RenderAsk content={msg.text} />
-                    : msg.text}
+                    : msg.sender === 'ai' && msg.meta?.chat_mode === 'agent'
+                      ? <RenderAgent content={msg.text} sessionId={sessionId} cacheKey={msg.id} onExecuted={async (cmd) => {
+                          // Actualizar memoria (no modificar el mensaje para no reiniciar el estado interno de pasos)
+                          try { await setLastCommand(cmd); } catch {}
+                          // Si es un 'cd <dir>', registra ese directorio como lastPath
+                          try {
+                            const mCd = cmd.match(/^\s*cd\s+(.+)$/);
+                            if (mCd && mCd[1]) {
+                              const raw = mCd[1].trim();
+                              const dir = raw.replace(/^"|"$/g, '');
+                              await setLastPath(dir, 'dir');
+                            }
+                          } catch {}
+                          // Si es un mkdir, guarda el directorio creado como lastPath
+                          try {
+                            const mk = cmd.match(/^\s*mkdir\s+([^\s]+)/);
+                            if (mk && mk[1]) { await setLastPath(mk[1].trim(), 'dir'); }
+                          } catch {}
+                          // Si creamos archivo con touch/echo/printf/tee/cat >, también registra lastFile y lastPath(file)
+                          try {
+                            let created: string | null = null;
+                            const mTouch = cmd.match(/^\s*touch\s+(\S+)/);
+                            if (mTouch) created = mTouch[1];
+                            const mRedir = cmd.match(/>\>?\s*([^\s]+)/);
+                            if (!created && mRedir) created = mRedir[1];
+                            const mHeredoc = cmd.match(/^(?:cat\s*>\s*|tee\s+)(\S+)\s*<</);
+                            if (!created && mHeredoc) created = mHeredoc[1];
+                            if (created) { await setLastFile(created, ""); await setLastPath(created, 'file'); }
+                          } catch {}
+                        }} />
+                      : msg.text}
                 </div>
               </div>
             )}
@@ -597,6 +923,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
               )
             )}
 
+            {/* Evitar duplicado: si se usó RenderAgent y ya se envió, no mostrar code_output */}
             {!msg.meta?.sentToTerminal && msg.meta?.code_output && (
               <pre className="code-output">{msg.meta.code_output}</pre>
             )}
@@ -705,11 +1032,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       </div>
 
       <div className="chat-input">
-        <textarea
+  <textarea
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={mode === 'agent' ? 'Escribe tu mensaje… (Se pedirá confirmación para comandos)' : 'Escribe tu mensaje…'}
+          placeholder={'Escribe tu mensaje…'}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         />
         <button className="send-btn" onClick={handleSend} disabled={isSending} aria-label="Enviar mensaje">
