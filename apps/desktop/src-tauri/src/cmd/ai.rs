@@ -1580,7 +1580,7 @@ Reglas del formato paso a paso:
     if let Some(ref co) = code_output {
       let t = co.trim();
       if t.starts_with('{') {
-        if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(t) {
+  if let Ok(v) = serde_json::from_str::<serde_json::Value>(t) {
           let steps_opt = v.get("plan").and_then(|p| p.get("steps")).and_then(|s| s.as_array());
           if let Some(steps) = steps_opt {
             if steps.len() >= 2 {
@@ -1614,7 +1614,7 @@ Reglas del formato paso a paso:
       for cand in candidates {
         let t = cand.trim();
         if t.starts_with('{') {
-          if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(t) {
+          if let Ok(v) = serde_json::from_str::<serde_json::Value>(t) {
             let steps_opt = v.get("plan").and_then(|p| p.get("steps")).and_then(|s| s.as_array());
             if let Some(steps) = steps_opt {
               if steps.len() >= 2 {
