@@ -63,7 +63,7 @@ impl Tools {
     }
 
     /// Escribe un archivo con backup opcional
-    pub fn write_file(path: &str, content: &str, _mode: Option<u32>, backup: bool) -> io::Result<Option<String>> {
+    pub fn write_file(path: &str, content: &str, mode: Option<u32>, backup: bool) -> io::Result<Option<String>> {
         let path = Path::new(path);
         
         // Crear backup si es necesario
@@ -89,6 +89,10 @@ impl Tools {
             let perms = fs::Permissions::from_mode(mode);
             fs::set_permissions(path, perms)?;
         }
+
+        // Avoid unused variable warning for `mode` on non-Unix targets
+        #[cfg(not(unix))]
+        let _ = mode;
 
         Ok(backup_path)
     }
