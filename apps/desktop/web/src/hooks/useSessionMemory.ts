@@ -13,6 +13,10 @@ export type SessionMem = {
   lastPath?: string;
   lastPathKind?: 'file' | 'dir';
   env?: { cwd?: string; shell?: string; os?: string };
+  // NUEVO: historial local por sesión (persistido en sessionStorage)
+  recentFiles?: string[];
+  recentDirs?: string[];
+  recentCommands?: string[];
 };
 
 type Patch = {
@@ -37,13 +41,34 @@ export function useSessionMemory(sessionId: string | null) {
 
   const [mem, setMem] = useState<SessionMem>({});
 
+  const MAX_RECENT = 20;
+  const readLocal = (): Partial<SessionMem> => {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return {};
+      const json = JSON.parse(raw);
+      return {
+        recentFiles: Array.isArray(json.recentFiles) ? json.recentFiles : [],
+        recentDirs: Array.isArray(json.recentDirs) ? json.recentDirs : [],
+        recentCommands: Array.isArray(json.recentCommands) ? json.recentCommands : [],
+      };
+    } catch { return {}; }
+  };
+  const writeLocal = (update: Partial<SessionMem>) => {
+    try {
+      const prev = readLocal();
+      const next = { ...prev, ...update };
+      sessionStorage.setItem(key, JSON.stringify(next));
+    } catch {}
+  };
+
   // Hydrate desde Rust al montar
   useEffect(() => {
     (async () => {
       try {
         const data = await invoke<any>("mem_get", { sessionId: sessionId ?? "default" });
         if (data) {
-          setMem({
+          const remote: SessionMem = {
             lastFile: data.last_file ?? data.lastFile,
             lastFileHash: data.last_file_hash ?? data.lastFileHash,
             lastFileSnippet: data.last_file_snippet ?? data.lastFileSnippet,
@@ -53,8 +78,10 @@ export function useSessionMemory(sessionId: string | null) {
             lastExitCode: data.last_exit_code ?? data.lastExitCode,
             lastPath: data.last_path ?? data.lastPath,
             lastPathKind: (data.last_path_kind ?? data.lastPathKind) as 'file' | 'dir' | undefined,
-            env: { cwd: data.env_cwd ?? data.env?.cwd, shell: data.env_shell ?? data.env?.shell, os: data.env_os ?? data.env?.os }
-          });
+            env: { cwd: data.env_cwd ?? data.env?.cwd, shell: data.env_shell ?? data.env?.shell, os: data.env_os ?? data.env?.os },
+          };
+          const local = readLocal();
+          setMem({ ...remote, ...local });
         }
       } catch {}
     })();
@@ -63,6 +90,7 @@ export function useSessionMemory(sessionId: string | null) {
   // Escucha resultados de terminal (evento de Rust)
   useEffect(() => {
     let unlisten: (() => void) | undefined;
+    let unlistenCwd: (() => void) | undefined;
     (async () => {
       try {
         unlisten = await listen("copilot/terminal-result", (e: any) => {
@@ -75,9 +103,19 @@ export function useSessionMemory(sessionId: string | null) {
             lastExitCode: typeof p.exit_code === "number" ? p.exit_code : m.lastExitCode
           }));
         });
+        // Opcional: sincronizar cwd si el backend emite este evento
+        try {
+          unlistenCwd = await listen("copilot/cwd-changed", (e: any) => {
+            const p = e.payload || {};
+            if (p.session_id && p.session_id !== (sessionId ?? "default")) return;
+            const newCwd = p.cwd as string | undefined;
+            if (!newCwd) return;
+            setMem(m => ({ ...m, env: { ...(m.env || {}), cwd: newCwd } }));
+          });
+        } catch {}
       } catch {}
     })();
-    return () => { if (unlisten) unlisten(); };
+    return () => { if (unlisten) unlisten(); if (unlistenCwd) unlistenCwd(); };
   }, [sessionId]);
 
   const memPut = async (patch: Patch) => {
@@ -86,17 +124,39 @@ export function useSessionMemory(sessionId: string | null) {
 
   const setLastFile = async (path: string, content: string, hash?: string) => {
     const snippet = content.split("\n").slice(0, MAX_SNIPPET_LINES).join("\n");
-    setMem(m => ({ ...m, lastFile: path, lastFileHash: hash, lastFileSnippet: snippet }));
+    setMem(m => {
+      const rf = [path, ...(m.recentFiles || []).filter(p => p !== path)].slice(0, MAX_RECENT);
+      // si agregamos un archivo, removemos de recentDirs si coincide
+      const rd = (m.recentDirs || []).filter(p => p !== path);
+      writeLocal({ recentFiles: rf, recentDirs: rd });
+      return { ...m, lastFile: path, lastFileHash: hash, lastFileSnippet: snippet, recentFiles: rf, recentDirs: rd };
+    });
     await memPut({ last_file: path, last_file_hash: hash, last_file_snippet: snippet });
   };
 
   const setLastCommand = async (cmd: string) => {
-    setMem(m => ({ ...m, lastCommand: cmd }));
+    setMem(m => {
+      const rc = [cmd, ...(m.recentCommands || []).filter(c => c !== cmd)].slice(0, MAX_RECENT);
+      writeLocal({ recentCommands: rc });
+      return { ...m, lastCommand: cmd, recentCommands: rc };
+    });
     await memPut({ last_command: cmd });
   };
 
   const setLastPath = async (path: string, kind: 'file' | 'dir') => {
-    setMem(m => ({ ...m, lastPath: path, lastPathKind: kind }));
+    setMem(m => {
+      let rf = m.recentFiles || [];
+      let rd = m.recentDirs || [];
+      if (kind === 'file') {
+        rf = [path, ...rf.filter(p => p !== path)].slice(0, MAX_RECENT);
+        rd = rd.filter(p => p !== path);
+      } else {
+        rd = [path, ...rd.filter(p => p !== path)].slice(0, MAX_RECENT);
+        rf = rf.filter(p => p !== path);
+      }
+      writeLocal({ recentFiles: rf, recentDirs: rd });
+      return { ...m, lastPath: path, lastPathKind: kind, recentFiles: rf, recentDirs: rd };
+    });
     await memPut({ last_path: path, last_path_kind: kind });
   };
 
@@ -122,6 +182,10 @@ export function useSessionMemory(sessionId: string | null) {
     if (mem.lastStdoutTail || mem.lastStderrTail) {
       parts.push(`Última ejecución: exit=${mem.lastExitCode ?? "N/A"}\nSTDOUT (últimas 15 líneas):\n${(mem.lastStdoutTail ?? "").split("\n").slice(-15).join("\n")}\nSTDERR (últimas 15 líneas):\n${(mem.lastStderrTail ?? "").split("\n").slice(-15).join("\n")}`);
     }
+    const rf = (mem.recentFiles || []).slice(0, 5);
+    const rd = (mem.recentDirs || []).slice(0, 5);
+    if (rf.length) parts.push(`Archivos recientes: ${rf.join(', ')}`);
+    if (rd.length) parts.push(`Carpetas recientes: ${rd.join(', ')}`);
     return parts.length ? `\n\n(Contexto de sesión)\n${parts.join("\n\n")}\n` : "";
   };
 
