@@ -569,7 +569,7 @@ Reglas del formato paso a paso:
         format!("Tarea: Genera JSON v1. Caso: SINGLE INSTRUCTION = TRUE; CLASSIFICATION = SCRIPT. Lenguaje destino: el más obvio (python/bash). Nombre de archivo sugerido opcional. El bloque code debe ser mínimo y ejecutable si es posible. Explanation (<140 chars). No agregues texto fuera del JSON. Entrada del usuario: {}", user_input)
       };
       let sys_rules = format!(
-        "Sigue reglas deterministas. Verb principal: {verb}. Objeto: {object}. Clasificación: {classification}. Validaciones duras: para COMMAND, rechaza conectores (&&, ||, ;, |). Marca requires_sudo=true si detectas operaciones peligrosas (rm -rf, mkfs, dd, chmod -R 777, chown -R, shutdown, reboot, escribir en /etc). Normaliza shell 'bash'. {schema}",
+        "Sigue reglas deterministas. Verb principal: {verb}. Objeto: {object}. Clasificación: {classification}. Validaciones duras: para COMMAND, rechaza conectores (&&, ||, ;, |). Marca requires_sudo=true si detectas operaciones peligrosas (rm -rf, mkfs, dd, chmod -R 777, chown -R, shutdown, reboot, escribir en /etc). Normaliza shell 'bash'. {schema},",
         verb=verb, object=object, classification=classification, schema=schema_hint
       );
 
@@ -652,6 +652,11 @@ Reglas del formato paso a paso:
     .and_then(|v| v.as_str())
     .unwrap_or("")
     .to_string();
+
+  // Bandera global: instrucción única de creación (script/archivo) → forzar ejecución en UN SOLO paso
+  let single_inst_creation: bool = matches!(mode, ChatMode::Agent)
+    && is_single_instruction(&user_input).is_some()
+    && looks_like_creation_request(&user_input);
 
   // (Heurísticas desactivadas por pedido: no se hará clasificación difusa de identidad)
 
@@ -997,7 +1002,8 @@ Reglas del formato paso a paso:
         step_count += 1;
       }
       let multiple_cmds = step_count >= 2;
-      if multiple_cmds && !looks_json_plan {
+      // Para instrucción única de creación, NO pedimos plan multi-paso al modelo
+      if multiple_cmds && !looks_json_plan && !single_inst_creation {
         let sys = "Devuelve SOLO JSON válido. Nada de Markdown, nada de comentarios. Idioma: español.";
         let user = format!(
           "Convierte los comandos siguientes en un plan estructurado con explicación por paso. Requisitos estrictos:\n- Formato JSON exacto:\n{{\n  \"plan\": {{\n    \"title\": string,\n    \"steps\": [{{\"desc\": string, \"cmd\": string, \"explain\": string}}...]\n  }}\n}}\n- 'explain' debe ser 1–2 frases en lenguaje sencillo que expliquen PARA QUÉ sirve el comando y QUÉ hará aquí.\n- No agregues claves extra. No uses Markdown.\n- Mantén los comandos tal cual, uno por paso (divide si hay varias líneas).\nContexto del usuario: {}\nComandos/archivo:\n{}",
@@ -1541,7 +1547,18 @@ Reglas del formato paso a paso:
       }
 
       let steps_raw = split_into_steps(code);
-      if steps_raw.len() >= 2 {
+      if single_inst_creation {
+        // Colapsar todo en un solo paso: ejecutar todo el bloque como una única acción
+        let single_step = serde_json::json!({
+          "plan": {
+            "title": "Ejecución única",
+            "steps": [
+              {"desc": "Crear y preparar el archivo/ejecutar el script solicitado.", "cmd": code.trim(), "explain": "Un solo paso que crea el archivo, ajusta permisos y muestra su contenido si aplica."}
+            ]
+          }
+        });
+        code_output = Some(single_step.to_string());
+      } else if steps_raw.len() >= 2 {
         let steps_json: Vec<serde_json::Value> = steps_raw.iter()
           .map(|cmd| serde_json::json!({ "desc": describe_cmd(cmd), "cmd": cmd }))
           .collect();
@@ -1552,6 +1569,83 @@ Reglas del formato paso a paso:
         if let Some(first) = steps_raw.into_iter().next() { code_output = Some(first); }
       }
       }
+    }
+  }
+
+  // Refuerzo final: para instrucción única de creación, si existe un PLAN con múltiples pasos
+  // (posiblemente devuelto por el modelo en JSON), colapsarlo a un solo paso concatenando comandos.
+  if single_inst_creation {
+    // Intenta en code_output primero
+    let mut collapsed: Option<String> = None;
+    if let Some(ref co) = code_output {
+      let t = co.trim();
+      if t.starts_with('{') {
+        if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(t) {
+          let steps_opt = v.get("plan").and_then(|p| p.get("steps")).and_then(|s| s.as_array());
+          if let Some(steps) = steps_opt {
+            if steps.len() >= 2 {
+              let mut cmds: Vec<String> = Vec::new();
+              for st in steps {
+                if let Some(cmd) = st.get("cmd").and_then(|c| c.as_str()) {
+                  if !cmd.trim().is_empty() { cmds.push(cmd.trim().to_string()); }
+                }
+              }
+              if !cmds.is_empty() {
+                let merged = cmds.join("\n");
+                let one = serde_json::json!({
+                  "plan": {
+                    "title": "Ejecución única",
+                    "steps": [ {"desc": "Crear y ejecutar lo solicitado en un solo paso.", "cmd": merged, "explain": "Se ejecutará todo el bloque como una sola acción."} ]
+                  }
+                });
+                collapsed = Some(one.to_string());
+              }
+            }
+          }
+        }
+      }
+    }
+    // Si no, intenta colapsar plan en ai_response/explanation
+    if collapsed.is_none() {
+      let candidates: Vec<&String> = [
+        if !ai_response.trim().is_empty() { Some(&ai_response) } else { None },
+        explanation.as_ref()
+      ].into_iter().flatten().collect();
+      for cand in candidates {
+        let t = cand.trim();
+        if t.starts_with('{') {
+          if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(t) {
+            let steps_opt = v.get("plan").and_then(|p| p.get("steps")).and_then(|s| s.as_array());
+            if let Some(steps) = steps_opt {
+              if steps.len() >= 2 {
+                let mut cmds: Vec<String> = Vec::new();
+                for st in steps {
+                  if let Some(cmd) = st.get("cmd").and_then(|c| c.as_str()) {
+                    if !cmd.trim().is_empty() { cmds.push(cmd.trim().to_string()); }
+                  }
+                }
+                if !cmds.is_empty() {
+                  let merged = cmds.join("\n");
+                  let one = serde_json::json!({
+                    "plan": {
+                      "title": "Ejecución única",
+                      "steps": [ {"desc": "Crear y ejecutar lo solicitado en un solo paso.", "cmd": merged, "explain": "Se ejecutará todo el bloque como una sola acción."} ]
+                    }
+                  });
+                  collapsed = Some(one.to_string());
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if let Some(one) = collapsed {
+      code_output = Some(one.clone());
+      // Mantener duplicación ligera para robustez de frontend
+      ai_response = one.clone();
+      explanation = Some(one);
     }
   }
 
