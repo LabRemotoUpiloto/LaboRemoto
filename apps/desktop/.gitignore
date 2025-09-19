@@ -1,3 +1,4 @@
 dist-local
 docs
 scripts/
+!scripts/build-web.mjs
