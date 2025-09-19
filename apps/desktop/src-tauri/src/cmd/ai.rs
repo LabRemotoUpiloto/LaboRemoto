@@ -569,7 +569,7 @@ Reglas del formato paso a paso:
         format!("Tarea: Genera JSON v1. Caso: SINGLE INSTRUCTION = TRUE; CLASSIFICATION = SCRIPT. Lenguaje destino: el más obvio (python/bash). Nombre de archivo sugerido opcional. El bloque code debe ser mínimo y ejecutable si es posible. Explanation (<140 chars). No agregues texto fuera del JSON. Entrada del usuario: {}", user_input)
       };
       let sys_rules = format!(
-        "Sigue reglas deterministas. Verb principal: {verb}. Objeto: {object}. Clasificación: {classification}. Validaciones duras: para COMMAND, rechaza conectores (&&, ||, ;, |). Marca requires_sudo=true si detectas operaciones peligrosas (rm -rf, mkfs, dd, chmod -R 777, chown -R, shutdown, reboot, escribir en /etc). Normaliza shell 'bash'. {schema}",
+        "Sigue reglas deterministas. Verb principal: {verb}. Objeto: {object}. Clasificación: {classification}. Validaciones duras: para COMMAND, rechaza conectores (&&, ||, ;, |). Marca requires_sudo=true si detectas operaciones peligrosas (rm -rf, mkfs, dd, chmod -R 777, chown -R, shutdown, reboot, escribir en /etc). Normaliza shell 'bash'. {schema},",
         verb=verb, object=object, classification=classification, schema=schema_hint
       );
 
