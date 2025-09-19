@@ -57,7 +57,7 @@ type AiResponse = {
 type Props = { sessionId?: string | null };
 
 // Tipos de plan estructurado (del backend)
-type PlanStep = { desc: string; cmd: string };
+type PlanStep = { desc: string; cmd: string; explain?: string; explanation?: string; why?: string; note?: string };
 type Plan = { title?: string; steps: PlanStep[] };
 
 const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
@@ -779,6 +779,19 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
               <span className="agent-progress">{done}/{total} completados</span>
             </div>
             <div className="agent-explainer">{step.desc}</div>
+            {(() => {
+              const miniRaw = (step as any).explain || (step as any).explanation || (step as any).why || (step as any).note || '';
+              const descText = (step as any).desc || '';
+              const norm = (s: string) => String(s)
+                .replace(/[`]/g, '')
+                .replace(/[.,;:!?¡¿"']+/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+              if (!miniRaw) return null;
+              if (norm(miniRaw) === norm(descText)) return null; // evita duplicar la misma frase
+              return <div className="agent-mini-explain">{String(miniRaw)}</div>;
+            })()}
             <pre className="agent-code"><code>{step.cmd}</code></pre>
             <div className="agent-actions">
               <button className="agent-run" onClick={(e) => runStep(e.currentTarget)} disabled={false}>Ejecutar paso</button>
@@ -1344,7 +1357,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const isAskLikeInput = (() => {
     const t = finalInput.toLowerCase();
     const q = ["que significa", "qué significa", "que es", "qué es", "por que", "por qué", "explica", "explícame", "explicame", "significado", "que hace", "qué hace", "me sale", "me aparece", "error:", "unable to", "no se puede", "por favor explica"];
-    const imperativeHints = ["instala", "crea", "genera", "ejecuta", "descarga", "inicia", "configura", "borra", "elimina", "mueve", "copia", "compila", "construye", "mkdir", "cd ", "chmod", "curl", "wget", "git "];
+    // Ampliar imperativos para español coloquial
+    const imperativeHints = [
+      "instala", "crea", "créa", "creame", "créame", "genera", "ejecuta", "ejecutame", "descarga", "inicia", "configura",
+      "borra", "elimina", "mueve", "copia", "compila", "construye", "mkdir", "cd ", "chmod", "curl", "wget", "git ",
+      "haz", "hazme", "has", "hasme", "imprime", "imprimir"
+    ];
     const likelyQuestion = q.some(k => t.includes(k)) || t.includes('?') || t.includes('¿');
     const hasImperative = imperativeHints.some(k => t.includes(k));
     return likelyQuestion && !hasImperative;
@@ -1395,6 +1413,21 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           const maybe = tryParseJson(block || String(c));
           if (maybe?.plan?.steps && Array.isArray(maybe.plan.steps) && maybe.plan.steps.length > 0) {
             plan = { title: maybe.plan.title, steps: maybe.plan.steps };
+            break;
+          }
+        }
+      }
+
+      // NUEVO: detectar instrucción única (v1)
+      let singleInstruction: any | null = null;
+      {
+        const candidates = [(res as any).ai_response, (res as any).explanation, (res as any).summary];
+        for (const c of candidates) {
+          if (!c) continue;
+          const block = extractCodeBlock(String(c));
+          const maybe = tryParseJson(block || String(c));
+          if (maybe && String(maybe.version) === 'v1' && String(maybe.kind).toLowerCase() === 'single_instruction') {
+            singleInstruction = maybe;
             break;
           }
         }
@@ -1473,7 +1506,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   if (effectiveMode === 'agent' && !plan) {
     const hasFence = /```[\s\S]*```/.test(displayText || '');
     // Preferir script construido desde acciones JSON si existe
-    if (actionsScript && actionsScript.script) {
+    if (singleInstruction && String(singleInstruction.classification).toUpperCase() === 'COMMAND' && singleInstruction?.payload?.command) {
+      // Mostrar solo el comando declarado en el JSON estandarizado
+      const atomic = getFirstAtomic(String(singleInstruction.payload.command));
+      displayText = `\u0060\u0060\u0060bash\n${atomic}\n\u0060\u0060\u0060`;
+    } else if (actionsScript && actionsScript.script) {
       const atomic = actionsScript.script;
       displayText = `${displayText}\n\n\n\n\u0060\u0060\u0060bash\n${atomic}\n\u0060\u0060\u0060`;
     } else if (!hasFence && cmd && isLikelyShell(cmd)) {
@@ -1550,6 +1587,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       if (plan) {
         (cleanedMeta as any).plan = plan;
         (cleanedMeta as any).planProgressKey = `${sessionId || 'local'}:${Date.now()}`;
+      }
+      if (singleInstruction) {
+        (cleanedMeta as any).singleInstruction = singleInstruction;
+        if (!cleanedMeta.reason && singleInstruction?.explanation) {
+          (cleanedMeta as any).reason = String(singleInstruction.explanation);
+        }
       }
       // Adjuntar razón del script de acciones si aplica, para que RenderAgent la muestre encima
       if (actionsScript?.reason && !(cleanedMeta as any).reason) {

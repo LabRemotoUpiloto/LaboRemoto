@@ -34,8 +34,13 @@
 }
 
 .agent-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    'primary primary'
+    'secondary1 secondary2';
   gap: 8px;
+  align-items: center;
 }
 
 /* Short explanation above the command in agent card */
@@ -43,6 +48,13 @@
   color: var(--text-primary);
   font-size: 14px;
   line-height: 1.4;
+}
+
+/* tiny secondary hint explaining the command */
+.agent-mini-explain {
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-size: 13.5px;
 }
 
 /* Context summary */
@@ -67,20 +79,48 @@
 .agent-run,
 .agent-run-all,
 .agent-back {
-  flex: 1;
-  padding: 6px 12px;
-  border-radius: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;  /* no saltos raros */
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.06s ease;
+  border: none;
+}
+/* Primary button: fills the first column */
+.agent-run {
   background: var(--accent-primary);
   color: var(--accent-contrast);
-  border: none;
-  transition: background-color 0.2s ease;
+  grid-area: primary;
 }
+.agent-run:hover,
+.agent-run-all:hover,
+.agent-back:hover { filter: brightness(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.18) }
+.agent-run:active,
+.agent-run-all:active,
+.agent-back:active { transform: translateY(1px) }
 
-.agent-run-all { background: #4CAF50; }
-.agent-back { background: #607D8B; }
+.agent-run-all { background: #4CAF50; color: #fff; grid-area: secondary1; }
+.agent-back { background: #607D8B; color: #fff; grid-area: secondary2; }
+@media (max-width: 520px) {
+  .agent-actions {
+    gap: 6px;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'primary'
+      'secondary1'
+      'secondary2';
+  }
+  .agent-run,
+  .agent-run-all,
+  .agent-back { width: 100%; }
+}
 .chat-pane {
   width: clamp(360px, 30vw, 540px);
   border-left: 1px solid var(--border-color);

@@ -405,8 +405,12 @@ Reglas del formato paso a paso:
   fn looks_like_creation_request(s: &str) -> bool {
     let n = normalize_for_checks(s);
     let keys = [
-      "crea", "crear", "genera", "generar", "construye", "construir", "haz",
-      "archivo", "fichero", "script", "txt", "guardar", "guarda", "escribe", "exporta", "exportar"
+      "crea", "crear", "creame", "créame", "cree", "creeme",
+      "genera", "generar", "construye", "construir",
+      "haz", "has", "hazme", "hasme",
+      "archivo", "fichero", "script", "txt",
+      "guardar", "guarda", "escribe", "exporta", "exportar",
+      "imprime", "imprimir", "imprima"
     ];
     keys.iter().any(|k| n.contains(k))
   }
@@ -425,6 +429,41 @@ Reglas del formato paso a paso:
     let likely_q = q.iter().any(|k| t.contains(k)) || t.contains('?') || t.contains('¿');
     let has_imp = imperative.iter().any(|k| t.contains(k));
     likely_q && !has_imp
+  }
+
+  // Reglas deterministas para instrucción única (COMMAND vs SCRIPT)
+  #[derive(Debug, Clone, PartialEq, Eq)]
+  enum SingleKind { Command, Script }
+  fn is_single_instruction(s: &str) -> Option<(String, String, SingleKind)> {
+    let t = s.to_lowercase();
+    let n = normalize_for_checks(&t);
+    // Conectores prohibidos
+    let connectors = ["&&", "||", ";", "|", " entonces ", " then ", " y luego ", " luego ", " despues ", " después ", " primero ", " segundo ", " tercero ", " 1) ", " 2) ", " 3) "];
+    for c in connectors.iter() { if n.contains(c) { return None; } }
+    // Lista blanca de verbos imperativos
+    let verbs = [
+      "mostrar","listar","ver","imprimir","ejecutar","correr","abrir","crear","generar",
+      "compilar","instalar","desinstalar","iniciar","detener","comprobar","verificar","descargar",
+      "mover","copiar","borrar","eliminar","editar","reemplazar"
+    ];
+    let mut found_verb: Option<&str> = None;
+    for v in verbs.iter() {
+      if n.contains(&format!(" {} ", v)) || n.starts_with(v) || n.ends_with(v) { // aproximación simple
+        if found_verb.is_some() { return None; } // más de un verbo
+        found_verb = Some(v);
+      }
+    }
+    let verb = match found_verb { Some(v) => v.to_string(), None => return None };
+    // Clasificación SCRIPT vs COMMAND
+    let mut kind = SingleKind::Command;
+    let script_hints = ["script","programa","código","codigo","funcion","clase",".py",".js",".sh","#!/bin/bash","#!/usr/bin/env python"]; 
+    if script_hints.iter().any(|k| t.contains(k)) { kind = SingleKind::Script; }
+    let fence_count = t.matches("```").count();
+    if fence_count >= 2 { kind = SingleKind::Script; }
+    // Objeto aproximado: resto del texto sin el verbo principal
+    let obj = n.replace(&verb, "").trim().to_string();
+    let object = if obj.is_empty() { "instrucción".to_string() } else { obj };
+    Some((verb, object, kind))
   }
 
   // Orden de evaluación previo a cualquier flujo ASK/AGENT/SUPER
@@ -499,6 +538,88 @@ Reglas del formato paso a paso:
     }
   }
   messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
+
+  // Si en modo AGENT detectamos una instrucción única, pedimos al modelo un JSON v1 estandarizado
+  if matches!(mode, ChatMode::Agent) {
+    if let Some((verb, object, kind)) = is_single_instruction(&user_input) {
+      let schema_hint = r#"Devuelve SOLO un JSON con este esquema exacto (sin texto fuera del JSON):
+{
+  "version": "v1",
+  "kind": "single_instruction",
+  "classification": "COMMAND | SCRIPT | UNKNOWN",
+  "intent": {"verb": "...", "object": "..."},
+  "explanation": "...",
+  "payload": {
+    "shell": "bash | powershell | cmd",
+    "command": "...",
+    "language": "python | bash | node | ...",
+    "filename": "main.py",
+    "code": "..."
+  },
+  "recommendation": "...",
+  "placeholders": [{"name":"<ruta>","description":"...","example":"..."}],
+  "preconditions": ["..."],
+  "privilege": {"requires_sudo": false, "risk_level": "low | medium | high"},
+  "actions": [{"type":"RUN","target":"terminal | editor","label":"Ejecutar"}]
+}"#;
+      let classification = match kind { SingleKind::Command => "COMMAND", SingleKind::Script => "SCRIPT" };
+      let user_directive = if matches!(kind, SingleKind::Command) {
+        format!("Tarea: Genera JSON v1. Caso: SINGLE INSTRUCTION = TRUE; CLASSIFICATION = COMMAND. Shell objetivo: bash. Comando objetivo (uno solo, sin &&, ;, |). Redacta explanation (<140 chars). Incluye recommendation si aplica. No agregues texto fuera del JSON. Entrada del usuario: {}", user_input)
+      } else {
+        format!("Tarea: Genera JSON v1. Caso: SINGLE INSTRUCTION = TRUE; CLASSIFICATION = SCRIPT. Lenguaje destino: el más obvio (python/bash). Nombre de archivo sugerido opcional. El bloque code debe ser mínimo y ejecutable si es posible. Explanation (<140 chars). No agregues texto fuera del JSON. Entrada del usuario: {}", user_input)
+      };
+      let sys_rules = format!(
+        "Sigue reglas deterministas. Verb principal: {verb}. Objeto: {object}. Clasificación: {classification}. Validaciones duras: para COMMAND, rechaza conectores (&&, ||, ;, |). Marca requires_sudo=true si detectas operaciones peligrosas (rm -rf, mkfs, dd, chmod -R 777, chown -R, shutdown, reboot, escribir en /etc). Normaliza shell 'bash'. {schema}",
+        verb=verb, object=object, classification=classification, schema=schema_hint
+      );
+
+      let payload_si = serde_json::json!({
+        "model": model_id,
+        "messages": [
+          {"role":"system","content": sys_rules},
+          {"role":"user","content": user_directive}
+        ],
+        "max_tokens": 600,
+        "temperature": 0.1
+      });
+
+  // Construir URL del endpoint (aún no hemos definido base_url en este flujo)
+  let target_url = proxy_url.clone().unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
+  let mut req_si = client.post(&target_url).json(&payload_si);
+      if let Some(ref token) = proxy_auth { req_si = req_si.bearer_auth(token); }
+      else if let Some(ref key) = api_key { req_si = req_si.bearer_auth(key); }
+      if let Ok(resp_si) = req_si.send().await {
+        if resp_si.status().is_success() {
+          if let Ok(val) = resp_si.json::<serde_json::Value>().await {
+            if let Some(content) = val.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+              let txt = content.trim();
+              let extracted = if txt.contains("```") {
+                let after = txt.splitn(2, "```").nth(1).unwrap_or("").to_string();
+                if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after }
+              } else { txt.to_string() };
+              if let Ok(v) = serde_json::from_str::<serde_json::Value>(&extracted) {
+                if v.get("version").and_then(|x| x.as_str()) == Some("v1") && v.get("kind").and_then(|x| x.as_str()).map(|s| s.eq_ignore_ascii_case("single_instruction")).unwrap_or(false) {
+                  let explanation = v.get("explanation").and_then(|x| x.as_str()).map(|s| s.to_string());
+                  let summary = explanation.clone();
+                  return Ok(AiChatResponse{
+                    user_input,
+                    ai_response: v.to_string(),
+                    code_output: None,
+                    explanation,
+                    summary,
+                    backup_path: None,
+                    requires_confirmation: false,
+                    state: state,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+      // Si falla, continuamos con el flujo normal
+    }
+  }
 
   // Build the request payload for OpenAI Chat completions
   let payload = serde_json::json!({
@@ -825,13 +946,113 @@ Reglas del formato paso a paso:
           if !code_inner.trim().is_empty() { extracted_code_block = Some(code_inner); }
         }
       } else {
-        explanation = Some(assistant_text.clone());
+        // Solo establecer explicación de texto si aún NO tenemos comandos/código para ejecutar
+        if code_output.is_none() { explanation = Some(assistant_text.clone()); }
       }
     }
   }
 
   // If explanation exists but is only a fenced code block and we're in AGENT mode, synthesize explanation
+  // Additionally in AGENT: if we detect MULTIPLE commands, FORCE asking the model for a structured plan JSON with per-step 'explain'
   if matches!(mode, ChatMode::Agent) {
+    // Always consider asking for a plan when multiple commands are present
+    // Fuente de comandos para generar plan: primero code_output (si no es JSON), luego bloque extraído, luego fences de ai_response o assistant_text
+    let code_inner = if let Some(ref co) = code_output {
+      let t = co.trim();
+      if !(t.starts_with('{') || t.starts_with('[')) { t.to_string() } else {
+        if let Some(cb) = extracted_code_block.clone() { strip_leading_lang_tag(&cb) } else {
+          let code_source = if !ai_response.is_empty() { ai_response.clone() } else { assistant_text.clone() };
+          if let Some(start) = code_source.find("```") {
+            let after = &code_source[start + 3..];
+            let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+            strip_leading_lang_tag(&raw)
+          } else { code_source.clone() }
+        }
+      }
+    } else if let Some(cb) = extracted_code_block.clone() {
+      strip_leading_lang_tag(&cb)
+    } else {
+      let code_source = if !ai_response.is_empty() { ai_response.clone() } else { assistant_text.clone() };
+      if let Some(start) = code_source.find("```") {
+        let after = &code_source[start + 3..];
+        let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
+        strip_leading_lang_tag(&raw)
+      } else { code_source.clone() }
+    };
+    if !code_inner.trim().is_empty() {
+      let trimmed_code = code_inner.trim();
+      let looks_json_plan = trimmed_code.starts_with('{') || trimmed_code.starts_with('[');
+      // quick split to estimate if there are multiple commands (respect heredoc sections)
+      let mut in_heredoc = false;
+      let mut step_count = 0usize;
+      for line in trimmed_code.lines() {
+        let l = line.trim();
+        if l.is_empty() { continue; }
+        if l.contains("<<EOF") || l.contains("<<'EOF'") || l.contains("<<\"EOF\"") { in_heredoc = true; step_count += 1; continue; }
+        if in_heredoc {
+          if l == "EOF" { in_heredoc = false; }
+          continue;
+        }
+        // Count each non-empty line as a potential separate command
+        step_count += 1;
+      }
+      let multiple_cmds = step_count >= 2;
+      if multiple_cmds && !looks_json_plan {
+        let sys = "Devuelve SOLO JSON válido. Nada de Markdown, nada de comentarios. Idioma: español.";
+        let user = format!(
+          "Convierte los comandos siguientes en un plan estructurado con explicación por paso. Requisitos estrictos:\n- Formato JSON exacto:\n{{\n  \"plan\": {{\n    \"title\": string,\n    \"steps\": [{{\"desc\": string, \"cmd\": string, \"explain\": string}}...]\n  }}\n}}\n- 'explain' debe ser 1–2 frases en lenguaje sencillo que expliquen PARA QUÉ sirve el comando y QUÉ hará aquí.\n- No agregues claves extra. No uses Markdown.\n- Mantén los comandos tal cual, uno por paso (divide si hay varias líneas).\nContexto del usuario: {}\nComandos/archivo:\n{}",
+          user_input,
+          code_inner
+        );
+        let payload_plan = serde_json::json!({
+          "model": model_id,
+          "messages": [
+            {"role": "system", "content": sys},
+            {"role": "user", "content": user}
+          ],
+          "max_tokens": 600,
+          "temperature": 0.2
+        });
+        let mut reqp = client.post(&base_url).json(&payload_plan);
+        if let Some(ref token) = proxy_auth { reqp = reqp.bearer_auth(token); }
+        else if let Some(ref key) = api_key { reqp = reqp.bearer_auth(key); }
+        if let Ok(rp) = reqp.send().await {
+          if rp.status().is_success() {
+            if let Ok(vp) = rp.json::<serde_json::Value>().await {
+              if let Some(content) = vp.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+                let txt = content.trim();
+                // Try to parse as JSON to ensure it's valid and contains plan.steps
+                if let Ok(j) = serde_json::from_str::<serde_json::Value>(txt) {
+                  // Normalize step explanation field name to 'explain' using aliases
+                  let mut j = j;
+                  if let Some(plan_obj) = j.get_mut("plan") {
+                    if let Some(steps) = plan_obj.get_mut("steps").and_then(|s| s.as_array_mut()) {
+                      for step in steps.iter_mut() {
+                        let has_explain = step.get("explain").and_then(|v| v.as_str()).map(|s| !s.trim().is_empty()).unwrap_or(false);
+                        if !has_explain {
+                          let alias = step.get("explanation").or(step.get("why")).or(step.get("note")).and_then(|v| v.as_str()).map(|s| s.to_string());
+                          if let Some(val) = alias {
+                            if let Some(obj) = step.as_object_mut() { obj.insert("explain".to_string(), serde_json::Value::String(val)); }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  let has_steps = j.get("plan").and_then(|p| p.get("steps")).and_then(|s| s.as_array()).map(|a| !a.is_empty()).unwrap_or(false);
+                  if has_steps {
+                    let json_txt = j.to_string();
+                    // Duplicar el plan JSON en varios campos para que el frontend siempre lo encuentre
+                    explanation = Some(json_txt.clone());
+                    ai_response = json_txt.clone();
+                    code_output = Some(json_txt.clone());
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     if let Some(ref expl_text) = explanation {
       let t = expl_text.trim();
       if t.starts_with("```") {
@@ -1151,9 +1372,97 @@ Reglas del formato paso a paso:
     }
   }
 
+  // NUEVO: En modo AGENT, si no obtuvimos bloque de comandos ni plan y la intención es CREAR (archivo/script),
+  // solicita al modelo un JSON 'ui-v1' de acciones (create_file + command) para que el frontend lo convierta a script.
+  if matches!(mode, ChatMode::Agent) && code_output.is_none() && extracted_code_block.is_none() && looks_like_creation_request(&user_input) {
+    let req_prompt = format!(
+      "Genera SOLO un JSON (sin texto adicional) con 'version':'ui-v1', 'mode':'agent', 'intent':'create', 'summary', 'explanation', y 'actions' para crear lo pedido. Incluye create_file con 'path' relativo y 'content' completo; y comandos de ejecución opcionales. NO devuelvas fences ni bloque de código. Petición: {}",
+      user_input
+    );
+    let payload_json = serde_json::json!({
+      "model": model_id,
+      "messages": [
+        {"role":"system", "content": get_system_prompt(&ChatMode::Agent)},
+        {"role":"user", "content": req_prompt}
+      ],
+      "max_tokens": 900,
+      "temperature": 0.2
+    });
+    let mut req_j = client.post(&base_url).json(&payload_json);
+    if let Some(ref token) = proxy_auth { req_j = req_j.bearer_auth(token); }
+    else if let Some(ref key) = api_key { req_j = req_j.bearer_auth(key); }
+    if let Ok(resp_j) = req_j.send().await { if resp_j.status().is_success() {
+      if let Ok(body_j) = resp_j.json::<serde_json::Value>().await {
+        if let Some(content) = body_j.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+          let txt = content.trim();
+          let extracted = if txt.contains("```") {
+            let after = txt.splitn(2, "```").nth(1).unwrap_or("").to_string();
+            let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after };
+            raw
+          } else { txt.to_string() };
+          let mut accepted = false;
+          if let Ok(v) = serde_json::from_str::<serde_json::Value>(&extracted) {
+            let has_actions = v.get("actions").and_then(|a| a.as_array()).map(|arr| !arr.is_empty()).unwrap_or(false);
+            if has_actions {
+              // Devolver JSON completo; el frontend lo convertirá a script y mostrará el botón
+              ai_response = v.to_string();
+              if explanation.is_none() { explanation = v.get("explanation").and_then(|x| x.as_str()).map(|s| s.to_string()); }
+              if summary.is_none() { summary = v.get("summary").and_then(|x| x.as_str()).map(|s| s.to_string()); }
+              accepted = true;
+            }
+          }
+          // Si no aceptamos (no hay acciones), reintentar una vez con prompt más estricto
+          if !accepted {
+            let req_prompt2 = format!(
+              "Reintento estricto: DEVUELVE SOLO JSON válido sin Markdown. Es obligatorio incluir 'version':'ui-v1' y un arreglo 'actions' con al menos 1 elemento 'create_file' con 'path' y 'content' completo. Puedes añadir luego una acción 'command' para ejecutarlo. Petición: {}",
+              user_input
+            );
+            let payload_json2 = serde_json::json!({
+              "model": model_id,
+              "messages": [
+                {"role":"system", "content": get_system_prompt(&ChatMode::Agent)},
+                {"role":"user", "content": req_prompt2}
+              ],
+              "max_tokens": 900,
+              "temperature": 0.1
+            });
+            let mut req_j2 = client.post(&base_url).json(&payload_json2);
+            if let Some(ref token) = proxy_auth { req_j2 = req_j2.bearer_auth(token); }
+            else if let Some(ref key) = api_key { req_j2 = req_j2.bearer_auth(key); }
+            if let Ok(resp_j2) = req_j2.send().await { if resp_j2.status().is_success() {
+              if let Ok(body_j2) = resp_j2.json::<serde_json::Value>().await {
+                if let Some(content2) = body_j2.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+                  let txt2 = content2.trim();
+                  let extracted2 = if txt2.contains("```") {
+                    let after2 = txt2.splitn(2, "```").nth(1).unwrap_or("").to_string();
+                    let raw2 = if let Some(end_rel2) = after2.find("```") { after2[..end_rel2].to_string() } else { after2 };
+                    raw2
+                  } else { txt2.to_string() };
+                  if let Ok(v2) = serde_json::from_str::<serde_json::Value>(&extracted2) {
+                    let has_actions2 = v2.get("actions").and_then(|a| a.as_array()).map(|arr| !arr.is_empty()).unwrap_or(false);
+                    if has_actions2 {
+                      ai_response = v2.to_string();
+                      if explanation.is_none() { explanation = v2.get("explanation").and_then(|x| x.as_str()).map(|s| s.to_string()); }
+                      if summary.is_none() { summary = v2.get("summary").and_then(|x| x.as_str()).map(|s| s.to_string()); }
+                    }
+                  }
+                }
+              }
+            }}
+          }
+        }
+      }
+    }}
+  }
+
   // En modo AGENT: si hay code_output con comandos, también devolvemos un plan estructurado
   if matches!(mode, ChatMode::Agent) {
     if let Some(ref code) = code_output {
+      // No generar un plan local si code_output ya contiene JSON (plan/acciones) del modelo
+      let trimmed = code.trim();
+      let looks_json = trimmed.starts_with('{') || trimmed.starts_with('[');
+      if looks_json { }
+      else {
       // Dividir en pasos simples respetando here-doc (<<EOF ... EOF), y evitando partir pipelines
       fn split_line_ops(line: &str) -> Vec<String> {
         let mut parts: Vec<String> = Vec::new();
@@ -1241,6 +1550,7 @@ Reglas del formato paso a paso:
       } else if steps_raw.len() == 1 {
         // Un solo paso: preservar el comando original en code_output (sin plan)
         if let Some(first) = steps_raw.into_iter().next() { code_output = Some(first); }
+      }
       }
     }
   }
