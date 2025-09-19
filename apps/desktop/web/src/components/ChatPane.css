@@ -1,3 +1,86 @@
+/* Agent execution card styles */
+.agent-card {
+  padding: 12px;
+  background: var(--background-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agent-step {
+  background: color-mix(in srgb, var(--accent-primary) 20%, var(--background-secondary));
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.agent-code {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.agent-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Short explanation above the command in agent card */
+.agent-explainer {
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Context summary */
+.context-summary .badge {
+  background: rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.context-summary .label {
+  font-weight: 600;
+  margin: 6px 0;
+}
+.context-summary ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+.context-summary li { margin: 2px 0; }
+.context-summary button { font-size: 12px; }
+
+.agent-run,
+.agent-run-all,
+.agent-back {
+  flex: 1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  background: var(--accent-primary);
+  color: var(--accent-contrast);
+  border: none;
+  transition: background-color 0.2s ease;
+}
+
+.agent-run-all { background: #4CAF50; }
+.agent-back { background: #607D8B; }
 .chat-pane {
   width: clamp(360px, 30vw, 540px);
   border-left: 1px solid var(--border-color);
