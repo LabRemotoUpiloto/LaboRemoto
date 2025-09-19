@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../web/dist",
     "devUrl": "http://localhost:5174",
-    "beforeDevCommand": "npm --prefix ../web run dev",
-    "beforeBuildCommand": "node ../scripts/build-web.mjs"
+    "beforeDevCommand": "npm --prefix ./web run dev",
+    "beforeBuildCommand": "node ./scripts/build-web.mjs"
   },
   "app": {
     "windows": [
