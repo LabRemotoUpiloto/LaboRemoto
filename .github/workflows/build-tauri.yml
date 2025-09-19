@@ -65,6 +65,20 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli
 
+      - name: Install web deps
+        working-directory: apps/desktop/web
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-fund --no-audit
+          else
+            npm install --no-fund --no-audit
+          fi
+        shell: bash
+
+      - name: Build web app
+        working-directory: apps/desktop/web
+        run: npm run build
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         with:
@@ -72,6 +86,7 @@ jobs:
           args: --bundles ${{ matrix.bundles }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_WEB_BUILD: '1'
           # Keep updater signing disabled (we set createUpdaterArtifacts=false in config)
           TAURI_SIGNING_PRIVATE_KEY: ''
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
