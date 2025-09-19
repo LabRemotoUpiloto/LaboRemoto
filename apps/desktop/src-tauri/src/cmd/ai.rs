@@ -401,6 +401,32 @@ Reglas del formato paso a paso:
     patterns.iter().any(|p| n.contains(p))
   }
 
+  // Detección simple: el usuario pide CREAR algo (archivo/script/TXT)
+  fn looks_like_creation_request(s: &str) -> bool {
+    let n = normalize_for_checks(s);
+    let keys = [
+      "crea", "crear", "genera", "generar", "construye", "construir", "haz",
+      "archivo", "fichero", "script", "txt", "guardar", "guarda", "escribe", "exporta", "exportar"
+    ];
+    keys.iter().any(|k| n.contains(k))
+  }
+
+  fn looks_like_explanatory_query(s: &str) -> bool {
+    let t = s.to_lowercase();
+    let q = [
+      "que significa", "qué significa", "que es", "qué es", "por que", "por qué",
+      "explica", "explicame", "explícame", "significado", "que hace", "qué hace",
+      "me sale", "me aparece", "error:", "unable to", "permission denied", "no such file or directory"
+    ];
+    let imperative = [
+      "instala", "crea", "genera", "ejecuta", "descarga", "inicia", "configura", "borra", "elimina", "mueve", "copia",
+      "compila", "construye", "mkdir ", "cd ", "chmod", "curl", "wget", "git "
+    ];
+    let likely_q = q.iter().any(|k| t.contains(k)) || t.contains('?') || t.contains('¿');
+    let has_imp = imperative.iter().any(|k| t.contains(k));
+    likely_q && !has_imp
+  }
+
   // Orden de evaluación previo a cualquier flujo ASK/AGENT/SUPER
   if is_identity_query_strict(&user_input) {
     return Ok(AiChatResponse {
@@ -712,11 +738,21 @@ Reglas del formato paso a paso:
             let code_inner = strip_leading_lang_tag(&raw);
             if !code_inner.trim().is_empty() {
               extracted_code_block = Some(code_inner.clone());
-              code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(&code_inner) } else { code_inner });
+              let sanitized = if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(&code_inner) } else { code_inner };
+              if looks_like_explanatory_query(&user_input) && sanitized.trim_start().starts_with("echo ") {
+                ai_response = assistant_text.clone();
+              } else {
+                code_output = Some(sanitized);
+              }
             }
           } else if looks_like_shell(content) {
-            // Reparación devolvió texto sin fences pero con comandos válidos
-            code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(content) } else { content.to_string() }.trim().to_string());
+            // Reparación devolvió texto sin fences
+            let sanitized = if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(content) } else { content.to_string() }.trim().to_string();
+            if looks_like_explanatory_query(&user_input) && sanitized.trim_start().starts_with("echo ") {
+              ai_response = assistant_text.clone();
+            } else {
+              code_output = Some(sanitized);
+            }
           }
         }
       }
@@ -1050,9 +1086,163 @@ Reglas del formato paso a paso:
     }
   }
 
-  // En modo ASK/CONSULTA nunca devolver comandos ejecutables
+  // En modo ASK/CONSULTA: no devolver comandos shell ejecutables, pero permitir JSON (plan/acciones)
   if matches!(mode, ChatMode::Ask) {
-    code_output = None;
+    if let Some(ref code) = code_output {
+      let t = code.trim();
+      let looks_json = t.starts_with('{') || t.starts_with('[');
+      if !looks_json {
+        code_output = None; // era shell/texto, no exponer ejecutable
+      }
+    }
+  }
+
+  // Si el usuario en modo ASK pide explícitamente CREAR un archivo/script/TXT,
+  // y no tenemos JSON de acciones, pedimos al modelo un JSON 'ui-v1' estructurado.
+  if matches!(mode, ChatMode::Ask) && looks_like_creation_request(&user_input) {
+    let mut already_has_actions = false;
+    let ai = ai_response.trim();
+    if !ai.is_empty() {
+      if let Ok(v) = serde_json::from_str::<serde_json::Value>(ai) {
+        already_has_actions = v.get("actions").is_some();
+      }
+    }
+    if !already_has_actions {
+      let req_prompt = format!(
+        "Genera SOLO un JSON (sin texto adicional) con 'version':'ui-v1', 'mode':'agent', 'intent':'create', 'summary', 'explanation', y 'actions' para crear lo pedido. Incluye create_file con 'path' relativo, 'mode' si aplica y 'content' completo; y comandos de ejecución opcionales. NO devuelvas fences ni bloque de código. Petición: {}",
+        user_input
+      );
+      let payload_json = serde_json::json!({
+        "model": model_id,
+        "messages": [
+          {"role":"system", "content": get_system_prompt(&ChatMode::Agent)},
+          {"role":"user", "content": req_prompt}
+        ],
+        "max_tokens": 900,
+        "temperature": 0.2
+      });
+      let mut req_j = client.post(&base_url).json(&payload_json);
+      if let Some(ref token) = proxy_auth { req_j = req_j.bearer_auth(token); }
+      else if let Some(ref key) = api_key { req_j = req_j.bearer_auth(key); }
+      if let Ok(resp_j) = req_j.send().await { if resp_j.status().is_success() {
+        if let Ok(body_j) = resp_j.json::<serde_json::Value>().await {
+          if let Some(content) = body_j.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+            // El modelo puede envolver el JSON en fences; extraer el interior si aplica
+            let txt = content.trim();
+            let extracted = if txt.contains("```") {
+              let after = txt.splitn(2, "```").nth(1).unwrap_or("").to_string();
+              let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after };
+              raw
+            } else { txt.to_string() };
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&extracted) {
+              if v.get("actions").is_some() || v.get("version").is_some() {
+                // Colocar el JSON completo en ai_response; no es código ejecutable
+                ai_response = v.to_string();
+                // Asegurar summary/explanation si vienen
+                if explanation.is_none() { explanation = v.get("explanation").and_then(|x| x.as_str()).map(|s| s.to_string()); }
+                if summary.is_none() { summary = v.get("summary").and_then(|x| x.as_str()).map(|s| s.to_string()); }
+                // No establecer code_output en ASK para evitar ejecución; el frontend renderiza acciones/plan
+                code_output = None;
+              }
+            }
+          }
+        }
+      }}
+    }
+  }
+
+  // En modo AGENT: si hay code_output con comandos, también devolvemos un plan estructurado
+  if matches!(mode, ChatMode::Agent) {
+    if let Some(ref code) = code_output {
+      // Dividir en pasos simples respetando here-doc (<<EOF ... EOF), y evitando partir pipelines
+      fn split_line_ops(line: &str) -> Vec<String> {
+        let mut parts: Vec<String> = Vec::new();
+        let mut cur = String::new();
+        let mut q: Option<char> = None;
+        let bytes: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        while i < bytes.len() {
+          let ch = bytes[i];
+          let next = if i + 1 < bytes.len() { Some(bytes[i+1]) } else { None };
+          if let Some(qq) = q {
+            cur.push(ch);
+            if ch == qq { q = None; }
+            i += 1; continue;
+          }
+          if ch == '\'' || ch == '"' || ch == '`' { q = Some(ch); cur.push(ch); i += 1; continue; }
+          // cortar en &&, ||, ; pero no en una sola |
+          if (ch == '&' && next == Some('&')) || (ch == '|' && next == Some('|')) || ch == ';' {
+            if !cur.trim().is_empty() { parts.push(cur.trim().to_string()); }
+            if (ch == '&' && next == Some('&')) || (ch == '|' && next == Some('|')) { i += 2; } else { i += 1; }
+            cur.clear();
+            continue;
+          }
+          if ch == '#' { break; } // comentario
+          cur.push(ch); i += 1;
+        }
+        if !cur.trim().is_empty() { parts.push(cur.trim().to_string()); }
+        parts
+      }
+      fn split_into_steps(code: &str) -> Vec<String> {
+        let mut steps: Vec<String> = Vec::new();
+        let mut lines = code.lines().peekable();
+        while let Some(raw) = lines.next() {
+          let line = raw.trim();
+          if line.is_empty() { continue; }
+          // here-doc bloque
+          if line.contains("<<EOF") || line.contains("<<'EOF'") || line.contains("<<\"EOF\"") {
+            let mut chunk = String::new();
+            chunk.push_str(line);
+            while let Some(nl) = lines.next() {
+              chunk.push('\n');
+              chunk.push_str(nl);
+              if nl.trim() == "EOF" { break; }
+            }
+            steps.push(chunk.trim().to_string());
+            continue;
+          }
+          // dividir por operadores manteniendo pipelines
+          for part in split_line_ops(line) { if !part.is_empty() { steps.push(part); } }
+        }
+        steps
+      }
+      fn describe_cmd(cmd: &str) -> String {
+        let s = cmd.trim();
+        if s.is_empty() { return String::from(""); }
+        let lower = s.to_lowercase();
+        if let Some(rest) = s.strip_prefix("mkdir ") { return format!("Crear el directorio {}.", rest.trim()); }
+        if let Some(rest) = s.strip_prefix("cd ") { return format!("Entrar al directorio {}.", rest.trim()); }
+        if let Some(rest) = s.strip_prefix("touch ") { return format!("Crear el archivo vacío {}.", rest.trim()); }
+        if lower.starts_with("git clone ") {
+          let parts: Vec<&str> = s.split_whitespace().collect();
+          if parts.len() >= 3 { return format!("Clonar el repositorio {} en la carpeta {}.", parts[2], parts.get(3).unwrap_or(&".")); }
+          if parts.len() >= 2 { return format!("Clonar el repositorio {}.", parts[2]); }
+        }
+        if lower.starts_with("npm install") || lower.starts_with("yarn install") || lower.starts_with("pnpm install") {
+          return "Instalar dependencias del proyecto.".to_string();
+        }
+        if lower.starts_with("cargo build") { return "Compilar el proyecto Rust (cargo build).".to_string(); }
+        if lower.starts_with("cargo run") { return "Ejecutar el binario del proyecto Rust (cargo run).".to_string(); }
+        if lower.starts_with("chmod +x") { return "Dar permisos de ejecución al archivo.".to_string(); }
+        if lower.starts_with("mv ") { return "Mover o renombrar archivos/directorios.".to_string(); }
+        if lower.starts_with("cp ") { return "Copiar archivos o directorios.".to_string(); }
+        if lower.contains("cat >") && lower.contains("<<") { return "Crear un archivo con contenido (here-doc).".to_string(); }
+        if lower.contains(">>") || lower.contains(">") { return "Escribir/añadir contenido a un archivo.".to_string(); }
+        "Ejecutar el comando indicado.".to_string()
+      }
+
+      let steps_raw = split_into_steps(code);
+      if steps_raw.len() >= 2 {
+        let steps_json: Vec<serde_json::Value> = steps_raw.iter()
+          .map(|cmd| serde_json::json!({ "desc": describe_cmd(cmd), "cmd": cmd }))
+          .collect();
+        let plan = serde_json::json!({ "plan": { "title": "Plan de ejecución", "steps": steps_json } });
+        code_output = Some(plan.to_string());
+      } else if steps_raw.len() == 1 {
+        // Un solo paso: preservar el comando original en code_output (sin plan)
+        if let Some(first) = steps_raw.into_iter().next() { code_output = Some(first); }
+      }
+    }
   }
 
   Ok(AiChatResponse {
