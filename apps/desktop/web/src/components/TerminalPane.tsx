@@ -19,6 +19,39 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const unlistenRef = useRef<(() => void) | null>(null);
+  const hasFocusedOnceRef = useRef<boolean>(false);
+  const focusLoopRef = useRef<number | null>(null);
+
+  const ensureBlinkClasses = () => {
+    const root = containerRef.current;
+    if (!root) return;
+    try {
+      const nodes = root.querySelectorAll('.xterm .xterm-cursor, .xterm .xterm-cursor-block, .xterm .xterm-cursor-bar, .xterm .xterm-cursor-underline');
+      nodes.forEach(n => { try { (n as HTMLElement).classList.add('blink'); } catch {} });
+    } catch {}
+  };
+
+  // Reintenta enfocar el terminal por un corto periodo, útil si el SO/ventana roba el foco
+  const startFocusLoop = (ms: number = 2000) => {
+    if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
+    const start = Date.now();
+    focusLoopRef.current = window.setInterval(() => {
+      if (!termRef.current) return;
+      const elapsed = Date.now() - start;
+      if (elapsed > ms) {
+        if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
+        return;
+      }
+      try {
+        const active = document.activeElement as HTMLElement | null;
+        const ta = containerRef.current?.querySelector('.xterm textarea') as HTMLTextAreaElement | null;
+        if (ta && active !== ta) {
+          termRef.current.focus();
+          hasFocusedOnceRef.current = true;
+        }
+      } catch {}
+    }, 250);
+  };
 
   // Apply xterm theme from CSS variables
   const applyXtermTheme = () => {
@@ -74,17 +107,9 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       brightWhite: resolveVar('--ansi-bright-white'),
     } as any;
 
-    // Usa la API oficial para aplicar el tema y refresca la pantalla
+    // Aplica el tema y refuerza opciones del cursor; evita cambiar renderer para no romper el parpadeo
     try { term.setOption('theme', theme); } catch { (term as any).options.theme = theme; }
-    // Fuerza re-render del renderer para evitar atlas/estilos stale
-    try {
-      const currentRenderer = (term.getOption as any)?.('rendererType');
-      term.setOption('rendererType', 'dom');
-      // Regresa al renderer por defecto en el siguiente tick
-      setTimeout(() => {
-        try { term.setOption('rendererType', currentRenderer || 'canvas'); } catch {}
-      }, 0);
-    } catch {}
+  try { term.setOption('cursorBlink', false); term.setOption('cursorStyle', 'block'); } catch {}
     try { term.refresh(0, term.rows - 1); } catch {}
   };
 
@@ -93,12 +118,22 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     const container = containerRef.current;
     if (!container) return;
 
-    const term = new Terminal({ cursorBlink: true, convertEol: true, allowProposedApi: true });
+  const term = new Terminal({ cursorBlink: true, cursorStyle: 'block', convertEol: true, allowProposedApi: true });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.loadAddon(new WebLinksAddon());
-    term.open(container);
-    try { fit.fit(); } catch {}
+  // Asegura que el contenedor pueda recibir foco a nivel del navegador
+  try { container.setAttribute('tabindex', '0'); container.setAttribute('role', 'textbox'); } catch {}
+  term.open(container);
+  try { fit.fit(); } catch {}
+  // Enfocar inmediatamente tras abrir para permitir escribir sin click
+  try { term.focus(); hasFocusedOnceRef.current = true; } catch {}
+  startFocusLoop();
+  // Fijar renderer DOM vía opción interna si está disponible y reforzar opciones del cursor de forma segura
+  try { (term as any).setOption?.('rendererType', 'dom'); } catch {}
+  try { (term as any).options.cursorBlink = false; (term as any).options.cursorStyle = 'block'; } catch {}
+  try { ensureBlinkClasses(); requestAnimationFrame(() => ensureBlinkClasses()); } catch {}
+  try { ensureBlinkClasses(); requestAnimationFrame(() => ensureBlinkClasses()); } catch {}
 
   termRef.current = term;
     fitRef.current = fit;
@@ -118,6 +153,8 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   // Ajustar tamaño al cambiar ventana y notificar al backend
   const onResize = () => {
       try { fit.fit(); } catch {}
+      // Reenfocar después de ajuste si ya enfocamos una vez
+      try { if (termRef.current && hasFocusedOnceRef.current) termRef.current.focus(); } catch {}
       if (sessionId) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
     };
 
@@ -131,6 +168,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       window.removeEventListener('resize', onResize);
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
+      if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
       try { mo.disconnect(); } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,13 +199,25 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       }));
 
       listen<string>(`ssh_out_${safe}`, (event) => {
-        if (event.payload) term.write(event.payload);
+        if (event.payload) {
+          term.write(event.payload);
+          // Enfocar cuando llega la primera salida (primer conexión) si aún no se enfocó
+          try {
+            if (!hasFocusedOnceRef.current) { term.focus(); hasFocusedOnceRef.current = true; }
+          } catch {}
+          startFocusLoop();
+          try { ensureBlinkClasses(); } catch {}
+        }
       }).then(un => { unlistenRef.current = un }).catch(() => {});
 
       // Redimensionado inicial y señal de "UI lista" para volcar el buffer efímero
       invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
       // Señal de readiness: después de montar y ajustar tamaño
       invoke('ssh_ui_ready', { id: sessionId }).catch(() => {});
+      // Enfocar tras handshake inicial
+      try { term.focus(); hasFocusedOnceRef.current = true; } catch {}
+      startFocusLoop();
+      try { ensureBlinkClasses(); } catch {}
     }
 
     return () => {
