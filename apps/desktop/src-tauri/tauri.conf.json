@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ssh-ai-client",
-  "version": "1.18.1",
+  "version": "0.1.6",
   "identifier": "co.unipiloto.sshclient",
   "build": {
     "frontendDist": "../web/dist",
     "devUrl": "http://localhost:5174",
-    "beforeDevCommand": "npm --prefix ./web run dev",
-    "beforeBuildCommand": "node ./scripts/build-web.mjs"
+    "beforeDevCommand": "npm run dev --prefix web",
+    "beforeBuildCommand": "npm run build --prefix web"
   },
   "app": {
     "windows": [
@@ -26,8 +26,9 @@
     }
   },
   "bundle": {
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "active": true,
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

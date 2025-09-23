@@ -38,3 +38,18 @@ html[data-theme="granite-fog"] .xterm {
 .xterm .xterm-cursor { background-color: var(--accent-primary) !important; color: var(--background-primary) !important; }
 
 .xterm ::selection { background: var(--accent-primary-hover) !important; color: var(--background-primary) !important; }
+
+/* Ensure cursor blink animation is active regardless of renderer quirks */
+@keyframes xterm-cursor-blink-fallback {
+  50% { opacity: 0; }
+}
+/* Support both old and new xterm classnames for blink */
+.xterm .xterm-cursor.blink,
+.xterm .xterm-cursor.xterm-cursor-blink {
+  animation: xterm-cursor-blink-fallback 1s steps(1) infinite;
+}
+/* Conditional fallback: only blink if xterm didn't add a blink class */
+.xterm .xterm-cursor:not(.blink):not(.xterm-cursor-blink),
+.xterm .xterm-cursor-block:not(.blink):not(.xterm-cursor-blink) {
+  animation: xterm-cursor-blink-fallback 0.9s steps(1) infinite;
+}

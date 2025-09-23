@@ -22,6 +22,12 @@
 			"type": "shell",
 			"command": "cargo build",
 			"group": "build"
+		},
+		{
+			"label": "Build desktop Tauri app",
+			"type": "shell",
+			"command": "cargo build",
+			"group": "build"
 		}
 	]
 }
