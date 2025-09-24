@@ -96,13 +96,6 @@ const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseT
           )}
           <span>{checking ? 'Buscando…' : 'Buscar actualización'}</span>
         </button>
-        <button className="btn-secondary" onClick={() => push({ type: 'info', message: 'Hola desde el nuevo botón 👋' }, 3000)}>
-          <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M8 12h8M12 8v8"/>
-          </svg>
-          <span>Botón nuevo</span>
-        </button>
       </nav>
     </header>
   );
