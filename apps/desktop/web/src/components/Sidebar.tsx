@@ -14,9 +14,7 @@ const items = [
   { id: 'hosts', label: 'Hosts', icon: '🧭' },
   { id: 'themes', label: 'Temas', icon: '🎨' },
   { id: 'sftp', label: 'SFTP', icon: '📂' },
-    { id: 'snippets', label: 'Snippets', icon: '📎' },
-    { id: 'known', label: 'Known Hosts', icon: '📡' },
-    { id: 'logs', label: 'Logs', icon: '🕘' },
+  { id: 'snippets', label: 'Snippets', icon: '📎' },
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, selectedPage, onSelectPage }) => {

@@ -15,6 +15,7 @@ import ToastContainer from './components/ToastContainer'
 import { ThemeProvider } from './contexts/ThemeContext'
 import ThemesPage from './pages/ThemesPage'
 import SftpPage from './pages/SftpPage'
+import SnippetsPage from './pages/SnippetsPage'
 import ConfirmModal from './components/ConfirmModal'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
@@ -166,6 +167,11 @@ const App: React.FC = () => {
                 <SftpPage
                   sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
                   sessionsMeta={sessionMeta}
+                  activeSessionId={tabs.some(t=>t.id===activeTabId && t.type==='session') ? activeTabId : undefined}
+                />
+              ) : selectedPage === 'snippets' ? (
+                <SnippetsPage
+                  sessionIds={tabs.filter(t=>t.type==='session').map(t=>t.id)}
                   activeSessionId={tabs.some(t=>t.id===activeTabId && t.type==='session') ? activeTabId : undefined}
                 />
               ) : (
