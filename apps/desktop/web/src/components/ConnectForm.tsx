@@ -90,61 +90,86 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
     }
   }
 
+  const selectDefaultHost = (h: { host: string; port: number }) => {
+    setHost(h.host)
+    setPort(String(h.port))
+  }
+
+  const defaultHosts = [
+    { id: 'pi4', name: 'pi4', host: '200.115.181.211', port: 9000 }
+  ]
+
+  const [selectedHostId, setSelectedHostId] = useState<string | null>(null)
+
   return (
-    <div className="home-screen">
+    <div className="home-screen connect-layout">
       <div className="connect-box" onKeyDown={onKeyDown}>
-        <div className="form-grid">
-          <div className="field host">
-            <label>Host</label>
-            <input placeholder="ej. 192.168.1.10" value={host} onChange={e => setHost(e.target.value)} />
+        <header className="connect-box-head">
+          <h1>Conectar</h1>
+          {selectedHostId && <span className="active-host-indicator">{selectedHostId}</span>}
+        </header>
+          <div className="form-grid compact full-rows">
+          {/* Host + Port Row */}
+          <div className="field floating host">
+            <input id="field-host" placeholder=" " value={host} onChange={e => { if (selectedHostId) setSelectedHostId(null); setHost(e.target.value) }} />
+            <label htmlFor="field-host">Host</label>
           </div>
-          <div className="field port">
-            <label>Puerto</label>
-            {/* Input de texto con teclado numérico; sin spinners; permite vaciar */}
-            <input
-              placeholder="22"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={port}
-              onChange={e => setPort(e.target.value)}
-              onWheel={(e) => { try { (e.target as HTMLInputElement).blur() } catch {} }}
-              autoComplete="off"
-            />
+          <div className="field floating port">
+            <input id="field-port" placeholder=" " type="text" inputMode="numeric" pattern="[0-9]*" value={port} onChange={e => { if (selectedHostId) setSelectedHostId(null); setPort(e.target.value) }} onWheel={(e) => { try { (e.target as HTMLInputElement).blur() } catch {} }} autoComplete="off" />
+            <label htmlFor="field-port">Puerto</label>
           </div>
-          <div className="field user">
-            <label>Usuario</label>
-            <input placeholder="usuario" value={user} onChange={e => setUser(e.target.value)} />
+          {/* User + Password Row */}
+          <div className="field floating user full">
+            <input id="field-user" placeholder=" " value={user} onChange={e => { if (selectedHostId) setSelectedHostId(null); setUser(e.target.value) }} />
+            <label htmlFor="field-user">Usuario</label>
           </div>
-          <div className="field pass">
-            <label>Password</label>
-            <input placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          <div className="field floating pass full">
+            <input id="field-pass" placeholder=" " type="password" value={password} onChange={e => { if (selectedHostId) setSelectedHostId(null); setPassword(e.target.value) }} />
+            <label htmlFor="field-pass">Password</label>
           </div>
-        </div>
-        <div className="actions-row">
-          <button title={isValid ? '' : 'Completa host, usuario y password'} onClick={connect} disabled={busyLocal || !isValid}>
+          </div>
+        <div className="actions-row align-right primary-first">
+          <button className="primary" title={isValid ? '' : 'Completa host, usuario y password'} onClick={connect} disabled={busyLocal || !isValid}>
             {busyLocal ? <span className="spinner" style={{ width:18, height:18, borderWidth:3, marginRight:8 }} /> : null}
             Conectar
           </button>
           {!showSaveName ? (
-            <button className="ghost" disabled={busyLocal} onClick={() => setShowSaveName(true)}>Guardar host</button>
+            <button className="ghost minor" disabled={busyLocal} onClick={() => setShowSaveName(true)}>Guardar host</button>
           ) : (
-            <>
-              <button disabled={busyLocal} onClick={doSaveHost}>Confirmar guardar</button>
+            <div className="inline-save-buttons">
+              <button disabled={busyLocal} onClick={doSaveHost}>Confirmar</button>
               <button className="ghost" onClick={() => { setShowSaveName(false); setSaveName('') }}>Cancelar</button>
-            </>
+            </div>
           )}
         </div>
         {showSaveName && (
-          <div className="save-row">
-            <label>Nombre (opcional)</label>
-            <div className="save-inline">
-              <input placeholder="Mi servidor" value={saveName} onChange={e => setSaveName(e.target.value)} />
-              <small className="muted">Ctrl/⌘+S para guardar rápidamente</small>
+          <div className="save-row floating-inline">
+            <div className="field floating inline-name">
+              <input id="field-saveName" placeholder=" " value={saveName} onChange={e => setSaveName(e.target.value)} />
+              <label htmlFor="field-saveName">Nombre (opcional)</label>
             </div>
+            <small className="muted">Ctrl/⌘+S para guardar</small>
           </div>
         )}
       </div>
+      <aside className="quick-host-panel" aria-label="Hosts rápidos">
+        <h2>Hosts rápidos</h2>
+        <div className="quick-hosts-scroller">
+          {defaultHosts.map(h => (
+            <button
+              key={h.id}
+              type="button"
+              className={`quick-host-pill ${selectedHostId===h.id ? 'selected':''}`}
+              onClick={() => { selectDefaultHost(h); setSelectedHostId(h.id) }}
+              aria-pressed={selectedHostId===h.id}
+              title={`Rellenar host ${h.name}`}
+            >
+              <span className="qh-name">{h.name}</span>
+              <span className="qh-addr">{h.host}:{h.port}</span>
+            </button>
+          ))}
+        </div>
+      </aside>
     </div>
   )
 }
