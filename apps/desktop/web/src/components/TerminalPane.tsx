@@ -133,7 +133,6 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   try { (term as any).setOption?.('rendererType', 'dom'); } catch {}
   try { (term as any).options.cursorBlink = false; (term as any).options.cursorStyle = 'block'; } catch {}
   try { ensureBlinkClasses(); requestAnimationFrame(() => ensureBlinkClasses()); } catch {}
-  try { ensureBlinkClasses(); requestAnimationFrame(() => ensureBlinkClasses()); } catch {}
 
   termRef.current = term;
     fitRef.current = fit;
