@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import './SnippetsPage.css';
-import { invoke } from '@tauri-apps/api/core';
-import { SessionMem } from '../hooks/useSessionMemory';
+// Eliminado: integración con archivos recientes de sesiones
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -40,62 +39,14 @@ function saveStored(list: UserSnippet[]) {
 /* -------------------------------------------------------------------------- */
 /* Component                                                                  */
 /* -------------------------------------------------------------------------- */
-interface SnippetsPageProps {
-  activeSessionId?: string;            // current active session (for quick add)
-  sessionIds: string[];                // all open session ids
-}
+// Props vacíos: ya no dependemos de sesiones ni archivos
+interface SnippetsPageProps {}
 
-const SnippetsPage: React.FC<SnippetsPageProps> = ({ activeSessionId, sessionIds }) => {
+const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
   const [snippets, setSnippets] = useState<UserSnippet[]>(() => loadStored());
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [filter, setFilter] = useState('');
-  const [sessionMems, setSessionMems] = useState<Record<string, SessionMem>>({});
-
-  // Fetch session memories without violating hooks rules
-  useEffect(() => {
-    const fetchMems = async () => {
-      const newMems: Record<string, SessionMem> = {};
-      for (const id of sessionIds) {
-        try {
-          const data = await invoke<any>("mem_get", { sessionId: id });
-          if (data) {
-            newMems[id] = {
-              lastFile: data.last_file ?? data.lastFile,
-              lastFileHash: data.last_file_hash ?? data.lastFileHash,
-              lastFileSnippet: data.last_file_snippet ?? data.lastFileSnippet,
-              lastCommand: data.last_command ?? data.lastCommand,
-              lastStdoutTail: data.last_stdout_tail ?? data.lastStdoutTail,
-              lastStderrTail: data.last_stderr_tail ?? data.lastStderrTail,
-              lastExitCode: data.last_exit_code ?? data.lastExitCode,
-              lastPath: data.last_path ?? data.lastPath,
-              lastPathKind: (data.last_path_kind ?? data.lastPathKind) as 'file' | 'dir' | undefined,
-              env: { cwd: data.env_cwd ?? data.env?.cwd, shell: data.env_shell ?? data.env?.shell, os: data.env_os ?? data.env?.os }
-            };
-          }
-        } catch {}
-      }
-      setSessionMems(newMems);
-    };
-    fetchMems();
-  }, [sessionIds]);
-
-  // Derived: map session -> last file snippet
-  const sessionSnippets = useMemo(() => {
-    return sessionIds.map(id => {
-      const mem = sessionMems[id];
-      if (mem && mem.lastFile && mem.lastFileSnippet) {
-        return {
-          id: `__session__${id}`,
-            sessionId: id,
-            file: mem.lastFile,
-            snippet: mem.lastFileSnippet,
-            hash: mem.lastFileHash
-        };
-      }
-      return null;
-    }).filter(Boolean) as Array<{ id: string; sessionId: string; file: string; snippet: string; hash?: string }>;
-  }, [sessionIds, sessionMems]);
 
   const addSnippet = useCallback(() => {
     const t = title.trim();
@@ -106,7 +57,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ activeSessionId, sessionIds
       title: t || 'Sin título',
       content: c,
       createdAt: Date.now(),
-      sessionId: activeSessionId,
+      // solo comandos manuales; no asociar a sesión/archivo
     };
     setSnippets(prev => {
       const next = [sn, ...prev].slice(0, 500); // cap to 500
@@ -115,7 +66,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ activeSessionId, sessionIds
     });
     setTitle('');
     setText('');
-  }, [title, text, activeSessionId]);
+  }, [title, text]);
 
   const deleteSnippet = (id: string) => {
     setSnippets(prev => {
@@ -135,20 +86,13 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ activeSessionId, sessionIds
     return snippets.filter(s => (s.title.toLowerCase().includes(f) || s.content.toLowerCase().includes(f)));
   }, [snippets, filter]);
 
-  // Quick add from active session last file snippet
-  const quickAddFromSession = useCallback(() => {
-    if (!activeSessionId) return;
-    const sessionEntry = sessionSnippets.find(s => s.sessionId === activeSessionId);
-    if (!sessionEntry) return;
-    setTitle(sessionEntry.file.split('/').pop() || sessionEntry.file);
-    setText(sessionEntry.snippet);
-  }, [activeSessionId, sessionSnippets]);
+  // Eliminado: quick add desde archivo de sesión
 
   // Persist whenever list changes (already saved on add/delete but safe)
   useEffect(() => { saveStored(snippets); }, [snippets]);
 
   return (
-    <div className="snippets-page" data-has-active={!!activeSessionId}>
+    <div className="snippets-page">
       <header className="snippets-header">
         <h1>Snippets</h1>
         <div className="header-actions">
@@ -158,7 +102,6 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ activeSessionId, sessionIds
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />
-          <button type="button" className="btn outline" onClick={quickAddFromSession} disabled={!activeSessionId}>Tomar del archivo actual</button>
         </div>
       </header>
 
@@ -185,22 +128,6 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ activeSessionId, sessionIds
       </section>
 
       <div className="layout">
-        <aside className="session-snippets" aria-label="Snippets de sesiones">
-          <h2>Archivo reciente por sesión</h2>
-          {sessionSnippets.length === 0 && <p className="empty">No hay archivos recientes.</p>}
-          {sessionSnippets.map(s => (
-            <div key={s.id} className="session-snippet-card" data-active={s.sessionId === activeSessionId}>
-              <div className="top">
-                <strong className="file" title={s.file}>{s.file}</strong>
-                {s.hash && <code className="hash" title={s.hash}>{s.hash.slice(0,8)}</code>}
-              </div>
-              <pre className="snippet-preview"><code>{s.snippet}</code></pre>
-              <div className="mini-actions">
-                <button type="button" className="btn xs" onClick={() => { setTitle(s.file.split('/').pop() || s.file); setText(s.snippet); }}>Usar</button>
-              </div>
-            </div>
-          ))}
-        </aside>
         <main className="user-snippets" aria-label="Snippets guardados">
           <h2>Guardados ({filteredSnippets.length})</h2>
           {filteredSnippets.length === 0 && (
