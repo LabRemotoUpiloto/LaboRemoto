@@ -2,3 +2,8 @@
 # will have compiled files and executables
 /target/
 /gen/schemas
+\n+# Ignore generated icon source and platform-specific assets
+/icons/icon-source.png
+/icons/64x64.png
+/icons/android/
+/icons/ios/

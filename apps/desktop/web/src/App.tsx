@@ -170,10 +170,7 @@ const App: React.FC = () => {
                   activeSessionId={tabs.some(t=>t.id===activeTabId && t.type==='session') ? activeTabId : undefined}
                 />
               ) : selectedPage === 'snippets' ? (
-                <SnippetsPage
-                  sessionIds={tabs.filter(t=>t.type==='session').map(t=>t.id)}
-                  activeSessionId={tabs.some(t=>t.id===activeTabId && t.type==='session') ? activeTabId : undefined}
-                />
+                <SnippetsPage />
               ) : (
                 <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
               )}
