@@ -1,4 +1,4 @@
 dist-local
 docs
 scripts/
-!scripts/build-web.mjs
+public/icon.png

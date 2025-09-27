@@ -1,0 +1,27 @@
+.logs-page { display:flex; flex-direction:column; height:100%; padding:16px; gap:12px; }
+.logs-header { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+.logs-header h1 { margin:0; font-size:20px; font-weight:600; }
+.logs-header .filters { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.logs-header select, .logs-header input { background:var(--input-bg); border:1px solid var(--input-border); color:var(--text-primary); padding:6px 10px; border-radius:6px; font-size:13px; }
+.logs-header select:focus, .logs-header input:focus { outline:2px solid var(--focus-inner); outline-offset:1px; }
+
+.log-feed { flex:1; background:var(--panel); border:1px solid var(--border-subtle); border-radius:10px; padding:12px; overflow:auto; display:flex; flex-direction:column; gap:10px; }
+.log-entry { background:var(--background-tertiary); border:1px solid var(--border-subtle); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; font-size:12px; }
+.log-entry.active-session { border-color:var(--accent-primary); box-shadow:0 0 0 1px var(--accent-primary); }
+.log-entry .meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.log-entry .time { font-variant-numeric:tabular-nums; opacity:.7; }
+.log-entry .sid { background:var(--panel-muted, var(--background-secondary)); padding:2px 6px; border-radius:4px; font-size:11px; }
+.log-entry .kind { font-weight:600; }
+.log-entry.type-stderr { border-color:rgba(239,68,68,0.6); }
+.log-entry.type-exit { border-style:dashed; }
+.log-entry .copy-btn { background:var(--interactive-hover); border:none; cursor:pointer; border-radius:4px; padding:2px 6px; font-size:12px; }
+.log-entry .copy-btn:hover { background:var(--accent-primary); color:var(--accent-contrast,#061016); }
+.payload { margin:0; max-height:200px; overflow:auto; background:rgba(255,255,255,0.05); padding:6px 8px; border-radius:6px; font-size:11px; }
+.payload code { font-family:var(--terminal-font-family); }
+
+.btn { cursor:pointer; background:var(--interactive-bg, var(--background-tertiary)); color:var(--text-primary); border:1px solid var(--border-subtle); padding:6px 12px; border-radius:6px; font-size:13px; line-height:1.2; display:inline-flex; align-items:center; gap:6px; }
+.btn:hover { background:var(--interactive-hover); }
+.btn:active { background:var(--interactive-active); }
+.btn.danger { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.5); color:#f87171; }
+.btn.danger:hover { background:rgba(239,68,68,0.3); }
+.btn.xs { font-size:12px; padding:4px 8px; }
