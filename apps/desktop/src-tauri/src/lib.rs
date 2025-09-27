@@ -42,6 +42,7 @@ pub fn run() {
       cmd::local::local_list_drives,
       // Chat IA
       cmd::ai::ai_chat,
+  cmd::agent::agent_plan,
       // Storage (hosts)
       cmd::hosts::save_host_encrypted,
       cmd::hosts::load_host_encrypted,

@@ -8,6 +8,7 @@ pub mod ssh;     // Conexión SSH interactiva
 pub mod sftp;    // Operaciones SFTP y transferencias
 pub mod local;   // Acceso a FS local
 pub mod hosts;   // Comandos de almacenamiento de hosts (envolturas de crate::storage)
+pub mod agent;   // Modo agente (planificación y tools internas)
 
 // Re-exportar comandos para no cambiar rutas usadas en lib.rs
 pub use ai::{ai_chat, AiChatRequest, AiChatResponse};
@@ -15,3 +16,4 @@ pub use ssh::{ssh_connect, ssh_stdin, ssh_resize, ssh_disconnect, ssh_connect_st
 pub use sftp::*;
 pub use local::*;
 pub use hosts::*;
+pub use agent::{agent_plan, AgentPlanRequest, AgentPlanResponse, ToolActionResult, FsSearchMatch};
