@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
-use dotenvy::dotenv;
 use std::{env, fs};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // Mensajes canónicos
 const MENSAJE_IDENTIDAD: &str = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
@@ -65,55 +64,9 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   use crate::security::SecurityManager;
 
   
-  // Load .env to pick up OPENAI_API_KEY (dotenvy is safe on desktop)
-  let _ = dotenv();
-  
-  // Inicializar el gestor de seguridad (actualmente no usado directamente)
+  // Cargar siempre y forzar override desde apps/.env únicamente
+  force_load_single_env();
   let _security = SecurityManager::new();
-  // Try multiple sources for the API key so packaged apps work for end users
-  fn load_api_key_multi() -> Option<String> {
-    // 1) Environment variable
-    if let Ok(v) = env::var("OPENAI_API_KEY") { if !v.trim().is_empty() { return Some(v); } }
-
-    // 2) %APPDATA%/ssh-ai-client/config.json (Windows) or ~/.config/ssh-ai-client/config.json (others)
-    let mut candidates: Vec<PathBuf> = Vec::new();
-    if let Ok(appdata) = env::var("APPDATA") { // Windows
-      candidates.push(PathBuf::from(appdata).join("ssh-ai-client").join("config.json"));
-    }
-    if let Ok(home) = env::var("HOME") { // Unix-like fallback
-      candidates.push(PathBuf::from(home).join(".config").join("ssh-ai-client").join("config.json"));
-    }
-    // 3) Next to the executable (portable distribution)
-    if let Ok(exe) = env::current_exe() {
-      let base = exe.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
-      candidates.push(base.join("config.json"));
-      candidates.push(base.join("openai_api_key.txt"));
-    }
-
-    for path in candidates {
-      if let Ok(meta) = fs::metadata(&path) {
-        if meta.is_file() {
-          // Try JSON with several key names first
-          if path.extension().and_then(|s| s.to_str()).map(|s| s.eq_ignore_ascii_case("json")).unwrap_or(false) {
-            if let Ok(txt) = fs::read_to_string(&path) {
-              if let Ok(json) = serde_json::from_str::<serde_json::Value>(&txt) {
-                let k = json.get("OPENAI_API_KEY").or_else(|| json.get("openai_api_key")).or_else(|| json.get("apiKey"));
-                if let Some(val) = k.and_then(|v| v.as_str()) { if !val.trim().is_empty() { return Some(val.to_string()); } }
-              }
-            }
-          } else {
-            // Plain text file: first non-empty line is the key
-            if let Ok(txt) = fs::read_to_string(&path) {
-              if let Some(line) = txt.lines().map(|l| l.trim()).find(|l| !l.is_empty()) {
-                return Some(line.to_string());
-              }
-            }
-          }
-        }
-      }
-    }
-    None
-  }
 
   // Load proxy settings (URL and optional bearer token) from env or config files
   fn load_proxy_settings() -> (Option<String>, Option<String>) {
@@ -154,14 +107,13 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   let (cfg_proxy_url, cfg_proxy_auth) = load_proxy_settings();
   let proxy_url = cfg_proxy_url.or_else(|| env::var("AI_PROXY_URL").ok());
   let proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
-  let mut api_key = if proxy_url.is_none() { load_api_key_multi() } else { None };
-  // Last-resort: embed key at compile time if provided during build
-  if proxy_url.is_none() && api_key.is_none() {
-    if let Some(k) = option_env!("APP_EMBED_OPENAI_API_KEY") {
-      if !k.trim().is_empty() { api_key = Some(k.to_string()); }
+  let api_key = if proxy_url.is_none() {
+    match env::var("OPENAI_API_KEY") {
+      Ok(v) if !v.trim().is_empty() => Some(v),
+      _ => None,
     }
-  }
-  if proxy_url.is_none() && api_key.as_ref().map(|s| s.is_empty()).unwrap_or(true) {
+  } else { None };
+  if proxy_url.is_none() && api_key.is_none() {
     return Err("OPENAI_API_KEY not set".to_string());
   }
   let model_id = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".to_string());
@@ -1068,4 +1020,72 @@ Notas para Python:
     requires_confirmation: false,
     state: state,
   })
+}
+
+// Carga forzada única desde apps/.env (raíz relativa: subir dos niveles desde src-tauri)
+fn force_load_single_env() {
+  let debug = std::env::var("AI_ENV_DEBUG").ok().map(|v| v == "1" || v.eq_ignore_ascii_case("true" )).unwrap_or(false);
+  // Intentar localizar apps/.env partiendo de current_exe o current_dir
+  let mut candidate_paths: Vec<String> = Vec::new();
+  if let Ok(exe) = std::env::current_exe() {
+    if let Some(parent) = exe.parent() { // .../src-tauri/target/debug
+      // subir hasta encontrar "apps" y luego .env
+      let apps_env = parent
+        .ancestors()
+        .find(|p| p.file_name().map(|n| n == "apps").unwrap_or(false))
+        .map(|apps_dir| apps_dir.join(".env"));
+      if let Some(p) = apps_env { candidate_paths.push(p.display().to_string()); }
+    }
+  }
+  if let Ok(cwd) = std::env::current_dir() {
+    // Caso desarrollo: normalmente cwd = .../apps/desktop/src-tauri
+    let apps_candidate = cwd
+      .ancestors()
+      .find(|p| p.file_name().map(|n| n == "apps").unwrap_or(false))
+      .map(|a| a.join(".env"));
+    if let Some(p) = apps_candidate { let disp = p.display().to_string(); if !candidate_paths.contains(&disp) { candidate_paths.push(disp); } }
+  }
+  // Si no encontramos nada, intentar relativo: ../../.env respecto a src-tauri (desarrollo)
+  if candidate_paths.is_empty() {
+    if let Ok(cwd) = std::env::current_dir() {
+      let fallback = cwd.join("..").join("..").join(".env");
+      candidate_paths.push(fallback.display().to_string());
+    }
+  }
+  for path_str in candidate_paths {
+    let p = Path::new(&path_str);
+    if p.exists() {
+      if debug { eprintln!("[env] Cargando único apps/.env: {}", p.display()); }
+      // En lugar de confiar únicamente en dotenv (que puede dejar el antiguo si ya estaba seteado
+      // dependiendo de ciertas variantes), parseamos manualmente y sobreescribimos.
+      if let Ok(content) = std::fs::read_to_string(p) {
+        for line in content.lines() {
+          let line = line.trim();
+            if line.is_empty() || line.starts_with('#') { continue; }
+            if let Some(eq_idx) = line.find('=') {
+              let (k, v_raw) = line.split_at(eq_idx);
+              let key = k.trim();
+              let val = v_raw[1..].trim();
+              if key == "OPENAI_API_KEY" {
+                std::env::set_var("OPENAI_API_KEY", val);
+                if debug { eprintln!("[env] Forzado override OPENAI_API_KEY desde {}", p.display()); }
+              } else {
+                // Podríamos setear también otros, pero para minimizar riesgo solo clave necesaria.
+              }
+            }
+        }
+      } else if debug { eprintln!("[env] No se pudo leer el archivo: {}", p.display()); }
+      break; // solo el primero válido
+    } else if debug { eprintln!("[env] No existe: {}", p.display()); }
+  }
+  // Si aún no está set, intentar dotenv() (por si ejecutan desde raíz y .env ya está ahí)
+  if std::env::var("OPENAI_API_KEY").ok().map(|v| v.trim().is_empty()).unwrap_or(true) {
+    let _ = dotenvy::dotenv();
+  }
+  if debug {
+    match std::env::var("OPENAI_API_KEY") {
+      Ok(v) => eprintln!("[env] OPENAI_API_KEY cargada (long={}): {}...", v.len(), &v.chars().take(6).collect::<String>()),
+      Err(_) => eprintln!("[env] OPENAI_API_KEY NO encontrada"),
+    }
+  }
 }

@@ -40,6 +40,7 @@ pub async fn ssh_connect(
       sftp_cached: None,
       out_buffer: Arc::new(Mutex::new(Some(String::new()))),
       ui_ready: Arc::new(AtomicBool::new(false)),
+      current_dir: None,
     });
   }
 
@@ -95,6 +96,7 @@ pub async fn ssh_ui_ready(app: AppHandle, id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Result<(), String> {
+  // Preparar tx y también referencia para posible actualización de cwd
   let tx = {
     let map = SESSIONS.lock().unwrap();
     map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?.term.tx.clone()
@@ -104,7 +106,70 @@ pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Re
       match STANDARD.decode(&data) { Ok(b) => b, Err(_) => return Err("base64 decode error".to_string()), }
     } else { data.into_bytes() }
   } else { data.into_bytes() };
-  tx.send(ChanCmd::Send(bytes)).map_err(|e| e.to_string())
+
+  // Detectar comando cd en primera línea (heurística simple)
+  let mut cd_target: Option<String> = None;
+  if let Ok(txt) = std::str::from_utf8(&bytes) {
+    if let Some(first_line) = txt.lines().next() {
+      let l = first_line.trim();
+      if l == "cd" || l.starts_with("cd ") {
+        let rest = l.strip_prefix("cd").unwrap().trim();
+        let target = if rest.is_empty() { "~" } else { rest };
+        if !target.contains(';') && !target.contains('|') && !target.contains('&') && !target.contains('>') {
+          cd_target = Some(target.to_string());
+        }
+      }
+    }
+  }
+
+  tx.send(ChanCmd::Send(bytes)).map_err(|e| e.to_string())?;
+
+  if let Some(target) = cd_target {
+    // Actualizar current_dir en background usando ssh2 (sin bloquear el loop async principal)
+    tokio::task::spawn_blocking(move || {
+      use std::path::PathBuf;
+      let mut map = SESSIONS.lock().unwrap();
+      if let Some(s) = map.get_mut(&id) {
+        // Obtener/conectar sesión ssh2
+        let arc = if let Some(existing) = s.sftp_cached.clone() { existing } else {
+          if let Ok((tcp, sess2)) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password) {
+            let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess: sess2 }));
+            s.sftp_cached = Some(arc.clone());
+            arc
+          } else { return; }
+        };
+        if let Ok(guard) = arc.lock() {
+          let raw = target.trim();
+          let expanded = if raw.starts_with('~') {
+            if let Ok(mut ch) = guard.sess.channel_session() {
+              let _ = ch.exec("echo $HOME");
+              use std::io::Read; let mut buf = String::new(); let _ = ch.read_to_string(&mut buf); let _ = ch.wait_close();
+              let home = buf.lines().next().unwrap_or("").trim();
+              if !home.is_empty() { format!("{}{}", home, &raw[1..]) } else { raw.to_string() }
+            } else { raw.to_string() }
+          } else { raw.to_string() };
+          let base = s.current_dir.clone();
+          let candidate = if PathBuf::from(&expanded).is_absolute() {
+            PathBuf::from(&expanded)
+          } else if let Some(b) = base { PathBuf::from(b).join(expanded) } else { PathBuf::from(expanded) };
+          // Abrimos un canal en un bloque separado para soltar guard antes de que map se desbloquee
+          let new_dir = {
+            if let Ok(mut ch2) = guard.sess.channel_session() {
+              let cmd = format!("test -d '{}' && cd '{}' && pwd", candidate.display(), candidate.display());
+              if ch2.exec(&cmd).is_ok() {
+                use std::io::Read; let mut buf = String::new(); let _ = ch2.read_to_string(&mut buf); let _ = ch2.wait_close();
+                let out = buf.lines().next().unwrap_or("").trim().to_string();
+                if !out.is_empty() { Some(out) } else { None }
+              } else { None }
+            } else { None }
+          };
+          if let Some(dir) = new_dir { s.current_dir = Some(dir); }
+        };
+      }
+    });
+  }
+
+  Ok(())
 }
 
 #[tauri::command]
@@ -165,6 +230,7 @@ pub async fn ssh_connect_stored(
       sftp_cached: None,
       out_buffer: Arc::new(Mutex::new(Some(String::new()))),
       ui_ready: Arc::new(AtomicBool::new(false)),
+      current_dir: None,
     });
   }
 

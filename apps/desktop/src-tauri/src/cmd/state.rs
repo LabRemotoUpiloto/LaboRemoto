@@ -31,6 +31,8 @@ pub struct SessionExt {
   pub out_buffer: Arc<Mutex<Option<String>>>,
   // Flag: ¿UI lista para recibir streaming?
   pub ui_ready: Arc<AtomicBool>,
+  // Directorio de trabajo lógico rastreado a partir de comandos 'cd'. Si None, se asumirá el home remoto cuando se necesite.
+  pub current_dir: Option<String>,
 }
 
 // Conexión ssh2 reutilizable por sesión
