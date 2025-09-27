@@ -5,7 +5,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 import { invokeAgentPlan, AgentPlanResponse, ToolActionResult } from '../api/agent';
 
-type ChatMode = 'ask' | 'agent' | 'super';
+// Modos del chat:
+// ask       -> consulta general explicativa
+// busqueda  -> (antes 'agent') invoca plan de acciones (search, open, grep)
+// pines     -> vista sólo de mensajes fijados (no envía prompts)
+// analisis  -> análisis / edición de archivos (placeholder de momento; usa backend ai_chat con modo ANALISIS)
+type ChatMode = 'ask' | 'busqueda' | 'pines' | 'analisis';
 
 type AgentState = {
   cwd: string;
@@ -53,6 +58,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [agentState, setAgentState] = useState<AgentState>({
     cwd: '/',
     lastExitCode: undefined,
@@ -84,6 +90,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     }
   }, [messages]);
 
+  // Escuchar eventos de feedback del renderer de resultados (doble click)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail || !detail.text) return;
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'system', text: detail.text }]);
+    };
+    document.addEventListener('chat:system-msg', handler as any);
+    return () => document.removeEventListener('chat:system-msg', handler as any);
+  }, []);
+
   // Auto-resize vertical del textarea hasta 5 líneas (sin crecer a lo ancho)
   useEffect(() => {
     const el = inputRef.current;
@@ -102,9 +119,13 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
   // Restaurar selector de modo en la UI; el backend seguirá usando ASK por ahora
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setMode(e.target.value as ChatMode);
-    setMessages([]);
-    clear();
+    const next = e.target.value as ChatMode;
+    setMode(next);
+    if (next !== 'pines') {
+      // No limpiar los mensajes al entrar en pines; sirve de visor.
+      setMessages([]);
+      clear();
+    }
   };
 
   const handleNewChat = () => {
@@ -415,7 +436,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    const effectiveMode: ChatMode = mode; // now respect selected mode
+    if (mode === 'pines') {
+      // En modo pines no enviamos nada: solo mostrar aviso rápido como mensaje del sistema.
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'system', text: 'Modo Pines: no se envían mensajes. Cambia de modo para interactuar.' }]);
+      setInput('');
+      return;
+    }
+
+  const effectiveMode: ChatMode = mode; // respetar modo seleccionado
 
     const finalInput = trimmed;
 
@@ -426,7 +454,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     try {
       setIsSending(true);
 
-      if (effectiveMode === 'agent') {
+      if (effectiveMode === 'busqueda') {
         const res: AgentPlanResponse = await invokeAgentPlan({ userMessage: finalInput, sessionId });
         const aiMsg: Message = {
           id: String(Date.now() + 1),
@@ -443,7 +471,9 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             role: m.sender === 'ai' ? 'assistant' : 'user',
             content: m.text,
           }));
-        const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: effectiveMode.toUpperCase(), history, state: agentState } });
+        // Para modos ask / analisis reutilizamos ai_chat; el backend puede diferenciar por MODE
+        const mappedMode = effectiveMode === 'analisis' ? 'ANALISIS' : effectiveMode.toUpperCase();
+        const res = await invoke<AiResponse>('ai_chat', { req: { user_input: finalInput, mode: mappedMode, history, state: agentState } });
         const aiText = (() => {
           const expRaw = (res as any).explanation as string | undefined;
           const respRaw = (res as any).ai_response as string | undefined;
@@ -480,16 +510,37 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     }
   };
 
+  // Derivar lista de mensajes a mostrar según modo (pines filtra)
+  const displayedMessages = mode === 'pines' ? messages.filter(m => pinnedIds.has(m.id)) : messages;
+
+  const togglePin = (id: string) => {
+    setPinnedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const modeHelp: Record<ChatMode, string> = {
+    ask: 'Consulta: explica, resume o responde preguntas generales del contexto.',
+    busqueda: 'Búsqueda: genera y ejecuta planes para localizar archivos, grep o abrir contenido.',
+    pines: 'Pines: vista de mensajes que marcaste con estrella (sólo lectura).',
+    analisis: 'Análisis: (beta) orientado a inspección y futura edición asistida de archivos.'
+  };
+
   return (
     <div className="chat-pane">
       <div className="chat-header">
         <button onClick={handleNewChat} aria-label="Nuevo chat">Nuevo chat</button>
         <select className="mode-select" value={mode} onChange={handleModeChange} aria-label="Seleccionar modo de chat">
-          <option value="ask">Modo Consulta</option>
-          <option value="agent">Modo Agente</option>
+          <option value="ask">Consulta</option>
+          <option value="busqueda">Búsqueda</option>
+          <option value="pines">Pines</option>
+          <option value="analisis">Análisis</option>
         </select>
         {/* removed Clear button per user request */}
       </div>
+      <div className="mode-help" aria-live="polite">{modeHelp[mode]}</div>
 
       <div
         className="chat-messages"
@@ -502,7 +553,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           setShowScrollToBottom(!isNearBottom(el));
         }}
       >
-        {messages.map((msg) => (
+        {displayedMessages.map((msg) => (
           <div
             key={msg.id}
             className={`message ${msg.sender} ${msg.sender === 'user' ? 'message--user' : 'message--assistant'} ${mode}`}
@@ -511,16 +562,23 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
               <div className="message-text message-card">
                 <div className="message-content">
+                  {msg.sender !== 'system' && (
+                    <button
+                      type="button"
+                      className={`pin-btn ${pinnedIds.has(msg.id) ? 'pinned' : ''}`}
+                      aria-pressed={pinnedIds.has(msg.id)}
+                      aria-label={pinnedIds.has(msg.id) ? 'Quitar pin' : 'Fijar mensaje'}
+                      title={pinnedIds.has(msg.id) ? 'Quitar pin' : 'Fijar mensaje'}
+                      onClick={(e) => { e.stopPropagation(); togglePin(msg.id); }}
+                    >{pinnedIds.has(msg.id) ? '★' : '☆'}</button>
+                  )}
                   {msg.sender === 'ai' ? (
                     <>
                       {/* Remote badge */}
-                      {msg.meta?.toolAction && (msg.meta.toolAction as any).remote && (
-                        <span className="remote-badge">remoto</span>
-                      )}
                       <RenderAsk content={msg.text} />
                       {/* Structured results */}
                       {msg.meta?.toolAction && (
-                        <ToolResultRenderer action={msg.meta.toolAction} />
+                        <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />
                       )}
                     </>
                   ) : msg.text}
@@ -555,8 +613,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           placeholder={'Escribe tu mensaje…'}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         />
-        <button className="send-btn" onClick={handleSend} disabled={isSending} aria-label="Enviar mensaje">
-          {isSending ? 'Enviando…' : 'Enviar'}
+        <button className="send-btn" onClick={handleSend} disabled={isSending || mode==='pines'} aria-label="Enviar mensaje">
+          {mode==='pines' ? 'Sólo lectura' : (isSending ? 'Enviando…' : 'Enviar')}
         </button>
       </div>
     </div>
@@ -566,11 +624,18 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 export default ChatPane;
 
 // ---- Structured tool result renderer (collapsible) ----
-const ToolResultRenderer: React.FC<{ action: ToolActionResult }> = ({ action }) => {
+const ToolResultRenderer: React.FC<{ action: ToolActionResult; sessionId?: string }> = ({ action, sessionId }) => {
   const [collapsed, setCollapsed] = React.useState(false);
   if (!action) return null;
   const tool = (action as any).tool;
   const remote = (action as any).remote;
+  // Helper: ejecutar comando SSH (si hay sesión abierta) reutilizando invoke directamente
+  const runSshCommand = async (cmd: string) => {
+    try {
+      if (!sessionId) return;
+      await invoke('ssh_stdin', { id: sessionId, data: cmd + '\n' });
+    } catch { /* noop */ }
+  };
   if (tool === 'fs_search') {
     const matches = (action as any).matches as any[];
     if (!matches || matches.length === 0) return null;
@@ -591,7 +656,6 @@ const ToolResultRenderer: React.FC<{ action: ToolActionResult }> = ({ action }) 
         <header onClick={() => setCollapsed(c => !c)} className="sr-header">
           <div className="sr-header-left">
             <h4 className="sr-title">Resultados {remote ? 'remotos' : 'locales'}</h4>
-            {remote && <span className="remote-chip" title="Obtenido vía SSH">SSH</span>}
           </div>
           <div className="sr-meta">
             <span className="sr-count">{matches.length}</span>
@@ -605,8 +669,33 @@ const ToolResultRenderer: React.FC<{ action: ToolActionResult }> = ({ action }) 
             {matches.slice(0, 200).map((m,i) => {
               const isDir = m.is_dir;
               const icon = isDir ? '📁' : '📄';
+              const handleDoubleClick = () => {
+                // Si remoto: cd o nano; si local (sin remote flag) ignoramos (podríamos abrir lectura en futuro)
+                if (remote) {
+                  const path = m.path as string;
+                  const multimediaBlocked = /\.(png|jpe?g|gif|bmp|svgz|mp3|wav|flac|ogg|mp4|avi|mkv|mov)$/i;
+                  if (isDir) {
+                    document.dispatchEvent(new CustomEvent('chat:system-msg', { detail: { text: `Yendo al directorio: ${path}` } }));
+                    runSshCommand(`cd "${path}" && pwd`);
+                  } else {
+                    if (multimediaBlocked.test(path)) {
+                      document.dispatchEvent(new CustomEvent('chat:system-msg', { detail: { text: `No se puede abrir con nano (multimedia): ${path}` } }));
+                      return;
+                    }
+                    document.dispatchEvent(new CustomEvent('chat:system-msg', { detail: { text: `Abriendo archivo en nano: ${path}` } }));
+                    const isLikelyText = /\.(txt|md|log|sh|bash|zsh|json|ya?ml|toml|js|ts|tsx|rs|py|go|rb|php|c|cpp|h|java|css|scss|html?)$/i.test(path);
+                    const editorCmd = isLikelyText ? `nano "${path}"` : `nano -c "${path}"`;
+                    runSshCommand(editorCmd);
+                  }
+                }
+              };
               return (
-                <li key={i} className="sr-item" title={m.path}>
+                <li
+                  key={i}
+                  className="sr-item sr-interactive"
+                  title={m.path + (remote ? ' (doble click para ' + (isDir ? 'entrar' : 'abrir') + ')' : '')}
+                  onDoubleClick={handleDoubleClick}
+                >
                   <div className="sr-row-main">
                     <span className="sr-icon" aria-hidden>{icon}</span>
                     <span className="sr-name" data-dir={isDir || undefined}>{highlight(m.file_name)}{isDir ? '/' : ''}</span>
