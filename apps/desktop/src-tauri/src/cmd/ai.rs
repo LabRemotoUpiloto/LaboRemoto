@@ -2,23 +2,30 @@ use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use std::{env, fs};
 use std::path::{Path, PathBuf};
+use crate::cmd::ai_utils::force_python3_everywhere;
 
 // Mensajes canónicos
 const MENSAJE_IDENTIDAD: &str = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
 const MENSAJE_FUERA_DE_ALCANCE: &str = "No tengo contenido para esa solicitud. Puedo ayudarte con temas de Linux por terminal (comandos, scripts, configuración). Intenta con una pregunta relacionada o escribe de nuevo tu solicitud.";
 const MENSAJE_CAPACIDADES: &str = "Puedo ayudarte con temas de Linux por terminal:\n\n- Explicar comandos, rutas, permisos y procesos.\n- Sugerir y componer comandos seguros para tu objetivo.\n- Crear guías paso a paso y scripts listos sin editores interactivos (usando here-doc).\n- Generar scripts sencillos (bash/python) y explicar cómo usarlos.\n- Resolver errores de la terminal y configurar servicios comunes (systemctl, apt/yum/pacman, etc.).\n\nDime qué quieres lograr y te doy los pasos o el comando adecuado.";
 
-/// Tipo de modo del chat
+/// Tipo de modo del chat (normalizado). Se mantienen alias para compatibilidad con el frontend
+/// que todavía puede enviar 'busqueda', 'pines' o 'analisis'. Todos se tratan como consulta.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ChatMode {
   #[default]
-  #[serde(alias = "ASK", alias = "Ask", alias = "consulta", alias = "CONSULTA", alias = "Consulta")]
-  Ask,    // Modo consulta
-  #[serde(alias = "AGENT", alias = "Agent")]
-  Agent,  // Modo agente
-  #[serde(alias = "SUPER", alias = "Super")]
-  Super   // Modo súper-agente
+  #[serde(
+    alias = "ASK", alias = "Ask",
+    alias = "consulta", alias = "CONSULTA", alias = "Consulta",
+    // Alias de modos frontend que se resuelven aquí al mismo comportamiento
+    alias = "busqueda", alias = "BUSQUEDA", alias = "Busqueda",
+    alias = "pines", alias = "PINES", alias = "Pines",
+    alias = "analisis", alias = "ANALISIS", alias = "Analisis",
+    // Alias históricos (se eliminó la lógica especial de agente/súper)
+    alias = "agent", alias = "AGENT", alias = "super", alias = "SUPER", alias = "Super"
+  )]
+  Ask,
 }
 
 /// Estado de memoria del agente
@@ -244,9 +251,8 @@ Notas para Python:
   }
 
   // Mover campos del request a variables locales para evitar clones innecesarios
-  let AiChatRequest { user_input, mode: _req_mode, history, state } = req;
-  // Forzar ASK únicamente (eliminamos lógica de AGENT/SUPER)
-  let mode = ChatMode::Ask;
+  // Desestructuramos pero ignoramos el modo recibido: todos los alias se tratan como Ask.
+  let AiChatRequest { user_input, mode: _incoming_mode, history, state } = req;
 
   // Utilidades ligeras para normalización/detección
   fn strip_diacritics_basic(input: &str) -> String {
@@ -365,7 +371,7 @@ Notas para Python:
     });
   }
 
-  let system_prompt = get_system_prompt(&mode);
+  let system_prompt = get_system_prompt(&ChatMode::Ask);
 
   // Construir historial de mensajes para OpenAI: system + historial completo del cliente + user actual
   let client = Client::builder().build().map_err(|e| e.to_string())?;
@@ -403,7 +409,7 @@ Notas para Python:
     "model": model_id,
     "messages": messages,
     "max_tokens": 800,
-    "temperature": if matches!(mode, ChatMode::Agent) { 0.1 } else { 0.1 }
+    "temperature": 0.1
   });
 
   let base_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
@@ -433,7 +439,7 @@ Notas para Python:
   // (Heurísticas desactivadas por pedido: no se hará clasificación difusa de identidad)
 
   // Evitar identidad redundante en ASK: eliminar la frase exacta si vino pegada accidentalmente
-  if matches!(mode, ChatMode::Ask) && !is_identity_query_strict(&user_input) {
+  if !is_identity_query_strict(&user_input) {
     let mut cleaned = assistant_text.replace(MENSAJE_IDENTIDAD, "");
     // Variante con espacio antes del punto
     let ident_spaced = MENSAJE_IDENTIDAD.replace(".", " .");
@@ -445,7 +451,7 @@ Notas para Python:
   }
 
   // Si en ASK la salida quedó vacía o parece solo identidad, reintenta una vez con instrucción más estricta (API genera el contenido)
-  if matches!(mode, ChatMode::Ask) && !is_identity_query_strict(&user_input) {
+  if !is_identity_query_strict(&user_input) {
     // Normalización con eliminación de tildes para comparar identidad de forma robusta
     fn strip_diacritics(input: &str) -> String {
       input.chars().map(|ch| match ch {
@@ -516,21 +522,6 @@ Notas para Python:
     }
   }
 
-  // Heurística simple para detectar comandos de shell o here-docs
-  fn looks_like_shell(s: &str) -> bool {
-    let t = s.trim();
-    if t.is_empty() { return false; }
-    let first_line = t.lines().next().unwrap_or("").trim();
-    let starters = [
-      "cd ", "ls", "mkdir ", "rm ", "touch ", "echo ", "printf ", "cat ", "tee ",
-      "bash ", "sh ", "python", "python3", "pip ", "chmod ", "curl ", "wget ", "grep ", "sed ",
-      "awk ", "tar ", "zip ", "unzip ", "git ", "#!/usr/bin/env",
-    ];
-    if starters.iter().any(|p| first_line.starts_with(p)) { return true; }
-    if t.contains("cat >") || t.contains("<<EOF") || t.contains("<<'EOF'") { return true; }
-    if t.contains("&&") || t.contains('|') || t.contains('>') || t.contains("chmod +x") { return true; }
-    false
-  }
 
   // Si un bloque de código tiene una primera línea que es solo una etiqueta de lenguaje (p. ej. "bash"), elimínala
   fn strip_leading_lang_tag(code: &str) -> String {
@@ -553,136 +544,11 @@ Notas para Python:
 
   
 
-  // Variables de salida que iremos completando según el flujo
+  // Variables de salida (sin soporte de ejecución automática / agente)
   let mut ai_response = String::new();
-  let mut code_output: Option<String> = None;
+  let mut code_output: Option<String> = None; // Siempre None en modo consulta, se mantiene por compatibilidad JSON
   let mut explanation: Option<String> = None;
   let mut summary: Option<String> = None;
-
-  // Solo en modo AGENT extraer/propagar code_output; ASK/CONSULTA no deben emitir código
-  // If the assistant returned a fenced code block, extract it for later use (AGENT solo)
-  let mut extracted_code_block: Option<String> = None;
-  if matches!(mode, ChatMode::Agent) {
-    if assistant_text.contains("```") {
-      let after = assistant_text.splitn(2, "```").nth(1).unwrap_or("").to_string();
-      let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
-      let code_inner = strip_leading_lang_tag(&raw);
-      if !code_inner.trim().is_empty() {
-        extracted_code_block = Some(code_inner.clone());
-        // Expose normalized commands/content to the frontend explicitly
-        code_output = Some(code_inner);
-      }
-    } else {
-      // Sin fences: si parece shell, expónlo como code_output para que el frontend muestre confirmación
-      if looks_like_shell(&assistant_text) {
-        code_output = Some(assistant_text.trim().to_string());
-      }
-    }
-  }
-
-  // Sanitizador: elimina comandos de historial/sondeo del bloque en modo AGENT (ls/pwd, cd ..)
-  fn sanitize_agent_commands(s: &str) -> String {
-    let mut out: Vec<String> = Vec::new();
-    let mut in_heredoc = false;
-    for raw in s.lines() {
-      let line = raw.trim_end();
-      let trimmed = line.trim();
-      // Detectar inicio/fin de heredoc
-      if trimmed.contains("<<'EOF'") || trimmed.contains("<<EOF") { in_heredoc = true; out.push(line.to_string()); continue; }
-      if in_heredoc {
-        out.push(line.to_string());
-        if trimmed == "EOF" { in_heredoc = false; }
-        continue;
-      }
-      // Filtrar comandos de sondeo/historial
-      let lower = trimmed.to_lowercase();
-      if lower == "ls" || lower.starts_with("ls ") || lower == "pwd" { continue; }
-      if lower == "cd .." { continue; }
-      if trimmed.is_empty() || trimmed.starts_with('#') { continue; }
-      out.push(line.to_string());
-    }
-    let result = out.join("\n").trim().to_string();
-    if result.is_empty() { s.trim().to_string() } else { result }
-  }
-
-  // Fallback de coerción: en modo AGENT, si no hay bloque de código ni JSON, pedir al modelo que lo genere siguiendo las reglas
-  if matches!(mode, ChatMode::Agent) && extracted_code_block.is_none() {
-    let trimmed = assistant_text.trim();
-    let looks_json = trimmed.starts_with('{') && trimmed.ends_with('}');
-    if !looks_json {
-      let repair_prompt = format!(
-        "Convierte la intención en comandos válidos siguiendo MODO AGENT. Reglas: SOLO un bloque de código (sin comentarios ni texto), DELTA mínimo (no imprimas historial), asume CWD dado, evita 'ls'/'pwd' y 'cd' redundantes, usa here-doc seguro y termina con 'cat <ruta>' si aplica. Intención:\n\n{}",
-        user_input
-      );
-      let payload_fix = serde_json::json!({
-        "model": model_id,
-        "messages": [
-          {"role": "system", "content": get_system_prompt(&ChatMode::Agent)},
-          {"role": "user", "content": repair_prompt}
-        ],
-        "max_tokens": 700,
-        "temperature": 0.2
-      });
-      let mut req_fix = client.post(&base_url).json(&payload_fix);
-      if let Some(ref token) = proxy_auth { req_fix = req_fix.bearer_auth(token); }
-      else if let Some(ref key) = api_key { req_fix = req_fix.bearer_auth(key); }
-      let resp_fix = req_fix.send().await.map_err(|e| e.to_string())?;
-      if resp_fix.status().is_success() {
-        let body_fix: serde_json::Value = resp_fix.json().await.map_err(|e| e.to_string())?;
-        if let Some(content) = body_fix.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
-          if content.contains("```") {
-            let after = content.splitn(2, "```").nth(1).unwrap_or("").to_string();
-            let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
-            let code_inner = strip_leading_lang_tag(&raw);
-            if !code_inner.trim().is_empty() {
-              extracted_code_block = Some(code_inner.clone());
-              code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(&code_inner) } else { code_inner });
-            }
-          } else if looks_like_shell(content) {
-            // Reparación devolvió texto sin fences pero con comandos válidos
-            code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(content) } else { content.to_string() }.trim().to_string());
-          }
-        }
-      }
-    }
-  }
-
-  // Segundo intento estricto: aún sin bloque ni code_output en modo AGENT
-  if matches!(mode, ChatMode::Agent) && extracted_code_block.is_none() && code_output.is_none() {
-    let force_prompt = format!(
-      "Devuelve SOLO un bloque de código (sin etiqueta de lenguaje) con el DELTA mínimo para cumplir la petición. No imprimas historial ni pasos previos. Evita 'ls'/'pwd' y 'cd' innecesarios; asume CWD del sistema. Para archivos, usa here-doc con cat > archivo <<'EOF' ... EOF y finaliza con cat <archivo> si corresponde. Intención:\n\n{}",
-      user_input
-    );
-    let payload_force = serde_json::json!({
-      "model": model_id,
-      "messages": [
-        {"role": "system", "content": get_system_prompt(&ChatMode::Agent)},
-        {"role": "user", "content": force_prompt}
-      ],
-      "max_tokens": 700,
-      "temperature": 0.1
-    });
-    let mut req_force = client.post(&base_url).json(&payload_force);
-    if let Some(ref token) = proxy_auth { req_force = req_force.bearer_auth(token); }
-    else if let Some(ref key) = api_key { req_force = req_force.bearer_auth(key); }
-    let resp_force = req_force.send().await.map_err(|e| e.to_string())?;
-    if resp_force.status().is_success() {
-      let body_force: serde_json::Value = resp_force.json().await.map_err(|e| e.to_string())?;
-      if let Some(content) = body_force.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
-        if content.contains("```") {
-          let after = content.splitn(2, "```").nth(1).unwrap_or("").to_string();
-          let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
-          let code_inner = strip_leading_lang_tag(&raw);
-          if !code_inner.trim().is_empty() {
-            extracted_code_block = Some(code_inner.clone());
-            code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(&code_inner) } else { code_inner });
-          }
-        } else if looks_like_shell(content) {
-          code_output = Some(if matches!(mode, ChatMode::Agent) { sanitize_agent_commands(content) } else { content.to_string() }.trim().to_string());
-        }
-      }
-    }
-  }
 
   // Attempt to parse assistant_text as JSON; if fails, use heuristics
 
@@ -705,13 +571,8 @@ Notas para Python:
       ai_response = assistant_text.clone();
     } else {
       if assistant_text.trim_start().starts_with("```") {
+        // Mantenemos el bloque completo como respuesta textual sin extracción especial.
         ai_response = assistant_text.clone();
-        if extracted_code_block.is_none() {
-          let after = assistant_text.splitn(2, "```").nth(1).unwrap_or("").to_string();
-          let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
-          let code_inner = strip_leading_lang_tag(&raw);
-          if !code_inner.trim().is_empty() { extracted_code_block = Some(code_inner); }
-        }
       } else {
         explanation = Some(assistant_text.clone());
       }
@@ -719,80 +580,7 @@ Notas para Python:
   }
 
   // If explanation exists but is only a fenced code block and we're in AGENT mode, synthesize explanation
-  if matches!(mode, ChatMode::Agent) {
-    if let Some(ref expl_text) = explanation {
-      let t = expl_text.trim();
-      if t.starts_with("```") {
-        let after = t.splitn(2, "```").nth(1).unwrap_or("").to_string();
-        let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
-        let code_inner = strip_leading_lang_tag(&raw);
-
-        let mut parts: Vec<String> = Vec::new();
-        if let Some(idx) = code_inner.find("cat >") {
-          let rest = &code_inner[idx + "cat >".len()..];
-          let filename = rest.split_whitespace().next().map(|s| s.trim().to_string());
-          let mut file_content = String::new();
-          if let Some(start_doc) = code_inner.find("<<'EOF'") {
-            let after_doc = &code_inner[start_doc + "<<'EOF'".len()..];
-            if let Some(end_doc) = after_doc.find("EOF") {
-              file_content = after_doc[..end_doc].to_string();
-            } else {
-              file_content = after_doc.to_string();
-            }
-          } else if let Some(start_doc2) = code_inner.find("<<EOF") {
-            let after_doc = &code_inner[start_doc2 + "<<EOF".len()..];
-            if let Some(end_doc) = after_doc.find("EOF") {
-              file_content = after_doc[..end_doc].to_string();
-            } else {
-              file_content = after_doc.to_string();
-            }
-          }
-
-          if let Some(fname) = filename {
-            let mut desc = format!("Se creó el archivo '{}' usando un here-doc.", fname);
-            let fc = file_content.trim();
-            if !fc.is_empty() {
-              if fc.lines().next().map(|l| l.contains("#!")).unwrap_or(false) {
-                let first = fc.lines().next().unwrap_or("").trim();
-                if first.contains("python") {
-                  desc.push_str(" Contiene un shebang para Python.");
-                } else {
-                  desc.push_str(&format!(" Contiene un shebang ({}).", first));
-                }
-              }
-              if fc.contains("print(") {
-                desc.push_str(" Incluye una llamada a print() que imprimirá texto en la consola.");
-              }
-              if let Some(line) = fc.lines().find(|l| !l.trim().is_empty()) {
-                let preview = line.trim();
-                desc.push_str(&format!(" El primer contenido significativo es: '{}'", preview));
-              }
-            }
-            parts.push(desc);
-          }
-        }
-
-        if parts.is_empty() {
-          if let Some(first_line) = code_inner.lines().find(|l| !l.trim().is_empty()) {
-            parts.push(format!("Ejecuta: {}", first_line.trim()));
-          } else {
-            parts.push("Ejecuta varios comandos proporcionados por el asistente.".to_string());
-          }
-        }
-
-        let mut expl = parts.join(" ");
-        if !expl.ends_with('.') { expl.push('.'); }
-        explanation = Some(expl.clone());
-        if summary.is_none() {
-          let first_sentence = expl.split(|c| c == '.' || c == '\n').find(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
-          if let Some(mut s) = first_sentence {
-            if !s.ends_with('.') { s.push('.'); }
-            summary = Some(s);
-          }
-        }
-      }
-    }
-  }
+  // (Se eliminó la expansión de explicaciones especiales para modo agente)
 
   // Synthesize short summary if missing
   if summary.is_none() {
@@ -827,179 +615,8 @@ Notas para Python:
     }
   }
 
-  if matches!(mode, ChatMode::Agent) && explanation.is_none() {
-    let code_inner = if let Some(cb) = extracted_code_block.clone() {
-      strip_leading_lang_tag(&cb)
-    } else {
-      let code_source = if !ai_response.is_empty() { ai_response.clone() } else { assistant_text.clone() };
-      if let Some(start) = code_source.find("```") {
-        let after = &code_source[start + 3..];
-        let raw = if let Some(end_rel) = after.find("```") { after[..end_rel].to_string() } else { after.to_string() };
-        strip_leading_lang_tag(&raw)
-      } else { code_source.clone() }
-    };
+  // (El bloque de explicación derivada de comandos se eliminó con el modo agente)
 
-    if !code_inner.trim().is_empty() {
-      let ask_system = get_system_prompt(&ChatMode::Ask);
-      let ask_user = format!("Por favor, explica EN ESPAÑOL a un usuario sin conocimientos técnicos qué hará el siguiente bloque de comandos/archivo y cómo se creó. No repitas el código, explica en lenguaje sencillo paso a paso lo que se hizo y qué resultado produce. Código:\n\n{}\n", code_inner);
-      let payload2 = serde_json::json!({
-        "model": model_id,
-        "messages": [
-          {"role": "system", "content": ask_system},
-          {"role": "user", "content": ask_user}
-        ],
-        "max_tokens": 300,
-        "temperature": 0.2
-      });
-
-      let mut req2 = client.post(&base_url).json(&payload2);
-      if let Some(ref token) = proxy_auth { req2 = req2.bearer_auth(token); }
-      else if let Some(ref key) = api_key { req2 = req2.bearer_auth(key); }
-      let resp2 = req2
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-      if resp2.status().is_success() {
-        let body2: serde_json::Value = resp2.json().await.map_err(|e| e.to_string())?;
-        let assistant2 = body2
-          .get("choices")
-          .and_then(|c| c.get(0))
-          .and_then(|c0| c0.get("message"))
-          .and_then(|m| m.get("content"))
-          .and_then(|v| v.as_str())
-          .unwrap_or("")
-          .to_string();
-        if !assistant2.trim().is_empty() {
-          // Sanear: nunca mostrar mensaje de identidad como explicación si no fue pedido
-          let mut cleaned2 = assistant2.replace(MENSAJE_IDENTIDAD, "").trim().to_string();
-          if cleaned2 == assistant2 {
-            let ident_spaced = MENSAJE_IDENTIDAD.replace(".", " .");
-            cleaned2 = cleaned2.replace(&ident_spaced, "").trim().to_string();
-          }
-          if cleaned2.is_empty() { cleaned2 = assistant2.clone(); }
-          let at_lower = cleaned2.trim().to_lowercase();
-          // Si quedó vacío o sigue siendo identidad, omitir explicación
-          if cleaned2.trim().is_empty() || at_lower == MENSAJE_IDENTIDAD.to_lowercase() || at_lower.contains("universidad piloto de colombia") {
-            // no establecer explanation
-          } else {
-            explanation = Some(cleaned2.clone());
-          }
-          if summary.is_none() {
-            let first_sentence = cleaned2.split(|c| c == '.' || c == '\n').find(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
-            if let Some(mut s) = first_sentence {
-              if !s.ends_with('.') { s.push('.'); }
-              summary = Some(s);
-            }
-          }
-        }
-      }
-    }
-
-    let mut parts: Vec<String> = Vec::new();
-
-    if let Some(idx) = code_inner.find("cat >") {
-      let rest = &code_inner[idx + "cat >".len()..];
-      let filename = rest.split_whitespace().next().map(|s| s.trim().to_string());
-      let mut file_content = String::new();
-      if let Some(start_doc) = code_inner.find("<<'EOF'") {
-        let after = &code_inner[start_doc + "<<'EOF'".len()..];
-        if let Some(end_doc) = after.find("EOF") {
-          file_content = after[..end_doc].to_string();
-        } else {
-          file_content = after.to_string();
-        }
-      } else if let Some(start_doc2) = code_inner.find("<<EOF") {
-        let after = &code_inner[start_doc2 + "<<EOF".len()..];
-        if let Some(end_doc) = after.find("EOF") {
-          file_content = after[..end_doc].to_string();
-        } else {
-          file_content = after.to_string();
-        }
-      }
-
-      if let Some(fname) = filename {
-        let mut desc = format!("Se creó el archivo '{}' usando un here-doc.", fname);
-        let fc = file_content.trim();
-        if !fc.is_empty() {
-          if fc.lines().next().map(|l| l.contains("#!")).unwrap_or(false) {
-            let first = fc.lines().next().unwrap_or("").trim();
-            if first.contains("python") {
-              desc.push_str(" Contiene un shebang para Python.");
-            } else {
-              desc.push_str(&format!(" Contiene un shebang ({}).", first));
-            }
-          }
-          if fc.contains("print(") {
-            desc.push_str(" Incluye una llamada a print() que imprimirá texto en la consola.");
-          }
-          if let Some(line) = fc.lines().find(|l| !l.trim().is_empty()) {
-            let preview = line.trim();
-            if preview.len() > 120 {
-              desc.push_str(&format!(" El primer contenido significativo comienza con: '{}...'", &preview[..120]));
-            } else {
-              desc.push_str(&format!(" El primer contenido significativo es: '{}'", preview));
-            }
-          }
-        }
-        parts.push(desc);
-      } else {
-        parts.push("Crea un archivo usando here-doc".to_string());
-      }
-    }
-
-    if code_inner.contains("chmod +x") { parts.push("Marca el/los archivo(s) como ejecutable(s) usando chmod +x".to_string()); }
-    if code_inner.contains("#!/usr/bin/env python") || code_inner.contains("python3") || code_inner.contains("python") { parts.push("Escribe un script en Python y/o establece el shebang para ejecutarlo con python".to_string()); }
-    if code_inner.contains("ls ") || code_inner.trim_start().starts_with("ls") { parts.push("Lista archivos/directorios (ls)".to_string()); }
-    if code_inner.contains("mkdir ") { parts.push("Crea un directorio (mkdir)".to_string()); }
-    if code_inner.contains("rm ") { parts.push("Elimina archivos (rm). Atención: operación destructiva".to_string()); }
-    if code_inner.contains("echo ") { parts.push("Imprime texto en consola o redirige contenido".to_string()); }
-
-    if parts.is_empty() {
-      if let Some(first_line) = code_inner.lines().find(|l| !l.trim().is_empty()) {
-        parts.push(format!("Ejecuta: {}", first_line.trim()));
-      } else {
-        parts.push("Ejecuta varios comandos proporcionados por el asistente.".to_string());
-      }
-    }
-
-    let mut expl_text = parts.join(" ");
-    if !expl_text.ends_with('.') { expl_text.push('.'); }
-    if explanation.is_none() {
-      explanation = Some(expl_text.clone());
-      if summary.is_none() {
-        let first_sentence = expl_text.split(|c| c == '.' || c == '\n').find(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
-        if let Some(mut s) = first_sentence { if !s.ends_with('.') { s.push('.'); } summary = Some(s); }
-      }
-    }
-  }
-
-  // Normalizador de Python: forzar python3/pip3 y shebang python3 en cualquier bloque o comando detectado
-  fn force_python3_everywhere(s: &str) -> String {
-    // Reglas simples basadas en texto, no usa 'regex' para mantener dependencias mínimas
-    let mut out = s.to_string();
-    // Shebangs
-    out = out.replace("#!/usr/bin/env python\r\n", "#!/usr/bin/env python3\r\n");
-    out = out.replace("#!/usr/bin/env python\n", "#!/usr/bin/env python3\n");
-    out = out.replace("#!/usr/bin/python\r\n", "#!/usr/bin/python3\r\n");
-    out = out.replace("#!/usr/bin/python\n", "#!/usr/bin/python3\n");
-    // Comandos comunes (espacios para evitar falsos positivos en nombres de archivos)
-    out = out.replace(" python -m pip ", " python3 -m pip ");
-    out = out.replace(" python -m venv ", " python3 -m venv ");
-    out = out.replace(" pip install ", " python3 -m pip install ");
-    out = out.replace(" pip3 install ", " python3 -m pip install ");
-    // Ejecutar scripts
-    out = out.replace(" python ", " python3 ");
-    // Casos de line start
-    out = out.replace("\npython ", "\npython3 ");
-    out = out.replace("\npip ", "\npython3 -m pip ");
-    out = out.replace("\npip3 ", "\npython3 -m pip ");
-    // Inicio absoluto de texto
-    if out.starts_with("python ") { out = out.replacen("python ", "python3 ", 1); }
-    if out.starts_with("pip ") { out = out.replacen("pip ", "python3 -m pip ", 1); }
-    if out.starts_with("pip3 ") { out = out.replacen("pip3 ", "python3 -m pip ", 1); }
-    out
-  }
 
   // Aplicar normalización python3 en todo el contenido textual devuelto
   if !ai_response.is_empty() { ai_response = force_python3_everywhere(&ai_response); }
@@ -1008,7 +625,7 @@ Notas para Python:
   if let Some(ref mut co) = code_output { *co = force_python3_everywhere(co); }
 
   // En modo ASK/CONSULTA nunca devolver comandos ejecutables
-  if matches!(mode, ChatMode::Ask) { code_output = None; }
+  code_output = None; // garantía consistente: no devolvemos comandos ejecutables
 
   Ok(AiChatResponse {
     user_input,

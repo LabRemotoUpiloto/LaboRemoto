@@ -14,6 +14,8 @@ import { AnalisisModeHandler } from './chatModes/classes/AnalisisModeHandler';
 // Componentes extraídos
 import AskRenderer from './chat/AskRenderer';
 import ToolResultRenderer from './chat/ToolResultRenderer';
+import DiffView from './DiffView';
+import './DiffView.css';
 // Utilidades
 import { cleanText, isNearBottom, norm } from './chat/chatUtils';
 
@@ -212,6 +214,19 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     invokeBusqueda
   });
 
+  const handleAnalyzeCandidate = async (base: string, candidate: string) => {
+    if (isSending) return;
+    setIsSending(true);
+    try {
+      const userMsg: Message = { id: String(Date.now()), sender: 'user', text: `analizame ${candidate}` };
+      setMessages(prev => [...prev, userMsg]);
+      const handler = modeHandlers['analisis'];
+      await handler.send(`analizame ${candidate}`, userMsg, buildModeContext());
+    } catch (e) {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error analizando ${candidate}: ${String(e)}` }]);
+    } finally { setIsSending(false); }
+  };
+
   return (
     <div className="chat-pane">
       <div className="chat-header">
@@ -263,6 +278,35 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                       {/* Structured results */}
                       {msg.meta?.toolAction && (
                         <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />
+                      )}
+                      {msg.meta?.fileEdit && (
+                        <div className="file-edit-diff">
+                          <h4>Diff propuesto</h4>
+                          <DiffView diff={msg.meta.fileEdit.diff} />
+                          {msg.meta.fileEdit.needsConfirmation && (
+                            <div className="file-edit-actions">
+                              <button onClick={() => setInput(`aplicar ${msg.meta?.fileEdit?.path}`)}>Preparar aplicar</button>
+                              <button onClick={() => setInput('descartar')}>Descartar</button>
+                              <button onClick={() => setInput(`backups ${msg.meta?.fileEdit?.path}`)}>Ver backups</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {msg.meta?.fileAnalysisDisambiguation && msg.meta.fileAnalysisDisambiguation.candidates && (
+                        <div className="file-disambiguation">
+                          <h4>Selecciona el archivo a analizar</h4>
+                          <ul>
+                            {msg.meta.fileAnalysisDisambiguation.candidates.map((c:string) => (
+                              <li key={c}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAnalyzeCandidate(msg.meta.fileAnalysisDisambiguation.base, c)}
+                                  disabled={isSending}
+                                >{c}</button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
                     </>
                   ) : msg.text}
