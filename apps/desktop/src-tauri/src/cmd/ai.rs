@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use std::{env, fs};
 use std::path::{Path, PathBuf};
+use crate::cmd::ai_utils::force_python3_everywhere;
 
 // Mensajes canónicos
 const MENSAJE_IDENTIDAD: &str = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
@@ -521,21 +522,6 @@ Notas para Python:
     }
   }
 
-  // Heurística simple para detectar comandos de shell o here-docs
-  fn looks_like_shell(s: &str) -> bool {
-    let t = s.trim();
-    if t.is_empty() { return false; }
-    let first_line = t.lines().next().unwrap_or("").trim();
-    let starters = [
-      "cd ", "ls", "mkdir ", "rm ", "touch ", "echo ", "printf ", "cat ", "tee ",
-      "bash ", "sh ", "python", "python3", "pip ", "chmod ", "curl ", "wget ", "grep ", "sed ",
-      "awk ", "tar ", "zip ", "unzip ", "git ", "#!/usr/bin/env",
-    ];
-    if starters.iter().any(|p| first_line.starts_with(p)) { return true; }
-    if t.contains("cat >") || t.contains("<<EOF") || t.contains("<<'EOF'") { return true; }
-    if t.contains("&&") || t.contains('|') || t.contains('>') || t.contains("chmod +x") { return true; }
-    false
-  }
 
   // Si un bloque de código tiene una primera línea que es solo una etiqueta de lenguaje (p. ej. "bash"), elimínala
   fn strip_leading_lang_tag(code: &str) -> String {
@@ -631,32 +617,6 @@ Notas para Python:
 
   // (El bloque de explicación derivada de comandos se eliminó con el modo agente)
 
-  // Normalizador de Python: forzar python3/pip3 y shebang python3 en cualquier bloque o comando detectado
-  fn force_python3_everywhere(s: &str) -> String {
-    // Reglas simples basadas en texto, no usa 'regex' para mantener dependencias mínimas
-    let mut out = s.to_string();
-    // Shebangs
-    out = out.replace("#!/usr/bin/env python\r\n", "#!/usr/bin/env python3\r\n");
-    out = out.replace("#!/usr/bin/env python\n", "#!/usr/bin/env python3\n");
-    out = out.replace("#!/usr/bin/python\r\n", "#!/usr/bin/python3\r\n");
-    out = out.replace("#!/usr/bin/python\n", "#!/usr/bin/python3\n");
-    // Comandos comunes (espacios para evitar falsos positivos en nombres de archivos)
-    out = out.replace(" python -m pip ", " python3 -m pip ");
-    out = out.replace(" python -m venv ", " python3 -m venv ");
-    out = out.replace(" pip install ", " python3 -m pip install ");
-    out = out.replace(" pip3 install ", " python3 -m pip install ");
-    // Ejecutar scripts
-    out = out.replace(" python ", " python3 ");
-    // Casos de line start
-    out = out.replace("\npython ", "\npython3 ");
-    out = out.replace("\npip ", "\npython3 -m pip ");
-    out = out.replace("\npip3 ", "\npython3 -m pip ");
-    // Inicio absoluto de texto
-    if out.starts_with("python ") { out = out.replacen("python ", "python3 ", 1); }
-    if out.starts_with("pip ") { out = out.replacen("pip ", "python3 -m pip ", 1); }
-    if out.starts_with("pip3 ") { out = out.replacen("pip3 ", "python3 -m pip ", 1); }
-    out
-  }
 
   // Aplicar normalización python3 en todo el contenido textual devuelto
   if !ai_response.is_empty() { ai_response = force_python3_everywhere(&ai_response); }

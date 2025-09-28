@@ -43,6 +43,14 @@ pub fn run() {
       // Chat IA
       cmd::ai::ai_chat,
   cmd::agent::agent_plan,
+    // File analysis & edit
+  cmd::file_edit::analyze_file,
+  cmd::file_edit::analyze_any_file,
+    cmd::file_edit::plan_file_edit,
+    cmd::file_edit::apply_file_edit,
+    cmd::file_edit::list_file_backups,
+    cmd::file_edit::revert_file,
+  cmd::file_edit::ai_remote_edit_file,
       // Storage (hosts)
       cmd::hosts::save_host_encrypted,
       cmd::hosts::load_host_encrypted,

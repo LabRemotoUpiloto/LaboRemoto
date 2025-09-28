@@ -23,6 +23,12 @@ export interface MessageMeta {
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
   suggestedCommands?: string; // para modo ask
   toolAction?: any;
+  fileEdit?: {
+    path: string;
+    diff: string;
+    proposedContent: string;
+    needsConfirmation: boolean;
+  };
 }
 
 export interface Message {
