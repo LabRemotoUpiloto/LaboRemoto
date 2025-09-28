@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './HomeScreen.css';
 import { SshCredentials } from '../types';
+import AnalyzeFileWidget from './AnalyzeFileWidget';
 
 interface HomeScreenProps {
   onConnect: (credentials: SshCredentials) => void;
@@ -49,6 +50,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onConnect }) => {
           placeholder="Password"
         />
         <button onClick={handleConnect}>Connect</button>
+      </div>
+      <div style={{marginTop:'1.5rem', maxWidth:480}}>
+        <AnalyzeFileWidget />
       </div>
     </div>
   );
