@@ -43,6 +43,8 @@ pub fn run() {
       // Chat IA
       cmd::ai::ai_chat,
   cmd::agent::agent_plan,
+    cmd::ai_utils::ai_env_status,
+  cmd::ai_utils::ai_test_key,
     // File analysis & edit
   cmd::file_edit::analyze_file,
   cmd::file_edit::analyze_any_file,
