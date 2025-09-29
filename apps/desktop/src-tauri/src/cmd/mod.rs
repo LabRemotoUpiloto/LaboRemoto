@@ -11,6 +11,7 @@ pub mod sftp;    // Operaciones SFTP y transferencias
 pub mod local;   // Acceso a FS local
 pub mod hosts;   // Comandos de almacenamiento de hosts (envolturas de crate::storage)
 pub mod agent;   // Modo agente (planificación y tools internas) - puede depreciarse
+pub mod search_shared; // Búsqueda remota compartida
 
 // Re-exportar comandos para no cambiar rutas usadas en lib.rs
 pub use ai::{ai_chat, AiChatRequest, AiChatResponse};
