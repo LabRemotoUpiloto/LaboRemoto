@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use std::{path::{Path, PathBuf}, fs, time::{Instant, Duration}};
+use crate::cmd::search_shared::remote_search_ranked; // reutilizar búsqueda remota compartida
 // (timeout import removed; not currently used)
 
 // Acceso a sesiones SSH para modo remoto
@@ -116,6 +117,49 @@ fn normalize(s: &str) -> String {
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Distancia de Levenshtein simplificada (coste uniforme) con early abort si excede max.
+fn levenshtein_bounded(a: &str, b: &str, max: usize) -> Option<usize> {
+    if a == b { return Some(0); }
+    let (la, lb) = (a.chars().count(), b.chars().count());
+    if la.abs_diff(lb) > max { return None; }
+    let mut prev: Vec<usize> = (0..=lb).collect();
+    let mut cur = vec![0; lb+1];
+    for (i, ca) in a.chars().enumerate() {
+        cur[0] = i+1;
+        let mut row_min = cur[0];
+        for (j, cb) in b.chars().enumerate() {
+            let cost = if ca == cb { 0 } else { 1 };
+            cur[j+1] = std::cmp::min(
+                std::cmp::min(cur[j] + 1, prev[j+1] + 1),
+                prev[j] + cost
+            );
+            if cur[j+1] < row_min { row_min = cur[j+1]; }
+        }
+        if row_min > max { return None; }
+        std::mem::swap(&mut prev, &mut cur);
+    }
+    let d = prev[lb];
+    if d <= max { Some(d) } else { None }
+}
+
+/// Heurística ampliada: detecta si aunque no haya palabras exactas, el usuario quiere buscar.
+fn fuzzy_search_intent(n: &str) -> bool {
+    // Palabras objetivo (normalizadas) y tolerancia a 2 errores.
+    const TARGETS: &[&str] = &["buscar","busca","busqueda","bucar","busacr","busqeuar","search","find","encontrar","donde","dónde","grep","archivo","fichero","ubicar","ubicacion","ubicación"]; // incluye algunos typos comunes
+    for token in n.split_whitespace() {
+        for t in TARGETS { if levenshtein_bounded(token, t, 2).is_some() { return true; } }
+    }
+    // Consultas muy cortas (<=20 chars) sin verbos pero con patrón de nombre (tiene punto o guion bajo) también indican búsqueda.
+    let len = n.len();
+    if len <= 20 && (n.contains('.') || n.contains('_')) { return true; }
+    false
+}
+
+/// Determina si se fuerza modo búsqueda exclusivo (no otras intenciones) mediante env SEARCH_MODE_EXCLUSIVE=1
+fn search_mode_exclusive() -> bool {
+    std::env::var("SEARCH_MODE_EXCLUSIVE").ok().map(|v| v=="1" || v.eq_ignore_ascii_case("true")).unwrap_or(false)
+}
+
 /// Detección de intención con soporte para: buscar archivo, abrir/leer archivo, grep contenido.
 fn detect_intent(msg: &str) -> Option<String> {
     let n = normalize(msg);
@@ -125,10 +169,17 @@ fn detect_intent(msg: &str) -> Option<String> {
         "grep", "en el codigo", "en el archivo", "buscar palabra", "buscar cadena"
     ];
     if grep_trigs.iter().any(|p| n.contains(p)) { return Some("grep".into()); }
-    let search_trigs = ["donde esta", "donde esta el", "donde se encuentra", "buscar", "busca", "encuentra", "en que ruta", "en que carpeta", "ubicacion", "ubica"];
+    let search_trigs = [
+        "donde esta", "donde esta el", "donde se encuentra", "buscar", "busca",
+        "encuentra", "en que ruta", "en que carpeta", "ubicacion", "ubica",
+        "en que parte", "en qué parte", "en que parte esta", "en qué parte está",
+        "donde queda", "donde puedo ver"
+    ];
     if search_trigs.iter().any(|p| n.contains(p)) { return Some("search".into()); }
     let open_trigs = ["abre", "abrir", "muestra", "mostrar", "ver", "muestrame", "ensename", "enséñame", "contenido de", "ver archivo", "ver el archivo"];
     if open_trigs.iter().any(|p| n.contains(p)) { return Some("open".into()); }
+    // Heurística adicional: si hay un token con extensión típica (.<2-6 letras) considerar search aunque no haya trigger.
+    for token in n.split_whitespace() { if let Some(idx)=token.rfind('.') { let ext=&token[idx+1..]; if ext.len()>=1 && ext.len()<=6 && ext.chars().all(|c| c.is_ascii_alphabetic()) { return Some("search".into()); } } }
     None
 }
 
@@ -168,14 +219,28 @@ fn extract_search_term(msg: &str) -> Option<String> {
     let normalized = msg.replace(['?', '!', ',', ';', ':'], " ");
     let tokens: Vec<&str> = normalized.split_whitespace().collect();
 
-    // 3. Después de palabra disparadora (archivo/fichero/file) tomar siguiente token completo (incluye camelCase / underscores)
+    // 3. Después de palabra disparadora intentar encontrar el verdadero nombre (evitar 'que', 'se', 'llama', etc.) explorando hasta 4 tokens siguientes.
+    let stop_follow = ["que","se","llama","llamado","que?","que.","que,","el","la"]; // comunes tras 'archivo'
     for (i, t) in tokens.iter().enumerate() {
         let t_low = t.to_ascii_lowercase();
         if ["archivo", "fichero", "file"].contains(&t_low.as_str()) {
-            if let Some(next) = tokens.get(i + 1) {
-                let cleaned = next.trim_matches(['"', '\'']);
-                if !cleaned.is_empty() { return Some(cleaned.to_string()); }
+            let mut best: Option<String> = None;
+            for look in 1..=4 { // mirar hasta 4 tokens siguientes
+                if let Some(cand_raw) = tokens.get(i + look) {
+                    let cand = cand_raw.trim_matches(['"','\'']);
+                    if cand.is_empty() { continue; }
+                    let cand_low = cand.to_ascii_lowercase();
+                    if stop_follow.contains(&cand_low.as_str()) { continue; }
+                    let has_dot = cand.contains('.');
+                    let has_snake = cand.contains('_');
+                    let has_camel = cand.chars().zip(cand.chars().skip(1)).any(|(a,b)| a.is_ascii_lowercase() && b.is_ascii_uppercase());
+                    if has_dot || has_snake || has_camel || cand.len() >= 3 {
+                        best = Some(cand.to_string());
+                        if has_dot { break; } // prefer filename con extensión
+                    }
+                }
             }
+            if best.is_some() { return best; }
         }
     }
 
@@ -316,24 +381,6 @@ fn get_session_current_dir(session_id: &str) -> Option<String> {
 }
 
 /// Obtiene el directorio base para búsqueda contextual: current_dir o, si no existe, $HOME (fallback a pwd)
-fn get_session_base_dir(session_id: &str, sess: &mut ssh2::Session) -> String {
-    if let Some(cd) = get_session_current_dir(session_id) { return cd; }
-    // Intentar $HOME
-    if let Ok(mut ch) = sess.channel_session() {
-        if ch.exec("echo $HOME 2>/dev/null").is_ok() {
-            use std::io::Read; let mut buf = String::new(); let _ = ch.read_to_string(&mut buf); let _ = ch.wait_close();
-            if let Some(line) = buf.lines().next() { let p = line.trim(); if !p.is_empty() { return p.to_string(); } }
-        }
-    }
-    // Fallback pwd
-    if let Ok(mut ch2) = sess.channel_session() {
-        if ch2.exec("pwd 2>/dev/null").is_ok() {
-            use std::io::Read; let mut buf = String::new(); let _ = ch2.read_to_string(&mut buf); let _ = ch2.wait_close();
-            if let Some(line) = buf.lines().next() { let p = line.trim(); if !p.is_empty() { return p.to_string(); } }
-        }
-    }
-    ".".into()
-}
 
 /// Sanitiza la ruta para uso en `cd <ruta>`; permite caracteres seguros y escapa comillas simples.
 fn sanitize_cd_path(path: &str) -> String {
@@ -386,101 +433,7 @@ fn ssh2_exec_capture(blocking_guard: &mut ssh2::Session, command: &str, timeout_
 }
 
 /// Búsqueda unificada (contextual + fallback global).
-fn remote_search_unified(session_id: &str, raw_term: &str, limit: usize, force_global: bool, allow_fallback: bool, dir_only: bool, exact: bool) -> Result<Vec<FsSearchMatch>, String> {
-    if raw_term.is_empty() { return Ok(Vec::new()); }
-    let mut sanitized = sanitize_term(&raw_term.to_ascii_lowercase());
-    sanitized.retain(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.' );
-    if sanitized.is_empty() { sanitized = raw_term.to_ascii_lowercase(); }
-    let term_core = sanitized.trim();
-    let arc = get_or_connect_ssh2(session_id)?; 
-    let mut guard = arc.lock().unwrap();
-    let contextual_base = get_session_base_dir(session_id, &mut guard.sess);
-    let global_roots = ["$HOME", "/home", "/usr/local", "/opt", "/var/www"]; // ampliable
-
-    let build_cmd = |roots: &[String], pattern: &str, limit: usize| -> String {
-        let roots_join = roots.join(" ");
-        // Cuando exact == true evitamos comodines y usamos -name/-iname con el nombre exacto
-        let pat_file = if exact { pattern.to_string() } else { format!("*{pattern}*") };
-        if dir_only {
-            format!("find {roots} -maxdepth 12 \
-                -not -path '*/node_modules/*' \
-                -not -path '*/target/*' \
-                -not -path '*/dist/*' \
-                -not -path '*/build/*' \
-                -not -path '*/coverage/*' \
-                -not -path '*/.git/*' \
-                -type d -iname '{pat}' -printf '%p\\td\\n' 2>/dev/null | head -n {limit}",
-                roots = roots_join,
-                pat = pat_file,
-                limit = limit)
-        } else {
-            format!("(find {roots} -maxdepth 12 \
-                -not -path '*/node_modules/*' \
-                -not -path '*/target/*' \
-                -not -path '*/dist/*' \
-                -not -path '*/build/*' \
-                -not -path '*/coverage/*' \
-                -not -path '*/.git/*' \
-                -type f -iname '{pat}' -printf '%p\\tf\\n' 2>/dev/null; \
-              find {roots} -maxdepth 12 \
-                -not -path '*/node_modules/*' \
-                -not -path '*/target/*' \
-                -not -path '*/dist/*' \
-                -not -path '*/build/*' \
-                -not -path '*/coverage/*' \
-                -not -path '*/.git/*' \
-                -type d -iname '{pat}' -printf '%p\\td\\n' 2>/dev/null) | head -n {limit}",
-                roots = roots_join,
-                pat = pat_file,
-                limit = limit)
-        }
-    };
-
-    let run_cmd = |sess: &mut ssh2::Session, cmd: &str| -> Result<Vec<FsSearchMatch>, String> {
-        let out = ssh2_exec_capture(sess, cmd, 6000)?;
-        let mut seen = std::collections::HashSet::new();
-        let mut res = Vec::new();
-        for line in out.lines() {
-            let raw = line.trim(); if raw.is_empty() { continue; }
-            // Esperado: path<TAB>type
-            let (path_part, type_part) = if let Some(tab_idx) = raw.rfind('\t') { (&raw[..tab_idx], &raw[tab_idx+1..]) } else { (raw, "f") };
-            let abs = if path_part.starts_with('/') { path_part.to_string() } else { // relativo: contextual
-                format!("{}/{}", contextual_base, path_part.trim_start_matches("./"))
-            };
-            if !seen.insert(abs.clone()) { continue; }
-            let file_name = abs.rsplit('/').next().unwrap_or(&abs).to_string();
-            let is_dir = matches!(type_part.chars().next(), Some('d'));
-            res.push(FsSearchMatch { path: abs, file_name, is_dir, snippet: None });
-            if res.len() >= limit { break; }
-        }
-        // Orden: archivos primero, luego directorios; dentro de cada grupo alfabético por file_name (case insensitive)
-        res.sort_by(|a,b| {
-            match (a.is_dir, b.is_dir) {
-                (false, true) => std::cmp::Ordering::Less,
-                (true, false) => std::cmp::Ordering::Greater,
-                _ => a.file_name.to_ascii_lowercase().cmp(&b.file_name.to_ascii_lowercase())
-            }
-        });
-        Ok(res)
-    };
-
-    if force_global {
-        let roots: Vec<String> = global_roots.iter().map(|s| s.to_string()).collect();
-        let cmd = build_cmd(&roots, term_core, limit);
-        return run_cmd(&mut guard.sess, &cmd);
-    }
-
-    // Contextual primero
-    let ctx_cmd = build_cmd(&vec![".".into()], term_core, limit); // usamos find . dentro de contextual_base
-    let ctx_cmd_full = format!("cd {} && {}", sanitize_cd_path(&contextual_base), ctx_cmd);
-    let mut results = run_cmd(&mut guard.sess, &ctx_cmd_full)?;
-    if results.is_empty() && allow_fallback {
-        let roots: Vec<String> = global_roots.iter().map(|s| s.to_string()).collect();
-        let cmd = build_cmd(&roots, term_core, limit);
-        results = run_cmd(&mut guard.sess, &cmd)?;
-    }
-    Ok(results)
-}
+// Eliminada implementación interna remote_search_unified en favor de remote_search_ranked (módulo compartido)
 
 fn remote_grep_ssh2(session_id: &str, pattern: &str, limit: usize) -> Result<Vec<GrepMatch>, String> {
     if pattern.is_empty() { return Ok(Vec::new()); }
@@ -563,7 +516,17 @@ fn fs_grep(root: &Path, needle: &str, limit_total: usize) -> Vec<GrepMatch> {
 
 #[tauri::command]
 pub async fn agent_plan(req: AgentPlanRequest) -> Result<AgentPlanResponse, String> {
-    let intent = detect_intent(&req.user_message);
+    let intent_detected = detect_intent(&req.user_message);
+    let norm_msg = normalize(&req.user_message);
+    let mut intent = intent_detected.clone();
+    // Fuzzy fallback: si no se detectó pero parece búsqueda, asignar "search".
+    if intent.is_none() && fuzzy_search_intent(&norm_msg) { intent = Some("search".into()); }
+    // Modo exclusivo: cualquier cosa que parezca búsqueda (incluso si habría abierto) se fuerza a search.
+    if search_mode_exclusive() && intent.as_deref() != Some("grep") {
+        if fuzzy_search_intent(&norm_msg) { intent = Some("search".into()); }
+    }
+    let intent = intent; // sombrear final
+    if std::env::var("SEARCH_INTENT_DEBUG").ok().as_deref()==Some("1") { eprintln!("[search_intent] raw='{}' norm='{}' detected={:?}", req.user_message, norm_msg, intent_detected); }
     let root = infer_workspace_root(&req.workspace_root);
     // ¿Existe sesión SSH para modo remoto? (simplemente comprobar que session_id esté en el mapa)
     let remote_mode = if let Some(ref sid) = req.session_id { SESSIONS.lock().unwrap().contains_key(sid) } else { false };
@@ -579,14 +542,18 @@ pub async fn agent_plan(req: AgentPlanRequest) -> Result<AgentPlanResponse, Stri
             let limit = req.limit.unwrap_or(50);
             let matches = if remote_mode {
                 if let Some(sid) = &req.session_id {
-                    let global_flag = detect_global_flag(&req.user_message);
+                    let _global_flag = detect_global_flag(&req.user_message);
                     let msg_norm = normalize(&req.user_message);
                     let dir_trigs = ["carpeta", "carpetas", "directorio", "directorio global", "folder", "folders", "directorio global", "solo directorios"];
                     let dir_only = dir_trigs.iter().any(|d| msg_norm.contains(d));
-                    let exact_c = exact_flag; // mover al closure
-                    tokio::task::spawn_blocking({ let sid = sid.clone(); let t_raw = raw_term.clone(); let t = term.clone(); let global_flag = global_flag; let limit = limit; let dir_only = dir_only; let exact_c = exact_c; move || {
+                    let _exact_c = exact_flag; // mover al closure
+                    tokio::task::spawn_blocking({ let sid = sid.clone(); let t_raw = raw_term.clone(); let t = term.clone(); let limit = limit; let dir_only = dir_only; move || {
                         let search_term = if t.is_empty() { t_raw } else { t };
-                        remote_search_unified(&sid, &search_term, limit, global_flag || dir_only || exact_c, !global_flag, dir_only, exact_c).unwrap_or_default()
+                        // Usar búsqueda compartida (ranking). Luego mapear a FsSearchMatch.
+                        let ranked = remote_search_ranked(&sid, &search_term, limit).unwrap_or_default();
+                        let mut mapped: Vec<FsSearchMatch> = ranked.into_iter().map(|m| FsSearchMatch { path: m.path, file_name: m.file_name, is_dir: m.is_dir, snippet: None }).collect();
+                        if dir_only { mapped.retain(|m| m.is_dir); }
+                        mapped
                     }}).await.unwrap_or_default()
                 } else { Vec::new() }
             } else {
@@ -608,8 +575,10 @@ pub async fn agent_plan(req: AgentPlanRequest) -> Result<AgentPlanResponse, Stri
             let exact_flag = detect_exact_filename(&req.user_message, &raw_term);
             if remote_mode {
                 if let Some(sid) = &req.session_id {
-                    let matches = tokio::task::spawn_blocking({ let sid = sid.clone(); let term = raw_term.clone(); let exact_flag = exact_flag; move || {
-                        remote_search_unified(&sid, &term, 20, exact_flag, true, false, exact_flag).unwrap_or_default()
+                    let matches = tokio::task::spawn_blocking({ let sid = sid.clone(); let term = raw_term.clone(); move || {
+                        remote_search_ranked(&sid, &term, 20).unwrap_or_default().into_iter()
+                            .map(|m| FsSearchMatch { path: m.path, file_name: m.file_name, is_dir: m.is_dir, snippet: None })
+                            .collect::<Vec<_>>()
                     }}).await.unwrap_or_default();
                     if let Some(file) = matches.iter().find(|m| !m.is_dir && m.file_name.eq_ignore_ascii_case(&raw_term))
                         .or_else(|| matches.iter().find(|m| !m.is_dir)) {
@@ -665,6 +634,17 @@ pub async fn agent_plan(req: AgentPlanRequest) -> Result<AgentPlanResponse, Stri
                 Ok(AgentPlanResponse { user_message: req.user_message, intent: "grep".into(), ai_response, tool_action: Some(action), requires_confirmation: false })
             }
         },
-        _ => Ok(AgentPlanResponse { user_message: req.user_message, intent: "unknown".into(), ai_response: "No pude inferir una acción. Reformula (buscar, abre, grep).".into(), tool_action: None, requires_confirmation: false })
+        _ => {
+            let msg = if search_mode_exclusive() {
+                "No se puede realizar esa búsqueda: no se encontró archivo/directorio. (Modo solo búsqueda)"
+            } else {
+                "No se puede realizar esa búsqueda: no se encontró archivo/directorio."
+            };
+            // En modo exclusivo devolvemos intent=search para mantener semántica de UI centrada en búsquedas, pero sin sugerencias extra.
+            if search_mode_exclusive() {
+                return Ok(AgentPlanResponse { user_message: req.user_message, intent: "search".into(), ai_response: msg.into(), tool_action: None, requires_confirmation: false });
+            }
+            Ok(AgentPlanResponse { user_message: req.user_message, intent: "unknown".into(), ai_response: msg.into(), tool_action: None, requires_confirmation: false })
+        }
     }
 }

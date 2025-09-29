@@ -47,6 +47,7 @@ parking_lot = "0.12"
 chrono = { version = "0.4", features = ["clock", "serde"] }
 wildmatch = "2.1"
 walkdir = "2"
+regex = "1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
