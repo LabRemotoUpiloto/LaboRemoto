@@ -24,7 +24,7 @@ export interface AnalyzeFileResponse { analysis: FileAnalysis }
 export async function analyzeFile(path: string, sessionId?: string): Promise<AnalyzeFileResponse> {
   // We prefer the unified analyze_any_file backend command when session id is provided
   if (sessionId) {
-    return invoke('analyze_any_file', { sessionId, path });
+    return invoke('analyze_any_file', { session_id: sessionId, path });
   }
   return invoke('analyze_file', { path });
 }
