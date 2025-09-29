@@ -2,6 +2,67 @@ import { BaseModeHandler } from './BaseModeHandler';
 import { ModeHandlerContext, Message } from '../types';
 import { invoke } from '@tauri-apps/api/core';
 
+// Helpers internos para intención fuzzy de "analizar"
+const ANALYZE_CANON = 'analiza';
+const ANALYZE_VARIANTS_BASE = [
+  'analiza','analizar','analizame','analízame','analizame','analisa','analiceme','analiceme','analicemen','analiceme',
+  'analizad','analizalo','analizalo','analissame','analisame','analisar','analisamelo','que hace '
+];
+
+// Sinónimos / expresiones de inspección que deben equivaler a analizar
+const INSPECT_SYNONYMS_BASE = [
+  'ver','mostrar','muestra','muestrame','muéstrame','mostrame','muestrame','ensename','enséñame','ensename',
+  'lee','leer','abrir','abre','open','revisa','revisar','examinar','examina','examíname','inspeccionar','inspecciona','visualiza','visualizar'
+];
+// Normaliza: minúsculas, sin tildes, colapsa letras repetidas.
+function normalizeToken(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+    .replace(/([^\d])\1{2,}/g,'$1$1') // deja como máximo 2 repeticiones
+    .replace(/[^a-z0-9]/g,'');
+}
+function levenshtein(a:string,b:string):number { // pequeño por inputs cortos
+  const m=a.length,n=b.length; if(!m) return n; if(!n) return m; const dp=Array.from({length:m+1},()=>new Array<number>(n+1));
+  for(let i=0;i<=m;i++) dp[i][0]=i; for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++){ for(let j=1;j<=n;j++){ const cost=a[i-1]===b[j-1]?0:1; dp[i][j]=Math.min(
+    dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost
+  ); }} return dp[m][n];
+}
+const ANALYZE_VARIANTS_NORM = Array.from(new Set(ANALYZE_VARIANTS_BASE.map(normalizeToken)));
+const INSPECT_SYNONYMS_NORM = Array.from(new Set(INSPECT_SYNONYMS_BASE.map(normalizeToken)));
+
+function isAnalyzeCommand(tokenRaw: string): boolean {
+  const t = normalizeToken(tokenRaw);
+  if (!t) return false;
+  // coincidencia directa o distancia <=2 con algún canónico
+  if (ANALYZE_VARIANTS_NORM.includes(t)) return true;
+  return ANALYZE_VARIANTS_NORM.some(v => levenshtein(t, v) <= 2);
+}
+
+function isInspectSynonym(tokenRaw: string): boolean {
+  const t = normalizeToken(tokenRaw);
+  if (!t) return false;
+  if (INSPECT_SYNONYMS_NORM.includes(t)) return true;
+  // Para sinónimos usamos tolerancia menor (<=1) para reducir falsos positivos
+  return INSPECT_SYNONYMS_NORM.some(v => levenshtein(t, v) <= 1);
+}
+
+// Palabras que indican intención NO permitida (crear, consulta general, etc.)
+const BLOCKED_INTENTS = [
+  'crea','create','creame','crear','haz','generar','genera','consultame','consulta','preguntame','explicame','explícame','dime','resume','resumeme','ayudame','ayúdame'
+];
+const BLOCKED_NORM = BLOCKED_INTENTS.map(normalizeToken);
+function isBlockedIntentStart(raw: string): boolean {
+  const first = raw.trim().split(/\s+/)[0] || '';
+  const n = normalizeToken(first);
+  if (!n) return false;
+  if (BLOCKED_NORM.includes(n)) return true;
+  return BLOCKED_NORM.some(v => levenshtein(n,v) <= 1);
+}
+
+const ONLY_ANALYZE_MSG = 'Modo análisis: sólo puedo analizar archivos. Ejemplos: "analizame main.py", "analiza numero.sh"';
+
 // Tipo extendido para análisis con desambiguación (definición única)
 interface AnalyzeFileResponse { analysis: { path: string; language?: string; line_count: number; size_bytes: number; sha256: string; head: string; tail: string; summary_hint: string; semantic_summary?: string | null; purpose?: string | null; key_points?: string[] | null; purpose_from_ai?: boolean | null; narrative?: string | null; candidates?: string[] | null; disambiguation_required?: boolean | null; ai_only?: boolean | null; }; }
 interface PlanFileEditResponse { proposed_content: string; diff: string; needs_confirmation: boolean; }
@@ -15,8 +76,8 @@ export class AnalisisModeHandler extends BaseModeHandler {
   async send(finalInput: string, userMsg: Message, ctx: ModeHandlerContext) {
     const raw = finalInput.trim();
 
-    // Patrones de comando
-  const analyzeRe = /^(analizame|analízame|analiza|analyze|ver)\s+(.+)/i;
+    // Patrones de comando básicos (algunos se complementan con fuzzy)
+  const analyzeReLoose = /^(\S+)\s+(.+)/i; // primer token + resto (usaremos fuzzy con el primer token)
     const editRe = /^(editar|modifica|modificar|cambiar)\s+(\S+)(?:\s+con\s+(.+))?/i;
     const applyRe = /^(aplicar|apply)\s+(\S+)/i;
     const revertRe = /^(revertir|revert|restore)\s+(\S+)/i;
@@ -55,15 +116,19 @@ export class AnalisisModeHandler extends BaseModeHandler {
         const path = (m[2] || '').replace(/[?]+$/, '');
         if (path) {
           try {
-            const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { sessionId: ctx.sessionId || undefined, path }, 20000, 1);
+            const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { session_id: ctx.sessionId || undefined, path }, 20000, 1);
             const a = r.analysis;
             let extra = '';
-            if (a.narrative) {
+            const useAi = !!a.purpose_from_ai;
+            if (!useAi && a.narrative) {
               extra += `\nNarrativa: ${a.narrative}`;
             }
-            if (a.purpose || (a.key_points && a.key_points.length)) {
-              const badge = a.purpose_from_ai ? ' (IA)' : '';
-              extra += `\nPropósito${badge}: ${a.purpose || '—'}`;
+            if (a.purpose || (a.key_points && a.key_points.length) || useAi) {
+              if (useAi) {
+                extra += `\nDescripción : ${a.purpose || '—'}`;
+              } else {
+                extra += `\nPropósito: ${a.purpose || '—'}`;
+              }
               if (a.key_points && a.key_points.length) {
                 extra += `\nDetalles clave:`;
                 for (const kp of a.key_points.slice(0,6)) extra += `\n • ${kp}`;
@@ -81,14 +146,20 @@ export class AnalisisModeHandler extends BaseModeHandler {
         }
       }
 
-      // ANALIZA / ANALÍZAME <archivo>
-      if ((m = raw.match(analyzeRe))) {
-        const path = m[2];
+      // INTENCIÓN ANALIZAR (fuzzy). Se evalúa primer token y también "que hay en ..." arriba.
+      if ((m = raw.match(analyzeReLoose)) && (isAnalyzeCommand(m[1]) || isInspectSynonym(m[1]))) {
+        const pathPart = m[2];
+        const path = extractPathCandidate(pathPart);
+        if (!path) {
+          ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: ONLY_ANALYZE_MSG }]);
+          return;
+        }
         try {
-          const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { sessionId: ctx.sessionId || undefined, path }, 20000, 1);
+          const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { session_id: ctx.sessionId || undefined, path }, 20000, 1);
           const a = r.analysis;
           if (a.disambiguation_required && a.candidates && a.candidates.length > 1) {
-            const text = `Nombre ambiguo para ${path}. Coincidencias (${a.candidates.length}):\n` + a.candidates.map((c,i)=>`[${i+1}] ${c}`).join('\n') + `\nHaz clic en una ruta para analizarla.`;
+            // Ya no mostramos el listado textual crudo; la UI renderiza una tarjeta estilizada usando meta.
+            const text = `Nombre ambiguo para ${path}.`;
             ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text, meta: { fileAnalysisDisambiguation: { base: path, candidates: a.candidates } } }]);
             return;
           }
@@ -107,12 +178,16 @@ export class AnalisisModeHandler extends BaseModeHandler {
           }
           const elements = items.length ? `Elementos: ${items.join(', ')}.` : '';
           let extra = '';
-          if (a.narrative) {
+          const useAi = !!a.purpose_from_ai;
+          if (!useAi && a.narrative) {
             extra += `\nNarrativa: ${a.narrative}`;
           }
-          if (a.purpose || (a.key_points && a.key_points.length)) {
-            const badge = a.purpose_from_ai ? ' (IA)' : '';
-            extra += `\nPropósito${badge}: ${a.purpose || '—'}`;
+          if (a.purpose || (a.key_points && a.key_points.length) || useAi) {
+            if (useAi) {
+              extra += `\nDescripción (IA): ${a.purpose || '—'}`;
+            } else {
+              extra += `\nPropósito: ${a.purpose || '—'}`;
+            }
             if (a.key_points && a.key_points.length) {
               extra += `\nDetalles clave:`;
               for (const kp of a.key_points.slice(0,6)) extra += `\n • ${kp}`;
@@ -241,10 +316,46 @@ export class AnalisisModeHandler extends BaseModeHandler {
         return;
       }
 
-      // Fallback: usa modelo ask analítico para explicación general
-      await ctx.invokeAsk({ finalInput: raw, mode: 'analisis', userMsg });
+      // Intentos bloqueados explícitos
+      if (isBlockedIntentStart(raw)) {
+        ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: ONLY_ANALYZE_MSG }]);
+        return;
+      }
+
+      // Si parece que pide análisis pero con sólo un token (ej: nombre.py) -> orientar.
+      const single = raw.split(/\s+/).length === 1 && /\.[a-zA-Z0-9]{1,6}$/.test(raw);
+      if (single) {
+        ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Escribe: analizame ${raw}` }]);
+        return;
+      }
+
+      // Último recurso: no hacer fallback a chat general.
+      ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: ONLY_ANALYZE_MSG }]);
     } catch (err: any) {
       ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(err)}` }]);
     }
   }
+}
+
+// Extrae ruta candidata soportando comillas o espacios.
+function extractPathCandidate(rest: string): string | null {
+  const trimmed = rest.trim();
+  if (!trimmed) return null;
+  // Si viene entre comillas simples, dobles o backticks
+  const mQuoted = trimmed.match(/^(["'`])(.*)\1(?:\s|$)/);
+  if (mQuoted) {
+    const content = mQuoted[2].trim();
+    return sanitizePathToken(content);
+  }
+  // Hasta primer espacio si no hay comillas, pero permitir rutas con / y . y - _
+  const firstSeg = trimmed.split(/\s+/)[0];
+  return sanitizePathToken(firstSeg);
+}
+
+function sanitizePathToken(tok: string): string | null {
+  let t = tok.replace(/[?;,]+$/,'');
+  if (!t) return null;
+  // Quitar trailing puntos repetidos (archivo.py..)
+  t = t.replace(/\.+$/,'');
+  return t;
 }
