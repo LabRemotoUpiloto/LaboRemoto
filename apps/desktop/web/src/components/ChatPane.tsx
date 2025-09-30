@@ -16,6 +16,7 @@ import AskRenderer from './chat/AskRenderer';
 import ToolResultRenderer from './chat/ToolResultRenderer';
 import DiffView from './DiffView';
 import './DiffView.css';
+import './FileDisambiguation.css';
 // Utilidades
 import { cleanText, isNearBottom, norm } from './chat/chatUtils';
 
@@ -274,7 +275,10 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                   {msg.sender === 'ai' ? (
                     <>
                       {/* Remote badge */}
-                      <AskRenderer content={msg.text} sessionId={sessionId || undefined} setLastCommand={setLastCommand as any} />
+                      {/* Si es un mensaje de desambiguación, ocultamos el texto base para no duplicar la UI */}
+                      {!msg.meta?.fileAnalysisDisambiguation && (
+                        <AskRenderer content={msg.text} sessionId={sessionId || undefined} setLastCommand={setLastCommand as any} />
+                      )}
                       {/* Structured results */}
                       {msg.meta?.toolAction && (
                         <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />
@@ -293,16 +297,24 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                         </div>
                       )}
                       {msg.meta?.fileAnalysisDisambiguation && msg.meta.fileAnalysisDisambiguation.candidates && (
-                        <div className="file-disambiguation">
-                          <h4>Selecciona el archivo a analizar</h4>
-                          <ul>
-                            {msg.meta.fileAnalysisDisambiguation.candidates.map((c:string) => (
-                              <li key={c}>
+                        <div className="file-disambiguation enhanced">
+                          <div className="file-disambiguation__header">
+                            <h4>Selecciona cuál archivo quieres analizar</h4>
+                            <p className="hint">Se encontraron {msg.meta.fileAnalysisDisambiguation.candidates.length} rutas con el mismo nombre. Haz clic para cargar el contenido.</p>
+                          </div>
+                          <ul className="file-disambiguation__list" role="list">
+                            {msg.meta.fileAnalysisDisambiguation.candidates.map((c:string, idx:number) => (
+                              <li key={c} className="file-disambiguation__item">
                                 <button
                                   type="button"
+                                  className="file-disambiguation__btn"
                                   onClick={() => handleAnalyzeCandidate(msg.meta.fileAnalysisDisambiguation.base, c)}
                                   disabled={isSending}
-                                >{c}</button>
+                                  aria-label={`Analizar opción ${idx+1}: ${c}`}
+                                >
+                                  <span className="file-disambiguation__index">{idx+1}</span>
+                                  <span className="file-disambiguation__path">{c}</span>
+                                </button>
                               </li>
                             ))}
                           </ul>
@@ -313,8 +325,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                 </div>
               </div>
             )}
-
-            {/* Se elimina la tarjeta de confirmación y otros elementos del modo agente */}
           </div>
         ))}
         {showScrollToBottom && (

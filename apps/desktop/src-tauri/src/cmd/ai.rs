@@ -114,12 +114,8 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   let (cfg_proxy_url, cfg_proxy_auth) = load_proxy_settings();
   let proxy_url = cfg_proxy_url.or_else(|| env::var("AI_PROXY_URL").ok());
   let proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
-  let api_key = if proxy_url.is_none() {
-    match env::var("OPENAI_API_KEY") {
-      Ok(v) if !v.trim().is_empty() => Some(v),
-      _ => None,
-    }
-  } else { None };
+  // Usar helper centralizado: respeta .env, variables y la clave compilada (COMPILED_OPENAI_KEY)
+  let api_key = if proxy_url.is_none() { crate::cmd::ai_utils::get_openai_api_key() } else { None };
   if proxy_url.is_none() && api_key.is_none() {
     return Err("OPENAI_API_KEY not set".to_string());
   }
@@ -286,30 +282,51 @@ Notas para Python:
     n = n.trim().to_string();
     n == "quien eres"
   }
+  fn looks_like_code(s: &str) -> bool {
+    let lower = s.to_lowercase();
+    // Indicadores comunes de bloques de código o snippets (C/C++, Arduino, bash, Python, JS, Rust)
+    lower.contains("```")
+      || lower.contains("#include")
+      || lower.contains("void ")
+      || lower.contains("int ")
+      || lower.contains("class ")
+      || lower.contains("fn ")
+      || lower.contains("def ")
+      || lower.contains("function ")
+      || lower.contains(";\n")
+      || (s.contains('{') && s.contains('}'))
+  }
   fn is_noise_or_out_of_domain(s: &str) -> bool {
     let t = s.trim();
     if t.is_empty() { return true; }
+    // Si parece código o es multilínea, NO lo tratamos como ruido
+    let line_count = t.lines().count();
+    if line_count >= 3 || looks_like_code(t) { return false; }
     let simple_noise = ["?","??","???","/","//","////","...","….","…","asdf","asdfasdf","aaaa","aaaaa","jeje","jaja"]; // casos típicos
     if simple_noise.iter().any(|n| t.eq_ignore_ascii_case(n)) { return true; }
-    // Relación alfanuméricos vs otros
-    let mut alnum = 0usize; let mut other = 0usize; let mut max_run = 1usize; let mut cur_run = 1usize; let mut prev: Option<char> = None;
-    for ch in t.chars() {
-      if ch.is_alphanumeric() { alnum += 1; } else if !ch.is_whitespace() { other += 1; }
-      if let Some(p) = prev { if p == ch { cur_run += 1; if cur_run > max_run { max_run = cur_run; } } else { cur_run = 1; } } else { cur_run = 1; }
-      prev = Some(ch);
+    // Relación alfanuméricos vs otros (solo para entradas cortas de 2 líneas máx.)
+    if line_count <= 2 && t.len() < 80 {
+      let mut alnum = 0usize; let mut other = 0usize; let mut max_run = 1usize; let mut cur_run = 1usize; let mut prev: Option<char> = None;
+      for ch in t.chars() {
+        if ch.is_alphanumeric() { alnum += 1; } else if !ch.is_whitespace() { other += 1; }
+        if let Some(p) = prev { if p == ch { cur_run += 1; if cur_run > max_run { max_run = cur_run; } } else { cur_run = 1; } } else { cur_run = 1; }
+        prev = Some(ch);
+      }
+      let total = alnum + other;
+      if total > 0 {
+        let ratio = (alnum as f32) / (total as f32);
+        if ratio < 0.25 || max_run >= 6 { return true; }
+      }
     }
-    let total = alnum + other;
-    if total > 0 {
-      let ratio = (alnum as f32) / (total as f32);
-      if ratio < 0.3 || max_run >= 5 { return true; }
-    }
-    // Fuera de dominio: deportes, farándula, recetas, clima, etc., sin términos de Linux
+    // Fuera de dominio: deportes, farándula, etc. (permitimos Arduino/embedded como tema técnico)
     let n = normalize_for_checks(t);
     let ood = [
       "partido","marcador","gol","futbol","nba","premier","tenis","receta","cocina","novela","fara ndula","farándula","chisme","actor","pelicula","cine","clima","horoscopo","salud","medicina","doct or","medico","medico","enfermedad"
     ];
     let domain = [
-      "linux","bash","terminal","comando","comandos","script","shell","ubuntu","debian","fedora","arch","centos","red hat","systemctl","apt","yum","pacman","ssh","sftp","scp","servidor","proceso","servicio","archivo","carpeta","directorio"
+      "linux","bash","terminal","comando","comandos","script","shell","ubuntu","debian","fedora","arch","centos","red hat","systemctl","apt","yum","pacman","ssh","sftp","scp","servidor","proceso","servicio","archivo","carpeta","directorio",
+      // Extensiones técnicas adicionales
+      "arduino","servo","serial","ino","c++","codigo","programa","code"
     ];
     if ood.iter().any(|k| n.contains(k)) && !domain.iter().any(|k| n.contains(k)) {
       return true;

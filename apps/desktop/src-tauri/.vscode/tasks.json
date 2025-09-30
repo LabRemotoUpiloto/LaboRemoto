@@ -6,6 +6,26 @@
 			"type": "shell",
 			"command": "cargo build",
 			"group": "build"
+		},
+		{
+			"label": "Build desktop Tauri app",
+			"type": "shell",
+			"command": "cargo build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build desktop Tauri app",
+			"type": "shell",
+			"command": "cargo build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build"
 		}
 	]
 }

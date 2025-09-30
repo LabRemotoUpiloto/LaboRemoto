@@ -114,17 +114,7 @@ pub async fn sftp_mkdir(id: String, path: String) -> Result<(), String> {
   Ok(())
 }
 
-#[tauri::command]
-pub async fn sftp_rename(id: String, from: String, to: String) -> Result<(), String> {
-  tokio::task::spawn_blocking(move || {
-    let mut map = SESSIONS.lock().unwrap();
-    let cached = get_or_connect_cached(&mut map, &id)?;
-    let guard = cached.lock().unwrap();
-    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
-    sftp2::rename(&sftp, &from, &to).map_err(|e| e.to_string())
-  }).await.map_err(|e| e.to_string())??;
-  Ok(())
-}
+// sftp_rename eliminado
 
 #[tauri::command]
 pub async fn sftp_remove(id: String, path: String, recursive: Option<bool>) -> Result<(), String> {
