@@ -11,12 +11,17 @@ pub fn get_openai_api_key() -> Option<String> {
     // Cargar .env una vez por proceso (dotenvy es idempotente, pero evitamos ruido)
     static DID_DOTENV: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
     if let Ok(mut g) = DID_DOTENV.lock() { if !*g { let _ = dotenvy::dotenv(); *g = true; } }
-    let raw = std::env::var("OPENAI_API_KEY").ok()?;
-    let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
-    if trimmed.is_empty() { return None; }
-    // Longitud mínima aproximada de claves modernas (>= 40)
-    if trimmed.len() < 40 { return None; }
-    Some(trimmed)
+    // 1) Preferir variable de entorno en tiempo de ejecución
+    if let Ok(raw) = std::env::var("OPENAI_API_KEY") {
+        let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
+        if !trimmed.is_empty() && trimmed.len() >= 40 { return Some(trimmed); }
+    }
+    // 2) Fallback opcional: clave embebida en tiempo de compilación (si se proveyó)
+    if let Some(baked) = option_env!("COMPILED_OPENAI_KEY") {
+        let trimmed = baked.trim().trim_matches('\'').trim_matches('"').to_string();
+        if !trimmed.is_empty() && trimmed.len() >= 40 { return Some(trimmed); }
+    }
+    None
 }
 
 #[derive(Serialize, Deserialize)]

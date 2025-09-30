@@ -29,7 +29,6 @@ pub fn run() {
   cmd::sftp::sftp_home,
       cmd::sftp::sftp_list,
       cmd::sftp::sftp_mkdir,
-      cmd::sftp::sftp_rename,
       cmd::sftp::sftp_remove,
       cmd::sftp::sftp_download_start,
       cmd::sftp::sftp_upload_start,
