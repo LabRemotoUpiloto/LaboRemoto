@@ -327,12 +327,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
           <button title='Atrás' className="btn btn-ghost btn-sm" onClick={()=>{ const p=lpath.replace(/\\/g,'/'); if(p==='/'||/^[A-Za-z]:\\?$/.test(lpath)) return; const idx=p.lastIndexOf('/'); if(idx>0){ const next=p.slice(0,idx); setLpath(next); refreshLocal(next); } }}>
             ←
           </button>
-
-          <CrumbBar rootLabel={``} path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
-          <div className="toolbar-spacer">
-            <input placeholder='Buscar por nombre o extensión' className="input" style={{width:220}} />
-          </div>
-
+          
           <CrumbBar rootLabel={`Local — ${lpath.split('/')[0]||''}`} path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
             <div className="toolbar-spacer">
               <input
@@ -350,9 +345,9 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
             <option value=''>Unidad</option>
             {ldrives.map(d=> <option key={d} value={d}>{d}</option>)}
           </select>
-          <button className="btn" onClick={() => refreshLocal()} title="Actualizar">Actualizar</button>
+          <button className="btn btn-sm" onClick={() => refreshLocal()} title="Actualizar">Actualizar</button>
           <div className="toolbar-spacer">
-            <button className="btn btn-primary" onClick={doUpload} disabled={!sessionId || !lSelectedPath} title="Subir al servidor remoto">Subir →</button>
+            <button className="btn btn-primary btn-sm" onClick={doUpload} disabled={!sessionId || !lSelectedPath} title="Subir al servidor remoto">Subir →</button>
           </div>
         </div>
   <div className="pane-body scroll-accent">
@@ -420,7 +415,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
               return <option key={id} value={id} title={id}>{label}</option>
             })}
           </select>
-          <button className="btn" onClick={refreshRemote} disabled={!canUse} title="Actualizar">Actualizar</button>
+          <button className="btn btn-sm" onClick={refreshRemote} disabled={!canUse} title="Actualizar">Actualizar</button>
           <div className="toolbar-spacer">
             <button className="btn btn-sm" onClick={doRemoteMkdir} disabled={!canUse} title="Crear carpeta en remoto">Nueva carpeta</button>
             <button className="btn btn-danger btn-sm" onClick={doRemoteDelete} disabled={!canUse || !rSelectedPath} title="Eliminar en remoto">Eliminar</button>
