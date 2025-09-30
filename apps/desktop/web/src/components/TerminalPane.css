@@ -53,3 +53,15 @@ html[data-theme="granite-fog"] .xterm {
 .xterm .xterm-cursor-block:not(.blink):not(.xterm-cursor-blink) {
   animation: xterm-cursor-blink-fallback 0.9s steps(1) infinite;
 }
+
+/* Stop cursor blinking when terminal is not focused (focus lives on inner textarea) */
+.terminal-pane:not(:focus-within) .xterm .xterm-cursor,
+.terminal-pane:not(:focus-within) .xterm .xterm-cursor-block,
+.terminal-pane:not(:focus-within) .xterm .xterm-cursor-bar,
+.terminal-pane:not(:focus-within) .xterm .xterm-cursor-underline {
+  animation: none !important;
+  opacity: 0 !important;                /* hide completely */
+  background-color: transparent !important;
+  color: transparent !important;
+  border-color: transparent !important;
+}

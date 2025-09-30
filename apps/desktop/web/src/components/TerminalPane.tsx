@@ -22,6 +22,18 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const hasFocusedOnceRef = useRef<boolean>(false);
   const focusLoopRef = useRef<number | null>(null);
 
+  // Only allow terminal to auto-focus when not interacting with other inputs (e.g., ChatPane textarea)
+  const canRefocusTerminal = () => {
+    const active = (document.activeElement as HTMLElement | null);
+    if (!active) return true;
+    if (containerRef.current && active && containerRef.current.contains(active)) return true; // already in terminal
+    if (active.closest && (active.closest('.chat-pane') || active.closest('.chat-input'))) return false;
+    const tag = active.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return false;
+    if (active.getAttribute && active.getAttribute('contenteditable') === 'true') return false;
+    return true;
+  };
+
   const ensureBlinkClasses = () => {
     const root = containerRef.current;
     if (!root) return;
@@ -45,7 +57,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       try {
         const active = document.activeElement as HTMLElement | null;
         const ta = containerRef.current?.querySelector('.xterm textarea') as HTMLTextAreaElement | null;
-        if (ta && active !== ta) {
+        if (ta && active !== ta && canRefocusTerminal()) {
           termRef.current.focus();
           hasFocusedOnceRef.current = true;
         }
@@ -127,7 +139,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   term.open(container);
   try { fit.fit(); } catch {}
   // Enfocar inmediatamente tras abrir para permitir escribir sin click
-  try { term.focus(); hasFocusedOnceRef.current = true; } catch {}
+  try { if (canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
   startFocusLoop();
   // Fijar renderer DOM vía opción interna si está disponible y reforzar opciones del cursor de forma segura
   try { (term as any).setOption?.('rendererType', 'dom'); } catch {}
@@ -153,7 +165,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const onResize = () => {
       try { fit.fit(); } catch {}
       // Reenfocar después de ajuste si ya enfocamos una vez
-      try { if (termRef.current && hasFocusedOnceRef.current) termRef.current.focus(); } catch {}
+  try { if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal()) termRef.current.focus(); } catch {}
       if (sessionId) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
     };
 
@@ -201,9 +213,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
         if (event.payload) {
           term.write(event.payload);
           // Enfocar cuando llega la primera salida (primer conexión) si aún no se enfocó
-          try {
-            if (!hasFocusedOnceRef.current) { term.focus(); hasFocusedOnceRef.current = true; }
-          } catch {}
+          try { if (!hasFocusedOnceRef.current && canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
           startFocusLoop();
           try { ensureBlinkClasses(); } catch {}
         }
@@ -214,7 +224,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       // Señal de readiness: después de montar y ajustar tamaño
       invoke('ssh_ui_ready', { id: sessionId }).catch(() => {});
       // Enfocar tras handshake inicial
-      try { term.focus(); hasFocusedOnceRef.current = true; } catch {}
+  try { if (canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
       startFocusLoop();
       try { ensureBlinkClasses(); } catch {}
     }
