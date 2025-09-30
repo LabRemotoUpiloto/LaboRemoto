@@ -112,6 +112,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
   const [ldrives, setLdrives] = useState<string[]>([])
   const [lSelectedPath, setLSelectedPath] = useState<string|undefined>()
   const [lSort, setLSort] = useState<{key: 'name'|'mtime'|'size'|'kind'; dir: 'asc'|'desc'}>({key:'name',dir:'asc'})
+  const [lfilter, setLfilter] = useState<string>('')
   const ldisplay = useMemo(()=>{
     const arr = [...lrows]
     const cmp = (a:LocalEntry,b:LocalEntry)=>{
@@ -124,8 +125,16 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
       }
     }
     arr.sort(cmp as any)
-    return arr
-  },[lrows,lSort])
+    const q = (lfilter||'').trim().toLowerCase()
+    if(!q) return arr
+    const toRegex = (s:string)=> {
+      // escape regex then support * and ? wildcards
+      const esc = s.replace(/[.+^${}()|[\\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
+      return new RegExp('^'+esc+'$','i')
+    }
+    const rx = (q.includes('*')||q.includes('?'))? toRegex(q) : null
+    return arr.filter(e=> rx? rx.test(e.name) : e.name.toLowerCase().includes(q))
+  },[lrows,lSort,lfilter])
   const refreshLocal = async (nextRoot?: string)=>{
     try{
       setLload(true)
@@ -142,6 +151,8 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
     // clear selection if path changed
     setLSelectedPath(undefined)
   },[lpath])
+  // Clear local filter when navigating to a different local path
+  useEffect(()=>{ setLfilter('') }, [lpath])
 
   // remote
   const [rpath, setRpath] = useState<string>('/')
@@ -150,6 +161,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
   const [rerr, setRerr] = useState<string|undefined>()
   const [rSelectedPath, setRSelectedPath] = useState<string|undefined>()
   const [rSort, setRSort] = useState<{key: 'name'|'mtime'|'size'|'kind'; dir: 'asc'|'desc'}>({key:'name',dir:'asc'})
+  const [rfilter, setRfilter] = useState<string>('')
   const rdisplay = useMemo(()=>{
     const arr = [...rrows]
     const cmp = (a:SftpEntry,b:SftpEntry)=>{
@@ -162,8 +174,15 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
       }
     }
     arr.sort(cmp as any)
-    return arr
-  },[rrows,rSort])
+    const q = (rfilter||'').trim().toLowerCase()
+    if(!q) return arr
+    const toRegex = (s:string)=> {
+      const esc = s.replace(/[.+^${}()|[\\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
+      return new RegExp('^'+esc+'$','i')
+    }
+    const rx = (q.includes('*')||q.includes('?'))? toRegex(q) : null
+    return arr.filter(e=> rx? rx.test(e.name) : e.name.toLowerCase().includes(q))
+  },[rrows,rSort,rfilter])
   const [ctx, setCtx] = useState<{open:boolean; x:number; y:number; side:'local'|'remote'; index:number|null}>({open:false,x:0,y:0,side:'local',index:null})
   useEffect(()=>{
     const close = ()=> setCtx(c=> ({...c, open:false}))
@@ -209,6 +228,8 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
   useEffect(()=>{ if(canUse) refreshRemote() }, [rpath])
 
   useEffect(()=>{ setRSelectedPath(undefined) }, [rpath])
+  // Clear remote filter when navigating to a different remote path
+  useEffect(()=>{ setRfilter('') }, [rpath])
 
   // transfers panel
   type Transfer = { id:string; direction:'download'|'upload'; session_id?:string; remote_path?:string; local_path?:string; total?: number|null; bytes?: number; status: 'running'|'done'|'error'|'canceled'; message?: string }
@@ -306,10 +327,23 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
           <button title='Atrás' className="btn btn-ghost btn-sm" onClick={()=>{ const p=lpath.replace(/\\/g,'/'); if(p==='/'||/^[A-Za-z]:\\?$/.test(lpath)) return; const idx=p.lastIndexOf('/'); if(idx>0){ const next=p.slice(0,idx); setLpath(next); refreshLocal(next); } }}>
             ←
           </button>
+
           <CrumbBar rootLabel={``} path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
           <div className="toolbar-spacer">
             <input placeholder='Buscar por nombre o extensión' className="input" style={{width:220}} />
           </div>
+
+          <CrumbBar rootLabel={`Local — ${lpath.split('/')[0]||''}`} path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
+            <div className="toolbar-spacer">
+              <input
+                placeholder='Buscar por nombre o extensión'
+                className="input"
+                style={{width:220}}
+                value={lfilter}
+                onChange={e=> setLfilter(e.target.value)}
+              />
+              {lfilter && <button className="btn btn-ghost btn-sm" title="Limpiar" onClick={()=> setLfilter('')}>×</button>}
+            </div>
         </div>
         <div className="pane-subheader">
           <select className="select" onChange={e=>{ const next=e.target.value; setLpath(next); refreshLocal(next); }} value={(()=>{ const d=ldrives; if(!d||d.length===0) return ''; const match=d.find(x=> lpath.toUpperCase().startsWith(x.toUpperCase())); return match || ''; })()}>
@@ -367,7 +401,15 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
           />
           <div className="toolbar-spacer">
             <span className={`status-badge ${canUse? 'status-ok':'status-off'}`} title={canUse? 'Conectado':'Desconectado'}>{canUse? 'Conectado':'Desconectado'}</span>
-            <input placeholder='Buscar por nombre o extensión' className="input" style={{width:220}} />
+              <input
+                placeholder='Buscar por nombre o extensión'
+                className="input"
+                style={{width:220}}
+                value={rfilter}
+                onChange={e=> setRfilter(e.target.value)}
+                disabled={!canUse}
+              />
+              {rfilter && <button className="btn btn-ghost btn-sm" title="Limpiar" onClick={()=> setRfilter('')}>×</button>}
           </div>
         </div>
         <div className="pane-subheader" style={{flexWrap:'wrap', rowGap:8}}>
