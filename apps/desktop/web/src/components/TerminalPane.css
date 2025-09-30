@@ -60,8 +60,5 @@ html[data-theme="granite-fog"] .xterm {
 .terminal-pane:not(:focus-within) .xterm .xterm-cursor-bar,
 .terminal-pane:not(:focus-within) .xterm .xterm-cursor-underline {
   animation: none !important;
-  opacity: 0 !important;                /* hide completely */
-  background-color: transparent !important;
-  color: transparent !important;
-  border-color: transparent !important;
+  opacity: 0.28 !important;             /* appear faint instead of hidden */
 }
