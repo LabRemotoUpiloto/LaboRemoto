@@ -328,7 +328,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
             ←
           </button>
           
-          <CrumbBar rootLabel={`Local — ${lpath.split('/')[0]||''}`} path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
+          <CrumbBar  path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
             <div className="toolbar-spacer">
               <input
                 placeholder='Buscar por nombre o extensión'
@@ -390,7 +390,6 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
             ←
           </button>
           <CrumbBar
-            rootLabel={``}
             path={rpath}
             onNavigate={(p)=> setRpath(p)}
           />

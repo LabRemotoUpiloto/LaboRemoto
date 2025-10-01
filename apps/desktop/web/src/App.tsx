@@ -92,7 +92,16 @@ const App: React.FC = () => {
   }
 
   const toggleSidebar = () => {
-    setSidebarOpen(!isSidebarOpen)
+    setSidebarOpen(prev => {
+      const next = !prev
+      // Avisar a la UI que el layout cambiará (inicio)
+      try { window.dispatchEvent(new CustomEvent('app:sidebar-toggled', { detail: { isOpen: next, phase: 'start' } })) } catch {}
+      // Aviso tras el siguiente frame, por si hay cálculos vinculados al DOM
+      try { requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('app:sidebar-toggled', { detail: { isOpen: next, phase: 'frame' } }))) } catch {}
+      // Aviso al final de la transición CSS (~300ms declarados en App.css)
+      try { window.setTimeout(() => window.dispatchEvent(new CustomEvent('app:sidebar-toggled', { detail: { isOpen: next, phase: 'end' } })), 320) } catch {}
+      return next
+    })
   }
 
   // Check for updates on startup (once)
