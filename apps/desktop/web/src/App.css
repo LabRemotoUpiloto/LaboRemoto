@@ -10,10 +10,14 @@
   transition: margin-left 0.3s ease;
   margin-left: 0;
   margin-top: 50px; /* reserve space for fixed header */
+  min-width: 0; /* allow inner flex content to shrink and avoid overflow clipping */
 }
 
 .main-content.sidebar-open {
   margin-left: 220px; /* push content right when sidebar opens so it resizes */
+  /* In flex context, ensure the item actually shrinks and doesn't overflow */
+  flex: 0 0 calc(100% - 220px);
+  max-width: calc(100% - 220px);
 }
 
 .content-area {
@@ -22,4 +26,5 @@
   padding: 0;
   background-color: var(--background-primary);
   height: calc(100vh - 50px); /* full height below header */
+  min-width: 0; /* allow inner flex (TerminalView) to shrink properly */
 }
