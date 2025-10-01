@@ -317,13 +317,13 @@
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-primary);
-  padding: 10px 12px;
+  padding: 6px 10px;
   resize: none; /* we manage height in JS */
   margin: 0;
-  min-height: 42px; /* start small */
+  min-height: 32px; /* start smaller */
   /* no fixed max-height here; JS caps at 5 lines */
   overflow-y: hidden; /* JS toggles to auto when needed */
-  line-height: 20px; /* predictable for 5-line cap */
+  line-height: 18px; /* predictable for 5-line cap */
 }
 
 .chat-input button {
@@ -611,8 +611,8 @@
 /* Base sizes and typography */
 .chat-header .mode-select,
 .chat-input .send-btn {
-  height: 40px;            /* desktop */
-  padding: 0 16px;         /* desktop */
+  height: 32px;            /* desktop */
+  padding: 0 12px;         /* desktop */
   border-radius: 9999px;   /* pill */
   font-size: 14px;
   font-weight: 600;
@@ -655,8 +655,8 @@
 
 /* Compact sizes for small screens */
 @media (max-width: 480px) {
-  .chat-header .mode-select,
-  .chat-input .send-btn { height: 36px; padding: 0 12px; }
+  .chat-header .mode-select { height: 36px; padding: 0 12px; }
+  .chat-input .send-btn { height: 30px; padding: 0 10px; }
 }
 
 /* === Full-width message layout (no right-side gutter), no horizontal growth === */
@@ -736,14 +736,16 @@
 .message pre, .message.ai .message-text pre, .copyable-block pre, .confirm-code, .code-output { max-width: 100%; overflow: auto; }
 .chat-input { min-width: 0; }
 .chat-input textarea {
-  height: 40px;
-  line-height: 20px;
-  padding: 10px 12px;
+  height: 32px;
+  line-height: 18px;
+  padding: 6px 10px;
   overflow-y: auto;
   resize: none;
   box-sizing: border-box;
 }
 .chat-input textarea:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer); }
 @media (max-width: 480px) {
-  .chat-input textarea { height: 36px; padding: 8px 12px; }
+  .chat-input textarea { height: 30px; padding: 6px 10px; }
 }
+
+

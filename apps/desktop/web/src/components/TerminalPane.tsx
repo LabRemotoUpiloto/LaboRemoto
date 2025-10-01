@@ -170,6 +170,41 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     };
 
     window.addEventListener('resize', onResize);
+    // Helper para reintentar el ajuste en varios ticks (raf + timeouts)
+    const multiStageFitAndResize = () => {
+      const doFit = () => {
+        try { fit.fit(); } catch {}
+        try { if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal()) termRef.current.focus(); } catch {}
+        if (sessionId) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
+      };
+      // Inmediato
+      doFit();
+      // Próximo frame
+      try { requestAnimationFrame(() => { doFit(); }); } catch {}
+      // Dos frames después
+      try { requestAnimationFrame(() => { requestAnimationFrame(() => { doFit(); }); }); } catch {}
+      // Fallbacks temporales por si la transición refluye más tarde
+      try { window.setTimeout(doFit, 0); } catch {}
+      try { window.setTimeout(doFit, 60); } catch {}
+      try { window.setTimeout(doFit, 180); } catch {}
+    };
+
+    // Escuchar el toggle explícito de la sidebar para ajustar (se emite en fases)
+    const onSidebarToggled = () => { multiStageFitAndResize(); };
+    window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
+
+    // Además, escuchar el final de la transición del contenedor principal para asegurar el ajuste
+    const mainContentEl = document.querySelector('.main-content');
+    const onTransitionEnd = (ev: Event) => {
+      const te = ev as TransitionEvent;
+      // Solo reaccionar a la transición relevante de margen que desplaza el layout
+      if (!te.propertyName || te.propertyName === 'margin-left') {
+        multiStageFitAndResize();
+      }
+    };
+    try { mainContentEl?.addEventListener('transitionend', onTransitionEnd); } catch {}
+
+    // (ResizeObserver removed as requested)
     const disposeOnResize = term.onResize(({ cols, rows }) => {
       if (sessionId) invoke('ssh_resize', { id: sessionId, cols, rows }).catch(() => {});
     });
@@ -177,10 +212,12 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     return () => {
       try { disposeOnResize.dispose(); } catch {}
       window.removeEventListener('resize', onResize);
+  window.removeEventListener('app:sidebar-toggled', onSidebarToggled as any);
+    try { mainContentEl?.removeEventListener('transitionend', onTransitionEnd); } catch {}
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
       if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
-      try { mo.disconnect(); } catch {}
+  // (ResizeObserver cleanup removed)
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
