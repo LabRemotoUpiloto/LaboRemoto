@@ -1,9 +1,17 @@
+
 .chat-pane {
-  width: clamp(360px, 30vw, 540px);
-  border-left: 1px solid var(--border-color);
+  --pane-min: 360px;
+  --pane-ideal: 30vw;
+  --chat-input-line-height: 16px;     /* default comfortable line height */
+  --chat-input-padding-y: 9px;        /* vertical padding inside textarea (9px*2 + 16px = 34px total) */
+  --chat-input-base-height: calc(var(--chat-input-line-height) + (var(--chat-input-padding-y) * 2)); /* derived base height */
+  --chat-input-min-height: var(--chat-input-base-height); /* base composer min-height */
+  width: clamp(var(--pane-min), var(--pane-ideal), var(--pane-max));
   display: flex;
   flex-direction: column;
+
   background-color: var(--background-secondary);
+  --chat-send-size: var(--chat-input-base-height); /* send button height matches textarea base */
 }
 
 .chat-modes {
@@ -29,7 +37,6 @@
   color: var(--text-secondary);
 }
 
-/* Estilos para los diferentes modos */
 .message.ask {
   border-left: 3px solid #4CAF50;
 }
@@ -302,51 +309,104 @@
 /* acciones rápidas en mensajes (removidas) */
 
 .chat-input {
-  display: grid; /* mantiene botón visible en la misma fila */
-  grid-template-columns: 1fr auto;
-  align-items: end; /* botón al borde inferior */
-  gap: 10px;
+  /* Composer variables live here (inherit into textarea) */
+  --chat-gap: 6px;                    /* space between textarea and button */
+  --chat-input-min-height: 38px;      /* base composer min-height */
+  --chat-input-height: auto;          /* overall composer height (auto = content) */
+  --chat-input-padding-y: 11px;       /* vertical padding inside textarea (center baseline) */
+  --chat-input-padding-x: 12px;       /* horizontal padding inside textarea */
+  --chat-input-border-radius: 12px;   /* rounded corners for textarea */
+  --chat-input-line-height: 16px;     /* default comfortable line height */
+  /* --chat-input-fixed-height: 16px; Optional fixed textarea height */
+  --chat-textarea-width: 100%;        /* width of textarea inside composer */
+  --chat-send-size: 30px;             /* send button height */
+  --chat-send-width: 45px;            /* send button width */
+  --chat-send-radius: 999px;          /* rounded button corners */
+  --chat-send-padding: 0;             /* internal padding for icon button */
+  --chat-send-icon-scale: 0.7;        /* scale factor for inner SVG icon */
+
+  /* Layout */
+  display: grid; /* textarea + botón en una fila */
+  grid-template-columns: 1fr auto; /* columna flexible + botón */
+  align-items: center;             /* centra verticalmente ambos */
+  justify-items: center;           /* centra horizontalmente en su celda */
+  gap: var(--chat-gap);
   padding: 10px;
   border-top: 1px solid var(--border-color);
+  height: var(--chat-input-height);
+  min-height: var(--chat-input-min-height);
 }
 
 .chat-input textarea {
-  width: 100%;
-  min-width: 0; /* crucial para que no fuerce el ancho de la columna */
+  /* Tamaño y centrado */
+  width: var(--chat-textarea-width, 100%);
+  max-width: 100%;
+  min-width: 0;                /* no forzar ancho de la columna */
+  justify-self: center;        /* centrado horizontal dentro de su celda */
+
+  /* Estética */
   background-color: var(--background-tertiary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--chat-input-border-radius);
   color: var(--text-primary);
-  padding: 6px 10px;
-  resize: none; /* we manage height in JS */
+  padding: var(--chat-input-padding-y) var(--chat-input-padding-x);
   margin: 0;
-  min-height: 32px; /* start smaller */
-  /* no fixed max-height here; JS caps at 5 lines */
-  overflow-y: hidden; /* JS toggles to auto when needed */
-  line-height: 18px; /* predictable for 5-line cap */
+
+  /* Altura: por defecto auto (gestiona JS). Si defines --chat-input-fixed-height, se fija. */
+  height: var(--chat-input-fixed-height, auto);
+  min-height: 0;               /* sin mínimos ocultos del navegador */
+  overflow-y: hidden;          /* JS alterna a auto cuando corresponde */
+  line-height: var(--chat-input-line-height);
+  resize: none;                /* evitar conflicto con auto-resize JS */
 }
 
-.chat-input button {
+.chat-input button:not(.send-icon) {
   background-color: var(--accent-primary);
   color: var(--accent-contrast);
   border: none;
   box-shadow: var(--accent-guard-inset), 0 0 0 rgba(0,0,0,0);
   text-shadow: var(--accent-guard-shadow);
-  padding: 10px 16px;
+  padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 160ms ease, transform 80ms ease;
-  min-width: 96px; /* tamaño táctil y visible */
   justify-self: end; /* pegado a la derecha */
 }
-.chat-input button:hover { background-color: var(--accent-primary-hover) }
-.chat-input button:active { transform: translateY(1px) }
-.chat-input button[disabled] { opacity: .7; cursor: not-allowed }
+.chat-input .send-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--chat-send-width);
+  height: var(--chat-send-size);
+  padding: var(--chat-send-padding);
+  min-width: 0; /* icon-only */
+  border-radius: var(--chat-send-radius); /* pastilla redondeada */
+  justify-self: end; /* alínea a la derecha en la columna auto */
+  background-color: var(--accent-primary);
+  color: var(--accent-contrast);
+  border: 1px solid var(--accent-primary);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.08);
+  box-sizing: border-box; /* width/height include border for precise sizing */
+}
+.chat-input .send-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scale(var(--chat-send-icon-scale));
+  transform-origin: center;
+}
+.chat-input .send-icon:hover { background-color: var(--accent-primary-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.chat-input .send-icon:active { transform: translateY(0); }
+.chat-input .send-icon:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
+.chat-input .send-icon[disabled] { opacity: .6; cursor: not-allowed; }
+.chat-input button:not(.send-icon):hover { background-color: var(--accent-primary-hover) }
+.chat-input button:not(.send-icon):active { transform: translateY(1px) }
+.chat-input button:not(.send-icon)[disabled] { opacity: .7; cursor: not-allowed }
 
 /* Responsive: cuando el panel es muy estrecho, apilar el botón debajo */
 @media (max-width: 520px) {
   .chat-input { grid-template-columns: 1fr; }
-  .chat-input button { justify-self: stretch; width: 100%; }
+  .chat-input button:not(.send-icon) { justify-self: stretch; width: 100%; }
   .chat-header { gap: 6px; }
 }
 
@@ -610,7 +670,7 @@
 /* === Pill-style controls: mode select + send button (copy-friendly spec) === */
 /* Base sizes and typography */
 .chat-header .mode-select,
-.chat-input .send-btn {
+.chat-input .send-btn:not(.send-icon) {
   height: 32px;            /* desktop */
   padding: 0 12px;         /* desktop */
   border-radius: 9999px;   /* pill */
@@ -619,7 +679,7 @@
 }
 
 /* Send button visuals */
-.chat-input .send-btn {
+.chat-input .send-btn:not(.send-icon) {
   background-color: var(--accent-primary);
   color: var(--accent-contrast);
   border: 1px solid var(--accent-primary);
@@ -627,10 +687,10 @@
   min-width: 96px;
   justify-self: end;
 }
-.chat-input .send-btn:hover { background-color: var(--accent-primary-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
-.chat-input .send-btn:active { transform: translateY(0); }
-.chat-input .send-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
-.chat-input .send-btn[disabled] { opacity: .6; cursor: not-allowed; }
+.chat-input .send-btn:not(.send-icon):hover { background-color: var(--accent-primary-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.chat-input .send-btn:not(.send-icon):active { transform: translateY(0); }
+.chat-input .send-btn:not(.send-icon):focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
+.chat-input .send-btn:not(.send-icon)[disabled] { opacity: .6; cursor: not-allowed; }
 
 /* Mode select visuals */
 .chat-header .mode-select {
@@ -656,7 +716,7 @@
 /* Compact sizes for small screens */
 @media (max-width: 480px) {
   .chat-header .mode-select { height: 36px; padding: 0 12px; }
-  .chat-input .send-btn { height: 30px; padding: 0 10px; }
+  .chat-input .send-btn:not(.send-icon) { height: 30px; padding: 0 10px; }
 }
 
 /* === Full-width message layout (no right-side gutter), no horizontal growth === */
@@ -728,7 +788,7 @@
 }
 
 /* === Stable width + sticky toolbar + fixed composer (overrides) === */
-.chat-pane { min-width: 0; }
+/* .chat-pane min-width is already defined above; avoid duplicate rule */
 .chat-header { position: sticky; top: 0; z-index: 3; background: var(--background-secondary); }
 .chat-messages { overflow-x: hidden; min-width: 0; }
 .message { min-width: 0; }
@@ -736,16 +796,15 @@
 .message pre, .message.ai .message-text pre, .copyable-block pre, .confirm-code, .code-output { max-width: 100%; overflow: auto; }
 .chat-input { min-width: 0; }
 .chat-input textarea {
-  height: 32px;
-  line-height: 18px;
-  padding: 6px 10px;
+  /* Height, padding, and line-height are defined above via CSS variables
+     and managed at runtime by JS auto-resize. Keep only behavioral flags here. */
   overflow-y: auto;
   resize: none;
   box-sizing: border-box;
 }
 .chat-input textarea:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer); }
 @media (max-width: 480px) {
-  .chat-input textarea { height: 30px; padding: 6px 10px; }
+  /* Do not override height/padding; respect CSS variables set by user */
 }
 
 
