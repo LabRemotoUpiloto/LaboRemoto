@@ -81,11 +81,21 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
-    el.style.height = 'auto';
     const style = window.getComputedStyle(el);
-    const lineHeight = parseFloat(style.lineHeight) || 20;
-    const paddingTop = parseFloat(style.paddingTop) || 0;
-    const paddingBottom = parseFloat(style.paddingBottom) || 0;
+    // Si se define una altura fija vía CSS var, respétala y omite el auto-resize
+    const fixedH = (style.getPropertyValue('--chat-input-fixed-height') || '').trim();
+    if (fixedH) {
+      el.style.height = fixedH;
+      el.style.overflowY = 'hidden';
+      return;
+    }
+    el.style.height = 'auto';
+    // Soporta override por variables CSS definidas en .chat-pane
+    const lineHeightVar = style.getPropertyValue('--chat-input-line-height');
+    const paddingYVar = style.getPropertyValue('--chat-input-padding-y');
+    const lineHeight = parseFloat(lineHeightVar || style.lineHeight) || 20;
+    const paddingTop = parseFloat(paddingYVar || style.paddingTop) || 0;
+    const paddingBottom = parseFloat(paddingYVar || style.paddingBottom) || 0;
     const maxLines = 5;
     const maxPx = Math.round(paddingTop + paddingBottom + lineHeight * maxLines);
     const newH = Math.min(el.scrollHeight, maxPx);
@@ -351,8 +361,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           placeholder={'Escribe tu mensaje…'}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         />
-        <button className="send-btn" onClick={handleSend} disabled={isSending || !modeHandlers[mode].canSend()} aria-label="Enviar mensaje">
-          {!modeHandlers[mode].canSend() ? 'Sólo lectura' : (isSending ? 'Enviando…' : 'Enviar')}
+        <button
+          className="send-btn send-icon"
+          onClick={handleSend}
+          disabled={isSending || !modeHandlers[mode].canSend()}
+          aria-label={isSending ? 'Enviando mensaje' : (!modeHandlers[mode].canSend() ? 'Sólo lectura' : 'Enviar mensaje')}
+          title={isSending ? 'Enviando…' : (!modeHandlers[mode].canSend() ? 'Sólo lectura' : 'Enviar')}
+        >
+          {/* Icono de enviar (triángulo/paper plane) */}
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M2 21V14L17 12L2 10V3L23 12L2 21Z" fill="currentColor"></path>
+          </svg>
         </button>
       </div>
     </div>
