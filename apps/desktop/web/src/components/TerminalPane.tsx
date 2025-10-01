@@ -189,9 +189,11 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       try { window.setTimeout(doFit, 180); } catch {}
     };
 
-    // Escuchar el toggle explícito de la sidebar para ajustar (se emite en fases)
-    const onSidebarToggled = () => { multiStageFitAndResize(); };
-    window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
+  // Escuchar el toggle explícito de la sidebar y bottom bar para ajustar (se emite en fases)
+  const onSidebarToggled = () => { multiStageFitAndResize(); };
+  const onBottomBarToggled = () => { multiStageFitAndResize(); };
+  window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
+  window.addEventListener('app:bottombar-toggled', onBottomBarToggled as any);
 
     // Además, escuchar el final de la transición del contenedor principal para asegurar el ajuste
     const mainContentEl = document.querySelector('.main-content');
@@ -204,6 +206,16 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     };
     try { mainContentEl?.addEventListener('transitionend', onTransitionEnd); } catch {}
 
+    // Escuchar específicamente el fin de la transición de altura de la bottom bar
+    const bottomBarContent = document.querySelector('.bottom-bar .bb-content');
+    const onBottomBarTransitionEnd = (ev: Event) => {
+      const te = ev as TransitionEvent;
+      if (te.propertyName === 'height') {
+        multiStageFitAndResize();
+      }
+    };
+    try { bottomBarContent?.addEventListener('transitionend', onBottomBarTransitionEnd); } catch {}
+
     // (ResizeObserver removed as requested)
     const disposeOnResize = term.onResize(({ cols, rows }) => {
       if (sessionId) invoke('ssh_resize', { id: sessionId, cols, rows }).catch(() => {});
@@ -211,9 +223,14 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
     return () => {
       try { disposeOnResize.dispose(); } catch {}
-      window.removeEventListener('resize', onResize);
+    window.removeEventListener('resize', onResize);
   window.removeEventListener('app:sidebar-toggled', onSidebarToggled as any);
+    window.removeEventListener('app:bottombar-toggled', onBottomBarToggled as any);
     try { mainContentEl?.removeEventListener('transitionend', onTransitionEnd); } catch {}
+      try {
+        const bottomBarContent2 = document.querySelector('.bottom-bar .bb-content');
+        bottomBarContent2?.removeEventListener('transitionend', onBottomBarTransitionEnd);
+      } catch {}
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
       if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
