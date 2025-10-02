@@ -5,23 +5,21 @@
   --bb-transition: 300ms ease;
 }
 
-/* when closed, keep a small area so the handle is clickable */
-.bottom-bar.closed {
-  min-height: 16px;
-}
+/* no min-height here; TerminalView reserves handle space */
 
 /* Toggle button as a small handle sitting above the bar */
 .bb-toggle {
   position: absolute;
-  left: 50%;
-  transform: translate(-50%, -100%);
-  top: 0;
+  left: 12px; /* move handle to bottom-left */
+  transform: none;
+  bottom: 0; /* sit inside the slot area at the bottom, not overlapping terminal */
   background: var(--surface-2, #2b2b2b);
   color: var(--text-secondary, #ccc);
   border: 1px solid var(--border-subtle, #3a3a3a);
   border-radius: 6px 6px 0 0;
-  padding: 4px 10px;
-  font-size: 12px;
+  height: 32px; /* sync with --bb-handle reserved space */
+  padding: 0 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 .bb-toggle:hover { color: var(--text-primary, #eee); }
