@@ -13,18 +13,23 @@
   min-width: 0;
   height: 100%;
   --bb-offset: 0px; /* updated by TerminalView when bottom bar toggles */
+  --bb-handle: 32px; /* reserved height for the bottom bar handle (matches .bb-toggle height) */
 }
 
 .terminal-view .terminal-stack > .terminal-pane {
   flex: 1 1 auto;
   min-height: 0;
   /* reduce visible height by bottom bar content height to avoid overlap */
-  height: calc(100% - var(--bb-offset));
+  /* Reserve space not only for open content (bb-offset) but also the handle (always visible) */
+  height: calc(100% - var(--bb-offset) - var(--bb-handle));
   transition: height 300ms ease; /* sync with bottom bar transition */
 }
 
 .terminal-view .bottom-bar-slot {
   flex: 0 0 auto;
+  position: relative; /* anchor for absolute-positioned handle */
+  /* Ensure the slot always keeps the handle space even when closed */
+  min-height: var(--bb-handle);
 }
 
 .terminal-view > .chat-pane {
