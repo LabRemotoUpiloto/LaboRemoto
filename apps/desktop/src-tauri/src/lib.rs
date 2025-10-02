@@ -25,6 +25,7 @@ pub fn run() {
       cmd::ssh::ssh_disconnect,
   cmd::ssh::ssh_ui_ready,
     cmd::ssh::ssh_session_info,
+    cmd::ssh::rpi_pins_status,
       // SFTP (stubs)
       cmd::sftp::sftp_open,
   cmd::sftp::sftp_home,
