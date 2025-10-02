@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import './BottomBar.css';
+import CameraPanel from './CameraPanel';
+import PinsPanel from './PinsPanel';
 
 interface BottomBarProps {
   isOpen: boolean;
@@ -40,10 +42,10 @@ const BottomBar: React.FC<BottomBarProps> = ({ isOpen, onToggle }) => {
       <div id="bottom-bar-content" className="bb-content" aria-hidden={!isOpen}>
         <div className="bb-panels">
           <div className="bb-panel camera-panel" aria-label="Panel de cámara">
-            {/* Contenido futuro: vista de cámara */}
+            <CameraPanel />
           </div>
           <div className="bb-panel pins-panel" aria-label="Panel de pines Raspberry Pi">
-            {/* Contenido futuro: pines de Raspberry */}
+            <PinsPanel />
           </div>
         </div>
       </div>
