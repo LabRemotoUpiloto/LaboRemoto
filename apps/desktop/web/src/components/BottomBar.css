@@ -10,6 +10,7 @@
   right: 12px;
   transform: none;
   bottom: 0;
+  z-index: 3; /* ensure toggle sits above content to allow closing */
   background: var(--surface-2, #2b2b2b);
   color: var(--text-secondary, #ccc);
   border: 1px solid var(--border-subtle, #3a3a3a);
@@ -24,6 +25,8 @@
 .bb-toggle.open .bb-caret { transform: rotate(180deg); }
 
 .bottom-bar .bb-content {
+  position: relative; /* participate in stacking so toggle can overlay */
+  z-index: 1;
   height: 0;
   overflow: hidden;
   transition: height var(--bb-transition);
