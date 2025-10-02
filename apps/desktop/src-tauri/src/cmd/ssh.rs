@@ -194,6 +194,22 @@ pub async fn ssh_disconnect(state: tauri::State<'_, AppState>, id: String) -> Re
   Ok(())
 }
 
+#[derive(serde::Serialize)]
+pub struct SessionInfo {
+  pub host: String,
+  pub port: u16,
+  pub user: String,
+  pub resolved_ip: String,
+}
+
+#[tauri::command]
+pub async fn ssh_session_info(id: String) -> Result<SessionInfo, String> {
+  let map = SESSIONS.lock().unwrap();
+  let sess = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+  let ip = sess.term.resolved_addr.ip().to_string();
+  Ok(SessionInfo { host: sess.host.clone(), port: sess.port, user: sess.user.clone(), resolved_ip: ip })
+}
+
 #[tauri::command]
 pub async fn ssh_connect_stored(
   app: AppHandle,
