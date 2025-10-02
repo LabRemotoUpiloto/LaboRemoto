@@ -6,10 +6,11 @@ import PinsPanel from './PinsPanel';
 interface BottomBarProps {
   isOpen: boolean;
   onToggle: () => void;
+  sessionId: string;
 }
 
 // Barra inferior plegable con dos paneles vacíos por ahora
-const BottomBar: React.FC<BottomBarProps> = ({ isOpen, onToggle }) => {
+const BottomBar: React.FC<BottomBarProps> = ({ isOpen, onToggle, sessionId }) => {
   // Enviar eventos como la sidebar para que el terminal se reajuste
   const emitTogglePhases = (nextOpen: boolean) => {
     try { window.dispatchEvent(new CustomEvent('app:bottombar-toggled', { detail: { isOpen: nextOpen, phase: 'start' } })) } catch {}
@@ -45,7 +46,7 @@ const BottomBar: React.FC<BottomBarProps> = ({ isOpen, onToggle }) => {
             <CameraPanel />
           </div>
           <div className="bb-panel pins-panel" aria-label="Panel de pines Raspberry Pi">
-            <PinsPanel />
+            <PinsPanel sessionId={sessionId} />
           </div>
         </div>
       </div>
