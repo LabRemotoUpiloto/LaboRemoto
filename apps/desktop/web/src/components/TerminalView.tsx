@@ -45,7 +45,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId }) => {
         <TerminalPane sessionId={sessionId} />
         {enableBottomBar && (
           <div className="bottom-bar-slot">
-            <BottomBar isOpen={isBottomBarOpen} onToggle={() => setBottomBarOpen(v => !v)} />
+            <BottomBar isOpen={isBottomBarOpen} onToggle={() => setBottomBarOpen(v => !v)} sessionId={sessionId} />
           </div>
         )}
       </div>
