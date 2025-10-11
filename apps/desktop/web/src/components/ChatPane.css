@@ -14,6 +14,54 @@
   --chat-send-size: var(--chat-input-base-height);
 }
 
+/* Header del chat con controles */
+.chat-header {
+  padding: 10px;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chat-header button {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.chat-header button:hover {
+  background: var(--background-tertiary);
+}
+
+.mode-select, .model-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.model-select {
+  background: linear-gradient(135deg, var(--background-primary) 0%, var(--background-tertiary) 100%);
+  border-color: var(--accent-color);
+  font-weight: 500;
+}
+
+.model-select:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 1px;
+}
+
 .chat-modes {
   padding: 10px;
   background: var(--background-secondary);
