@@ -1,0 +1,52 @@
+.bottom-bar {
+  position: relative;
+  width: 100%;
+  --bb-height: 240px;
+  --bb-transition: 300ms ease;
+}
+
+.bb-toggle {
+  position: absolute;
+  right: 12px;
+  transform: none;
+  bottom: 0;
+  z-index: 3; /* ensure toggle sits above content to allow closing */
+  background: var(--surface-2, #2b2b2b);
+  color: var(--text-secondary, #ccc);
+  border: 1px solid var(--border-subtle, #3a3a3a);
+  border-radius: 6px 6px 0 0;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bb-toggle:hover { color: var(--text-primary, #eee); }
+.bb-toggle .bb-caret { display: inline-block; margin-right: 6px; transition: transform var(--bb-transition); }
+.bb-toggle.open .bb-caret { transform: rotate(180deg); }
+
+.bottom-bar .bb-content {
+  position: relative; /* participate in stacking so toggle can overlay */
+  z-index: 1;
+  height: 0;
+  overflow: hidden;
+  transition: height var(--bb-transition);
+  border-top: 1px solid var(--border-subtle, #3a3a3a);
+  background: var(--surface-1, #1f1f1f);
+}
+
+.bottom-bar.open .bb-content { height: var(--bb-height); }
+
+.bb-panels {
+  display: flex;
+  height: 100%;
+}
+
+.bb-panel {
+  flex: 1 1 50%;
+  min-width: 0;
+  padding: 8px;
+  box-sizing: border-box;
+  color: var(--text-primary, #eaeaea);
+}
+
+.camera-panel { border-right: 1px solid var(--border-subtle, #3a3a3a); }

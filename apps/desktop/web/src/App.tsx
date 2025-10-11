@@ -149,7 +149,7 @@ const App: React.FC = () => {
             activeTabId={activeTabId}
             onTabClick={handleTabClick}
             onCloseTab={handleCloseTab}
-            onNewSession={() => setActiveTabId(HOME_ID)}
+            onNewSession={() => { setActiveTabId(HOME_ID); setSelectedPage('connect'); }}
             toggleSidebar={toggleSidebar}
           />
           <main className="content-area">

@@ -1,9 +1,17 @@
+
 .chat-pane {
-  width: clamp(360px, 30vw, 540px);
-  border-left: 1px solid var(--border-color);
+  --pane-min: 360px;
+  --pane-ideal: 30vw;
+  --chat-input-line-height: 16px;   
+  --chat-input-padding-y: 9px;   
+  --chat-input-base-height: calc(var(--chat-input-line-height) + (var(--chat-input-padding-y) * 2)); 
+  --chat-input-min-height: var(--chat-input-base-height); 
+  width: clamp(var(--pane-min), var(--pane-ideal), var(--pane-max));
   display: flex;
   flex-direction: column;
+
   background-color: var(--background-secondary);
+  --chat-send-size: var(--chat-input-base-height);
 }
 
 /* Header del chat con controles */
@@ -77,7 +85,6 @@
   color: var(--text-secondary);
 }
 
-/* Estilos para los diferentes modos */
 .message.ask {
   border-left: 3px solid #4CAF50;
 }
@@ -90,12 +97,10 @@
   border-left: 3px solid #9C27B0;
 }
 
-/* Nuevos modos (estilos de borde indicativo en legacy outer wrapper, mantienen card actual) */
 .message.busqueda { border-left: 3px solid #2563eb; }
 .message.pines { border-left: 3px solid #fbbf24; }
 .message.analisis { border-left: 3px solid #8b5cf6; }
 
-/* Ayuda de modo */
 .mode-help {
   font-size: 12px;
   padding: 4px 12px 8px;
@@ -104,7 +109,6 @@
   background: linear-gradient(180deg, var(--background-secondary), var(--background-tertiary));
 }
 
-/* Botón de pin */
 .pin-btn {
   position: absolute;
   top: 4px;
@@ -222,20 +226,18 @@
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-color);
   gap: 8px;
-  flex-wrap: wrap; /* evita desbordes cuando hay poco ancho */
+  flex-wrap: wrap;
 }
 .chat-header button:focus-visible, .chat-header select:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer);
 }
 
-/* Make header controls pop more */
 .chat-header button, .chat-header select {
   padding: 6px 12px;
   border-radius: 6px;
 }
 
-/* New Chat: solid accent for visibility */
 .chat-header button {
   background-color: var(--accent-primary);
   color: var(--accent-contrast);
@@ -248,14 +250,13 @@
 .chat-header button:hover { background-color: var(--accent-primary-hover); }
 .chat-header button:active { transform: translateY(1px); }
 
-/* Mode selector: accented outline with subtle tint */
 .chat-header select {
   background-color: color-mix(in srgb, var(--accent-primary) 12%, var(--background-tertiary));
   color: var(--text-primary);
   border: 1px solid var(--accent-primary);
   cursor: pointer;
-  flex: 0 1 200px;       /* puede encoger y crecer hasta 200px */
-  max-width: 50%;        /* no invadir todo el header */
+  flex: 0 1 200px;
+  max-width: 50%; 
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -265,13 +266,13 @@
 
 .chat-messages {
   flex-grow: 1;
-  padding: 10px 10px 24px; /* más aire al final */
+  padding: 10px 10px 24px; 
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 15px; /* más espacio entre mensajes */
+  gap: 15px;
   scrollbar-gutter: stable both-edges;
-  position: relative; /* para el botón flotante */
+  position: relative;
 }
 
 .message {
@@ -290,14 +291,12 @@
 
 .message.ai,
 .message.system {
-  /* exact same tone for both bubbles */
   background-color: color-mix(in srgb, var(--accent-primary) 16%, var(--background-tertiary));
   border-left: 3px solid var(--accent-primary);
   box-shadow: 0 1px 0 rgba(0,0,0,0.08);
   align-self: flex-start;
 }
 
-/* Improve general message text readability */
 .message pre {
   font-size: 14px;
   line-height: 1.4;
@@ -340,65 +339,104 @@
 }
 .message .explanation .explanation-list li { margin: 4px 0; }
 
-/* In AGENT (system) bubble, make explanation look like normal text (no inner panel) */
 .message.system .explanation {
   background: transparent;
   border: 0;
   padding: 0;
 }
 
-/* acciones rápidas en mensajes (removidas) */
-
 .chat-input {
-  display: grid; /* mantiene botón visible en la misma fila */
+  --chat-gap: 6px;
+  --chat-input-min-height: 38px;     
+  --chat-input-height: auto;        
+  --chat-input-padding-y: 11px;     
+  --chat-input-padding-x: 12px;     
+  --chat-input-border-radius: 12px;  
+  --chat-input-line-height: 16px;    
+  --chat-textarea-width: 100%;      
+  --chat-send-size: 30px;            
+  --chat-send-width: 45px;           
+  --chat-send-radius: 999px;        
+  --chat-send-padding: 0;           
+  --chat-send-icon-scale: 0.7;       
+  display: grid;
   grid-template-columns: 1fr auto;
-  align-items: end; /* botón al borde inferior */
-  gap: 10px;
+  align-items: center;           
+  justify-items: center;          
+  gap: var(--chat-gap);
   padding: 10px;
   border-top: 1px solid var(--border-color);
+  height: var(--chat-input-height);
+  min-height: var(--chat-input-min-height);
 }
 
 .chat-input textarea {
-  width: 100%;
-  min-width: 0; /* crucial para que no fuerce el ancho de la columna */
+  width: var(--chat-textarea-width, 100%);
+  max-width: 100%;
+  min-width: 0;               
+  justify-self: center;       
   background-color: var(--background-tertiary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--chat-input-border-radius);
   color: var(--text-primary);
-  padding: 6px 10px;
-  resize: none; /* we manage height in JS */
+  padding: var(--chat-input-padding-y) var(--chat-input-padding-x);
   margin: 0;
-  min-height: 32px; /* start smaller */
-  /* no fixed max-height here; JS caps at 5 lines */
-  overflow-y: hidden; /* JS toggles to auto when needed */
-  line-height: 18px; /* predictable for 5-line cap */
+  height: var(--chat-input-fixed-height, auto);
+  min-height: 0;              
+  overflow-y: hidden;         
+  line-height: var(--chat-input-line-height);
+  resize: none;            
 }
 
-.chat-input button {
+.chat-input button:not(.send-icon) {
   background-color: var(--accent-primary);
   color: var(--accent-contrast);
   border: none;
   box-shadow: var(--accent-guard-inset), 0 0 0 rgba(0,0,0,0);
   text-shadow: var(--accent-guard-shadow);
-  padding: 10px 16px;
+  padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 160ms ease, transform 80ms ease;
-  min-width: 96px; /* tamaño táctil y visible */
-  justify-self: end; /* pegado a la derecha */
+  justify-self: end; 
 }
-.chat-input button:hover { background-color: var(--accent-primary-hover) }
-.chat-input button:active { transform: translateY(1px) }
-.chat-input button[disabled] { opacity: .7; cursor: not-allowed }
+.chat-input .send-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--chat-send-width);
+  height: var(--chat-send-size);
+  padding: var(--chat-send-padding);
+  min-width: 0;
+  border-radius: var(--chat-send-radius);
+  justify-self: end;
+  background-color: var(--accent-primary);
+  color: var(--accent-contrast);
+  border: 1px solid var(--accent-primary);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.08);
+  box-sizing: border-box; 
+}
+.chat-input .send-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scale(var(--chat-send-icon-scale));
+  transform-origin: center;
+}
+.chat-input .send-icon:hover { background-color: var(--accent-primary-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.chat-input .send-icon:active { transform: translateY(0); }
+.chat-input .send-icon:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
+.chat-input .send-icon[disabled] { opacity: .6; cursor: not-allowed; }
+.chat-input button:not(.send-icon):hover { background-color: var(--accent-primary-hover) }
+.chat-input button:not(.send-icon):active { transform: translateY(1px) }
+.chat-input button:not(.send-icon)[disabled] { opacity: .7; cursor: not-allowed }
 
-/* Responsive: cuando el panel es muy estrecho, apilar el botón debajo */
 @media (max-width: 520px) {
   .chat-input { grid-template-columns: 1fr; }
-  .chat-input button { justify-self: stretch; width: 100%; }
+  .chat-input button:not(.send-icon) { justify-self: stretch; width: 100%; }
   .chat-header { gap: 6px; }
 }
 
-/* Estilos para los botones de confirmación */
 .send-button {
   background-color: var(--accent-primary);
   color: var(--accent-contrast);
@@ -420,7 +458,6 @@
 }
 .send-button:focus-visible, .cancel-button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer) }
 
-/* Tarjeta de confirmación (sin inline styles) */
 .confirm-card { 
   margin-top: 8px;
   padding: 12px;
@@ -454,20 +491,18 @@
   line-height: 1.45;
   white-space: pre;
   overflow: auto;
-  max-height: 320px; /* evita tarjetas interminables */
+  max-height: 320px;
 }
 
-/* Inside AI/System bubbles, visually merge the confirm card with the bubble */
 .message.ai .confirm-card,
 .message.system .confirm-card {
-  background: transparent;            /* use the bubble's background */
-  border-top: 0;                      /* remove top border to attach */
-  border-radius: 0 0 8px 8px;         /* rounded only at the bottom */
-  margin-top: 6px;                    /* slightly tighter spacing */
-  padding-top: 8px;                   /* keep inner spacing */
+  background: transparent;           
+  border-top: 0;                     
+  border-radius: 0 0 8px 8px;       
+  margin-top: 6px;                   
+  padding-top: 8px;                 
 }
 
-/* Keep the code block legible while merged */
 .message.ai .confirm-code,
 .message.system .confirm-code {
   background: var(--background-secondary);
@@ -487,7 +522,6 @@
 }
 
 
-/* Structured tool results */
 .tool-result-block { margin-top: 10px; border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--background-tertiary); }
 .tool-result-block header { display:flex; align-items:center; justify-content:space-between; padding:6px 10px; cursor:pointer; user-select:none; }
 .tool-result-block header h4 { font-size:12px; margin:0; letter-spacing:.5px; text-transform:uppercase; font-weight:600; color:var(--text-secondary); }
@@ -501,8 +535,6 @@
 .collapsed .body { display:none; }
 .tool-path { color: var(--text-primary); font-weight:500; }
 .grep-line { color: var(--accent-primary); font-weight:600; }
-
-/* --- Redesigned Search Result Card --- */
 .search-card { --sr-bg: var(--background-tertiary); }
 .search-card header.sr-header { gap:8px; }
 .sr-header { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background: linear-gradient(180deg, var(--background-tertiary), color-mix(in srgb, var(--background-tertiary) 80%, var(--background-secondary))); border-radius:6px 6px 0 0; }
@@ -532,7 +564,6 @@
   .sr-name { max-width:100%; }
 }
 
-/* Copy-friendly ASK rendering */
 .message.ai .message-text h1,
 .message.ai .message-text h2,
 .message.ai .message-text h3,
@@ -566,14 +597,12 @@
   padding: 1px 4px; border-radius: 4px; 
 }
 
-/* Step callouts (emojis are rendered in text) */
 .message.ai .message-text .step-title { 
   font-weight: 700; 
   display: block; 
   margin: 10px 0 6px 0; 
 }
 
-/* Copy button overlay for code blocks (optional; JS hooks add the button) */
 .copyable-block { position: relative }
 .copyable-block .copy-btn {
   position: absolute;
@@ -589,9 +618,8 @@
 }
 .copyable-block .copy-btn:hover { background: var(--background-tertiary); }
 
-/* Botón flota para bajar al último mensaje */
 .scroll-to-bottom {
-  position: sticky; /* permanece visible al desplazarse */
+  position: sticky;
   bottom: 12px;
   margin-left: auto;
   margin-right: 12px;
@@ -614,7 +642,6 @@
 
 .chat-messages { scrollbar-width: thin; scrollbar-color: var(--accent-primary) rgba(255,255,255,0.04); }
 
-/* WebKit (Chromium / Safari) */
 .chat-messages::-webkit-scrollbar { width: 10px; }
 .chat-messages::-webkit-scrollbar-track {
   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
@@ -624,7 +651,7 @@
 .chat-messages::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, var(--background-tertiary), var(--background-secondary));
   border-radius: 20px;
-  border: 2px solid transparent; /* pill look, separates from track */
+  border: 2px solid transparent;
   background-clip: padding-box;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 2px 4px rgba(0,0,0,0.35);
   transition: background-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
@@ -638,7 +665,6 @@
   transform: scale(0.96);
 }
 
-/* Optional: textarea scrollbar consistent too */
 .chat-input textarea { scrollbar-width: thin; }
 .chat-input textarea::-webkit-scrollbar { width: 10px; }
 .chat-input textarea::-webkit-scrollbar-track {
@@ -655,19 +681,16 @@
 }
 .chat-input textarea::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--accent-primary), var(--accent-primary-hover)); }
 
-/* === Pill-style controls: mode select + send button (copy-friendly spec) === */
-/* Base sizes and typography */
 .chat-header .mode-select,
-.chat-input .send-btn {
-  height: 32px;            /* desktop */
-  padding: 0 12px;         /* desktop */
-  border-radius: 9999px;   /* pill */
+.chat-input .send-btn:not(.send-icon) {
+  height: 32px;            
+  padding: 0 12px;        
+  border-radius: 9999px;  
   font-size: 14px;
   font-weight: 600;
 }
 
-/* Send button visuals */
-.chat-input .send-btn {
+.chat-input .send-btn:not(.send-icon) {
   background-color: var(--accent-primary);
   color: var(--accent-contrast);
   border: 1px solid var(--accent-primary);
@@ -675,61 +698,49 @@
   min-width: 96px;
   justify-self: end;
 }
-.chat-input .send-btn:hover { background-color: var(--accent-primary-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
-.chat-input .send-btn:active { transform: translateY(0); }
-.chat-input .send-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
-.chat-input .send-btn[disabled] { opacity: .6; cursor: not-allowed; }
+.chat-input .send-btn:not(.send-icon):hover { background-color: var(--accent-primary-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.chat-input .send-btn:not(.send-icon):active { transform: translateY(0); }
+.chat-input .send-btn:not(.send-icon):focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
+.chat-input .send-btn:not(.send-icon)[disabled] { opacity: .6; cursor: not-allowed; }
 
-/* Mode select visuals */
 .chat-header .mode-select {
   background-color: color-mix(in srgb, var(--accent-primary) 12%, var(--background-tertiary));
   color: var(--text-primary);
   border: 1px solid var(--accent-primary);
   cursor: pointer;
-  flex: 0 1 220px;     /* flexible pero acotado */
+  flex: 0 1 220px;   
   max-width: 60%;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  appearance: none;     /* quitar flecha nativa */
+  appearance: none;  
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="%23ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
   background-repeat: no-repeat;
   background-position: right 10px center;
-  padding-right: 36px;  /* espacio para la flecha */
+  padding-right: 36px;
 }
 .chat-header .mode-select:hover { border-color: var(--accent-primary-hover); }
 .chat-header .mode-select:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, white), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent); }
 .chat-header .mode-select[disabled] { opacity: .6; cursor: not-allowed; }
 
-/* Compact sizes for small screens */
 @media (max-width: 480px) {
   .chat-header .mode-select { height: 36px; padding: 0 12px; }
-  .chat-input .send-btn { height: 30px; padding: 0 10px; }
+  .chat-input .send-btn:not(.send-icon) { height: 30px; padding: 0 10px; }
 }
 
-/* === Full-width message layout (no right-side gutter), no horizontal growth === */
-/* Map provided class names to existing ones: chat-root -> .chat-pane, chat-scroll -> .chat-messages */
 .chat-root, .chat-pane { min-width: 0; }
 .chat-scroll, .chat-messages { min-width: 0; overflow-x: hidden; }
-
-/* 1) Baseline: message item spans row; card sets the visual width */
 .chat-messages .message { width: 100%; max-width: none; align-self: stretch; display: flex; }
-
-/* 2) Stretch the visual card/content inside the message */
-/* 2) Role-based widths: assistant full-width; user compact & right-aligned */
 .message--assistant { justify-content: flex-start; }
 .message--assistant .message-card { width: 100%; max-width: none; min-width: 0; }
 .message--user { justify-content: flex-end; }
 .message--user .message-card { flex: 0 0 auto; width: auto; max-width: clamp(220px, 62ch, 72%); margin-left: auto; display: inline-flex; }
 .message-content { width: 100%; max-width: none; min-width: 0; }
-
-/* 3) Long text safety: do not expand layout horizontally */
 .message-content, .message .message-text {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-/* 4) Code blocks: scroll internally, never expand width */
 .message pre,
 .message code,
 .message .message-text pre,
@@ -740,20 +751,16 @@
   white-space: pre;
 }
 
-/* === Bubble visuals by role (move styles from outer .message to inner .message-card) === */
-/* Reset legacy outer backgrounds so the full row is not painted */
 .message.user,
 .message.ai,
 .message.system { background: transparent; box-shadow: none; border-left: 0; color: inherit; }
 
-/* Common card base */
 .message-card {
   padding: 10px;
   border-radius: 8px;
-  width: auto; /* base: no forzar ancho; el rol lo define */
+  width: auto; 
 }
 
-/* Assistant: full-width card with subtle background */
 .message--assistant .message-card {
   background-color: color-mix(in srgb, var(--accent-primary) 16%, var(--background-tertiary));
   border-left: 3px solid var(--accent-primary);
@@ -761,7 +768,6 @@
   color: var(--text-primary);
 }
 
-/* User: compact right-aligned card with accent background */
 .message--user .message-card {
   background-color: var(--accent-primary);
   color: var(--accent-contrast);
@@ -769,14 +775,11 @@
   text-shadow: var(--accent-guard-shadow);
 }
 
-/* 5) Input composer: keep width stable; allow vertical grow up to 5 lines (no horizontal growth) */
 .chat-input textarea {
-  resize: none;          /* no drag horizontal */
-  overflow-y: auto;      /* scroll vertical cuando supera el tope en JS */
+  resize: none;         
+  overflow-y: auto;     
 }
 
-/* === Stable width + sticky toolbar + fixed composer (overrides) === */
-.chat-pane { min-width: 0; }
 .chat-header { position: sticky; top: 0; z-index: 3; background: var(--background-secondary); }
 .chat-messages { overflow-x: hidden; min-width: 0; }
 .message { min-width: 0; }
@@ -784,16 +787,14 @@
 .message pre, .message.ai .message-text pre, .copyable-block pre, .confirm-code, .code-output { max-width: 100%; overflow: auto; }
 .chat-input { min-width: 0; }
 .chat-input textarea {
-  height: 32px;
-  line-height: 18px;
-  padding: 6px 10px;
+
   overflow-y: auto;
   resize: none;
   box-sizing: border-box;
 }
 .chat-input textarea:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer); }
 @media (max-width: 480px) {
-  .chat-input textarea { height: 30px; padding: 6px 10px; }
+  /* Do not override height/padding; respect CSS variables set by user */
 }
 
 

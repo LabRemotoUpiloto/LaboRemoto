@@ -5,10 +5,31 @@
   min-width: 0; /* allow children to shrink within available space */
 }
 
-.terminal-view > .terminal-pane {
+/* Left: terminal stack (terminal + bottom bar), Right: chat */
+.terminal-view .terminal-stack {
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   height: 100%;
-  min-width: 0; /* allow xterm container to shrink instead of pushing chat */
+  --bb-offset: 0px; /* updated by TerminalView when bottom bar toggles */
+  --bb-handle: 32px; /* reserved height for the bottom bar handle (matches .bb-toggle height) */
+}
+
+.terminal-view .terminal-stack > .terminal-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* reduce visible height by bottom bar content height to avoid overlap */
+  /* Reserve space not only for open content (bb-offset) but also the handle (always visible) */
+  height: calc(100% - var(--bb-offset) - var(--bb-handle));
+  transition: height 300ms ease; /* sync with bottom bar transition */
+}
+
+.terminal-view .bottom-bar-slot {
+  flex: 0 0 auto;
+  position: relative; /* anchor for absolute-positioned handle */
+  /* Ensure the slot always keeps the handle space even when closed */
+  min-height: var(--bb-handle);
 }
 
 .terminal-view > .chat-pane {
