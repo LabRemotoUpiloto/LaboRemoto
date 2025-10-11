@@ -43,6 +43,21 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     } catch {}
   };
 
+  // Determina si el panel de terminal es visible (no está dentro de un contenedor display:none y tiene tamaño)
+  const isPaneVisible = () => {
+    const el = containerRef.current;
+    if (!el) return false;
+    try {
+      if (el.getClientRects && el.getClientRects().length === 0) return false;
+      const cs = window.getComputedStyle(el);
+      if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return false;
+      // offsetParent suele ser null cuando algún ancestro tiene display:none
+      if ((el as any).offsetParent === null) return false;
+      if (el.clientWidth <= 0 || el.clientHeight <= 0) return false;
+    } catch {}
+    return true;
+  };
+
   // Reintenta enfocar el terminal por un corto periodo, útil si el SO/ventana roba el foco
   const startFocusLoop = (ms: number = 2000) => {
     if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
@@ -163,7 +178,8 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
   // Ajustar tamaño al cambiar ventana y notificar al backend
   const onResize = () => {
-      try { fit.fit(); } catch {}
+    if (!isPaneVisible()) return;
+    try { fit.fit(); } catch {}
       // Reenfocar después de ajuste si ya enfocamos una vez
   try { if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal()) termRef.current.focus(); } catch {}
       if (sessionId) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
@@ -173,6 +189,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     // Helper para reintentar el ajuste en varios ticks (raf + timeouts)
     const multiStageFitAndResize = () => {
       const doFit = () => {
+        if (!isPaneVisible()) return;
         try { fit.fit(); } catch {}
         try { if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal()) termRef.current.focus(); } catch {}
         if (sessionId) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
@@ -189,9 +206,11 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       try { window.setTimeout(doFit, 180); } catch {}
     };
 
-    // Escuchar el toggle explícito de la sidebar para ajustar (se emite en fases)
-    const onSidebarToggled = () => { multiStageFitAndResize(); };
-    window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
+  // Escuchar el toggle explícito de la sidebar y bottom bar para ajustar (se emite en fases)
+  const onSidebarToggled = () => { multiStageFitAndResize(); };
+  const onBottomBarToggled = () => { multiStageFitAndResize(); };
+  window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
+  window.addEventListener('app:bottombar-toggled', onBottomBarToggled as any);
 
     // Además, escuchar el final de la transición del contenedor principal para asegurar el ajuste
     const mainContentEl = document.querySelector('.main-content');
@@ -204,6 +223,21 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     };
     try { mainContentEl?.addEventListener('transitionend', onTransitionEnd); } catch {}
 
+    // Escuchar específicamente el fin de la transición de altura de la bottom bar
+    // Restringir el listener de transitionend al bottom bar del mismo stack que este terminal
+    const bottomBarContent = (() => {
+      const el = containerRef.current;
+      const stack = el?.closest?.('.terminal-stack') as HTMLElement | null;
+      return stack ? (stack.querySelector('.bottom-bar .bb-content') as HTMLElement | null) : null;
+    })();
+    const onBottomBarTransitionEnd = (ev: Event) => {
+      const te = ev as TransitionEvent;
+      if (te.propertyName === 'height') {
+        multiStageFitAndResize();
+      }
+    };
+    try { bottomBarContent?.addEventListener('transitionend', onBottomBarTransitionEnd); } catch {}
+
     // (ResizeObserver removed as requested)
     const disposeOnResize = term.onResize(({ cols, rows }) => {
       if (sessionId) invoke('ssh_resize', { id: sessionId, cols, rows }).catch(() => {});
@@ -211,9 +245,14 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
     return () => {
       try { disposeOnResize.dispose(); } catch {}
-      window.removeEventListener('resize', onResize);
+    window.removeEventListener('resize', onResize);
   window.removeEventListener('app:sidebar-toggled', onSidebarToggled as any);
+    window.removeEventListener('app:bottombar-toggled', onBottomBarToggled as any);
     try { mainContentEl?.removeEventListener('transitionend', onTransitionEnd); } catch {}
+      try {
+        const bottomBarContent2 = document.querySelector('.bottom-bar .bb-content');
+        bottomBarContent2?.removeEventListener('transitionend', onBottomBarTransitionEnd);
+      } catch {}
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
       if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }

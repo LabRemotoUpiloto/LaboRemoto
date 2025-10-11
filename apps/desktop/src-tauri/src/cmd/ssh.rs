@@ -11,6 +11,7 @@ use crate::storage;
 
 use super::state::{SESSIONS, SessionExt};
 use crate::state::AppState;
+use regex::Regex;
 
 #[tauri::command]
 pub async fn ssh_connect(
@@ -192,6 +193,74 @@ pub async fn ssh_disconnect(state: tauri::State<'_, AppState>, id: String) -> Re
   // Limpiar memoria de la sesión al desconectar
   state.clear(&id);
   Ok(())
+}
+
+#[derive(serde::Serialize)]
+pub struct SessionInfo {
+  pub host: String,
+  pub port: u16,
+  pub user: String,
+  pub resolved_ip: String,
+}
+
+#[tauri::command]
+pub async fn ssh_session_info(id: String) -> Result<SessionInfo, String> {
+  let map = SESSIONS.lock().unwrap();
+  let sess = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+  let ip = sess.term.resolved_addr.ip().to_string();
+  Ok(SessionInfo { host: sess.host.clone(), port: sess.port, user: sess.user.clone(), resolved_ip: ip })
+}
+
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct RpiGpioLine {
+  pub gpio: u32,           // BCM number
+  pub level: Option<u8>,   // 0/1 if reported
+  pub func: String,        // INPUT/OUTPUT/ALT{n}
+  pub pull: Option<String> // UP/DOWN/NONE
+}
+
+#[tauri::command]
+pub async fn rpi_pins_status(id: String) -> Result<Vec<RpiGpioLine>, String> {
+  // Acquire ssh2 session (reuse cached or connect fresh like in cd handling)
+  let arc_cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    let s = map.get_mut(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    if let Some(existing) = s.sftp_cached.clone() {
+      existing
+    } else {
+      let (tcp, sess2) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
+        .map_err(|e| e.to_string())?;
+      let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess: sess2 }));
+      s.sftp_cached = Some(arc.clone());
+      arc
+    }
+  };
+
+  // Run 'raspi-gpio get' and capture output
+  let out = {
+    let guard = arc_cached.lock().map_err(|_| "ssh2 lock poisoned")?;
+    let mut ch = guard.sess.channel_session().map_err(|e| e.to_string())?;
+    ch.exec("raspi-gpio get").map_err(|e| e.to_string())?;
+    use std::io::Read;
+    let mut buf = String::new();
+    let _ = ch.read_to_string(&mut buf);
+    let _ = ch.wait_close();
+    buf
+  };
+
+  // Parse lines like: "GPIO 17: level=1 fsel=1 func=OUTPUT pull=UP"
+  let mut res: Vec<RpiGpioLine> = Vec::new();
+  let re = Regex::new(r"(?i)^GPIO\s+(\d+)\s*:\s*(?:level=(\d))?.*?func=([A-Z0-9]+)(?:.*?pull=([A-Z]+))?").map_err(|e| e.to_string())?;
+  for line in out.lines() {
+    if let Some(c) = re.captures(line) {
+      let gpio: u32 = c.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+      let level: Option<u8> = c.get(2).and_then(|m| m.as_str().parse().ok());
+      let func = c.get(3).map(|m| m.as_str().to_string()).unwrap_or_else(|| "".into());
+      let pull = c.get(4).map(|m| m.as_str().to_string());
+      res.push(RpiGpioLine { gpio, level, func, pull });
+    }
+  }
+  Ok(res)
 }
 
 #[tauri::command]

@@ -32,6 +32,7 @@ pub enum ChanCmd {
 pub struct Session {
     pub handle: Handle<RusshClient>,
     pub tx: mpsc::UnboundedSender<ChanCmd>,
+    pub resolved_addr: std::net::SocketAddr,
 }
 
 impl Session {
@@ -183,6 +184,6 @@ impl Session {
             }
         });
 
-        Ok((Session { handle, tx: tx_cmd }, rx_out))
+        Ok((Session { handle, tx: tx_cmd, resolved_addr: addr }, rx_out))
     }
 }
