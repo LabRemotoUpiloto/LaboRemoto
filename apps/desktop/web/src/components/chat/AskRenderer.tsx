@@ -2,6 +2,7 @@ import React from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { cleanText } from './chatUtils';
 import { Message } from '../chatModes/types';
+import CodeBlock from './CodeBlock';
 
 interface AskRendererProps {
   content: string;
@@ -105,54 +106,16 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
     return nodes;
   };
 
-  const sanitizeForTerminal = (txt: string) => (txt || '')
-    .split(/\r?\n/)
-    .filter(l => !/^```/.test(l.trim()))
-    .join('\n')
-    .trimEnd();
-
-  const onRun = async (text: string, btn: HTMLButtonElement | null) => {
-    const toSendRaw = sanitizeForTerminal(text || '');
-    if (!toSendRaw) return;
-    if (!sessionId) { try { alert('No hay sesión SSH activa'); } catch {} return; }
-    const danger = /\brm\s+-rf\b/i.test(toSendRaw);
-    if (danger) {
-      const proceed = confirm('Este comando incluye "rm -rf". ¿Seguro que deseas ejecutarlo?');
-      if (!proceed) return;
-    }
-    const editorCmdRe = /\b(nano|vim|vi|nvim|emacs)\b/;
-    if (editorCmdRe.test(toSendRaw)) {
-      alert('Este bloque contiene un editor interactivo (nano/vim). Usa here-doc con cat/tee para crear archivos sin interacción.');
-      return;
-    }
-    if (btn) {
-      btn.disabled = true; const prev = btn.textContent; btn.textContent = 'Ejecutando…';
-      try {
-        await invoke('ssh_stdin', { id: sessionId, data: toSendRaw + '\n' });
-        try { await setLastCommand?.(toSendRaw); } catch {}
-        btn.textContent = 'Ejecutado';
-      } catch { btn.textContent = 'Error'; }
-      finally { setTimeout(() => { if (btn) { btn.textContent = prev || 'Ejecutar'; btn.disabled = false; } }, 300); }
-      return;
-    }
-    try {
-      await invoke('ssh_stdin', { id: sessionId, data: toSendRaw + '\n' });
-      try { await setLastCommand?.(toSendRaw); } catch {}
-    } catch {}
-  };
-
   return (
     <div>
       {blocks.map((b, i) => b.type === 'code' ? (
-        <div className="copyable-block" key={`c-${i}`}>
-          <button
-            className="copy-btn"
-            onClick={(e) => onRun(b.body, e.currentTarget)}
-            aria-label="Ejecutar código"
-            type="button"
-          >Ejecutar</button>
-          <pre><code>{b.body}</code></pre>
-        </div>
+        <CodeBlock
+          key={`c-${i}`}
+          code={b.body}
+          language={b.lang}
+          sessionId={sessionId}
+          setLastCommand={setLastCommand}
+        />
       ) : (
         <div key={`p-${i}`}>{renderPara(b.body)}</div>
       ))}

@@ -5,7 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 import { invokeAgentPlan, AgentPlanResponse, ToolActionResult } from '../api/agent';
 // Modo modularizado
-import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext } from './chatModes/types';
+import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext, ModelSelection, AVAILABLE_MODELS } from './chatModes/types';
 // Handlers ahora como clases (instancias)
 import { AskModeHandler } from './chatModes/classes/AskModeHandler';
 import { BusquedaModeHandler } from './chatModes/classes/BusquedaModeHandler';
@@ -35,6 +35,10 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
+  const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
+    const saved = localStorage.getItem('chatSelectedModel');
+    return (saved as ModelSelection) || 'claude-sonnet-4-5';
+  });
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [agentState, setAgentState] = useState<AgentState>({
     cwd: '/',
@@ -76,6 +80,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     document.addEventListener('chat:system-msg', handler as any);
     return () => document.removeEventListener('chat:system-msg', handler as any);
   }, []);
+
+  // Persistir selección de modelo en localStorage
+  useEffect(() => {
+    localStorage.setItem('chatSelectedModel', selectedModel);
+  }, [selectedModel]);
 
   // Auto-resize vertical del textarea hasta 5 líneas (sin crecer a lo ancho)
   useEffect(() => {
@@ -178,7 +187,15 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: m.text }));
     const mappedMode = mode === 'analisis' ? 'ANALISIS' : mode.toUpperCase();
-    const res = await invoke<AiResponseRaw>('ai_chat', { req: { user_input: finalInput, mode: mappedMode, history, state: agentState } });
+    const res = await invoke<AiResponseRaw>('ai_chat', { 
+      req: { 
+        user_input: finalInput, 
+        mode: mappedMode, 
+        history, 
+        state: agentState,
+        model_selection: selectedModel
+      } 
+    });
     const aiText = (() => {
       const expRaw = (res as any).explanation as string | undefined;
       const respRaw = (res as any).ai_response as string | undefined;
@@ -237,6 +254,19 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           <option value="busqueda">Búsqueda</option>
           <option value="pines">Pines</option>
           <option value="analisis">Análisis</option>
+        </select>
+        <select 
+          className="model-select" 
+          value={selectedModel} 
+          onChange={(e) => setSelectedModel(e.target.value as ModelSelection)}
+          aria-label="Seleccionar modelo de IA"
+          title="Cambiar entre ChatGPT 3.5 y Claude"
+        >
+          {AVAILABLE_MODELS.map(model => (
+            <option key={model.value} value={model.value}>
+              {model.label} ({model.provider})
+            </option>
+          ))}
         </select>
         {/* removed Clear button per user request */}
       </div>
