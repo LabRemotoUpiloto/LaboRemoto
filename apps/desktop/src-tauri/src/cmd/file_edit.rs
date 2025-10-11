@@ -388,7 +388,7 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
           let sample = if bytes.len()>40_000 { let h=content.lines().take(120).collect::<Vec<_>>().join("\n"); let t=content.lines().rev().take(120).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"); format!("[HEAD]\n{}\n[...OMITIDO...]\n[TAIL]\n{}",h,t) } else { content.to_string() };
           let prompt = format!("Devuelve SOLO JSON con campos: descripcion, key_points.\nReglas estrictas:\n1. descripcion = UNA línea clara que resuma la función principal (sin empezar con 'Este archivo').\n2. key_points = 3-6 bullets concisos (sin punto final) sobre flujo, entradas, salidas, librerías, riesgos.\n3. Nada fuera del JSON.\n---\nNombre:{path}\nTamaño:{size}\nContenido:\n{c}\n---", path=path, size=bytes.len(), c=sample);
           let body = serde_json::json!({"model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into()),"messages":[{"role":"system","content":"Eres un asistente que resume archivos en español."},{"role":"user","content":prompt}],"temperature":0.15,"max_tokens":260});
-          match client.post("https://api.openai.com/v1/chat/completions").bearer_auth(&api_key).json(&body).send().await {
+          match client.post("https://api.openai.com/v1/chat/completions").bearer_auth(&api_key).json(&body).send().await {    
             Ok(resp) => {
               let status = resp.status();
               let text_body = resp.text().await.unwrap_or_default();

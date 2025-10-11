@@ -37,6 +37,35 @@ pub struct AgentState {
     pub last_file: Option<String>,
 }
 
+/// Modelos disponibles para el chat
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
+pub enum ModelSelection {
+    #[serde(alias = "gpt-3.5-turbo", alias = "gpt35", alias = "chatgpt")]
+    Gpt35Turbo,
+    #[serde(alias = "claude-sonnet-4-5", alias = "claude", alias = "anthropic")]
+    ClaudeSonnet,
+}
+
+impl Default for ModelSelection {
+    fn default() -> Self {
+        ModelSelection::ClaudeSonnet
+    }
+}
+
+impl ModelSelection {
+    pub fn to_model_id(&self) -> &'static str {
+        match self {
+            ModelSelection::Gpt35Turbo => "gpt-3.5-turbo",
+            ModelSelection::ClaudeSonnet => "claude-sonnet-4-5",
+        }
+    }
+    
+    pub fn is_claude(&self) -> bool {
+        matches!(self, ModelSelection::ClaudeSonnet)
+    }
+}
+
 /// Petición para el chat con IA
 #[derive(Serialize, Deserialize)]
 pub struct ChatHistoryItem {
@@ -51,6 +80,7 @@ pub struct AiChatRequest {
     pub mode: ChatMode,
     pub history: Option<Vec<ChatHistoryItem>>,
     pub state: Option<AgentState>,
+    pub model_selection: Option<ModelSelection>,
 }
 
 /// Respuesta del chat con IA
@@ -114,12 +144,6 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   let (cfg_proxy_url, cfg_proxy_auth) = load_proxy_settings();
   let proxy_url = cfg_proxy_url.or_else(|| env::var("AI_PROXY_URL").ok());
   let proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
-  // Usar helper centralizado: respeta .env, variables y la clave compilada (COMPILED_OPENAI_KEY)
-  let api_key = if proxy_url.is_none() { crate::cmd::ai_utils::get_openai_api_key() } else { None };
-  if proxy_url.is_none() && api_key.is_none() {
-    return Err("OPENAI_API_KEY not set".to_string());
-  }
-  let model_id = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".to_string());
 
   fn get_system_prompt(_agent_mode: &ChatMode) -> String {
   let identidad_regla = format!(r#"REGLA DE IDENTIDAD:
@@ -129,15 +153,70 @@ No añadas texto adicional, disculpas ni explicaciones cuando apliques esta regl
 "#, ident_msg = MENSAJE_IDENTIDAD);
 
   return format!(r#"{identidad}
-MODO CONSULTA (ASK) — GENERAL
+MODO CONSULTA (ASK) — ESPECIALISTA EN LINUX Y TERMINAL
+Eres un asistente experto en Linux enfocado en ayudar a PRINCIPIANTES. Tu objetivo es enseñar Linux de forma clara, segura y práctica.
 
-Eres un asistente de terminal Linux. Usa la memoria de sesión (cwd, archivos creados, últimos resultados) para decidir contexto, PERO no imprimas historial previo a menos que el usuario lo pida.
+PERFIL DE USUARIO OBJETIVO:
+- Usuario con conocimientos básicos o nulos de Linux
+- Puede estar en Ubuntu, Debian, Fedora, Arch u otra distribución
+- Necesita comandos seguros, reproducibles y explicados paso a paso
+- Prefiere copiar/pegar comandos que funcionen sin sorpresas
+
+PRINCIPIOS DE ENSEÑANZA:
+1. Seguridad primero: advierte sobre comandos peligrosos ANTES de mostrarlos
+2. Explicación clara: cada comando debe tener su "por qué" y "qué hace"
+3. Rutas absolutas: evita asumir el directorio actual, usa rutas completas
+4. Reproducibilidad: los comandos deben funcionar en diferentes distribuciones cuando sea posible
+5. No interactividad: NUNCA uses editores (nano/vim), siempre here-doc
+
+CAPACIDADES TÉCNICAS:
+  - Administración de sistemas y scripting (bash, Python).
+  - Programación y flasheo de microcontroladores (Arduino UNO/Nano/Mega, ESP8266, ESP32, RP2040, STM32) y Raspberry Pi (GPIO, I2C, SPI, UART, PWM, gestión de firmware).
+  - Diagnóstico iterativo de fallos en sketches y scripts de firmware (errores de compilación, dependencias faltantes, timings, watchdog resets, brown-out, cuelgues por uso de memoria).
+  - Buenas prácticas de firmware: desbordes, consumo energético, latencias en bucle principal, separación de lógica vs. hardware, validación de entradas.
+  - Dominio avanzado de shell scripting bash/POSIX: manejo estricto de errores (set -euo pipefail), traps y señales (trap '...' SIGINT), expansión segura de variables, arrays, funciones reutilizables, profiling ligero (time, /usr/bin/time -v), parsing de logs con grep/awk/sed, construcción de pipelines robustos evitando forks innecesarios, empaquetado (tar, gzip, debhelper básico), servicios (systemd unit files), tareas programadas (cron/Timers), hardening (umask, variables readonly), validación de input y sanitización.
+  - Experto en Python para automatización, CLI y tooling: estructura modular, argparse y subcomandos, logging estructurado (logging.config / dictConfig), uso de virtualenv/venv, packaging moderno con pyproject.toml (PEP 621), tipado gradual (typing, mypy), pruebas con pytest y fixtures, profiling (cProfile, time.perf_counter), optimización (caching functools.lru_cache, vectorización inicial con list comprehensions), seguridad (evitar eval/exec dinámico, manejo seguro de rutas con pathlib), manejo de concurrencia ligera (asyncio básico / ThreadPool para IO), patrones de reintento exponencial.
+
+Siempre que el usuario pida ayuda con Arduino/firmware:
+  1. Identifica plataforma (Arduino AVR, ESP32, etc.).
+  2. Lista (breve) librerías necesarias y cómo instalarlas (arduino-cli o gestor de librerías, sin pasos redundantes si ya aparecen instaladas en la sesión/historial).
+  3. Genera el sketch completo (bloque único) con comentarios breves y consistentes.
+  4. Incluye comandos reproducibles (preferir arduino-cli / esptool.py / bossac según plataforma) sin GUIs.
+  5. Si hay error posterior, produce ciclo de corrección: analiza mensaje de error, señala línea/causa probable y propone patch mínimo (diff o bloque completo según magnitud).
+  6. Para comunicación serie, recuerda sugerir `screen`, `minicom` o `pio device monitor` SOLO si se necesita.
+  7. Evita asumir puerto serie fijo: usa placeholder como /dev/ttyACM0 y explica cómo listar (`ls /dev/ttyACM* /dev/ttyUSB*`).
+  8. No sugieras pulsar botones de IDE gráfico; entrega siempre comandos CLI.
+  9. Para ESP/STM32 advierte sobre modo boot y alimentación estable.
+ 10. Siempre que la corrección sea incremental, muestra únicamente las secciones modificadas o un diff conciso.
+
+Usa la memoria de sesión (cwd, archivos creados, últimos resultados) para decidir contexto, PERO no imprimas historial previo a menos que el usuario lo pida.
+Cuando el usuario solicite scripts bash o Python:
+  1. Verifica si requiere entorno virtual: si hay dependencias externas usa `python3 -m venv .venv` y explica activación.
+  2. Scripts Python CLI: incluye shebang `#!/usr/bin/env python3`, sección main y bloque `if __name__ == '__main__':`.
+  3. Usa type hints y docstrings breves para funciones públicas.
+  4. Propón tests mínimos (pytest) sólo si hay lógica no trivial.
+  5. En refactors devuelve diff mínimo (no reescribir completo salvo cambio estructural).
+  6. Señala riesgos (inyección comando, rutas, permisos) antes de sugerir soluciones peligrosas.
+  7. Para optimización, justifica en una línea el cuello de botella esperado antes de proponer cambios.
 
 0) Detecta intención del usuario
 - Si la petición es explicativa/teórica ("explica…", "qué es…", "por qué…", "diferencias…", "cómo funciona…", "mejores prácticas…")
   → Usa FORMATO INFORMATIVO (sin comandos ni código ejecutable; solo mini-ejemplos no ejecutables si ayudan).
 - Si la petición implica crear/hacer algo ("crea…", "configura…", "instala…", "genera un script…", "edita…", "prepara…", "paso a paso…")
   → Usa FORMATO PASO A PASO (principiantes) SIN editores interactivos. Para crear/editar archivos, usa SIEMPRE here-doc.
+  ── Reglas de selección de método de creación (NUEVAS, OBLIGATORIAS) ──
+  - Si el archivo está en rutas de proyecto, subdirectorios relativos, $HOME, /home/<usuario> o /tmp: usa exactamente
+    cat > '<RUTA_DEL_ARCHIVO>' <<'EOF'\n...\nEOF
+  - Si la ruta inicia con / y pertenece a /etc, /usr, /lib, /boot, /srv, /opt, /var, /run, /root, o cualquier ruta absoluta que no sea /home ni /tmp: usa
+    sudo mkdir -p "$(dirname '<RUTA_DEL_ARCHIVO>')"
+    sudo tee '<RUTA_DEL_ARCHIVO>' >/dev/null <<'EOF'\n...\nEOF
+  - Para añadir en vez de sobrescribir: sin privilegios usa >> (o cat >> con here-doc), con privilegios usa:
+    sudo tee -a '<RUTA_DEL_ARCHIVO>' >/dev/null <<'EOF'\n...\nEOF
+  - Nunca uses editores interactivos (nano, vim, vi, nvim, emacs).
+  - Scripts: siempre shebang + permisos (chmod +x) tras crearlos.
+  - Acciones sobre firmware, flasheo, udev, escritura en /dev/* o particiones SIEMPRE requieren sudo y deben usar tee o herramientas específicas (avrdude, esptool, etc.) pero evita redirecciones shell directas peligrosas (ej: > /dev/sdX). Explica el riesgo antes.
+  - Interacción con puertos / dispositivos (/dev/tty*, /dev/serial*, /dev/i2c*, /dev/spidev*, /dev/gpio*): para ENVIAR datos usa siempre `echo "..." | sudo tee /dev/ttyACM0 > /dev/null` (ajusta el dispositivo) y NUNCA `cat > /dev/ttyACM0` ni simples redirecciones `>`.
+  - Scripts de hardware (que importan serial, RPi.GPIO, machine, board, busio, etc.) deben CREARSE con sudo tee incluso si la ruta es de usuario: `sudo tee '<RUTA_SCRIPT>' >/dev/null <<'EOF'` ... `EOF` para evitar problemas de permisos posteriores al guardado/ejecución (especialmente cuando luego se marca ejecutable o se moverá a una ruta privilegiada).
 - Si explícitamente pide "solo el comando" o "un script listo"
   → Entrega SOLO lo pedido al final, pero antecede un Resumen breve.
 
@@ -182,10 +261,11 @@ Estructura obligatoria:
   <CONTENIDO>
   EOF
   ```
-2) Paso 2 — Permisos (si aplica)
-   ```bash
-   chmod +x <NOMBRE_DEL_ARCHIVO>
-   ```
+2) Paso 2 — Permisos (solo si aplica a scripts bash u otros ejecutables; para Python NO hagas chmod, simplemente ejecútalo con `python3 <archivo.py>`)
+  ```bash
+  # Sólo para scripts bash/sh u otros ejecutables
+  chmod +x <NOMBRE_DEL_ARCHIVO>
+  ```
 3) Paso 3 — Ejecutar/usar
    ```bash
    ./<NOMBRE_DEL_ARCHIVO> <argumentos_si_aplican>
@@ -201,13 +281,22 @@ Errores comunes y solución
 - 2–4 bullets con correcciones directas.
 
 Reglas para creación/edición de archivos (OBLIGATORIAS)
+- Selección CAT vs SUDO TEE:
+  * Rutas no privilegiadas (relativas al proyecto, dentro de $HOME, /home/<usuario>, /tmp):
+    cat > '<RUTA>' <<'EOF'\n<CONTENIDO>\nEOF
+  * Rutas privilegiadas (/etc, /usr, /lib, /boot, /srv, /opt, /var, /run, /root o cualquier absoluta fuera de /home y /tmp):
+    sudo mkdir -p "$(dirname '<RUTA>')" && sudo tee '<RUTA>' >/dev/null <<'EOF'\n<CONTENIDO>\nEOF
+  * Append: sin privilegios usar >> (o here-doc + >>); con privilegios `sudo tee -a '<RUTA>' >/dev/null <<'EOF'`.
 - PROHIBIDO usar editores interactivos como `nano`, `vim`, `vi`, `nvim`, `emacs`.
 - Usa SIEMPRE here-doc con delimitador entre comillas simples: `<<'EOF'` para evitar expansión de variables.
-- Para añadir en vez de sobrescribir, usa redirección de append `>>` o `sudo tee -a`.
-- Crea la carpeta destino antes con `mkdir -p "$(dirname '<ruta>')"`.
+- Crea la carpeta destino antes. Con privilegios: `sudo mkdir -p`.
 - Scripts bash: incluye `#!/usr/bin/env bash` y `set -euo pipefail` al inicio.
-- Scripts Python: incluye `#!/usr/bin/env python3`.
-- Tras crear un script, menciona `chmod +x` y cómo ejecutarlo.
+- Scripts Python: incluye `#!/usr/bin/env python3` pero NO uses chmod; ejecútalo con `python3 <archivo.py>` para reducir riesgos de ejecutar con intérprete incorrecto y detectar errores de sintaxis explícitamente.
+- Tras crear un script bash (no Python), menciona `chmod +x` y cómo ejecutarlo.
+- Microcontroladores / firmware: describe flasheo usando herramientas (ej. `esptool.py`, `avrdude`) y nunca uses redirecciones directas a dispositivos de bloque (`> /dev/sdX`). Añade aviso de verificación (`lsusb`, `dmesg | tail`).
+ - Arduino / Firmware CLI: prioriza `arduino-cli compile --fqbn ...` y `arduino-cli upload -p <PUERTO> --fqbn ...`, para ESP32/ESP8266 también `esptool.py write_flash`. Indica siempre cómo obtener FQBN (`arduino-cli board listall | grep -i esp32`).
+ - Correcciones iterativas: si el usuario dice que "no funciona" o aporta un error, responde con: (a) análisis del error, (b) causa probable, (c) patch mínimo, (d) comando de recompilación.
+ - Interacción con puertos serie/GPIO desde comandos: muestra ejemplo de envío seguro `echo 'CMD' | sudo tee /dev/ttyACM0 > /dev/null` y lectura con `sudo cat /dev/ttyACM0 | head` (evitando bloquearse si no hay datos).
 
 Reglas del formato paso a paso:
 - Un comando por bloque (no encadenes con && ni ;).
@@ -248,7 +337,27 @@ Notas para Python:
 
   // Mover campos del request a variables locales para evitar clones innecesarios
   // Desestructuramos pero ignoramos el modo recibido: todos los alias se tratan como Ask.
-  let AiChatRequest { user_input, mode: _incoming_mode, history, state } = req;
+  let AiChatRequest { user_input, mode: _incoming_mode, history, state, model_selection: req_model_selection } = req;
+
+  // Usar modelo seleccionado por el usuario o fallback a variable de entorno
+  let model_selection = req_model_selection.unwrap_or_default();
+  let model_id = model_selection.to_model_id().to_string();
+  
+  // Determinar qué API key usar según el modelo seleccionado
+  let api_key = if proxy_url.is_none() {
+    if model_selection.is_claude() {
+      env::var("CLAUDE_CODE_API_KEY").ok()
+    } else {
+      crate::cmd::ai_utils::get_openai_api_key()
+    }
+  } else { 
+    None 
+  };
+  
+  if proxy_url.is_none() && api_key.is_none() {
+    let key_type = if model_selection.is_claude() { "CLAUDE_CODE_API_KEY" } else { "OPENAI_API_KEY (o variantes como OPENAI_API_KEY3P)" };
+    return Err(format!("{} not set", key_type));
+  }
 
   // Utilidades ligeras para normalización/detección
   fn strip_diacritics_basic(input: &str) -> String {
@@ -421,37 +530,88 @@ Notas para Python:
   }
   messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
 
-  // Build the request payload for OpenAI Chat completions
-  let payload = serde_json::json!({
-    "model": model_id,
-    "messages": messages,
-    "max_tokens": 800,
-    "temperature": 0.1
-  });
+  // Build the request payload - format differs between OpenAI and Claude
+  let (payload, base_url) = if model_selection.is_claude() {
+    // Claude API format - extract system message and put it in separate parameter
+    let mut claude_messages = Vec::new();
+    let mut system_content = String::new();
+    
+    for msg in &messages {
+      if let Some(role) = msg.get("role").and_then(|v| v.as_str()) {
+        if role == "system" {
+          if let Some(content) = msg.get("content").and_then(|v| v.as_str()) {
+            system_content = content.to_string();
+          }
+        } else {
+          claude_messages.push(msg.clone());
+        }
+      }
+    }
+    
+    let claude_payload = serde_json::json!({
+      "model": model_id,
+      "max_tokens": 800,
+      "temperature": 0.1,
+      "system": system_content,
+      "messages": claude_messages
+    });
+    let claude_url = proxy_url.unwrap_or_else(|| "https://api.anthropic.com/v1/messages".to_string());
+    (claude_payload, claude_url)
+  } else {
+    // OpenAI API format
+    let openai_payload = serde_json::json!({
+      "model": model_id,
+      "messages": messages,
+      "max_tokens": 800,
+      "temperature": 0.1
+    });
+    let openai_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
+    (openai_payload, openai_url)
+  };
 
-  let base_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
   let mut req_builder = client.post(&base_url).json(&payload);
-  if let Some(ref token) = proxy_auth { req_builder = req_builder.bearer_auth(token); }
-  else if let Some(ref key) = api_key { req_builder = req_builder.bearer_auth(key); }
+  
+  // Set appropriate headers for each API
+  if model_selection.is_claude() {
+    req_builder = req_builder.header("anthropic-version", "2023-06-01");
+    if let Some(ref token) = proxy_auth { req_builder = req_builder.header("x-api-key", token); }
+    else if let Some(ref key) = api_key { req_builder = req_builder.header("x-api-key", key); }
+  } else {
+    if let Some(ref token) = proxy_auth { req_builder = req_builder.bearer_auth(token); }
+    else if let Some(ref key) = api_key { req_builder = req_builder.bearer_auth(key); }
+  }
   let resp = req_builder.send().await.map_err(|e| e.to_string())?;
 
   if !resp.status().is_success() {
     let status = resp.status();
     let txt = resp.text().await.unwrap_or_default();
-    return Err(format!("OpenAI API error {}: {}", status, txt));
+    let api_name = if model_selection.is_claude() { "Claude API" } else { "OpenAI API" };
+    return Err(format!("{} error {}: {}", api_name, status, txt));
   }
 
   let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
 
-  // Try to extract the assistant message text
-  let mut assistant_text = body
-    .get("choices")
-    .and_then(|c| c.get(0))
-    .and_then(|c0| c0.get("message"))
-    .and_then(|m| m.get("content"))
-    .and_then(|v| v.as_str())
-    .unwrap_or("")
-    .to_string();
+  // Extract the assistant message text based on API format
+  let mut assistant_text = if model_selection.is_claude() {
+    // Claude API response format
+    body
+      .get("content")
+      .and_then(|c| c.get(0))
+      .and_then(|c0| c0.get("text"))
+      .and_then(|v| v.as_str())
+      .unwrap_or("")
+      .to_string()
+  } else {
+    // OpenAI API response format
+    body
+      .get("choices")
+      .and_then(|c| c.get(0))
+      .and_then(|c0| c0.get("message"))
+      .and_then(|m| m.get("content"))
+      .and_then(|v| v.as_str())
+      .unwrap_or("")
+      .to_string()
+  };
 
   // (Heurísticas desactivadas por pedido: no se hará clasificación difusa de identidad)
 
@@ -517,19 +677,73 @@ Notas para Python:
       }
       retry_messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
 
-      let retry_payload = serde_json::json!({
-        "model": model_id,
-        "messages": retry_messages,
-        "max_tokens": 900,
-        "temperature": 0.1
-      });
-      let mut retry_req = client.post(base_url.clone()).json(&retry_payload);
-      if let Some(ref token) = proxy_auth { retry_req = retry_req.bearer_auth(token); }
-      else if let Some(ref key) = api_key { retry_req = retry_req.bearer_auth(key); }
+      // Build retry payload with correct format for each API
+      let (retry_payload, retry_url) = if model_selection.is_claude() {
+        // Claude API format - extract system message and put it in separate parameter
+        let mut claude_retry_messages = Vec::new();
+        let mut retry_system_content = String::new();
+        
+        for msg in &retry_messages {
+          if let Some(role) = msg.get("role").and_then(|v| v.as_str()) {
+            if role == "system" {
+              if let Some(content) = msg.get("content").and_then(|v| v.as_str()) {
+                retry_system_content = content.to_string();
+              }
+            } else {
+              claude_retry_messages.push(msg.clone());
+            }
+          }
+        }
+        
+        let claude_retry = serde_json::json!({
+          "model": model_id,
+          "max_tokens": 900,
+          "temperature": 0.1,
+          "system": retry_system_content,
+          "messages": claude_retry_messages
+        });
+        (claude_retry, base_url.clone())
+      } else {
+        let openai_retry = serde_json::json!({
+          "model": model_id,
+          "messages": retry_messages,
+          "max_tokens": 900,
+          "temperature": 0.1
+        });
+        (openai_retry, base_url.clone())
+      };
+      
+      let mut retry_req = client.post(&retry_url).json(&retry_payload);
+      
+      // Set headers for retry request
+      if model_selection.is_claude() {
+        retry_req = retry_req.header("anthropic-version", "2023-06-01");
+        if let Some(ref token ) = proxy_auth { retry_req = retry_req.header("x-api-key", token); }
+        else if let Some(ref key) = api_key { retry_req = retry_req.header("x-api-key", key); }
+      } else {
+        if let Some(ref token) = proxy_auth { retry_req = retry_req.bearer_auth(token); }
+        else if let Some(ref key) = api_key { retry_req = retry_req.bearer_auth(key); }
+      }
+      
       if let Ok(retry_resp) = retry_req.send().await {
         if retry_resp.status().is_success() {
           if let Ok(v) = retry_resp.json::<serde_json::Value>().await {
-            if let Some(text) = v.get("choices").and_then(|c| c.get(0)).and_then(|c0| c0.get("message")).and_then(|m| m.get("content")).and_then(|v| v.as_str()) {
+            let text = if model_selection.is_claude() {
+              // Claude response format
+              v.get("content")
+                .and_then(|c| c.get(0))
+                .and_then(|c0| c0.get("text"))
+                .and_then(|v| v.as_str())
+            } else {
+              // OpenAI response format
+              v.get("choices")
+                .and_then(|c| c.get(0))
+                .and_then(|c0| c0.get("message"))
+                .and_then(|m| m.get("content"))
+                .and_then(|v| v.as_str())
+            };
+            
+            if let Some(text) = text {
               let txt = text.trim();
               if !txt.is_empty() { assistant_text = txt.to_string(); }
             }
@@ -700,11 +914,13 @@ fn force_load_single_env() {
               let (k, v_raw) = line.split_at(eq_idx);
               let key = k.trim();
               let val = v_raw[1..].trim();
-              if key == "OPENAI_API_KEY" {
+              // Buscar múltiples variantes de la API key de OpenAI
+              if ["OPENAI_API_KEY", "OPENAI_API_KEY1", "OPENAI_API_KEY2", "OPENAI_API_KEY3P"].contains(&key) {
                 std::env::set_var("OPENAI_API_KEY", val);
-                if debug { eprintln!("[env] Forzado override OPENAI_API_KEY desde {}", p.display()); }
-              } else {
-                // Podríamos setear también otros, pero para minimizar riesgo solo clave necesaria.
+                if debug { eprintln!("[env] Forzado override {} -> OPENAI_API_KEY desde {}", key, p.display()); }
+              } else if key == "CLAUDE_CODE_API_KEY" {
+                std::env::set_var("CLAUDE_CODE_API_KEY", val);
+                if debug { eprintln!("[env] Forzado override CLAUDE_CODE_API_KEY desde {}", p.display()); }
               }
             }
         }
