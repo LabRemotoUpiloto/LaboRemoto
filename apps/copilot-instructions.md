@@ -1,5 +1,7 @@
 # Guía rápida para agentes de IA en este repositorio
 
+> **⚠️ IMPORTANTE**: Antes de realizar CUALQUIER modificación en el código frontend, DEBES leer y seguir las directrices en [`AGENTS.md`](../AGENTS.md). Este archivo contiene reglas obligatorias sobre reutilización de componentes, sistema de temas y patrones establecidos.
+
 Esta app es un cliente de escritorio Tauri v2 (backend en Rust) con un frontend en React + Vite. Ofrece un terminal SSH, SFTP, almacenamiento cifrado de hosts y un asistente de IA que compone comandos de terminal y acciones sobre archivos de forma segura.
 
 ## Arquitectura y límites

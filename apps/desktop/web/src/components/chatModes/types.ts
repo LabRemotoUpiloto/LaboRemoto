@@ -3,6 +3,14 @@ import type React from 'react';
 // Tipos compartidos entre modos de chat
 export type ChatMode = 'ask' | 'busqueda' | 'pines' | 'analisis';
 
+// Modelos disponibles para el chat
+export type ModelSelection = 'gpt-3.5-turbo' | 'claude-sonnet-4-5';
+
+export const AVAILABLE_MODELS: Array<{ value: ModelSelection; label: string; provider: string }> = [
+  { value: 'gpt-3.5-turbo', label: 'ChatGPT 3.5 Turbo', provider: 'OpenAI' },
+  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet', provider: 'Anthropic' }
+];
+
 export interface AgentState {
   cwd: string;
   lastExitCode?: number;
