@@ -96,6 +96,31 @@ pub struct AiChatResponse {
     pub backup_path: Option<String>,
 }
 
+/// Request para detectar intención de análisis
+#[derive(Serialize, Deserialize)]
+pub struct DetectIntentRequest {
+    pub message: String,
+}
+
+/// Response de detección de intención
+#[derive(Serialize, Deserialize)]
+pub struct DetectIntentResponse {
+    pub wants_analysis: bool,
+    pub filename: Option<String>,
+}
+
+#[tauri::command]
+pub async fn detect_analysis_intent_cmd(req: DetectIntentRequest) -> Result<DetectIntentResponse, String> {
+    use crate::cmd::ai_utils::detect_analysis_intent;
+    
+    let (wants_analysis, filename) = detect_analysis_intent(&req.message).await?;
+    
+    Ok(DetectIntentResponse {
+        wants_analysis,
+        filename,
+    })
+}
+
 #[tauri::command]
 pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   use crate::security::SecurityManager;

@@ -559,6 +559,149 @@ pub async fn call_openai_file_analysis(
     })
 }
 
+/// Detecta si el usuario quiere analizar un archivo usando IA
+/// Retorna (quiere_analizar: bool, nombre_archivo: Option<String>)
+pub async fn detect_analysis_intent(
+    user_message: &str,
+) -> Result<(bool, Option<String>), String> {
+    // Obtener API key (preferir Claude, fallback a OpenAI)
+    let api_key = get_claude_api_key()
+        .or_else(|| get_openai_api_key())
+        .ok_or_else(|| "No hay API key disponible".to_string())?;
+    
+    let use_claude = get_claude_api_key().is_some();
+    
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Error construyendo cliente: {}", e))?;
+
+    let prompt = format!(
+        "Analiza este mensaje del usuario y determina:\n\
+        1. ¿Quiere analizar/ver/revisar/inspeccionar un archivo de código?\n\
+        2. Si sí, ¿cuál es el nombre del archivo mencionado?\n\n\
+        Responde SOLO en formato JSON:\n\
+        {{\"quiere_analizar\": true/false, \"archivo\": \"nombre_archivo\" o null}}\n\n\
+        Mensaje del usuario: \"{}\"\n\n\
+        Ejemplos:\n\
+        - \"muéstrame el main.py\" → {{\"quiere_analizar\": true, \"archivo\": \"main.py\"}}\n\
+        - \"qué hace el script test.sh\" → {{\"quiere_analizar\": true, \"archivo\": \"test.sh\"}}\n\
+        - \"cómo funciona index.js\" → {{\"quiere_analizar\": true, \"archivo\": \"index.js\"}}\n\
+        - \"explícame qué es Linux\" → {{\"quiere_analizar\": false, \"archivo\": null}}\n\
+        - \"crea un archivo nuevo\" → {{\"quiere_analizar\": false, \"archivo\": null}}",
+        user_message
+    );
+
+    let (response_text, endpoint) = if use_claude {
+        // Claude API
+        let body = serde_json::json!({
+            "model": "claude-sonnet-4-5-20250929",
+            "max_tokens": 200,
+            "temperature": 0.0,
+            "system": "Eres un asistente que detecta intención de análisis de archivos. Responde SOLO con JSON válido, sin texto adicional.",
+            "messages": [{"role": "user", "content": prompt}]
+        });
+
+        let resp = client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Error en request HTTP: {}", e))?;
+
+        let response_json: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Error parseando JSON: {}", e))?;
+
+        let content_text = response_json
+            .get("content")
+            .and_then(|c| c.get(0))
+            .and_then(|c| c.get("text"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+
+        (content_text, "Claude")
+    } else {
+        // OpenAI API
+        let body = serde_json::json!({
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": "Eres un asistente que detecta intención de análisis de archivos. Responde SOLO con JSON válido, sin texto adicional."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 200,
+            "temperature": 0.0
+        });
+
+        let resp = client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Error en request HTTP: {}", e))?;
+
+        let response_json: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Error parseando JSON: {}", e))?;
+
+        let content_text = response_json
+            .get("choices")
+            .and_then(|c| c.get(0))
+            .and_then(|c| c.get("message"))
+            .and_then(|m| m.get("content"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+
+        (content_text, "OpenAI")
+    };
+
+    eprintln!("[detect_intent] Respuesta de {}: {}", endpoint, response_text);
+
+    // Limpiar markdown code blocks (```json ... ```) si existen
+    let cleaned_text = if response_text.contains("```json") {
+        // Extraer contenido entre ```json y ```
+        let start = response_text.find("```json").unwrap_or(0) + 7; // "```json".len() = 7
+        let end_marker = response_text[start..].find("```").unwrap_or(response_text[start..].len());
+        response_text[start..start + end_marker].trim().to_string()
+    } else if response_text.contains("```") {
+        // Formato sin "json" explícito: ``` ... ```
+        let start = response_text.find("```").unwrap_or(0) + 3;
+        let end_marker = response_text[start..].find("```").unwrap_or(response_text[start..].len());
+        response_text[start..start + end_marker].trim().to_string()
+    } else {
+        response_text.clone()
+    };
+
+    eprintln!("[detect_intent] JSON limpio: {}", cleaned_text);
+
+    // Parsear JSON response
+    let json_result: serde_json::Value = serde_json::from_str(&cleaned_text)
+        .map_err(|e| format!("Error parseando respuesta JSON: {}", e))?;
+
+    let quiere_analizar = json_result
+        .get("quiere_analizar")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let archivo = json_result
+        .get("archivo")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    Ok((quiere_analizar, archivo))
+}
+
 #[cfg(test)]
 mod tests {
     use super::force_python3_everywhere;
