@@ -243,6 +243,322 @@ pub async fn ai_test_key() -> Result<AiTestKeyResult, String> {
     }
 }
 
+/// Estructura para respuesta de análisis AI (compatible con OpenAI y Claude)
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AiFileAnalysisResult {
+    pub description: Option<String>,
+    pub key_points: Option<Vec<String>>,
+    pub full_analysis: Option<String>,  // Para análisis completo sin estructura
+    pub error: Option<String>,
+}
+
+/// Llama a Claude API para análisis de archivo
+pub async fn call_claude_file_analysis(
+    api_key: &str,
+    file_path: &str,
+    file_size: usize,
+    content_sample: &str,
+    debug: bool,
+) -> Result<AiFileAnalysisResult, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))  // Aumentado a 30 segundos
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Error construyendo cliente: {}", e))?;
+
+    let prompt = format!(
+        "Analiza este código y estructura tu respuesta en estas 4 secciones en español:\n\n\
+        ## PROPÓSITO DEL PROGRAMA\n\
+        Describe en 1-2 líneas qué hace este programa y cuál es su función principal.\n\n\
+        ## EJEMPLO DE EJECUCIÓN\n\
+        Explica cómo se ejecutaría este programa:\n\
+        - Qué comandos o pasos seguir para ejecutarlo\n\
+        - Qué entradas espera (si las hay)\n\
+        - Qué salida o resultado produce\n\
+        - Un ejemplo concreto de uso si es posible\n\n\
+        ## POSIBLES MEJORAS\n\
+        Sugiere 3-5 mejoras técnicas que se podrían implementar:\n\
+        - Optimizaciones de código o rendimiento\n\
+        - Validaciones o manejo de errores mejorado\n\
+        - Mejoras en la estructura o arquitectura\n\
+        - Características adicionales útiles\n\
+        - Aspectos de seguridad a considerar\n\n\
+        ## CONCLUSIONES\n\
+        Resume en 2-3 puntos tu evaluación técnica del código:\n\
+        - Calidad general del código\n\
+        - Fortalezas principales\n\
+        - Consideraciones importantes\n\n\
+        ---\n\
+        Archivo: {}\n\
+        Tamaño: {} bytes\n\n\
+        CÓDIGO:\n\
+        {}\n\
+        ---",
+        file_path, file_size, content_sample
+    );
+
+    // Formato de mensajes de Claude (Anthropic API)
+    let body = serde_json::json!({
+        "model": "claude-sonnet-4-5-20250929",
+        "max_tokens": 1000,
+        "temperature": 0.15,
+        "system": "Eres un analista de código educativo. Tu misión es explicar código de forma clara y estructurada en 4 secciones: PROPÓSITO DEL PROGRAMA (qué hace), EJEMPLO DE EJECUCIÓN (cómo usarlo con ejemplos concretos), POSIBLES MEJORAS (sugerencias técnicas), y CONCLUSIONES (evaluación general). Sé práctico, didáctico y usa español técnico claro.",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    });
+
+    if debug {
+        eprintln!("[file_ai] Llamando Claude API con modelo claude-sonnet-4-5-20250929");
+        eprintln!("[file_ai] Tamaño del contenido: {} chars", content_sample.len());
+    }
+
+    let resp = client
+        .post("https://api.anthropic.com/v1/messages")
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("content-type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| {
+            if debug {
+                eprintln!("[file_ai] Error detallado de Claude: {:?}", e);
+            }
+            format!("Error en request HTTP: {}", e)
+        })?;
+
+    let status = resp.status();
+    let text_body = resp.text().await.unwrap_or_default();
+
+    if debug {
+        eprintln!("[file_ai] Claude HTTP status={} length={}", status, text_body.len());
+    }
+
+    if !status.is_success() {
+        if debug {
+            eprintln!("[file_ai] Respuesta no exitosa de Claude: {}", status);
+        }
+        return Ok(AiFileAnalysisResult {
+            description: Some(format!("(IA) Error API Claude: HTTP {}", status)),
+            key_points: if status.as_u16() == 401 {
+                Some(vec!["API key inválida o expirada".into()])
+            } else if status.as_u16() == 429 {
+                Some(vec!["Rate limit alcanzado".into()])
+            } else {
+                Some(vec!["Fallo al obtener resumen".into()])
+            },
+            full_analysis: None,
+            error: Some(format!("HTTP {}", status)),
+        });
+    }
+
+    let json: serde_json::Value = serde_json::from_str(&text_body)
+        .map_err(|e| format!("Error parseando JSON de Claude: {}", e))?;
+
+    if debug {
+        let slice = &text_body[..text_body.len().min(300)].replace("\n", " ");
+        eprintln!("[file_ai] Claude raw body (300 max): {}", slice);
+    }
+
+    // Claude devuelve el contenido en content[0].text
+    let extracted = json
+        .pointer("/content/0/text")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    if let Some(text) = extracted {
+        if debug {
+            let preview = &text[..text.len().min(200)];
+            eprintln!("[file_ai] Claude análisis completo (primeros 200 chars): {}", preview.replace("\n", " "));
+        }
+
+        // Devolver el análisis completo sin intentar parsearlo como JSON
+        return Ok(AiFileAnalysisResult {
+            description: None,
+            key_points: None,
+            full_analysis: Some(text),
+            error: None,
+        });
+    } else if debug {
+        eprintln!("[file_ai] Campo content ausente en respuesta de Claude");
+    }
+
+    Ok(AiFileAnalysisResult {
+        description: None,
+        key_points: None,
+        full_analysis: None,
+        error: Some("No se pudo obtener respuesta de Claude".into()),
+    })
+}
+
+/// Llama a OpenAI API para análisis de archivo
+pub async fn call_openai_file_analysis(
+    api_key: &str,
+    model: &str,
+    file_path: &str,
+    file_size: usize,
+    content_sample: &str,
+    debug: bool,
+) -> Result<AiFileAnalysisResult, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))  // Aumentado a 30 segundos
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Error construyendo cliente: {}", e))?;
+
+    let prompt = format!(
+        "Analiza este archivo de código y devuelve SOLO un JSON con la siguiente estructura:\n\
+        {{\n  \
+          \"descripcion\": \"Descripción clara y concisa en UNA línea\",\n  \
+          \"key_points\": [\"punto1\", \"punto2\", ...]\n\
+        }}\n\n\
+        INSTRUCCIONES DETALLADAS:\n\
+        1. descripcion: Resume en UNA LÍNEA la función/propósito principal del archivo.\n   \
+           - NO empieces con 'Este archivo' o 'Este script'\n   \
+           - Sé directo y específico\n   \
+           - Ejemplo: \"Gestiona conexiones SSH con autenticación y manejo de sesiones\"\n\n\
+        2. key_points: Array de 6-10 puntos técnicos relevantes:\n   \
+           - Funcionalidad principal y características clave\n   \
+           - Dependencias y librerías importantes utilizadas\n   \
+           - Estructura del código (clases, funciones principales, módulos)\n   \
+           - Entradas esperadas y salidas generadas\n   \
+           - Patrones de diseño o arquitectura aplicados\n   \
+           - Manejo de errores y validaciones\n   \
+           - Consideraciones de seguridad o performance\n   \
+           - Puntos de integración con otros módulos\n   \
+           - Riesgos potenciales o limitaciones conocidas\n   \
+           - Configuraciones o variables de entorno necesarias\n\n\
+        3. FORMATO:\n   \
+           - Cada punto debe ser conciso pero informativo (1-2 líneas máximo)\n   \
+           - NO uses punto final en los bullets\n   \
+           - Prioriza información técnica relevante\n   \
+           - Usa terminología técnica apropiada en español\n\n\
+        4. IMPORTANTE: Devuelve ÚNICAMENTE el JSON, sin texto adicional antes o después.\n\n\
+        ---\n\
+        Nombre archivo: {}\n\
+        Tamaño: {} bytes\n\
+        Lenguaje: (detectar automáticamente)\n\n\
+        CONTENIDO:\n\
+        {}\n\
+        ---",
+        file_path, file_size, content_sample
+    );
+
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "Eres un analista de código experto que genera análisis técnicos detallados y estructurados en español. Tu especialidad es identificar patrones de arquitectura, dependencias, flujos de datos y riesgos potenciales en código fuente."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.15,
+        "max_tokens": 600
+    });
+
+    if debug {
+        eprintln!("[file_ai] Llamando OpenAI API con modelo {}", model);
+    }
+
+    let resp = client
+        .post("https://api.openai.com/v1/chat/completions")
+        .bearer_auth(api_key)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Error en request HTTP: {}", e))?;
+
+    let status = resp.status();
+    let text_body = resp.text().await.unwrap_or_default();
+
+    if debug {
+        eprintln!("[file_ai] OpenAI HTTP status={} length={}", status, text_body.len());
+    }
+
+    if !status.is_success() {
+        if debug {
+            eprintln!("[file_ai] Respuesta no exitosa de OpenAI: {}", status);
+        }
+        return Ok(AiFileAnalysisResult {
+            description: Some(format!("(IA) Error API OpenAI: HTTP {}", status)),
+            key_points: if status.as_u16() == 401 {
+                Some(vec!["API key inválida o expirada".into()])
+            } else if status.as_u16() == 429 {
+                Some(vec!["Rate limit alcanzado".into()])
+            } else {
+                Some(vec!["Fallo al obtener resumen".into()])
+            },
+            full_analysis: None,
+            error: Some(format!("HTTP {}", status)),
+        });
+    }
+
+    let json: serde_json::Value = serde_json::from_str(&text_body)
+        .map_err(|e| format!("Error parseando JSON de OpenAI: {}", e))?;
+
+    if debug {
+        let slice = &text_body[..text_body.len().min(300)].replace("\n", " ");
+        eprintln!("[file_ai] OpenAI raw body (300 max): {}", slice);
+    }
+
+    let mut extracted: Option<String> = json
+        .pointer("/choices/0/message/content")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    
+    if extracted.is_none() {
+        extracted = json
+            .pointer("/choices/0/text")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+    }
+
+    if let Some(text) = extracted {
+        if debug {
+            let preview = &text[..text.len().min(140)];
+            eprintln!("[file_ai] OpenAI contenido (primeros 140 chars): {}", preview.replace("\n", " "));
+        }
+
+        let trimmed = text.trim().trim_matches('`').trim_start_matches("json").trim();
+        
+        if let Ok(vj) = serde_json::from_str::<serde_json::Value>(trimmed) {
+            if debug {
+                eprintln!("[file_ai] OpenAI respuesta parseada OK");
+            }
+
+            let description = vj.get("descripcion").and_then(|x| x.as_str()).map(|s| s.to_string());
+            let key_points = vj.get("key_points")
+                .and_then(|x| x.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .take(10)
+                        .filter_map(|item| item.as_str().map(|s| s.to_string()))
+                        .collect::<Vec<String>>()
+                });
+
+            return Ok(AiFileAnalysisResult {
+                description,
+                key_points,
+                full_analysis: None,
+                error: None,
+            });
+        } else if debug {
+            eprintln!("[file_ai] JSON inválido tras recorte de OpenAI");
+        }
+    } else if debug {
+        eprintln!("[file_ai] Campo content ausente en respuesta de OpenAI");
+    }
+
+    Ok(AiFileAnalysisResult {
+        description: None,
+        key_points: None,
+        full_analysis: None,
+        error: Some("No se pudo parsear respuesta de OpenAI".into()),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::force_python3_everywhere;
