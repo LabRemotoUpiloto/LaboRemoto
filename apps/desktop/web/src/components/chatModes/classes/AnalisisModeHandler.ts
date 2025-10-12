@@ -1,6 +1,7 @@
 import { BaseModeHandler } from './BaseModeHandler';
 import { ModeHandlerContext, Message } from '../types';
 import { invoke } from '@tauri-apps/api/core';
+import { detectAnalysisIntent } from '../../../api/intent';
 
 // Helpers internos para intención fuzzy de "analizar"
 const ANALYZE_CANON = 'analiza';
@@ -75,21 +76,28 @@ export class AnalisisModeHandler extends BaseModeHandler {
 
   async send(finalInput: string, userMsg: Message, ctx: ModeHandlerContext) {
     const raw = finalInput.trim();
+    console.log('[AnalisisModeHandler] send() llamado con:', raw);
 
-    // Patrones de comando básicos (algunos se complementan con fuzzy)
-  const analyzeReLoose = /^(\S+)\s+(.+)/i; // primer token + resto (usaremos fuzzy con el primer token)
+    // ============================================
+    // 📝 PASO 1: HEURÍSTICAS RÁPIDAS (sin tokens)
+    // ============================================
+    // Primero intentamos detectar con reglas rápidas para ahorrar tokens de IA
+    
+    // Patrones de comando básicos
+    const analyzeReLoose = /^(\S+)\s+(.+)/i;
     const editRe = /^(editar|modifica|modificar|cambiar)\s+(\S+)(?:\s+con\s+(.+))?/i;
     const applyRe = /^(aplicar|apply)\s+(\S+)/i;
     const revertRe = /^(revertir|revert|restore)\s+(\S+)/i;
     const backupsRe = /^(backups|listar\s+backups|list\s+backups)\s+(\S+)/i;
-  // Pregunta tipo "que hay en este archivo foo.py" o "qué hay en foo.py"
-  const whatFileRe1 = /^(que|qué)\s+hay\s+en\s+(?:este\s+)?archivo\s+(\S+)/i;
-  const whatFileRe2 = /^(que|qué)\s+hay\s+en\s+(\S+)/i;
-  // Modificación directa estilo natural: "modificame el script que se llama script.sh para que ..."
-  const directModifyPrefix = /^(modificame|modifica|cambia|cambiar|modificar)\b/i;
+    const whatFileRe1 = /^(que|qué)\s+hay\s+en\s+(?:este\s+)?archivo\s+(\S+)/i;
+    const whatFileRe2 = /^(que|qué)\s+hay\s+en\s+(\S+)/i;
+    const directModifyPrefix = /^(modificame|modifica|cambia|cambiar|modificar)\b/i;
+
+    let heuristicMatched = false;
+    let m: RegExpMatchArray | null;
+    console.log('[AnalisisModeHandler] Iniciando búsqueda de heurísticas para:', raw);
 
     try {
-      let m: RegExpMatchArray | null;
 
       // CONSULTA "que hay en ..." / "qué hay en ..."
       const invokeWithTimeout = async <T>(cmd: string, args: any, ms = 15000, retries = 1): Promise<T> => {
@@ -113,30 +121,108 @@ export class AnalisisModeHandler extends BaseModeHandler {
       };
 
       if ((m = raw.match(whatFileRe1)) || (m = raw.match(whatFileRe2))) {
+        heuristicMatched = true;  // ✅ Marcamos que heurística coincidió
         const path = (m[2] || '').replace(/[?]+$/, '');
         if (path) {
           try {
-            const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { session_id: ctx.sessionId || undefined, path }, 20000, 1);
+            const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { session_id: ctx.sessionId || undefined, path }, 45000, 1);
             const a = r.analysis;
-            let extra = '';
-            const useAi = !!a.purpose_from_ai;
-            if (!useAi && a.narrative) {
-              extra += `\nNarrativa: ${a.narrative}`;
-            }
-            if (a.purpose || (a.key_points && a.key_points.length) || useAi) {
-              if (useAi) {
-                extra += `\nDescripción : ${a.purpose || '—'}`;
+            
+            // Función para formatear el análisis con las 4 secciones visuales
+            const formatAnalysisText = (analysis: any): string => {
+              let output = `📄 **Análisis de ${analysis.path}**\n`;
+              output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+              output += `📊 ${analysis.language || 'desconocido'} • ${analysis.line_count} líneas • ${analysis.size_bytes} bytes\n\n`;
+              
+              const useAi = !!analysis.purpose_from_ai;
+              
+              if (useAi && analysis.purpose) {
+                // Nuevo formato con 4 secciones
+                output += `🎯 **PROPÓSITO DEL PROGRAMA**\n${analysis.purpose}\n\n`;
+                
+                if (analysis.key_points && analysis.key_points.length > 0) {
+                  // Verificar si los key_points son secciones completas (ya formateadas del backend)
+                  const firstPoint = analysis.key_points[0];
+                  const isSectionFormat = firstPoint.includes('**') && (
+                    firstPoint.includes('EJEMPLO') || 
+                    firstPoint.includes('MEJORAS') || 
+                    firstPoint.includes('CONCLUSIONES')
+                  );
+                  
+                  if (isSectionFormat) {
+                    // Las secciones ya vienen formateadas del backend, solo agregarles iconos
+                    for (const section of analysis.key_points) {
+                      let icon = '📋';
+                      if (section.includes('EJEMPLO')) icon = '▶️';
+                      else if (section.includes('MEJORAS')) icon = '🔧';
+                      else if (section.includes('CONCLUSIONES')) icon = '📊';
+                      
+                      output += `${icon} ${section}\n\n`;
+                    }
+                  } else {
+                    // Fallback: clasificar bullets individuales (formato antiguo)
+                    const ejemploPoints: string[] = [];
+                    const mejorasPoints: string[] = [];
+                    const conclusionesPoints: string[] = [];
+                    const otrosPoints: string[] = [];
+                    
+                    for (const kp of analysis.key_points) {
+                      const lower = kp.toLowerCase();
+                      if (lower.includes('ejecuta') || lower.includes('comando') || lower.includes('entrada') || lower.includes('salida') || lower.includes('ejemplo')) {
+                        ejemploPoints.push(kp);
+                      } else if (lower.includes('mejora') || lower.includes('optimiza') || lower.includes('sugiere') || lower.includes('validación') || lower.includes('seguridad')) {
+                        mejorasPoints.push(kp);
+                      } else if (lower.includes('conclusión') || lower.includes('calidad') || lower.includes('fortaleza') || lower.includes('consideración')) {
+                        conclusionesPoints.push(kp);
+                      } else {
+                        otrosPoints.push(kp);
+                      }
+                    }
+                    
+                    if (ejemploPoints.length > 0) {
+                      output += `▶️ **EJEMPLO DE EJECUCIÓN**\n`;
+                      ejemploPoints.forEach(p => output += `  • ${p}\n`);
+                      output += `\n`;
+                    }
+                    
+                    if (mejorasPoints.length > 0) {
+                      output += `🔧 **POSIBLES MEJORAS**\n`;
+                      mejorasPoints.forEach(p => output += `  • ${p}\n`);
+                      output += `\n`;
+                    }
+                    
+                    if (conclusionesPoints.length > 0) {
+                      output += `📊 **CONCLUSIONES**\n`;
+                      conclusionesPoints.forEach(p => output += `  • ${p}\n`);
+                      output += `\n`;
+                    }
+                    
+                    if (otrosPoints.length > 0) {
+                      output += `📋 **DETALLES ADICIONALES**\n`;
+                      otrosPoints.forEach(p => output += `  • ${p}\n`);
+                    }
+                  }
+                }
               } else {
-                extra += `\nPropósito: ${a.purpose || '—'}`;
+                // Formato anterior para análisis sin IA
+                if (!useAi && analysis.narrative) {
+                  output += `📝 ${analysis.narrative}\n\n`;
+                }
+                if (analysis.purpose) {
+                  output += `🎯 **Propósito:** ${analysis.purpose}\n\n`;
+                }
+                if (analysis.key_points && analysis.key_points.length) {
+                  output += `📋 **Detalles clave:**\n`;
+                  for (const kp of analysis.key_points.slice(0,6)) output += `  • ${kp}\n`;
+                } else if (analysis.semantic_summary) {
+                  output += `💡 ${analysis.semantic_summary}\n`;
+                }
               }
-              if (a.key_points && a.key_points.length) {
-                extra += `\nDetalles clave:`;
-                for (const kp of a.key_points.slice(0,6)) extra += `\n • ${kp}`;
-              }
-            } else if (a.semantic_summary) {
-              extra += `\nExplicación: ${a.semantic_summary}`;
-            }
-            const text = `Resumen de ${a.path}\nTipo/Lenguaje probable: ${a.language || 'desconocido'}\nLíneas: ${a.line_count} | Tamaño: ${a.size_bytes} bytes\nDescripción: ${a.summary_hint}${extra}`;
+              
+              return output;
+            };
+            
+            const text = formatAnalysisText(a);
             ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text }]);
             return;
           } catch (e:any) {
@@ -148,6 +234,7 @@ export class AnalisisModeHandler extends BaseModeHandler {
 
       // INTENCIÓN ANALIZAR (fuzzy). Se evalúa primer token y también "que hay en ..." arriba.
       if ((m = raw.match(analyzeReLoose)) && (isAnalyzeCommand(m[1]) || isInspectSynonym(m[1]))) {
+        heuristicMatched = true;  // ✅ Marcamos que heurística coincidió
         const pathPart = m[2];
         const path = extractPathCandidate(pathPart);
         if (!path) {
@@ -155,7 +242,7 @@ export class AnalisisModeHandler extends BaseModeHandler {
           return;
         }
         try {
-          const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { session_id: ctx.sessionId || undefined, path }, 20000, 1);
+          const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { session_id: ctx.sessionId || undefined, path }, 45000, 1);
           const a = r.analysis;
           if (a.disambiguation_required && a.candidates && a.candidates.length > 1) {
             // Ya no mostramos el listado textual crudo; la UI renderiza una tarjeta estilizada usando meta.
@@ -177,25 +264,104 @@ export class AnalisisModeHandler extends BaseModeHandler {
             else if ((mFn = l.match(/^function\s+([A-Za-z0-9_]+)/))) items.push(`func ${mFn[1]}()`);
           }
           const elements = items.length ? `Elementos: ${items.join(', ')}.` : '';
-          let extra = '';
-          const useAi = !!a.purpose_from_ai;
-          if (!useAi && a.narrative) {
-            extra += `\nNarrativa: ${a.narrative}`;
-          }
-          if (a.purpose || (a.key_points && a.key_points.length) || useAi) {
-            if (useAi) {
-              extra += `\nDescripción (IA): ${a.purpose || '—'}`;
+          
+          // Reutilizar la función de formateo visual
+          const formatAnalysisText = (analysis: any, showElements: boolean = false): string => {
+            let output = `📄 **Análisis de ${analysis.path}**\n`;
+            output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+            output += `📊 ${analysis.language || 'desconocido'} • ${analysis.line_count} líneas • ${analysis.size_bytes} bytes\n`;
+            if (showElements && elements) output += `🔍 ${elements}\n`;
+            output += `\n`;
+            
+            const useAi = !!analysis.purpose_from_ai;
+            
+            if (useAi && analysis.purpose) {
+              // Nuevo formato con 4 secciones
+              output += `🎯 **PROPÓSITO DEL PROGRAMA**\n${analysis.purpose}\n\n`;
+              
+              if (analysis.key_points && analysis.key_points.length > 0) {
+                // Verificar si los key_points son secciones completas (ya formateadas del backend)
+                const firstPoint = analysis.key_points[0];
+                const isSectionFormat = firstPoint.includes('**') && (
+                  firstPoint.includes('EJEMPLO') || 
+                  firstPoint.includes('MEJORAS') || 
+                  firstPoint.includes('CONCLUSIONES')
+                );
+                
+                if (isSectionFormat) {
+                  // Las secciones ya vienen formateadas del backend, solo agregarles iconos
+                  for (const section of analysis.key_points) {
+                    let icon = '📋';
+                    if (section.includes('EJEMPLO')) icon = '▶️';
+                    else if (section.includes('MEJORAS')) icon = '🔧';
+                    else if (section.includes('CONCLUSIONES')) icon = '📊';
+                    
+                    output += `${icon} ${section}\n\n`;
+                  }
+                } else {
+                  // Fallback: clasificar bullets individuales
+                  const ejemploPoints: string[] = [];
+                  const mejorasPoints: string[] = [];
+                  const conclusionesPoints: string[] = [];
+                  const otrosPoints: string[] = [];
+                  
+                  for (const kp of analysis.key_points) {
+                    const lower = kp.toLowerCase();
+                    if (lower.includes('ejecuta') || lower.includes('comando') || lower.includes('entrada') || lower.includes('salida') || lower.includes('ejemplo') || lower.includes('uso')) {
+                      ejemploPoints.push(kp);
+                    } else if (lower.includes('mejora') || lower.includes('optimiza') || lower.includes('sugiere') || lower.includes('validación') || lower.includes('seguridad') || lower.includes('implementar')) {
+                      mejorasPoints.push(kp);
+                    } else if (lower.includes('conclusión') || lower.includes('calidad') || lower.includes('fortaleza') || lower.includes('consideración') || lower.includes('evaluación')) {
+                      conclusionesPoints.push(kp);
+                    } else {
+                      otrosPoints.push(kp);
+                    }
+                  }
+                  
+                  if (ejemploPoints.length > 0) {
+                    output += `▶️ **EJEMPLO DE EJECUCIÓN**\n`;
+                    ejemploPoints.forEach(p => output += `  • ${p}\n`);
+                    output += `\n`;
+                  }
+                  
+                  if (mejorasPoints.length > 0) {
+                    output += `🔧 **POSIBLES MEJORAS**\n`;
+                    mejorasPoints.forEach(p => output += `  • ${p}\n`);
+                    output += `\n`;
+                  }
+                  
+                  if (conclusionesPoints.length > 0) {
+                    output += `📊 **CONCLUSIONES**\n`;
+                    conclusionesPoints.forEach(p => output += `  • ${p}\n`);
+                    output += `\n`;
+                  }
+                  
+                  if (otrosPoints.length > 0) {
+                    output += `📋 **DETALLES ADICIONALES**\n`;
+                    otrosPoints.forEach(p => output += `  • ${p}\n`);
+                  }
+                }
+              }
             } else {
-              extra += `\nPropósito: ${a.purpose || '—'}`;
+              // Formato anterior para análisis sin IA
+              if (!useAi && analysis.narrative) {
+                output += `📝 ${analysis.narrative}\n\n`;
+              }
+              if (analysis.purpose) {
+                output += `🎯 **Propósito:** ${analysis.purpose}\n\n`;
+              }
+              if (analysis.key_points && analysis.key_points.length) {
+                output += `📋 **Detalles clave:**\n`;
+                for (const kp of analysis.key_points.slice(0,6)) output += `  • ${kp}\n`;
+              } else if (analysis.semantic_summary) {
+                output += `💡 ${analysis.semantic_summary}\n`;
+              }
             }
-            if (a.key_points && a.key_points.length) {
-              extra += `\nDetalles clave:`;
-              for (const kp of a.key_points.slice(0,6)) extra += `\n • ${kp}`;
-            }
-          } else if (a.semantic_summary) {
-            extra += `\nExplicación: ${a.semantic_summary}`;
-          }
-          const narrative = `Resumen de ${a.path}\nTipo/Lenguaje probable: ${a.language || 'desconocido'}\nLíneas: ${a.line_count} | Tamaño: ${a.size_bytes} bytes${elements ? '\n'+elements : ''}${extra}`;
+            
+            return output;
+          };
+          
+          const narrative = formatAnalysisText(a, true);
           ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: narrative }]);
           return;
         } catch (e:any) {
@@ -206,6 +372,7 @@ export class AnalisisModeHandler extends BaseModeHandler {
 
       // MODIFICACIÓN DIRECTA SIN "con" (auto-aplicar)
       if (directModifyPrefix.test(raw) && !editRe.test(raw)) {
+        heuristicMatched = true;  // ✅ Marcamos que heurística coincidió
         // Heurística: localizar primer token con extensión típica y tomar el resto como instrucción
         const tokens = raw.split(/\s+/);
         let fileIdx = -1;
@@ -253,6 +420,7 @@ export class AnalisisModeHandler extends BaseModeHandler {
 
       // PLAN EDIT
       if ((m = raw.match(editRe))) {
+        heuristicMatched = true;  // ✅ Marcamos que heurística coincidió
         const path = m[2];
         const instruction = (m[3] || '').trim();
         if (!instruction) {
@@ -276,6 +444,7 @@ export class AnalisisModeHandler extends BaseModeHandler {
 
       // APPLY
       if ((m = raw.match(applyRe))) {
+        heuristicMatched = true;  // ✅ Marcamos que heurística coincidió
         const path = m[2];
         // buscar última propuesta pendiente
         const pending = [...ctx.messages].reverse().find(msg => msg.meta?.fileEdit?.path === path && msg.meta.fileEdit.needsConfirmation);
@@ -291,6 +460,7 @@ export class AnalisisModeHandler extends BaseModeHandler {
 
       // REVERT
       if ((m = raw.match(revertRe))) {
+        heuristicMatched = true;  // ✅ Marcamos que heurística coincidió
         const path = m[2];
         const res = await invoke<RevertFileResponse>('revert_file', { req: { path } });
         ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Revertido ${path} desde backup ${res.restored_from}` }]);
@@ -299,6 +469,7 @@ export class AnalisisModeHandler extends BaseModeHandler {
 
       // LIST BACKUPS
       if ((m = raw.match(backupsRe))) {
+        heuristicMatched = true;  // ✅ Marcamos que heurística coincidió
         const path = m[2];
         const res = await invoke<ListBackupsResponse>('list_file_backups', { path });
         if (!res.backups.length) {
@@ -316,16 +487,86 @@ export class AnalisisModeHandler extends BaseModeHandler {
         return;
       }
 
-      // Intentos bloqueados explícitos
-      if (isBlockedIntentStart(raw)) {
-        ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: ONLY_ANALYZE_MSG }]);
-        return;
-      }
-
       // Si parece que pide análisis pero con sólo un token (ej: nombre.py) -> orientar.
       const single = raw.split(/\s+/).length === 1 && /\.[a-zA-Z0-9]{1,6}$/.test(raw);
       if (single) {
         ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Escribe: analizame ${raw}` }]);
+        return;
+      }
+
+      // PASO 2: Si ninguna heurística coincidió, usar DETECCIÓN POR IA (fallback inteligente)
+      console.log('[AnalisisModeHandler] Antes de fallback IA. heuristicMatched:', heuristicMatched);
+      if (!heuristicMatched) {
+        console.log('[AnalisisModeHandler] No hubo match de heurística, usando detección por IA...');
+        try {
+          const intent = await detectAnalysisIntent(raw);
+          console.log('[AnalisisModeHandler] Intent detectado:', intent);
+          if (intent.wants_analysis && intent.filename) {
+            console.log('[AnalisisModeHandler] IA detectó análisis para:', intent.filename);
+            // Usuario quiere analizar un archivo, ejecutar análisis
+            const path = intent.filename;
+            const r = await invokeWithTimeout<AnalyzeFileResponse>('analyze_any_file', { session_id: ctx.sessionId || undefined, path }, 45000, 1);
+            const a = r.analysis;
+            
+            // Manejar desambiguación (múltiples archivos con el mismo nombre)
+            if (a.disambiguation_required && a.candidates && a.candidates.length > 1) {
+              const text = `Nombre ambiguo para ${path}.`;
+              ctx.setMessages(prev => [...prev, { 
+                id: String(Date.now()), 
+                sender: 'ai', 
+                text, 
+                meta: { fileAnalysisDisambiguation: { base: path, candidates: a.candidates } } 
+              }]);
+              return;
+            }
+            
+            // Reutilizamos la función de formateo que ya existe arriba (línea 130)
+            const formatAnalysisText = (analysis: any): string => {
+              let output = `📄 **Análisis de ${analysis.path}**\n`;
+              output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+              output += `📊 ${analysis.language || 'desconocido'} • ${analysis.line_count} líneas • ${analysis.size_bytes} bytes\n\n`;
+              
+              const useAi = !!analysis.purpose_from_ai;
+              
+              if (useAi && analysis.purpose) {
+                output += `🎯 **PROPÓSITO DEL PROGRAMA**\n${analysis.purpose}\n\n`;
+                if (analysis.key_points && analysis.key_points.length > 0) {
+                  const firstPoint = analysis.key_points[0];
+                  const isSectionFormat = firstPoint.includes('**') && (firstPoint.includes('EJEMPLO') || firstPoint.includes('MEJORAS') || firstPoint.includes('CONCLUSIONES'));
+                  if (isSectionFormat) {
+                    for (const section of analysis.key_points) {
+                      let icon = '📋';
+                      if (section.includes('EJEMPLO')) icon = '▶️';
+                      else if (section.includes('MEJORAS')) icon = '🔧';
+                      else if (section.includes('CONCLUSIONES')) icon = '📊';
+                      output += `${icon} ${section}\n\n`;
+                    }
+                  }
+                }
+              } else {
+                if (!useAi && analysis.narrative) output += `📝 ${analysis.narrative}\n\n`;
+                if (analysis.purpose) output += `🎯 **Propósito:** ${analysis.purpose}\n\n`;
+                if (analysis.key_points && analysis.key_points.length) {
+                  output += `📋 **Detalles clave:**\n`;
+                  for (const kp of analysis.key_points.slice(0,6)) output += `  • ${kp}\n`;
+                }
+              }
+              return output;
+            };
+            
+            const text = formatAnalysisText(a);
+            ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text }]);
+            return;
+          }
+        } catch (aiErr) {
+          // Si la detección por IA falla, continuar al mensaje de error estándar
+          console.warn('Detección de intención por IA falló:', aiErr);
+        }
+      }
+
+      // Intentos bloqueados explícitos (solo después de intentar heurísticas y IA)
+      if (isBlockedIntentStart(raw)) {
+        ctx.setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: ONLY_ANALYZE_MSG }]);
         return;
       }
 
