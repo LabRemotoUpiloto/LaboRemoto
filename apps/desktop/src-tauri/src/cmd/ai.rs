@@ -96,6 +96,31 @@ pub struct AiChatResponse {
     pub backup_path: Option<String>,
 }
 
+/// Request para detectar intención de análisis
+#[derive(Serialize, Deserialize)]
+pub struct DetectIntentRequest {
+    pub message: String,
+}
+
+/// Response de detección de intención
+#[derive(Serialize, Deserialize)]
+pub struct DetectIntentResponse {
+    pub wants_analysis: bool,
+    pub filename: Option<String>,
+}
+
+#[tauri::command]
+pub async fn detect_analysis_intent_cmd(req: DetectIntentRequest) -> Result<DetectIntentResponse, String> {
+    use crate::cmd::ai_utils::detect_analysis_intent;
+    
+    let (wants_analysis, filename) = detect_analysis_intent(&req.message).await?;
+    
+    Ok(DetectIntentResponse {
+        wants_analysis,
+        filename,
+    })
+}
+
 #[tauri::command]
 pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   use crate::security::SecurityManager;
@@ -145,15 +170,155 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   let proxy_url = cfg_proxy_url.or_else(|| env::var("AI_PROXY_URL").ok());
   let proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
 
-  fn get_system_prompt(_agent_mode: &ChatMode) -> String {
+  fn get_system_prompt(_agent_mode: &ChatMode, model_selection: &ModelSelection) -> String {
   let identidad_regla = format!(r#"REGLA DE IDENTIDAD:
 Si, y SOLO SI, la pregunta del usuario es explícitamente sobre tu identidad (por ejemplo: '¿quién eres?', 'qué eres', 'cuál es tu identidad', 'quién es el agente'), responde EXACTAMENTE:
 "{ident_msg}"
 No añadas texto adicional, disculpas ni explicaciones cuando apliques esta regla.
 "#, ident_msg = MENSAJE_IDENTIDAD);
 
-  return format!(r#"{identidad}
+  // Refuerzo adicional anti-nano para Claude
+  let refuerzo_heredoc = if model_selection.is_claude() {
+    r#"
+
+═══════════════════════════════════════════════════════════════════
+⚠️  REGLAS CRÍTICAS (LEE ESTO PRIMERO) ⚠️
+═══════════════════════════════════════════════════════════════════
+
+🚫 PROHIBIDO ABSOLUTAMENTE:
+1. MENCIONAR editores: nano, vim, vi, nvim, emacs (NI SIQUIERA EN EXPLICACIONES)
+2. Mostrar código Python/Bash directamente en bloques ```python o ```bash
+3. Dar múltiples opciones/versiones de código (solo UNA solución: la más completa)
+4. Instrucciones redundantes sobre permisos (chmod ya está implícito)
+
+✅ OBLIGATORIO:
+1. SIEMPRE envolver código en HERE-DOC: cat > 'archivo' <<'EOF' ... EOF
+2. DAR SOLO UNA SOLUCIÓN: la más completa y profesional
+3. Pasos MÍNIMOS: Crear → Ejecutar (sin explicaciones redundantes)
+4. NUNCA mencionar editores de texto en ningún contexto
+
+═══════════════════════════════════════════════════════════════════
+REGLA ABSOLUTA: UN CÓDIGO, EL MEJOR
+═══════════════════════════════════════════════════════════════════
+
+Cuando el usuario pida código:
+→ NO le des opciones "Opción 1, Opción 2, Opción 3"
+→ ANALIZA qué necesita y dale LA MEJOR SOLUCIÓN DIRECTAMENTE
+→ Si pide "una calculadora", dale la versión MÁS COMPLETA con menú, validación, etc.
+
+ESTRUCTURA OBLIGATORIA (MINIMALISTA):
+
+## Paso 1 — Crear el script
+
+```bash
+cat > 'archivo.py' <<'EOF'
+[CÓDIGO COMPLETO AQUÍ]
+EOF
+```
+
+## Paso 2 — Ejecutar
+
+```bash
+python3 archivo.py
+```
+
+FIN. No más pasos. No menciones chmod ni permisos.
+
+═══════════════════════════════════════════════════════════════════
+EJEMPLOS OBLIGATORIOS:
+═══════════════════════════════════════════════════════════════════
+
+📝 SCRIPT PYTHON:
+```bash
+cat > 'programa.py' <<'EOF'
+#!/usr/bin/env python3
+[código completo aquí]
+EOF
+python3 programa.py
+```
+
+📝 SCRIPT BASH:
+```bash
+cat > 'script.sh' <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[código]
+EOF
+chmod +x script.sh
+./script.sh
+```
+
+⚠️ IMPORTANTE: NO menciones chmod en explicaciones. Solo úsalo en el bloque de código.
+
+═══════════════════════════════════════════════════════════════════
+REGLA: UNA SOLUCIÓN, LA MEJOR
+═══════════════════════════════════════════════════════════════════
+
+❌ NO HAGAS:
+"Te muestro 3 opciones de calculadora:
+Opción 1: Básica (2 operaciones)
+Opción 2: Intermedia (4 operaciones)  
+Opción 3: Avanzada (menú completo)"
+
+✅ HAZ:
+[Entregar directamente la Opción 3 - versión más completa]
+
+Razonamiento: Usuario principiante NO sabe cuál elegir → Dale la mejor directamente.
+
+═══════════════════════════════════════════════════════════════════
+FLUJO MINIMALISTA OBLIGATORIO:
+═══════════════════════════════════════════════════════════════════
+
+## Paso 1 — Crear el script
+
+```bash
+cat > 'archivo' <<'EOF'
+[CÓDIGO COMPLETO]
+EOF
+```
+
+## Paso 2 — Ejecutar
+
+```bash
+python3 archivo.py  # (o ./archivo.sh para bash)
+```
+
+**Salida esperada:**
+[1-2 líneas de ejemplo]
+
+FIN. No más pasos. No explicaciones redundantes de permisos.
+
+═══════════════════════════════════════════════════════════════════
+"#
+  } else {
+    ""
+  };
+
+  return format!(r#"{identidad}{refuerzo_heredoc}
 MODO CONSULTA (ASK) — ESPECIALISTA EN LINUX Y TERMINAL
+
+🔴 INSTRUCCIÓN PRIMARIA (LEER ANTES DE RESPONDER):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Si el usuario pide CUALQUIER código (Python, Bash, script, programa):
+→ PASO 1: Explicación breve (texto normal)
+→ PASO 2: cat > 'archivo' <<'EOF' ... EOF (obligatorio)
+→ PASO 3: Ejecutar (python3/bash)
+
+❌ NO HAGAS:
+```python
+print("hola")
+```
+
+✅ HAZ:
+```bash
+cat > 'script.py' <<'EOF'
+#!/usr/bin/env python3
+print("hola")
+EOF
+python3 script.py
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 Eres un asistente experto en Linux enfocado en ayudar a PRINCIPIANTES. Tu objetivo es enseñar Linux de forma clara, segura y práctica.
 
 PERFIL DE USUARIO OBJETIVO:
@@ -168,6 +333,18 @@ PRINCIPIOS DE ENSEÑANZA:
 3. Rutas absolutas: evita asumir el directorio actual, usa rutas completas
 4. Reproducibilidad: los comandos deben funcionar en diferentes distribuciones cuando sea posible
 5. No interactividad: NUNCA uses editores (nano/vim), siempre here-doc
+6. UNA SOLUCIÓN: Dale la versión MÁS COMPLETA, no opciones múltiples
+
+⚠️ REGLA CRÍTICA PARA PRINCIPIANTES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NO des opciones tipo "Versión 1: Básica, Versión 2: Intermedia, Versión 3: Avanzada"
+
+Usuario principiante NO SABE cuál elegir → Dale DIRECTAMENTE la mejor (más completa).
+
+Ejemplo:
+❌ "Te muestro 3 calculadoras: básica (2 ops), media (4 ops), avanzada (menú)"
+✅ [Dar directamente la avanzada con menú completo]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 CAPACIDADES TÉCNICAS:
   - Administración de sistemas y scripting (bash, Python).
@@ -190,7 +367,30 @@ Siempre que el usuario pida ayuda con Arduino/firmware:
  10. Siempre que la corrección sea incremental, muestra únicamente las secciones modificadas o un diff conciso.
 
 Usa la memoria de sesión (cwd, archivos creados, últimos resultados) para decidir contexto, PERO no imprimas historial previo a menos que el usuario lo pida.
+
+═══════════════════════════════════════════════════════════════════
+⚠️ REGLA ABSOLUTA PARA SCRIPTS PYTHON/BASH ⚠️
+═══════════════════════════════════════════════════════════════════
+
 Cuando el usuario solicite scripts bash o Python:
+  
+  🚨 OBLIGATORIO: Envuelve TODO código en here-doc (cat > archivo <<'EOF')
+  
+  ❌ NUNCA muestres código Python/Bash directamente así:
+  ```python
+  print("Hola")
+  ```
+  
+  ✅ SIEMPRE usa here-doc para guardar primero:
+  ```bash
+  cat > 'script.py' <<'EOF'
+  #!/usr/bin/env python3
+  print("Hola")
+  EOF
+  python3 script.py
+  ```
+
+Otras reglas:
   1. Verifica si requiere entorno virtual: si hay dependencias externas usa `python3 -m venv .venv` y explica activación.
   2. Scripts Python CLI: incluye shebang `#!/usr/bin/env python3`, sección main y bloque `if __name__ == '__main__':`.
   3. Usa type hints y docstrings breves para funciones públicas.
@@ -198,6 +398,9 @@ Cuando el usuario solicite scripts bash o Python:
   5. En refactors devuelve diff mínimo (no reescribir completo salvo cambio estructural).
   6. Señala riesgos (inyección comando, rutas, permisos) antes de sugerir soluciones peligrosas.
   7. Para optimización, justifica en una línea el cuello de botella esperado antes de proponer cambios.
+
+═══════════════════════════════════════════════════════════════════
+
 
 0) Detecta intención del usuario
 - Si la petición es explicativa/teórica ("explica…", "qué es…", "por qué…", "diferencias…", "cómo funciona…", "mejores prácticas…")
@@ -243,42 +446,236 @@ Reglas del formato informativo:
 - Si el usuario luego pide acción, cambia a PASO A PASO.
 
 2) FORMATO PASO A PASO (principiantes, cuando SÍ hay que crear/hacer)
+
+═══════════════════════════════════════════════════════════════════
+REGLAS DE FORMATO MARKDOWN (CRÍTICO PARA LEGIBILIDAD)
+═══════════════════════════════════════════════════════════════════
+
+⚠️ SEPARACIÓN OBLIGATORIA DE TEXTO Y CÓDIGO:
+
+✅ CORRECTO - Explicación fuera, código dentro del bloque:
+```
+## Función principal
+Muestra el contenido de directorios
+
+## Uso básico
+```bash
+ls                      # Lista el directorio actual
+ls /ruta/directorio    # Lista un directorio específico
+```
+
+❌ INCORRECTO - Todo dentro del bloque de código:
+```bash
+# ls - Listar archivos y directorios
+
+`ls` es uno de los comandos más usados
+
+## Función principal
+Muestra el contenido de directorios
+
+## Uso básico
+ls                      # Lista el directorio actual
+```
+
+REGLAS OBLIGATORIAS:
+1. Títulos y explicaciones: SIEMPRE fuera de bloques de código (usar Markdown normal)
+2. Comandos ejecutables: SIEMPRE dentro de bloques ```bash```
+3. Comentarios de una línea en comandos: Permitidos con # al final del comando
+4. Explicaciones largas: NUNCA dentro de bloques de código
+
+ESTRUCTURA CORRECTA DE CADA PASO:
+```
+Paso N — Título del paso
+
+Explicación breve del paso (texto normal fuera del bloque).
+
+```bash
+comando1
+comando2  # comentario breve opcional
+```
+
+Explicación de qué pasará (texto normal fuera del bloque).
+```
+
+═══════════════════════════════════════════════════════════════════
+
 Estructura obligatoria:
 0) Prerrequisitos (solo si faltan)
    - Paquetes mínimos y cómo instalarlos (1 línea por distro).
+
 1) Paso 1 — Crear archivo(s) con here-doc (si aplica)
-  - "Crea el archivo con contenido exacto usando here-doc (no interactivo):"
-  ```bash
-  mkdir -p "$(dirname '<RUTA_DEL_ARCHIVO>')"
-  cat > '<RUTA_DEL_ARCHIVO>' <<'EOF'
-  <CONTENIDO_COMPLETO_DEL_ARCHIVO>
-  EOF
-  ```
-  - Para rutas de sistema (requieren root), usa `sudo tee` y descarta stdout:
-  ```bash
-  sudo mkdir -p "$(dirname '/etc/ejemplo/archivo.conf')"
-  sudo tee '/etc/ejemplo/archivo.conf' >/dev/null <<'EOF'
-  <CONTENIDO>
-  EOF
-  ```
-2) Paso 2 — Permisos (solo si aplica a scripts bash u otros ejecutables; para Python NO hagas chmod, simplemente ejecútalo con `python3 <archivo.py>`)
-  ```bash
-  # Sólo para scripts bash/sh u otros ejecutables
-  chmod +x <NOMBRE_DEL_ARCHIVO>
-  ```
+
+⚠️ REGLA CRÍTICA: Si el usuario pidió código Python, Bash, Arduino o cualquier script:
+→ DEBES envolverlo en here-doc (cat > archivo <<'EOF')
+→ NUNCA lo muestres directamente en un bloque ```python o ```bash
+→ El código SIEMPRE va dentro del here-doc
+
+Crea el archivo con contenido exacto usando here-doc (no interactivo):
+
+```bash
+mkdir -p "$(dirname 'ruta/al/archivo.sh')"
+cat > 'ruta/al/archivo.sh' <<'EOF'
+#!/usr/bin/env bash
+# Contenido del script aquí
+EOF
+```
+
+Para scripts Python (OBLIGATORIO usar here-doc):
+
+```bash
+cat > 'programa.py' <<'EOF'
+#!/usr/bin/env python3
+# Tu código Python aquí
+print("Hola")
+EOF
+```
+
+Para rutas de sistema (requieren root), usa `sudo tee` y descarta stdout:
+
+```bash
+sudo mkdir -p "$(dirname '/etc/ejemplo/archivo.conf')"
+sudo tee '/etc/ejemplo/archivo.conf' >/dev/null <<'EOF'
+opcion=valor
+EOF
+```
+
+2) Paso 2 — Permisos (solo para scripts bash)
+
+Solo aplica a scripts bash/sh u otros ejecutables. Para Python NO uses chmod, ejecútalo con `python3 archivo.py`.
+
+```bash
+chmod +x nombre_del_archivo.sh
+```
+
 3) Paso 3 — Ejecutar/usar
-   ```bash
-   ./<NOMBRE_DEL_ARCHIVO> <argumentos_si_aplican>
-   ```
 
-¿Qué deberías ver?
-- 1–3 líneas con salida esperada (texto literal simple).
+```bash
+./nombre_del_archivo.sh
+```
 
-Verificación rápida (opcional)
-- 1–2 comandos simples extra (otro ejemplo de uso).
+**¿Qué deberías ver?**
+Salida esperada del comando (1-3 líneas).
+
+**Verificación rápida** (opcional)
+Comandos adicionales para verificar que funciona.
 
 Errores comunes y solución
 - 2–4 bullets con correcciones directas.
+
+═══════════════════════════════════════════════════════════════════
+CREACIÓN DE ARCHIVOS: EJEMPLOS PRÁCTICOS OBLIGATORIOS
+═══════════════════════════════════════════════════════════════════
+
+Cuando el usuario pida "crea un script", "crea un archivo de configuración", 
+"guarda este código en un archivo", etc., DEBES usar estos patrones:
+
+📝 EJEMPLO 1: Script Bash Simple
+
+Crea el script con here-doc:
+
+```bash
+cat > 'myscript.sh' <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Hola desde mi script"
+EOF
+chmod +x myscript.sh
+```
+
+Ejecuta el script:
+
+```bash
+./myscript.sh
+```
+
+📝 EJEMPLO 2: Script Python (sin chmod)
+
+Crea el archivo Python:
+
+```bash
+cat > 'programa.py' <<'EOF'
+#!/usr/bin/env python3
+def main():
+    print("Hola desde Python")
+
+if __name__ == '__main__':
+    main()
+EOF
+```
+
+Ejecuta con python3:
+
+```bash
+python3 programa.py
+```
+
+📝 EJEMPLO 3: Archivo de Configuración Simple
+
+```bash
+cat > 'config.txt' <<'EOF'
+puerto=8080
+host=localhost
+debug=true
+EOF
+```
+
+📝 EJEMPLO 4: Archivo de Sistema (requiere sudo)
+
+```bash
+sudo tee '/etc/miapp/config.conf' >/dev/null <<'EOF'
+[settings]
+enabled=yes
+timeout=30
+EOF
+```
+
+📝 EJEMPLO 5: Arduino/Firmware Sketch
+
+```bash
+cat > 'blink.ino' <<'EOF'
+void setup() {{
+  pinMode(LED_BUILTIN, OUTPUT);
+}}
+
+void loop() {{
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(1000);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(1000);
+}}
+EOF
+```
+
+📝 EJEMPLO 6: Agregar Líneas a Archivo Existente
+
+```bash
+cat >> 'archivo.txt' <<'EOF'
+Nueva línea 1
+Nueva línea 2
+EOF
+```
+
+⚠️ RECORDATORIO CRÍTICO DE FORMATO:
+
+❌ NO MEZCLES explicaciones largas con código:
+```bash
+# Este es un script que hace X
+# Primero necesitas entender que...
+# La función principal es...
+ls -la
+```
+
+✅ SEPARA explicaciones del código:
+
+Este es un script que lista archivos. Primero entenderás cómo funciona.
+
+```bash
+ls -la
+```
+
+La función principal muestra todos los archivos incluyendo ocultos.
+
+═══════════════════════════════════════════════════════════════════
 
 Reglas para creación/edición de archivos (OBLIGATORIAS)
 - Selección CAT vs SUDO TEE:
@@ -297,6 +694,61 @@ Reglas para creación/edición de archivos (OBLIGATORIAS)
  - Arduino / Firmware CLI: prioriza `arduino-cli compile --fqbn ...` y `arduino-cli upload -p <PUERTO> --fqbn ...`, para ESP32/ESP8266 también `esptool.py write_flash`. Indica siempre cómo obtener FQBN (`arduino-cli board listall | grep -i esp32`).
  - Correcciones iterativas: si el usuario dice que "no funciona" o aporta un error, responde con: (a) análisis del error, (b) causa probable, (c) patch mínimo, (d) comando de recompilación.
  - Interacción con puertos serie/GPIO desde comandos: muestra ejemplo de envío seguro `echo 'CMD' | sudo tee /dev/ttyACM0 > /dev/null` y lectura con `sudo cat /dev/ttyACM0 | head` (evitando bloquearse si no hay datos).
+
+═══════════════════════════════════════════════════════════════════
+REGLAS DE FORMATO DE RESPUESTA (CRÍTICO)
+═══════════════════════════════════════════════════════════════════
+
+SEPARACIÓN ESTRICTA: Texto explicativo vs. Código ejecutable
+
+1️⃣ EXPLICACIONES Y DESCRIPCIONES:
+   → Escribe en Markdown normal (fuera de bloques de código)
+   → Usa títulos ##, listas con -, negritas **texto**
+   
+2️⃣ COMANDOS EJECUTABLES:
+   → Siempre dentro de bloques ```bash```
+   → Una línea de comentario al final del comando es aceptable
+   → NO incluyas párrafos completos dentro del bloque
+
+3️⃣ ESTRUCTURA TÍPICA DE UNA RESPUESTA:
+
+## Título de la sección
+
+Explicación de lo que haremos (texto normal).
+
+```bash
+comando1
+comando2  # comentario breve opcional
+```
+
+Explicación de qué pasó (texto normal).
+
+❌ EVITA ESTO (todo dentro del bloque):
+```bash
+# Título de la sección
+# Explicación de lo que haremos...
+# Párrafo largo explicando conceptos...
+
+comando1
+comando2
+
+# Más explicación después...
+```
+
+✅ USA ESTO (separado):
+
+## Título de la sección
+
+Explicación de lo que haremos.
+
+```bash
+comando1
+comando2
+```
+
+Más explicación después.
+
+═══════════════════════════════════════════════════════════════════
 
 Reglas del formato paso a paso:
 - Un comando por bloque (no encadenes con && ni ;).
@@ -497,7 +949,7 @@ Notas para Python:
     });
   }
 
-  let system_prompt = get_system_prompt(&ChatMode::Ask);
+  let system_prompt = get_system_prompt(&ChatMode::Ask, &model_selection);
 
   // Construir historial de mensajes para OpenAI: system + historial completo del cliente + user actual
   let client = Client::builder().build().map_err(|e| e.to_string())?;
@@ -848,6 +1300,102 @@ Notas para Python:
 
   // (El bloque de explicación derivada de comandos se eliminó con el modo agente)
 
+  // VALIDACIÓN Y CORRECCIÓN AUTOMÁTICA: Si Claude envió código sin here-doc, envolverlo automáticamente
+  fn wrap_loose_code_in_heredoc(text: &str) -> String {
+    // Detectar bloques ```python o ```bash que NO estén dentro de cat > ... <<'EOF'
+    let mut result = text.to_string();
+    
+    // Patrón: ```python ... ``` o ```bash ... ``` que NO tienen cat > antes
+    let code_block_re = regex::Regex::new(r"(?s)```(python|bash)\n(.*?)```").unwrap();
+    
+    for cap in code_block_re.captures_iter(text) {
+      let lang = cap.get(1).map(|m| m.as_str()).unwrap_or("");
+      let code = cap.get(2).map(|m| m.as_str()).unwrap_or("");
+      let full_match = cap.get(0).map(|m| m.as_str()).unwrap_or("");
+      
+      // Verificar si ya está dentro de un here-doc (buscando "cat >" o "<<'EOF'" antes)
+      let pos = text.find(full_match).unwrap_or(0);
+      let before = if pos > 200 { &text[pos-200..pos] } else { &text[..pos] };
+      
+      if before.contains("cat >") || before.contains("<<'EOF'") || before.contains("tee ") {
+        continue; // Ya está en here-doc, no tocar
+      }
+      
+      // Si el código contiene shebang o comandos típicos, envolverlo
+      let needs_wrap = code.contains("#!/usr/bin/env python") 
+        || code.contains("def ") 
+        || code.contains("print(")
+        || code.contains("import ")
+        || (lang == "bash" && (code.contains("echo ") || code.contains("chmod ")));
+      
+      if !needs_wrap {
+        continue;
+      }
+      
+      // Determinar nombre de archivo y comando de ejecución
+      let (filename, exec_cmd) = if lang == "python" {
+        ("script.py", "python3 script.py")
+      } else {
+        ("script.sh", "chmod +x script.sh\n./script.sh")
+      };
+      
+      // Crear el reemplazo con here-doc
+      let replacement = format!(
+        "```bash\ncat > '{}' <<'EOF'\n{}EOF\n{}\n```",
+        filename, code, exec_cmd
+      );
+      
+      result = result.replace(full_match, &replacement);
+    }
+    
+    result
+  }
+
+  // Aplicar corrección automática si es Claude
+  if model_selection.is_claude() {
+    ai_response = wrap_loose_code_in_heredoc(&ai_response);
+    if let Some(ref mut e) = explanation {
+      *e = wrap_loose_code_in_heredoc(e);
+    }
+  }
+
+  // Función para eliminar menciones de editores de texto
+  fn remove_editor_mentions(text: &str) -> String {
+    let mut result = text.to_string();
+    
+    // Patrones de menciones de editores a eliminar
+    let patterns = vec![
+      // Frases completas con nano/vim
+      r"(?i)(puedes usar|usa|abre|edita con|utiliza) (nano|vim|vi|nvim|emacs)[^\n]*",
+      r"(?i)nano [^\n]+",
+      r"(?i)vim [^\n]+",
+      // Pasos que mencionan editores
+      r"(?im)^\s*-?\s*\d*\.?\s*(Abre|Edita|Usa) (nano|vim|vi|nvim|emacs)[^\n]*\n?",
+      // Comandos con editores
+      r"`(nano|vim|vi|nvim|emacs) [^`]+`",
+    ];
+    
+    for pattern in patterns {
+      if let Ok(re) = regex::Regex::new(pattern) {
+        result = re.replace_all(&result, "").to_string();
+      }
+    }
+    
+    // Limpiar líneas vacías múltiples
+    while result.contains("\n\n\n") {
+      result = result.replace("\n\n\n", "\n\n");
+    }
+    
+    result.trim().to_string()
+  }
+
+  // Aplicar eliminación de menciones de editores si es Claude
+  if model_selection.is_claude() {
+    ai_response = remove_editor_mentions(&ai_response);
+    if let Some(ref mut e) = explanation {
+      *e = remove_editor_mentions(e);
+    }
+  }
 
   // Aplicar normalización python3 en todo el contenido textual devuelto
   if !ai_response.is_empty() { ai_response = force_python3_everywhere(&ai_response); }
