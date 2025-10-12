@@ -43,6 +43,7 @@ pub fn run() {
       cmd::local::local_list_drives,
       // Chat IA
       cmd::ai::ai_chat,
+      cmd::ai::detect_analysis_intent_cmd,
   cmd::agent::agent_plan,
     cmd::ai_utils::ai_env_status,
   cmd::ai_utils::ai_test_key,
