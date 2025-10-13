@@ -14,6 +14,7 @@ import { AnalisisModeHandler } from './chatModes/classes/AnalisisModeHandler';
 // Componentes extraídos
 import AskRenderer from './chat/AskRenderer';
 import ToolResultRenderer from './chat/ToolResultRenderer';
+import AnalysisActionButtons from './chat/AnalysisActionButtons';
 import DiffView from './DiffView';
 import './DiffView.css';
 import './FileDisambiguation.css';
@@ -170,6 +171,36 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     });
   };
 
+  // Funciones para manejar acciones de análisis
+  const handleEditWithRecommendations = async () => {
+    setInput('edita ese archivo con las recomendaciones');
+    setTimeout(() => handleSend(), 100);
+  };
+
+  const handleImproveFile = async () => {
+    const lastAnalyzedFile = getLastAnalyzedFile();
+    if (lastAnalyzedFile) {
+      setInput(`mejora ${lastAnalyzedFile}`);
+      setTimeout(() => handleSend(), 100);
+    }
+  };
+
+  const handleApplyRecommendations = async () => {
+    setInput('aplica las recomendaciones');
+    setTimeout(() => handleSend(), 100);
+  };
+
+  // Helper para obtener el último archivo analizado
+  const getLastAnalyzedFile = (): string | null => {
+    const recentMessages = [...messages].reverse().slice(0, 10);
+    for (const msg of recentMessages) {
+      if (msg.meta?.analyzedFile) {
+        return msg.meta.analyzedFile;
+      }
+    }
+    return null;
+  };
+
   // Mode handlers registry
   const modeHandlers: Record<ChatMode, any> = {
     ask: new AskModeHandler(),
@@ -242,16 +273,20 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     invokeBusqueda
   });
 
-  const handleAnalyzeCandidate = async (base: string, candidate: string) => {
+  const handleAnalyzeCandidate = async (base: string, candidate: string, action: string = 'analyze', index?: number) => {
     if (isSending) return;
     setIsSending(true);
     try {
-      const userMsg: Message = { id: String(Date.now()), sender: 'user', text: `analizame ${candidate}` };
+      // Para optimización, usar el índice en lugar de la ruta completa para evitar os error 3
+      const command = action === 'optimize' && index !== undefined ? `mejora ${index + 1}` : 
+                      action === 'optimize' ? `mejora ${candidate}` : `analizame ${candidate}`;
+      const userMsg: Message = { id: String(Date.now()), sender: 'user', text: command };
       setMessages(prev => [...prev, userMsg]);
       const handler = modeHandlers['analisis'];
-      await handler.send(`analizame ${candidate}`, userMsg, buildModeContext());
+      await handler.send(command, userMsg, buildModeContext());
     } catch (e) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error analizando ${candidate}: ${String(e)}` }]);
+      const actionText = action === 'optimize' ? 'optimizando' : 'analizando';
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error ${actionText} ${candidate}: ${String(e)}` }]);
     } finally { setIsSending(false); }
   };
 
@@ -317,7 +352,18 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                       {/* Remote badge */}
                       {/* Si es un mensaje de desambiguación, ocultamos el texto base para no duplicar la UI */}
                       {!msg.meta?.fileAnalysisDisambiguation && (
-                        <AskRenderer content={msg.text} sessionId={sessionId || undefined} setLastCommand={setLastCommand as any} />
+                        <>
+                          <AskRenderer content={msg.text} sessionId={sessionId || undefined} setLastCommand={setLastCommand as any} mode={mode} />
+                          {msg.meta?.showAnalysisActions && mode === 'analisis' && (
+                            <AnalysisActionButtons
+                              onEditWithRecommendations={handleEditWithRecommendations}
+                              onImproveFile={handleImproveFile}
+                              onApplyRecommendations={handleApplyRecommendations}
+                              fileName={msg.meta.analyzedFile}
+                              disabled={isSending}
+                            />
+                          )}
+                        </>
                       )}
                       {/* Structured results */}
                       {msg.meta?.toolAction && (
@@ -339,8 +385,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                       {msg.meta?.fileAnalysisDisambiguation && msg.meta.fileAnalysisDisambiguation.candidates && (
                         <div className="file-disambiguation enhanced">
                           <div className="file-disambiguation__header">
-                            <h4>Selecciona cuál archivo quieres analizar</h4>
-                            <p className="hint">Se encontraron {msg.meta.fileAnalysisDisambiguation.candidates.length} rutas con el mismo nombre. Haz clic para cargar el contenido.</p>
+                            <h4>
+                              {msg.meta.fileAnalysisDisambiguation.action === 'optimize' 
+                                ? 'Selecciona cuál archivo quieres optimizar' 
+                                : 'Selecciona cuál archivo quieres analizar'
+                              }
+                            </h4>
+                            <p className="hint">
+                              Se encontraron {msg.meta.fileAnalysisDisambiguation.candidates.length} rutas con el mismo nombre. 
+                              Haz clic para {msg.meta.fileAnalysisDisambiguation.action === 'optimize' ? 'optimizar' : 'cargar el contenido'}.
+                            </p>
                           </div>
                           <ul className="file-disambiguation__list" role="list">
                             {msg.meta.fileAnalysisDisambiguation.candidates.map((c:string, idx:number) => (
@@ -348,9 +402,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
                                 <button
                                   type="button"
                                   className="file-disambiguation__btn"
-                                  onClick={() => handleAnalyzeCandidate(msg.meta.fileAnalysisDisambiguation.base, c)}
+                                  onClick={() => handleAnalyzeCandidate(
+                                    msg.meta.fileAnalysisDisambiguation.base, 
+                                    c, 
+                                    msg.meta.fileAnalysisDisambiguation.action || 'analyze',
+                                    idx
+                                  )}
                                   disabled={isSending}
-                                  aria-label={`Analizar opción ${idx+1}: ${c}`}
+                                  aria-label={`${msg.meta.fileAnalysisDisambiguation.action === 'optimize' ? 'Optimizar' : 'Analizar'} opción ${idx+1}: ${c}`}
                                 >
                                   <span className="file-disambiguation__index">{idx+1}</span>
                                   <span className="file-disambiguation__path">{c}</span>

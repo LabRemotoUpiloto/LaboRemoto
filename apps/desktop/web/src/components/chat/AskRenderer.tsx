@@ -8,10 +8,11 @@ interface AskRendererProps {
   content: string;
   sessionId?: string | null;
   setLastCommand?: (cmd: string) => Promise<void> | void;
+  mode?: string;
 }
 
 // Renderizador del modo ASK (reutilizable para respuestas AI)
-export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, setLastCommand }) => {
+export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, setLastCommand, mode }) => {
   const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string }> = [];
   const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
 
@@ -115,6 +116,7 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
           language={b.lang}
           sessionId={sessionId}
           setLastCommand={setLastCommand}
+          hideActions={mode === 'analisis'}
         />
       ) : (
         <div key={`p-${i}`}>{renderPara(b.body)}</div>

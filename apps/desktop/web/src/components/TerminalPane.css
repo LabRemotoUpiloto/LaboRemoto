@@ -3,6 +3,16 @@
   height: 100%;
   padding: 8px;
   background-color: var(--background-primary);
+  overflow: hidden;
+}
+
+.terminal-pane .xterm {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.terminal-pane .xterm .xterm-viewport {
+  width: 100% !important;
 }
 
 .xterm .xterm-viewport {

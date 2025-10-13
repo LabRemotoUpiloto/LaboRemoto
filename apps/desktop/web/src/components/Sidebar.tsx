@@ -10,6 +10,7 @@ interface SidebarProps {
   toggleSidebar: () => void
   selectedPage: string
   onSelectPage: (page: string) => void
+  activeSessionId?: string | null
 }
 
 const items = [
@@ -19,12 +20,27 @@ const items = [
   { id: 'themes', label: 'Temas', icon: '🎨' },
   { id: 'sftp', label: 'SFTP', icon: '📂' },
   { id: 'snippets', label: 'Snippets', icon: '📎' },
+  { id: 'pins', label: 'Pines', icon: '📌' },
 ]
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, selectedPage, onSelectPage }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, selectedPage, onSelectPage, activeSessionId }) => {
   const [appVersion, setAppVersion] = React.useState<string>('')
   const [checking, setChecking] = React.useState(false)
   const { push } = useToasts()
+
+  // Filtrar items basado en la sesión activa
+  const getFilteredItems = () => {
+    // Mostrar pines solo si hay una sesión activa que contenga la IP específica
+    const shouldShowPins = activeSessionId && activeSessionId.includes('200.115.181.211')
+    
+    
+    return items.filter(item => {
+      if (item.id === 'pins') {
+        return shouldShowPins
+      }
+      return true
+    })
+  }
   React.useEffect(() => { getVersion().then(setAppVersion).catch(() => setAppVersion('')) }, [])
 
   const onCheckUpdate = async () => {
@@ -64,9 +80,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, selectedPage, 
     } finally { setChecking(false) }
   }
   return (
-    <aside className={`sidebar ${isOpen ? 'open' : ''}`} aria-label="Main navigation">
+    <aside className={`sidebar ${isOpen ? 'open' : 'collapsed'}`} aria-label="Main navigation">
       <nav className="sidebar-nav">
-        {items.map(it => (
+        {getFilteredItems().map(it => (
           <button
             key={it.id}
             className={`nav-item ${selectedPage === it.id ? 'active' : ''}`}
@@ -93,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, selectedPage, 
         </button>
       </nav>
       <div className="sidebar-footer">
-        {appVersion && <span className="version-badge">v{appVersion}</span>}
+        {isOpen && appVersion && <span className="version-badge">v{appVersion}</span>}
       </div>
     </aside>
   )
