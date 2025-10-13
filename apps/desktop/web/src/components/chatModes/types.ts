@@ -37,6 +37,14 @@ export interface MessageMeta {
     proposedContent: string;
     needsConfirmation: boolean;
   };
+  // Propiedades para modo análisis
+  showAnalysisActions?: boolean;
+  analyzedFile?: string;
+  fileAnalysisDisambiguation?: {
+    base: string;
+    candidates: string[];
+    action?: 'analyze' | 'optimize';
+  };
 }
 
 export interface Message {

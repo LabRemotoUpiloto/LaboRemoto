@@ -7,9 +7,10 @@ interface CodeBlockProps {
   language?: string;
   sessionId?: string | null;
   setLastCommand?: (cmd: string) => Promise<void> | void;
+  hideActions?: boolean;
 }
 
-export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId, setLastCommand }) => {
+export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId, setLastCommand, hideActions = false }) => {
   const [copied, setCopied] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -74,65 +75,72 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
 
   return (
     <div className="code-block-wrapper">
-      <div className="code-block-header">
-        {language && <span className="code-block-language">{language}</span>}
-        <div className="code-block-actions">
-          <button
-            className={`code-action-btn copy-btn ${copied ? 'copied' : ''}`}
-            onClick={handleCopy}
-            aria-label="Copiar código"
-            title="Copiar"
-            type="button"
-          >
-            {copied ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-            )}
-            <span className="code-action-text">{copied ? 'Copiado' : 'Copiar'}</span>
-          </button>
-          
-          {sessionId && (
+      {!hideActions && (
+        <div className="code-block-header">
+          {language && <span className="code-block-language">{language}</span>}
+          <div className="code-block-actions">
             <button
-              className={`code-action-btn execute-btn ${executionStatus !== 'idle' ? executionStatus : ''}`}
-              onClick={handleExecute}
-              disabled={executing}
-              aria-label="Ejecutar código"
-              title="Ejecutar"
+              className={`code-action-btn copy-btn ${copied ? 'copied' : ''}`}
+              onClick={handleCopy}
+              aria-label="Copiar código"
+              title="Copiar"
               type="button"
             >
-              {executing ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spinning">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <path d="M12 6v6l4 2"></path>
-                </svg>
-              ) : executionStatus === 'success' ? (
+              {copied ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
-              ) : executionStatus === 'error' ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="15" y1="9" x2="9" y2="15"></line>
-                  <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
               ) : (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                 </svg>
               )}
-              <span className="code-action-text">
-                {executing ? 'Ejecutando' : executionStatus === 'success' ? 'Ejecutado' : executionStatus === 'error' ? 'Error' : 'Ejecutar'}
-              </span>
+              <span className="code-action-text">{copied ? 'Copiado' : 'Copiar'}</span>
             </button>
-          )}
+            
+            {sessionId && (
+              <button
+                className={`code-action-btn execute-btn ${executionStatus !== 'idle' ? executionStatus : ''}`}
+                onClick={handleExecute}
+                disabled={executing}
+                aria-label="Ejecutar código"
+                title="Ejecutar"
+                type="button"
+              >
+                {executing ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spinning">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                  </svg>
+                ) : executionStatus === 'success' ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                ) : executionStatus === 'error' ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                )}
+                <span className="code-action-text">
+                  {executing ? 'Ejecutando' : executionStatus === 'success' ? 'Ejecutado' : executionStatus === 'error' ? 'Error' : 'Ejecutar'}
+                </span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+      {hideActions && language && (
+        <div className="code-block-header-minimal">
+          <span className="code-block-language">{language}</span>
+        </div>
+      )}
       <pre className="code-block-content"><code>{code}</code></pre>
     </div>
   );
