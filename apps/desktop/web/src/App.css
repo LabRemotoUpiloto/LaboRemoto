@@ -17,6 +17,14 @@
   /* In flex context, ensure the item actually shrinks and doesn't overflow */
   flex: 0 0 calc(100% - 220px);
   max-width: calc(100% - 220px);
+  transition: margin-left 220ms cubic-bezier(.2,.9,.2,1), flex 220ms cubic-bezier(.2,.9,.2,1), max-width 220ms cubic-bezier(.2,.9,.2,1);
+}
+
+/* When sidebar is collapsed, adjust for narrow width */
+.main-content:not(.sidebar-open) {
+  margin-left: 50px; /* space for collapsed sidebar */
+  flex: 0 0 calc(100% - 50px);
+  max-width: calc(100% - 50px);
 }
 
 .content-area {

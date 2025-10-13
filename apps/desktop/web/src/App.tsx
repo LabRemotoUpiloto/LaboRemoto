@@ -17,6 +17,9 @@ import ThemesPage from './pages/ThemesPage'
 import SftpPage from './pages/SftpPage'
 import SnippetsPage from './pages/SnippetsPage'
 import ConfirmModal from './components/ConfirmModal'
+import PinsSidebar from './components/PinsSidebar'
+import PinDetailPanel from './components/PinDetailPanel'
+import ChatPane from './components/ChatPane'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 
@@ -32,6 +35,8 @@ const App: React.FC = () => {
   const [selectedPage, setSelectedPage] = useState<string>('connect') // subpágina dentro de Inicio
   const [updateInfo, setUpdateInfo] = useState<null | { version: string; notes?: string }>(null)
   const [updating, setUpdating] = useState(false)
+  const [isPinsPanelOpen, setIsPinsPanelOpen] = useState(false)
+  const [selectedPin, setSelectedPin] = useState<any>(null)
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
@@ -104,6 +109,16 @@ const App: React.FC = () => {
     })
   }
 
+  const handlePinSelect = (pin: any) => {
+    setSelectedPin(pin)
+    setIsPinsPanelOpen(true)
+  }
+
+  const handleClosePinsPanel = () => {
+    setIsPinsPanelOpen(false)
+    setSelectedPin(null)
+  }
+
   // Check for updates on startup (once)
   useEffect(() => {
     (async () => {
@@ -142,7 +157,26 @@ const App: React.FC = () => {
       <ToastProvider>
         <ThemeProvider>
   <div className="app-container">
-        <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} selectedPage={selectedPage} onSelectPage={(p)=>{ setActiveTabId(HOME_ID); setSelectedPage(p) }} />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          toggleSidebar={toggleSidebar} 
+          selectedPage={selectedPage} 
+          onSelectPage={(p)=>{ 
+            // Si ya está en pins y hace clic nuevamente en pins, ocultar pines pero mantener sesión
+            if (p === 'pins' && selectedPage === 'pins') {
+              setSelectedPage('terminal') // Cambiar a vista de terminal normal
+              setSelectedPin(null) // Limpiar pin seleccionado
+              return
+            }
+            
+            // No cambiar el tab activo si se selecciona pines
+            if (p !== 'pins') {
+              setActiveTabId(HOME_ID); 
+            }
+            setSelectedPage(p) 
+          }} 
+          activeSessionId={activeTab.type === 'session' ? activeTab.label : null}
+        />
         <div className={`main-content ${isSidebarOpen ? 'sidebar-open' : ''}`}>
           <Header
             tabs={tabs}
@@ -178,16 +212,121 @@ const App: React.FC = () => {
                   sessionsMeta={sessionMeta}
                   activeSessionId={tabs.some(t=>t.id===activeTabId && t.type==='session') ? activeTabId : undefined}
                 />
-              ) : selectedPage === 'snippets' ? (
-                <SnippetsPage />
               ) : (
                 <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
               )}
             </div>
             {/* Sesiones SSH persistentes */}
             {tabs.filter(t => t.type==='session').map(t => (
-              <div key={t.id} style={{display: activeTabId===t.id ? 'flex':'none', height:'100%', width:'100%'}}>
-                <TerminalView sessionId={t.id} />
+              <div key={t.id} style={{display: activeTabId===t.id ? 'flex':'none', height:'100%', width:'100%', flexDirection: (selectedPage !== 'connect' && selectedPage !== 'hosts') ? 'column' : 'row'}}>
+                {selectedPage === 'pins' && t.label && t.label.includes('200.115.181.211') ? (
+                    <div style={{ height: '100%', width: '100%', display: 'flex' }}>
+                      {/* Panel izquierdo: Pines GPIO */}
+                      <div style={{ width: selectedPin ? '30%' : '35%', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ 
+                          background: 'var(--background-secondary)', 
+                          padding: '15px', 
+                          borderBottom: '1px solid var(--border-subtle)',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          color: 'var(--text-primary)'
+                        }}>
+                          📌 Pines GPIO
+                        </div>
+                        <div style={{ flex: 1, overflow: 'auto' }}>
+                          <PinsSidebar onPinSelect={handlePinSelect} selectedPin={selectedPin} />
+                        </div>
+                      </div>
+                      
+                      {/* Panel central: Información del pin (solo si hay pin seleccionado) */}
+                      {selectedPin && (
+                        <div style={{ width: '30%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-subtle)' }}>
+                          <div style={{ 
+                            background: 'var(--background-secondary)', 
+                            padding: '12px', 
+                            borderBottom: '1px solid var(--border-subtle)',
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: 'var(--text-primary)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <span>📌 {selectedPin.name}</span>
+                            <button
+                              onClick={handleClosePinsPanel}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                fontSize: '18px'
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div style={{ flex: 1, padding: '16px', overflow: 'auto' }}>
+                            <PinDetailPanel 
+                              pin={selectedPin} 
+                              onClose={handleClosePinsPanel}
+                              sessionId={t.id}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Panel derecho: Terminal */}
+                      <div style={{ width: selectedPin ? '40%' : '85%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-subtle)' }}>
+                        <div style={{ 
+                          background: 'var(--background-secondary)', 
+                          padding: '12px', 
+                          borderBottom: '1px solid var(--border-subtle)',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          color: 'var(--text-primary)'
+                        }}>
+                          💻 Terminal
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <TerminalView sessionId={t.id} />
+                        </div>
+                      </div>
+                    </div>
+                ) : selectedPage === 'sftp' ? (
+                  <>
+                    <div style={{ height: '25%', width: '100%' }}>
+                      <TerminalView sessionId={t.id} />
+                    </div>
+                    <div style={{ height: '75%', width: '100%' }}>
+                      <SftpPage />
+                    </div>
+                  </>
+                ) : selectedPage === 'snippets' ? (
+                  <>
+                    <div style={{ height: '25%', width: '100%' }}>
+                      <TerminalView sessionId={t.id} />
+                    </div>
+                    <div style={{ height: '75%', width: '100%' }}>
+                      <SnippetsPage />
+                    </div>
+                  </>
+                ) : selectedPage === 'terminal' ? (
+                  <TerminalView sessionId={t.id} />
+                ) : selectedPage === 'pins' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ fontSize: '48px' }}>🔒</div>
+                    <h2 style={{ color: 'var(--text-primary)', margin: 0 }}>Acceso Restringido</h2>
+                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', maxWidth: '400px' }}>
+                      La funcionalidad de pines GPIO solo está disponible cuando estás conectado a la IP 200.115.181.211.
+                    </p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+                      Conéctate a la sesión correcta para acceder a esta funcionalidad.
+                    </p>
+                  </div>
+                ) : (
+                  <TerminalView sessionId={t.id} />
+                )}
               </div>
             ))}
           </main>
