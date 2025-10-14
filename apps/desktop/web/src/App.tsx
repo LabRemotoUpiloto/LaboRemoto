@@ -150,6 +150,17 @@ const App: React.FC = () => {
     try { window.setTimeout(() => { try { window.dispatchEvent(new CustomEvent('app:pins-toggled', { detail: { ...detail, phase: 'end' } })) } catch {} }, 320) } catch {}
   }
 
+  const emitBottomBarToggleEvents = (next: boolean) => {
+    const detail = { isOpen: next }
+    try { window.dispatchEvent(new CustomEvent('app:bottombar-toggled', { detail: { ...detail, phase: 'start' } })) } catch {}
+    try {
+      requestAnimationFrame(() => {
+        try { window.dispatchEvent(new CustomEvent('app:bottombar-toggled', { detail: { ...detail, phase: 'frame' } })) } catch {}
+      })
+    } catch {}
+    try { window.setTimeout(() => { try { window.dispatchEvent(new CustomEvent('app:bottombar-toggled', { detail: { ...detail, phase: 'end' } })) } catch {} }, 320) } catch {}
+  }
+
   const togglePinsPanel = () => {
     setPinsPanelOpen(prev => {
       const next = !prev
@@ -163,6 +174,14 @@ const App: React.FC = () => {
       if (!prev) return prev
       emitPinsToggleEvents(false)
       return false
+    })
+  }
+
+  const toggleCameraPanel = () => {
+    setCameraOpen(prev => {
+      const next = !prev
+      emitBottomBarToggleEvents(next)
+      return next
     })
   }
 
@@ -222,17 +241,17 @@ const App: React.FC = () => {
                 setSelectedPage(p)
               }}
               activeSessionId={activeTab.type === 'session' ? activeTab.label : null}
-              isCameraOpen={isCameraOpen}
-              isPinsPanelOpen={isPinsPanelOpen}
-                    onToggleCamera={() => setCameraOpen(prev => !prev)}
-                    onTogglePins={togglePinsPanel}
+      isCameraOpen={isCameraOpen}
+      isPinsPanelOpen={isPinsPanelOpen}
+      onToggleCamera={toggleCameraPanel}
+      onTogglePins={togglePinsPanel}
             />
             {isPinsVisible && (
               <aside className="pins-panel" aria-label="Panel de pines GPIO">
                 <div className="pins-panel__header">
                   <strong className="pins-panel__title">📌 Pines GPIO</strong>
                   <button
-                          onClick={closePinsPanel}
+                    onClick={closePinsPanel}
                     className="pins-panel__close-button"
                     type="button"
                     title="Cerrar panel"
