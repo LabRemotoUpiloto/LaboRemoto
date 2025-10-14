@@ -8,10 +8,10 @@ import { invoke } from '@tauri-apps/api/core';
 
 interface TerminalViewProps {
   sessionId: string;
+  isCameraOpen?: boolean;
 }
 
-const TerminalView: React.FC<TerminalViewProps> = ({ sessionId }) => {
-  const [isBottomBarOpen, setBottomBarOpen] = useState(false);
+const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = false }) => {
   const [enableBottomBar, setEnableBottomBar] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -19,9 +19,9 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId }) => {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const bbH = isBottomBarOpen ? 240 : 0; // sincrónico con --bb-height
+    const bbH = (isCameraOpen && enableBottomBar) ? 240 : 0; // sincrónico con --bb-height
     el.style.setProperty('--bb-offset', bbH + 'px');
-  }, [isBottomBarOpen]);
+  }, [isCameraOpen, enableBottomBar]);
 
   // Consultar backend para saber IP real y habilitar bottom bar sólo si coincide
   useEffect(() => {
@@ -45,7 +45,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId }) => {
         <TerminalPane sessionId={sessionId} />
         {enableBottomBar && (
           <div className="bottom-bar-slot">
-            <BottomBar isOpen={isBottomBarOpen} onToggle={() => setBottomBarOpen(v => !v)} sessionId={sessionId} />
+            <BottomBar isOpen={isCameraOpen} onToggle={() => {}} sessionId={sessionId} />
           </div>
         )}
       </div>
