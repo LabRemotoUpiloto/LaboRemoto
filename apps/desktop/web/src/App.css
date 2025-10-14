@@ -35,3 +35,73 @@
   height: calc(100vh - 50px); /* full height below header */
   min-width: 0; /* allow inner flex (TerminalView) to shrink properly */
 }
+
+.app-container.sidebar-open .pins-panel {
+  margin-left: 220px;
+}
+
+.app-container.sidebar-collapsed .pins-panel {
+  margin-left: 50px;
+}
+
+.pins-panel {
+  width: 320px;
+  height: calc(100vh - 50px);
+  margin-top: 50px;
+  background: var(--background-secondary);
+  border-right: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: relative;
+  transition: margin-left 220ms cubic-bezier(.2,.9,.2,1);
+}
+
+.pins-panel__header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--background-tertiary);
+}
+
+.pins-panel__title {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.pins-panel__close-button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px 8px;
+  transition: color 0.2s ease;
+}
+
+.pins-panel__close-button:hover {
+  color: var(--text-primary);
+}
+
+.pins-panel__content {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+}
+
+.app-container.pins-open .main-content {
+  margin-left: 0;
+}
+
+.app-container.pins-open .main-content.sidebar-open {
+  flex: 0 0 calc(100% - 220px - 320px);
+  max-width: calc(100% - 220px - 320px);
+}
+
+.app-container.pins-open .main-content:not(.sidebar-open) {
+  flex: 0 0 calc(100% - 50px - 320px);
+  max-width: calc(100% - 50px - 320px);
+}
