@@ -14,6 +14,11 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseTab, onNewSession, toggleSidebar }) => {
   const { push } = useToasts();
+  
+  // Debug: Log de las pestañas que recibe el Header
+  console.log('🏷️ Header received tabs:', tabs.map(t => ({ id: t.id, type: t.type, label: t.label })));
+  console.log('🎯 Active tab ID:', activeTabId);
+  
   return (
     <header className="app-header">
       <div style={{display:'flex',alignItems:'center',gap:8}} />
@@ -23,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseT
       <nav className="tabs">
         {tabs.map(t => (
           <div key={t.id} className={`tab ${activeTabId === t.id ? 'active' : ''}`} onClick={() => onTabClick(t.id)}>
-            <span>{t.label}</span>
+            <span title={t.label}>{t.label}</span>
             {t.type === 'session' && (
               <button className="close-tab" onClick={(e) => { e.stopPropagation(); onCloseTab(t.id); }}>×</button>
             )}

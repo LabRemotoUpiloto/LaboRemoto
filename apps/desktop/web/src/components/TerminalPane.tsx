@@ -151,22 +151,41 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     term.loadAddon(new WebLinksAddon());
   // Asegura que el contenedor pueda recibir foco a nivel del navegador
   try { container.setAttribute('tabindex', '0'); container.setAttribute('role', 'textbox'); } catch {}
-  term.open(container);
-  try { fit.fit(); } catch {}
-  // Enfocar inmediatamente tras abrir para permitir escribir sin click
-  try { if (canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
-  startFocusLoop();
-  // Fijar renderer DOM vía opción interna si está disponible y reforzar opciones del cursor de forma segura
-  try { (term as any).setOption?.('rendererType', 'dom'); } catch {}
-  try { (term as any).options.cursorBlink = false; (term as any).options.cursorStyle = 'block'; } catch {}
-  try { ensureBlinkClasses(); requestAnimationFrame(() => ensureBlinkClasses()); } catch {}
+  
+  // Función para inicializar el terminal una vez que tenga dimensiones
+  const initializeTerminal = () => {
+    term.open(container);
+    try { fit.fit(); } catch {}
+    
+    // Enfocar inmediatamente tras abrir para permitir escribir sin click
+    try { if (canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
+    startFocusLoop();
+    // Fijar renderer DOM vía opción interna si está disponible y reforzar opciones del cursor de forma segura
+    try { (term as any).setOption?.('rendererType', 'dom'); } catch {}
+    try { (term as any).options.cursorBlink = false; (term as any).options.cursorStyle = 'block'; } catch {}
+    try { ensureBlinkClasses(); requestAnimationFrame(() => ensureBlinkClasses()); } catch {}
 
-  termRef.current = term;
+    termRef.current = term;
     fitRef.current = fit;
-  // Initial theme
-  try { applyXtermTheme(); } catch {}
-  // Reaplicar tras el frame por si el atributo data-theme cambia después del efecto del provider
-  try { requestAnimationFrame(() => applyXtermTheme()); } catch {}
+    // Initial theme
+    try { applyXtermTheme(); } catch {}
+    // Reaplicar tras el frame por si el atributo data-theme cambia después del efecto del provider
+    try { requestAnimationFrame(() => applyXtermTheme()); } catch {}
+  };
+
+  // Verificar que el contenedor tenga dimensiones antes de abrir el terminal
+  const rect = container.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) {
+    initializeTerminal();
+  } else {
+    // Si no tiene dimensiones, esperar al siguiente frame
+    requestAnimationFrame(() => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        initializeTerminal();
+      }
+    });
+  }
 
   // Observar cambios en html[data-theme] para re-aplicar el tema con estilos ya computados
   const mo = new MutationObserver((recs) => {
