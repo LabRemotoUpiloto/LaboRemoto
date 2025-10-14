@@ -11,6 +11,10 @@ interface SidebarProps {
   selectedPage: string
   onSelectPage: (page: string) => void
   activeSessionId?: string | null
+  isCameraOpen?: boolean
+  isPinsPanelOpen?: boolean
+  onToggleCamera?: () => void
+  onTogglePins?: () => void
 }
 
 const items = [
@@ -20,26 +24,35 @@ const items = [
   { id: 'themes', label: 'Temas', icon: '🎨' },
   { id: 'sftp', label: 'SFTP', icon: '📂' },
   { id: 'snippets', label: 'Snippets', icon: '📎' },
-  { id: 'pins', label: 'Pines', icon: '📌' },
 ]
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, selectedPage, onSelectPage, activeSessionId }) => {
+// Items especiales que se controlan por separado (no cambian de página)
+const specialItems = [
+  { id: 'pins', label: 'Pines', icon: '📌' },
+  { id: 'camera', label: 'Cámara', icon: '🎥' },
+]
+
+const Sidebar: React.FC<SidebarProps> = ({ 
+  isOpen, 
+  toggleSidebar, 
+  selectedPage, 
+  onSelectPage, 
+  activeSessionId,
+  isCameraOpen = false,
+  isPinsPanelOpen = false,
+  onToggleCamera,
+  onTogglePins
+}) => {
   const [appVersion, setAppVersion] = React.useState<string>('')
   const [checking, setChecking] = React.useState(false)
   const { push } = useToasts()
 
-  // Filtrar items basado en la sesión activa
-  const getFilteredItems = () => {
-    // Mostrar pines solo si hay una sesión activa que contenga la IP específica
-    const shouldShowPins = activeSessionId && activeSessionId.includes('200.115.181.211')
+  // Filtrar items especiales basado en la sesión activa
+  const getFilteredSpecialItems = () => {
+    // Mostrar pines y cámara solo si hay una sesión activa que contenga la IP específica
+    const shouldShowRaspberryFeatures = activeSessionId && activeSessionId.includes('200.115.181.211')
     
-    
-    return items.filter(item => {
-      if (item.id === 'pins') {
-        return shouldShowPins
-      }
-      return true
-    })
+    return shouldShowRaspberryFeatures ? specialItems : []
   }
   React.useEffect(() => { getVersion().then(setAppVersion).catch(() => setAppVersion('')) }, [])
 
@@ -79,15 +92,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, selectedPage, 
       push({ type: 'error', message: msg }, 7000)
     } finally { setChecking(false) }
   }
+  const handleSpecialItemClick = (itemId: string) => {
+    if (itemId === 'pins' && onTogglePins) {
+      onTogglePins()
+    } else if (itemId === 'camera' && onToggleCamera) {
+      onToggleCamera()
+    }
+  }
+
+  const isSpecialItemActive = (itemId: string) => {
+    if (itemId === 'pins') return isPinsPanelOpen
+    if (itemId === 'camera') return isCameraOpen
+    return false
+  }
+
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'collapsed'}`} aria-label="Main navigation">
       <nav className="sidebar-nav">
-        {getFilteredItems().map(it => (
+        {items.map(it => (
           <button
             key={it.id}
             className={`nav-item ${selectedPage === it.id ? 'active' : ''}`}
             aria-current={selectedPage === it.id ? 'page' : undefined}
             onClick={() => onSelectPage(it.id)}
+            title={it.label}
+          >
+            <span className="nav-pill">
+              <span className="icon">{it.icon}</span>
+              <span className="label">{it.label}</span>
+            </span>
+          </button>
+        ))}
+        {getFilteredSpecialItems().map(it => (
+          <button
+            key={it.id}
+            className={`nav-item ${isSpecialItemActive(it.id) ? 'active' : ''}`}
+            aria-current={isSpecialItemActive(it.id) ? 'page' : undefined}
+            onClick={() => handleSpecialItemClick(it.id)}
             title={it.label}
           >
             <span className="nav-pill">
