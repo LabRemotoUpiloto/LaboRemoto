@@ -5,6 +5,7 @@ import './App.css'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import TerminalView from './components/TerminalView'
+import TerminalOnly from './components/TerminalOnly'
 import ConnectForm from './components/ConnectForm'
 import SavedHostsPage from './pages/SavedHostsPage'
 import { connectFromHost } from './api/storage'
@@ -39,16 +40,6 @@ const App: React.FC = () => {
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
-  // Debug: ver estados
-  useEffect(() => {
-    console.log('🔍 Debug Panel States:', {
-      isPinsPanelOpen,
-      isCameraOpen,
-      activeTabType: activeTab.type,
-      activeTabLabel: activeTab.label,
-      shouldShowPanel: isPinsPanelOpen && activeTab.type === 'session'
-    })
-  }, [isPinsPanelOpen, isCameraOpen, activeTab])
 
   // Abre una nueva sesión si no existe, y la activa
   const openSession = (id: string, label?: string) => {
@@ -61,6 +52,7 @@ const App: React.FC = () => {
     })
     setActiveTabId(id)
   }
+
 
   // Cierra pestaña (no permite cerrar Inicio) y re-calcula activa
   const closeTab = (id: string) => {
@@ -84,17 +76,44 @@ const App: React.FC = () => {
   }
 
   const handleTabClick = (id: string) => {
+    console.log('🔄 Tab clicked:', id)
+    console.log('📋 Current tabs:', tabs.map(t => ({ id: t.id, type: t.type, label: t.label })))
+    
     setActiveTabId(id)
+    
+    const clickedTab = tabs.find(t => t.id === id)
+    console.log('🎯 Clicked tab:', clickedTab)
+    
+    // Resetear selectedPage si cambias a la pestaña "Inicio" o a una pestaña de sesión SSH
+    if (clickedTab?.type === 'home') {
+      console.log('🏠 Resetting selectedPage for home tab')
+      setSelectedPage('connect')
+    } else if (clickedTab?.type === 'session') {
+      console.log('🔗 Resetting selectedPage for session tab')
+      // Cuando cambias a una pestaña de sesión SSH, resetear selectedPage para mostrar terminal
+      setSelectedPage('connect')
+    }
   }
 
   // Mantiene sincronizadas las etiquetas de pestañas con los alias en sessionMeta
   useEffect(() => {
+    console.log('🔄 Updating tabs labels from sessionMeta:', sessionMeta)
     setTabs(prev => prev.map(t => (
       t.type === 'session' && sessionMeta[t.id]?.label && t.label !== sessionMeta[t.id].label
         ? { ...t, label: sessionMeta[t.id].label }
         : t
     )))
   }, [sessionMeta])
+
+  // Log del estado actual
+  useEffect(() => {
+    console.log('📊 Current state:', {
+      activeTabId,
+      activeTab: tabs.find(t => t.id === activeTabId),
+      sessionMeta,
+      selectedPage
+    })
+  }, [activeTabId, tabs, sessionMeta, selectedPage])
 
   // Al cerrar una sesión, pedir al backend que desconecte antes de remover la pestaña
   const handleCloseTab = async (id: string) => {
@@ -195,7 +214,10 @@ const App: React.FC = () => {
               onSelectPage={(p) => {
                 // No cambiar el tab activo si se selecciona pines
                 if (p !== 'pins') {
-                  setActiveTabId(HOME_ID)
+                  // Solo cambiar a HOME si estás en una sesión y seleccionas una página que debe estar en HOME
+                  if (activeTab.type === 'session' && ['connect', 'hosts', 'themes'].includes(p)) {
+                    setActiveTabId(HOME_ID)
+                  }
                 }
                 setSelectedPage(p)
               }}
@@ -257,33 +279,29 @@ const App: React.FC = () => {
                 <SftpPage
                   sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
                   sessionsMeta={sessionMeta}
-                  activeSessionId={tabs.some(t=>t.id===activeTabId && t.type==='session') ? activeTabId : undefined}
+                  activeSessionId={(() => {
+                    // Usar la primera sesión disponible como fallback
+                    const sessionTabs = tabs.filter(t=>t.type==='session');
+                    return sessionTabs.length > 0 ? sessionTabs[0].id : undefined;
+                  })()}
                 />
+              ) : selectedPage === 'snippets' ? (
+                <SnippetsPage />
               ) : (
                 <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
               )}
             </div>
             {/* Sesiones SSH persistentes */}
             {tabs.filter(t => t.type==='session').map(t => (
-              <div key={t.id} style={{display: activeTabId===t.id ? 'flex':'none', height:'100%', width:'100%', flexDirection: (selectedPage !== 'connect' && selectedPage !== 'hosts') ? 'column' : 'row'}}>
+              <div key={t.id} style={{display: activeTabId===t.id ? 'block':'none', height:'100%', width:'100%'}}>
                 {selectedPage === 'sftp' ? (
-                  <>
-                    <div style={{ height: '25%', width: '100%' }}>
-                      <TerminalView sessionId={t.id} isCameraOpen={isCameraOpen} />
-                    </div>
-                    <div style={{ height: '75%', width: '100%' }}>
-                      <SftpPage />
-                    </div>
-                  </>
+                  <SftpPage
+                    sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
+                    sessionsMeta={sessionMeta}
+                    activeSessionId={t.id}
+                  />
                 ) : selectedPage === 'snippets' ? (
-                  <>
-                    <div style={{ height: '25%', width: '100%' }}>
-                      <TerminalView sessionId={t.id} isCameraOpen={isCameraOpen} />
-                    </div>
-                    <div style={{ height: '75%', width: '100%' }}>
-                      <SnippetsPage />
-                    </div>
-                  </>
+                  <SnippetsPage />
                 ) : (
                   <TerminalView sessionId={t.id} isCameraOpen={isCameraOpen} />
                 )}
