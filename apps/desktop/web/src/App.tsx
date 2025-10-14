@@ -120,6 +120,33 @@ const App: React.FC = () => {
   }
 
 
+  const emitPinsToggleEvents = (next: boolean) => {
+    const detail = { isOpen: next }
+    try { window.dispatchEvent(new CustomEvent('app:pins-toggled', { detail: { ...detail, phase: 'start' } })) } catch {}
+    try {
+      requestAnimationFrame(() => {
+        try { window.dispatchEvent(new CustomEvent('app:pins-toggled', { detail: { ...detail, phase: 'frame' } })) } catch {}
+      })
+    } catch {}
+    try { window.setTimeout(() => { try { window.dispatchEvent(new CustomEvent('app:pins-toggled', { detail: { ...detail, phase: 'end' } })) } catch {} }, 320) } catch {}
+  }
+
+  const togglePinsPanel = () => {
+    setPinsPanelOpen(prev => {
+      const next = !prev
+      emitPinsToggleEvents(next)
+      return next
+    })
+  }
+
+  const closePinsPanel = () => {
+    setPinsPanelOpen(prev => {
+      if (!prev) return prev
+      emitPinsToggleEvents(false)
+      return false
+    })
+  }
+
 
   // Check for updates on startup (once)
   useEffect(() => {
@@ -175,15 +202,15 @@ const App: React.FC = () => {
               activeSessionId={activeTab.type === 'session' ? activeTab.label : null}
               isCameraOpen={isCameraOpen}
               isPinsPanelOpen={isPinsPanelOpen}
-              onToggleCamera={() => setCameraOpen(prev => !prev)}
-              onTogglePins={() => setPinsPanelOpen(prev => !prev)}
+                    onToggleCamera={() => setCameraOpen(prev => !prev)}
+                    onTogglePins={togglePinsPanel}
             />
             {isPinsVisible && (
               <aside className="pins-panel" aria-label="Panel de pines GPIO">
                 <div className="pins-panel__header">
                   <strong className="pins-panel__title">📌 Pines GPIO</strong>
                   <button
-                    onClick={() => setPinsPanelOpen(false)}
+                          onClick={closePinsPanel}
                     className="pins-panel__close-button"
                     type="button"
                     title="Cerrar panel"
