@@ -209,8 +209,10 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   // Escuchar el toggle explícito de la sidebar y bottom bar para ajustar (se emite en fases)
   const onSidebarToggled = () => { multiStageFitAndResize(); };
   const onBottomBarToggled = () => { multiStageFitAndResize(); };
+  const onPinsToggled = () => { multiStageFitAndResize(); };
   window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
   window.addEventListener('app:bottombar-toggled', onBottomBarToggled as any);
+  window.addEventListener('app:pins-toggled', onPinsToggled as any);
 
     // Además, escuchar el final de la transición del contenedor principal para asegurar el ajuste
     const mainContentEl = document.querySelector('.main-content');
@@ -248,6 +250,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     window.removeEventListener('resize', onResize);
   window.removeEventListener('app:sidebar-toggled', onSidebarToggled as any);
     window.removeEventListener('app:bottombar-toggled', onBottomBarToggled as any);
+    window.removeEventListener('app:pins-toggled', onPinsToggled as any);
     try { mainContentEl?.removeEventListener('transitionend', onTransitionEnd); } catch {}
       try {
         const bottomBarContent2 = document.querySelector('.bottom-bar .bb-content');
