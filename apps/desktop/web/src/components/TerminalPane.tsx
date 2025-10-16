@@ -21,6 +21,12 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const unlistenRef = useRef<(() => void) | null>(null);
   const hasFocusedOnceRef = useRef<boolean>(false);
   const focusLoopRef = useRef<number | null>(null);
+  const resizeTimeoutsRef = useRef<number[]>([]);
+  const isResizingRef = useRef<boolean>(false);
+  const lastResizeTimeRef = useRef<number>(0);
+  const resizeThrottleRef = useRef<number | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const lastContainerSizeRef = useRef<{ width: number; height: number } | null>(null);
 
   // Only allow terminal to auto-focus when not interacting with other inputs (e.g., ChatPane textarea)
   const canRefocusTerminal = () => {
@@ -205,33 +211,81 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     };
 
     window.addEventListener('resize', onResize);
-    // Helper para reintentar el ajuste en varios ticks (raf + timeouts)
-    const multiStageFitAndResize = () => {
-      const doFit = () => {
-        if (!isPaneVisible()) return;
-        try { fit.fit(); } catch {}
-        try { if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal()) termRef.current.focus(); } catch {}
-        if (sessionId) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
-      };
-      // Inmediato
-      doFit();
-      // Próximo frame
-      try { requestAnimationFrame(() => { doFit(); }); } catch {}
-      // Dos frames después
-      try { requestAnimationFrame(() => { requestAnimationFrame(() => { doFit(); }); }); } catch {}
-      // Fallbacks temporales por si la transición refluye más tarde
-      try { window.setTimeout(doFit, 0); } catch {}
-      try { window.setTimeout(doFit, 60); } catch {}
-      try { window.setTimeout(doFit, 180); } catch {}
-    };
+  // Función inteligente de resize que detecta cambios reales de tamaño
+  const smartResize = () => {
+    if (!termRef.current || !fitRef.current || !containerRef.current) return;
+    
+    const container = containerRef.current;
+    const currentSize = { width: container.clientWidth, height: container.clientHeight };
+    
+    // Solo hacer resize si el tamaño realmente cambió
+    if (lastContainerSizeRef.current && 
+        lastContainerSizeRef.current.width === currentSize.width && 
+        lastContainerSizeRef.current.height === currentSize.height) {
+      return;
+    }
+    
+    lastContainerSizeRef.current = currentSize;
+    
+    // Verificar que el panel sea visible
+    if (!isPaneVisible()) return;
+    
+    try {
+      fit.fit();
+      
+      // Reenfocar después de ajuste si ya enfocamos una vez
+      if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal()) {
+        termRef.current.focus();
+      }
+      
+      // Notificar al backend si tenemos una sesión válida
+      if (sessionId && termRef.current.cols > 0 && termRef.current.rows > 0) {
+        invoke('ssh_resize', { id: sessionId, cols: termRef.current.cols, rows: termRef.current.rows }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Error during terminal fit:', e);
+    }
+  };
+
+  // Función de resize con debounce para eventos de transición
+  const debouncedResize = () => {
+    const now = Date.now();
+    
+    // Debounce: cancelar resize anterior si fue hace menos de 100ms
+    if (now - lastResizeTimeRef.current < 100) {
+      if (resizeThrottleRef.current) {
+        try { window.clearTimeout(resizeThrottleRef.current); } catch {}
+        resizeThrottleRef.current = null;
+      }
+    }
+    
+    lastResizeTimeRef.current = now;
+    
+    // Ejecutar resize después de un pequeño delay para permitir que las transiciones CSS terminen
+    resizeThrottleRef.current = window.setTimeout(() => {
+      smartResize();
+    }, 50);
+  };
 
   // Escuchar el toggle explícito de la sidebar y bottom bar para ajustar (se emite en fases)
-  const onSidebarToggled = () => { multiStageFitAndResize(); };
-  const onBottomBarToggled = () => { multiStageFitAndResize(); };
-  const onPinsToggled = () => { multiStageFitAndResize(); };
+  const onSidebarToggled = () => { debouncedResize(); };
+  const onBottomBarToggled = () => { debouncedResize(); };
+  const onPinsToggled = () => { debouncedResize(); };
   window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
   window.addEventListener('app:bottombar-toggled', onBottomBarToggled as any);
   window.addEventListener('app:pins-toggled', onPinsToggled as any);
+
+    // ResizeObserver para detectar cambios reales de tamaño del contenedor
+    if (container && window.ResizeObserver) {
+      resizeObserverRef.current = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.target === container) {
+            debouncedResize();
+          }
+        }
+      });
+      resizeObserverRef.current.observe(container);
+    }
 
     // Además, escuchar el final de la transición del contenedor principal para asegurar el ajuste
     const mainContentEl = document.querySelector('.main-content');
@@ -239,7 +293,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       const te = ev as TransitionEvent;
       // Solo reaccionar a la transición relevante de margen que desplaza el layout
       if (!te.propertyName || te.propertyName === 'margin-left') {
-        multiStageFitAndResize();
+        debouncedResize();
       }
     };
     try { mainContentEl?.addEventListener('transitionend', onTransitionEnd); } catch {}
@@ -266,19 +320,38 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
     return () => {
       try { disposeOnResize.dispose(); } catch {}
-    window.removeEventListener('resize', onResize);
-  window.removeEventListener('app:sidebar-toggled', onSidebarToggled as any);
-    window.removeEventListener('app:bottombar-toggled', onBottomBarToggled as any);
-    window.removeEventListener('app:pins-toggled', onPinsToggled as any);
-    try { mainContentEl?.removeEventListener('transitionend', onTransitionEnd); } catch {}
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('app:sidebar-toggled', onSidebarToggled as any);
+      window.removeEventListener('app:bottombar-toggled', onBottomBarToggled as any);
+      window.removeEventListener('app:pins-toggled', onPinsToggled as any);
+      try { mainContentEl?.removeEventListener('transitionend', onTransitionEnd); } catch {}
       try {
         const bottomBarContent2 = document.querySelector('.bottom-bar .bb-content');
         bottomBarContent2?.removeEventListener('transitionend', onBottomBarTransitionEnd);
       } catch {}
+      // Limpiar timeouts pendientes
+      resizeTimeoutsRef.current.forEach(timeoutId => {
+        try { window.clearTimeout(timeoutId); } catch {}
+      });
+      resizeTimeoutsRef.current = [];
+      
+      // Limpiar throttle
+      if (resizeThrottleRef.current) {
+        try { window.clearTimeout(resizeThrottleRef.current); } catch {}
+        resizeThrottleRef.current = null;
+      }
+      
+      // Limpiar ResizeObserver
+      if (resizeObserverRef.current) {
+        try { resizeObserverRef.current.disconnect(); } catch {}
+        resizeObserverRef.current = null;
+      }
+      
+      isResizingRef.current = false;
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
       if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
-  // (ResizeObserver cleanup removed)
+      // (ResizeObserver cleanup removed)
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
