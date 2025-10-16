@@ -264,6 +264,52 @@ pub async fn rpi_pins_status(id: String) -> Result<Vec<RpiGpioLine>, String> {
 }
 
 #[tauri::command]
+pub async fn rpi_pin_set_mode(id: String, gpio: u32, mode: String) -> Result<(), String> {
+  let normalized = match mode.to_lowercase().as_str() {
+    "input" | "ip" => "ip",
+    "output" | "op" => "op",
+    other => return Err(format!("Modo no soportado: {} (usa 'input' o 'output')", other)),
+  };
+
+  let arc_cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    let s = map.get_mut(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    if let Some(existing) = s.sftp_cached.clone() {
+      existing
+    } else {
+      let (tcp, sess2) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
+        .map_err(|e| e.to_string())?;
+      let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess: sess2 }));
+      s.sftp_cached = Some(arc.clone());
+      arc
+    }
+  };
+
+  let (status, output) = {
+    let guard = arc_cached.lock().map_err(|_| "ssh2 lock poisoned")?;
+    let mut ch = guard.sess.channel_session().map_err(|e| e.to_string())?;
+    let command = format!("raspi-gpio set {} {}", gpio, normalized);
+    ch.exec(&command).map_err(|e| e.to_string())?;
+    use std::io::Read;
+    let mut buf = String::new();
+    let _ = ch.read_to_string(&mut buf);
+    let _ = ch.wait_close();
+    let status = ch.exit_status().unwrap_or(0);
+    (status, buf)
+  };
+
+  if status != 0 {
+    return Err(format!(
+      "raspi-gpio set devolvió código {}: {}",
+      status,
+      output.trim()
+    ));
+  }
+
+  Ok(())
+}
+
+#[tauri::command]
 pub async fn ssh_connect_stored(
   app: AppHandle,
   state: tauri::State<'_, AppState>,
