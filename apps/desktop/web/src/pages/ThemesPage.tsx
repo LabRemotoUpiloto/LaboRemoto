@@ -57,6 +57,9 @@ export default function ThemesPage(){
   return (
     <div className="page-content themes-page">
       <h2 className="page-title">Temas</h2>
+      <p className="page-description">
+        Personaliza la apariencia de la aplicación con una amplia variedad de temas oscuros, claros y coloridos.
+      </p>
       <div className="themes-grid" role="radiogroup" aria-label="Selector de tema" ref={gridRef}>
     {THEMES.map((t, i) => (
           <div
