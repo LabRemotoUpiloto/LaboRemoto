@@ -1,0 +1,111 @@
+/* Estilos para el header de hosts rápidos - pegado al header principal */
+.quick-host-header {
+  width: 100%;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 24px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.quick-host-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.quick-hosts-scroller {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  padding-bottom: 2px;
+}
+
+.quick-host-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 12px;
+  background: var(--interactive-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  min-width: 120px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.quick-host-pill:hover {
+  background: var(--interactive-hover);
+  border-color: var(--border-color);
+}
+
+.quick-host-pill.selected {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--background-primary);
+}
+
+.quick-host-pill.selected:hover {
+  background: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+}
+
+.qh-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: inherit;
+  margin-bottom: 1px;
+  line-height: 1.2;
+}
+
+.qh-addr {
+  font-size: 11px;
+  color: inherit;
+  opacity: 0.8;
+  font-family: var(--terminal-font-family, monospace);
+  line-height: 1.1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .quick-host-header {
+    padding: 10px 16px;
+    gap: 12px;
+  }
+  
+  .quick-host-header h2 {
+    font-size: 13px;
+  }
+  
+  .quick-hosts-scroller {
+    gap: 6px;
+  }
+  
+  .quick-host-pill {
+    min-width: 100px;
+    padding: 6px 10px;
+  }
+  
+  .qh-name {
+    font-size: 12px;
+  }
+  
+  .qh-addr {
+    font-size: 10px;
+  }
+}

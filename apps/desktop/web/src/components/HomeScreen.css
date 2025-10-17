@@ -1,5 +1,5 @@
-.home-screen { display:flex; flex-direction:column; align-items:center; height:100%; padding:32px 28px 48px; overflow:auto; gap:32px; }
-.connect-layout { flex-direction:row; align-items:center; justify-content:center; gap:32px; margin:0 auto; min-height:calc(100vh - 160px); }
+.home-screen { display:flex; flex-direction:column; height:100%; overflow:auto; }
+.connect-layout { display:flex; flex-direction:column; height:100%; }
 
 /* Top sub-header bar with quick hosts */
 /* Right panel quick hosts */
@@ -44,6 +44,7 @@
   flex-direction: column;
   gap: 20px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.30);
+  margin: 32px auto 48px;
 }
 
 .connect-box-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:-4px 0 4px; }

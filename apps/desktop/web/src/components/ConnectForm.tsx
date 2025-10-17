@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { saveHostEncrypted, saveHostWithMaster } from '../api/storage'
+import { saveHostWithMaster } from '../api/storage'
 import './HomeScreen.css'
 import { useLoading } from '../contexts/LoadingContext'
 import { useToasts } from '../contexts/ToastContext'
+import { QuickHost } from './QuickHostsPanel'
 
 type Props = {
   onConnected: (info: { id: string; label?: string }) => void
   getTermSize?: () => { cols: number; rows: number }  // optional
   initialPayload?: any | null
+  quickHost?: QuickHost | null
+  onQuickHostCleared?: () => void
 }
 
-export default function ConnectForm({ onConnected, getTermSize, initialPayload }: Props) {
+export default function ConnectForm({ onConnected, getTermSize, initialPayload, quickHost, onQuickHostCleared }: Props) {
   const [host, setHost] = useState('')
   // Port como string para permitir borrar completamente y evitar spinners
   const [port, setPort] = useState<string>('22')
@@ -22,6 +25,14 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
   const [showSaveName, setShowSaveName] = useState(false)
   const [saveName, setSaveName] = useState('')
   const { push } = useToasts()
+
+  useEffect(() => {
+    if (!quickHost) return
+    setHost(quickHost.host)
+    setPort(String(quickHost.port))
+    setUser('')
+    setPassword('')
+  }, [quickHost])
 
   useEffect(() => {
     if (initialPayload) {
@@ -90,41 +101,40 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
     }
   }
 
-  const selectDefaultHost = (h: { host: string; port: number }) => {
-    setHost(h.host)
-    setPort(String(h.port))
-  }
+  const selectedQuickHostId = quickHost?.id ?? null
 
-  const defaultHosts = [
-    { id: 'pi4', name: 'pi4', host: '200.115.181.211', port: 9000 }
-  ]
-
-  const [selectedHostId, setSelectedHostId] = useState<string | null>(null)
+  const clearQuickHostIfNeeded = useCallback(() => {
+    if (selectedQuickHostId) onQuickHostCleared?.()
+  }, [selectedQuickHostId, onQuickHostCleared])
 
   return (
     <div className="home-screen connect-layout">
       <div className="connect-box" onKeyDown={onKeyDown}>
         <header className="connect-box-head">
           <h1>Conectar</h1>
-          {selectedHostId && <span className="active-host-indicator">{selectedHostId}</span>}
+          {selectedQuickHostId && (
+            <span className="active-host-indicator">
+              {quickHost?.name ?? quickHost?.host ?? selectedQuickHostId}
+            </span>
+          )}
         </header>
           <div className="form-grid compact full-rows">
           {/* Host + Port Row */}
           <div className="field floating host">
-            <input id="field-host" placeholder=" " value={host} onChange={e => { if (selectedHostId) setSelectedHostId(null); setHost(e.target.value) }} />
+            <input id="field-host" placeholder=" " value={host} onChange={e => { clearQuickHostIfNeeded(); setHost(e.target.value) }} />
             <label htmlFor="field-host">Host</label>
           </div>
           <div className="field floating port">
-            <input id="field-port" placeholder=" " type="text" inputMode="numeric" pattern="[0-9]*" value={port} onChange={e => { if (selectedHostId) setSelectedHostId(null); setPort(e.target.value) }} onWheel={(e) => { try { (e.target as HTMLInputElement).blur() } catch {} }} autoComplete="off" />
+            <input id="field-port" placeholder=" " type="text" inputMode="numeric" pattern="[0-9]*" value={port} onChange={e => { clearQuickHostIfNeeded(); setPort(e.target.value) }} onWheel={(e) => { try { (e.target as HTMLInputElement).blur() } catch {} }} autoComplete="off" />
             <label htmlFor="field-port">Puerto</label>
           </div>
           {/* User + Password Row */}
           <div className="field floating user full">
-            <input id="field-user" placeholder=" " value={user} onChange={e => { if (selectedHostId) setSelectedHostId(null); setUser(e.target.value) }} />
+            <input id="field-user" placeholder=" " value={user} onChange={e => { clearQuickHostIfNeeded(); setUser(e.target.value) }} />
             <label htmlFor="field-user">Usuario</label>
           </div>
           <div className="field floating pass full">
-            <input id="field-pass" placeholder=" " type="password" value={password} onChange={e => { if (selectedHostId) setSelectedHostId(null); setPassword(e.target.value) }} />
+            <input id="field-pass" placeholder=" " type="password" value={password} onChange={e => { clearQuickHostIfNeeded(); setPassword(e.target.value) }} />
             <label htmlFor="field-pass">Password</label>
           </div>
           </div>
@@ -152,24 +162,6 @@ export default function ConnectForm({ onConnected, getTermSize, initialPayload }
           </div>
         )}
       </div>
-      <aside className="quick-host-panel" aria-label="Hosts rápidos">
-        <h2>Hosts rápidos</h2>
-        <div className="quick-hosts-scroller">
-          {defaultHosts.map(h => (
-            <button
-              key={h.id}
-              type="button"
-              className={`quick-host-pill ${selectedHostId===h.id ? 'selected':''}`}
-              onClick={() => { selectDefaultHost(h); setSelectedHostId(h.id) }}
-              aria-pressed={selectedHostId===h.id}
-              title={`Rellenar host ${h.name}`}
-            >
-              <span className="qh-name">{h.name}</span>
-              <span className="qh-addr">{h.host}:{h.port}</span>
-            </button>
-          ))}
-        </div>
-      </aside>
     </div>
   )
 }
