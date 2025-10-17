@@ -8,6 +8,7 @@ import TerminalView from './components/TerminalView'
 import TerminalOnly from './components/TerminalOnly'
 import ConnectForm from './components/ConnectForm'
 import SavedHostsPage from './pages/SavedHostsPage'
+import ConnectFormPage from './pages/ConnectFormPage'
 import { connectFromHost } from './api/storage'
 import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/GlobalLoader'
@@ -278,7 +279,7 @@ const App: React.FC = () => {
             {/* Contenedor Home persistente */}
             <div style={{display: activeTab.type==='home' ? 'block' : 'none', height:'100%'}}>
               {selectedPage === 'connect' ? (
-                <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
+                <ConnectFormPage onConnected={handleNewSession} initialPayload={pendingHost} />
               ) : selectedPage === 'hosts' ? (
                 <SavedHostsPage onConnect={async (h,p,u,pass) => {
                   try {
@@ -307,7 +308,7 @@ const App: React.FC = () => {
               ) : selectedPage === 'snippets' ? (
                 <SnippetsPage />
               ) : (
-                <ConnectForm onConnected={handleNewSession} initialPayload={pendingHost} />
+                <ConnectFormPage onConnected={handleNewSession} initialPayload={pendingHost} />
               )}
             </div>
             {/* Sesiones SSH persistentes */}

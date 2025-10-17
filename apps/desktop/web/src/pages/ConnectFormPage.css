@@ -1,0 +1,86 @@
+/* Página dedicada para el formulario de conexión SSH */
+.connect-form-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--background-primary);
+  color: var(--text-primary);
+}
+
+.connect-form-page__header {
+  padding: 32px 32px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--background-secondary);
+  text-align: center;
+}
+
+.connect-form-page__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.connect-form-page__icon {
+  font-size: 32px;
+}
+
+.connect-form-page__subtitle {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.connect-form-page__content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 32px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .connect-form-page__header {
+    padding: 24px 20px 20px;
+  }
+  
+  .connect-form-page__title {
+    font-size: 24px;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .connect-form-page__icon {
+    font-size: 28px;
+  }
+  
+  .connect-form-page__subtitle {
+    font-size: 14px;
+  }
+  
+  .connect-form-page__content {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .connect-form-page__header {
+    padding: 20px 16px 16px;
+  }
+  
+  .connect-form-page__title {
+    font-size: 20px;
+  }
+  
+  .connect-form-page__content {
+    padding: 16px;
+  }
+}
