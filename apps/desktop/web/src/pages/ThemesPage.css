@@ -1,118 +1,453 @@
-.themes-page{padding:28px}
-.page-title{color:var(--text-primary);margin:8px 0 18px;font-size:18px}
-
-.themes-grid{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;max-height:calc(100vh - 170px);/* was 220px */overflow:auto;padding:16px 16px 64px 16px;scroll-padding:16px;scrollbar-gutter: stable both-edges}
-.theme-card{width:160px;flex:0 0 160px;border-radius:12px;padding:14px;background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.03));cursor:pointer;box-shadow:0 8px 22px rgba(2,6,23,0.28);position:relative;border:1px solid var(--border);transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; scroll-margin: 20px}
-.theme-card:not(.active):hover{
-	transform: translateY(-4px) scale(1.01);
-	/* single pulse that ends with a visible 2px ring until hover ends */
-	animation: themeHoverPulse 650ms ease-out forwards;
-}
-.theme-card:focus-visible{ outline:none; box-shadow:0 0 0 3px var(--ring), 0 8px 24px rgba(0,0,0,.45) }
-.theme-card.active{ box-shadow:0 0 0 2px var(--accent-primary), 0 10px 30px rgba(0,0,0,.35); border-color: color-mix(in oklab, var(--accent-primary) 30%, var(--border)); transform: translateY(-2px) }
-/* removed duplicate selected-badge; see enhanced version below */
-
-/* stronger active border for rainbow themes */
-/* keep special rainbow preview borders without overriding global active shadow */
-.theme-card.active .preview.bold-rainbow { outline: 3px solid transparent; border-radius:6px; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.02); }
-.theme-card.active.bold-rainbow-border .preview.bold-rainbow {
-	outline: 3px solid transparent;
-	border-radius: 6px;
-	box-shadow: 0 0 0 3px rgba(255,255,255,0.02), 0 6px 18px rgba(0,0,0,0.45);
-	background-image: linear-gradient(90deg,#ff3b7a,#ff8b3b,#ffe33b,#4bff7a,#39d6ff,#6b7bff,#c86bff);
-	background-size: 200% 100%;
-}
-.theme-card .preview{height:90px;border-radius:8px;margin-bottom:8px;background:linear-gradient(180deg, var(--background-secondary), var(--background-tertiary)); position:relative; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02) }
-/* selected badge removed as selection is conveyed by active ring */
-.theme-card .preview.default{background:linear-gradient(180deg,#0B1220,#131B2D)}
-.theme-card .preview.dracula{background:linear-gradient(180deg,#282a36,#1e1f2b)}
-.theme-card .preview.light{background:linear-gradient(180deg,#f6f7fb,#eef2f7)}
-.theme-card .preview.midnight-muse{background:linear-gradient(180deg,#071022,#0f1a2a)}
-.theme-card .preview.obsidian-rose{background:linear-gradient(180deg,#0a0608,#141012)}
-.theme-card .preview.mist-harbor{background:linear-gradient(180deg,#f3f8fa,#e9eff3)}
-.theme-card .preview.paper-sand{background:linear-gradient(180deg,#fbf6f1,#f2ebe3)}
-.theme-card .preview.aurora-coral{background:linear-gradient(180deg,#061025,#0f1724)}
-.theme-card .preview.verdant-neon{background:linear-gradient(180deg,#03120a,#062016)}
-.theme-card .preview.sunset-blush{background:linear-gradient(180deg,#1b0a0f,#2a0f14)}
-.theme-card .preview.emerald-dusk{background:linear-gradient(180deg,#07120e,#113024)}
-.theme-card .preview.moody-purple{background:linear-gradient(180deg,#0d0b12,#221c2f)}
-.theme-card .preview.oceanic-teal{background:linear-gradient(180deg,#021922,#0b3f45)}
-.theme-card .preview.ruby-night{background:linear-gradient(180deg,#16080a,#3d1416)}
-.theme-card .preview.forest-moss{background:linear-gradient(180deg,#07120b,#133017)}
-.theme-card .preview.sunburst-rainbow{background:linear-gradient(90deg,#ff4b6b,#ff8b3b,#ffe33b,#4bff7a,#39d6ff,#6b7bff)}
-.theme-card .preview.lime-electric{background:linear-gradient(180deg,#08120a,#12321f)}
-.theme-card .preview.berry-soda{background:linear-gradient(180deg,#08121a,#17283b)}
-
-/* Previews for newly restored themes */
-.theme-card .preview.polar-mint{background:linear-gradient(180deg,#fbffff,#f3fbfa)}
-.theme-card .preview.midday-azure{background:linear-gradient(180deg,#f7fbff,#eef7ff)}
-.theme-card .preview.sakura-blush{background:linear-gradient(180deg,#fff7f9,#fff0f4)}
-.theme-card .preview.glass-water{background:linear-gradient(180deg,#061015,#0b1b24)}
-.theme-card .preview.metro-gray{background:linear-gradient(180deg,#0f1316,#15181b)}
-.theme-card .preview.cosmic-latte{background:linear-gradient(180deg,#fffaf2,#fff4e6)}
-.theme-card .preview.ember-dawn{background:linear-gradient(180deg,#0b0807,#14100f)}
-.theme-card .preview.nebula-ink{background:linear-gradient(180deg,#05030a,#0a0713)}
-.theme-card .preview.sepia-paper{background:linear-gradient(180deg,#fbf5ef,#f3e9de)}
-.theme-card .preview.granite-fog{background:linear-gradient(180deg,#a5abb4,#9da5af)}
-
-/* apply button removed */
-
-/* Add small swatches row to better show rainbow palettes */
-.theme-card .swatches { display:flex; gap:6px; margin-top:6px }
-.theme-card .swatches .sw { width:18px; height:12px; border-radius:3px; box-shadow: 0 1px 2px rgba(0,0,0,0.15) }
-.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(1){ background:#ff4b6b }
-.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(2){ background:#ff8b3b }
-.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(3){ background:#ffe33b }
-.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(4){ background:#4bff7a }
-.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(5){ background:#39d6ff }
-
-.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(1){ background:#ff3b7a }
-.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(2){ background:#ff8b3b }
-.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(3){ background:#ffe33b }
-.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(4){ background:#4bff7a }
-.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(5){ background:#39d6ff }
-.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(6){ background:#6b7bff }
-.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(7){ background:#c86bff }
-.theme-card .preview.citrus-pop{background:linear-gradient(180deg,#0a1210,#18302a)}
-.theme-card .preview.violet-ember{background:linear-gradient(180deg,#0b0610,#1d0f23)}
-.theme-card .preview.bold-rainbow{background:linear-gradient(90deg,#ff3b7a,#ff8b3b,#ffe33b,#4bff7a,#39d6ff,#6b7bff,#c86bff)}
-.theme-card .preview.sunburst-rainbow, .theme-card .preview.bold-rainbow{
-	background-size: 300% 100%;
-	animation: rainbowShift 8s linear infinite;
+/* ==================== LAYOUT PRINCIPAL ==================== */
+.themes-page {
+  padding: 32px 40px;
+  max-width: 1600px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--background-primary);
 }
 
-.theme-card:hover { transform: translateY(-4px) scale(1.01) }
-.theme-card .preview:hover{ filter: saturate(1.06) brightness(1.02) }
+.page-title {
+  color: var(--text-primary);
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  position: relative;
+  padding-bottom: 16px;
+}
 
-/* Subtle hover pulse (only for non-selected cards) */
-@keyframes themeHoverPulse {
-	0%   { box-shadow: 0 8px 22px rgba(2,6,23,0.28), 0 0 0 0 color-mix(in oklab, var(--accent-primary) 0%, transparent) }
-	50%  { box-shadow: 0 8px 24px rgba(2,6,23,0.34), 0 0 0 6px color-mix(in oklab, var(--accent-primary) 38%, transparent) }
-	100% { box-shadow: 0 8px 24px rgba(2,6,23,0.34), 0 0 0 2px color-mix(in oklab, var(--accent-primary) 45%, var(--border)) }
+.page-title::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%);
+  border-radius: 2px;
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+/* ==================== GRID DE TEMAS ==================== */
+.themes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+  padding: 16px 16px 40px 16px;
+  animation: fadeIn 0.4s ease-out;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* ==================== CARD DE TEMA ==================== */
+.theme-card {
+  border-radius: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg,
+    var(--background-secondary) 0%,
+    color-mix(in srgb, var(--background-secondary) 95%, var(--background-tertiary)) 100%);
+  cursor: pointer;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+  position: relative;
+  border: 2px solid var(--border-subtle);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  animation: slideInUp 0.4s ease-out backwards;
+}
+
+/* Animación de entrada escalonada */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.theme-card:nth-child(1) { animation-delay: 0.02s; }
+.theme-card:nth-child(2) { animation-delay: 0.04s; }
+.theme-card:nth-child(3) { animation-delay: 0.06s; }
+.theme-card:nth-child(4) { animation-delay: 0.08s; }
+.theme-card:nth-child(5) { animation-delay: 0.1s; }
+.theme-card:nth-child(6) { animation-delay: 0.12s; }
+.theme-card:nth-child(7) { animation-delay: 0.14s; }
+.theme-card:nth-child(8) { animation-delay: 0.16s; }
+.theme-card:nth-child(9) { animation-delay: 0.18s; }
+.theme-card:nth-child(10) { animation-delay: 0.2s; }
+
+/* Efecto de brillo sutil */
+.theme-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right,
+    color-mix(in srgb, var(--accent-primary) 8%, transparent) 0%,
+    transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+/* Hover state */
+.theme-card:not(.active):hover {
+  transform: translateY(-6px) scale(1.03);
+  border-color: var(--border-color);
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.2),
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.theme-card:not(.active):hover::before {
+  opacity: 0.4;
+}
+
+/* Focus state */
+.theme-card:focus-visible {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 
+    0 0 0 3px color-mix(in srgb, var(--accent-primary) 30%, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+}
+
+/* Active/Selected state */
+.theme-card.active {
+  border-color: var(--accent-primary);
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--background-secondary) 90%, var(--accent-primary) 10%) 0%,
+    var(--background-secondary) 100%);
+  box-shadow: 
+    0 0 0 3px color-mix(in srgb, var(--accent-primary) 25%, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.2),
+    0 4px 12px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  transform: translateY(-4px) scale(1.02);
+}
+
+.theme-card.active::before {
+  opacity: 0.3;
+}
+
+/* Checkmark para tema activo */
+.theme-card.active::after {
+  content: "✓";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  background: var(--accent-primary);
+  color: var(--background-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 16px;
+  box-shadow: 
+    0 2px 8px color-mix(in srgb, var(--accent-primary) 40%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  z-index: 2;
+  animation: checkmarkPop 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes checkmarkPop {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+/* ==================== PREVIEW DEL TEMA ==================== */
+.theme-card .preview {
+  height: 120px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, var(--background-secondary), var(--background-tertiary));
+  position: relative;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+/* Efecto hover en preview */
+.theme-card:hover .preview {
+  transform: scale(1.02);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Overlay gradient para mejor profundidad */
+.theme-card .preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, 
+    transparent 0%, 
+    rgba(0, 0, 0, 0.1) 100%);
+  pointer-events: none;
+}
+/* ==================== PREVIEWS DE CADA TEMA ==================== */
+.theme-card .preview.default { background: linear-gradient(135deg, #0B1220 0%, #131B2D 100%); }
+.theme-card .preview.dracula { background: linear-gradient(135deg, #282a36 0%, #1e1f2b 100%); }
+.theme-card .preview.light { background: linear-gradient(135deg, #f6f7fb 0%, #eef2f7 100%); }
+.theme-card .preview.midnight-muse { background: linear-gradient(135deg, #071022 0%, #0f1a2a 100%); }
+.theme-card .preview.obsidian-rose { background: linear-gradient(135deg, #0a0608 0%, #141012 100%); }
+.theme-card .preview.mist-harbor { background: linear-gradient(135deg, #f3f8fa 0%, #e9eff3 100%); }
+.theme-card .preview.paper-sand { background: linear-gradient(135deg, #fbf6f1 0%, #f2ebe3 100%); }
+.theme-card .preview.aurora-coral { background: linear-gradient(135deg, #061025 0%, #0f1724 100%); }
+.theme-card .preview.verdant-neon { background: linear-gradient(135deg, #03120a 0%, #062016 100%); }
+.theme-card .preview.sunset-blush { background: linear-gradient(135deg, #1b0a0f 0%, #2a0f14 100%); }
+.theme-card .preview.emerald-dusk { background: linear-gradient(135deg, #07120e 0%, #113024 100%); }
+.theme-card .preview.moody-purple { background: linear-gradient(135deg, #0d0b12 0%, #221c2f 100%); }
+.theme-card .preview.oceanic-teal { background: linear-gradient(135deg, #021922 0%, #0b3f45 100%); }
+.theme-card .preview.ruby-night { background: linear-gradient(135deg, #16080a 0%, #3d1416 100%); }
+.theme-card .preview.forest-moss { background: linear-gradient(135deg, #07120b 0%, #133017 100%); }
+.theme-card .preview.sunburst-rainbow { background: linear-gradient(90deg, #ff4b6b, #ff8b3b, #ffe33b, #4bff7a, #39d6ff, #6b7bff); }
+.theme-card .preview.lime-electric { background: linear-gradient(135deg, #08120a 0%, #12321f 100%); }
+.theme-card .preview.berry-soda { background: linear-gradient(135deg, #08121a 0%, #17283b 100%); }
+
+/* Previews adicionales */
+.theme-card .preview.polar-mint { background: linear-gradient(135deg, #fbffff 0%, #f3fbfa 100%); }
+.theme-card .preview.midday-azure { background: linear-gradient(135deg, #f7fbff 0%, #eef7ff 100%); }
+.theme-card .preview.sakura-blush { background: linear-gradient(135deg, #fff7f9 0%, #fff0f4 100%); }
+.theme-card .preview.glass-water { background: linear-gradient(135deg, #061015 0%, #0b1b24 100%); }
+.theme-card .preview.metro-gray { background: linear-gradient(135deg, #0f1316 0%, #15181b 100%); }
+.theme-card .preview.cosmic-latte { background: linear-gradient(135deg, #fffaf2 0%, #fff4e6 100%); }
+.theme-card .preview.ember-dawn { background: linear-gradient(135deg, #0b0807 0%, #14100f 100%); }
+.theme-card .preview.nebula-ink { background: linear-gradient(135deg, #05030a 0%, #0a0713 100%); }
+.theme-card .preview.sepia-paper { background: linear-gradient(135deg, #fbf5ef 0%, #f3e9de 100%); }
+.theme-card .preview.granite-fog { background: linear-gradient(135deg, #a5abb4 0%, #9da5af 100%); }
+.theme-card .preview.citrus-pop { background: linear-gradient(135deg, #0a1210 0%, #18302a 100%); }
+.theme-card .preview.violet-ember { background: linear-gradient(135deg, #0b0610 0%, #1d0f23 100%); }
+.theme-card .preview.bold-rainbow { background: linear-gradient(90deg, #ff3b7a, #ff8b3b, #ffe33b, #4bff7a, #39d6ff, #6b7bff, #c86bff); }
+
+/* ==================== SWATCHES (PALETAS DE COLOR) ==================== */
+.theme-card .swatches {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.theme-card .swatches .sw {
+  flex: 1;
+  height: 16px;
+  border-radius: 4px;
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.theme-card:hover .swatches .sw {
+  transform: translateY(-2px);
+}
+
+/* Colores para Sunburst Rainbow */
+.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(1) { background: #ff4b6b; }
+.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(2) { background: #ff8b3b; }
+.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(3) { background: #ffe33b; }
+.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(4) { background: #4bff7a; }
+.theme-card .preview.sunburst-rainbow + .swatches .sw:nth-child(5) { background: #39d6ff; }
+
+/* Colores para Bold Rainbow */
+.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(1) { background: #ff3b7a; }
+.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(2) { background: #ff8b3b; }
+.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(3) { background: #ffe33b; }
+.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(4) { background: #4bff7a; }
+.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(5) { background: #39d6ff; }
+.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(6) { background: #6b7bff; }
+.theme-card .preview.bold-rainbow + .swatches .sw:nth-child(7) { background: #c86bff; }
+
+/* Animación rainbow */
+.theme-card .preview.sunburst-rainbow,
+.theme-card .preview.bold-rainbow {
+  background-size: 300% 100%;
+  animation: rainbowShift 12s linear infinite;
 }
 
 @keyframes rainbowShift {
-	0% { background-position: 0% 50% }
-	50% { background-position: 100% 50% }
-	100% { background-position: 0% 50% }
-}
-.theme-card .meta{font-weight:700;color:var(--text-primary)}
-
-/* Respeta reduced motion */
-@media (prefers-reduced-motion: reduce){
-	.theme-card:hover{ transform:none }
-	.theme-card .preview.sunburst-rainbow, .theme-card .preview.bold-rainbow{ animation:none }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-/* Responsive adjustments */
+/* Hover effects mejorados */
+.theme-card .preview:hover {
+  filter: saturate(1.08) brightness(1.04);
+}
+
+/* ==================== META INFO (NOMBRE) ==================== */
+.theme-card .meta {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  letter-spacing: -0.1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+/* Badge de categoría */
+.theme-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+}
+
+.theme-badge.dark {
+  background: color-mix(in srgb, #6366F1 15%, transparent);
+  color: #A5B4FC;
+  border: 1px solid color-mix(in srgb, #6366F1 25%, transparent);
+}
+
+.theme-badge.light {
+  background: color-mix(in srgb, #F59E0B 15%, transparent);
+  color: #FCD34D;
+  border: 1px solid color-mix(in srgb, #F59E0B 25%, transparent);
+}
+
+.theme-badge.colorful {
+  background: linear-gradient(90deg, 
+    color-mix(in srgb, #EC4899 15%, transparent),
+    color-mix(in srgb, #8B5CF6 15%, transparent));
+  color: #F0ABFC;
+  border: 1px solid color-mix(in srgb, #EC4899 25%, transparent);
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+@media (max-width: 1200px) {
+  .themes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 18px;
+    max-height: calc(100vh - 190px);
+  }
+}
+
 @media (max-width: 900px) {
-	.theme-card { flex: 1 1 calc(50% - 16px); width: auto; }
+  .themes-page {
+    padding: 28px 24px;
+  }
+
+  .page-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  .themes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    max-height: calc(100vh - 180px);
+  }
+
+  .theme-card .preview {
+    height: 100px;
+  }
 }
 
-@media (max-width: 520px) {
-	.themes-grid { gap:12px }
-	.theme-card { flex: 1 1 100%; max-width: none; padding: 16px }
-	.theme-card .preview { min-height:84px }
+@media (max-width: 640px) {
+  .themes-page {
+    padding: 24px 20px;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+
+  .themes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+    max-height: calc(100vh - 160px);
+  }
+
+  .theme-card {
+    padding: 14px;
+  }
+
+  .theme-card .preview {
+    height: 90px;
+  }
+
+  .theme-card .meta {
+    font-size: 13px;
+  }
+
+  .theme-card.active::after {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .themes-page {
+    padding: 20px 16px;
+  }
+
+  .themes-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    max-height: calc(100vh - 140px);
+    padding: 12px;
+  }
+
+  .theme-card {
+    padding: 12px;
+  }
+
+  .theme-card .preview {
+    height: 80px;
+  }
+
+  .swatches .sw {
+    height: 14px;
+  }
 }
 
 /* === Scrollbar styling for themes grid ============================= */
@@ -150,3 +485,43 @@
 
 /* Light theme scrollbar contrast tweak */
 :root[data-theme="light"] .themes-grid{ scrollbar-color: var(--accent-primary) rgba(0,0,0,0.04) }
+
+/* ==================== ACCESIBILIDAD ==================== */
+@media (prefers-reduced-motion: reduce) {
+  .theme-card,
+  .theme-card .preview,
+  .swatches .sw,
+  .theme-card.active::after {
+    animation: none !important;
+    transition: none;
+  }
+
+  .theme-card:hover,
+  .theme-card.active {
+    transform: none;
+  }
+
+  .theme-card .preview.sunburst-rainbow,
+  .theme-card .preview.bold-rainbow {
+    animation: none;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .theme-card {
+    border-width: 3px;
+  }
+
+  .theme-card.active {
+    border-width: 3px;
+  }
+
+  .theme-card .preview {
+    border-width: 2px;
+  }
+}
+
+/* Focus mejorado para navegación por teclado */
+.theme-card:focus-visible {
+  z-index: 20;
+}
