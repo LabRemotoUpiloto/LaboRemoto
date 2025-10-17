@@ -32,58 +32,119 @@ export default function SavedHostsPage({ onConnect }: { onConnect?: (host: strin
 
   return (
     <div className="page-content saved-hosts-page">
-      <h2 className="page-title">Hosts</h2>
+      <h2 className="page-title">Hosts Guardados</h2>
       <div className="hosts-grid">
         {entries.map((it) => (
-            <article key={it.file} className="host-card" onClick={async () => {
-            if (loadingLocal) return
-            try {
-              setLoading(true, `Conectando ${it.payload.host}...`)
-              setLoadingLocal(true)
-              if (onConnect) {
-                await onConnect(it.payload.host, it.payload.port, it.payload.user, it.payload.password)
+          <article 
+            key={it.file} 
+            className="host-card"
+            role="button"
+            tabIndex={0}
+            aria-label={`Conectar a ${it.payload.host}`}
+            onClick={async () => {
+              if (loadingLocal) return
+              try {
+                setLoading(true, `Conectando ${it.payload.host}...`)
+                setLoadingLocal(true)
+                if (onConnect) {
+                  await onConnect(it.payload.host, it.payload.port, it.payload.user, it.payload.password)
+                }
+              } catch (e: any) {
+                alert('Error: ' + (e?.toString?.() ?? ''))
+              } finally {
+                setLoading(false, null)
+                setLoadingLocal(false)
               }
-            } catch (e:any) {
-              alert('Error: ' + (e?.toString?.() ?? ''))
-            } finally {
-              setLoading(false, null)
-              setLoadingLocal(false)
-            }
-          }}>
-            <div className="host-card-left">
-              <div className="host-avatar">🖥️</div>
-            </div>
-            <div className="host-card-body">
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                e.currentTarget.click()
+              }
+            }}
+          >
+            <div className="host-card-header">
+              <div className="host-card-left">
+                <div className="host-avatar" aria-hidden="true">🖥️</div>
+              </div>
+              <div className="host-card-body">
                 {it.payload?.name && <span className="host-badge">{it.payload.name}</span>}
                 <div className="host-title">{it.payload?.host}</div>
+                <div className="host-sub">ssh, {it.payload?.user}@{it.payload?.port}</div>
               </div>
-              <div className="host-sub">ssh, {it.payload?.user}@{it.payload?.port}</div>
             </div>
             <div className="host-card-actions">
-              <button className="btn btn-connect" disabled={loadingLocal} onClick={async (e) => { e.stopPropagation(); if (loadingLocal) return; try { setLoading(true, `Conectando ${it.payload.host}...`); setLoadingLocal(true); if (onConnect) await onConnect(it.payload.host, it.payload.port, it.payload.user, it.payload.password) } catch(err:any){ alert('Error: '+err?.toString?.()) } finally { setLoading(false, null); setLoadingLocal(false) } }}>Conectar</button>
-              <button className="btn btn-delete" disabled={loadingLocal} onClick={(e) => { e.stopPropagation(); if (loadingLocal) return; setToDeleteFile(it.file); setConfirmOpen(true) }}>Eliminar</button>
+              <button 
+                className="btn btn-connect" 
+                disabled={loadingLocal}
+                aria-label={`Conectar a ${it.payload.host}`}
+                onClick={async (e) => { 
+                  e.stopPropagation()
+                  if (loadingLocal) return
+                  try { 
+                    setLoading(true, `Conectando ${it.payload.host}...`)
+                    setLoadingLocal(true)
+                    if (onConnect) await onConnect(it.payload.host, it.payload.port, it.payload.user, it.payload.password)
+                  } catch (err: any) { 
+                    alert('Error: ' + err?.toString?.())
+                  } finally { 
+                    setLoading(false, null)
+                    setLoadingLocal(false)
+                  }
+                }}
+              >
+                Conectar
+              </button>
+              <button 
+                className="btn btn-delete" 
+                disabled={loadingLocal}
+                aria-label={`Eliminar host ${it.payload.host}`}
+                onClick={(e) => { 
+                  e.stopPropagation()
+                  if (loadingLocal) return
+                  setToDeleteFile(it.file)
+                  setConfirmOpen(true)
+                }}
+              >
+                Eliminar
+              </button>
             </div>
           </article>
         ))}
-        {entries.length===0 && <div className="empty">No hay hosts guardados. Añade uno desde "Connect".</div>}
+        {entries.length === 0 && (
+          <div className="empty" role="status">
+            <div className="empty-title">No hay hosts guardados</div>
+            <div className="empty-message">
+              Comienza agregando tu primer servidor SSH para acceder rápidamente.
+            </div>
+          </div>
+        )}
       </div>
-      <ConfirmModal open={confirmOpen} title="Eliminar host" message="¿Eliminar este host guardado?" onCancel={() => { setConfirmOpen(false); setToDeleteFile(null) }} onConfirm={async () => {
-        if (!toDeleteFile) return setConfirmOpen(false)
-        setConfirmOpen(false)
-        setLoading(true, 'Eliminando...')
-        try {
-          await deleteHostFile(toDeleteFile)
-          setEntries(prev => prev.filter(e2 => e2.file !== toDeleteFile))
-          push({ type: 'success', message: 'Host eliminado' })
-        } catch (err:any) {
-          console.error('deleteHostFile', err)
-          push({ type: 'error', message: 'Error eliminando host' })
-        } finally {
-          setLoading(false, null)
+      <ConfirmModal 
+        open={confirmOpen} 
+        title="Eliminar host" 
+        message="¿Estás seguro de que deseas eliminar este host guardado?" 
+        onCancel={() => { 
+          setConfirmOpen(false)
           setToDeleteFile(null)
-        }
-      }} />
+        }} 
+        onConfirm={async () => {
+          if (!toDeleteFile) return setConfirmOpen(false)
+          setConfirmOpen(false)
+          setLoading(true, 'Eliminando...')
+          try {
+            await deleteHostFile(toDeleteFile)
+            setEntries(prev => prev.filter(e2 => e2.file !== toDeleteFile))
+            push({ type: 'success', message: 'Host eliminado correctamente' })
+          } catch (err: any) {
+            console.error('deleteHostFile', err)
+            push({ type: 'error', message: 'Error al eliminar el host' })
+          } finally {
+            setLoading(false, null)
+            setToDeleteFile(null)
+          }
+        }} 
+      />
     </div>
   )
 }

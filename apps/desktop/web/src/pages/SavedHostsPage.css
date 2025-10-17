@@ -1,24 +1,559 @@
-.saved-hosts-page { padding: 28px; }
-.page-title { color: var(--text-primary); margin: 8px 0 18px; font-size: 18px }
-.hosts-grid { display:flex; flex-direction:column; gap:12px; }
- .host-card { display:flex; align-items:center; gap:16px; background: var(--background-secondary); padding: 14px 16px; border-radius: 16px; box-shadow: 0 6px 18px rgba(2,6,23,0.12); cursor: pointer; border:1px solid var(--border-color); transition: background-color 160ms ease, border-color 160ms ease }
- .host-card:hover { background: var(--background-tertiary); border-color: #334155 }
-.host-card-left { width:56px; display:flex; align-items:center; justify-content:center; }
- .host-avatar { width:44px; height:44px; border-radius:10px; background: var(--background-tertiary); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--text-primary) }
-.host-card-body { flex:1; }
- .host-badge { display:inline-flex; align-items:center; gap:8px; background: rgba(22,163,74,0.12); color: #16A34A; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:700; margin-right:8px; border: 1px solid rgba(22,163,74,0.22); box-shadow: var(--accent-guard-inset); text-shadow: var(--accent-guard-shadow); }
- .host-badge::before{ content: '\25CF'; display:inline-block; width:10px;height:10px;border-radius:50%; background:var(--accent-primary); box-shadow:0 2px 6px rgba(0,0,0,0.18); }
-.host-title { font-weight:800; color:var(--text-primary); font-size:15px }
-.host-sub { color:var(--text-secondary); margin-top:6px; font-size:13px }
-.host-card-actions { display:flex; gap:8px }
-.btn { padding:8px 12px; border-radius:12px; border:1px solid transparent; cursor:pointer; transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease }
- .btn-connect { background: var(--accent-primary); color: var(--accent-contrast); box-shadow: var(--accent-guard-inset), 0 0 0 rgba(0,0,0,0); text-shadow: var(--accent-guard-shadow); }
- .btn-connect:hover { background: var(--accent-primary-hover) }
- .btn-delete { background: transparent; color: #EF4444; border:1px solid #EF4444; }
-	.btn-delete:hover { background: #EF4444; color: #ffffff; border-color: #EF4444 }
-.empty { color:var(--text-secondary); padding: 18px }
+/* ==================== LAYOUT PRINCIPAL ==================== */
+.saved-hosts-page { 
+  padding: 32px 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--background-primary);
+}
 
-/* loading overlay */
+.page-title { 
+  color: var(--text-primary);
+  margin: 0 0 32px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  position: relative;
+  padding-bottom: 16px;
+}
+
+.page-title::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%);
+  border-radius: 2px;
+}
+
+/* ==================== GRID DE HOSTS ==================== */
+.hosts-grid { 
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* ==================== CARD DE HOST ==================== */
+.host-card { 
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: linear-gradient(135deg, 
+    var(--background-secondary) 0%,
+    color-mix(in srgb, var(--background-secondary) 95%, var(--background-tertiary)) 100%);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  border: 1px solid var(--border-subtle);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  animation: slideInUp 0.4s ease-out backwards;
+}
+
+/* Animación de entrada escalonada */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.host-card:nth-child(1) { animation-delay: 0.05s; }
+.host-card:nth-child(2) { animation-delay: 0.1s; }
+.host-card:nth-child(3) { animation-delay: 0.15s; }
+.host-card:nth-child(4) { animation-delay: 0.2s; }
+.host-card:nth-child(5) { animation-delay: 0.25s; }
+.host-card:nth-child(6) { animation-delay: 0.3s; }
+
+/* Efecto de brillo sutil */
+.host-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right,
+    color-mix(in srgb, var(--accent-primary) 8%, transparent) 0%,
+    transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.host-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.host-card:hover { 
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--background-tertiary) 90%, var(--accent-primary) 10%) 0%,
+    var(--background-tertiary) 100%);
+  border-color: var(--border-color);
+  transform: translateY(-4px);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.16),
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.host-card:hover::before {
+  opacity: 0.4;
+}
+
+.host-card:hover::after {
+  transform: scaleX(1);
+}
+
+.host-card:active {
+  transform: translateY(-2px) scale(0.99);
+  transition-duration: 0.1s;
+}
+
+/* ==================== HEADER DE LA CARD ==================== */
+.host-card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+/* ==================== AVATAR Y LEFT SECTION ==================== */
+.host-card-left { 
+  flex-shrink: 0;
+}
+
+.host-avatar { 
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, 
+    var(--background-tertiary) 0%,
+    color-mix(in srgb, var(--background-tertiary) 90%, var(--accent-primary) 10%) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.host-card:hover .host-avatar {
+  transform: scale(1.05) rotate(2deg);
+  border-color: var(--border-color);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ==================== BODY DE LA CARD ==================== */
+.host-card-body { 
+  flex: 1;
+  min-width: 0; /* Para que funcione el text-overflow */
+}
+/* ==================== BADGE Y TÍTULO ==================== */
+.host-badge { 
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  box-shadow: var(--accent-guard-inset);
+  text-shadow: var(--accent-guard-shadow);
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.host-badge::before { 
+  content: '\25CF';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}
+
+.host-card:hover .host-badge {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.host-title { 
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 16px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.2px;
+}
+
+.host-sub { 
+  color: var(--text-secondary);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--terminal-font-family, 'SF Mono', monospace);
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.host-sub::before {
+  content: "●";
+  color: var(--accent-primary);
+  font-size: 8px;
+}
+/* ==================== ACCIONES Y BOTONES ==================== */
+.host-card-actions { 
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn { 
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Efecto ripple */
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(0);
+  border-radius: 50%;
+  transition: transform 0.5s ease;
+}
+
+.btn:active::before {
+  transform: scale(2);
+  transition: transform 0s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-connect { 
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
+  color: var(--background-primary);
+  font-weight: 700;
+  box-shadow: 
+    var(--accent-guard-inset), 
+    0 2px 8px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  text-shadow: var(--accent-guard-shadow);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 80%, transparent);
+}
+
+.btn-connect:hover:not(:disabled) { 
+  background: linear-gradient(135deg, var(--accent-primary-hover) 0%, var(--accent-primary) 100%);
+  transform: translateY(-2px);
+  box-shadow: 
+    var(--accent-guard-inset),
+    0 4px 16px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.btn-connect:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 
+    var(--accent-guard-inset),
+    0 1px 4px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.btn-delete { 
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
+  transition: all 0.2s ease;
+}
+
+.btn-delete:hover:not(:disabled) { 
+  background: var(--danger);
+  color: #ffffff;
+  border-color: var(--danger);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.btn-delete:active:not(:disabled) {
+  transform: translateY(0);
+}
+/* ==================== ESTADO VACÍO ==================== */
+.empty { 
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+  padding: 80px 40px;
+  text-align: center;
+  background: linear-gradient(135deg,
+    var(--background-secondary) 0%,
+    color-mix(in srgb, var(--background-secondary) 95%, var(--accent-primary) 5%) 100%);
+  border-radius: 16px;
+  border: 2px dashed var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.empty::before {
+  content: "🖥️";
+  display: block;
+  font-size: 72px;
+  margin-bottom: 20px;
+  opacity: 0.6;
+  animation: floatIcon 3s ease-in-out infinite;
+}
+
+@keyframes floatIcon {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.empty::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center,
+    color-mix(in srgb, var(--accent-primary) 5%, transparent) 0%,
+    transparent 70%);
+  pointer-events: none;
+}
+
+.empty-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.empty-message {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--accent-primary);
+  color: var(--background-primary);
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.empty-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+@media (max-width: 1024px) {
+  .hosts-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .saved-hosts-page {
+    padding: 24px 20px;
+  }
+
+  .page-title {
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
+
+  .hosts-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .host-card {
+    padding: 16px;
+  }
+
+  .host-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+  }
+
+  .host-title {
+    font-size: 15px;
+  }
+
+  .host-sub {
+    font-size: 12px;
+  }
+
+  .btn {
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+
+  .empty {
+    padding: 60px 24px;
+  }
+
+  .empty::before {
+    font-size: 56px;
+  }
+}
+
+@media (max-width: 480px) {
+  .saved-hosts-page {
+    padding: 20px 16px;
+  }
+
+  .page-title {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+
+  .host-card {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .host-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .host-card-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .empty {
+    padding: 40px 20px;
+  }
+}
+
+/* ==================== ACCESIBILIDAD ==================== */
+@media (prefers-reduced-motion: reduce) {
+  .host-card,
+  .btn,
+  .host-avatar,
+  .host-badge::before {
+    animation: none;
+    transition: none;
+  }
+
+  .host-card:hover,
+  .btn:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .host-card {
+    border-width: 2px;
+  }
+
+  .btn {
+    border-width: 2px;
+  }
+
+  .host-badge {
+    border-width: 2px;
+  }
+}
+
+/* Focus states mejorados */
+.btn:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.host-card:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 
+    0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent),
+    0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
 .loading-overlay {
 	position: absolute;
 	inset: 0;
