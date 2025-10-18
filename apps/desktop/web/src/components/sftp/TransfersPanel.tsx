@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatBytes } from '../fileFormatters';
+import { formatBytes } from '../shared/fileFormatters';
 import './TransfersPanel.css';
 import './TransfersPanel.css';
 

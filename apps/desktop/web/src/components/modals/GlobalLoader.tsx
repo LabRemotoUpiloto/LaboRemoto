@@ -1,5 +1,5 @@
 import React from 'react'
-import { useLoading } from '../contexts/LoadingContext'
+import { useLoading } from '../../contexts/LoadingContext'
 import './GlobalLoader.css'
 
 export default function GlobalLoader() {

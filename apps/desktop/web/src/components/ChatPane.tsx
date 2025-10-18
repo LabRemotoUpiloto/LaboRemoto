@@ -15,9 +15,9 @@ import { AnalisisModeHandler } from './chatModes/classes/AnalisisModeHandler';
 import AskRenderer from './chat/AskRenderer';
 import ToolResultRenderer from './chat/ToolResultRenderer';
 import AnalysisActionButtons from './chat/AnalysisActionButtons';
-import DiffView from './DiffView';
-import './DiffView.css';
-import './FileDisambiguation.css';
+import DiffView from './analysis/DiffView';
+import './analysis/DiffView.css';
+import './analysis/FileDisambiguation.css';
 // Utilidades
 import { cleanText, isNearBottom, norm } from './chat/chatUtils';
 
