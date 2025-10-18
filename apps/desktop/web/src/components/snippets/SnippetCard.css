@@ -171,24 +171,3 @@
   border-color: var(--danger);
   color: var(--danger);
 }
-
-/* Responsive */
-@media (max-width: 640px) {
-  .snippet-card {
-    padding: 12px;
-  }
-
-  .snippet-card__title {
-    font-size: 14px;
-  }
-
-  .snippet-card__body {
-    max-height: 180px;
-    font-size: 12px;
-  }
-
-  .snippet-card__btn {
-    font-size: 12px;
-    padding: 6px 10px;
-  }
-}

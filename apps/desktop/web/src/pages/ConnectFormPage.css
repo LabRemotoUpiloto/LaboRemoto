@@ -41,46 +41,7 @@
   overflow: auto;
   padding: 24px 32px 32px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   min-height: 0;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .connect-form-page__header {
-    padding: 24px 20px 20px;
-  }
-  
-  .connect-form-page__title {
-    font-size: 24px;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .connect-form-page__icon {
-    font-size: 28px;
-  }
-  
-  .connect-form-page__subtitle {
-    font-size: 14px;
-  }
-  
-  .connect-form-page__content {
-    padding: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .connect-form-page__header {
-    padding: 20px 16px 16px;
-  }
-  
-  .connect-form-page__title {
-    font-size: 20px;
-  }
-  
-  .connect-form-page__content {
-    padding: 16px;
-  }
 }

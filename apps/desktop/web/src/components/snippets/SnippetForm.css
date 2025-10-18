@@ -188,20 +188,3 @@
   background: var(--interactive-hover);
   border-color: var(--border-strong);
 }
-
-/* Responsive */
-@media (max-width: 640px) {
-  .snippet-form {
-    padding: 12px;
-  }
-
-  .snippet-form__title-input,
-  .snippet-form__content-input {
-    font-size: 13px;
-  }
-
-  .snippet-form__btn {
-    font-size: 11px;
-    padding: 4px 8px;
-  }
-}

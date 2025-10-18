@@ -552,42 +552,6 @@
   cursor: pointer;
 }
 
-/* ==================== RESPONSIVE ==================== */
-@media (max-width: 1024px) {
-  .sftp-page {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 12px;
-    padding: 12px;
-  }
-
-  .transfers-panel {
-    grid-column: 1;
-  }
-}
-
-@media (max-width: 768px) {
-  .sftp-page {
-    padding: 8px;
-    gap: 10px;
-  }
-
-  .sftp-panel__header,
-  .sftp-panel__subheader {
-    padding: 10px 12px;
-  }
-
-  .transfer-item {
-    grid-template-columns: auto 1fr;
-    padding: 10px 12px;
-  }
-
-  .transfer-item__status,
-  .transfer-item .btn {
-    grid-column: 2;
-  }
-}
-
 /* ==================== ACCESSIBILITY ==================== */
 @media (prefers-reduced-motion: reduce) {
   .sftp-panel,

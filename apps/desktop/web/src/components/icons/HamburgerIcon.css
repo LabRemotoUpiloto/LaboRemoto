@@ -1,0 +1,108 @@
+/* Hamburger Icon - Animated Toggle Button */
+
+.hamburger-button {
+  position: relative;
+  width: 40px; /* Reducido - antes 44px */
+  height: 40px; /* Reducido - antes 44px */
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(.2,.9,.2,1);
+  border-radius: 8px; /* Reducido - antes 10px */
+  z-index: 1001;
+}
+
+.hamburger-button:hover {
+  background: var(--interactive-hover);
+}
+
+.hamburger-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.hamburger-button:active {
+  transform: scale(0.96);
+}
+
+/* Contenedor de las líneas */
+.hamburger-box {
+  width: 20px; /* Reducido - antes 22px */
+  height: 16px; /* Reducido - antes 18px */
+  display: inline-block;
+  position: relative;
+}
+
+/* Las 3 líneas del hamburguesa */
+.hamburger-inner,
+.hamburger-inner::before,
+.hamburger-inner::after {
+  width: 20px; /* Reducido - antes 22px */
+  height: 2px; /* Reducido - antes 2.5px */
+  background-color: var(--text-primary);
+  border-radius: 2px; /* Reducido - antes 3px */
+  position: absolute;
+  transition: all 0.3s cubic-bezier(.4,.0,.2,1);
+}
+
+/* Línea central */
+.hamburger-inner {
+  display: block;
+  top: 50%;
+  margin-top: -1px; /* Ajustado - antes -1.25px */
+}
+
+/* Línea superior */
+.hamburger-inner::before {
+  content: "";
+  top: -6px; /* Reducido - antes -7px */
+  left: 0;
+}
+
+/* Línea inferior */
+.hamburger-inner::after {
+  content: "";
+  bottom: -6px; /* Reducido - antes -7px */
+  left: 0;
+}
+
+/* Estado ABIERTO - Transforma en X */
+.hamburger-button.open .hamburger-inner {
+  transform: rotate(45deg);
+  background-color: var(--accent-primary);
+}
+
+.hamburger-button.open .hamburger-inner::before {
+  top: 0;
+  transform: rotate(90deg);
+  background-color: var(--accent-primary);
+}
+
+.hamburger-button.open .hamburger-inner::after {
+  bottom: 0;
+  opacity: 0;
+  transform: scale(0);
+}
+
+/* Hover effect - líneas se vuelven verdes */
+.hamburger-button:hover .hamburger-inner,
+.hamburger-button:hover .hamburger-inner::before,
+.hamburger-button:hover .hamburger-inner::after {
+  background-color: var(--accent-primary);
+}
+
+/* Cuando está abierto, el hover mantiene el color verde */
+.hamburger-button.open:hover .hamburger-inner,
+.hamburger-button.open:hover .hamburger-inner::before {
+  background-color: color-mix(in srgb, var(--accent-primary) 85%, white);
+}
+
+/* Focus visible para accesibilidad */
+.hamburger-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
