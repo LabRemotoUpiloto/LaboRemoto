@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLoading } from '../../contexts/LoadingContext';
 import { useToasts } from '../../contexts/ToastContext';
-import PromptModal from '../PromptModal';
+import PromptModal from '../modals/PromptModal';
 import { RecentConnection } from './RecentConnectionsPanel';
 import { ConnectionToSave } from '../../hooks/useRecentConnections';
 import './ConnectForm.css';

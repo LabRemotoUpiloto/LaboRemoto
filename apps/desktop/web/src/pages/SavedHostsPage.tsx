@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { listHostEntries, deleteHostFile } from '../api/storage'
 import './SavedHostsPage.css'
 import { useLoading } from '../contexts/LoadingContext'
-import ConfirmModal from '../components/ConfirmModal'
+import ConfirmModal from '../components/modals/ConfirmModal'
 import { useToasts } from '../contexts/ToastContext'
 
 type HostEntry = { file: string; payload: { host: string; port: number | string; user?: string; password?: string } }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import './TerminalView.css';
 import TerminalPane from './TerminalPane';
-import ChatPane from './ChatPane';
+import ChatPane from '../ChatPane';
 import { invoke } from '@tauri-apps/api/core';
 
 

@@ -1,7 +1,7 @@
 import React from 'react'
 import './Sidebar.css'
 import { getVersion } from '@tauri-apps/api/app'
-import HamburgerIcon from './icons/HamburgerIcon'
+import HamburgerIcon from '../icons/HamburgerIcon'
 import { 
   MonitorIcon, 
   CompassIcon, 
@@ -10,7 +10,7 @@ import {
   CodeIcon, 
   PinIcon, 
   CameraIcon
-} from './icons/SidebarIcons'
+} from '../icons/SidebarIcons'
 
 interface SidebarProps {
   isOpen: boolean
