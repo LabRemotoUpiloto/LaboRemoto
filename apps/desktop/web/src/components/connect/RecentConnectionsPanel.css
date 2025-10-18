@@ -1,0 +1,170 @@
+/* ========================================
+   RecentConnectionsPanel - BEM Structure
+   ======================================== */
+
+.recent-connections {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+/* Header
+   ======================================== */
+
+.recent-connections__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.recent-connections__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recent-connections__clear-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recent-connections__clear-btn:hover {
+  background: var(--interactive-hover);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.recent-connections__clear-btn:active {
+  transform: scale(0.98);
+}
+
+/* List
+   ======================================== */
+
+.recent-connections__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Connection Item
+   ======================================== */
+
+.recent-connection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--background-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.recent-connection-item:hover {
+  background: var(--interactive-hover);
+  border-color: var(--accent-primary);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+.recent-connection-item:active {
+  transform: translateX(4px) scale(0.99);
+}
+
+/* Main Connection Info
+   ======================================== */
+
+.recent-connection-item__main {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0; /* Allow text truncation */
+}
+
+.recent-connection-item__user {
+  color: var(--accent-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.recent-connection-item__separator {
+  color: var(--text-secondary);
+  margin: 0 4px;
+}
+
+.recent-connection-item__host {
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.recent-connection-item__port {
+  color: var(--info);
+  margin-left: 2px;
+  white-space: nowrap;
+}
+
+/* Time Indicator
+   ======================================== */
+
+.recent-connection-item__time {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  margin-left: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Animations
+   ======================================== */
+
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.recent-connections {
+  animation: slideInFromBottom 0.3s ease;
+}
+
+.recent-connection-item {
+  animation: slideInFromBottom 0.3s ease;
+  animation-fill-mode: both;
+}
+
+.recent-connection-item:nth-child(1) { animation-delay: 0.05s; }
+.recent-connection-item:nth-child(2) { animation-delay: 0.1s; }
+.recent-connection-item:nth-child(3) { animation-delay: 0.15s; }
+.recent-connection-item:nth-child(4) { animation-delay: 0.2s; }
+.recent-connection-item:nth-child(5) { animation-delay: 0.25s; }

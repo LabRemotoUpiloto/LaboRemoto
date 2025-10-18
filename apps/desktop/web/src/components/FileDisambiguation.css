@@ -108,8 +108,3 @@
 @media (hover: hover) {
   .file-disambiguation__btn:hover:not(:disabled) .file-disambiguation__index { background: color-mix(in oklab, var(--accent-primary) 45%, var(--panel)); }
 }
-
-@media (max-width: 560px) {
-  .file-disambiguation.enhanced { padding: .75rem .75rem .9rem; }
-  .file-disambiguation__btn { font-size: 0.68rem; gap: .5rem; }
-}

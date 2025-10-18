@@ -161,18 +161,3 @@
 .code-block-content::-webkit-scrollbar-thumb:hover {
   background: var(--border-strong);
 }
-
-/* Responsive - Ocultar texto en pantallas pequeñas */
-@media (max-width: 640px) {
-  .code-action-text {
-    display: none;
-  }
-  
-  .code-action-btn {
-    padding: 6px 8px;
-  }
-  
-  .code-block-header {
-    padding: 6px 10px;
-  }
-}
