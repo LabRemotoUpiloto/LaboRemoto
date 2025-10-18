@@ -54,7 +54,7 @@
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 6px; /* Aumentado - antes 4px */
+  gap: 8px; /* Aumentado para mayor separación */
   align-items: stretch;
 }
 
@@ -94,7 +94,7 @@
 .nav-item {
   background: transparent;
   border: none;
-  padding: 4px 2px 4px 6px; /* Aumentado vertical y left - antes 3px 2px 3px 4px */
+  padding: 3px 6px; /* Padding simétrico para que el hover llegue hasta los bordes */
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -106,10 +106,10 @@
 
 .nav-pill {
   display: flex;
-  gap: 8px; /* Reducido - antes 10px */
+  gap: 10px; /* Restaurado para mejor espaciado interno */
   align-items: center;
-  padding: 10px 12px; /* Aumentado - antes 7px 8px */
-  border-radius: 8px; /* Reducido - antes 10px */
+  padding: 10px 12px; /* Aumentado para botones más grandes */
+  border-radius: 8px;
   color: var(--text-secondary);
   transition: all 0.25s cubic-bezier(.2,.9,.2,1);
   justify-content: flex-start;
@@ -117,8 +117,8 @@
 }
 
 .nav-item .icon {
-  font-size: 18px; /* Aumentado - antes 17px */
-  width: 28px; /* Aumentado - antes 26px */
+  font-size: 19px; /* Aumentado para iconos más grandes */
+  width: 28px; /* Aumentado proporcionalmente */
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -129,7 +129,7 @@
 
 /* Slightly larger icons when collapsed for better visibility */
 .sidebar.collapsed .nav-item .icon {
-  font-size: 18px; /* Reducido - antes 19px */
+  font-size: 20px; /* Aumentado proporcionalmente */
   width: auto;
 }
 
@@ -144,7 +144,7 @@
 }
 
 .nav-item .label {
-  font-size: 13.5px; /* Aumentado - antes 13px */
+  font-size: 14px; /* Aumentado para mejor legibilidad */
   white-space: nowrap;
   opacity: 0.95;
   display: inline-block;
