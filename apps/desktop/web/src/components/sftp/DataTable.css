@@ -158,19 +158,3 @@
   font-family: var(--terminal-font-family, monospace);
   font-size: 12px;
 }
-
-/* Responsive */
-@media (max-width: 768px) {
-  .data-table {
-    font-size: 12px;
-  }
-
-  .data-table td,
-  .data-table__header-btn {
-    padding: 8px 10px;
-  }
-
-  .data-table td:first-child {
-    padding-left: 12px;
-  }
-}
