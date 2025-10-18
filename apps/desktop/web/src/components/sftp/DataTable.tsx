@@ -16,6 +16,7 @@ export interface DataTableProps {
   onRowDoubleClick?: (index: number) => void;
   onSort?: (key: string) => void;
   onContextMenu?: (index: number, event: React.MouseEvent) => void;
+  onClearSelection?: () => void;
   sortKey?: string;
   sortDir?: 'asc' | 'desc';
   emptyMessage?: string;
@@ -29,12 +30,21 @@ const DataTable: React.FC<DataTableProps> = ({
   onRowDoubleClick,
   onSort,
   onContextMenu,
+  onClearSelection,
   sortKey,
   sortDir,
   emptyMessage = 'No hay elementos',
 }) => {
   return (
-    <div className="data-table-container">
+    <div 
+      className="data-table-container"
+      onClick={(e) => {
+        // Si el click es en el contenedor (no en una fila), limpiar selección
+        if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('data-table')) {
+          onClearSelection?.();
+        }
+      }}
+    >
       {data.length === 0 ? (
         <div className="data-table-empty">{emptyMessage}</div>
       ) : (
@@ -53,7 +63,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   >
                     {col.sortable && onSort ? (
                       <button
-                        className="data-table-header-button"
+                        className="data-table__header-btn"
                         onClick={() => onSort(col.key)}
                         title={`Ordenar por ${col.label}`}
                       >
@@ -72,8 +82,11 @@ const DataTable: React.FC<DataTableProps> = ({
               <tr
                 key={rowIndex}
                 role="row"
-                className={`data-table-row ${selectedIndex === rowIndex ? 'selected' : ''}`}
-                onClick={() => onRowClick?.(rowIndex)}
+                className={`data-table__row ${selectedIndex === rowIndex ? 'data-table__row--selected' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRowClick?.(rowIndex);
+                }}
                 onDoubleClick={() => onRowDoubleClick?.(rowIndex)}
                 onContextMenu={(e) => {
                   e.preventDefault();

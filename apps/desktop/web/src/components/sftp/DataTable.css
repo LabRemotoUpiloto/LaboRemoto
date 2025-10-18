@@ -4,6 +4,30 @@
   border-collapse: collapse;
   font-size: 13px;
   color: var(--text-primary);
+  table-layout: fixed;
+}
+
+/* Column widths */
+.data-table th:nth-child(1),
+.data-table td:nth-child(1) {
+  width: auto;
+  min-width: 150px;
+  max-width: 40%;
+}
+
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) {
+  width: 180px;
+}
+
+.data-table th:nth-child(3),
+.data-table td:nth-child(3) {
+  width: 100px;
+}
+
+.data-table th:nth-child(4),
+.data-table td:nth-child(4) {
+  width: 100px;
 }
 
 /* Header */
@@ -58,31 +82,12 @@
 /* Rows */
 .data-table__row {
   border-bottom: 1px solid var(--border-subtle);
-  transition: all 0.15s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .data-table__row:hover {
   background: var(--interactive-hover);
-}
-
-.data-table__row:active {
-  background: var(--interactive-active);
-}
-
-.data-table__row--selected {
-  background: var(--interactive-selected) !important;
-  position: relative;
-}
-
-.data-table__row--selected::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--accent-primary);
-  border-radius: 0 2px 2px 0;
+  border-color: var(--border-color);
 }
 
 .data-table__row:focus-visible {
@@ -123,10 +128,21 @@
   align-items: center;
   gap: 10px;
   font-weight: 500;
+  transition: color 0.2s ease;
 }
 
 .data-table .file-name svg {
   flex-shrink: 0;
+  transition: opacity 0.2s ease;
+  opacity: 0.9;
+}
+
+.data-table__row:hover .file-name {
+  color: var(--text-primary);
+}
+
+.data-table__row:hover .file-name svg {
+  opacity: 1;
 }
 
 .data-table .file-name span {
