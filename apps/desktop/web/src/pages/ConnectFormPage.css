@@ -8,7 +8,7 @@
 }
 
 .connect-form-page__header {
-  padding: 32px 32px 24px;
+  padding: 12px 32px 24px; /* Alineado con la línea de la sidebar */
   border-bottom: 1px solid var(--border-subtle);
   background: var(--background-secondary);
   text-align: center;
