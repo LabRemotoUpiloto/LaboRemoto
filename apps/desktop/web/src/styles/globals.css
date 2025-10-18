@@ -12,6 +12,11 @@
   --terminal-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', 'Liberation Mono', monospace;
   --terminal-font-size: 13;
 
+  /* ESTÁNDAR DE ALINEACIÓN: Todas las páginas deben tener padding-top: 12px
+     para alinear sus headers con la línea divisoria del botón hamburguesa de la sidebar
+     (padding 2px + 4px + margin 6px = 12px) */
+  --page-header-alignment: 12px;
+
   --text-muted: var(--text-secondary);
   --border: var(--border-subtle);
   --ring: #22D3EE;
