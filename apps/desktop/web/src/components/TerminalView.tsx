@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import './TerminalView.css';
 import TerminalPane from './TerminalPane';
 import ChatPane from './ChatPane';
-import BottomBar from './BottomBar';
 import { invoke } from '@tauri-apps/api/core';
 
 
@@ -43,11 +42,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
     <div className="terminal-view" ref={containerRef}>
       <div className="terminal-stack">
         <TerminalPane sessionId={sessionId} />
-        {enableBottomBar && (
-          <div className="bottom-bar-slot">
-            <BottomBar isOpen={isCameraOpen} onToggle={() => {}} sessionId={sessionId} />
-          </div>
-        )}
+        {/* BottomBar component removed - camera functionality deprecated */}
       </div>
       <ChatPane sessionId={sessionId} />
     </div>
