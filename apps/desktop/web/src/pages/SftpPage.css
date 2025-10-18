@@ -5,7 +5,7 @@
   grid-template-rows: 1fr auto;
   height: 100%;
   gap: 16px;
-  padding: 16px;
+  padding: 12px 16px 16px 16px; /* Alineado con la línea de la sidebar */
   background: var(--background-primary);
 }
 

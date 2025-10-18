@@ -4,7 +4,7 @@
   flex-direction: column;
   gap: 20px;
   height: 100%;
-  padding: 24px;
+  padding: 12px 24px 24px 24px; /* Alineado con la línea de la sidebar */
   overflow: hidden;
   background: var(--background-primary);
 }
