@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import FileIcon from '../components/FileIcon'
 import ContextMenu from '../components/ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
+import PromptModal from '../components/PromptModal'
 import FileNavigationBar from '../components/sftp/FileNavigationBar'
 import DataTable from '../components/sftp/DataTable'
 import TransfersPanel from '../components/sftp/TransfersPanel'
@@ -189,12 +190,22 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
 
 
 
+  const [mkdirOpen, setMkdirOpen] = useState(false)
   const doRemoteMkdir = async ()=>{
     if(!sessionId) return
-    const name = window.prompt('Nombre de la carpeta nueva:')
-    if(!name) return
+    setMkdirOpen(true)
+  }
+  const confirmRemoteMkdir = async (name: string)=>{
+    if(!sessionId) { setMkdirOpen(false); return }
     const p = joinRemotePath(rpath, name)
-    try{ await invoke('sftp_mkdir', { id: sessionId, path: p }); refreshRemote() }catch(e:any){ alert('mkdir: '+(e?.toString?.()||e)) }
+    try{ 
+      await invoke('sftp_mkdir', { id: sessionId, path: p })
+      refreshRemote()
+      push({ type:'success', message:'Carpeta creada' })
+    } catch(e:any){ 
+      push({ type:'error', message:'Error al crear carpeta: '+(e?.toString?.()||e) })
+    }
+    setMkdirOpen(false)
   }
   // Renombrar eliminado
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -330,7 +341,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
                 { key: 'type', label: 'Tipo', sortable: true }
               ]}
               data={ldisplay.map(e => ({
-                name: <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
+                name: <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span title={e.name}>{e.name}</span></div>,
                 modified: formatDate(e.mtime, false),
                 size: <span style={{fontVariantNumeric:'tabular-nums'}}>{formatBytes(e.size)}</span>,
                 type: e.kind === 'dir' ? 'carpeta' : 'archivo',
@@ -338,6 +349,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
               }))}
               selectedIndex={lSelectedPath ? ldisplay.findIndex(e => e.path === lSelectedPath) : undefined}
               onRowClick={(i) => setLSelectedPath(ldisplay[i]?.path)}
+              onClearSelection={() => setLSelectedPath(undefined)}
               onRowDoubleClick={(i) => {
                 const ent = ldisplay[i];
                 if (ent.kind !== 'dir') return;
@@ -438,15 +450,6 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
           
           <div className="toolbar-spacer">
             <button 
-              className="sftp-icon-btn sftp-icon-btn--danger" 
-              onClick={(e)=>{ e.stopPropagation(); doRemoteDelete(); }} 
-              disabled={!canUse || !rSelectedPath} 
-              title="Eliminar selección"
-            >
-              <span className="sftp-icon-btn__icon">🗑</span>
-              Eliminar
-            </button>
-            <button 
               className="sftp-icon-btn sftp-icon-btn--primary" 
               onClick={(e)=>{ e.stopPropagation(); doDownload(); }} 
               disabled={!canUse || !rSelectedPath} 
@@ -474,7 +477,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
                 { key: 'type', label: 'Tipo', sortable: true }
               ]}
               data={rdisplay.map(e => ({
-                name: <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span>{e.name}</span></div>,
+                name: <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span title={e.name}>{e.name}</span></div>,
                 modified: formatDate(e.mtime, true),
                 size: <span className="size-cell">{formatBytes(e.size)}</span>,
                 type: e.kind === 'dir' ? 'carpeta' : 'archivo',
@@ -482,6 +485,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
               }))}
               selectedIndex={rSelectedPath ? rdisplay.findIndex(e => (e.path || joinRemotePath(rpath, e.name)) === rSelectedPath) : undefined}
               onRowClick={(i) => setRSelectedPath(rdisplay[i]?.path || joinRemotePath(rpath, rdisplay[i]?.name || ''))}
+              onClearSelection={() => setRSelectedPath(undefined)}
               onRowDoubleClick={(i) => {
                 const ent = rdisplay[i];
                 if (ent.kind !== 'dir') return;
@@ -527,6 +531,14 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
         ])}
       />
       <ConfirmModal open={confirmOpen} title="Eliminar en remoto" message={`¿Eliminar "${rSelectedPath?.split('/').pop()||''}" en ${rpath}?`} onCancel={()=> setConfirmOpen(false)} onConfirm={confirmRemoteDelete} />
+      <PromptModal 
+        open={mkdirOpen} 
+        title="Nueva carpeta" 
+        message="Nombre de la carpeta nueva:" 
+        placeholder="nombre_carpeta"
+        onCancel={()=> setMkdirOpen(false)} 
+        onConfirm={confirmRemoteMkdir} 
+      />
     </div>
   )
 }
