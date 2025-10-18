@@ -47,6 +47,46 @@
   color: var(--text-primary);
 }
 
+.sftp-transfers__clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 4px 10px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.sftp-transfers__clear-btn svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.sftp-transfers__clear-btn:hover {
+  background: var(--interactive-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.sftp-transfers__clear-btn:hover svg {
+  opacity: 1;
+}
+
+.sftp-transfers__clear-btn:active {
+  transform: translateY(0);
+  background: var(--interactive-active);
+}
+
 .sftp-transfers__list {
   flex: 1;
   overflow-y: auto;
