@@ -73,10 +73,6 @@ fn sha256_hex(bytes: &[u8]) -> String {
   format!("{:x}", h.finalize())
 }
 
-fn truncate_for(s: &str, max: usize) -> String {
-  if s.len() <= max { s.to_string() } else { format!("{}…", &s[..max]) }
-}
-
 fn is_probably_binary(bytes: &[u8]) -> bool {
   // Heurística: presencia de byte 0 o >30% bytes no imprimibles
   if bytes.iter().any(|b| *b == 0) { return true; }
