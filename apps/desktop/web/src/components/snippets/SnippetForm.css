@@ -1,0 +1,207 @@
+/* ==================== SNIPPET FORM ==================== */
+.snippet-form {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.snippet-form--editing {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+}
+
+/* Editing badge */
+.snippet-form__editing-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--accent-primary);
+}
+
+.snippet-form__editing-icon {
+  font-size: 16px;
+}
+
+/* Fields */
+.snippet-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.snippet-form__title-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--background-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.snippet-form__title-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.snippet-form__title-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: var(--background-secondary);
+}
+
+/* Textarea wrapper */
+.snippet-form__textarea-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.snippet-form__content-input {
+  width: 100%;
+  min-height: 120px;
+  max-height: 400px;
+  padding: 12px;
+  background: var(--background-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--terminal-font-family, 'Consolas', 'Monaco', monospace);
+  line-height: 1.5;
+  resize: vertical;
+  transition: all 0.15s ease;
+}
+
+.snippet-form__content-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+  font-family: inherit;
+}
+
+.snippet-form__content-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: var(--background-secondary);
+}
+
+.snippet-form__char-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+  opacity: 0.7;
+}
+
+/* Scrollbar */
+.snippet-form__content-input::-webkit-scrollbar {
+  width: 8px;
+}
+
+.snippet-form__content-input::-webkit-scrollbar-track {
+  background: var(--background-tertiary);
+  border-radius: 4px;
+}
+
+.snippet-form__content-input::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.snippet-form__content-input::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Actions */
+.snippet-form__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.snippet-form__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  background: var(--interactive-bg);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.snippet-form__btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.snippet-form__btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.snippet-form__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.snippet-form__btn-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Primary button */
+.snippet-form__btn--primary {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.snippet-form__btn--primary:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+}
+
+/* Secondary button */
+.snippet-form__btn--secondary {
+  background: transparent;
+  border-color: var(--border-color);
+}
+
+.snippet-form__btn--secondary:hover:not(:disabled) {
+  background: var(--interactive-hover);
+  border-color: var(--border-strong);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .snippet-form {
+    padding: 12px;
+  }
+
+  .snippet-form__title-input,
+  .snippet-form__content-input {
+    font-size: 13px;
+  }
+
+  .snippet-form__btn {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
