@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               title={it.label}
             >
               <span className="nav-pill">
-                <span className="icon"><IconComponent size={18} /></span>
+                <span className="icon"><IconComponent size={17} /></span>
                 <span className="label">{it.label}</span>
               </span>
             </button>
@@ -114,7 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               title={it.label}
             >
               <span className="nav-pill">
-                <span className="icon"><IconComponent size={18} /></span>
+                <span className="icon"><IconComponent size={17} /></span>
                 <span className="label">{it.label}</span>
               </span>
             </button>
