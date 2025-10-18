@@ -1,0 +1,729 @@
+/* ==================== SFTP PAGE LAYOUT ==================== */
+.sftp-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr auto;
+  height: 100%;
+  gap: 16px;
+  padding: 16px;
+  background: var(--background-primary);
+}
+
+/* ==================== PANEL STYLING ==================== */
+.sftp-panel {
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg,
+    var(--background-secondary) 0%,
+    color-mix(in srgb, var(--background-secondary) 95%, var(--background-tertiary)) 100%);
+  border-radius: 12px;
+  border: 2px solid var(--border-subtle);
+  overflow: hidden;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.sftp-panel.active {
+  border-color: var(--accent-primary);
+  box-shadow: 
+    0 0 0 1px color-mix(in srgb, var(--accent-primary) 30%, transparent),
+    0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.sftp-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right,
+    color-mix(in srgb, var(--accent-primary) 5%, transparent) 0%,
+    transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.sftp-panel.active::before {
+  opacity: 0.4;
+}
+
+/* ==================== PANEL HEADER ==================== */
+.sftp-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--background-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 48px;
+}
+
+.sftp-panel__subheader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--background-tertiary) 50%, transparent);
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 44px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* ==================== NAVIGATION BUTTON (BACK) ==================== */
+.sftp-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--interactive-bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.sftp-back-btn:hover:not(:disabled) {
+  background: var(--interactive-hover);
+  border-color: var(--border-color);
+  transform: translateX(-1px);
+}
+
+.sftp-back-btn:active:not(:disabled) {
+  transform: translateX(-2px);
+}
+
+.sftp-back-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ==================== ICON BUTTONS ==================== */
+.sftp-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--interactive-bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sftp-icon-btn:hover:not(:disabled) {
+  background: var(--interactive-hover);
+  border-color: var(--border-color);
+}
+
+.sftp-icon-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.sftp-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sftp-icon-btn--primary {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: white;
+  font-weight: 600;
+}
+
+.sftp-icon-btn--primary:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.sftp-icon-btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: white;
+  font-weight: 600;
+}
+
+.sftp-icon-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 90%, black);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.sftp-icon-btn__icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ==================== SEARCH INPUT ==================== */
+.sftp-search-input {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 180px;
+  transition: all 0.15s ease;
+  flex-shrink: 1;
+  min-width: 120px;
+}
+
+.sftp-search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.sftp-search-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: var(--background-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent);
+}
+
+.sftp-search-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================== SELECT DROPDOWN ==================== */
+.sftp-select {
+  height: 32px;
+  padding: 0 30px 0 10px;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 13px;
+  min-width: 100px;
+  max-width: 140px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  flex-shrink: 0;
+}
+
+.sftp-select:hover:not(:disabled) {
+  border-color: var(--border-color);
+  background-color: var(--background-tertiary);
+}
+
+.sftp-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent);
+}
+
+.sftp-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================== STATUS BADGE ==================== */
+.sftp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.sftp-status-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.sftp-status-badge--connected {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+}
+
+.sftp-status-badge--connected::before {
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+  animation: pulse-success 2s ease-in-out infinite;
+}
+
+.sftp-status-badge--disconnected {
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+  color: var(--text-muted);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 20%, transparent);
+}
+
+.sftp-status-badge--disconnected::before {
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+@keyframes pulse-success {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ==================== CLEAR BUTTON ==================== */
+.sftp-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.sftp-clear-btn:hover {
+  background: var(--interactive-hover);
+  color: var(--text-primary);
+}
+
+.sftp-clear-btn:active {
+  transform: scale(0.95);
+}
+
+/* ==================== PANEL BODY ==================== */
+.sftp-panel__body {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  min-height: 200px;
+}
+
+.sftp-panel__body.scroll-accent {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-primary) transparent;
+}
+
+.sftp-panel__body.scroll-accent::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sftp-panel__body.scroll-accent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sftp-panel__body.scroll-accent::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.sftp-panel__body.scroll-accent::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* ==================== LOADING STATE ==================== */
+.sftp-panel__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  gap: 16px;
+}
+
+.sftp-panel__loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.sftp-panel__loading-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sftp-panel__error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  border-radius: 8px;
+  margin: 16px;
+  font-size: 14px;
+}
+
+.sftp-panel__error::before {
+  content: "⚠";
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* ==================== STATUS BADGE ==================== */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-badge.status-ok {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+}
+
+.status-badge.status-ok::before {
+  background: var(--success);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--success) 60%, transparent);
+}
+
+.status-badge.status-off {
+  background: color-mix(in srgb, var(--text-secondary) 15%, transparent);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.status-badge.status-off::before {
+  background: var(--text-secondary);
+  animation: none;
+}
+
+/* ==================== TRANSFERS PANEL ==================== */
+.transfers-panel {
+  grid-column: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  max-height: 200px;
+  min-height: 100px;
+  background: linear-gradient(135deg,
+    var(--background-secondary) 0%,
+    color-mix(in srgb, var(--background-secondary) 95%, var(--background-tertiary)) 100%);
+  border-radius: 12px;
+  border: 2px solid var(--border-subtle);
+  overflow: hidden;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.transfers-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--background-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.transfers-panel__header strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.transfers-panel__count {
+  opacity: 0.6;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.transfers-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.transfers-panel__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.transfers-panel__body::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 999px;
+}
+
+.transfers-panel__empty {
+  opacity: 0.7;
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* ==================== TRANSFER ITEM ==================== */
+.transfer-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.2s ease;
+}
+
+.transfer-item:hover {
+  background: var(--interactive-hover);
+}
+
+.transfer-item:last-child {
+  border-bottom: none;
+}
+
+.transfer-item__icon {
+  font-family: monospace;
+  font-size: 18px;
+  color: var(--accent-primary);
+  font-weight: bold;
+}
+
+.transfer-item__info {
+  min-width: 0;
+}
+
+.transfer-item__path {
+  font-size: 12px;
+  opacity: 0.8;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+
+.transfer-item__progress-bar {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.transfer-item__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary-hover));
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.transfer-item__status {
+  font-size: 12px;
+  opacity: 0.8;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.transfer-item__status.error {
+  color: var(--danger);
+}
+
+.transfer-item__status.done {
+  color: var(--success);
+}
+
+/* ==================== BUTTONS ==================== */
+.btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--interactive-hover);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.btn-ghost {
+  border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--interactive-hover);
+  border-color: var(--border-subtle);
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: var(--background-primary);
+  font-weight: 600;
+  border-color: var(--accent-primary);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+/* ==================== INPUTS ==================== */
+.input,
+.select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--background-tertiary);
+  color: var(--text-primary);
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent);
+}
+
+.input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.select {
+  cursor: pointer;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 1024px) {
+  .sftp-page {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .transfers-panel {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .sftp-page {
+    padding: 8px;
+    gap: 10px;
+  }
+
+  .sftp-panel__header,
+  .sftp-panel__subheader {
+    padding: 10px 12px;
+  }
+
+  .transfer-item {
+    grid-template-columns: auto 1fr;
+    padding: 10px 12px;
+  }
+
+  .transfer-item__status,
+  .transfer-item .btn {
+    grid-column: 2;
+  }
+}
+
+/* ==================== ACCESSIBILITY ==================== */
+@media (prefers-reduced-motion: reduce) {
+  .sftp-panel,
+  .btn,
+  .transfer-item {
+    transition: none;
+  }
+
+  .status-badge::before {
+    animation: none;
+  }
+}
