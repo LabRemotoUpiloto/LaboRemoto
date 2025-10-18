@@ -6,6 +6,7 @@ import ContextMenu from '../components/ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
 import FileNavigationBar from '../components/sftp/FileNavigationBar'
 import DataTable from '../components/sftp/DataTable'
+import TransfersPanel from '../components/sftp/TransfersPanel'
 import { useToasts } from '../contexts/ToastContext'
 import { formatDate, formatBytes } from '../components/fileFormatters'
 import { joinLocalPath, joinRemotePath, getParentLocalPath, getParentRemotePath } from '../components/pathUtils'
@@ -485,36 +486,10 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
           )}
         </div>
       </div>
-    {/* Transfers Panel */}
-  <div className="sftp-transfers">
-        <div className="sftp-transfers__header">
-          <strong>Transferencias</strong>
-          <span className="sftp-transfers__count">({transfers.length})</span>
-        </div>
-        {transfers.length===0? <div className="sftp-transfers__empty" aria-live="polite">No hay transferencias</div> : (
-          <div className="sftp-transfers__list" aria-live="polite">
-            {transfers.map(t=>{
-              const pct = t.total && t.total>0 ? Math.min(100, Math.floor(((t.bytes||0)/t.total)*100)) : undefined
-              return (
-                <React.Fragment key={t.id}>
-                  <div className="sftp-transfer__icon">{t.direction==='download'? '↓':'↑'}</div>
-                  <div className="sftp-transfer__info">
-                    <div className="sftp-transfer__path">{t.direction==='download'? t.remote_path: t.local_path} → {t.direction==='download'? t.local_path: t.remote_path}</div>
-                    <div className="sftp-transfer__progress-bar">
-                      <div className="sftp-transfer__progress-fill" style={{width: pct? pct+'%':'0%'}} />
-                    </div>
-                  </div>
-                  <div className="sftp-transfer__status">
-                    {t.status==='running' ? (t.total? `${t.bytes||0} / ${t.total}` : `${t.bytes||0}`) : t.status}
-                  </div>
-                  <button className="btn btn-sm" onClick={()=> doCancel(t.id)} disabled={t.status!=='running'} title="Cancelar transferencia">Cancelar</button>
-                  <div className={`sftp-transfer__message ${t.status==='error'? 'error':''}`}>{t.message}</div>
-                </React.Fragment>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      
+      {/* Transfers Panel */}
+      <TransfersPanel transfers={transfers} onCancel={doCancel} />
+      
       <ContextMenu
         x={ctx.x}
         y={ctx.y}
