@@ -1,7 +1,9 @@
 // Página dedicada para el formulario de conexión SSH
-import React, { useCallback, useMemo, useState } from 'react';
-import ConnectForm from '../components/ConnectForm';
+import React, { useCallback, useState } from 'react';
+import ConnectForm from '../components/connect/ConnectForm';
 import QuickHostsPanel, { QuickHost } from '../components/QuickHostsPanel';
+import RecentConnectionsPanel, { RecentConnection } from '../components/connect/RecentConnectionsPanel';
+import { useRecentConnections } from '../hooks/useRecentConnections';
 import './ConnectFormPage.css';
 
 interface ConnectFormPageProps {
@@ -10,21 +12,37 @@ interface ConnectFormPageProps {
 }
 
 const ConnectFormPage: React.FC<ConnectFormPageProps> = ({ onConnected, initialPayload }) => {
-    const quickHosts = useMemo<QuickHost[]>(() => ([
-        { id: 'pi4', name: 'pi4', host: '200.115.181.211', port: 9000 },
-    ]), []);
+    // Hook para gestionar conexiones recientes
+    const { recentConnections, saveConnection, clearConnections } = useRecentConnections();
+
+    // Quick Hosts: Hosts predefinidos por el administrador/sistema
+    // Solo contienen IP y puerto, sin credenciales
+    const quickHosts: QuickHost[] = [
+        { id: 'pi4', name: 'Raspberry Pi 4', host: '200.115.181.211', port: 9000 },
+        // Puedes agregar más hosts aquí que quieras ofrecer a los usuarios
+        // { id: 'server1', name: 'Servidor Principal', host: '192.168.1.100', port: 22 },
+        // { id: 'dev', name: 'Ambiente Dev', host: 'dev.example.com', port: 2222 },
+    ];
 
     const [selectedHostId, setSelectedHostId] = useState<string | null>(null);
     const [activeQuickHost, setActiveQuickHost] = useState<QuickHost | null>(null);
+    const [activeRecentConnection, setActiveRecentConnection] = useState<RecentConnection | null>(null);
 
     const selectQuickHost = useCallback((host: QuickHost) => {
         setSelectedHostId(host.id);
         setActiveQuickHost(host);
+        setActiveRecentConnection(null); // Limpiar selección de recientes
     }, []);
 
     const clearQuickHost = useCallback(() => {
         setSelectedHostId(null);
         setActiveQuickHost(null);
+    }, []);
+
+    const selectRecentConnection = useCallback((connection: RecentConnection) => {
+        setActiveRecentConnection(connection);
+        setActiveQuickHost(null); // Limpiar selección de quick hosts
+        setSelectedHostId(null);
     }, []);
 
     return (
@@ -34,12 +52,20 @@ const ConnectFormPage: React.FC<ConnectFormPageProps> = ({ onConnected, initialP
                 onHostSelect={selectQuickHost}
                 selectedHostId={selectedHostId}
             />
+            <RecentConnectionsPanel
+                connections={recentConnections}
+                onSelect={selectRecentConnection}
+                onClear={clearConnections}
+            />
             <div className="connect-form-page__content">
                 <ConnectForm
                     onConnected={onConnected}
                     initialPayload={initialPayload}
                     quickHost={activeQuickHost}
+                    recentConnection={activeRecentConnection}
+                    recentConnections={recentConnections}
                     onQuickHostCleared={clearQuickHost}
+                    onConnectionSuccess={saveConnection}
                 />
             </div>
         </div>

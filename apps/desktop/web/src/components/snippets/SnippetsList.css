@@ -51,22 +51,3 @@
 .snippets-list::-webkit-scrollbar-thumb:hover {
   background: var(--accent-primary);
 }
-
-/* Responsive */
-@media (max-width: 640px) {
-  .snippets-list {
-    gap: 12px;
-  }
-
-  .snippets-list__empty {
-    padding: 40px 20px;
-  }
-
-  .snippets-list__empty-icon {
-    font-size: 48px;
-  }
-
-  .snippets-list__empty-text {
-    font-size: 14px;
-  }
-}

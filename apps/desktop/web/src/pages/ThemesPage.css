@@ -361,95 +361,6 @@
   border: 1px solid color-mix(in srgb, #EC4899 25%, transparent);
 }
 
-/* ==================== RESPONSIVE DESIGN ==================== */
-@media (max-width: 1200px) {
-  .themes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 18px;
-    max-height: calc(100vh - 190px);
-  }
-}
-
-@media (max-width: 900px) {
-  .themes-page {
-    padding: 28px 24px;
-  }
-
-  .page-title {
-    font-size: 24px;
-    margin-bottom: 20px;
-  }
-
-  .themes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 16px;
-    max-height: calc(100vh - 180px);
-  }
-
-  .theme-card .preview {
-    height: 100px;
-  }
-}
-
-@media (max-width: 640px) {
-  .themes-page {
-    padding: 24px 20px;
-  }
-
-  .page-title {
-    font-size: 22px;
-  }
-
-  .themes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 14px;
-    max-height: calc(100vh - 160px);
-  }
-
-  .theme-card {
-    padding: 14px;
-  }
-
-  .theme-card .preview {
-    height: 90px;
-  }
-
-  .theme-card .meta {
-    font-size: 13px;
-  }
-
-  .theme-card.active::after {
-    width: 24px;
-    height: 24px;
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  .themes-page {
-    padding: 20px 16px;
-  }
-
-  .themes-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    max-height: calc(100vh - 140px);
-    padding: 12px;
-  }
-
-  .theme-card {
-    padding: 12px;
-  }
-
-  .theme-card .preview {
-    height: 80px;
-  }
-
-  .swatches .sw {
-    height: 14px;
-  }
-}
-
 /* === Scrollbar styling for themes grid ============================= */
 /* Firefox */
 .themes-grid { scrollbar-width: thin; scrollbar-color: var(--accent-primary) rgba(255,255,255,0.04); }
@@ -476,11 +387,6 @@
 .themes-grid::-webkit-scrollbar-thumb:active {
 	background: var(--accent-primary);
 	transform: scale(0.96);
-}
-
-/* Reduce width a poco en mobile para no invadir contenido */
-@media (max-width: 520px) {
-	.themes-grid::-webkit-scrollbar { width: 8px; }
 }
 
 /* Light theme scrollbar contrast tweak */
