@@ -1,7 +1,7 @@
 // Página dedicada para el formulario de conexión SSH
 import React, { useCallback, useState } from 'react';
 import ConnectForm from '../components/connect/ConnectForm';
-import QuickHostsPanel, { QuickHost } from '../components/QuickHostsPanel';
+import QuickHostsPanel, { QuickHost } from '../components/hosts/QuickHostsPanel';
 import RecentConnectionsPanel, { RecentConnection } from '../components/connect/RecentConnectionsPanel';
 import { useRecentConnections } from '../hooks/useRecentConnections';
 import './ConnectFormPage.css';

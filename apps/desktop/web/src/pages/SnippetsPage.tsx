@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import ConfirmModal from '../components/ConfirmModal';
+import ConfirmModal from '../components/modals/ConfirmModal';
 import SnippetsHeader from '../components/snippets/SnippetsHeader';
 import SnippetForm from '../components/snippets/SnippetForm';
 import SnippetsList from '../components/snippets/SnippetsList';

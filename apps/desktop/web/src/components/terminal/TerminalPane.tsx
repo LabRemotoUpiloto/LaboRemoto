@@ -7,7 +7,7 @@ import 'xterm/css/xterm.css';
 import './TerminalPane.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type Props = { sessionId: string | null };
 
@@ -308,7 +308,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     const onBottomBarTransitionEnd = (ev: Event) => {
       const te = ev as TransitionEvent;
       if (te.propertyName === 'height') {
-        multiStageFitAndResize();
+        debouncedResize();
       }
     };
     try { bottomBarContent?.addEventListener('transitionend', onBottomBarTransitionEnd); } catch {}

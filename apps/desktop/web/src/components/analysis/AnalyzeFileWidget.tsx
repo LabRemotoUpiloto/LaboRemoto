@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { analyzeFile, FileAnalysis } from '../api/fileAnalysis';
+import { analyzeFile, FileAnalysis } from '../../api/fileAnalysis';
 import './AnalyzeFileWidget.css';
 
 interface Props {

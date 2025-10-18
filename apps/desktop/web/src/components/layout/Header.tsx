@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import './Header.css';
-import { useToasts } from '../contexts/ToastContext';
+import { useToasts } from '../../contexts/ToastContext';
 
 type Tab = { id: string; type: 'home' | 'session'; label: string }
 interface HeaderProps {
