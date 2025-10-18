@@ -166,12 +166,16 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
           if(idx>=0) next[idx] = t; else next.unshift(t)
         } else if(idx>=0) {
           const cur = next[idx]
+          // Ignore updates if already cancelled
+          if(cur.status === 'cancelled') {
+            return next;
+          }
           if(p.type==='progress'){
             cur.bytes = p.bytes; cur.total = p.total ?? cur.total
           } else if(p.type==='done'){
             cur.status='done'
           } else if(p.type==='canceled'){
-            cur.status='canceled'
+            cur.status='cancelled'
           } else if(p.type==='error'){
             cur.status='error'; cur.message = p.message
           }
@@ -228,7 +232,21 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
   }
   const doCancel = async (tid:string)=>{
     if(!sessionId) return
-  try{ await invoke('sftp_cancel', { id: sessionId, transferId: tid }) }catch(e:any){ /* ignore */ }
+    // Immediately mark as cancelled in UI
+    setTransfers(prev => {
+      const next = [...prev];
+      const idx = next.findIndex(t => t.id === tid);
+      if (idx >= 0) {
+        next[idx] = { ...next[idx], status: 'cancelled' };
+      }
+      return next;
+    });
+    try{ await invoke('sftp_cancel', { id: sessionId, transferId: tid }) }catch(e:any){ /* ignore */ }
+  }
+
+  const doClearTransfers = () => {
+    // Remove all completed, cancelled, and error transfers
+    setTransfers(prev => prev.filter(t => t.status === 'running'));
   }
 
   // UI Layout similar al screenshot: barra superior por pane (back/up, breadcrumbs, filter, actions)
@@ -488,7 +506,11 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
       </div>
       
       {/* Transfers Panel */}
-      <TransfersPanel transfers={transfers} onCancel={doCancel} />
+      <TransfersPanel 
+        transfers={transfers} 
+        onCancel={doCancel} 
+        onClear={doClearTransfers}
+      />
       
       <ContextMenu
         x={ctx.x}
