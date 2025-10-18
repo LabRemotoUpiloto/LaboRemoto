@@ -58,9 +58,14 @@ const TransfersPanel: React.FC<TransfersPanelProps> = ({ transfers, onCancel }) 
             
             return (
               <div key={t.id} className={itemClass}>
-                {/* Icon */}
-                <div className={`sftp-transfer__icon sftp-transfer__icon--${t.direction}`}>
-                  {t.direction === 'download' ? '↓' : '↑'}
+                {/* Icon with inline label */}
+                <div className={`sftp-transfer__icon-wrapper sftp-transfer__icon-wrapper--${t.direction}`}>
+                  <div className="sftp-transfer__icon-symbol">
+                    {t.direction === 'download' ? '↓' : '↑'}
+                  </div>
+                  <span className="sftp-transfer__icon-label">
+                    {t.direction === 'download' ? 'Downloaded' : 'Uploaded'}
+                  </span>
                 </div>
                 
                 {/* Path info */}
