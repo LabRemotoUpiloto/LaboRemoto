@@ -3,9 +3,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
+  /* El scroll ahora es manejado por el contenedor padre (.snippets-page__list-section) */
 }
 
 /* Empty state */
@@ -33,21 +31,4 @@
   line-height: 1.6;
 }
 
-/* Scrollbar */
-.snippets-list::-webkit-scrollbar {
-  width: 10px;
-}
-
-.snippets-list::-webkit-scrollbar-track {
-  background: var(--background-tertiary);
-  border-radius: 5px;
-}
-
-.snippets-list::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 5px;
-}
-
-.snippets-list::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-primary);
-}
+/* Los estilos de scrollbar ahora están en .snippets-page__list-section */
