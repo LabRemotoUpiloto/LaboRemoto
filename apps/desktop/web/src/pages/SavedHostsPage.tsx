@@ -2,12 +2,18 @@ import React, { useEffect, useRef, useState } from 'react'
 import { listHostEntries, deleteHostFile } from '../api/storage'
 import './SavedHostsPage.css'
 import { useLoading } from '../contexts/LoadingContext'
-import ConfirmModal from '../components/modals/ConfirmModal'
+import SweetAlert from '../components/modals/SweetAlert'
 import { useToasts } from '../contexts/ToastContext'
+import DotsVerticalIcon from '../components/icons/DotsVerticalIcon'
 
-type HostEntry = { file: string; payload: { host: string; port: number | string; user?: string; password?: string } }
+type HostEntry = { file: string; payload: { host: string; port: number | string; user?: string; password?: string; name?: string } }
 
-export default function SavedHostsPage({ onConnect }: { onConnect?: (host: string, port: number | string, user?: string, password?: string) => Promise<void> }) {
+interface SavedHostsPageProps {
+  onConnect?: (host: string, port: number | string, user?: string, password?: string) => Promise<void>;
+  onEdit?: (hostData: HostEntry['payload'], originalFile: string) => void;
+}
+
+export default function SavedHostsPage({ onConnect, onEdit }: SavedHostsPageProps) {
   const [entries, setEntries] = useState<HostEntry[]>([])
   const [loadingLocal, setLoadingLocal] = useState(false)
   const [loadingLabelLocal, setLoadingLabelLocal] = useState<string | null>(null)
@@ -15,6 +21,7 @@ export default function SavedHostsPage({ onConnect }: { onConnect?: (host: strin
   const { push } = useToasts()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [toDeleteFile, setToDeleteFile] = useState<string | null>(null)
+  const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -29,6 +36,20 @@ export default function SavedHostsPage({ onConnect }: { onConnect?: (host: strin
     })()
     return () => { mountedRef.current = false }
   }, [])
+
+  // Cerrar menú al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (activeMenu && !(e.target as HTMLElement).closest('.host-card-menu')) {
+        setActiveMenu(null)
+      }
+    }
+    
+    if (activeMenu) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [activeMenu])
 
   return (
     <div className="page-content saved-hosts-page">
@@ -80,6 +101,53 @@ export default function SavedHostsPage({ onConnect }: { onConnect?: (host: strin
                 <div className="host-title">{it.payload?.host}</div>
                 <div className="host-sub">ssh, {it.payload?.user}@{it.payload?.port}</div>
               </div>
+              
+              {/* Botón de menú de tres puntos */}
+              <div className="host-card-menu">
+                <button 
+                  className="host-menu-btn"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActiveMenu(activeMenu === it.file ? null : it.file)
+                  }}
+                  aria-label="Más opciones"
+                  aria-expanded={activeMenu === it.file}
+                >
+                  <DotsVerticalIcon size={18} />
+                </button>
+                
+                {activeMenu === it.file && (
+                  <div className="host-dropdown-menu">
+                    <button 
+                      className="host-dropdown-item host-dropdown-item-edit"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveMenu(null)
+                        if (onEdit) {
+                          onEdit(it.payload, it.file)
+                        } else {
+                          push({ type: 'info', message: 'Función de edición no disponible' })
+                        }
+                      }}
+                    >
+                      <span className="host-dropdown-icon">✏️</span>
+                      <span>Editar</span>
+                    </button>
+                    <button 
+                      className="host-dropdown-item host-dropdown-item-delete"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveMenu(null)
+                        setToDeleteFile(it.file)
+                        setConfirmOpen(true)
+                      }}
+                    >
+                      <span className="host-dropdown-icon">🗑️</span>
+                      <span>Eliminar</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="host-card-actions">
               <button 
@@ -103,19 +171,6 @@ export default function SavedHostsPage({ onConnect }: { onConnect?: (host: strin
               >
                 Conectar
               </button>
-              <button 
-                className="btn btn-delete" 
-                disabled={loadingLocal}
-                aria-label={`Eliminar host ${it.payload.host}`}
-                onClick={(e) => { 
-                  e.stopPropagation()
-                  if (loadingLocal) return
-                  setToDeleteFile(it.file)
-                  setConfirmOpen(true)
-                }}
-              >
-                Eliminar
-              </button>
             </div>
           </article>
         ))}
@@ -128,10 +183,14 @@ export default function SavedHostsPage({ onConnect }: { onConnect?: (host: strin
           </div>
         )}
       </div>
-      <ConfirmModal 
-        open={confirmOpen} 
-        title="Eliminar host" 
-        message="¿Estás seguro de que deseas eliminar este host guardado?" 
+      <SweetAlert 
+        open={confirmOpen}
+        type="warning"
+        title="¿Eliminar host?" 
+        message="¿Estás seguro de que deseas eliminar este host guardado? Esta acción no se puede deshacer." 
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        showCancel={true}
         onCancel={() => { 
           setConfirmOpen(false)
           setToDeleteFile(null)

@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useLoading } from '../../contexts/LoadingContext';
 import { useToasts } from '../../contexts/ToastContext';
 import PromptModal from '../modals/PromptModal';
+import SweetAlert from '../modals/SweetAlert';
 import { RecentConnection } from './RecentConnectionsPanel';
 import { ConnectionToSave } from '../../hooks/useRecentConnections';
 import './ConnectForm.css';
@@ -46,6 +47,7 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
   const [port, setPort] = useState('22');
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldError>({});
   const [busyLocal, setBusyLocal] = useState(false);
   const { setLoading } = useLoading();
@@ -53,6 +55,12 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
 
   // Modal para guardar host
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  
+  // SweetAlert para confirmaciones
+  const [successAlertOpen, setSuccessAlertOpen] = useState(false);
+  const [successAlertMessage, setSuccessAlertMessage] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [originalHostFile, setOriginalHostFile] = useState<string | null>(null);
 
   // Estado para animaciones
   const [isPulsing, setIsPulsing] = useState(false);
@@ -125,15 +133,45 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
   useEffect(() => {
     if (initialPayload) {
       const p = initialPayload;
+      
+      // Limpiar campos primero
+      setHost('');
+      setPort('22');
+      setUser('');
+      setPassword('');
+      setShowPassword(false);
+      setErrors({});
+      
+      // Luego cargar datos del payload
       if (p.host) setHost(p.host);
       if (p.port) setPort(String(p.port));
       if (p.user) setUser(p.user);
       if (p.password) setPassword(p.password);
+      
+      // Detectar modo edición: si viene initialPayload SIN autoConnect, es edición
+      const isEdit = !!p.host && !p.autoConnect;
+      setIsEditMode(isEdit);
+      
+      // Guardar archivo original si es edición
+      if (isEdit && p._originalFile) {
+        setOriginalHostFile(p._originalFile);
+      }
+      
       if (p.autoConnect) {
         setTimeout(() => {
           connect();
         }, 50);
       }
+    } else {
+      // Si no hay initialPayload, limpiar todo
+      setHost('');
+      setPort('22');
+      setUser('');
+      setPassword('');
+      setShowPassword(false);
+      setErrors({});
+      setIsEditMode(false);
+      setOriginalHostFile(null);
     }
   }, [initialPayload]);
 
@@ -297,10 +335,10 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
 
     const parsedPort = parseInt(port.trim() || '22', 10);
     const safePort = (parsedPort > 0 && parsedPort <= 65535) ? parsedPort : 22;
-    const hostId = `${host}:${safePort}:${user}`;
+    const newHostId = `${host.trim()}:${safePort}:${user.trim()}`;
 
     try {
-      const { saveHostWithMaster } = await import('../../api/storage');
+      const { saveHostWithMaster, deleteHostFile } = await import('../../api/storage');
       const payload = {
         host: host.trim(),
         port: safePort,
@@ -309,9 +347,29 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
         name: name.trim() || undefined,
       };
       
-      await saveHostWithMaster(hostId, payload as any);
-      push({ type: 'success', message: 'Host guardado correctamente' });
+      // Si es modo edición y el ID cambió, eliminar el archivo viejo
+      if (isEditMode && originalHostFile && originalHostFile !== newHostId) {
+        try {
+          await deleteHostFile(originalHostFile);
+        } catch (delError) {
+          console.warn('No se pudo eliminar el host original:', delError);
+          // Continuar de todos modos para guardar el nuevo
+        }
+      }
+      
+      // Guardar el host (nuevo o actualizado)
+      await saveHostWithMaster(newHostId, payload as any);
+      
+      // Mostrar SweetAlert según el modo
       setSaveModalOpen(false);
+      setSuccessAlertMessage(isEditMode ? 'Host editado correctamente' : 'Host guardado correctamente');
+      setSuccessAlertOpen(true);
+      
+      // Limpiar modo edición después de guardar
+      if (isEditMode) {
+        setIsEditMode(false);
+        setOriginalHostFile(null);
+      }
     } catch (e: any) {
       console.error('saveHostWithMaster error', e);
       push({ type: 'error', message: 'Error guardando host' });
@@ -332,6 +390,19 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
   const clearQuickHostIfNeeded = useCallback(() => {
     if (quickHost) onQuickHostCleared?.();
   }, [quickHost, onQuickHostCleared]);
+
+  // Función para limpiar el formulario completamente
+  const clearForm = useCallback(() => {
+    setHost('');
+    setPort('22');
+    setUser('');
+    setPassword('');
+    setShowPassword(false);
+    setErrors({});
+    setIsEditMode(false);
+    setOriginalHostFile(null);
+    if (onQuickHostCleared) onQuickHostCleared();
+  }, [onQuickHostCleared]);
 
   const isValid = !errors.host && !errors.port && !errors.user && !errors.password &&
                   host.trim() && user.trim() && password.trim();
@@ -430,12 +501,12 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
 
             {/* Password */}
             <div className="connect-form__field connect-form__field--full">
-              <div className="connect-form__input-wrapper">
+              <div className="connect-form__input-wrapper connect-form__input-wrapper--password">
                 <input
                   id="field-pass"
                   className={`connect-form__input ${errors.password ? 'connect-form__input--error' : ''}`}
                   placeholder=" "
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
@@ -448,6 +519,16 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
                 <label htmlFor="field-pass" className="connect-form__label">
                   Password
                 </label>
+                <button
+                  type="button"
+                  className="connect-form__password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={busyLocal}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
               </div>
               {errors.password && (
                 <span className="connect-form__error">
@@ -484,11 +565,26 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
 
       <PromptModal
         open={saveModalOpen}
-        title="Guardar host"
-        message={`Guardar ${user}@${host}:${port || '22'}`}
+        title={isEditMode ? "Editar host guardado" : "Guardar host"}
+        message={`${isEditMode ? 'Editar' : 'Guardar'} ${user}@${host}:${port || '22'}`}
         placeholder="Nombre (opcional)"
         onCancel={() => setSaveModalOpen(false)}
         onConfirm={handleSaveHost}
+      />
+      
+      <SweetAlert
+        open={successAlertOpen}
+        type="success"
+        title="¡Éxito!"
+        message={successAlertMessage}
+        confirmText="Aceptar"
+        showCancel={false}
+        onConfirm={() => {
+          setSuccessAlertOpen(false);
+          setSuccessAlertMessage('');
+          // Limpiar formulario después de confirmar
+          clearForm();
+        }}
       />
     </>
   );
