@@ -28,20 +28,17 @@ const SnippetsHeader: React.FC<SnippetsHeaderProps> = ({
 
   return (
     <header className="snippets-header">
-      <div className="snippets-header__title-section">
-        <h1 className="snippets-header__title">Snippets</h1>
-        <span className="snippets-header__count">
-          {isFiltering ? (
-            <>
-              {filteredCount} de {totalCount}
-            </>
-          ) : (
-            totalCount
-          )}
-        </span>
-      </div>
+      {/* Header con título, separador y descripción */}
+      <div className="snippets-header__top">
+        <div className="snippets-header__title-section">
+          <h1 className="snippets-header__title">Snippets</h1>
+          <span className="snippets-header__separator">•</span>
+          <p className="snippets-header__description">
+            Guarda y organiza fragmentos de código reutilizables.
+          </p>
+        </div>
 
-      <div className="snippets-header__actions">
+        <div className="snippets-header__actions">
         <div className="snippets-header__search-wrapper">
           <span className="snippets-header__search-icon">🔍</span>
           <input
@@ -84,6 +81,7 @@ const SnippetsHeader: React.FC<SnippetsHeaderProps> = ({
           <option value="updated">🕒 Última modificación</option>
           <option value="title">🔤 Por título</option>
         </select>
+      </div>
       </div>
     </header>
   );
