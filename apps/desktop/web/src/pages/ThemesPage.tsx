@@ -111,14 +111,20 @@ export default function ThemesPage() {
 
   return (
     <div className="page-content themes-page">
-      <div className="themes-page-inner">
+      {/* Header fijo */}
+      <div className="themes-page__header">
         <h2 className="page-title">Temas</h2>
+        <span className="page-separator">•</span>
         <p className="page-description">
           Personaliza la apariencia de la aplicación con una amplia variedad de temas oscuros, claros y coloridos.
         </p>
+      </div>
 
-        {/* Temas Oscuros */}
-        <div className="theme-category">
+      {/* Contenido con scroll */}
+      <div className="themes-page__scrollable">
+        <div className="themes-page-inner">
+          {/* Temas Oscuros */}
+          <div className="theme-category">
         <div className="category-header">
           <span className="category-icon">🌙</span>
           <h3 className="category-title">Temas Oscuros</h3>
@@ -152,6 +158,7 @@ export default function ThemesPage() {
           {THEME_CATEGORIES.special.map((t, i) => renderThemeCard(t, i))}
         </div>
       </div>
+        </div>
       </div>
     </div>
   )
