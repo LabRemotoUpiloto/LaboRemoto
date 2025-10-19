@@ -5,8 +5,7 @@ use sha2::{Sha256, Digest};
 use crate::security::SecurityManager;
 use crate::cmd::state::SESSIONS;
 use crate::cmd::search_shared::remote_search_ranked; // import para búsqueda remota compartida
-use crate::cmd::ai_utils::{get_openai_api_key, get_claude_api_key, call_openai_file_analysis, call_claude_file_analysis};
-use crate::cmd::ai::ModelSelection; // import para selección de modelo
+use crate::cmd::ai_utils::get_openai_api_key;
 use super::state::{SessionExt};
 use std::io::Read;
 use chrono; // ya está en Cargo.toml
@@ -22,6 +21,15 @@ use once_cell::sync::Lazy;
 static AI_CACHE: Lazy<std::sync::Mutex<std::collections::HashMap<String,(SystemTime,String,Vec<String>)>>> = Lazy::new(|| {
   std::sync::Mutex::new(std::collections::HashMap::new())
 });
+
+// Helper para truncar texto
+fn truncate_for(text: &str, max_len: usize) -> String {
+  if text.len() <= max_len {
+    text.to_string()
+  } else {
+    format!("{}...", &text[..max_len.saturating_sub(3)])
+  }
+}
 
 // (Purgar bloque legacy residual)
 
@@ -239,9 +247,9 @@ pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEdi
 }
 
 #[tauri::command]
-pub fn analyze_file(path: String, model_selection: Option<ModelSelection>) -> Result<AnalyzeFileResponse, String> {
+pub fn analyze_file(path: String) -> Result<AnalyzeFileResponse, String> {
   // Unificamos lógica: delegar a analyze_any_file sin session_id (D)
-  tauri::async_runtime::block_on(analyze_any_file(None, path, None, model_selection))
+  tauri::async_runtime::block_on(analyze_any_file(None, path, None))
 }
 
 fn sftp_read_file(session_id: &str, remote_path: &str) -> Result<Vec<u8>, String> {
@@ -275,12 +283,7 @@ fn sftp_read_file(session_id: &str, remote_path: &str) -> Result<Vec<u8>, String
 /// Analiza un archivo remoto o local. Acepta `session_id` (snake) y alias `sessionId` (camel) para compatibilidad frontend.
 #[tauri::command]
 #[allow(non_snake_case)] // permitimos alias camelCase proveniente de bundles antiguos
-pub async fn analyze_any_file(
-  session_id: Option<String>, 
-  path: String, 
-  sessionId: Option<String>,
-  model_selection: Option<ModelSelection>
-) -> Result<AnalyzeFileResponse, String> {
+pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionId: Option<String>) -> Result<AnalyzeFileResponse, String> {
   let _sec = SecurityManager::new();
   // Cargar .env temprano (asegura OPENAI_API_KEY disponible para lógica de activación)
   let _ = dotenvy::dotenv();
@@ -334,20 +337,9 @@ pub async fn analyze_any_file(
   // Carga .env temprana para garantizar lectura de OPENAI_API_KEY
   if get_openai_api_key().is_none() { let _ = dotenvy::dotenv(); }
   // Determinar si usaremos IA; FORCE_FILE_AI fuerza el intento.
-  // Determinar modelo a usar (default: Claude)
-  let selected_model = model_selection.unwrap_or_default();
-  let use_claude = selected_model.is_claude();
-  
   let env_flag = std::env::var("ENABLE_FILE_AI_SUMMARY").ok();
   let force_flag = std::env::var("FORCE_FILE_AI").ok().map(|v| matches!(v.as_str(), "1"|"true"|"TRUE"));
-  
-  // Verificar API key según modelo seleccionado
-  let has_key = if use_claude {
-    get_claude_api_key().is_some()
-  } else {
-    get_openai_api_key().is_some()
-  };
-  
+  let has_key = get_openai_api_key().is_some();
   let base_enable = match env_flag.as_deref() {
     Some("0") | Some("false") | Some("FALSE") => false,
     Some("1") | Some("true") | Some("TRUE") => true,
@@ -355,21 +347,7 @@ pub async fn analyze_any_file(
   };
   let enable_ai_summary = if force_flag.unwrap_or(false) { true } else { base_enable };
   let file_ai_debug = std::env::var("FILE_AI_DEBUG").ok().map(|v| v=="1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
-  
-  if file_ai_debug { 
-    eprintln!(
-      "[file_ai] decision enable_ai_summary={} force={:?} base={} has_key={} modelo={} raw_flag={:?} ai_only_mode={}", 
-      enable_ai_summary, force_flag, base_enable, has_key, 
-      if use_claude { "Claude" } else { "OpenAI" }, 
-      env_flag, ai_only_mode
-    ); 
-    if !has_key { 
-      eprintln!(
-        "[file_ai] AVISO: {} API key ausente tras dotenv, se usará heurística/fallback salvo FORCE_FILE_AI", 
-        if use_claude { "CLAUDE_CODE_API_KEY" } else { "OPENAI_API_KEY" }
-      ); 
-    } 
-  }
+  if file_ai_debug { eprintln!("[file_ai] decision enable_ai_summary={} force={:?} base={} has_key={} raw_flag={:?} ai_only_mode={} (size candidate desconocido aún)", enable_ai_summary, force_flag, base_enable, has_key, env_flag, ai_only_mode); if !has_key { eprintln!("[file_ai] AVISO: OPENAI_API_KEY ausente tras dotenv, se usará heurística/fallback salvo FORCE_FILE_AI"); } }
   let mut semantic_summary: Option<String> = None; // anulamos heurística cuando AI activa
   let language_detected = detect_language(Path::new(&path), &content);
   if !enable_ai_summary && !ai_only_mode { // sólo usar heurística si AI summary desactivada
@@ -409,240 +387,50 @@ pub async fn analyze_any_file(
       }
     }
     if need_call {
-      // Determinar qué API usar
-      if use_claude {
-        // Usar Claude API
-        if let Some(api_key) = get_claude_api_key() {
-          if file_ai_debug { 
-            eprintln!("[file_ai] cache miss, llamando Claude API"); 
-          }
-          
-          let sample = if bytes.len() > 40_000 { 
-            let h = content.lines().take(120).collect::<Vec<_>>().join("\n"); 
-            let t = content.lines().rev().take(120).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"); 
-            format!("[HEAD]\n{}\n[...OMITIDO...]\n[TAIL]\n{}", h, t) 
-          } else { 
-            content.to_string() 
-          };
-
-          match call_claude_file_analysis(&api_key, &path, bytes.len(), &sample, file_ai_debug).await {
-            Ok(result) => {
-              // Si Claude devolvió análisis completo (formato libre)
-              if let Some(full_text) = result.full_analysis {
-                if file_ai_debug {
-                  eprintln!("[file_ai] Claude devolvió análisis completo en formato libre");
-                  eprintln!("[file_ai] Longitud del análisis: {} caracteres", full_text.len());
-                }
-                
-                // Extraer el propósito (buscar después de "## PROPÓSITO DEL PROGRAMA" o "## PROPÓSITO")
-                let purpose_line = if full_text.contains("## PROPÓSITO DEL PROGRAMA") {
-                  full_text
-                    .lines()
-                    .skip_while(|l| !l.contains("## PROPÓSITO DEL PROGRAMA"))
-                    .skip(1)
-                    .find(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
-                    .unwrap_or("")
-                    .trim()
-                    .to_string()
-                } else if full_text.contains("## PROPÓSITO") {
-                  full_text
-                    .lines()
-                    .skip_while(|l| !l.contains("## PROPÓSITO"))
-                    .skip(1)
-                    .find(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
-                    .unwrap_or("")
-                    .trim()
-                    .to_string()
-                } else {
-                  // Si no hay sección de propósito, usar primera línea significativa
-                  full_text
-                    .lines()
-                    .find(|l| {
-                      let trimmed = l.trim();
-                      !trimmed.is_empty() 
-                        && !trimmed.starts_with('#') 
-                        && trimmed.len() > 15
-                    })
-                    .unwrap_or(&full_text[..full_text.len().min(100)])
-                    .trim()
-                    .to_string()
-                };
-                
-                if !purpose_line.is_empty() {
-                  purpose_ai = Some(purpose_line);
-                  if file_ai_debug {
-                    eprintln!("[file_ai] Propósito extraído: {:?}", purpose_ai);
-                  }
-                }
-                
-                // Extraer secciones completas del análisis de Claude
-                // Buscar las 4 secciones: EJEMPLO DE EJECUCIÓN, POSIBLES MEJORAS, CONCLUSIONES
-                let mut sections: Vec<String> = Vec::new();
-                let lines: Vec<&str> = full_text.lines().collect();
-                let mut i = 0;
-                
-                while i < lines.len() {
-                  let line = lines[i].trim();
-                  
-                  // Detectar inicio de sección
-                  if line.contains("## EJEMPLO DE EJECUCIÓN") || 
-                     line.contains("## POSIBLES MEJORAS") || 
-                     line.contains("## CONCLUSIONES") ||
-                     line.contains("## DETALLES") {
-                    
-                    let section_title = line.replace("##", "").trim().to_string();
-                    let mut section_content = Vec::new();
-                    i += 1;
-                    
-                    // Capturar todo el contenido de esta sección hasta la siguiente sección o fin
-                    while i < lines.len() {
-                      let content_line = lines[i].trim();
-                      
-                      // Si encontramos otra sección, detenernos
-                      if content_line.starts_with("##") {
-                        break;
-                      }
-                      
-                      // Capturar líneas con contenido (bullets, texto normal, etc.)
-                      if !content_line.is_empty() {
-                        if content_line.starts_with("- ") {
-                          // Bullet point
-                          section_content.push(content_line.strip_prefix("- ").unwrap_or(content_line).to_string());
-                        } else {
-                          // Texto normal (no bullets)
-                          section_content.push(content_line.to_string());
-                        }
-                      }
-                      
-                      i += 1;
-                    }
-                    
-                    // Agregar la sección completa como un solo string
-                    if !section_content.is_empty() {
-                      let section_text = format!("**{}**\n{}", section_title, section_content.join("\n"));
-                      sections.push(section_text);
-                    }
-                    
-                    continue;
-                  }
-                  
-                  i += 1;
-                }
-                
-                // Si encontramos secciones estructuradas, usarlas
-                if !sections.is_empty() {
-                  key_points_ai = Some(sections);
-                  if file_ai_debug {
-                    eprintln!("[file_ai] Se extrajeron {} secciones completas", key_points_ai.as_ref().unwrap().len());
-                  }
-                } else {
-                  // Fallback: extraer bullets individuales si no hay secciones
-                  let purpose_lower = purpose_ai.as_ref().map(|p| p.to_lowercase()).unwrap_or_default();
-                  let points: Vec<String> = full_text
-                    .lines()
-                    .filter_map(|l| {
-                      let trimmed = l.trim();
-                      if trimmed.starts_with("- ") {
-                        let content = trimmed.strip_prefix("- ").unwrap_or(trimmed).to_string();
-                        if !purpose_lower.is_empty() && content.to_lowercase().contains(&purpose_lower[..purpose_lower.len().min(50)]) {
-                          return None;
-                        }
-                        if content.len() > 30 && content.len() < 250 {
-                          return Some(content);
-                        }
-                      }
-                      None
-                    })
-                    .take(10)
-                    .collect();
-                  
-                  if !points.is_empty() {
-                    key_points_ai = Some(points);
-                    if file_ai_debug {
-                      eprintln!("[file_ai] Se extrajeron {} key points individuales", key_points_ai.as_ref().unwrap().len());
-                    }
-                  } else if file_ai_debug {
-                    eprintln!("[file_ai] No se pudieron extraer key points del análisis");
-                  }
-                }
+  if let Some(api_key) = get_openai_api_key() {
+        if file_ai_debug { eprintln!("[file_ai] cache miss, llamando API, modelo={}", std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into())); }
+        if let Ok(client) = reqwest::Client::builder().timeout(Duration::from_secs(8)).build() {
+          let sample = if bytes.len()>40_000 { let h=content.lines().take(120).collect::<Vec<_>>().join("\n"); let t=content.lines().rev().take(120).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"); format!("[HEAD]\n{}\n[...OMITIDO...]\n[TAIL]\n{}",h,t) } else { content.to_string() };
+          let prompt = format!("Devuelve SOLO JSON con campos: descripcion, key_points.\nReglas estrictas:\n1. descripcion = UNA línea clara que resuma la función principal (sin empezar con 'Este archivo').\n2. key_points = 3-6 bullets concisos (sin punto final) sobre flujo, entradas, salidas, librerías, riesgos.\n3. Nada fuera del JSON.\n---\nNombre:{path}\nTamaño:{size}\nContenido:\n{c}\n---", path=path, size=bytes.len(), c=sample);
+          let body = serde_json::json!({"model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into()),"messages":[{"role":"system","content":"Eres un asistente que resume archivos en español."},{"role":"user","content":prompt}],"temperature":0.15,"max_tokens":260});
+          match client.post("https://api.openai.com/v1/chat/completions").bearer_auth(&api_key).json(&body).send().await {    
+            Ok(resp) => {
+              let status = resp.status();
+              let text_body = resp.text().await.unwrap_or_default();
+              if file_ai_debug { eprintln!("[file_ai] HTTP status={} length={}", status, text_body.len()); }
+              // Si status no es éxito, registrar y generar fallback inmediato
+              if !status.is_success() {
+                if file_ai_debug { eprintln!("[file_ai] respuesta no exitosa: {}", status); }
+                if let Ok(err_v) = serde_json::from_str::<serde_json::Value>(&text_body) {
+                  if let Some(msg) = err_v.pointer("/error/message").and_then(|v| v.as_str()) { purpose_ai = Some(format!("(IA) Error API: {}", truncate_for(msg, 140))); }
+                  else { purpose_ai = Some(format!("(IA) Error HTTP {} sin mensaje", status)); }
+                } else { purpose_ai = Some(format!("(IA) Error HTTP {}", status)); }
+                if status.as_u16() == 401 { key_points_ai = Some(vec!["API key inválida o expirada".into()]); }
+                else if status.as_u16() == 429 { key_points_ai = Some(vec!["Rate limit alcanzado".into()]); }
+                else { key_points_ai.get_or_insert(Vec::new()).push("Fallo al obtener resumen".into()); }
+                if file_ai_debug { eprintln!("[file_ai] abortando parseo por status no exitoso"); }
+                // No parse normal en error
               } else {
-                // Formato tradicional con descripcion y key_points
-                purpose_ai = result.description;
-                key_points_ai = result.key_points;
-              }
-              
-              if file_ai_debug && result.error.is_some() {
-                eprintln!("[file_ai] Claude retornó error: {:?}", result.error);
-              }
-            },
-            Err(e) => { 
-              if file_ai_debug { 
-                eprintln!("[file_ai] Error llamando Claude: {}", e); 
-              }
-            }
-          }
-
-          // Guardar en caché si obtuvimos resultados
-          if let (Some(p), Some(kps)) = (purpose_ai.clone(), key_points_ai.clone()) { 
-            if let Ok(mut map) = AI_CACHE.lock() { 
-              if map.len() >= AI_CACHE_MAX { 
-                map.retain(|_, (ts, _, _)| ts.elapsed().unwrap_or_default() < Duration::from_secs(AI_CACHE_TTL_SECS)); 
-                if map.len() >= AI_CACHE_MAX { 
-                  if let Some(first) = map.keys().next().cloned() { 
-                    map.remove(&first); 
-                  } 
-                } 
-              } 
-              map.insert(sha_cur.clone(), (SystemTime::now(), p, kps)); 
-            } 
-          }
-        }
-      } else {
-        // Usar OpenAI API
-        if let Some(api_key) = get_openai_api_key() {
-          let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into());
-          
-          if file_ai_debug { 
-            eprintln!("[file_ai] cache miss, llamando OpenAI API con modelo={}", model); 
-          }
-          
-          let sample = if bytes.len() > 40_000 { 
-            let h = content.lines().take(120).collect::<Vec<_>>().join("\n"); 
-            let t = content.lines().rev().take(120).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"); 
-            format!("[HEAD]\n{}\n[...OMITIDO...]\n[TAIL]\n{}", h, t) 
-          } else { 
-            content.to_string() 
-          };
-
-          match call_openai_file_analysis(&api_key, &model, &path, bytes.len(), &sample, file_ai_debug).await {
-            Ok(result) => {
-              purpose_ai = result.description;
-              key_points_ai = result.key_points;
-              if file_ai_debug && result.error.is_some() {
-                eprintln!("[file_ai] OpenAI retornó error: {:?}", result.error);
+                let json: serde_json::Value = serde_json::from_str(&text_body).unwrap_or(serde_json::Value::Null);
+                if file_ai_debug { let slice=&text_body[..text_body.len().min(300)].replace("\n"," "); eprintln!("[file_ai] raw body (300 max): {}", slice);}                
+                // Extraer contenido
+                let mut extracted: Option<String> = json.pointer("/choices/0/message/content").and_then(|v| v.as_str()).map(|s| s.to_string());
+                if extracted.is_none() { extracted = json.pointer("/choices/0/text").and_then(|v| v.as_str()).map(|s| s.to_string()); }
+                if extracted.is_none() { if let Some(arr)=json.pointer("/choices/0/message/content").and_then(|v| v.as_array()) { let mut acc=String::new(); for part in arr { if let Some(t)=part.get("text").and_then(|x| x.as_str()) { acc.push_str(t); acc.push('\n'); } } if !acc.trim().is_empty() { extracted=Some(acc); } } }
+                if let Some(text)=extracted {
+                  if file_ai_debug { let preview=&text[..text.len().min(140)]; eprintln!("[file_ai] raw modelo (primeros 140 chars): {}", preview.replace("\n"," ")); }
+                  let trimmed=text.trim().trim_matches('`').trim_start_matches("json").trim();
+                  if let Ok(vj)=serde_json::from_str::<serde_json::Value>(trimmed) {
+                    if file_ai_debug { eprintln!("[file_ai] respuesta parseada OK"); }
+                    if let Some(p)=vj.get("descripcion").and_then(|x| x.as_str()) { purpose_ai=Some(p.to_string()); }
+                    if let Some(kpa)=vj.get("key_points").and_then(|x| x.as_array()) { let mut vkp=Vec::new(); for item in kpa.iter().take(6){ if let Some(s)=item.as_str(){ vkp.push(s.to_string()); } } if !vkp.is_empty(){ key_points_ai=Some(vkp); } }
+                  } else if file_ai_debug { eprintln!("[file_ai] JSON inválido tras recorte"); }
+                } else if file_ai_debug { eprintln!("[file_ai] campo content ausente tras parseo; fallback"); }
               }
             },
-            Err(e) => { 
-              if file_ai_debug { 
-                eprintln!("[file_ai] Error llamando OpenAI: {}", e); 
-              }
-            }
+            Err(e) => { if file_ai_debug { eprintln!("[file_ai] request HTTP falló: {e}"); } }
           }
-
-          // Guardar en caché si obtuvimos resultados
-          if let (Some(p), Some(kps)) = (purpose_ai.clone(), key_points_ai.clone()) { 
-            if let Ok(mut map) = AI_CACHE.lock() { 
-              if map.len() >= AI_CACHE_MAX { 
-                map.retain(|_, (ts, _, _)| ts.elapsed().unwrap_or_default() < Duration::from_secs(AI_CACHE_TTL_SECS)); 
-                if map.len() >= AI_CACHE_MAX { 
-                  if let Some(first) = map.keys().next().cloned() { 
-                    map.remove(&first); 
-                  } 
-                } 
-              } 
-              map.insert(sha_cur.clone(), (SystemTime::now(), p, kps)); 
-            } 
-          }
+          if let (Some(p),Some(kps))=(purpose_ai.clone(), key_points_ai.clone()) { if let Ok(mut map)=AI_CACHE.lock(){ if map.len()>=AI_CACHE_MAX { map.retain(|_,(ts,_,_)| ts.elapsed().unwrap_or_default() < Duration::from_secs(AI_CACHE_TTL_SECS)); if map.len()>=AI_CACHE_MAX { if let Some(first)=map.keys().next().cloned() { map.remove(&first); } } } map.insert(sha_cur.clone(), (SystemTime::now(), p, kps)); } }
         }
       }
     }
@@ -806,8 +594,8 @@ pub async fn analyze_from_message(req: AnalyzeFromMessageRequest) -> Result<Anal
   // (Opcional) podríamos usar triggers semánticos aquí si en el futuro hay fallback sin filename.
   let filename = extract_first_filename(msg);
   if filename.is_none() { return Ok(AnalyzeFromMessageResponse { used_filename: None, analysis: None, error: Some("No se detectó nombre de archivo en el mensaje".into()) }); }
-  // Llamar al pipeline existente (sin model_selection explícito, usa default)
-  match analyze_any_file(req.session_id.clone(), filename.clone().unwrap(), req.session_id.clone(), None).await {
+  // Llamar al pipeline existente
+  match analyze_any_file(req.session_id.clone(), filename.clone().unwrap(), req.session_id.clone()).await {
     Ok(r) => Ok(AnalyzeFromMessageResponse { used_filename: filename, analysis: Some(r.analysis), error: None }),
     Err(e) => Ok(AnalyzeFromMessageResponse { used_filename: filename, analysis: None, error: Some(e) })
   }
