@@ -1,31 +1,57 @@
 /* ==================== LAYOUT PRINCIPAL ==================== */
 .saved-hosts-page { 
-  padding: 12px 40px 32px 40px; /* Alineado con la línea de la sidebar */
+  padding: 12px 24px 32px 24px; /* Alineado con la línea de la sidebar */
   max-width: 1400px;
   margin: 0 auto;
   min-height: 100vh;
   background: var(--background-primary);
 }
 
-.page-title { 
-  color: var(--text-primary);
-  margin: 0 0 32px;
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  position: relative;
+/* Header con título, separador y descripción */
+.saved-hosts-page__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border-subtle);
 }
 
-.page-title::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 60px;
-  height: 4px;
-  background: linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%);
-  border-radius: 2px;
+.page-title { 
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Separador visual entre título y descripción */
+.page-separator {
+  color: var(--accent-primary);
+  font-size: 18px;
+  font-weight: 700;
+  opacity: 0.6;
+  flex-shrink: 0;
+  line-height: 1;
+  user-select: none;
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0;
+  padding: 0;
+  line-height: 1.4;
+  flex: 1;
+  font-weight: 400;
+  opacity: 0.85;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ==================== GRID DE HOSTS ==================== */

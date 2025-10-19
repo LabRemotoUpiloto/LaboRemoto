@@ -32,7 +32,15 @@ export default function SavedHostsPage({ onConnect }: { onConnect?: (host: strin
 
   return (
     <div className="page-content saved-hosts-page">
-      <h2 className="page-title">Hosts Guardados</h2>
+      {/* Header con título y descripción */}
+      <div className="saved-hosts-page__header">
+        <h2 className="page-title">Hosts Guardados</h2>
+        <span className="page-separator">•</span>
+        <p className="page-description">
+          Gestiona y accede rápidamente a tus conexiones SSH guardadas.
+        </p>
+      </div>
+
       <div className="hosts-grid">
         {entries.map((it) => (
           <article 
