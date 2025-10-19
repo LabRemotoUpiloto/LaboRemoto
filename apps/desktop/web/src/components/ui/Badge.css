@@ -1,0 +1,223 @@
+/* ==================== BADGE COMPONENT ==================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  line-height: 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Icon */
+.badge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Text */
+.badge-text {
+  display: inline-block;
+}
+
+/* ==================== SIZES ==================== */
+
+.badge-sm {
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 10px;
+}
+
+.badge-sm .badge-icon {
+  font-size: 10px;
+}
+
+.badge-md {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 12px;
+}
+
+.badge-md .badge-icon {
+  font-size: 12px;
+}
+
+.badge-lg {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 14px;
+}
+
+.badge-lg .badge-icon {
+  font-size: 14px;
+}
+
+/* ==================== CLICKABLE STATE ==================== */
+
+.badge-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.badge-clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.badge-clickable:active {
+  transform: translateY(0);
+}
+
+.badge-clickable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+}
+
+/* ==================== VARIANTS ==================== */
+
+/* Primary variant */
+.badge-primary {
+  background: var(--accent-primary-subtle);
+  color: var(--accent-primary-light);
+  border-color: var(--accent-primary-dark);
+  box-shadow: inset 0 0 0 1px var(--accent-primary-dark);
+}
+
+.badge-primary:hover {
+  background: color-mix(in srgb, var(--accent-primary-subtle) 80%, var(--accent-primary) 20%);
+  border-color: var(--accent-primary);
+}
+
+/* Secondary variant */
+.badge-secondary {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.badge-secondary:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* Success variant */
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+  box-shadow: inset 0 0 0 1px var(--success-border);
+}
+
+.badge-success:hover {
+  background: color-mix(in srgb, var(--success-bg) 80%, var(--success) 20%);
+  border-color: var(--success);
+}
+
+/* Warning variant */
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+  box-shadow: inset 0 0 0 1px var(--warning-border);
+}
+
+.badge-warning:hover {
+  background: color-mix(in srgb, var(--warning-bg) 80%, var(--warning) 20%);
+  border-color: var(--warning);
+}
+
+/* Danger variant */
+.badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+  box-shadow: inset 0 0 0 1px var(--danger-border);
+}
+
+.badge-danger:hover {
+  background: color-mix(in srgb, var(--danger-bg) 80%, var(--danger) 20%);
+  border-color: var(--danger);
+}
+
+/* Info variant */
+.badge-info {
+  background: var(--info-bg);
+  color: var(--info-text);
+  border-color: var(--info-border);
+  box-shadow: inset 0 0 0 1px var(--info-border);
+}
+
+.badge-info:hover {
+  background: color-mix(in srgb, var(--info-bg) 80%, var(--info) 20%);
+  border-color: var(--info);
+}
+
+/* Neutral variant */
+.badge-neutral {
+  background: var(--surface-2);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.badge-neutral:hover {
+  background: var(--surface-3);
+  border-color: var(--border-color);
+}
+
+/* ==================== DOT INDICATOR ==================== */
+
+.badge-dot {
+  padding-left: 6px;
+}
+
+.badge-dot::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: currentColor;
+  box-shadow: 0 0 4px currentColor;
+}
+
+/* ==================== PULSE ANIMATION (for status badges) ==================== */
+
+@keyframes badgePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.badge-pulse .badge-icon {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 640px) {
+  .badge-lg {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .badge-md {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  .badge-sm {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+}

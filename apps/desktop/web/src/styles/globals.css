@@ -4,8 +4,18 @@
   --background-tertiary: #111827; 
   --text-primary: #E5E7EB;
   --text-secondary: #9CA3AF;
+  --text-tertiary: #6B7280;         /* Nuevo: texto de apoyo */
+  --text-muted: #4B5563;            /* Mejorado: placeholders */
+  --text-disabled: #374151;         /* Nuevo: elementos deshabilitados */
+  --text-inverse: #0B1220;          /* Nuevo: texto sobre fondos claros/acentos */
   --accent-primary: #10B981;        
-  --accent-primary-hover: #059669;  
+  --accent-primary-hover: #059669;
+  --accent-primary-light: #34D399;  /* Nuevo: versión suave del acento */
+  --accent-primary-dark: #047857;   /* Nuevo: versión intensa del acento */
+  --accent-primary-subtle: rgba(16, 185, 129, 0.12); /* Nuevo: fondos sutiles con acento */
+  --accent-secondary: #3B82F6;      /* Nuevo: azul complementario */
+  --accent-tertiary: #8B5CF6;       /* Nuevo: morado de apoyo */
+  --accent-warm: #F59E0B;           /* Nuevo: acento cálido */
   --border-color: #1F2937;          
   /* terminal-specific defaults: prefer theme text color but allow per-theme overrides */
   --terminal-foreground: var(--text-primary);
@@ -17,17 +27,33 @@
      (padding 2px + 4px + margin 6px = 12px) */
   --page-header-alignment: 12px;
 
-  --text-muted: var(--text-secondary);
   --border: var(--border-subtle);
   --ring: #22D3EE;
   --accent-contrast: #061016;
   --success: #22C55E;
+  --success-bg: rgba(34, 197, 94, 0.12);    /* Nuevo: fondo de éxito */
+  --success-border: rgba(34, 197, 94, 0.3); /* Nuevo: borde de éxito */
+  --success-text: #4ADE80;                  /* Nuevo: texto de éxito */
   --warning: #F59E0B;
+  --warning-bg: rgba(245, 158, 11, 0.12);   /* Nuevo: fondo de advertencia */
+  --warning-border: rgba(245, 158, 11, 0.3); /* Nuevo: borde de advertencia */
+  --warning-text: #FBBF24;                  /* Nuevo: texto de advertencia */
   --danger: #EF4444;
+  --danger-bg: rgba(239, 68, 68, 0.12);     /* Nuevo: fondo de peligro */
+  --danger-border: rgba(239, 68, 68, 0.3);  /* Nuevo: borde de peligro */
+  --danger-text: #F87171;                   /* Nuevo: texto de peligro */
   --info: #22D3EE;
+  --info-bg: rgba(34, 211, 238, 0.12);      /* Nuevo: fondo de información */
+  --info-border: rgba(34, 211, 238, 0.3);   /* Nuevo: borde de información */
+  --info-text: #67E8F9;                     /* Nuevo: texto de información */
   /* surfaces */
   --panel: var(--background-secondary);
   --panel-muted: var(--background-tertiary);
+  --surface-0: var(--background-primary);   /* Nuevo: nivel base */
+  --surface-1: var(--background-secondary); /* Nuevo: elevado 1 */
+  --surface-2: var(--background-tertiary);  /* Nuevo: elevado 2 */
+  --surface-3: #1A202E;                     /* Nuevo: elevado 3 */
+  --surface-overlay: rgba(0, 0, 0, 0.5);    /* Nuevo: modales/overlays */
   --shadow: 0 8px 30px rgba(0,0,0,0.25);
   /* Accessible borders */
   --border-subtle: rgba(255,255,255,0.08);
@@ -125,16 +151,17 @@ html[data-theme="light"] {
 }
 
 /* Midnight Muse: dark, modern, subtle green accent */
-html[data-theme="midnight-muse"] {
-  --background-primary: #071022;
-  --background-secondary: #0f1a2a;
-  --background-tertiary: #162435;
-  --text-primary: #E6EEF6;
-  --text-secondary: #9FB2C2;
-  --accent-primary: #5FD6A6;
-  --accent-primary-hover: #7fe2c1;
-  --accent-strong: #33C48B;
-  --border-color: rgba(255,255,255,0.04);
+/* 🔥 Crimson Gold - Rojo intenso con detalles dorados */
+html[data-theme="crimson-gold"] {
+  --background-primary: #1a0505;
+  --background-secondary: #2a0a0a;
+  --background-tertiary: #3d1010;
+  --text-primary: #ffe6e6;
+  --text-secondary: #ffcccc;
+  --accent-primary: #dc143c;
+  --accent-primary-hover: #ff6b6b;
+  --accent-strong: #b8860b;
+  --border-color: rgba(220, 20, 60, 0.15);
 }
 
 /* Obsidian Rose (dark, pink accent) */
@@ -165,17 +192,18 @@ html[data-theme="mist-harbor"]{
 }
 
 /* Paper Sand (light, warm) */
-html[data-theme="paper-sand"]{
-  --background-primary: #fbf6f1;
-  --background-secondary: #f2ebe3;
-  --background-tertiary: #eadfd3;
-  --text-primary: #2b2a28;
-  --text-secondary: #6f6a64;
-  --accent-primary: #d97706;
-  --accent-primary-hover: #f0a54a;
-  --accent-strong: #b45309;
-  --border-color: #e7ddd3;
-  --terminal-foreground: #2b2a28;
+/* 💜 Lavender Dream - Lavanda suave con toques violeta */
+html[data-theme="lavender-dream"]{
+  --background-primary: #f5f3ff;
+  --background-secondary: #ede9fe;
+  --background-tertiary: #ddd6fe;
+  --text-primary: #4c1d95;
+  --text-secondary: #6d28d9;
+  --accent-primary: #8b5cf6;
+  --accent-primary-hover: #a78bfa;
+  --accent-strong: #7c3aed;
+  --border-color: #c4b5fd;
+  --terminal-foreground: #4c1d95;
 }
 
 /* Aurora Coral (dark, warm colorfulness) */
@@ -189,6 +217,19 @@ html[data-theme="aurora-coral"]{
   --accent-primary-hover: #ffc89a;
   --accent-strong: #ff6b6b;
   --border-color: rgba(255,255,255,0.03);
+}
+
+/* 🌙 Amber Night - Ámbar profundo con toques bronce */
+html[data-theme="amber-night"]{
+  --background-primary: #1a1003;
+  --background-secondary: #2a1a08;
+  --background-tertiary: #3d2710;
+  --text-primary: #fff4e0;
+  --text-secondary: #ffd699;
+  --accent-primary: #f59e0b;
+  --accent-primary-hover: #fbbf24;
+  --accent-strong: #b45309;
+  --border-color: rgba(245, 158, 11, 0.15);
 }
 
 /* Verdant Neon (dark, neon green) */
@@ -219,16 +260,17 @@ html[data-theme="sunset-blush"]{
 
 /* emerald-dusk eliminado por consolidación */
 
-html[data-theme="moody-purple"]{
-  --background-primary: #0d0b12;
-  --background-secondary: #171423;
-  --background-tertiary: #221c2f;
-  --text-primary: #efe9ff;
-  --text-secondary: #c9bfe6;
-  --accent-primary: #b68cff;
-  --accent-primary-hover: #d3baff;
-  --accent-strong: #9b6cff;
-  --border-color: rgba(255,255,255,0.03);
+/* ⚡ Electric Indigo - Índigo eléctrico con chispas cyan */
+html[data-theme="electric-indigo"]{
+  --background-primary: #0a0520;
+  --background-secondary: #150a35;
+  --background-tertiary: #200f4a;
+  --text-primary: #e8e0ff;
+  --text-secondary: #b8a8ff;
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #818cf8;
+  --accent-strong: #06b6d4;
+  --border-color: rgba(99, 102, 241, 0.2);
 }
 
 html[data-theme="oceanic-teal"]{
@@ -255,22 +297,24 @@ html[data-theme="ruby-night"]{
   --border-color: rgba(255,255,255,0.03);
 }
 
-html[data-theme="forest-moss"]{
-  --background-primary: #07120b;
-  --background-secondary: #0c1d10;
-  --background-tertiary: #133017;
-  --text-primary: #eaf7ef;
-  --text-secondary: #9fd6b8;
-  --accent-primary: #2d9c66;
-  --accent-primary-hover: #5ecf98;
-  --accent-strong: #1f7a4f;
-  --border-color: rgba(255,255,255,0.03);
+/* ☢️ Toxic Lime - Lima radioactivo con neón ácido */
+html[data-theme="toxic-lime"]{
+  --background-primary: #0a1505;
+  --background-secondary: #15250a;
+  --background-tertiary: #203510;
+  --text-primary: #e8ffe0;
+  --text-secondary: #c0ffa8;
+  --accent-primary: #84cc16;
+  --accent-primary-hover: #bef264;
+  --accent-strong: #4ade80;
+  --border-color: rgba(132, 204, 22, 0.2);
 }
 
+/* 🌈 SUNBURST RAINBOW - Tema cálido con efectos RGB animados */
 html[data-theme="sunburst-rainbow"]{
-  --background-primary: #070707;
-  --background-secondary: #0a0a0a;
-  --background-tertiary: #0f0f0f;
+  --background-primary: #0a0a0a;
+  --background-secondary: #0f0f0f;
+  --background-tertiary: #141414;
   --text-primary: #ffffff;
   --text-secondary: #f0f0f0;
   --accent-primary: #ff4b6b;
@@ -281,30 +325,81 @@ html[data-theme="sunburst-rainbow"]{
   --accent-5: #6b8bff;
   --accent-primary-hover: #ff8fb0;
   --accent-strong: #ffd56b;
-  --border-color: rgba(255,255,255,0.06);
-  /* En este tema los gradientes pueden elevar la luminancia, activar salvaguardas */
-  --accent-guard-shadow: 0 1px 0 rgba(0,0,0,0.35); /* text-shadow para legibilidad */
-  --accent-guard-inset: inset 0 0 0 1px rgba(0,0,0,0.28); /* borde interno */
+  --border-color: rgba(255,255,255,0.08);
+  --accent-guard-shadow: 0 1px 0 rgba(0,0,0,0.35);
+  --accent-guard-inset: inset 0 0 0 1px rgba(0,0,0,0.28);
 }
 
-/* UI adjustments for Sunburst Rainbow: warm multi-color buttons and accents */
+/* Header con gradiente arcoíris animado y glow */
+html[data-theme="sunburst-rainbow"] .app-header {
+  background: linear-gradient(90deg, #ff4b6b 0%, #ff8b3b 20%, #ffd56b 40%, #6bff8b 60%, #6bd7ff 80%, #ff6b8b 100%);
+  background-size: 200% 100%;
+  animation: sunburstRgbFlow 8s ease-in-out infinite;
+  box-shadow: 0 4px 20px rgba(255, 75, 107, 0.3);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Sidebar con borde RGB animado */
+html[data-theme="sunburst-rainbow"] .sidebar {
+  border-right: 2px solid transparent;
+  background: linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+              linear-gradient(180deg, #ff4b6b, #ffb26b, #ffd56b, #6bff8b, #6bd7ff) border-box;
+  animation: sunburstBorderShift 6s linear infinite;
+}
+
+/* Botones con gradiente animado y efecto hover resplandeciente */
 html[data-theme="sunburst-rainbow"] .btn,
 html[data-theme="sunburst-rainbow"] .btn-connect {
-  background: linear-gradient(90deg,#ff4b6b,#ff8b3b,#ffe33b);
+  background: linear-gradient(135deg, #ff4b6b 0%, #ff8b3b 50%, #ffe33b 100%);
+  background-size: 200% 200%;
   color: #0b0b0b;
   border: none;
-  /* Salvaguarda de legibilidad en fondos muy claros */
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 1px 0 rgba(0,0,0,0.12);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(255, 75, 107, 0.4), inset 0 0 0 1px rgba(0,0,0,0.25);
+  animation: sunburstButtonGlow 3s ease-in-out infinite;
+  transition: all 0.3s ease;
 }
+
+html[data-theme="sunburst-rainbow"] .btn:hover,
+html[data-theme="sunburst-rainbow"] .btn-connect:hover {
+  background-position: 100% 100%;
+  box-shadow: 0 6px 25px rgba(255, 139, 59, 0.6), 0 0 40px rgba(255, 213, 107, 0.4);
+  transform: translateY(-2px);
+}
+
 html[data-theme="sunburst-rainbow"] .btn-delete {
-  background: linear-gradient(90deg,#6bff8b,#39d6ff,#6b7bff);
+  background: linear-gradient(135deg, #6bff8b 0%, #39d6ff 50%, #6b7bff 100%);
+  background-size: 200% 200%;
   color: #0b0b0b;
   border: none;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 1px 0 rgba(0,0,0,0.12);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(107, 255, 139, 0.4), inset 0 0 0 1px rgba(0,0,0,0.25);
+  animation: sunburstButtonGlow 3s ease-in-out infinite reverse;
 }
+
+html[data-theme="sunburst-rainbow"] .btn-delete:hover {
+  box-shadow: 0 6px 25px rgba(57, 214, 255, 0.6), 0 0 40px rgba(107, 123, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Elementos activos con resplandor RGB */
 html[data-theme="sunburst-rainbow"] .host-badge,
 html[data-theme="sunburst-rainbow"] .nav-item.active::before {
-  background: linear-gradient(90deg,#ff4b6b,#ffb26b,#ffd56b);
+  background: linear-gradient(90deg, #ff4b6b, #ffb26b, #ffd56b);
+  box-shadow: 0 0 15px rgba(255, 178, 107, 0.5);
+}
+
+html[data-theme="sunburst-rainbow"] .nav-item.active {
+  background: rgba(255, 75, 107, 0.15);
+  border-left: 3px solid #ff4b6b;
+  box-shadow: inset 0 0 20px rgba(255, 75, 107, 0.2);
+}
+
+/* Tabs con efecto neón */
+html[data-theme="sunburst-rainbow"] .tab.active {
+  background: linear-gradient(135deg, rgba(255, 75, 107, 0.2), rgba(255, 178, 107, 0.2));
+  border-bottom: 2px solid #ff4b6b;
+  box-shadow: 0 0 10px rgba(255, 75, 107, 0.4);
 }
 
 /* UI adjustments for Bold Rainbow: saturated, cooler multi-accent and animated button */
@@ -339,11 +434,11 @@ html[data-theme="violet-ember"]{
   --border-color: rgba(255,255,255,0.03);
 }
 
-/* Custom Rainbow theme (created because repo might not have an exact rainbow): bold multi-accent */
+/* 🎨 BOLD RAINBOW - Tema RGB intenso con efectos neón y animaciones espectaculares */
 html[data-theme="bold-rainbow"]{
-  --background-primary: #050505;
-  --background-secondary: #0b0b0b;
-  --background-tertiary: #111111;
+  --background-primary: #000000;
+  --background-secondary: #0a0a0a;
+  --background-tertiary: #121212;
   --text-primary: #ffffff;
   --text-secondary: #e6e6e6;
   --accent-primary: #ff3b7a; 
@@ -354,27 +449,226 @@ html[data-theme="bold-rainbow"]{
   --accent-5: #6b7bff;
   --accent-primary-hover: #ffb86b;
   --accent-strong: #ffd56b;
-  --border-color: rgba(255,255,255,0.05);
-  --accent-guard-shadow: 0 1px 0 rgba(0,0,0,0.35);
-  --accent-guard-inset: inset 0 0 0 1px rgba(0,0,0,0.28);
+  --border-color: rgba(255,255,255,0.1);
+  --accent-guard-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  --accent-guard-inset: inset 0 0 0 1px rgba(0,0,0,0.35);
 }
 
-/* Animated RGB topbar for Bold Rainbow theme */
-html[data-theme="bold-rainbow"] .app-header{
-  background: linear-gradient(90deg,#ff3b7a 0%, #ff8b3b 20%, #ffe33b 40%, #4bff7a 60%, #39d6ff 80%, #6b7bff 100%);
+/* Header con animación RGB continua - SIN MOVIMIENTO */
+html[data-theme="bold-rainbow"] .app-header {
+  background: linear-gradient(90deg, 
+    #ff0080 0%, #ff0080 10%,
+    #ff8000 10%, #ff8000 20%,
+    #ffff00 20%, #ffff00 30%,
+    #00ff00 30%, #00ff00 40%,
+    #00ffff 40%, #00ffff 50%,
+    #0080ff 50%, #0080ff 60%,
+    #8000ff 60%, #8000ff 70%,
+    #ff0080 70%, #ff0080 80%,
+    #ff8000 80%, #ff8000 90%,
+    #ffff00 90%, #ffff00 100%
+  );
   background-size: 300% 100%;
-  animation: headerRgbShift 10s linear infinite;
-  animation-play-state: paused;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  animation: boldRgbWave 15s linear infinite;
+  box-shadow: 0 4px 30px rgba(255, 0, 128, 0.5), 
+              0 0 60px rgba(128, 0, 255, 0.3),
+              inset 0 -2px 10px rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
 }
-html[data-theme="bold-rainbow"] .app-header:hover { animation-play-state: running; }
-@media (prefers-reduced-motion: reduce){ html[data-theme="bold-rainbow"] .app-header { animation: none; }}
 
-/* Salvaguarda de legibilidad en botones con fondos claros (bold-rainbow) */
+/* Sidebar con borde RGB animado y glow */
+html[data-theme="bold-rainbow"] .sidebar {
+  border-right: 3px solid transparent;
+  background: linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+              linear-gradient(180deg, #ff0080, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff, #ff0080) border-box;
+  background-size: 100% 200%;
+  animation: boldRgbBorderFlow 8s linear infinite;
+  box-shadow: 4px 0 20px rgba(255, 0, 128, 0.3);
+}
+
+/* Botones con gradiente RGB completo y efecto hover explosivo */
 html[data-theme="bold-rainbow"] .btn,
 html[data-theme="bold-rainbow"] .btn-connect,
 html[data-theme="bold-rainbow"] .btn-primary {
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 1px 0 rgba(0,0,0,0.12);
+  background: linear-gradient(135deg, 
+    #ff0080 0%, #ff8000 25%, #ffff00 50%, #00ff00 75%, #00ffff 100%
+  );
+  background-size: 300% 300%;
+  color: #000000;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-weight: 800;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 20px rgba(255, 0, 128, 0.5),
+              0 0 30px rgba(0, 255, 255, 0.3),
+              inset 0 0 0 1px rgba(0,0,0,0.3);
+  animation: boldRgbButtonPulse 4s ease-in-out infinite;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+html[data-theme="bold-rainbow"] .btn:hover,
+html[data-theme="bold-rainbow"] .btn-connect:hover,
+html[data-theme="bold-rainbow"] .btn-primary:hover {
+  background-position: 100% 100%;
+  box-shadow: 0 8px 40px rgba(255, 0, 128, 0.7),
+              0 0 60px rgba(0, 255, 255, 0.6),
+              0 0 80px rgba(255, 255, 0, 0.4);
+  transform: translateY(-4px) scale(1.05);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Elementos activos con efecto neón intenso */
+html[data-theme="bold-rainbow"] .nav-item.active {
+  background: linear-gradient(90deg, 
+    rgba(255, 0, 128, 0.2), 
+    rgba(0, 255, 255, 0.2)
+  );
+  border-left: 4px solid #ff0080;
+  box-shadow: inset 0 0 30px rgba(255, 0, 128, 0.3),
+              0 0 20px rgba(255, 0, 128, 0.4);
+  animation: boldRgbPulseGlow 2s ease-in-out infinite;
+}
+
+html[data-theme="bold-rainbow"] .nav-item.active::before {
+  background: linear-gradient(180deg, #ff0080, #00ffff, #ffff00);
+  box-shadow: 0 0 20px currentColor;
+  animation: boldRgbSpinGlow 3s linear infinite;
+}
+
+/* Tabs con efecto neón arcoíris */
+html[data-theme="bold-rainbow"] .tab.active {
+  background: linear-gradient(135deg, 
+    rgba(255, 0, 128, 0.25), 
+    rgba(0, 255, 255, 0.25)
+  );
+  border-bottom: 3px solid transparent;
+  border-image: linear-gradient(90deg, #ff0080, #00ffff, #ffff00) 1;
+  box-shadow: 0 4px 20px rgba(255, 0, 128, 0.5),
+              inset 0 0 20px rgba(0, 255, 255, 0.2);
+  animation: boldRgbTabGlow 3s ease-in-out infinite;
+}
+
+/* Badges y elementos destacados con resplandor RGB */
+html[data-theme="bold-rainbow"] .host-badge {
+  background: linear-gradient(90deg, #ff0080, #00ffff);
+  background-size: 200% 100%;
+  animation: boldRgbSlide 3s linear infinite;
+  box-shadow: 0 0 20px rgba(255, 0, 128, 0.6);
+  color: #000000;
+  font-weight: 700;
+}
+
+/* Scrollbar con efecto RGB */
+html[data-theme="bold-rainbow"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff0080, #00ffff, #ffff00);
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.8);
+}
+
+/* Accesibilidad: reducir animaciones si el usuario lo prefiere */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="bold-rainbow"] .app-header,
+  html[data-theme="bold-rainbow"] .sidebar,
+  html[data-theme="bold-rainbow"] .btn,
+  html[data-theme="bold-rainbow"] .nav-item.active,
+  html[data-theme="sunburst-rainbow"] .app-header,
+  html[data-theme="sunburst-rainbow"] .btn,
+  html[data-theme="pastel-dream"] .app-header,
+  html[data-theme="pastel-dream"] .sidebar,
+  html[data-theme="pastel-dream"] .btn {
+    animation: none !important;
+  }
+}
+
+/* 🍭 PASTEL DREAM - Tema multi-color pastel suave con transiciones */
+html[data-theme="pastel-dream"]{
+  --background-primary: #fef8ff;
+  --background-secondary: #fef3f7;
+  --background-tertiary: #feeef3;
+  --text-primary: #3d1a2f;
+  --text-secondary: #6d3b5a;
+  --accent-primary: #e879f9;
+  --accent-primary-hover: #f0abfc;
+  --accent-strong: #d946ef;
+  --border-color: rgba(232, 121, 249, 0.2);
+}
+
+/* Header con gradiente pastel animado */
+html[data-theme="pastel-dream"] .app-header {
+  background: linear-gradient(90deg, 
+    #ffc9e5 0%,   /* Rosa pastel */
+    #ffd9a3 20%,  /* Durazno pastel */
+    #fff4b3 40%,  /* Amarillo pastel */
+    #c9f5d9 60%,  /* Verde menta pastel */
+    #c9e5ff 80%,  /* Azul pastel */
+    #e5c9ff 100%  /* Lavanda pastel */
+  );
+  background-size: 200% 100%;
+  animation: pastelFlow 12s ease-in-out infinite;
+  box-shadow: 0 4px 20px rgba(232, 121, 249, 0.2);
+  border-bottom: 2px solid rgba(232, 121, 249, 0.15);
+}
+
+/* Sidebar con borde pastel suave */
+html[data-theme="pastel-dream"] .sidebar {
+  border-right: 2px solid transparent;
+  background: linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+              linear-gradient(180deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff) border-box;
+  background-size: 100% 200%;
+  animation: pastelBorderFlow 10s linear infinite;
+}
+
+/* Botones con gradiente pastel suave */
+html[data-theme="pastel-dream"] .btn,
+html[data-theme="pastel-dream"] .btn-connect {
+  background: linear-gradient(135deg, #ffc9e5 0%, #ffd9a3 50%, #c9f5d9 100%);
+  background-size: 200% 200%;
+  color: #3d1a2f;
+  border: 1px solid rgba(232, 121, 249, 0.3);
+  font-weight: 600;
+  box-shadow: 0 3px 12px rgba(232, 121, 249, 0.2);
+  animation: pastelButtonGlow 4s ease-in-out infinite;
+  transition: all 0.3s ease;
+}
+
+html[data-theme="pastel-dream"] .btn:hover,
+html[data-theme="pastel-dream"] .btn-connect:hover {
+  background-position: 100% 100%;
+  box-shadow: 0 5px 20px rgba(232, 121, 249, 0.35);
+  transform: translateY(-2px);
+}
+
+/* Nav items activos con color pastel */
+html[data-theme="pastel-dream"] .nav-item.active {
+  background: linear-gradient(90deg, 
+    rgba(255, 201, 229, 0.3), 
+    rgba(255, 217, 163, 0.3)
+  );
+  border-left: 3px solid #e879f9;
+  box-shadow: inset 0 0 20px rgba(232, 121, 249, 0.15);
+}
+
+html[data-theme="pastel-dream"] .nav-item.active::before {
+  background: linear-gradient(180deg, #ffc9e5, #c9f5d9, #e5c9ff);
+  box-shadow: 0 0 15px rgba(232, 121, 249, 0.5);
+}
+
+/* Tabs con efecto pastel */
+html[data-theme="pastel-dream"] .tab.active {
+  background: linear-gradient(135deg, 
+    rgba(255, 201, 229, 0.2), 
+    rgba(201, 229, 255, 0.2)
+  );
+  border-bottom: 2px solid #e879f9;
+  box-shadow: 0 3px 15px rgba(232, 121, 249, 0.25);
+}
+
+/* Badges con colores pastel */
+html[data-theme="pastel-dream"] .host-badge {
+  background: linear-gradient(90deg, #ffc9e5, #c9e5ff);
+  background-size: 200% 100%;
+  animation: pastelSlide 4s linear infinite;
+  box-shadow: 0 0 15px rgba(232, 121, 249, 0.3);
+  color: #3d1a2f;
+  font-weight: 600;
 }
 
 /* File table UX improvements */
@@ -402,10 +696,153 @@ html[data-theme="bold-rainbow"] .btn-primary {
 .ctx-item.danger { color: var(--danger); }
 
 
-@keyframes headerRgbShift{
-  0% { background-position: 0% 50% }
-  50% { background-position: 100% 50% }
-  100% { background-position: 0% 50% }
+/* ============================================
+   🌈 ANIMACIONES RGB PARA TEMAS RAINBOW
+   ============================================ */
+
+/* Sunburst Rainbow - Flujo suave y cálido */
+@keyframes sunburstRgbFlow {
+  0%, 100% { 
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg) brightness(1);
+  }
+  50% { 
+    background-position: 100% 50%;
+    filter: hue-rotate(10deg) brightness(1.1);
+  }
+}
+
+@keyframes sunburstBorderShift {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes sunburstButtonGlow {
+  0%, 100% { 
+    background-position: 0% 0%;
+    filter: brightness(1) saturate(1);
+  }
+  50% { 
+    background-position: 100% 100%;
+    filter: brightness(1.15) saturate(1.2);
+  }
+}
+
+/* Pastel Dream - Animaciones suaves y delicadas */
+@keyframes pastelFlow {
+  0%, 100% { 
+    background-position: 0% 50%;
+    filter: brightness(1) saturate(0.9);
+  }
+  50% { 
+    background-position: 100% 50%;
+    filter: brightness(1.05) saturate(1);
+  }
+}
+
+@keyframes pastelBorderFlow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes pastelButtonGlow {
+  0%, 100% { 
+    background-position: 0% 50%;
+    filter: brightness(1) saturate(0.95);
+  }
+  50% { 
+    background-position: 100% 50%;
+    filter: brightness(1.08) saturate(1.05);
+  }
+}
+
+@keyframes pastelSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Bold Rainbow - Ondas RGB intensas */
+@keyframes boldRgbWave {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+@keyframes boldRgbScan {
+  0% { 
+    opacity: 0;
+    left: -100%;
+  }
+  50% { 
+    opacity: 1;
+    left: 100%;
+  }
+  100% { 
+    opacity: 0;
+    left: 100%;
+  }
+}
+
+@keyframes boldRgbBorderFlow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes boldRgbButtonPulse {
+  0%, 100% { 
+    background-position: 0% 50%;
+    transform: scale(1);
+  }
+  25% { 
+    background-position: 50% 50%;
+    transform: scale(1.02);
+  }
+  50% { 
+    background-position: 100% 50%;
+    transform: scale(1);
+  }
+  75% { 
+    background-position: 150% 50%;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes boldRgbPulseGlow {
+  0%, 100% { 
+    box-shadow: inset 0 0 30px rgba(255, 0, 128, 0.3),
+                0 0 20px rgba(255, 0, 128, 0.4);
+  }
+  50% { 
+    box-shadow: inset 0 0 40px rgba(0, 255, 255, 0.4),
+                0 0 30px rgba(0, 255, 255, 0.6);
+  }
+}
+
+@keyframes boldRgbSpinGlow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes boldRgbTabGlow {
+  0%, 100% { 
+    box-shadow: 0 4px 20px rgba(255, 0, 128, 0.5),
+                inset 0 0 20px rgba(0, 255, 255, 0.2);
+  }
+  50% { 
+    box-shadow: 0 4px 30px rgba(0, 255, 255, 0.7),
+                inset 0 0 30px rgba(255, 255, 0, 0.3);
+  }
+}
+
+@keyframes boldRgbSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Animación legacy para compatibilidad */
+@keyframes headerRgbShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* ===============================
@@ -457,18 +894,18 @@ html[data-theme="polar-mint"]{
   --terminal-foreground: #072022;
 }
 
-/* Midday Azure (light, cool) */
-html[data-theme="midday-azure"]{
-  --background-primary: #f7fbff;
-  --background-secondary: #eef7ff;
-  --background-tertiary: #e6f1fb;
-  --text-primary: #05223a;
-  --text-secondary: #35607a;
-  --accent-primary: #2fa4ff;
-  --accent-primary-hover: #6cc8ff;
-  --accent-strong: #1b88e6;
-  --border-color: #d7eaf8;
-  --terminal-foreground: #05223a;
+/* 🍑 Peachy Sunrise - Durazno vibrante con amanecer coral */
+html[data-theme="peachy-sunrise"]{
+  --background-primary: #fff7ed;
+  --background-secondary: #ffedd5;
+  --background-tertiary: #fed7aa;
+  --text-primary: #7c2d12;
+  --text-secondary: #c2410c;
+  --accent-primary: #fb923c;
+  --accent-primary-hover: #fdba74;
+  --accent-strong: #f97316;
+  --border-color: #fcd34d;
+  --terminal-foreground: #7c2d12;
 }
 
 /* Sakura Blush (soft pink, light) */
@@ -483,6 +920,20 @@ html[data-theme="sakura-blush"]{
   --accent-strong: #ff4f85;
   --border-color: #fae6eb;
   --terminal-foreground: #2b1220;
+}
+
+/* 🌹 Rose Quartz - Rosa cuarzo con detalles fucsia */
+html[data-theme="rose-quartz"]{
+  --background-primary: #fff5f7;
+  --background-secondary: #ffe4e9;
+  --background-tertiary: #ffd1dc;
+  --text-primary: #831843;
+  --text-secondary: #be185d;
+  --accent-primary: #ec4899;
+  --accent-primary-hover: #f472b6;
+  --accent-strong: #db2777;
+  --border-color: #fbbf24;
+  --terminal-foreground: #831843;
 }
 
 /* Glass Water (muted, cool) */
@@ -565,19 +1016,24 @@ html[data-theme="sepia-paper"]{
   --terminal-foreground: #2c231a;
 }
 
-html[data-theme="granite-fog"]{
-  --background-primary: #a5abb4;  
-  --background-secondary: #9da5af;
-  --background-tertiary: #959eaa; 
-  --text-primary: #0b1220;        
-  --text-secondary: #253044;     
-  --accent-primary: #22c55e;    
-  --accent-primary-hover: #86efac;
-  --accent-strong: #16a34a;
-  --border-color: #8691a0;      
-  --border-subtle: #7b8798;
-  --border-strong: #4b5665;
-  --terminal-foreground: #0b1220; 
+/* ☁️ Silver Cloud - Plateado brillante con azul cielo */
+html[data-theme="silver-cloud"]{
+  --background-primary: #f1f5f9;
+  --background-secondary: #e2e8f0;
+  --background-tertiary: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #475569;
+  --text-muted: #64748b;
+  --accent-primary: #0ea5e9;
+  --accent-primary-hover: #38bdf8;
+  --accent-primary-light: #7dd3fc;
+  --accent-primary-dark: #0284c7;
+  --accent-strong: #0284c7;
+  --border-color: #94a3b8;
+  --border-subtle: #cbd5e1;
+  --border-strong: #64748b;
+  --terminal-foreground: #0f172a;
 }
 
 /* Ensure header controls remain legible (keep this so header text contrasts) */
