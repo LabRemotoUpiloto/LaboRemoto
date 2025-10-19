@@ -251,3 +251,192 @@
 
 /* Subtle animated RGB tint for Bold Rainbow theme (overlays the existing dark palette) */
 /* no animated overlay on sidebar - keep palette-driven background */
+
+/* ============================================
+   🎨 ICONOS TEMÁTICOS POR TEMA
+   Modificaciones visuales de iconos según el tema activo
+   ============================================ */
+
+/* ⚽ FC BARCELONA - Iconos con efecto azulgrana */
+html[data-theme="fc-barcelona"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 3px rgba(165, 0, 68, 0.6)) 
+          drop-shadow(0 0 6px rgba(0, 77, 152, 0.4));
+  stroke-width: 2.5;
+}
+
+html[data-theme="fc-barcelona"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 6px rgba(237, 187, 0, 0.8)) 
+          drop-shadow(0 0 10px rgba(165, 0, 68, 0.6));
+  stroke-width: 2.8;
+}
+
+html[data-theme="fc-barcelona"] .nav-item.active .icon svg {
+  stroke: #edbb00;
+  filter: drop-shadow(0 0 8px rgba(237, 187, 0, 0.9)) 
+          drop-shadow(0 0 12px rgba(165, 0, 68, 0.7));
+  animation: barcaIconPulse 3s ease-in-out infinite;
+}
+
+/* 🔥 CRIMSON GOLD - Iconos con resplandor rojo-dorado */
+html[data-theme="crimson-gold"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 4px rgba(220, 20, 60, 0.5));
+  stroke-width: 2.3;
+}
+
+html[data-theme="crimson-gold"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 8px rgba(220, 20, 60, 0.8)) 
+          drop-shadow(0 0 12px rgba(184, 134, 11, 0.6));
+}
+
+html[data-theme="crimson-gold"] .nav-item.active .icon svg {
+  stroke: #b8860b;
+  filter: drop-shadow(0 0 10px rgba(184, 134, 11, 1)) 
+          drop-shadow(0 0 15px rgba(220, 20, 60, 0.8));
+  animation: crimsonGoldGlow 4s ease-in-out infinite;
+}
+
+/* ⚡ ELECTRIC INDIGO - Iconos con chispas eléctricas */
+html[data-theme="electric-indigo"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.6));
+  stroke-width: 2.2;
+}
+
+html[data-theme="electric-indigo"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.9)) 
+          drop-shadow(0 0 12px rgba(99, 102, 241, 0.7));
+  transform: scale(1.15);
+}
+
+html[data-theme="electric-indigo"] .nav-item.active .icon svg {
+  stroke: #06b6d4;
+  filter: drop-shadow(0 0 12px rgba(6, 182, 212, 1)) 
+          drop-shadow(0 0 18px rgba(99, 102, 241, 0.8));
+  animation: electricSpark 2s ease-in-out infinite;
+}
+
+/* ☢️ TOXIC LIME - Iconos con efecto radioactivo */
+html[data-theme="toxic-lime"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 5px rgba(132, 204, 22, 0.7));
+  stroke-width: 2.4;
+}
+
+html[data-theme="toxic-lime"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 10px rgba(132, 204, 22, 1)) 
+          drop-shadow(0 0 15px rgba(74, 222, 128, 0.8));
+  transform: scale(1.12);
+}
+
+html[data-theme="toxic-lime"] .nav-item.active .icon svg {
+  stroke: #4ade80;
+  filter: drop-shadow(0 0 15px rgba(74, 222, 128, 1)) 
+          drop-shadow(0 0 22px rgba(132, 204, 22, 0.9));
+  animation: toxicRadiation 3s ease-in-out infinite;
+}
+
+/* 💜 LAVENDER DREAM - Iconos con aura lavanda suave */
+html[data-theme="lavender-dream"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.4));
+  stroke-width: 2;
+}
+
+html[data-theme="lavender-dream"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.7)) 
+          drop-shadow(0 0 10px rgba(124, 58, 237, 0.5));
+}
+
+html[data-theme="lavender-dream"] .nav-item.active .icon svg {
+  stroke: #7c3aed;
+  filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.9)) 
+          drop-shadow(0 0 15px rgba(139, 92, 246, 0.7));
+  animation: lavenderBreath 5s ease-in-out infinite;
+}
+
+/* 🍑 PEACHY SUNRISE - Iconos con brillo durazno-coral */
+html[data-theme="peachy-sunrise"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 3px rgba(251, 146, 60, 0.4));
+  stroke-width: 2.1;
+}
+
+html[data-theme="peachy-sunrise"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 7px rgba(249, 115, 22, 0.7)) 
+          drop-shadow(0 0 11px rgba(251, 146, 60, 0.5));
+}
+
+html[data-theme="peachy-sunrise"] .nav-item.active .icon svg {
+  stroke: #f97316;
+  filter: drop-shadow(0 0 12px rgba(249, 115, 22, 1)) 
+          drop-shadow(0 0 18px rgba(251, 146, 60, 0.8));
+  animation: peachyGlow 4s ease-in-out infinite;
+}
+
+/* 🌹 ROSE QUARTZ - Iconos con resplandor rosa-dorado */
+html[data-theme="rose-quartz"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 3px rgba(236, 72, 153, 0.4));
+  stroke-width: 2;
+}
+
+html[data-theme="rose-quartz"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 7px rgba(219, 39, 119, 0.7)) 
+          drop-shadow(0 0 11px rgba(251, 191, 36, 0.4));
+}
+
+html[data-theme="rose-quartz"] .nav-item.active .icon svg {
+  stroke: #db2777;
+  filter: drop-shadow(0 0 10px rgba(219, 39, 119, 0.9)) 
+          drop-shadow(0 0 15px rgba(251, 191, 36, 0.6));
+  animation: roseQuartzShimmer 4s ease-in-out infinite;
+}
+
+/* 🌅 SUNBURST RAINBOW - Iconos con arcoíris cálido */
+html[data-theme="sunburst-rainbow"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 4px rgba(251, 146, 60, 0.5)) 
+          drop-shadow(0 0 6px rgba(236, 72, 153, 0.3));
+  stroke-width: 2.3;
+}
+
+html[data-theme="sunburst-rainbow"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 8px rgba(251, 146, 60, 0.8)) 
+          drop-shadow(0 0 12px rgba(236, 72, 153, 0.6))
+          drop-shadow(0 0 15px rgba(253, 224, 71, 0.4));
+}
+
+html[data-theme="sunburst-rainbow"] .nav-item.active .icon svg {
+  animation: sunburstIconRainbow 6s linear infinite;
+  stroke-width: 2.5;
+}
+
+/* ⚡ BOLD RAINBOW - Iconos con RGB intenso */
+html[data-theme="bold-rainbow"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.4)) 
+          drop-shadow(0 0 5px rgba(0, 255, 0, 0.4))
+          drop-shadow(0 0 5px rgba(0, 0, 255, 0.4));
+  stroke-width: 2.4;
+}
+
+html[data-theme="bold-rainbow"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.7)) 
+          drop-shadow(0 0 10px rgba(0, 255, 0, 0.7))
+          drop-shadow(0 0 10px rgba(0, 0, 255, 0.7));
+  transform: scale(1.12);
+}
+
+html[data-theme="bold-rainbow"] .nav-item.active .icon svg {
+  animation: boldRgbIconCycle 3s linear infinite;
+  stroke-width: 2.6;
+}
+
+/* 🍭 PASTEL DREAM - Iconos con colores pastel suaves */
+html[data-theme="pastel-dream"] .nav-item .icon svg {
+  filter: drop-shadow(0 0 4px rgba(232, 121, 249, 0.3));
+  stroke-width: 1.9;
+}
+
+html[data-theme="pastel-dream"] .nav-item:hover .icon svg {
+  filter: drop-shadow(0 0 8px rgba(232, 121, 249, 0.6)) 
+          drop-shadow(0 0 12px rgba(255, 201, 229, 0.4));
+}
+
+html[data-theme="pastel-dream"] .nav-item.active .icon svg {
+  animation: pastelDreamFlow 8s ease-in-out infinite;
+  stroke-width: 2.1;
+}
