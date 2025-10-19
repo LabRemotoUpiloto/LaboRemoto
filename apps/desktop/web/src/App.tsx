@@ -232,6 +232,11 @@ const App: React.FC = () => {
               toggleSidebar={toggleSidebar}
               selectedPage={selectedPage}
               onSelectPage={(p) => {
+                // Limpiar pendingHost si se cambia de página (excepto cuando se va a 'connect' desde 'hosts')
+                if (p !== 'connect' && pendingHost) {
+                  setPendingHost(null);
+                }
+                
                 // No cambiar el tab activo si se selecciona pines
                 if (p !== 'pins') {
                   // Solo cambiar a HOME si estás en una sesión y seleccionas una página que debe estar en HOME
@@ -280,18 +285,26 @@ const App: React.FC = () => {
               {selectedPage === 'connect' ? (
                 <ConnectFormPage onConnected={handleNewSession} initialPayload={pendingHost} />
               ) : selectedPage === 'hosts' ? (
-                <SavedHostsPage onConnect={async (h,p,u,pass) => {
-                  try {
-                    const sessionId = await connectFromHost(h, Number(p), u || '', pass || '')
-                    if (sessionId) {
-                      const label = (u? `${u}@`:'') + h
-                      setSessionMeta(prev => ({ ...prev, [String(sessionId)]: { label } }))
-                      openSession(String(sessionId), label)
+                <SavedHostsPage 
+                  onConnect={async (h,p,u,pass) => {
+                    try {
+                      const sessionId = await connectFromHost(h, Number(p), u || '', pass || '')
+                      if (sessionId) {
+                        const label = (u? `${u}@`:'') + h
+                        setSessionMeta(prev => ({ ...prev, [String(sessionId)]: { label } }))
+                        openSession(String(sessionId), label)
+                      }
+                    } catch (e) {
+                      alert('Error connecting to host: ' + (e as any)?.toString?.())
                     }
-                  } catch (e) {
-                    alert('Error connecting to host: ' + (e as any)?.toString?.())
-                  }
-                }} />
+                  }}
+                  onEdit={(hostData, originalFile) => {
+                    // Cambiar a la página de conexión con los datos del host prellenados
+                    // Agregar el archivo original para que sepa que es edición
+                    setPendingHost({ ...hostData, _originalFile: originalFile })
+                    setSelectedPage('connect')
+                  }}
+                />
               ) : selectedPage === 'themes' ? (
                 <ThemesPage />
               ) : selectedPage === 'sftp' ? (
