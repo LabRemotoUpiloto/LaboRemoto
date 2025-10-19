@@ -1,19 +1,21 @@
 /* ==================== LAYOUT PRINCIPAL ==================== */
 .saved-hosts-page { 
   padding: 12px 24px 32px 24px; /* Alineado con la línea de la sidebar */
-  max-width: 1400px;
-  margin: 0 auto;
   min-height: 100vh;
   background: var(--background-primary);
 }
 
-/* Header con título, separador y descripción */
+/* Header con título, separador y descripción - de lado a lado */
 .saved-hosts-page__header {
   display: flex;
   align-items: center;
   gap: 16px;
   padding-bottom: 16px;
   margin-bottom: 24px;
+  margin-left: -24px;
+  margin-right: -24px;
+  padding-left: 24px;
+  padding-right: 24px;
   border-bottom: 2px solid var(--border-subtle);
 }
 
