@@ -36,11 +36,12 @@ const THEMES: ThemeInfo[] = [
   { id: 'rose-quartz', label: 'Rose Quartz', previewClass: 'rose-quartz', category: 'light', description: '🌹 Rosa cuarzo con detalles fucsia' },
   { id: 'silver-cloud', label: 'Silver Cloud', previewClass: 'silver-cloud', category: 'light', description: '☁️ Plateado brillante con azul cielo' },
   
-  // 🌈 Temas Especiales (3 temas únicos con efectos especiales)
+  // 🌈 Temas Especiales (4 temas únicos con efectos especiales)
   { id: 'sunburst-rainbow', label: 'Sunburst Rainbow', previewClass: 'sunburst-rainbow', category: 'special', description: '🌅 Arcoíris cálido con efectos RGB animados' },
   { id: 'bold-rainbow', label: 'Bold Rainbow', previewClass: 'bold-rainbow', category: 'special', description: '⚡ RGB intenso con neón y resplandor' },
-  { id: 'pastel-dream', label: 'Pastel Dream', previewClass: 'pastel-dream', category: 'special', description: '🍭 Multi-color pastel suave con transiciones' },
-]
+  { id: 'pastel-dream', label: 'Pastel Dream', previewClass: 'pastel-dream', category: 'special', description: '🍭 Colores pastel suaves multi-color' },
+  { id: 'fc-barcelona', label: 'FC Barcelona', previewClass: 'fc-barcelona', category: 'special', description: '⚽ Azulgrana del Barça con detalles dorados' },
+];
 
 // Agrupar temas por categoría
 const THEME_CATEGORIES = {
@@ -49,7 +50,7 @@ const THEME_CATEGORIES = {
   special: THEMES.filter(t => t.category === 'special')
 }
 
-export default function ThemesPage(){
+export default function ThemesPage() {
   const { theme, setTheme } = useTheme()
   const gridRef = useRef<HTMLDivElement>(null)
 
