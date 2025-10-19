@@ -42,30 +42,59 @@ function MyFeature() {
 #### Variables de Tema Disponibles (`globals.css`)
 
 ```css
-/* Fondos */
---background-primary      /* Fondo principal oscuro */
+/* Fondos y Superficies */
+--background-primary      /* Fondo principal */
 --background-secondary    /* Fondo secundario */
 --background-tertiary     /* Fondo terciario */
+--surface-0               /* Nivel base (alias de primary) */
+--surface-1               /* Elevado 1 (alias de secondary) */
+--surface-2               /* Elevado 2 (alias de tertiary) */
+--surface-3               /* 🆕 Elevado 3 (tooltips, dropdowns) */
+--surface-overlay         /* 🆕 Fondos de modales */
 
-/* Textos */
---text-primary           /* Texto principal claro */
---text-secondary         /* Texto secundario/muted */
---text-muted             /* Texto muy sutil */
+/* Textos (Jerarquía Expandida) */
+--text-primary           /* Texto principal, títulos */
+--text-secondary         /* Subtítulos, labels */
+--text-tertiary          /* 🆕 Texto de apoyo, timestamps */
+--text-muted             /* 🆕 Placeholders (mejorado) */
+--text-disabled          /* 🆕 Elementos deshabilitados */
+--text-inverse           /* 🆕 Texto sobre fondos claros/acentos */
 
-/* Acentos */
---accent-primary         /* Verde principal #10B981 */
---accent-primary-hover   /* Verde hover #059669 */
+/* Acentos (Sistema Expandido) */
+--accent-primary         /* Color de marca principal */
+--accent-primary-hover   /* Estado hover */
+--accent-primary-light   /* 🆕 Versión suave */
+--accent-primary-dark    /* 🆕 Versión intensa */
+--accent-primary-subtle  /* 🆕 Fondos sutiles con acento */
+--accent-secondary       /* 🆕 Azul complementario */
+--accent-tertiary        /* 🆕 Morado de apoyo */
+--accent-warm            /* 🆕 Acento cálido/naranja */
 
 /* Bordes */
 --border-color           /* Borde principal */
 --border-subtle          /* Borde sutil */
 --border-strong          /* Borde fuerte */
 
-/* Estados */
---success                /* Verde éxito #22C55E */
---warning                /* Amarillo advertencia #F59E0B */
---danger                 /* Rojo peligro #EF4444 */
---info                   /* Cyan información #22D3EE */
+/* Estados (Con Variantes) */
+--success                /* Verde éxito */
+--success-bg             /* 🆕 Fondo de éxito */
+--success-border         /* 🆕 Borde de éxito */
+--success-text           /* 🆕 Texto de éxito */
+
+--warning                /* Amarillo advertencia */
+--warning-bg             /* 🆕 Fondo de advertencia */
+--warning-border         /* 🆕 Borde de advertencia */
+--warning-text           /* 🆕 Texto de advertencia */
+
+--danger                 /* Rojo peligro */
+--danger-bg              /* 🆕 Fondo de peligro */
+--danger-border          /* 🆕 Borde de peligro */
+--danger-text            /* 🆕 Texto de peligro */
+
+--info                   /* Cyan información */
+--info-bg                /* 🆕 Fondo de información */
+--info-border            /* 🆕 Borde de información */
+--info-text              /* 🆕 Texto de información */
 
 /* Interacción */
 --interactive-bg         /* Fondo interactivo base */
@@ -78,6 +107,8 @@ function MyFeature() {
 --terminal-font-family   /* Fuente monospace */
 --terminal-font-size     /* Tamaño de fuente */
 ```
+
+> **📘 NOTA:** Para una guía completa de uso de colores por componente, consultar `COLOR_GUIDE.md` en la raíz del proyecto.
 
 #### ❌ NUNCA hacer:
 ```css

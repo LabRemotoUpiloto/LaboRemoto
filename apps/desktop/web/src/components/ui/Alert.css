@@ -1,0 +1,157 @@
+/* ==================== ALERT COMPONENT ==================== */
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  margin: 12px 0;
+  position: relative;
+  animation: alertSlideIn 0.3s ease-out;
+}
+
+@keyframes alertSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Icon container */
+.alert-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 50%;
+  margin-top: 2px;
+}
+
+/* Content area */
+.alert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.alert-message {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* Close button */
+.alert-close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  margin-top: 2px;
+}
+
+.alert-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--text-primary);
+}
+
+.alert-close:active {
+  transform: scale(0.95);
+}
+
+/* ==================== VARIANT STYLES ==================== */
+
+/* Success variant */
+.alert-success {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  border-left: 4px solid var(--success);
+}
+
+.alert-success .alert-icon {
+  color: var(--success-text);
+  background: var(--success-border);
+}
+
+/* Warning variant */
+.alert-warning {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  border-left: 4px solid var(--warning);
+}
+
+.alert-warning .alert-icon {
+  color: var(--warning-text);
+  background: var(--warning-border);
+}
+
+/* Danger variant */
+.alert-danger {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  border-left: 4px solid var(--danger);
+}
+
+.alert-danger .alert-icon {
+  color: var(--danger-text);
+  background: var(--danger-border);
+}
+
+/* Info variant */
+.alert-info {
+  background: var(--info-bg);
+  border-color: var(--info-border);
+  border-left: 4px solid var(--info);
+}
+
+.alert-info .alert-icon {
+  color: var(--info-text);
+  background: var(--info-border);
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 640px) {
+  .alert {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .alert-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+  }
+
+  .alert-title {
+    font-size: 13px;
+  }
+
+  .alert-message {
+    font-size: 13px;
+  }
+}
