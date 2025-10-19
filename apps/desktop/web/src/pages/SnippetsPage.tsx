@@ -186,47 +186,53 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
 
   return (
     <div className="snippets-page">
-      <SnippetsHeader
-        totalCount={snippets.length}
-        filteredCount={filteredAndSortedSnippets.length}
-        filter={filter}
-        onFilterChange={setFilter}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        categories={allCategories}
-        categoryFilter={categoryFilter}
-        onCategoryFilterChange={setCategoryFilter}
-      />
-
-      <SnippetForm
-        title={title}
-        content={text}
-        category={category}
-        onTitleChange={setTitle}
-        onContentChange={setText}
-        onCategoryChange={setCategory}
-        onSave={addSnippet}
-        onClear={clearForm}
-        isEditing={!!editingId}
-        editingTitle={editingSnippet?.title || ''}
-      />
-
-      <div className="snippets-page__list-section">
-        <h2 className="snippets-page__list-title">
-          {(filter || categoryFilter) ? `Resultados (${filteredAndSortedSnippets.length})` : `Guardados (${snippets.length})`}
-        </h2>
-        
-        <SnippetsList
-          snippets={filteredAndSortedSnippets}
-          onCopy={copySnippet}
-          onEdit={editSnippet}
-          onDelete={deleteSnippet}
-          emptyMessage={
-            (filter || categoryFilter)
-              ? 'No se encontraron snippets con ese filtro.' 
-              : 'Aún no tienes snippets guardados. ¡Crea tu primer snippet arriba!'
-          }
+      {/* Header fijo */}
+      <div className="snippets-page__header">
+        <SnippetsHeader
+          totalCount={snippets.length}
+          filteredCount={filteredAndSortedSnippets.length}
+          filter={filter}
+          onFilterChange={setFilter}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          categories={allCategories}
+          categoryFilter={categoryFilter}
+          onCategoryFilterChange={setCategoryFilter}
         />
+      </div>
+
+      {/* Contenido con scroll */}
+      <div className="snippets-page__scrollable">
+        <SnippetForm
+          title={title}
+          content={text}
+          category={category}
+          onTitleChange={setTitle}
+          onContentChange={setText}
+          onCategoryChange={setCategory}
+          onSave={addSnippet}
+          onClear={clearForm}
+          isEditing={!!editingId}
+          editingTitle={editingSnippet?.title || ''}
+        />
+
+        <div className="snippets-page__list-section">
+          <h2 className="snippets-page__list-title">
+            {(filter || categoryFilter) ? `Resultados (${filteredAndSortedSnippets.length})` : `Guardados (${snippets.length})`}
+          </h2>
+          
+          <SnippetsList
+            snippets={filteredAndSortedSnippets}
+            onCopy={copySnippet}
+            onEdit={editSnippet}
+            onDelete={deleteSnippet}
+            emptyMessage={
+              (filter || categoryFilter)
+                ? 'No se encontraron snippets con ese filtro.' 
+                : 'Aún no tienes snippets guardados. ¡Crea tu primer snippet arriba!'
+            }
+          />
+        </div>
       </div>
 
       <ConfirmModal

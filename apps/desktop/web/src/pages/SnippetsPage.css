@@ -2,21 +2,34 @@
 .snippets-page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
   height: 100%;
-  padding: 12px 24px 24px 24px; /* Alineado con la línea de la sidebar */
-  overflow: hidden;
   background: var(--background-primary);
+  overflow: hidden;
+}
+
+/* Header section - fixed at top */
+.snippets-page__header {
+  flex-shrink: 0;
+  padding: 12px 24px 0 24px;
+}
+
+/* Scrollable content area */
+.snippets-page__scrollable {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 24px 24px 24px;
 }
 
 /* List section */
 .snippets-page__list-section {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .snippets-page__list-title {
@@ -26,4 +39,23 @@
   color: var(--text-primary);
   padding-bottom: 8px;
   border-bottom: 2px solid var(--border-subtle);
+}
+
+/* Scrollbar for scrollable content */
+.snippets-page__scrollable::-webkit-scrollbar {
+  width: 10px;
+}
+
+.snippets-page__scrollable::-webkit-scrollbar-track {
+  background: var(--background-tertiary);
+  border-radius: 5px;
+}
+
+.snippets-page__scrollable::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 5px;
+}
+
+.snippets-page__scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
 }
