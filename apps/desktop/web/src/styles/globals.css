@@ -1,3 +1,28 @@
+/* ============================================
+   🎨 GLOBALS.CSS - Sistema de Temas
+   ============================================
+   
+   ⚠️ REGLAS IMPORTANTES PARA TEMAS:
+   
+   1. NO usar animaciones con `animation` que se ejecuten continuamente
+      en componentes principales (.app-header, .app-sidebar, .nav-item)
+      
+   2. NO usar `transform: translate/scale/rotate` en estados por defecto
+      de componentes principales - solo en hover/active si es necesario
+      
+   3. NO usar `filter: brightness/blur/saturate` en animaciones continuas
+      
+   4. SÍ puedes usar:
+      - Colores estáticos y gradientes
+      - Transiciones cortas en hover/active
+      - Sombras y bordes
+      - Animaciones solo en elementos decorativos pequeños
+      
+   5. Si un tema mueve componentes de sitio, ES UN BUG que debe
+      ser corregido inmediatamente
+      
+   ============================================ */
+
 :root {
   --background-primary: #0B1220;
   --background-secondary: #0F172A;
@@ -724,119 +749,61 @@ html[data-theme="fc-barcelona"] {
   --interactive-selected: rgba(0, 77, 152, 0.25);
 }
 
-/* Header con gradiente azulgrana y franja catalana */
+/* Header con gradiente azulgrana (sin animaciones) */
 html[data-theme="fc-barcelona"] .app-header {
-  background: linear-gradient(
-    90deg,
-    #004d98 0%,
-    #003d7a 25%,
-    #a50044 50%,
-    #8a0038 75%,
-    #004d98 100%
-  );
-  background-size: 300% 100%;
-  animation: barcaFlow 15s ease-in-out infinite;
+  background: linear-gradient(90deg, #004d98 0%, #a50044 100%);
   border-bottom: 3px solid #edbb00;
-  box-shadow: 
-    0 4px 20px rgba(165, 0, 68, 0.4),
-    0 0 30px rgba(0, 77, 152, 0.3),
-    inset 0 -3px 0 rgba(237, 187, 0, 0.6);
-  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Franja catalana decorativa en el header */
-html[data-theme="fc-barcelona"] .app-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    #fcdd09 0%,
-    #da121a 20%,
-    #fcdd09 40%,
-    #da121a 60%,
-    #fcdd09 80%,
-    #da121a 100%
-  );
-  background-size: 200% 100%;
-  animation: catalanFlag 10s linear infinite;
-}
-
-/* Sidebar con borde azulgrana */
+/* Sidebar con borde azulgrana (sin animaciones) */
 html[data-theme="fc-barcelona"] .app-sidebar {
   background: var(--background-secondary);
-  border-right: 2px solid transparent;
-  background-image: 
-    linear-gradient(var(--background-secondary), var(--background-secondary)),
-    linear-gradient(180deg, #004d98 0%, #a50044 50%, #edbb00 100%);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  animation: barcaBorderFlow 12s linear infinite;
+  border-right: 2px solid #004d98;
 }
 
-/* Botones con colores Barça */
+/* Botones con colores Barça (sin animaciones ni transforms) */
 html[data-theme="fc-barcelona"] button,
 html[data-theme="fc-barcelona"] .btn {
-  background: linear-gradient(135deg, #a50044 0%, #8a0038 50%, #004d98 100%);
+  background: linear-gradient(135deg, #a50044 0%, #004d98 100%);
   color: #ffffff;
   border: 1px solid #edbb00;
-  box-shadow: 
-    0 0 15px rgba(165, 0, 68, 0.4),
-    0 0 25px rgba(0, 77, 152, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   font-weight: 600;
-  transition: all 0.3s ease;
 }
 
 html[data-theme="fc-barcelona"] button:hover,
 html[data-theme="fc-barcelona"] .btn:hover {
-  background: linear-gradient(135deg, #c7154a 0%, #a50044 50%, #005bb5 100%);
+  background: linear-gradient(135deg, #c7154a 0%, #005bb5 100%);
   border-color: #d4a600;
-  box-shadow: 
-    0 0 25px rgba(165, 0, 68, 0.6),
-    0 0 40px rgba(237, 187, 0, 0.4);
-  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
 }
 
 html[data-theme="fc-barcelona"] button:active,
 html[data-theme="fc-barcelona"] .btn:active {
-  background: linear-gradient(135deg, #8a0038 0%, #6a002c 50%, #003d7a 100%);
-  box-shadow: 
-    0 0 15px rgba(165, 0, 68, 0.5),
-    inset 0 2px 8px rgba(0, 0, 0, 0.4);
-  transform: translateY(0);
+  background: linear-gradient(135deg, #8a0038 0%, #003d7a 100%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
-/* Nav items con efecto azulgrana */
+/* Nav items con efecto azulgrana (sin animaciones) */
 html[data-theme="fc-barcelona"] .nav-item {
   border-left: 3px solid transparent;
-  transition: all 0.3s ease;
 }
 
 html[data-theme="fc-barcelona"] .nav-item:hover {
   background: rgba(165, 0, 68, 0.15);
   border-left-color: #a50044;
-  box-shadow: inset 0 0 25px rgba(0, 77, 152, 0.2);
 }
 
 html[data-theme="fc-barcelona"] .nav-item.active {
-  background: linear-gradient(
-    90deg,
-    rgba(165, 0, 68, 0.25) 0%,
-    rgba(0, 77, 152, 0.15) 100%
-  );
+  background: rgba(165, 0, 68, 0.2);
   border-left: 4px solid #edbb00;
-  box-shadow: 
-    inset 0 0 30px rgba(165, 0, 68, 0.3),
-    0 0 20px rgba(237, 187, 0, 0.2);
+  box-shadow: inset 0 0 10px rgba(0, 77, 152, 0.2);
 }
 
-/* Tabs con colores del Barça */
+/* Tabs con colores del Barça (sin animaciones) */
 html[data-theme="fc-barcelona"] .tab {
   border-bottom: 3px solid transparent;
-  transition: all 0.3s ease;
 }
 
 html[data-theme="fc-barcelona"] .tab:hover {
@@ -845,41 +812,27 @@ html[data-theme="fc-barcelona"] .tab:hover {
 }
 
 html[data-theme="fc-barcelona"] .tab.active {
-  background: linear-gradient(
-    180deg,
-    rgba(165, 0, 68, 0.2),
-    rgba(0, 77, 152, 0.15)
-  );
+  background: rgba(165, 0, 68, 0.2);
   border-bottom: 3px solid #edbb00;
-  box-shadow: 
-    0 3px 20px rgba(165, 0, 68, 0.4),
-    0 0 25px rgba(237, 187, 0, 0.2);
   font-weight: 700;
 }
 
-/* Badges con escudo Barça */
+/* Badges con colores Barça (sin animaciones) */
 html[data-theme="fc-barcelona"] .host-badge {
-  background: linear-gradient(135deg, #a50044, #004d98, #edbb00);
-  background-size: 200% 100%;
-  animation: barcaBadgeSlide 5s ease-in-out infinite;
-  box-shadow: 
-    0 0 20px rgba(165, 0, 68, 0.5),
-    0 0 30px rgba(237, 187, 0, 0.3);
+  background: linear-gradient(135deg, #a50044, #004d98);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   color: #ffffff;
   font-weight: 700;
   border: 1px solid rgba(237, 187, 0, 0.4);
 }
 
-/* Terminal con toque azulgrana */
+/* Terminal con toque azulgrana (sin animaciones) */
 html[data-theme="fc-barcelona"] .terminal {
   border: 2px solid #004d98;
-  box-shadow: 
-    0 0 30px rgba(165, 0, 68, 0.2),
-    0 0 50px rgba(0, 77, 152, 0.15),
-    inset 0 0 15px rgba(0, 26, 61, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Scrollbar Barcelona */
+/* Scrollbar Barcelona (sin animaciones) */
 html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #a50044 0%, #004d98 100%);
   border: 1px solid rgba(237, 187, 0, 0.3);
@@ -887,7 +840,6 @@ html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb {
 
 html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #c7154a 0%, #005bb5 100%);
-  box-shadow: 0 0 15px rgba(237, 187, 0, 0.5);
 }
 
 /* File table UX improvements */
@@ -978,39 +930,6 @@ html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb:hover {
 @keyframes pastelSlide {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
-}
-
-/* FC Barcelona - Animaciones azulgranas con efecto Camp Nou */
-@keyframes barcaFlow {
-  0%, 100% { 
-    background-position: 0% 50%;
-    filter: brightness(1) saturate(1.1);
-  }
-  50% { 
-    background-position: 100% 50%;
-    filter: brightness(1.1) saturate(1.25);
-  }
-}
-
-@keyframes catalanFlag {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 200% 0%; }
-}
-
-@keyframes barcaBorderFlow {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 0% 200%; }
-}
-
-@keyframes barcaBadgeSlide {
-  0%, 100% { 
-    background-position: 0% 50%;
-    filter: brightness(1) saturate(1);
-  }
-  50% { 
-    background-position: 100% 50%;
-    filter: brightness(1.15) saturate(1.3);
-  }
 }
 
 /* ============================================
