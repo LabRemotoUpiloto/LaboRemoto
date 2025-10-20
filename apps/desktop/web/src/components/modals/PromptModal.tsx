@@ -42,12 +42,6 @@ export default function PromptModal({
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onCancel()
-    }
-  }
-
   if (!open) return null
 
   return (
@@ -62,7 +56,6 @@ export default function PromptModal({
             className="prompt-input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             autoComplete="off"
           />

@@ -448,7 +448,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={'Escribe tu mensaje…'}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         />
         <button
           className="send-btn send-icon"

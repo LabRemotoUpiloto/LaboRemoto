@@ -40,12 +40,6 @@ const Badge: React.FC<BadgeProps> = ({
       onClick={onClick}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
-      onKeyDown={isClickable ? (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick?.()
-        }
-      } : undefined}
     >
       {icon && <span className="badge-icon" aria-hidden="true">{icon}</span>}
       <span className="badge-text">{children}</span>

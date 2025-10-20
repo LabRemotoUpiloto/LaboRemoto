@@ -41,7 +41,6 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
             placeholder="ruta o nombre (remoto/local)"
             value={pathInput}
             onChange={e => setPathInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') run(); }}
           />
           <button disabled={loading || !pathInput.trim()} onClick={() => run()}>{loading ? '...' : 'Analizar'}</button>
         </div>

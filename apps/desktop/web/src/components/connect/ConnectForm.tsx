@@ -90,42 +90,6 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
     setTimeout(() => setIsPulsing(false), 500);
   }, []);
 
-  // Atajos de teclado
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+D: Duplicar última conexión reciente
-      if (e.ctrlKey && e.key === 'd' && recentConnection) {
-        e.preventDefault();
-        setHost(recentConnection.host);
-        setPort(String(recentConnection.port));
-        setUser(recentConnection.user);
-        setPassword('');
-        push({ type: 'info', message: 'Conexión duplicada' });
-      }
-
-      // Escape: Limpiar formulario
-      if (e.key === 'Escape' && !saveModalOpen && !isConnecting) {
-        e.preventDefault();
-        setHost('');
-        setPort('22');
-        setUser('');
-        setPassword('');
-        setErrors({});
-        if (onQuickHostCleared) onQuickHostCleared();
-        push({ type: 'info', message: 'Formulario limpiado' });
-      }
-
-      // Ctrl+S: Abrir modal de guardar
-      if (e.ctrlKey && e.key === 's' && !isConnecting) {
-        e.preventDefault();
-        setSaveModalOpen(true);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [recentConnection, saveModalOpen, isConnecting, onQuickHostCleared, push]);
-
   // Cargar desde quick host
   useEffect(() => {
     if (!quickHost) return;
@@ -507,17 +471,6 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
     }
   };
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (!isConnecting) connect();
-    }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
-      e.preventDefault();
-      if (!isConnecting) setSaveModalOpen(true);
-    }
-  };
-
   const clearQuickHostIfNeeded = useCallback(() => {
     if (quickHost) onQuickHostCleared?.();
   }, [quickHost, onQuickHostCleared]);
@@ -541,7 +494,7 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
   return (
     <>
       <div className="connect-form-wrapper">
-        <form className={`connect-form ${isPulsing ? 'connect-form--pulse' : ''}`} onKeyDown={onKeyDown} onSubmit={(e) => e.preventDefault()}>
+        <form className={`connect-form ${isPulsing ? 'connect-form--pulse' : ''}`} onSubmit={(e) => e.preventDefault()}>
           <header className="connect-form__header">
             <h1 className="connect-form__title">Conectar</h1>
             {quickHost && (

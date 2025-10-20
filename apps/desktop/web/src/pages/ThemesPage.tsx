@@ -54,20 +54,6 @@ export default function ThemesPage() {
   const { theme, setTheme } = useTheme()
   const gridRef = useRef<HTMLDivElement>(null)
 
-  const onCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, idx: number, id: string) => {
-    const target = e.currentTarget
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      setTheme(id as any)
-      return
-    }
-    const grid = gridRef.current
-    if (!grid) return
-  const cards = Array.from(grid.querySelectorAll('.theme-card')) as HTMLElement[]
-  const focusCard = (i: number) => { const el = cards[i]; if (el) (el as HTMLElement).focus() }
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); focusCard(Math.min(cards.length - 1, idx + 1)) }
-    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); focusCard(Math.max(0, idx - 1)) }
-  }
   const renderThemeCard = (t: ThemeInfo, i: number) => (
     <div
       key={t.id}
@@ -75,7 +61,6 @@ export default function ThemesPage() {
       role="radio"
       aria-checked={theme===t.id}
       tabIndex={0}
-      onKeyDown={(e)=>onCardKeyDown(e, i, t.id)}
       onClick={()=>setTheme(t.id as any)}
     >
       <div className={`preview ${t.previewClass ?? ''}`} />
