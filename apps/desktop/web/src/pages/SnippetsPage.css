@@ -7,10 +7,11 @@
   overflow: hidden;
 }
 
-/* Header section - fixed at top */
+/* Header section - fixed at top, de lado a lado */
 .snippets-page__header {
   flex-shrink: 0;
   padding: 12px 24px 0 24px;
+  /* Sin max-width para extenderse completamente */
 }
 
 /* Scrollable content area */
