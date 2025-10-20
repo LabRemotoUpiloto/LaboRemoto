@@ -286,17 +286,9 @@ const App: React.FC = () => {
                 <ConnectFormPage onConnected={handleNewSession} initialPayload={pendingHost} />
               ) : selectedPage === 'hosts' ? (
                 <SavedHostsPage 
-                  onConnect={async (h,p,u,pass) => {
-                    try {
-                      const sessionId = await connectFromHost(h, Number(p), u || '', pass || '')
-                      if (sessionId) {
-                        const label = (u? `${u}@`:'') + h
-                        setSessionMeta(prev => ({ ...prev, [String(sessionId)]: { label } }))
-                        openSession(String(sessionId), label)
-                      }
-                    } catch (e) {
-                      alert('Error connecting to host: ' + (e as any)?.toString?.())
-                    }
+                  onConnected={(sessionId: string, label: string) => {
+                    setSessionMeta(prev => ({ ...prev, [sessionId]: { label } }));
+                    openSession(sessionId, label);
                   }}
                   onEdit={(hostData, originalFile) => {
                     // Cambiar a la página de conexión con los datos del host prellenados

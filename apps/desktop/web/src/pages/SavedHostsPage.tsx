@@ -9,11 +9,11 @@ import DotsVerticalIcon from '../components/icons/DotsVerticalIcon'
 type HostEntry = { file: string; payload: { host: string; port: number | string; user?: string; password?: string; name?: string } }
 
 interface SavedHostsPageProps {
-  onConnect?: (host: string, port: number | string, user?: string, password?: string) => Promise<void>;
+  onConnected?: (sessionId: string, label: string) => void;
   onEdit?: (hostData: HostEntry['payload'], originalFile: string) => void;
 }
 
-export default function SavedHostsPage({ onConnect, onEdit }: SavedHostsPageProps) {
+export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPageProps) {
   const [entries, setEntries] = useState<HostEntry[]>([])
   const [loadingLocal, setLoadingLocal] = useState(false)
   const [loadingLabelLocal, setLoadingLabelLocal] = useState<string | null>(null)
@@ -23,6 +23,7 @@ export default function SavedHostsPage({ onConnect, onEdit }: SavedHostsPageProp
   const [toDeleteFile, setToDeleteFile] = useState<string | null>(null)
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const mountedRef = useRef(true)
+  const [connectionAbortController, setConnectionAbortController] = useState<AbortController | null>(null)
 
   useEffect(() => {
     mountedRef.current = true
@@ -36,6 +37,122 @@ export default function SavedHostsPage({ onConnect, onEdit }: SavedHostsPageProp
     })()
     return () => { mountedRef.current = false }
   }, [])
+
+  // Función para conectar con soporte de eventos
+  const connectToHost = async (host: string, port: number | string, user?: string, password?: string) => {
+    if (loadingLocal) return;
+    
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { listen } = await import('@tauri-apps/api/event');
+      
+      const portNum = Number(port);
+      const userName = user || '';
+      const pwd = password || '';
+      
+      // Mensaje personalizado para Raspberry Pi
+      const isRaspberryPi = host === '200.115.181.211' && portNum === 9000;
+      const displayName = isRaspberryPi ? 'Raspberry Pi 4' : host;
+      const loadingMessage = isRaspberryPi ? 'Conectando a Raspberry Pi 4...' : `Conectando a ${host}...`;
+      
+      let unlistenSuccess: any = null;
+      let unlistenError: any = null;
+      const abortController = new AbortController();
+      setConnectionAbortController(abortController);
+      
+      // Configurar listeners
+      const connectionPromise = new Promise<string>((resolve, reject) => {
+        listen<any>('ssh_connected', (event) => {
+          console.log('✅ ssh_connected event:', event.payload);
+          if (event.payload?.id && !abortController.signal.aborted) {
+            resolve(event.payload.id);
+          }
+        }).then((unlisten) => {
+          unlistenSuccess = unlisten;
+        }).catch(reject);
+        
+        listen<any>('ssh_connect_error', (event) => {
+          console.log('❌ ssh_connect_error event:', event.payload);
+          if (event.payload?.id && !abortController.signal.aborted) {
+            reject(new Error(event.payload.error || 'Error conectando'));
+          }
+        }).then((unlisten) => {
+          unlistenError = unlisten;
+        }).catch(reject);
+      });
+      
+      // Función para cancelar
+      const cancelConnection = () => {
+        abortController.abort();
+        if (unlistenSuccess) unlistenSuccess();
+        if (unlistenError) unlistenError();
+        setLoading(false, null, null);
+        setLoadingLocal(false);
+        setConnectionAbortController(null);
+        push({ type: 'info', message: 'Conexión cancelada' });
+      };
+      
+      // Activar loader con botón de cancelar
+      setLoading(true, loadingMessage, cancelConnection);
+      setLoadingLocal(true);
+      
+      // Timeout
+      const timeoutId = setTimeout(() => {
+        if (!abortController.signal.aborted) {
+          cancelConnection();
+          push({ type: 'error', message: 'Tiempo de espera agotado (30s)' });
+        }
+      }, 30000);
+      
+      // Delay para listeners
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Invocar conexión
+      await invoke<string>('ssh_connect', {
+        host,
+        port: portNum,
+        user: userName,
+        password: pwd,
+        cols: 80,
+        rows: 24,
+      });
+      
+      // Verificar si fue cancelado
+      if (abortController.signal.aborted) {
+        clearTimeout(timeoutId);
+        if (unlistenSuccess) unlistenSuccess();
+        if (unlistenError) unlistenError();
+        return;
+      }
+      
+      // Esperar resultado
+      const sessionId = await connectionPromise;
+      
+      // Limpiar
+      clearTimeout(timeoutId);
+      if (unlistenSuccess) unlistenSuccess();
+      if (unlistenError) unlistenError();
+      
+      // Notificar éxito
+      const label = isRaspberryPi ? `${userName}@Raspberry Pi 4` : `${userName}@${host}`;
+      if (onConnected) {
+        onConnected(sessionId, label);
+      }
+      
+      push({ type: 'success', message: `Conectado a ${displayName}` });
+      setLoading(false, null, null);
+      setLoadingLocal(false);
+      setConnectionAbortController(null);
+      
+    } catch (e: any) {
+      console.error('Connection error:', e);
+      const errorMsg = e?.message || e?.toString?.() || 'Error conectando';
+      push({ type: 'error', message: errorMsg });
+      setLoading(false, null, null);
+      setLoadingLocal(false);
+      setConnectionAbortController(null);
+    }
+  };
 
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
@@ -71,19 +188,7 @@ export default function SavedHostsPage({ onConnect, onEdit }: SavedHostsPageProp
             tabIndex={0}
             aria-label={`Conectar a ${it.payload.host}`}
             onClick={async () => {
-              if (loadingLocal) return
-              try {
-                setLoading(true, `Conectando ${it.payload.host}...`)
-                setLoadingLocal(true)
-                if (onConnect) {
-                  await onConnect(it.payload.host, it.payload.port, it.payload.user, it.payload.password)
-                }
-              } catch (e: any) {
-                alert('Error: ' + (e?.toString?.() ?? ''))
-              } finally {
-                setLoading(false, null)
-                setLoadingLocal(false)
-              }
+              await connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -155,18 +260,8 @@ export default function SavedHostsPage({ onConnect, onEdit }: SavedHostsPageProp
                 disabled={loadingLocal}
                 aria-label={`Conectar a ${it.payload.host}`}
                 onClick={async (e) => { 
-                  e.stopPropagation()
-                  if (loadingLocal) return
-                  try { 
-                    setLoading(true, `Conectando ${it.payload.host}...`)
-                    setLoadingLocal(true)
-                    if (onConnect) await onConnect(it.payload.host, it.payload.port, it.payload.user, it.payload.password)
-                  } catch (err: any) { 
-                    alert('Error: ' + err?.toString?.())
-                  } finally { 
-                    setLoading(false, null)
-                    setLoadingLocal(false)
-                  }
+                  e.stopPropagation();
+                  await connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password);
                 }}
               >
                 Conectar

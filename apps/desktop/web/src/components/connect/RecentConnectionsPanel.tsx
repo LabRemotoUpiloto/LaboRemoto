@@ -53,26 +53,33 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
       </div>
       
       <div className="recent-connections__list">
-        {connections.map((conn) => (
-          <button
-            key={conn.id}
-            className="recent-connection-item"
-            onClick={() => onSelect(conn)}
-            title={`Rellenar formulario con ${conn.user}@${conn.host}:${conn.port}. Última conexión: ${formatRelativeTime(conn.lastConnected)}`}
-          >
-            <div className="recent-connection-item__main">
-              <span className="recent-connection-item__user">{conn.user}</span>
-              <span className="recent-connection-item__separator">@</span>
-              <span className="recent-connection-item__host">{conn.host}</span>
-              {conn.port !== 22 && (
-                <span className="recent-connection-item__port">:{conn.port}</span>
-              )}
-            </div>
-            <span className="recent-connection-item__time">
-              {formatRelativeTime(conn.lastConnected)}
-            </span>
-          </button>
-        ))}
+        {connections.map((conn) => {
+          // Detectar si es Raspberry Pi
+          const isRaspberryPi = conn.host === '200.115.181.211' && conn.port === 9000;
+          const displayHost = isRaspberryPi ? 'Raspberry Pi 4' : conn.host;
+          const showPort = !isRaspberryPi && conn.port !== 22;
+          
+          return (
+            <button
+              key={conn.id}
+              className="recent-connection-item"
+              onClick={() => onSelect(conn)}
+              title={`Rellenar formulario con ${conn.user}@${displayHost}${showPort ? ':' + conn.port : ''}. Última conexión: ${formatRelativeTime(conn.lastConnected)}`}
+            >
+              <div className="recent-connection-item__main">
+                <span className="recent-connection-item__user">{conn.user}</span>
+                <span className="recent-connection-item__separator">@</span>
+                <span className="recent-connection-item__host">{displayHost}</span>
+                {showPort && (
+                  <span className="recent-connection-item__port">:{conn.port}</span>
+                )}
+              </div>
+              <span className="recent-connection-item__time">
+                {formatRelativeTime(conn.lastConnected)}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
