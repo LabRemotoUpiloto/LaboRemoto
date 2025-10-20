@@ -8,8 +8,8 @@
 }
 
 .connect-form-page__header {
-  padding: 12px 32px 24px; /* Alineado con la línea de la sidebar */
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 18px 24px 24px; /* Alineado con .page-content padding */
+  border-bottom: 1px solid var(--border-subtle); /* Mismo color que sidebar-toggle-wrapper */
   background: var(--background-secondary);
   text-align: center;
 }
