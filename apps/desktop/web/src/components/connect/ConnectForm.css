@@ -119,34 +119,47 @@
   padding-right: 48px;
 }
 
-/* Password toggle button (Ojito) */
+/* Password toggle button (Solo el ojo, sin cuadro) */
 .connect-form__password-toggle {
-  position: absolute;
-  right: 12px;
+  position: absolute !important;
+  right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  background: transparent;
-  border: none;
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   cursor: pointer;
-  font-size: 18px;
-  padding: 6px;
-  border-radius: 6px;
-  display: flex;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, transform 0.2s ease;
   color: var(--text-secondary);
   z-index: 2;
+  width: 20px;
+  height: 20px;
+  border-radius: 0 !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
 }
 
 .connect-form__password-toggle:hover:not(:disabled) {
-  background: var(--interactive-hover);
   color: var(--text-primary);
+  transform: translateY(-50%) scale(1.15);
+  background: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .connect-form__password-toggle:active:not(:disabled) {
-  background: var(--interactive-active);
-  transform: translateY(-50%) scale(0.95);
+  transform: translateY(-50%) scale(0.9);
+  background: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .connect-form__password-toggle:disabled {
@@ -154,9 +167,28 @@
   cursor: not-allowed;
 }
 
+.connect-form__password-toggle:focus,
 .connect-form__password-toggle:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
+  outline: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  background-color: transparent !important;
+}
+
+/* Ocultar iconos de gestor de contraseñas del navegador */
+.connect-form__input::-ms-reveal,
+.connect-form__input::-ms-clear {
+  display: none;
+}
+
+.connect-form__input::-webkit-credentials-auto-fill-button,
+.connect-form__input::-webkit-contacts-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  height: 0;
+  width: 0;
+  margin: 0;
 }
 
 .connect-form__input::placeholder {

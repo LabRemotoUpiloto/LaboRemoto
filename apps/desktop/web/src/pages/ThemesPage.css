@@ -13,14 +13,14 @@
   background: var(--background-primary);
 }
 
-/* Header fijo en la parte superior - de lado a lado */
+/* Header fijo en la parte superior - alineado con sidebar */
 .themes-page__header {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 24px 16px 24px; /* Padding para alinear con la línea de la sidebar */
-  border-bottom: 2px solid var(--border-subtle);
+  padding: 18px 24px 16px 24px; /* Alineado con .page-content padding */
+  border-bottom: 1px solid var(--border-subtle); /* Mismo color que sidebar-toggle-wrapper */
   background: var(--background-primary);
   z-index: 10;
 }

@@ -1,22 +1,22 @@
 /* ==================== LAYOUT PRINCIPAL ==================== */
 .saved-hosts-page { 
-  padding: 12px 24px 32px 24px; /* Alineado con la línea de la sidebar */
+  padding: 0 24px 32px 24px; /* Sin padding superior - lo maneja el header */
   min-height: 100vh;
   background: var(--background-primary);
 }
 
-/* Header con título, separador y descripción - de lado a lado */
+/* Header con título, separador y descripción - de lado a lado, alineado con sidebar */
 .saved-hosts-page__header {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding-bottom: 16px;
-  margin-bottom: 24px;
-  margin-left: -24px;
-  margin-right: -24px;
+  padding: 18px 0 16px 0; /* Padding vertical, sin lateral en el contenedor */
+  margin: -18px -24px 24px -24px; /* Compensar padding de .page-content y crear espacio abajo */
+  border-bottom: 1px solid var(--border-subtle); /* Mismo color que sidebar-toggle-wrapper */
+  
+  /* Padding interno para alinear el contenido */
   padding-left: 24px;
   padding-right: 24px;
-  border-bottom: 2px solid var(--border-subtle);
 }
 
 .page-title { 
