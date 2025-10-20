@@ -24,12 +24,9 @@ const ContextMenu: React.FC<Props> = ({ x, y, open, items, onClose }) => {
       if (!ref.current) return onClose()
       if (!ref.current.contains(e.target as Node)) onClose()
     }
-    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('mousedown', onDocClick)
-    document.addEventListener('keydown', onEsc)
     return () => {
       document.removeEventListener('mousedown', onDocClick)
-      document.removeEventListener('keydown', onEsc)
     }
   }, [open, onClose])
 

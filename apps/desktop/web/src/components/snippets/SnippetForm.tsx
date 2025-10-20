@@ -44,16 +44,6 @@ const SnippetForm: React.FC<SnippetFormProps> = ({
     return () => textarea.removeEventListener('input', adjustHeight);
   }, [content]);
 
-  // Keyboard shortcuts
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      if (content.trim()) {
-        onSave();
-      }
-    }
-  };
-
   const charCount = content.length;
   const isSaveDisabled = !content.trim();
 
@@ -89,10 +79,9 @@ const SnippetForm: React.FC<SnippetFormProps> = ({
           <textarea
             ref={textareaRef}
             className="snippet-form__content-input"
-            placeholder="Contenido del snippet... (Ctrl+Enter para guardar)"
+            placeholder="Contenido del snippet..."
             value={content}
             onChange={(e) => onContentChange(e.target.value)}
-            onKeyDown={handleKeyDown}
           />
           <div className="snippet-form__char-count">
             {charCount} caracteres
@@ -106,7 +95,7 @@ const SnippetForm: React.FC<SnippetFormProps> = ({
           className="snippet-form__btn snippet-form__btn--primary"
           onClick={onSave}
           disabled={isSaveDisabled}
-          title={isSaveDisabled ? 'Escribe algo para guardar' : 'Guardar snippet (Ctrl+Enter)'}
+          title={isSaveDisabled ? 'Escribe algo para guardar' : 'Guardar snippet'}
         >
           <span className="snippet-form__btn-icon">💾</span>
           {isEditing ? 'Actualizar' : 'Guardar'}
