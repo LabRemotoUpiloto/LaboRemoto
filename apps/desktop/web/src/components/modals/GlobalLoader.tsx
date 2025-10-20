@@ -3,14 +3,34 @@ import { useLoading } from '../../contexts/LoadingContext'
 import './GlobalLoader.css'
 
 export default function GlobalLoader() {
-  const { loading, label } = useLoading()
+  const { loading, label, onCancel } = useLoading()
+  
+  console.log('🔄 GlobalLoader render:', { loading, label, hasCancel: !!onCancel })
+  
   if (!loading) return null
+  
   return (
     <div className="global-loading-overlay" role="status" aria-live="polite">
       <div className="global-loading-box">
-        {/* Spinner con clase única para evitar colisiones con otras .spinner globales */}
-        <div className="global-spinner" aria-hidden></div>
+        {/* Spinner animado */}
+        <div className="global-loading-spinner">
+          <div className="spinner-ring"></div>
+          <div className="spinner-ring"></div>
+          <div className="spinner-ring"></div>
+        </div>
         <div className="loading-text">{label ?? 'Cargando...'}</div>
+        <p className="loading-subtitle">
+          Puedes seguir usando la aplicación mientras se establece la conexión
+        </p>
+        {onCancel && (
+          <button
+            className="loading-cancel-btn"
+            onClick={onCancel}
+            title="Cancelar conexión"
+          >
+            Cancelar conexión
+          </button>
+        )}
       </div>
     </div>
   )

@@ -24,56 +24,93 @@ pub async fn ssh_connect(
   cols: u32,
   rows: u32,
 ) -> Result<String, String> {
-  let (session, mut rx_out) =
-    Session::connect_password(&host, port, &user, &password, cols, rows)
-      .await
-      .map_err(|e| e.to_string())?;
-
+  // Generar ID inmediatamente
   let id = Uuid::new_v4().to_string();
-  {
-    let mut map = SESSIONS.lock().unwrap();
-    map.insert(id.clone(), SessionExt {
-      term: session,
-      host: host.clone(),
-      port,
-      user: user.clone(),
-      password: password.clone(),
-      sftp_cached: None,
-      out_buffer: Arc::new(Mutex::new(Some(String::new()))),
-      ui_ready: Arc::new(AtomicBool::new(false)),
-      current_dir: None,
-    });
-  }
-
+  
   // Limpiar memoria de la sesión (por si se reutiliza el mismo id en algún flujo)
   state.clear(&id);
-
-  // Ya no emitimos mensaje de "Conectado a ..." para mantener la terminal limpia.
-
-  let app2 = app.clone();
-  let id_spawn = id.clone();
-  let buffer_ref = {
-    let map = SESSIONS.lock().unwrap();
-    map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone()))
-  };
+  
+  // Clonar variables para mover al task
+  let id_clone = id.clone();
+  let app_clone = app.clone();
+  let host_clone = host.clone();
+  let user_clone = user.clone();
+  let password_clone = password.clone();
+  
+  // Emitir evento de inicio de conexión
+  let _ = app.emit("ssh_connecting", serde_json::json!({
+    "id": id,
+    "host": host,
+    "port": port,
+    "user": user
+  }));
+  
+  // Conectar en background (NO bloqueante)
   tokio::spawn(async move {
-    while let Some(buf) = rx_out.recv().await {
-      let s = String::from_utf8_lossy(&buf).into_owned();
-      if let Some((out_buf, ready)) = &buffer_ref {
-        if ready.load(Ordering::SeqCst) {
-          let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
-        } else {
-          if let Ok(mut opt) = out_buf.lock() {
-            let bufref = opt.get_or_insert_with(String::new);
-            bufref.push_str(&s);
-          }
+    // Intentar conectar
+    let result = Session::connect_password(&host_clone, port, &user_clone, &password_clone, cols, rows).await;
+    
+    match result {
+      Ok((session, mut rx_out)) => {
+        // Guardar sesión
+        {
+          let mut map = SESSIONS.lock().unwrap();
+          map.insert(id_clone.clone(), SessionExt {
+            term: session,
+            host: host_clone.clone(),
+            port,
+            user: user_clone.clone(),
+            password: password_clone.clone(),
+            sftp_cached: None,
+            out_buffer: Arc::new(Mutex::new(Some(String::new()))),
+            ui_ready: Arc::new(AtomicBool::new(false)),
+            current_dir: None,
+          });
         }
-      } else {
-        let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+        
+        // Emitir evento de éxito
+        let _ = app_clone.emit("ssh_connected", serde_json::json!({
+          "id": id_clone,
+          "success": true
+        }));
+        
+        // Leer output en otro task
+        let app2 = app_clone.clone();
+        let id_spawn = id_clone.clone();
+        let buffer_ref = {
+          let map = SESSIONS.lock().unwrap();
+          map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone()))
+        };
+        
+        tokio::spawn(async move {
+          while let Some(buf) = rx_out.recv().await {
+            let s = String::from_utf8_lossy(&buf).into_owned();
+            if let Some((out_buf, ready)) = &buffer_ref {
+              if ready.load(Ordering::SeqCst) {
+                let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+              } else {
+                if let Ok(mut opt) = out_buf.lock() {
+                  let bufref = opt.get_or_insert_with(String::new);
+                  bufref.push_str(&s);
+                }
+              }
+            } else {
+              let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
+            }
+          }
+        });
+      }
+      Err(e) => {
+        // Emitir evento de error
+        let _ = app_clone.emit("ssh_connect_error", serde_json::json!({
+          "id": id_clone,
+          "error": e.to_string()
+        }));
       }
     }
   });
-
+  
+  // Devolver ID inmediatamente (NO esperar a que conecte)
   Ok(id)
 }
 

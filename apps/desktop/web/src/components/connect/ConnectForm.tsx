@@ -49,8 +49,7 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldError>({});
-  const [busyLocal, setBusyLocal] = useState(false);
-  const { setLoading } = useLoading();
+  const { setLoading, loading: isConnecting } = useLoading();
   const { push } = useToasts();
 
   // Modal para guardar host
@@ -64,6 +63,26 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
 
   // Estado para animaciones
   const [isPulsing, setIsPulsing] = useState(false);
+
+  // Estados para conexión cancelable
+  const [connectionAbortController, setConnectionAbortController] = useState<AbortController | null>(null);
+
+  // Helper: Detectar si es Raspberry Pi (desde quickHost o recentConnection o campos actuales)
+  const isRaspberryPi = useCallback(() => {
+    // Desde quickHost
+    if (quickHost?.host === '200.115.181.211' && quickHost?.port === 9000) {
+      return true;
+    }
+    // Desde recentConnection
+    if (recentConnection?.host === '200.115.181.211' && recentConnection?.port === 9000) {
+      return true;
+    }
+    // Desde campos actuales (para mantener el estado)
+    if (host === '200.115.181.211' && port === '9000') {
+      return true;
+    }
+    return false;
+  }, [quickHost, recentConnection, host, port]);
 
   // Trigger pulse animation cuando se selecciona un host
   const triggerPulse = useCallback(() => {
@@ -85,7 +104,7 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
       }
 
       // Escape: Limpiar formulario
-      if (e.key === 'Escape' && !saveModalOpen && !busyLocal) {
+      if (e.key === 'Escape' && !saveModalOpen && !isConnecting) {
         e.preventDefault();
         setHost('');
         setPort('22');
@@ -97,7 +116,7 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
       }
 
       // Ctrl+S: Abrir modal de guardar
-      if (e.ctrlKey && e.key === 's' && !busyLocal) {
+      if (e.ctrlKey && e.key === 's' && !isConnecting) {
         e.preventDefault();
         setSaveModalOpen(true);
       }
@@ -105,7 +124,7 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [recentConnection, saveModalOpen, busyLocal, onQuickHostCleared, push]);
+  }, [recentConnection, saveModalOpen, isConnecting, onQuickHostCleared, push]);
 
   // Cargar desde quick host
   useEffect(() => {
@@ -272,13 +291,28 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
     );
 
     if (exists) {
+      // Mensaje personalizado para Raspberry Pi
+      const isRaspberryPiConnection = host.trim() === '200.115.181.211' && safePort === 9000;
+      const displayInfo = isRaspberryPiConnection 
+        ? `${user.trim()}@Raspberry Pi 4`
+        : `${user.trim()}@${host.trim()}:${safePort}`;
+      
       push({ 
         type: 'info', 
-        message: `Ya conectaste a ${user.trim()}@${host.trim()}:${safePort} anteriormente` 
+        message: `Ya te has conectado a ${displayInfo} anteriormente` 
       });
     }
 
     return exists;
+  };
+
+  const cancelConnection = () => {
+    if (connectionAbortController) {
+      connectionAbortController.abort();
+    }
+    setConnectionAbortController(null);
+    setLoading(false, null, null);
+    push({ type: 'info', message: 'Conexión cancelada' });
   };
 
   const connect = async () => {
@@ -287,17 +321,95 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
       return;
     }
 
+    console.log('🔌 Starting connection...');
+
     // Detectar duplicados (solo aviso informativo, no bloquea conexión)
     checkDuplicateConnection();
 
-    setBusyLocal(true);
-    setLoading(true, `Conectando a ${host}...`);
+    const parsedPort = parseInt(port.trim() || '22', 10);
+    const safePort = (parsedPort > 0 && parsedPort <= 65535) ? parsedPort : 22;
+    const size = getTermSize ? getTermSize() : { cols: 80, rows: 24 };
+
+    // Crear AbortController para poder cancelar la conexión
+    const abortController = new AbortController();
+    setConnectionAbortController(abortController);
+    
+    // Mensaje personalizado para Raspberry Pi
+    const isRaspberryPiConn = host.trim() === '200.115.181.211' && port.trim() === '9000';
+    const displayName = isRaspberryPiConn ? 'Raspberry Pi 4' : host.trim();
+    const loadingMessage = isRaspberryPiConn ? 'Conectando a Raspberry Pi 4...' : `Conectando a ${host}...`;
+    
+    console.log('📡 Loading message:', loadingMessage);
+    
+    // Variables para cleanup
+    let unlistenSuccess: any = null;
+    let unlistenError: any = null;
+    let timeoutId: any = null;
     
     try {
-      const parsedPort = parseInt(port.trim() || '22', 10);
-      const safePort = (parsedPort > 0 && parsedPort <= 65535) ? parsedPort : 22;
-      const size = getTermSize ? getTermSize() : { cols: 80, rows: 24 };
+      // Importar listen
+      const { listen } = await import('@tauri-apps/api/event');
       
+      console.log('🎧 Setting up event listeners...');
+      
+      // Configurar listeners ANTES de invocar ssh_connect
+      const connectionPromise = new Promise<{ id: string; label: string }>((resolve, reject) => {
+        // Listener de éxito
+        listen<any>('ssh_connected', (event) => {
+          console.log('✅ ssh_connected event received:', event.payload);
+          if (event.payload?.id && !abortController.signal.aborted) {
+            const label = `${user}@${displayName}`;
+            
+            // Guardar en historial
+            if (onConnectionSuccess) {
+              onConnectionSuccess({
+                host: host.trim(),
+                port: safePort,
+                user: user.trim(),
+              });
+            }
+            
+            resolve({ id: event.payload.id, label });
+          }
+        }).then((unlisten) => {
+          unlistenSuccess = unlisten;
+          console.log('✅ Success listener registered');
+        }).catch(reject);
+        
+        // Listener de error
+        listen<any>('ssh_connect_error', (event) => {
+          console.log('❌ ssh_connect_error event received:', event.payload);
+          if (event.payload?.id && !abortController.signal.aborted) {
+            reject(new Error(event.payload.error || 'Error conectando'));
+          }
+        }).then((unlisten) => {
+          unlistenError = unlisten;
+          console.log('✅ Error listener registered');
+        }).catch(reject);
+      });
+      
+      // Activar el loader global con botón de cancelar
+      console.log('🔄 Activating GlobalLoader...');
+      setLoading(true, loadingMessage, cancelConnection);
+      
+      // Timeout de 30 segundos
+      timeoutId = setTimeout(() => {
+        if (!abortController.signal.aborted) {
+          console.log('⏱️ Connection timeout (30s)');
+          abortController.abort();
+          if (unlistenSuccess) unlistenSuccess();
+          if (unlistenError) unlistenError();
+          setLoading(false, null, null);
+          setConnectionAbortController(null);
+          push({ type: 'error', message: 'Tiempo de espera agotado (30s)' });
+        }
+      }, 30000);
+      
+      // Pequeño delay para asegurar que los listeners estén listos
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('📞 Invoking ssh_connect...');
+      // Invocar ssh_connect (retorna ID inmediatamente)
       const id = await invoke<string>('ssh_connect', {
         host: host.trim(),
         port: safePort,
@@ -307,23 +419,42 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
         rows: size.rows,
       });
       
-      const label = `${user}@${host}`;
-      onConnected({ id, label });
-      push({ type: 'success', message: `Conectado a ${label}` });
+      console.log('🆔 SSH connection initiated with ID:', id);
       
-      // Guardar en historial de conexiones recientes
-      if (onConnectionSuccess) {
-        onConnectionSuccess({
-          host: host.trim(),
-          port: safePort,
-          user: user.trim(),
-        });
+      // Verificar si fue cancelado
+      if (abortController.signal.aborted) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (unlistenSuccess) unlistenSuccess();
+        if (unlistenError) unlistenError();
+        return;
       }
+      
+      // Esperar resultado de la conexión
+      const result = await connectionPromise;
+      
+      // Limpiar timeout y listeners
+      if (timeoutId) clearTimeout(timeoutId);
+      if (unlistenSuccess) unlistenSuccess();
+      if (unlistenError) unlistenError();
+      
+      // Éxito: abrir terminal
+      onConnected(result);
+      push({ type: 'success', message: `Conectado a ${displayName}` });
+      setLoading(false, null, null);
+      setConnectionAbortController(null);
+      
     } catch (e: any) {
-      push({ type: 'error', message: e?.toString?.() ?? 'Error conectando' });
-    } finally {
-      setBusyLocal(false);
-      setLoading(false, null);
+      // Limpiar recursos
+      if (timeoutId) clearTimeout(timeoutId);
+      if (unlistenSuccess) unlistenSuccess();
+      if (unlistenError) unlistenError();
+      
+      if (!abortController.signal.aborted) {
+        const errorMessage = e?.message || e?.toString?.() || 'Error conectando';
+        push({ type: 'error', message: errorMessage });
+        setLoading(false, null, null);
+        setConnectionAbortController(null);
+      }
     }
   };
 
@@ -379,11 +510,11 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (!busyLocal) connect();
+      if (!isConnecting) connect();
     }
     if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
       e.preventDefault();
-      setSaveModalOpen(true);
+      if (!isConnecting) setSaveModalOpen(true);
     }
   };
 
@@ -418,58 +549,65 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
                 {quickHost.name || quickHost.host}
               </span>
             )}
+            {!quickHost && recentConnection && isRaspberryPi() && (
+              <span className="connect-form__badge">
+                Raspberry Pi 4
+              </span>
+            )}
           </header>
 
           <div className="connect-form__fields">
-            {/* Host */}
-            <div className="connect-form__field">
-              <div className="connect-form__input-wrapper">
-                <input
-                  id="field-host"
-                  className={`connect-form__input ${errors.host ? 'connect-form__input--error' : ''}`}
-                  placeholder=" "
-                  value={host}
-                  onChange={(e) => handleHostChange(e.target.value)}
-                  disabled={busyLocal}
-                  title="Dirección IP o nombre de dominio del servidor SSH (ej: 192.168.1.100 o servidor.ejemplo.com)"
-                />
-                <label htmlFor="field-host" className="connect-form__label">
-                  Host
-                </label>
+            {/* Host - Solo mostrar si NO es Raspberry Pi (desde quickHost o recentConnection) */}
+            {!isRaspberryPi() && (
+              <div className="connect-form__field">
+                <div className="connect-form__input-wrapper">
+                  <input
+                    id="field-host"
+                    className={`connect-form__input ${errors.host ? 'connect-form__input--error' : ''}`}
+                    placeholder=" "
+                    value={host}
+                    onChange={(e) => handleHostChange(e.target.value)}
+                    title="Dirección IP o nombre de dominio del servidor SSH (ej: 192.168.1.100 o servidor.ejemplo.com)"
+                  />
+                  <label htmlFor="field-host" className="connect-form__label">
+                    Host
+                  </label>
+                </div>
+                {errors.host && (
+                  <span className="connect-form__error">
+                    <span className="connect-form__error-icon">⚠️</span>
+                    {errors.host}
+                  </span>
+                )}
               </div>
-              {errors.host && (
-                <span className="connect-form__error">
-                  <span className="connect-form__error-icon">⚠️</span>
-                  {errors.host}
-                </span>
-              )}
-            </div>
+            )}
 
-            {/* Port */}
-            <div className="connect-form__field">
-              <div className="connect-form__input-wrapper">
-                <input
-                  id="field-port"
-                  className={`connect-form__input ${errors.port ? 'connect-form__input--error' : ''}`}
-                  placeholder=" "
-                  type="text"
-                  inputMode="numeric"
-                  value={port}
-                  onChange={(e) => handlePortChange(e.target.value)}
-                  disabled={busyLocal}
-                  title="Puerto SSH del servidor (por defecto: 22). Rango válido: 1-65535"
-                />
-                <label htmlFor="field-port" className="connect-form__label">
-                  Puerto
-                </label>
+            {/* Port - Solo mostrar si NO es Raspberry Pi (desde quickHost o recentConnection) */}
+            {!isRaspberryPi() && (
+              <div className="connect-form__field">
+                <div className="connect-form__input-wrapper">
+                  <input
+                    id="field-port"
+                    className={`connect-form__input ${errors.port ? 'connect-form__input--error' : ''}`}
+                    placeholder=" "
+                    type="text"
+                    inputMode="numeric"
+                    value={port}
+                    onChange={(e) => handlePortChange(e.target.value)}
+                    title="Puerto SSH del servidor (por defecto: 22). Rango válido: 1-65535"
+                  />
+                  <label htmlFor="field-port" className="connect-form__label">
+                    Puerto
+                  </label>
+                </div>
+                {errors.port && (
+                  <span className="connect-form__error">
+                    <span className="connect-form__error-icon">⚠️</span>
+                    {errors.port}
+                  </span>
+                )}
               </div>
-              {errors.port && (
-                <span className="connect-form__error">
-                  <span className="connect-form__error-icon">⚠️</span>
-                  {errors.port}
-                </span>
-              )}
-            </div>
+            )}
 
             {/* User */}
             <div className="connect-form__field connect-form__field--full">
@@ -481,10 +619,8 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
                   value={user}
                   onChange={(e) => {
                     setUser(e.target.value);
-                    clearQuickHostIfNeeded();
                     if (errors.user) setErrors(prev => ({ ...prev, user: undefined }));
                   }}
-                  disabled={busyLocal}
                   title="Nombre de usuario para la conexión SSH (ej: root, admin, ubuntu)"
                 />
                 <label htmlFor="field-user" className="connect-form__label">
@@ -510,10 +646,8 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
-                    clearQuickHostIfNeeded();
                     if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
                   }}
-                  disabled={busyLocal}
                   title="Contraseña SSH del usuario. No se guarda en el historial por seguridad"
                 />
                 <label htmlFor="field-pass" className="connect-form__label">
@@ -523,7 +657,6 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
                   type="button"
                   className="connect-form__password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={busyLocal}
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                   title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
@@ -544,7 +677,7 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
               type="button"
               className="connect-form__btn connect-form__btn--secondary"
               onClick={() => setSaveModalOpen(true)}
-              disabled={busyLocal}
+              disabled={isConnecting}
               title="Guardar host (Ctrl+S)"
             >
               Guardar host
@@ -553,10 +686,10 @@ const ConnectForm: React.FC<ConnectFormProps> = ({
               type="submit"
               className="connect-form__btn connect-form__btn--primary"
               onClick={connect}
-              disabled={busyLocal || !isValid}
+              disabled={isConnecting || !isValid}
               title={isValid ? 'Conectar (Enter)' : 'Completa todos los campos correctamente'}
             >
-              {busyLocal && <span className="connect-form__spinner" />}
+              {isConnecting && <span className="connect-form__spinner" />}
               Conectar
             </button>
           </div>
