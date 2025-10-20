@@ -190,12 +190,6 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
             onClick={async () => {
               await connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password);
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                e.currentTarget.click()
-              }
-            }}
           >
             <div className="host-card-header">
               <div className="host-card-left">
