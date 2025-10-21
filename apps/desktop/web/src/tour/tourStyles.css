@@ -15,6 +15,18 @@
   z-index: 10000001 !important;
 }
 
+/* Popover más estrecho solo cuando el elemento destacado es el formulario de conexión */
+/* Cuando el elemento destacado es el formulario dentro del wrapper de connect */
+body:has([data-tour="connect-form"] .connect-form.driver-highlighted-element) .driver-popover {
+  max-width: 300px !important;
+}
+
+@media (max-width: 1280px) {
+  body:has([data-tour="connect-form"] .connect-form.driver-highlighted-element) .driver-popover {
+    max-width: 280px !important;
+  }
+}
+
 /* Título del popover */
 .driver-popover-title {
   color: var(--text-primary, #ffffff) !important;
