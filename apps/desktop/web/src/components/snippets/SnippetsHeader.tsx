@@ -40,7 +40,12 @@ const SnippetsHeader: React.FC<SnippetsHeaderProps> = ({
 
         <div className="snippets-header__actions">
         <div className="snippets-header__search-wrapper">
-          <span className="snippets-header__search-icon">🔍</span>
+          <span className="snippets-header__search-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          </span>
           <input
             type="text"
             className="snippets-header__search-input"
@@ -65,7 +70,7 @@ const SnippetsHeader: React.FC<SnippetsHeaderProps> = ({
           onChange={(e) => onCategoryFilterChange(e.target.value)}
           title="Filtrar por categoría"
         >
-          <option value="">🏷️ Todas las categorías</option>
+          <option value="">Todas las categorías</option>
           {categories.map((cat) => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
@@ -77,9 +82,9 @@ const SnippetsHeader: React.FC<SnippetsHeaderProps> = ({
           onChange={(e) => onSortChange(e.target.value as 'date' | 'title' | 'updated')}
           title="Ordenar por"
         >
-          <option value="date">📅 Más recientes</option>
-          <option value="updated">🕒 Última modificación</option>
-          <option value="title">🔤 Por título</option>
+          <option value="date">Más recientes</option>
+          <option value="updated">Última modificación</option>
+          <option value="title">Por título</option>
         </select>
       </div>
       </div>
