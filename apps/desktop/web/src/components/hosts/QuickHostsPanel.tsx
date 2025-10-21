@@ -12,12 +12,14 @@ interface QuickHostsPanelProps {
   hosts?: QuickHost[];
   onHostSelect: (host: QuickHost) => void;
   selectedHostId?: string | null;
+  'data-tour'?: string;
 }
 
 const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({ 
   hosts = [], 
   onHostSelect, 
-  selectedHostId 
+  selectedHostId,
+  'data-tour': dataTour
 }) => {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -65,7 +67,7 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
   };
 
   return (
-    <header className="quick-host-header" aria-label="Hosts rápidos">
+    <header className="quick-host-header" aria-label="Hosts rápidos" data-tour={dataTour}>
       <h2>Hosts rápidos</h2>
       
       <div className="quick-hosts-wrapper">

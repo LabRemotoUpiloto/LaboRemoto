@@ -5,10 +5,11 @@ import './LandingPage.css';
 
 interface LandingPageProps {
     onStartTutorial?: () => void;
+    onPageChange?: (page: string) => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial }) => {
-    const { startTour } = useTour();
+const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onPageChange }) => {
+    const { startTour } = useTour(onPageChange);
     
     const handleStartTutorial = () => {
         // Ejecutar callback personalizado si existe
