@@ -59,6 +59,17 @@ const App: React.FC = () => {
   // Cierra pestaña (no permite cerrar Inicio) y re-calcula activa
   const closeTab = (id: string) => {
     if (id === HOME_ID) return
+    
+    // Si estás cerrando la pestaña activa, cerrar los paneles laterales
+    if (id === activeTabId) {
+      if (isPinsPanelOpen) {
+        closePinsPanel();
+      }
+      if (isCameraOpen) {
+        setCameraOpen(false);
+      }
+    }
+    
     setTabs(prev => {
       const next = prev.filter(t => t.id !== id)
       // recompute active fallback
@@ -75,6 +86,8 @@ const App: React.FC = () => {
     const { id, label } = info
     if (label) setSessionMeta(prev => ({ ...prev, [id]: { label } }))
     openSession(id, label)
+    // Asegurar que al conectar, la página esté en 'connect' para mostrar el terminal
+    setSelectedPage('connect')
   }
 
   const handleTabClick = (id: string) => {
@@ -85,6 +98,14 @@ const App: React.FC = () => {
     
     const clickedTab = tabs.find(t => t.id === id)
     console.log('🎯 Clicked tab:', clickedTab)
+    
+    // Cerrar paneles laterales al cambiar de tab
+    if (isPinsPanelOpen) {
+      closePinsPanel();
+    }
+    if (isCameraOpen) {
+      setCameraOpen(false);
+    }
     
     // Resetear selectedPage si cambias a la pestaña "Inicio" o a una pestaña de sesión SSH
     if (clickedTab?.type === 'home') {
@@ -238,8 +259,16 @@ const App: React.FC = () => {
                   setPendingHost(null);
                 }
                 
-                // No cambiar el tab activo si se selecciona pines
-                if (p !== 'pins') {
+                // Cerrar paneles laterales (pines, cámara) cuando cambias de página
+                if (p !== 'pins' && isPinsPanelOpen) {
+                  closePinsPanel();
+                }
+                if (p !== 'camera' && isCameraOpen) {
+                  setCameraOpen(false);
+                }
+                
+                // No cambiar el tab activo si se selecciona pines o cámara
+                if (p !== 'pins' && p !== 'camera') {
                   // Solo cambiar a HOME si estás en una sesión y seleccionas una página que debe estar en HOME
                   if (activeTab.type === 'session' && ['landing', 'connect', 'hosts', 'themes'].includes(p)) {
                     setActiveTabId(HOME_ID)
@@ -327,16 +356,23 @@ const App: React.FC = () => {
             {/* Sesiones SSH persistentes */}
             {tabs.filter(t => t.type==='session').map(t => (
               <div key={t.id} style={{display: activeTabId===t.id ? 'block':'none', height:'100%', width:'100%'}}>
-                {selectedPage === 'sftp' ? (
+                {/* Terminal siempre montado, se oculta con CSS cuando se muestra SFTP o Snippets */}
+                <div style={{display: selectedPage === 'sftp' || selectedPage === 'snippets' ? 'none' : 'block', height:'100%', width:'100%'}}>
+                  <TerminalView sessionId={t.id} isCameraOpen={isCameraOpen} />
+                </div>
+                
+                {/* SFTP solo se renderiza cuando selectedPage es 'sftp' */}
+                {selectedPage === 'sftp' && (
                   <SftpPage
                     sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
                     sessionsMeta={sessionMeta}
                     activeSessionId={t.id}
                   />
-                ) : selectedPage === 'snippets' ? (
+                )}
+                
+                {/* Snippets solo se renderiza cuando selectedPage es 'snippets' */}
+                {selectedPage === 'snippets' && (
                   <SnippetsPage />
-                ) : (
-                  <TerminalView sessionId={t.id} isCameraOpen={isCameraOpen} />
                 )}
               </div>
             ))}
