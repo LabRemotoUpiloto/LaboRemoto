@@ -284,7 +284,10 @@ const App: React.FC = () => {
             {/* Contenedor Home persistente */}
             <div style={{display: activeTab.type==='home' ? 'block' : 'none', height:'100%'}}>
               {selectedPage === 'landing' ? (
-                <LandingPage onStartTutorial={() => setSelectedPage('connect')} />
+                <LandingPage 
+                  onStartTutorial={() => setSelectedPage('landing')} 
+                  onPageChange={setSelectedPage}
+                />
               ) : selectedPage === 'connect' ? (
                 <ConnectFormPage onConnected={handleNewSession} initialPayload={pendingHost} />
               ) : selectedPage === 'hosts' ? (
@@ -315,7 +318,10 @@ const App: React.FC = () => {
               ) : selectedPage === 'snippets' ? (
                 <SnippetsPage />
               ) : (
-                <LandingPage onStartTutorial={() => setSelectedPage('connect')} />
+                <LandingPage 
+                  onStartTutorial={() => setSelectedPage('landing')} 
+                  onPageChange={setSelectedPage}
+                />
               )}
             </div>
             {/* Sesiones SSH persistentes */}

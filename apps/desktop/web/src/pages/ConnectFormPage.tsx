@@ -51,13 +51,14 @@ const ConnectFormPage: React.FC<ConnectFormPageProps> = ({ onConnected, initialP
                 hosts={quickHosts}
                 onHostSelect={selectQuickHost}
                 selectedHostId={selectedHostId}
+                data-tour="quick-hosts-panel"
             />
             <RecentConnectionsPanel
                 connections={recentConnections}
                 onSelect={selectRecentConnection}
                 onClear={clearConnections}
             />
-            <div className="connect-form-page__content">
+            <div className="connect-form-page__content" data-tour="connect-form">
                 <ConnectForm
                     onConnected={onConnected}
                     initialPayload={initialPayload}
