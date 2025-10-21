@@ -34,7 +34,142 @@ function MyFeature() {
 
 ---
 
-## 🎨 Sistema de Temas (OBLIGATORIO)
+## 📦 Gestión de Dependencias
+
+### Regla de Versionado Exacto
+
+**TODAS las dependencias en `package.json` DEBEN usar versiones exactas (sin `^` ni `~`).**
+
+#### ❌ NO hacer:
+```json
+{
+  "dependencies": {
+    "react": "^19.1.1",           // ❌ El ^ permite actualizaciones menores
+    "@tauri-apps/api": "^2.8.0",  // ❌ Puede causar inconsistencias
+    "xterm": "~5.3.0"             // ❌ El ~ también permite cambios
+  }
+}
+```
+
+#### ✅ SÍ hacer:
+```json
+{
+  "dependencies": {
+    "react": "19.1.1",           // ✅ Versión exacta
+    "@tauri-apps/api": "2.8.0",  // ✅ Sin prefijos
+    "xterm": "5.3.0"             // ✅ Control total de versión
+  }
+}
+```
+
+**Razón**: Las versiones exactas garantizan:
+- Builds reproducibles entre diferentes entornos
+- Evitan incompatibilidades por actualizaciones automáticas
+- Mayor control sobre las dependencias del proyecto
+- Debugging más fácil al saber exactamente qué versión se usa
+
+**Excepción**: Solo se permite `~` para TypeScript si es necesario para compatibilidad de compilador.
+
+---
+
+## � Sistema de Tour/Tutorial
+
+### Arquitectura del Tour
+
+El proyecto incluye un sistema de tour interactivo construido con **driver.js** ubicado en `web/src/tour/`.
+
+#### Estructura de Archivos
+
+```
+src/tour/
+├── index.ts          # Exports públicos del módulo
+├── useTour.ts        # Hook React para gestionar el tour
+├── tourSteps.ts      # Configuración de 16 pasos del tour
+├── tourStyles.css    # Estilos personalizados adaptados al tema
+└── README.md         # Documentación completa del sistema
+```
+
+#### Uso del Sistema
+
+```tsx
+import { useTour } from '@/tour';
+
+function MyComponent() {
+  const { startTour, stopTour, isTourActive } = useTour();
+  
+  return (
+    <button onClick={startTour}>
+      Iniciar Tutorial
+    </button>
+  );
+}
+```
+
+#### Métodos Disponibles
+
+- **`startTour()`**: Inicia el tour desde el paso 1
+- **`continueTour(stepIndex)`**: Reanuda desde un paso específico
+- **`stopTour()`**: Detiene el tour manualmente
+- **`isTourActive()`**: Verifica si el tour está ejecutándose
+
+#### Agregar Nuevos Pasos
+
+Para agregar pasos al tour, edita `src/tour/tourSteps.ts`:
+
+```typescript
+{
+  element: '.my-selector',  // CSS selector del elemento a destacar
+  popover: {
+    title: 'Título del Paso',
+    description: 'Descripción con <strong>HTML</strong> permitido',
+    side: 'right',  // 'top' | 'right' | 'bottom' | 'left'
+    align: 'start', // 'start' | 'center' | 'end'
+  },
+}
+```
+
+#### Requisitos de Integración
+
+Los elementos que quieras destacar en el tour DEBEN tener selectores accesibles:
+
+```tsx
+// Usar atributos data-* para selectores confiables
+<button data-page="connect" onClick={handleClick}>
+  Conectar
+</button>
+
+// El tour puede referenciar: [data-page="connect"]
+```
+
+#### Personalización de Estilos
+
+Los estilos del tour están en `tourStyles.css` y respetan las variables CSS del tema:
+
+- `--background-primary/secondary/tertiary`
+- `--text-primary/secondary/tertiary`  
+- `--accent-primary/hover`
+- `--font-sans/mono`
+
+**NO** sobrescribas estilos del tour con valores hardcodeados; usa las variables de tema.
+
+#### Características del Tour
+
+- ✅ 16 pasos cubriendo todas las funcionalidades
+- ✅ Progreso visual ("X de Y")
+- ✅ Navegación completa (siguiente, anterior, cerrar)
+- ✅ Overlay oscuro con blur
+- ✅ Animaciones suaves
+- ✅ Responsive para móviles
+- ✅ HTML permitido en descripciones
+- ✅ Smooth scroll automático
+
+#### Documentación Completa
+
+Para detalles completos sobre el sistema de tour, consulta: `web/src/tour/README.md`
+
+---
+
+## �🎨 Sistema de Temas (OBLIGATORIO)
 
 ### Regla de Oro de Temas
 **TODOS los componentes frontend DEBEN usar variables CSS de tema en lugar de colores hardcodeados.**
