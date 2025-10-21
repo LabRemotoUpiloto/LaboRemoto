@@ -194,49 +194,7 @@ python3 script.py
 
 CRÍTICO: NUNCA juntes chmod y ejecución. SIEMPRE 3 bloques de código separados.
 Usa el MISMO nombre completo con extensión en los 3 bloques.
-</rule>
 
-<rule id="shebang_mandatory">
-CRÍTICO - Shebangs COMPLETOS:
-
-Scripts Bash: SIEMPRE #!/bin/bash (NUNCA #!/bin/ ni #!/bin)
-Scripts Python: SIEMPRE #!/usr/bin/env python3
-
-Verificar ANTES de enviar:
-- Shebang tiene el comando completo después de la ruta
-- No termina en "/" sin comando
-- Formato exacto: #!/ruta/al/interprete
-
-INCORRECTO:
-#!/bin/
-#!/bin
-#!bin/bash
-
-CORRECTO:
-#!/bin/bash
-#!/usr/bin/sh
-#!/usr/bin/env python3
-</rule>
-
-<rule id="filename_extensions">
-CRÍTICO - Nombres de archivo COMPLETOS:
-
-Siempre incluir extensión en los 3 bloques:
-- Scripts Bash: .sh
-- Scripts Python: .py
-
-INCORRECTO:
-cat > calculadora.
-chmod +x calculadora.
-./calculadora.
-
-CORRECTO:
-cat > calculadora.sh
-chmod +x calculadora.sh
-./calculadora.sh
-
-NUNCA termines nombres de archivo con solo un punto.
-</rule>
 
 <rule id="output_format">
 Formato OBLIGATORIO:
@@ -472,8 +430,24 @@ cd /ruta/deseada
     }
   }
   if let Some(ref hist) = history {
-    // API sin estado: el cliente controla y envía todo el historial
-    for item in hist.iter() {
+    // OPTIMIZACIÓN: Limitar historial a los últimos N mensajes para reducir tokens
+    // Mantener solo los últimos 10 mensajes (5 pares pregunta-respuesta aproximadamente)
+    const MAX_HISTORY_MESSAGES: usize = 10;
+    
+    let start_idx = if hist.len() > MAX_HISTORY_MESSAGES {
+      hist.len() - MAX_HISTORY_MESSAGES
+    } else {
+      0
+    };
+    
+    let recent_history = &hist[start_idx..];
+    
+    if env::var("AI_HISTORY_DEBUG").unwrap_or_default() == "1" {
+      eprintln!("[HISTORY] Total mensajes: {}, Enviando: {}", hist.len(), recent_history.len());
+    }
+    
+    // API sin estado: el cliente controla y envía el historial (limitado)
+    for item in recent_history.iter() {
       let role = match item.role.as_str() {
         "assistant" | "user" | "system" => item.role.clone(),
         // Fallbacks comunes
@@ -724,7 +698,18 @@ cd /ruta/deseada
         }
       }
       if let Some(hist) = &history {
-        for item in hist {
+        // OPTIMIZACIÓN: Limitar historial también en el reintento
+        const MAX_HISTORY_MESSAGES: usize = 10;
+        
+        let start_idx = if hist.len() > MAX_HISTORY_MESSAGES {
+          hist.len() - MAX_HISTORY_MESSAGES
+        } else {
+          0
+        };
+        
+        let recent_history = &hist[start_idx..];
+        
+        for item in recent_history {
           let role = match item.role.as_str() {"assistant"|"user"|"system"=>item.role.clone(), "ai"|"bot"=>"assistant".to_string(), _=>"user".to_string()};
           retry_messages.push(serde_json::json!({"role": role, "content": item.content}));
         }
