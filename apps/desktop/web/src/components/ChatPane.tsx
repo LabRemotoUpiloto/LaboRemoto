@@ -240,6 +240,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     
     // Con el nuevo prompt simplificado, la respuesta viene completa en ai_response
     let aiText = String((res as any).ai_response || (res as any).explanation || '');
+    
+    // DEBUG: Verificar qué recibe el frontend
+    if (aiText.includes('calculadora')) {
+      console.log('[FRONTEND DEBUG] ===== RESPUESTA RECIBIDA =====');
+      console.log('[FRONTEND DEBUG] ai_response:', (res as any).ai_response?.substring(0, 500));
+      console.log('[FRONTEND DEBUG] explanation:', (res as any).explanation?.substring(0, 500));
+      console.log('[FRONTEND DEBUG] aiText contiene #!/bin/bash?:', aiText.includes('#!/bin/bash'));
+      console.log('[FRONTEND DEBUG] aiText contiene #!/bin/?:', aiText.includes('#!/bin/'));
+      console.log('[FRONTEND DEBUG] =====================================');
+    }
+    
     const displayText = cleanText(aiText);
     
     // Metadatos mínimos
