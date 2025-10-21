@@ -33,12 +33,13 @@ export const tourSteps: DriveStep[] = [
     },
   },
   {
-    element: '[data-tour="connect-form"]',
+    // Apuntar al contenedor real del formulario, no al wrapper de página
+    element: '[data-tour="connect-form"] .connect-form',
     popover: {
       title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Formulario de Conexión',
       description: 'Aquí ingresas los datos para conectarte a un servidor SSH:<br/>• <strong>Host/IP</strong>: Dirección del servidor<br/>• <strong>Puerto</strong>: Usualmente 22 o personalizado<br/>• <strong>Usuario</strong>: Tu nombre de usuario<br/>• <strong>Contraseña</strong>: Credencial de acceso<br/><br/>También puedes guardar la configuración para futuras conexiones.',
-      side: 'left',
-      align: 'start',
+      side: 'right',
+      align: 'center',
     },
   },
   {
@@ -51,12 +52,13 @@ export const tourSteps: DriveStep[] = [
     },
   },
   {
-    element: '[data-page="hosts"]',
+    // Paso de acción: permite rellenar usuario/contraseña y conectar
+    element: '[data-tour="connect-form"] .connect-form',
     popover: {
-      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Hosts Guardados',
-      description: 'Gestiona tus conexiones SSH guardadas. Puedes crear, editar y eliminar configuraciones de hosts con contraseñas cifradas de forma segura.',
+      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle cx="12" cy="7" r="4"/></svg>Conéctate ahora',
+      description: 'Ya seleccionamos un host rápido arriba. Completa tus credenciales y pulsa <strong>Conectar</strong>:<br/>• <strong>Usuario</strong>: escribe tu usuario institucional con formato <code>UPILOTO\\usuario</code><br/>• <strong>Contraseña</strong>: es la misma de tu correo universitario<br/><br/>Puedes interactuar con este formulario durante el tour. Cuando la conexión sea exitosa, pasaremos al Terminal automáticamente.',
       side: 'right',
-      align: 'start',
+      align: 'center',
     },
   },
   {
@@ -64,6 +66,15 @@ export const tourSteps: DriveStep[] = [
     popover: {
       title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>Terminal',
       description: 'Una vez conectado, el terminal te permite ejecutar comandos en el servidor remoto. Incluye un asistente de IA que te ayuda a componer comandos y realizar tareas.',
+      side: 'right',
+      align: 'start',
+    },
+  },
+  {
+    element: '[data-page="hosts"]',
+    popover: {
+      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Hosts Guardados',
+      description: 'Gestiona tus conexiones SSH guardadas. Puedes crear, editar y eliminar configuraciones de hosts con contraseñas cifradas de forma segura.',
       side: 'right',
       align: 'start',
     },

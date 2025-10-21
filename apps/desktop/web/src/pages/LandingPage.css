@@ -36,9 +36,11 @@
     height: 120px;
     margin: 0 auto 24px;
     border-radius: 24px;
-    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    /* Usar solo variables garantizadas por tema: accent-primary y accent-primary-hover */
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
     color: var(--text-inverse);
-    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25);
+    /* Sombra basada en el acento activo del tema */
+    box-shadow: 0 8px 32px color-mix(in srgb, var(--accent-primary) 25%, transparent);
     animation: landing-float 3s ease-in-out infinite;
 }
 
@@ -277,7 +279,8 @@
     );
     border: 2px solid var(--accent-primary);
     border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.15);
+    /* Sombra temática (fallback arriba si el navegador no soporta color-mix) */
+    box-shadow: 0 8px 32px color-mix(in srgb, var(--accent-primary) 15%, transparent);
 }
 
 .landing-cta__title {
@@ -303,17 +306,18 @@
     font-size: 18px;
     font-weight: 600;
     color: var(--text-inverse);
-    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    /* Gradiente 100% temático: evitar depender de --accent-secondary en temas que no lo definan */
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
     border: none;
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
 .landing-cta__button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 6px 24px color-mix(in srgb, var(--accent-primary) 40%, transparent);
 }
 
 .landing-cta__button:active {

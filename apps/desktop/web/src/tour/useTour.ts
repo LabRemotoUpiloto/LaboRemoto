@@ -5,6 +5,7 @@ import './tourStyles.css';
 
 let driverInstance: Driver | null = null;
 let onPageChangeCallback: ((page: string) => void) | null = null;
+let tourObserver: MutationObserver | null = null;
 
 /**
  * Configuración del driver.js con estilos personalizados
@@ -25,14 +26,14 @@ const createDriverConfig = (): Config => ({
   // Overlay oscuro para resaltar el elemento
   overlayColor: 'rgba(0, 0, 0, 0.85)',
   
-  // Padding alrededor del elemento destacado (más grande para mostrar contexto)
-  stagePadding: 0,
+  // Padding alrededor del elemento destacado (un poco de espacio para no "tocar" el objetivo)
+  stagePadding: 8,
   
   // Desactivar recorte para mantener la sidebar visible
   stageRadius: 0,
   
-  // Configuración de posicionamiento
-  popoverOffset: 10,
+  // Configuración de posicionamiento: separa el popover del elemento
+  popoverOffset: 36,
   
   // Callbacks para gestión de estado y navegación
   onHighlighted: (element, step, opts) => {
@@ -45,6 +46,7 @@ const createDriverConfig = (): Config => ({
   const pageHost: HTMLElement | null = (domEl?.closest?.('[data-page]') as HTMLElement) || domEl;
   const pageAttr = pageHost?.getAttribute?.('data-page');
   const tourAttr = domEl?.getAttribute?.('data-tour');
+  const tourClosestAttr = (domEl?.closest?.('[data-tour]') as HTMLElement | null)?.getAttribute?.('data-tour') || null;
 
     // 1) Accesibilidad: mover el foco real al elemento destacado
     if (domEl) {
@@ -59,7 +61,8 @@ const createDriverConfig = (): Config => ({
 
     // 2) Navegación automática cuando el paso corresponde a una página específica
     //    - Para elementos con data-tour del contenido de Connect, forzar navegación a 'connect'
-    if (onPageChangeCallback && tourAttr && (tourAttr === 'connect-form' || tourAttr === 'quick-hosts-panel')) {
+    const tourKind = tourAttr || tourClosestAttr;
+    if (onPageChangeCallback && tourKind && (tourKind === 'connect-form' || tourKind === 'quick-hosts-panel')) {
       // Pequeño delay para no interrumpir el highlight actual
       setTimeout(() => onPageChangeCallback('connect'), 50);
     }
@@ -73,6 +76,17 @@ const createDriverConfig = (): Config => ({
         setTimeout(() => onPageChangeCallback(pageAttr), 50);
       }
     }
+    // 3) En el paso de hosts rápidos: seleccionar el primer host y enfocar usuario
+    if (tourKind === 'quick-hosts-panel') {
+      setTimeout(() => {
+        try {
+          const firstPill = document.querySelector('.quick-hosts-scroller .quick-host-pill') as HTMLElement | null;
+          firstPill?.click?.();
+          const userInput = document.getElementById('field-user') as HTMLElement | null;
+          userInput?.focus?.();
+        } catch {}
+      }, 100);
+    }
   },
   
   onDestroyStarted: () => {
@@ -80,6 +94,7 @@ const createDriverConfig = (): Config => ({
       driverInstance.destroy();
       driverInstance = null;
     }
+    if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
   },
   
   onDestroyed: () => {
@@ -107,6 +122,19 @@ export const useTour = (onPageChange?: (page: string) => void) => {
     
     const config = createDriverConfig();
     driverInstance = driver(config);
+    // Observar aparición del terminal para saltar a su paso
+    try {
+      if (tourObserver) tourObserver.disconnect();
+      tourObserver = new MutationObserver(() => {
+        if (document.querySelector('.terminal-view')) {
+          const idx = tourSteps.findIndex(s => (s as any).element === '[data-page="terminal"]');
+          if (driverInstance && driverInstance.isActive() && idx >= 0) {
+            setTimeout(() => driverInstance?.drive(idx), 120);
+          }
+        }
+      });
+      tourObserver.observe(document.body, { childList: true, subtree: true });
+    } catch {}
     driverInstance.drive();
   };
 
@@ -120,6 +148,18 @@ export const useTour = (onPageChange?: (page: string) => void) => {
     
     const config = createDriverConfig();
     driverInstance = driver(config);
+    try {
+      if (tourObserver) tourObserver.disconnect();
+      tourObserver = new MutationObserver(() => {
+        if (document.querySelector('.terminal-view')) {
+          const idx = tourSteps.findIndex(s => (s as any).element === '[data-page="terminal"]');
+          if (driverInstance && driverInstance.isActive() && idx >= 0) {
+            setTimeout(() => driverInstance?.drive(idx), 120);
+          }
+        }
+      });
+      tourObserver.observe(document.body, { childList: true, subtree: true });
+    } catch {}
     driverInstance.drive(stepIndex);
   };
 
@@ -131,6 +171,7 @@ export const useTour = (onPageChange?: (page: string) => void) => {
       driverInstance.destroy();
       driverInstance = null;
     }
+    if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
   };
 
   /**
