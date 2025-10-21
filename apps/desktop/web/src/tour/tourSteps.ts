@@ -6,10 +6,19 @@ import type { DriveStep } from 'driver.js';
  */
 export const tourSteps: DriveStep[] = [
   {
-    element: '.sidebar',
+    element: '[data-tour="sidebar-header"]',
     popover: {
-      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Barra de Navegación',
-      description: 'Aquí puedes navegar entre todas las secciones de la aplicación: Inicio, Conectar, Hosts, Terminal, SFTP, Snippets y Temas.',
+      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>Barra de Navegación',
+      description: 'Esta es la barra lateral de navegación. Desde aquí puedes acceder a todas las funcionalidades de la aplicación. Puedes contraerla o expandirla haciendo clic en el ícono de menú hamburguesa.',
+      side: 'right',
+      align: 'start',
+    },
+  },
+  {
+    element: '[data-page="landing"]',
+    popover: {
+      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>Página de Inicio',
+      description: 'Este botón te lleva a la página de inicio, donde encontrarás información sobre el proyecto, guías de uso y acceso rápido para iniciar este tutorial en cualquier momento.',
       side: 'right',
       align: 'start',
     },
@@ -17,10 +26,28 @@ export const tourSteps: DriveStep[] = [
   {
     element: '[data-page="connect"]',
     popover: {
-      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><path d="M6 3v12"/><circle cx="18" cy="9" r="3"/><circle cx="6" cy="21" r="3"/><path d="M18 9a9 9 0 0 1-9 12"/></svg>Conectar',
-      description: 'Esta página te permite conectarte a servidores remotos mediante SSH. Puedes ingresar credenciales manualmente o usar hosts guardados.',
+      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><path d="M6 3v12"/><circle cx="18" cy="9" r="3"/><circle cx="6" cy="21" r="3"/><path d="M18 9a9 9 0 0 1-9 12"/></svg>Conectar a Servidor',
+      description: 'Haz clic aquí para ir a la página de conexión SSH. Esta es la puerta de entrada para conectarte a servidores remotos y comenzar a trabajar con Linux.',
       side: 'right',
       align: 'start',
+    },
+  },
+  {
+    element: '[data-tour="connect-form"]',
+    popover: {
+      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Formulario de Conexión',
+      description: 'Aquí ingresas los datos para conectarte a un servidor SSH:<br/>• <strong>Host/IP</strong>: Dirección del servidor<br/>• <strong>Puerto</strong>: Usualmente 22 o personalizado<br/>• <strong>Usuario</strong>: Tu nombre de usuario<br/>• <strong>Contraseña</strong>: Credencial de acceso<br/><br/>También puedes guardar la configuración para futuras conexiones.',
+      side: 'left',
+      align: 'start',
+    },
+  },
+  {
+    element: '[data-tour="quick-hosts-panel"]',
+    popover: {
+      title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><circle cx="12" cy="12" r="2"/><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>Hosts Rápidos',
+      description: 'Los <strong>Hosts Rápidos</strong> son servidores preconfigurados que puedes seleccionar con un clic. Al hacer clic en uno, se autocompletarán el host y puerto en el formulario. Solo necesitas ingresar tu usuario y contraseña para conectarte rápidamente.',
+      side: 'bottom',
+      align: 'center',
     },
   },
   {

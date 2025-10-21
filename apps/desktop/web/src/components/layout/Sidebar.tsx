@@ -80,14 +80,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'collapsed'}`} aria-label="Main navigation">
       {/* Botón toggle hamburguesa */}
-      <div className="sidebar-toggle-wrapper">
+      <div className="sidebar-toggle-wrapper" data-tour="sidebar-header">
         <HamburgerIcon 
           isOpen={isOpen} 
           onClick={toggleSidebar}
         />
       </div>
       
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" data-tour="sidebar-navigation">
         {items.map(it => {
           const IconComponent = it.icon
           return (
