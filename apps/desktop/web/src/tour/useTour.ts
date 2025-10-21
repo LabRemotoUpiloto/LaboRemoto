@@ -4,11 +4,12 @@ import 'driver.js/dist/driver.css';
 import './tourStyles.css';
 
 let driverInstance: Driver | null = null;
+let onPageChangeCallback: ((page: string) => void) | null = null;
 
 /**
  * Configuración del driver.js con estilos personalizados
  */
-const driverConfig: Config = {
+const createDriverConfig = (): Config => ({
   showProgress: true,
   steps: tourSteps,
   nextBtnText: 'Siguiente →',
@@ -21,10 +22,59 @@ const driverConfig: Config = {
   animate: true,
   smoothScroll: true,
   
-  // Overlay
-  overlayColor: 'rgba(0, 0, 0, 0.7)',
+  // Overlay oscuro para resaltar el elemento
+  overlayColor: 'rgba(0, 0, 0, 0.85)',
   
-  // Callbacks para gestión de estado
+  // Padding alrededor del elemento destacado (más grande para mostrar contexto)
+  stagePadding: 0,
+  
+  // Desactivar recorte para mantener la sidebar visible
+  stageRadius: 0,
+  
+  // Configuración de posicionamiento
+  popoverOffset: 10,
+  
+  // Callbacks para gestión de estado y navegación
+  onHighlighted: (element, step, opts) => {
+    // Obtener atributos del elemento destacado
+  const htmlElement = element as any;
+  // Driver.js puede exponer el nodo en distintas propiedades; cubrir variantes
+  const rawEl: HTMLElement | null = (htmlElement?.element || htmlElement?.node || htmlElement) ?? null;
+  const domEl: HTMLElement | null = rawEl;
+  // Detectar el botón de sidebar aunque el highlight envuelva un hijo
+  const pageHost: HTMLElement | null = (domEl?.closest?.('[data-page]') as HTMLElement) || domEl;
+  const pageAttr = pageHost?.getAttribute?.('data-page');
+  const tourAttr = domEl?.getAttribute?.('data-tour');
+
+    // 1) Accesibilidad: mover el foco real al elemento destacado
+    if (domEl) {
+      if (!domEl.hasAttribute('tabindex')) {
+        domEl.setAttribute('tabindex', '-1');
+      }
+      try {
+        // Usar un micro-delay para evitar conflictos con el layout del stage
+        setTimeout(() => domEl.focus({ preventScroll: true }), 0);
+      } catch {}
+    }
+
+    // 2) Navegación automática cuando el paso corresponde a una página específica
+    //    - Para elementos con data-tour del contenido de Connect, forzar navegación a 'connect'
+    if (onPageChangeCallback && tourAttr && (tourAttr === 'connect-form' || tourAttr === 'quick-hosts-panel')) {
+      // Pequeño delay para no interrumpir el highlight actual
+      setTimeout(() => onPageChangeCallback('connect'), 50);
+    }
+
+    //    - Para elementos de la barra lateral (data-page), seleccionar ese botón y cambiar de página
+    if (pageAttr) {
+      // Disparar el onClick real sobre el owner del atributo data-page
+      try { setTimeout(() => pageHost?.click?.(), 25); } catch {}
+      // Además, invocar el callback de navegación para asegurar el estado
+      if (onPageChangeCallback) {
+        setTimeout(() => onPageChangeCallback(pageAttr), 50);
+      }
+    }
+  },
+  
   onDestroyStarted: () => {
     if (driverInstance) {
       driverInstance.destroy();
@@ -36,12 +86,17 @@ const driverConfig: Config = {
     // Limpiar cualquier estado si es necesario
     console.log('Tour finalizado');
   },
-};
+});
 
 /**
  * Hook personalizado para gestionar el tour
  */
-export const useTour = () => {
+export const useTour = (onPageChange?: (page: string) => void) => {
+  // Guardar el callback de cambio de página
+  if (onPageChange) {
+    onPageChangeCallback = onPageChange;
+  }
+  
   /**
    * Inicia el tour desde el principio
    */
@@ -50,7 +105,8 @@ export const useTour = () => {
       driverInstance.destroy();
     }
     
-    driverInstance = driver(driverConfig);
+    const config = createDriverConfig();
+    driverInstance = driver(config);
     driverInstance.drive();
   };
 
@@ -62,7 +118,7 @@ export const useTour = () => {
       driverInstance.destroy();
     }
     
-    const config = { ...driverConfig };
+    const config = createDriverConfig();
     driverInstance = driver(config);
     driverInstance.drive(stepIndex);
   };
