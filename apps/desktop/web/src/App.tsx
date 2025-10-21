@@ -9,6 +9,7 @@ import TerminalOnly from './components/terminal/TerminalOnly'
 import ConnectForm from './components/connect/ConnectForm'
 import SavedHostsPage from './pages/SavedHostsPage'
 import ConnectFormPage from './pages/ConnectFormPage'
+import LandingPage from './pages/LandingPage'
 import { connectFromHost } from './api/storage'
 import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/modals/GlobalLoader'
@@ -33,7 +34,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [sessionMeta, setSessionMeta] = useState<Record<string,{ label: string }>>({})
   const [pendingHost, setPendingHost] = useState<any | null>(null)
-  const [selectedPage, setSelectedPage] = useState<string>('connect') // subpágina dentro de Inicio
+  const [selectedPage, setSelectedPage] = useState<string>('landing') // subpágina dentro de Inicio - empieza en landing
   const [updateInfo, setUpdateInfo] = useState<null | { version: string; notes?: string }>(null)
   const [updating, setUpdating] = useState(false)
   const [isCameraOpen, setCameraOpen] = useState(false)
@@ -88,7 +89,7 @@ const App: React.FC = () => {
     // Resetear selectedPage si cambias a la pestaña "Inicio" o a una pestaña de sesión SSH
     if (clickedTab?.type === 'home') {
       console.log('🏠 Resetting selectedPage for home tab')
-      setSelectedPage('connect')
+      setSelectedPage('landing')
     } else if (clickedTab?.type === 'session') {
       console.log('🔗 Resetting selectedPage for session tab')
       // Cuando cambias a una pestaña de sesión SSH, resetear selectedPage para mostrar terminal
@@ -240,7 +241,7 @@ const App: React.FC = () => {
                 // No cambiar el tab activo si se selecciona pines
                 if (p !== 'pins') {
                   // Solo cambiar a HOME si estás en una sesión y seleccionas una página que debe estar en HOME
-                  if (activeTab.type === 'session' && ['connect', 'hosts', 'themes'].includes(p)) {
+                  if (activeTab.type === 'session' && ['landing', 'connect', 'hosts', 'themes'].includes(p)) {
                     setActiveTabId(HOME_ID)
                   }
                 }
@@ -282,7 +283,9 @@ const App: React.FC = () => {
           <main className="content-area">
             {/* Contenedor Home persistente */}
             <div style={{display: activeTab.type==='home' ? 'block' : 'none', height:'100%'}}>
-              {selectedPage === 'connect' ? (
+              {selectedPage === 'landing' ? (
+                <LandingPage onStartTutorial={() => setSelectedPage('connect')} />
+              ) : selectedPage === 'connect' ? (
                 <ConnectFormPage onConnected={handleNewSession} initialPayload={pendingHost} />
               ) : selectedPage === 'hosts' ? (
                 <SavedHostsPage 
@@ -312,7 +315,7 @@ const App: React.FC = () => {
               ) : selectedPage === 'snippets' ? (
                 <SnippetsPage />
               ) : (
-                <ConnectFormPage onConnected={handleNewSession} initialPayload={pendingHost} />
+                <LandingPage onStartTutorial={() => setSelectedPage('connect')} />
               )}
             </div>
             {/* Sesiones SSH persistentes */}

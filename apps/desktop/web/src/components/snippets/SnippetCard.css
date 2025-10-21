@@ -147,6 +147,13 @@
 .snippet-card__btn-icon {
   font-size: 13px;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.snippet-card__btn-icon svg {
+  display: block;
 }
 
 /* Button variants */
