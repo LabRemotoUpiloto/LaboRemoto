@@ -63,6 +63,27 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
   const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string; precedingText?: string }> = [];
   const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
 
+  // NUEVO: Detectar el nombre de archivo del contenido completo ANTES de procesar bloques
+  const detectFileInfo = (fullContent: string): { basename: string; extension: string; fullFilename: string } | null => {
+    const catMatch = fullContent.match(/cat\s+>\s+([a-zA-Z0-9_-]+\.(sh|py|js|ts|cpp|c|java|rb))\s+<<'?EOF'?/);
+    if (!catMatch) return null;
+    
+    const fullFilename = catMatch[1]; // ej: "calculadora.sh"
+    const basename = fullFilename.split('.')[0]; // ej: "calculadora"
+    const extension = fullFilename.split('.').pop() || ''; // ej: "sh"
+    
+    if (fullContent.includes('calculadora')) {
+      console.log('[AskRenderer] ✅ Archivo detectado en contenido completo:');
+      console.log('  fullFilename:', fullFilename);
+      console.log('  basename:', basename);
+      console.log('  extension:', extension);
+    }
+    
+    return { basename, extension, fullFilename };
+  };
+  
+  const fileInfo = detectFileInfo(content);
+
   const guessLang = (txt: string): 'python' | 'bash' | undefined => {
     const t = txt || '';
     const hasPy = /(^|\n)\s*(def\s+|class\s+|import\s+|from\s+|print\(|input\(|if\s+.*:|elif\s+.*:|else:|while\s+|for\s+|try:|except\s+|with\s+)/.test(t);
@@ -92,6 +113,71 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
     return t;
   };
 
+  // Función para corregir nombres de archivo incompletos en scripts bash
+  const fixIncompleteFilenames = (code: string, lang?: string): string => {
+    const isCalculadora = code.includes('calculadora');
+    
+    if (isCalculadora) {
+      console.log('[fixIncompleteFilenames] ===== ENTRADA =====');
+      console.log('[fixIncompleteFilenames] lang:', lang);
+      console.log('[fixIncompleteFilenames] code (primeros 500 chars):', code.substring(0, 500));
+    }
+    
+    // Solo aplicar a bloques bash/shell
+    if (!lang || !['bash', 'sh', 'shell'].includes(lang.toLowerCase())) {
+      if (isCalculadora) {
+        console.log('[fixIncompleteFilenames] ❌ NO SE APLICA - lang no es bash/sh/shell');
+      }
+      return code;
+    }
+
+    // NUEVO: Usar fileInfo global en lugar de buscar en el bloque individual
+    if (!fileInfo) {
+      if (isCalculadora) {
+        console.log('[fixIncompleteFilenames] ❌ NO hay fileInfo global');
+      }
+      return code;
+    }
+
+    const { fullFilename, basename, extension } = fileInfo;
+
+    if (isCalculadora) {
+      console.log('[fixIncompleteFilenames] ✅ USANDO fileInfo GLOBAL:');
+      console.log('  fullFilename:', fullFilename);
+      console.log('  basename:', basename);
+      console.log('  extension:', extension);
+    }
+
+    // Escapar caracteres especiales del basename para regex
+    const escapedBasename = basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Corregir chmod +x NOMBRE. -> chmod +x NOMBRE.ext
+    // Buscar: chmod +x calculadora. (punto al final, posiblemente seguido de espacios/newline)
+    const chmodRegex = new RegExp(`(chmod\\s+\\+x\\s+)${escapedBasename}\\.(?=\\s|$)`, 'g');
+    let fixed = code.replace(chmodRegex, `$1${fullFilename}`);
+    
+    if (isCalculadora) {
+      console.log('[fixIncompleteFilenames] Aplicando regex chmod:', chmodRegex.source);
+      console.log('[fixIncompleteFilenames] ¿Se aplicó cambio chmod?:', code !== fixed);
+    }
+
+    // Corregir ./NOMBRE. -> ./NOMBRE.ext
+    // Buscar: ./calculadora. (punto al final, posiblemente seguido de espacios/newline)
+    const execRegex = new RegExp(`(\\.\/)${escapedBasename}\\.(?=\\s|$)`, 'g');
+    const beforeExec = fixed;
+    fixed = fixed.replace(execRegex, `$1${fullFilename}`);
+    
+    if (isCalculadora) {
+      console.log('[fixIncompleteFilenames] Aplicando regex ejecución:', execRegex.source);
+      console.log('[fixIncompleteFilenames] ¿Se aplicó cambio ejecución?:', beforeExec !== fixed);
+      console.log('[fixIncompleteFilenames] ===== SALIDA =====');
+      console.log('[fixIncompleteFilenames] fixed (primeros 500 chars):', fixed.substring(0, 500));
+      console.log('[fixIncompleteFilenames] ========================');
+    }
+
+    return fixed;
+  };
+
   const looksLikeCodeParagraph = (txt: string): boolean => {
     const lines = (txt || '').split(/\r?\n/).filter(l => l.trim() !== '');
     if (lines.length < 3) return false;
@@ -113,13 +199,18 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
       if (looksLikeCodeParagraph(slice)) {
         const cleaned = stripOuterFencesIfAny(slice);
         const precedingText = content.slice(0, lastIndex);
-        blocks.push({ type: 'code', lang: guessLang(cleaned), body: cleaned, precedingText });
+        const detectedLang = guessLang(cleaned);
+        const fixedCode = fixIncompleteFilenames(cleaned, detectedLang);
+        blocks.push({ type: 'code', lang: detectedLang, body: fixedCode, precedingText });
       } else {
         blocks.push({ type: 'para', body: slice });
       }
     }
     const precedingText = content.slice(0, m.index);
-    blocks.push({ type: 'code', lang: (m[1] || '').trim() || undefined, body: (m[2] || '').replace(/\n$/,''), precedingText });
+    const detectedLang = (m[1] || '').trim() || undefined;
+    const rawBody = (m[2] || '').replace(/\n$/,'');
+    const fixedBody = fixIncompleteFilenames(rawBody, detectedLang);
+    blocks.push({ type: 'code', lang: detectedLang, body: fixedBody, precedingText });
     lastIndex = fenceRe.lastIndex;
   }
   if (lastIndex < content.length) {
@@ -127,7 +218,9 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
     if (looksLikeCodeParagraph(tail)) {
       const cleaned = stripOuterFencesIfAny(tail);
       const precedingText = content.slice(0, lastIndex);
-      blocks.push({ type: 'code', lang: guessLang(cleaned), body: cleaned, precedingText });
+      const detectedLang = guessLang(cleaned);
+      const fixedCode = fixIncompleteFilenames(cleaned, detectedLang);
+      blocks.push({ type: 'code', lang: detectedLang, body: fixedCode, precedingText });
     } else {
       blocks.push({ type: 'para', body: tail });
     }
