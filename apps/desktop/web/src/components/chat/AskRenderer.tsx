@@ -11,9 +11,56 @@ interface AskRendererProps {
   mode?: string;
 }
 
+// Detecta si un bloque de código es ejecutable (script completo) o informativo (ejemplo)
+const isExecutableCode = (code: string, precedingText: string): boolean => {
+  const lines = code.split(/\r?\n/).filter(l => l.trim().length > 0);
+  
+  // REGLA 1: Si la MAYORÍA de líneas son comentarios (ej: lista de comandos con #), NO es ejecutable
+  // Pero si es un comando individual corto (1-2 líneas), SÍ mostrarlo
+  if (lines.length >= 3) {
+    const commentLines = lines.filter(l => /^\s*#[^!]/.test(l)); // # pero no shebang (#!)
+    if (commentLines.length > lines.length * 0.6) {
+      // Más del 60% son comentarios = es una lista de ejemplos
+      return false;
+    }
+  }
+  
+  // REGLA 2: Detectar si estamos en la sección de Explicación (🐧)
+  // En esta sección, los bloques son informativos, no ejecutables
+  const lastSectionMatch = precedingText.match(/###?\s*[🎯🐧💻✅❌]\s*([^\n]+)/g);
+  if (lastSectionMatch && lastSectionMatch.length > 0) {
+    const lastSection = lastSectionMatch[lastSectionMatch.length - 1];
+    // Si estamos en sección Explicación (🐧 o "Explicación"), ocultar botones
+    if (/🐧|Explicaci[óo]n/i.test(lastSection)) return false;
+    // Si estamos en sección Comandos (💻 o "Comandos"), mostrar botones
+    if (/💻|Comandos/i.test(lastSection)) return true;
+  }
+  
+  // REGLA 3: Si contiene cat << 'EOF', es definitivamente ejecutable
+  if (/cat\s+<<?\s*'?EOF'?/i.test(code)) return true;
+  
+  // REGLA 4: Si tiene shebang, es un script completo ejecutable  
+  if (/^#!\/usr\/bin\/env\s+(bash|python|sh|node)/m.test(code)) return true;
+  
+  // REGLA 5: Si tiene múltiples líneas de código estructurado (funciones, clases, etc.)
+  if (lines.length > 5) {
+    const hasStructure = /(^|\n)\s*(def\s+|class\s+|function\s+|if\s+__name__|async\s+def)/.test(code);
+    if (hasStructure) return true;
+  }
+  
+  // REGLA 6: Comandos individuales (1-3 líneas) son SIEMPRE ejecutables
+  // Esto incluye: ls, cd, chmod, mv, cp, etc.
+  if (lines.length <= 3) {
+    return true; // Siempre mostrar botones para comandos cortos
+  }
+  
+  // Por defecto, si tiene más de 3 líneas y estructura, considerarlo ejecutable
+  return lines.length > 3;
+};
+
 // Renderizador del modo ASK (reutilizable para respuestas AI)
 export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, setLastCommand, mode }) => {
-  const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string }> = [];
+  const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string; precedingText?: string }> = [];
   const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
 
   const guessLang = (txt: string): 'python' | 'bash' | undefined => {
@@ -65,19 +112,22 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
       const slice = content.slice(lastIndex, m.index);
       if (looksLikeCodeParagraph(slice)) {
         const cleaned = stripOuterFencesIfAny(slice);
-        blocks.push({ type: 'code', lang: guessLang(cleaned), body: cleaned });
+        const precedingText = content.slice(0, lastIndex);
+        blocks.push({ type: 'code', lang: guessLang(cleaned), body: cleaned, precedingText });
       } else {
         blocks.push({ type: 'para', body: slice });
       }
     }
-    blocks.push({ type: 'code', lang: (m[1] || '').trim() || undefined, body: (m[2] || '').replace(/\n$/,'') });
+    const precedingText = content.slice(0, m.index);
+    blocks.push({ type: 'code', lang: (m[1] || '').trim() || undefined, body: (m[2] || '').replace(/\n$/,''), precedingText });
     lastIndex = fenceRe.lastIndex;
   }
   if (lastIndex < content.length) {
     const tail = content.slice(lastIndex);
     if (looksLikeCodeParagraph(tail)) {
       const cleaned = stripOuterFencesIfAny(tail);
-      blocks.push({ type: 'code', lang: guessLang(cleaned), body: cleaned });
+      const precedingText = content.slice(0, lastIndex);
+      blocks.push({ type: 'code', lang: guessLang(cleaned), body: cleaned, precedingText });
     } else {
       blocks.push({ type: 'para', body: tail });
     }
@@ -116,7 +166,7 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
           language={b.lang}
           sessionId={sessionId}
           setLastCommand={setLastCommand}
-          hideActions={mode === 'analisis'}
+          hideActions={mode === 'analisis' || !isExecutableCode(b.body, b.precedingText || '')}
         />
       ) : (
         <div key={`p-${i}`}>{renderPara(b.body)}</div>
