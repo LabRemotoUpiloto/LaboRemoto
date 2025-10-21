@@ -9,7 +9,8 @@ import {
   FolderIcon, 
   CodeIcon, 
   PinIcon, 
-  CameraIcon
+  CameraIcon,
+  HomeIcon
 } from '../icons/SidebarIcons'
 
 interface SidebarProps {
@@ -25,6 +26,7 @@ interface SidebarProps {
 }
 
 const items = [
+  { id: 'landing', label: 'Inicio', icon: HomeIcon },
   { id: 'connect', label: 'Connect', icon: MonitorIcon },
   { id: 'hosts', label: 'Hosts', icon: CompassIcon },
   { id: 'themes', label: 'Temas', icon: PaletteIcon },
