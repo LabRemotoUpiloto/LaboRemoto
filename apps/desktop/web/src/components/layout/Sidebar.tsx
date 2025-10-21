@@ -93,6 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           return (
             <button
               key={it.id}
+              data-page={it.id}
               className={`nav-item ${selectedPage === it.id ? 'active' : ''}`}
               aria-current={selectedPage === it.id ? 'page' : undefined}
               onClick={() => onSelectPage(it.id)}
@@ -110,6 +111,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           return (
             <button
               key={it.id}
+              data-page={it.id}
               className={`nav-item ${isSpecialItemActive(it.id) ? 'active' : ''}`}
               aria-current={isSpecialItemActive(it.id) ? 'page' : undefined}
               onClick={() => handleSpecialItemClick(it.id)}

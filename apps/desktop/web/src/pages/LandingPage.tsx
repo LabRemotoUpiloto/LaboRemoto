@@ -1,5 +1,6 @@
 // Página de inicio/bienvenida para el cliente SSH inteligente
 import React from 'react';
+import { useTour } from '../tour';
 import './LandingPage.css';
 
 interface LandingPageProps {
@@ -7,6 +8,16 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial }) => {
+    const { startTour } = useTour();
+    
+    const handleStartTutorial = () => {
+        // Ejecutar callback personalizado si existe
+        if (onStartTutorial) {
+            onStartTutorial();
+        }
+        // Iniciar el tour
+        startTour();
+    };
     return (
         <div className="landing-page">
             <div className="landing-page__container">
@@ -237,7 +248,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial }) => {
                         </p>
                         <button 
                             className="landing-cta__button"
-                            onClick={onStartTutorial}
+                            onClick={handleStartTutorial}
                         >
                             <span>Iniciar tutorial</span>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
