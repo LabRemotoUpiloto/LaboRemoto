@@ -25,14 +25,14 @@ const createDriverConfig = (): Config => ({
   // Overlay oscuro para resaltar el elemento
   overlayColor: 'rgba(0, 0, 0, 0.85)',
   
-  // Padding alrededor del elemento destacado (más grande para mostrar contexto)
-  stagePadding: 0,
+  // Padding alrededor del elemento destacado (un poco de espacio para no "tocar" el objetivo)
+  stagePadding: 8,
   
   // Desactivar recorte para mantener la sidebar visible
   stageRadius: 0,
   
-  // Configuración de posicionamiento
-  popoverOffset: 10,
+  // Configuración de posicionamiento: separa el popover del elemento
+  popoverOffset: 36,
   
   // Callbacks para gestión de estado y navegación
   onHighlighted: (element, step, opts) => {
@@ -45,6 +45,7 @@ const createDriverConfig = (): Config => ({
   const pageHost: HTMLElement | null = (domEl?.closest?.('[data-page]') as HTMLElement) || domEl;
   const pageAttr = pageHost?.getAttribute?.('data-page');
   const tourAttr = domEl?.getAttribute?.('data-tour');
+  const tourClosestAttr = (domEl?.closest?.('[data-tour]') as HTMLElement | null)?.getAttribute?.('data-tour') || null;
 
     // 1) Accesibilidad: mover el foco real al elemento destacado
     if (domEl) {
@@ -59,7 +60,8 @@ const createDriverConfig = (): Config => ({
 
     // 2) Navegación automática cuando el paso corresponde a una página específica
     //    - Para elementos con data-tour del contenido de Connect, forzar navegación a 'connect'
-    if (onPageChangeCallback && tourAttr && (tourAttr === 'connect-form' || tourAttr === 'quick-hosts-panel')) {
+    const tourKind = tourAttr || tourClosestAttr;
+    if (onPageChangeCallback && tourKind && (tourKind === 'connect-form' || tourKind === 'quick-hosts-panel')) {
       // Pequeño delay para no interrumpir el highlight actual
       setTimeout(() => onPageChangeCallback('connect'), 50);
     }

@@ -33,12 +33,13 @@ export const tourSteps: DriveStep[] = [
     },
   },
   {
-    element: '[data-tour="connect-form"]',
+    // Apuntar al contenedor real del formulario, no al wrapper de página
+    element: '[data-tour="connect-form"] .connect-form',
     popover: {
       title: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:8px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Formulario de Conexión',
       description: 'Aquí ingresas los datos para conectarte a un servidor SSH:<br/>• <strong>Host/IP</strong>: Dirección del servidor<br/>• <strong>Puerto</strong>: Usualmente 22 o personalizado<br/>• <strong>Usuario</strong>: Tu nombre de usuario<br/>• <strong>Contraseña</strong>: Credencial de acceso<br/><br/>También puedes guardar la configuración para futuras conexiones.',
-      side: 'left',
-      align: 'start',
+      side: 'right',
+      align: 'center',
     },
   },
   {
