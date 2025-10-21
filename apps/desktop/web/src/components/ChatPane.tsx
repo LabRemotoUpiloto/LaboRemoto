@@ -237,27 +237,27 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         model_selection: selectedModel
       } 
     });
-    const aiText = (() => {
-      const expRaw = (res as any).explanation as string | undefined;
-      const respRaw = (res as any).ai_response as string | undefined;
-      const exp = expRaw ? String(expRaw) : '';
-      return exp || String(respRaw || '');
-    })();
-    const displayText = aiText;
-    const displayTextClean = (displayText || '');
-    const metaWithFlag: any = { ...(res as any) };
-    const cleanedMeta = { ...metaWithFlag } as any;
-    cleanedMeta.chat_mode = mode;
-    if (cleanedMeta.summary) cleanedMeta.summary = cleanText(cleanedMeta.summary);
-    if (cleanedMeta.explanation) cleanedMeta.explanation = cleanText(cleanedMeta.explanation);
-    if (cleanedMeta.ai_response) cleanedMeta.ai_response = cleanText(cleanedMeta.ai_response);
-    // norm importado de util
-    if (norm(cleanedMeta.summary) === norm(displayTextClean)) cleanedMeta.summary = undefined;
-    if (norm(cleanedMeta.explanation) === norm(displayTextClean)) cleanedMeta.explanation = undefined;
-    if (norm(cleanedMeta.summary) && norm(cleanedMeta.summary) === norm(cleanedMeta.explanation)) cleanedMeta.summary = undefined;
-    cleanedMeta.code_output = undefined;
-    cleanedMeta.suggestedCommands = undefined;
-    const aiMsg: Message = { id: String(Date.now() + 1), sender: 'ai', text: displayTextClean, meta: cleanedMeta };
+    
+    // Con el nuevo prompt simplificado, la respuesta viene completa en ai_response
+    let aiText = String((res as any).ai_response || (res as any).explanation || '');
+    const displayText = cleanText(aiText);
+    
+    // Metadatos mínimos
+    const cleanedMeta: any = { 
+      chat_mode: mode,
+      ...(res as any)
+    };
+    
+    // Limpiar campos innecesarios que ahora están integrados en ai_response
+    delete cleanedMeta.code_output;
+    delete cleanedMeta.suggestedCommands;
+    
+    const aiMsg: Message = { 
+      id: String(Date.now() + 1), 
+      sender: 'ai', 
+      text: displayText, 
+      meta: cleanedMeta 
+    };
     setMessages(prev => [...prev, aiMsg]);
   };
 
