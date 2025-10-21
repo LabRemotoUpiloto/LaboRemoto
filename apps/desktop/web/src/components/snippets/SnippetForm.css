@@ -30,6 +30,14 @@
 
 .snippet-form__editing-icon {
   font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+
+.snippet-form__editing-icon svg {
+  display: block;
 }
 
 /* Fields */
@@ -164,6 +172,13 @@
 .snippet-form__btn-icon {
   font-size: 12px;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.snippet-form__btn-icon svg {
+  display: block;
 }
 
 /* Primary button */

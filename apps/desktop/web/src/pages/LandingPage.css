@@ -1,0 +1,496 @@
+/* ==========================================================================
+   LANDING PAGE - Página de Inicio/Bienvenida
+   ========================================================================== */
+
+.landing-page {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--background-primary);
+    /* ESTÁNDAR: padding-top: 12px para alineación */
+    padding-top: 12px;
+}
+
+.landing-page__container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px 40px;
+}
+
+/* ==========================================================================
+   HERO SECTION
+   ========================================================================== */
+
+.landing-hero {
+    text-align: center;
+    padding: 60px 0 48px;
+    animation: landing-fade-in 0.8s ease-out;
+}
+
+.landing-hero__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 24px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    color: var(--text-inverse);
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25);
+    animation: landing-float 3s ease-in-out infinite;
+}
+
+.landing-hero__title {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 16px;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.landing-hero__subtitle {
+    font-size: 20px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* ==========================================================================
+   SECTIONS
+   ========================================================================== */
+
+.landing-section {
+    margin-bottom: 48px;
+    animation: landing-slide-up 0.8s ease-out;
+    animation-fill-mode: both;
+}
+
+.landing-section:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.landing-section:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.landing-section:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+/* ==========================================================================
+   CARDS
+   ========================================================================== */
+
+.landing-card {
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.landing-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.landing-card--accent {
+    background: linear-gradient(135deg, 
+        rgba(16, 185, 129, 0.05) 0%, 
+        rgba(59, 130, 246, 0.05) 100%
+    );
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.landing-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    background: var(--accent-primary-subtle);
+    color: var(--accent-primary);
+}
+
+.landing-card__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 16px;
+    line-height: 1.3;
+}
+
+.landing-card__description {
+    font-size: 16px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin: 0 0 16px;
+}
+
+.landing-card__description:last-child {
+    margin-bottom: 0;
+}
+
+.landing-card__description strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   FEATURE LIST
+   ========================================================================== */
+
+.landing-feature-list {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.landing-feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    background: var(--background-tertiary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.landing-feature-item:hover {
+    border-color: var(--accent-primary);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.landing-feature-item__icon {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-primary);
+}
+
+.landing-feature-item__icon svg {
+    display: block;
+}
+
+.landing-feature-item div {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.landing-feature-item strong {
+    display: block;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* ==========================================================================
+   ADVANTAGES GRID
+   ========================================================================== */
+
+.landing-advantages {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.landing-advantage {
+    padding: 20px;
+    background: var(--background-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.landing-advantage:hover {
+    border-color: var(--accent-primary);
+    background: rgba(16, 185, 129, 0.05);
+    transform: translateX(4px);
+}
+
+.landing-advantage__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.landing-advantage__icon {
+    font-size: 28px;
+    line-height: 1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-primary);
+}
+
+.landing-advantage__icon svg {
+    display: block;
+}
+
+.landing-advantage__header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.landing-advantage p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ==========================================================================
+   CALL TO ACTION
+   ========================================================================== */
+
+.landing-section--cta {
+    margin-top: 60px;
+    margin-bottom: 24px;
+}
+
+.landing-cta {
+    text-align: center;
+    padding: 48px 32px;
+    background: linear-gradient(135deg, 
+        rgba(16, 185, 129, 0.08) 0%, 
+        rgba(59, 130, 246, 0.08) 100%
+    );
+    border: 2px solid var(--accent-primary);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.15);
+}
+
+.landing-cta__title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 12px;
+    line-height: 1.2;
+}
+
+.landing-cta__description {
+    font-size: 18px;
+    color: var(--text-secondary);
+    margin: 0 0 32px;
+    line-height: 1.5;
+}
+
+.landing-cta__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 32px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-inverse);
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+.landing-cta__button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+}
+
+.landing-cta__button:active {
+    transform: translateY(0);
+}
+
+.landing-cta__button svg {
+    transition: transform 0.3s ease;
+}
+
+.landing-cta__button:hover svg {
+    transform: translateX(4px);
+}
+
+.landing-cta__note {
+    margin-top: 24px;
+    font-size: 14px;
+    color: var(--text-tertiary);
+    font-style: italic;
+    line-height: 1.5;
+}
+
+.landing-cta__note em {
+    color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+
+.landing-footer {
+    text-align: center;
+    padding: 32px 0 16px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 48px;
+}
+
+.landing-footer p {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    margin: 0;
+}
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+
+@keyframes landing-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes landing-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes landing-float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .landing-page__container {
+        padding: 0 16px 32px;
+    }
+
+    .landing-hero {
+        padding: 40px 0 32px;
+    }
+
+    .landing-hero__icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 16px;
+    }
+
+    .landing-hero__icon svg {
+        width: 48px;
+        height: 48px;
+    }
+
+    .landing-hero__title {
+        font-size: 32px;
+    }
+
+    .landing-hero__subtitle {
+        font-size: 16px;
+    }
+
+    .landing-card {
+        padding: 24px;
+    }
+
+    .landing-card__title {
+        font-size: 24px;
+    }
+
+    .landing-card__description {
+        font-size: 15px;
+    }
+
+    .landing-cta {
+        padding: 32px 24px;
+    }
+
+    .landing-cta__title {
+        font-size: 26px;
+    }
+
+    .landing-cta__description {
+        font-size: 16px;
+    }
+
+    .landing-cta__button {
+        padding: 14px 28px;
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .landing-hero__title {
+        font-size: 28px;
+    }
+
+    .landing-hero__subtitle {
+        font-size: 15px;
+    }
+
+    .landing-card__title {
+        font-size: 22px;
+    }
+
+    .landing-advantage__header h3 {
+        font-size: 16px;
+    }
+
+    .landing-cta__title {
+        font-size: 24px;
+    }
+}
+
+/* ==========================================================================
+   SCROLLBAR STYLING
+   ========================================================================== */
+
+.landing-page::-webkit-scrollbar {
+    width: 8px;
+}
+
+.landing-page::-webkit-scrollbar-track {
+    background: var(--background-primary);
+}
+
+.landing-page::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.landing-page::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
+}
