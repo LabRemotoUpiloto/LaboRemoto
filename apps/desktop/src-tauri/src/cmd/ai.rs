@@ -196,6 +196,48 @@ CRÍTICO: NUNCA juntes chmod y ejecución. SIEMPRE 3 bloques de código separado
 Usa el MISMO nombre completo con extensión en los 3 bloques.
 </rule>
 
+<rule id="shebang_mandatory">
+CRÍTICO - Shebangs COMPLETOS:
+
+Scripts Bash: SIEMPRE #!/bin/bash (NUNCA #!/bin/ ni #!/bin)
+Scripts Python: SIEMPRE #!/usr/bin/env python3
+
+Verificar ANTES de enviar:
+- Shebang tiene el comando completo después de la ruta
+- No termina en "/" sin comando
+- Formato exacto: #!/ruta/al/interprete
+
+INCORRECTO:
+#!/bin/
+#!/bin
+#!bin/bash
+
+CORRECTO:
+#!/bin/bash
+#!/usr/bin/sh
+#!/usr/bin/env python3
+</rule>
+
+<rule id="filename_extensions">
+CRÍTICO - Nombres de archivo COMPLETOS:
+
+Siempre incluir extensión en los 3 bloques:
+- Scripts Bash: .sh
+- Scripts Python: .py
+
+INCORRECTO:
+cat > calculadora.
+chmod +x calculadora.
+./calculadora.
+
+CORRECTO:
+cat > calculadora.sh
+chmod +x calculadora.sh
+./calculadora.sh
+
+NUNCA termines nombres de archivo con solo un punto.
+</rule>
+
 <rule id="output_format">
 Formato OBLIGATORIO:
 
@@ -541,6 +583,102 @@ cd /ruta/deseada
     let ident_nopunct = MENSAJE_IDENTIDAD.trim_end_matches('.');
     cleaned = cleaned.replace(ident_nopunct, "");
     assistant_text = cleaned.trim().to_string();
+  }
+
+  // ============================================================================
+  // CORRECCIONES DE TEXTO - Aplicar ANTES de cualquier validación o parseo
+  // ============================================================================
+  
+  // Función para corregir shebangs incompletos en scripts Bash
+  fn fix_incomplete_shebang(text: &str) -> String {
+    use regex::Regex;
+    
+    let debug = env::var("AI_SHEBANG_DEBUG").unwrap_or_default() == "1";
+    
+    // Patrón para detectar shebangs incompletos o incorrectos
+    let patterns = vec![
+      (r"(?m)^#!/bin/$", "#!/bin/bash"),           // Caso exacto: #!/bin/ solo
+      (r"(?m)^#!/bin$", "#!/bin/bash"),            // Sin / final
+      (r"(?m)^#!bin/bash", "#!/bin/bash"),         // Falta el primer /
+      (r"(?m)^#! /bin/bash", "#!/bin/bash"),       // Espacio después de #!
+      (r"(?m)^#!/usr/bin/env\s*$", "#!/usr/bin/env bash"),  // env sin bash
+    ];
+    
+    let mut result = text.to_string();
+    let mut any_fix = false;
+    
+    for (pattern, replacement) in patterns {
+      let re = Regex::new(pattern).unwrap();
+      if re.is_match(&result) {
+        if debug {
+          eprintln!("[SHEBANG] ✓ Corrigiendo '{}' -> '{}'", pattern, replacement);
+        }
+        result = re.replace_all(&result, replacement).to_string();
+        any_fix = true;
+      }
+    }
+    
+    if debug && !any_fix {
+      eprintln!("[SHEBANG] ℹ No se encontraron shebangs incompletos");
+    }
+    
+    result
+  }
+  
+  // Función para corregir nombres de archivos incompletos en comandos
+  fn fix_incomplete_filenames(text: &str) -> String {
+    use regex::Regex;
+    
+    let debug = env::var("AI_CORRECTION_DEBUG").unwrap_or_default() == "1";
+    
+    // Patrón para detectar comandos con nombres de archivo incompletos
+    // Ejemplo: "chmod +x calculadora." → "chmod +x calculadora.sh"
+    let patterns = vec![
+      // chmod +x nombre. → chmod +x nombre.sh (asumimos Bash si termina en punto)
+      (r"chmod\s+\+x\s+([a-zA-Z0-9_-]+)\.\s*$", "chmod +x $1.sh"),
+      // ./nombre. → ./nombre.sh
+      (r"\./([a-zA-Z0-9_-]+)\.\s*$", "./$1.sh"),
+      // python nombre. → python nombre.py
+      (r"python3?\s+([a-zA-Z0-9_-]+)\.\s*$", "python3 $1.py"),
+    ];
+    
+    let lines: Vec<String> = text.lines().map(|line| {
+      let mut corrected = line.to_string();
+      let mut fixed = false;
+      
+      for (pattern, replacement) in &patterns {
+        let re = Regex::new(pattern).unwrap();
+        if re.is_match(&corrected) {
+          if debug {
+            eprintln!("[FILENAME] ✓ Corrigiendo línea: '{}'", corrected);
+          }
+          corrected = re.replace(&corrected, *replacement).to_string();
+          fixed = true;
+          if debug {
+            eprintln!("[FILENAME] ✓ Resultado: '{}'", corrected);
+          }
+        }
+      }
+      
+      if !fixed && debug && (corrected.contains("chmod") || corrected.contains("./")) {
+        eprintln!("[FILENAME] ℹ Línea sin cambios: '{}'", corrected);
+      }
+      
+      corrected
+    }).collect();
+    
+    lines.join("\n")
+  }
+  
+  // Aplicar correcciones
+  assistant_text = fix_incomplete_shebang(&assistant_text);
+  assistant_text = fix_incomplete_filenames(&assistant_text);
+  
+  // Log de depuración para verificar el texto final
+  if env::var("AI_FINAL_TEXT_DEBUG").unwrap_or_default() == "1" {
+    eprintln!("[AI] ═══ TEXTO FINAL DESPUÉS DE CORRECCIONES ═══");
+    eprintln!("{}", assistant_text);
+    eprintln!("[AI] ═══════════════════════════════════════════");
   }
 
   // Si en ASK la salida quedó vacía o parece solo identidad, reintenta una vez con instrucción más estricta (API genera el contenido)
