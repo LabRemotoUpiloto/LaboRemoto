@@ -56,6 +56,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   // Referencia para el contenedor de mensajes (auto-scroll inteligente)
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const isComposingRef = useRef<boolean>(false);
 
   // isNearBottom extraído a util (importado)
 
@@ -459,6 +460,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={'Escribe tu mensaje…'}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !isComposingRef.current) {
+              e.preventDefault();
+              if (!isSending && modeHandlers[mode]?.canSend?.()) {
+                handleSend();
+              }
+            }
+          }}
+          onCompositionStart={() => { isComposingRef.current = true; }}
+          onCompositionEnd={() => { isComposingRef.current = false; }}
         />
         <button
           className="send-btn send-icon"
