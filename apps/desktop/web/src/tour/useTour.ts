@@ -6,6 +6,8 @@ import './tourStyles.css';
 let driverInstance: Driver | null = null;
 let onPageChangeCallback: ((page: string) => void) | null = null;
 let tourObserver: MutationObserver | null = null;
+let hasJumpedToTerminal = false;
+let jumpTimer: any = null;
 
 /**
  * Configuración del driver.js con estilos personalizados
@@ -75,6 +77,24 @@ const createDriverConfig = (): Config => ({
       if (onPageChangeCallback) {
         setTimeout(() => onPageChangeCallback(pageAttr), 50);
       }
+      // Foco específico: si el paso apunta a "Terminal", dar foco al textarea de xterm
+      if (pageAttr === 'terminal') {
+        // Esperar un instante a que el Terminal se monte/renderice
+        setTimeout(() => {
+          try {
+            const ta = document.querySelector(
+              '.terminal-pane .xterm textarea, .terminal-pane .xterm .xterm-helper-textarea'
+            ) as HTMLTextAreaElement | null;
+            if (ta) {
+              ta.focus();
+            } else {
+              // Fallback: enfocar el contenedor del terminal (xterm se auto-enfocará si es posible)
+              const pane = document.querySelector('.terminal-pane') as HTMLElement | null;
+              pane?.focus?.();
+            }
+          } catch {}
+        }, 200);
+      }
     }
     // 3) En el paso de hosts rápidos: seleccionar el primer host y enfocar usuario
     if (tourKind === 'quick-hosts-panel') {
@@ -95,6 +115,8 @@ const createDriverConfig = (): Config => ({
       driverInstance = null;
     }
     if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
+    if (jumpTimer) { try { clearTimeout(jumpTimer); } catch {} jumpTimer = null; }
+    hasJumpedToTerminal = false;
   },
   
   onDestroyed: () => {
@@ -125,12 +147,18 @@ export const useTour = (onPageChange?: (page: string) => void) => {
     // Observar aparición del terminal para saltar a su paso
     try {
       if (tourObserver) tourObserver.disconnect();
+      hasJumpedToTerminal = false;
       tourObserver = new MutationObserver(() => {
-        if (document.querySelector('.terminal-view')) {
-          const idx = tourSteps.findIndex(s => (s as any).element === '[data-page="terminal"]');
-          if (driverInstance && driverInstance.isActive() && idx >= 0) {
-            setTimeout(() => driverInstance?.drive(idx), 120);
-          }
+        // Evitar disparos múltiples por cambios dentro del terminal
+        if (hasJumpedToTerminal) return;
+        const isMounted = !!document.querySelector('.terminal-view');
+        if (!isMounted) return;
+        hasJumpedToTerminal = true;
+        if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
+        const idx = tourSteps.findIndex(s => (s as any).element === '[data-page="terminal"]');
+        if (driverInstance && driverInstance.isActive() && idx >= 0) {
+          // Debounce para esperar a que el layout se estabilice
+          jumpTimer = setTimeout(() => { try { driverInstance?.drive(idx); } catch {} }, 180);
         }
       });
       tourObserver.observe(document.body, { childList: true, subtree: true });
@@ -150,12 +178,16 @@ export const useTour = (onPageChange?: (page: string) => void) => {
     driverInstance = driver(config);
     try {
       if (tourObserver) tourObserver.disconnect();
+      hasJumpedToTerminal = false;
       tourObserver = new MutationObserver(() => {
-        if (document.querySelector('.terminal-view')) {
-          const idx = tourSteps.findIndex(s => (s as any).element === '[data-page="terminal"]');
-          if (driverInstance && driverInstance.isActive() && idx >= 0) {
-            setTimeout(() => driverInstance?.drive(idx), 120);
-          }
+        if (hasJumpedToTerminal) return;
+        const isMounted = !!document.querySelector('.terminal-view');
+        if (!isMounted) return;
+        hasJumpedToTerminal = true;
+        if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
+        const idx = tourSteps.findIndex(s => (s as any).element === '[data-page="terminal"]');
+        if (driverInstance && driverInstance.isActive() && idx >= 0) {
+          jumpTimer = setTimeout(() => { try { driverInstance?.drive(idx); } catch {} }, 180);
         }
       });
       tourObserver.observe(document.body, { childList: true, subtree: true });
@@ -172,6 +204,8 @@ export const useTour = (onPageChange?: (page: string) => void) => {
       driverInstance = null;
     }
     if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
+    if (jumpTimer) { try { clearTimeout(jumpTimer); } catch {} jumpTimer = null; }
+    hasJumpedToTerminal = false;
   };
 
   /**
