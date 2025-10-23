@@ -334,20 +334,32 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
   let tail = if ai_only_mode { String::new() } else { content.lines().rev().take(15).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n") };
   let summary_hint = if ai_only_mode { String::new() } else { format!("{} líneas", line_count) };
 
-  // Carga .env temprana para garantizar lectura de OPENAI_API_KEY
-  if get_openai_api_key().is_none() { let _ = dotenvy::dotenv(); }
+  // Carga .env temprana para garantizar lectura de API keys
+  use crate::cmd::ai_utils::get_claude_api_key;
+  if get_openai_api_key().is_none() && get_claude_api_key().is_none() { let _ = dotenvy::dotenv(); }
+  
   // Determinar si usaremos IA; FORCE_FILE_AI fuerza el intento.
   let env_flag = std::env::var("ENABLE_FILE_AI_SUMMARY").ok();
   let force_flag = std::env::var("FORCE_FILE_AI").ok().map(|v| matches!(v.as_str(), "1"|"true"|"TRUE"));
-  let has_key = get_openai_api_key().is_some();
+  // Preferir Claude, fallback a OpenAI
+  let has_claude = get_claude_api_key().is_some();
+  let has_openai = get_openai_api_key().is_some();
+  let has_key = has_claude || has_openai;
+  
+  eprintln!("[file_ai] ═══ INICIO ANÁLISIS ═══");
+  eprintln!("[file_ai] API Keys disponibles: Claude={}, OpenAI={}", has_claude, has_openai);
+  eprintln!("[file_ai] Variables de entorno: ENABLE_FILE_AI_SUMMARY={:?}, FORCE_FILE_AI={:?}", env_flag, force_flag);
+  
   let base_enable = match env_flag.as_deref() {
     Some("0") | Some("false") | Some("FALSE") => false,
     Some("1") | Some("true") | Some("TRUE") => true,
     _ => has_key,
   };
   let enable_ai_summary = if force_flag.unwrap_or(false) { true } else { base_enable };
+  
+  eprintln!("[file_ai] Decisión: enable_ai_summary={}, base_enable={}, has_key={}", enable_ai_summary, base_enable, has_key);
+  
   let file_ai_debug = std::env::var("FILE_AI_DEBUG").ok().map(|v| v=="1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
-  if file_ai_debug { eprintln!("[file_ai] decision enable_ai_summary={} force={:?} base={} has_key={} raw_flag={:?} ai_only_mode={} (size candidate desconocido aún)", enable_ai_summary, force_flag, base_enable, has_key, env_flag, ai_only_mode); if !has_key { eprintln!("[file_ai] AVISO: OPENAI_API_KEY ausente tras dotenv, se usará heurística/fallback salvo FORCE_FILE_AI"); } }
   let mut semantic_summary: Option<String> = None; // anulamos heurística cuando AI activa
   let language_detected = detect_language(Path::new(&path), &content);
   if !enable_ai_summary && !ai_only_mode { // sólo usar heurística si AI summary desactivada
@@ -373,31 +385,140 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
   let mut purpose_ai: Option<String> = None;
   let mut key_points_ai: Option<Vec<String>> = None;
   let sha_cur = sha256_hex(&bytes);
+  
+  eprintln!("[file_ai] Verificando condiciones para llamada a IA:");
+  eprintln!("[file_ai]   - enable_ai_summary: {}", enable_ai_summary);
+  eprintln!("[file_ai]   - has_key: {}", has_key);
+  eprintln!("[file_ai]   - bytes.len(): {} (límite: 200000)", bytes.len());
+  eprintln!("[file_ai]   - ¿Entrará al bloque de IA?: {}", enable_ai_summary && has_key && bytes.len() < 200_000);
+  
   if enable_ai_summary && has_key && bytes.len() < 200_000 {
+    eprintln!("[file_ai] ✓ ENTRANDO AL BLOQUE DE IA");
     if file_ai_debug { eprintln!("[file_ai] AI summary candidate tamaño={} <200k, sha={}...", bytes.len(), &sha_cur[..8]); }
     let mut need_call = true;
+    
+    eprintln!("[file_ai] Verificando caché con SHA256: {}...", &sha_cur[..16]);
     if let Ok(mut map) = AI_CACHE.lock() {
+      eprintln!("[file_ai] Tamaño de caché: {} entradas", map.len());
       if let Some((ts,p,kps)) = map.get(&sha_cur) {
         if ts.elapsed().unwrap_or_default() < Duration::from_secs(AI_CACHE_TTL_SECS) {
+          eprintln!("[file_ai] ✓ Cache hit! Usando resultado cacheado");
           purpose_ai = Some(p.clone());
           key_points_ai = Some(kps.clone());
           need_call = false;
           if file_ai_debug { eprintln!("[file_ai] cache hit {}", &sha_cur[..8]); }
-        } else { map.remove(&sha_cur); }
+        } else { 
+          eprintln!("[file_ai] Cache expirado, removiendo entrada");
+          map.remove(&sha_cur); 
+        }
+      } else {
+        eprintln!("[file_ai] No hay entrada en caché para este archivo");
       }
     }
+    
+    eprintln!("[file_ai] need_call={}", need_call);
+    
     if need_call {
-  if let Some(api_key) = get_openai_api_key() {
-        if file_ai_debug { eprintln!("[file_ai] cache miss, llamando API, modelo={}", std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into())); }
-        if let Ok(client) = reqwest::Client::builder().timeout(Duration::from_secs(8)).build() {
+      eprintln!("[file_ai] ✓ Iniciando llamada a API");
+      // Primero intentar con Claude, si no está disponible usar OpenAI
+      let use_claude = get_claude_api_key().is_some();
+      eprintln!("[file_ai] Proveedor seleccionado: {}", if use_claude { "Claude" } else { "OpenAI" });
+      
+      let api_key = if use_claude {
+        get_claude_api_key().unwrap()
+      } else {
+        get_openai_api_key().unwrap_or_default()
+      };
+      
+      eprintln!("[file_ai] API key length: {}, is_empty: {}", api_key.len(), api_key.is_empty());
+      
+      if !api_key.is_empty() {
+        eprintln!("[file_ai] ✓ API key válida, construyendo cliente HTTP");
+        if file_ai_debug { 
+          eprintln!("[file_ai] cache miss, llamando API, provider={}", if use_claude { "Claude" } else { "OpenAI" }); 
+        }
+        if let Ok(client) = reqwest::Client::builder().timeout(Duration::from_secs(30)).build() {
+          eprintln!("[file_ai] ✓ Cliente HTTP creado, preparando prompt");
           let sample = if bytes.len()>40_000 { let h=content.lines().take(120).collect::<Vec<_>>().join("\n"); let t=content.lines().rev().take(120).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"); format!("[HEAD]\n{}\n[...OMITIDO...]\n[TAIL]\n{}",h,t) } else { content.to_string() };
-          let prompt = format!("Devuelve SOLO JSON con campos: descripcion, key_points.\nReglas estrictas:\n1. descripcion = UNA línea clara que resuma la función principal (sin empezar con 'Este archivo').\n2. key_points = 3-6 bullets concisos (sin punto final) sobre flujo, entradas, salidas, librerías, riesgos.\n3. Nada fuera del JSON.\n---\nNombre:{path}\nTamaño:{size}\nContenido:\n{c}\n---", path=path, size=bytes.len(), c=sample);
-          let body = serde_json::json!({"model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into()),"messages":[{"role":"system","content":"Eres un asistente que resume archivos en español."},{"role":"user","content":prompt}],"temperature":0.15,"max_tokens":260});
-          match client.post("https://api.openai.com/v1/chat/completions").bearer_auth(&api_key).json(&body).send().await {    
+          let prompt = format!(
+            "Analiza el siguiente código y devuelve SOLO un objeto JSON con esta estructura exacta:\n\
+            {{\n\
+              \"proposito\": \"Descripción clara del propósito principal del programa (2-3 líneas)\",\n\
+              \"ejemplo_ejecucion\": [\n\
+                \"Cómo ejecutar el programa (comando exacto)\",\n\
+                \"Descripción de entradas esperadas\",\n\
+                \"Descripción de salidas generadas\",\n\
+                \"Ejemplo práctico de uso\"\n\
+              ],\n\
+              \"mejoras\": [\n\
+                \"Mejora 1: descripción detallada\",\n\
+                \"Mejora 2: descripción detallada\",\n\
+                \"Mejora 3: descripción detallada\"\n\
+              ],\n\
+              \"conclusiones\": [\n\
+                \"Conclusión 1 sobre el código\",\n\
+                \"Conclusión 2 sobre el código\"\n\
+              ]\n\
+            }}\n\n\
+            REGLAS ESTRICTAS:\n\
+            - Devuelve SOLO el JSON, sin texto adicional\n\
+            - Cada array debe tener al menos 2-4 elementos\n\
+            - Sé específico y práctico\n\
+            - Usa español\n\
+            - NO uses markdown dentro del JSON\n\n\
+            Archivo: {path}\n\
+            Tamaño: {size} bytes\n\n\
+            CÓDIGO:\n{c}\n",
+            path=path, size=bytes.len(), c=sample
+          );
+          
+          let (url, request_body) = if use_claude {
+            // Claude API
+            let body = serde_json::json!({
+              "model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "claude-sonnet-4-5".into()),
+              "max_tokens": 1200,
+              "messages": [{"role": "user", "content": prompt}]
+            });
+            let url = "https://api.anthropic.com/v1/messages";
+            (url, body)
+          } else {
+            // OpenAI API
+            let body = serde_json::json!({
+              "model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into()),
+              "messages": [
+                {"role": "system", "content": "Eres un asistente experto que analiza código en español."},
+                {"role": "user", "content": prompt}
+              ],
+              "temperature": 0.15,
+              "max_tokens": 1200
+            });
+            let url = "https://api.openai.com/v1/chat/completions";
+            (url, body)
+          };
+          
+          let mut request = client.post(url).json(&request_body);
+          
+          eprintln!("[file_ai] Request configurado para: {}", url);
+          
+          // Agregar headers específicos según el proveedor
+          if use_claude {
+            eprintln!("[file_ai] Agregando headers de Claude");
+            request = request
+              .header("anthropic-version", "2023-06-01")
+              .header("x-api-key", &api_key);
+          } else {
+            eprintln!("[file_ai] Agregando headers de OpenAI");
+            request = request
+              .header("authorization", format!("Bearer {}", api_key));
+          }
+          
+          eprintln!("[file_ai] ⏳ Enviando request HTTP...");
+          match request.send().await {    
             Ok(resp) => {
               let status = resp.status();
               let text_body = resp.text().await.unwrap_or_default();
-              if file_ai_debug { eprintln!("[file_ai] HTTP status={} length={}", status, text_body.len()); }
+              eprintln!("[file_ai] HTTP status={} provider={} length={}", status, if use_claude { "Claude" } else { "OpenAI" }, text_body.len());
+              
               // Si status no es éxito, registrar y generar fallback inmediato
               if !status.is_success() {
                 if file_ai_debug { eprintln!("[file_ai] respuesta no exitosa: {}", status); }
@@ -413,32 +534,236 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
               } else {
                 let json: serde_json::Value = serde_json::from_str(&text_body).unwrap_or(serde_json::Value::Null);
                 if file_ai_debug { let slice=&text_body[..text_body.len().min(300)].replace("\n"," "); eprintln!("[file_ai] raw body (300 max): {}", slice);}                
-                // Extraer contenido
-                let mut extracted: Option<String> = json.pointer("/choices/0/message/content").and_then(|v| v.as_str()).map(|s| s.to_string());
-                if extracted.is_none() { extracted = json.pointer("/choices/0/text").and_then(|v| v.as_str()).map(|s| s.to_string()); }
-                if extracted.is_none() { if let Some(arr)=json.pointer("/choices/0/message/content").and_then(|v| v.as_array()) { let mut acc=String::new(); for part in arr { if let Some(t)=part.get("text").and_then(|x| x.as_str()) { acc.push_str(t); acc.push('\n'); } } if !acc.trim().is_empty() { extracted=Some(acc); } } }
+                // Extraer contenido - manejar tanto OpenAI como Claude
+                let mut extracted: Option<String> = None;
+                
+                if use_claude {
+                  // Claude: content está en /content/0/text
+                  extracted = json.pointer("/content/0/text").and_then(|v| v.as_str()).map(|s| s.to_string());
+                  if extracted.is_none() {
+                    // Intentar otros formatos posibles de Claude
+                    extracted = json.pointer("/content").and_then(|v| {
+                      if let Some(arr) = v.as_array() {
+                        arr.iter()
+                          .find_map(|item| item.get("text").and_then(|t| t.as_str()))
+                          .map(|s| s.to_string())
+                      } else {
+                        v.as_str().map(|s| s.to_string())
+                      }
+                    });
+                  }
+                } else {
+                  // OpenAI: content está en /choices/0/message/content
+                  extracted = json.pointer("/choices/0/message/content").and_then(|v| v.as_str()).map(|s| s.to_string());
+                  if extracted.is_none() { extracted = json.pointer("/choices/0/text").and_then(|v| v.as_str()).map(|s| s.to_string()); }
+                  if extracted.is_none() { if let Some(arr)=json.pointer("/choices/0/message/content").and_then(|v| v.as_array()) { let mut acc=String::new(); for part in arr { if let Some(t)=part.get("text").and_then(|x| x.as_str()) { acc.push_str(t); acc.push('\n'); } } if !acc.trim().is_empty() { extracted=Some(acc); } } }
+                }
+                
                 if let Some(text)=extracted {
+                  eprintln!("[file_ai] ✓ Contenido extraído (longitud: {} chars)", text.len());
+                  eprintln!("[file_ai] Primeros 300 chars: {}", &text[..text.len().min(300)]);
+                  
                   if file_ai_debug { let preview=&text[..text.len().min(140)]; eprintln!("[file_ai] raw modelo (primeros 140 chars): {}", preview.replace("\n"," ")); }
                   let trimmed=text.trim().trim_matches('`').trim_start_matches("json").trim();
+                  
+                  // Intentar parsear como JSON primero
+                  let mut parsed_successfully = false;
                   if let Ok(vj)=serde_json::from_str::<serde_json::Value>(trimmed) {
-                    if file_ai_debug { eprintln!("[file_ai] respuesta parseada OK"); }
-                    if let Some(p)=vj.get("descripcion").and_then(|x| x.as_str()) { purpose_ai=Some(p.to_string()); }
-                    if let Some(kpa)=vj.get("key_points").and_then(|x| x.as_array()) { let mut vkp=Vec::new(); for item in kpa.iter().take(6){ if let Some(s)=item.as_str(){ vkp.push(s.to_string()); } } if !vkp.is_empty(){ key_points_ai=Some(vkp); } }
-                  } else if file_ai_debug { eprintln!("[file_ai] JSON inválido tras recorte"); }
+                    if file_ai_debug { eprintln!("[file_ai] respuesta parseada OK como JSON"); }
+                    parsed_successfully = true;
+                    
+                    // Extraer el nuevo formato con proposito, ejemplo_ejecucion, mejoras, conclusiones
+                    if let Some(p)=vj.get("proposito").and_then(|x| x.as_str()) { 
+                      purpose_ai=Some(p.to_string()); 
+                    }
+                    
+                    // Construir key_points con todos los campos
+                    let mut combined_points = Vec::new();
+                    
+                    // Ejemplo de ejecución
+                    if let Some(arr)=vj.get("ejemplo_ejecucion").and_then(|x| x.as_array()) {
+                      if !arr.is_empty() {
+                        combined_points.push("▶ EJEMPLO DE EJECUCIÓN:".to_string());
+                        for item in arr.iter() {
+                          if let Some(s)=item.as_str() {
+                            combined_points.push(format!("  • {}", s));
+                          }
+                        }
+                      }
+                    }
+                    
+                    // Mejoras
+                    if let Some(arr)=vj.get("mejoras").and_then(|x| x.as_array()) {
+                      if !arr.is_empty() {
+                        combined_points.push("🔧 POSIBLES MEJORAS:".to_string());
+                        for item in arr.iter() {
+                          if let Some(s)=item.as_str() {
+                            combined_points.push(format!("  • {}", s));
+                          }
+                        }
+                      }
+                    }
+                    
+                    // Conclusiones
+                    if let Some(arr)=vj.get("conclusiones").and_then(|x| x.as_array()) {
+                      if !arr.is_empty() {
+                        combined_points.push("📊 CONCLUSIONES:".to_string());
+                        for item in arr.iter() {
+                          if let Some(s)=item.as_str() {
+                            combined_points.push(format!("  • {}", s));
+                          }
+                        }
+                      }
+                    }
+                    
+                    if !combined_points.is_empty() {
+                      key_points_ai=Some(combined_points);
+                    }
+                    
+                    // Fallback: si no tiene el nuevo formato, intentar el formato antiguo
+                    if purpose_ai.is_none() {
+                      if let Some(p)=vj.get("descripcion").and_then(|x| x.as_str()) { 
+                        purpose_ai=Some(p.to_string()); 
+                      }
+                    }
+                    if key_points_ai.is_none() {
+                      if let Some(kpa)=vj.get("key_points").and_then(|x| x.as_array()) { 
+                        let mut vkp=Vec::new(); 
+                        for item in kpa.iter().take(6) { 
+                          if let Some(s)=item.as_str() { 
+                            vkp.push(s.to_string()); 
+                          } 
+                        } 
+                        if !vkp.is_empty() { 
+                          key_points_ai=Some(vkp); 
+                        } 
+                      }
+                    }
+                  }
+                  
+                  // Si no se pudo parsear como JSON, usar el texto completo como respuesta
+                  if !parsed_successfully {
+                    if file_ai_debug { eprintln!("[file_ai] JSON inválido, usando texto raw como fallback"); }
+                    eprintln!("[file_ai] RESPUESTA COMPLETA DEL MODELO:\n{}", text);
+                    
+                    // Dividir el texto en líneas y usar como purpose y key_points
+                    let lines: Vec<&str> = text.lines().collect();
+                    if !lines.is_empty() {
+                      purpose_ai = Some(lines[0].to_string());
+                      if lines.len() > 1 {
+                        key_points_ai = Some(lines[1..].iter().map(|s| s.to_string()).collect());
+                      }
+                    } else {
+                      purpose_ai = Some(text.clone());
+                    }
+                  }
                 } else if file_ai_debug { eprintln!("[file_ai] campo content ausente tras parseo; fallback"); }
               }
             },
-            Err(e) => { if file_ai_debug { eprintln!("[file_ai] request HTTP falló: {e}"); } }
+            Err(e) => { 
+              eprintln!("[file_ai] ✗ Request HTTP falló: {}", e);
+              
+              // Si Claude falló y tenemos OpenAI disponible, intentar con OpenAI como fallback
+              if use_claude && get_openai_api_key().is_some() {
+                eprintln!("[file_ai] ⚠️ Claude falló, intentando fallback a OpenAI...");
+                
+                let openai_key = get_openai_api_key().unwrap();
+                let openai_body = serde_json::json!({
+                  "model": "gpt-3.5-turbo",
+                  "messages": [
+                    {"role": "system", "content": "Eres un asistente experto que analiza código en español."},
+                    {"role": "user", "content": &prompt}
+                  ],
+                  "temperature": 0.15,
+                  "max_tokens": 1200
+                });
+                
+                match client.post("https://api.openai.com/v1/chat/completions")
+                  .header("authorization", format!("Bearer {}", openai_key))
+                  .json(&openai_body)
+                  .send()
+                  .await 
+                {
+                  Ok(resp2) => {
+                    let status = resp2.status();
+                    let text_body = resp2.text().await.unwrap_or_default();
+                    eprintln!("[file_ai] HTTP status={} provider=OpenAI(fallback) length={}", status, text_body.len());
+                    
+                    if status.is_success() {
+                      let json: serde_json::Value = serde_json::from_str(&text_body).unwrap_or(serde_json::Value::Null);
+                      if let Some(content_str) = json.pointer("/choices/0/message/content").and_then(|v| v.as_str()) {
+                        eprintln!("[file_ai] ✓ Contenido extraído de OpenAI (longitud: {} chars)", content_str.len());
+                        let trimmed = content_str.trim().trim_matches('`').trim_start_matches("json").trim();
+                        if let Ok(vj) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                          if let Some(p) = vj.get("proposito").and_then(|x| x.as_str()) { 
+                            purpose_ai = Some(p.to_string()); 
+                          }
+                          let mut combined_points = Vec::new();
+                          if let Some(arr) = vj.get("ejemplo_ejecucion").and_then(|x| x.as_array()) {
+                            if !arr.is_empty() {
+                              combined_points.push("▶ EJEMPLO DE EJECUCIÓN:".to_string());
+                              for item in arr.iter() {
+                                if let Some(s) = item.as_str() { combined_points.push(format!("  • {}", s)); }
+                              }
+                            }
+                          }
+                          if let Some(arr) = vj.get("mejoras").and_then(|x| x.as_array()) {
+                            if !arr.is_empty() {
+                              combined_points.push("🔧 POSIBLES MEJORAS:".to_string());
+                              for item in arr.iter() {
+                                if let Some(s) = item.as_str() { combined_points.push(format!("  • {}", s)); }
+                              }
+                            }
+                          }
+                          if let Some(arr) = vj.get("conclusiones").and_then(|x| x.as_array()) {
+                            if !arr.is_empty() {
+                              combined_points.push("📊 CONCLUSIONES:".to_string());
+                              for item in arr.iter() {
+                                if let Some(s) = item.as_str() { combined_points.push(format!("  • {}", s)); }
+                              }
+                            }
+                          }
+                          if !combined_points.is_empty() { key_points_ai = Some(combined_points); }
+                        }
+                      }
+                    } else {
+                      eprintln!("[file_ai] ✗ OpenAI fallback también falló con status {}", status);
+                    }
+                  }
+                  Err(e2) => {
+                    eprintln!("[file_ai] ✗ OpenAI fallback también falló: {}", e2);
+                  }
+                }
+              }
+              
+              if file_ai_debug { eprintln!("[file_ai] request HTTP falló: {e}"); } 
+            }
           }
-          if let (Some(p),Some(kps))=(purpose_ai.clone(), key_points_ai.clone()) { if let Ok(mut map)=AI_CACHE.lock(){ if map.len()>=AI_CACHE_MAX { map.retain(|_,(ts,_,_)| ts.elapsed().unwrap_or_default() < Duration::from_secs(AI_CACHE_TTL_SECS)); if map.len()>=AI_CACHE_MAX { if let Some(first)=map.keys().next().cloned() { map.remove(&first); } } } map.insert(sha_cur.clone(), (SystemTime::now(), p, kps)); } }
+          if let (Some(p),Some(kps))=(purpose_ai.clone(), key_points_ai.clone()) { 
+            eprintln!("[file_ai] Guardando en caché: purpose={}, key_points={} items", p.chars().take(50).collect::<String>(), kps.len());
+            if let Ok(mut map)=AI_CACHE.lock(){ if map.len()>=AI_CACHE_MAX { map.retain(|_,(ts,_,_)| ts.elapsed().unwrap_or_default() < Duration::from_secs(AI_CACHE_TTL_SECS)); if map.len()>=AI_CACHE_MAX { if let Some(first)=map.keys().next().cloned() { map.remove(&first); } } } map.insert(sha_cur.clone(), (SystemTime::now(), p, kps)); } 
+          } else {
+            eprintln!("[file_ai] ✗ No se guardará en caché (purpose o key_points ausentes)");
+          }
+        } else {
+          eprintln!("[file_ai] ✗ Falló crear cliente HTTP reqwest");
         }
+      } else {
+        eprintln!("[file_ai] ✗ API key vacía, saltando llamada");
       }
+    } else {
+      eprintln!("[file_ai] ✗ need_call=false, usando caché");
     }
-  } else if file_ai_debug {
-    if !enable_ai_summary { eprintln!("[file_ai] salto AI: enable_ai_summary=false"); }
-    else if !has_key { eprintln!("[file_ai] salto AI: sin OPENAI_API_KEY"); }
-    else if bytes.len() >= 200_000 { eprintln!("[file_ai] salto AI: tamaño {} >= 200k", bytes.len()); }
+  } else {
+    eprintln!("[file_ai] ✗ NO SE USARÁ IA:");
+    if !enable_ai_summary { eprintln!("[file_ai]   - enable_ai_summary=false"); }
+    if !has_key { eprintln!("[file_ai]   - sin API KEY"); }
+    if bytes.len() >= 200_000 { eprintln!("[file_ai]   - tamaño {} >= 200k", bytes.len()); }
   }
+  
+  eprintln!("[file_ai] Resultados finales de IA:");
+  eprintln!("[file_ai]   - purpose_ai: {:?}", purpose_ai.as_ref().map(|s| s.chars().take(80).collect::<String>()));
+  eprintln!("[file_ai]   - key_points_ai: {} items", key_points_ai.as_ref().map(|v| v.len()).unwrap_or(0));
 
   let language = language_detected.clone();
   // purpose debería provenir de la IA cuando enable_ai_summary=1; si no, heurística.
