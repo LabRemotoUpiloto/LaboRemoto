@@ -27,6 +27,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const resizeThrottleRef = useRef<number | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const lastContainerSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const [isLoading, setIsLoading] = React.useState<boolean>(false);
 
   // Only allow terminal to auto-focus when not interacting with other inputs (e.g., ChatPane textarea)
   const canRefocusTerminal = () => {
@@ -375,6 +376,79 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
     if (sessionId) {
       const safe = sanitize(sessionId);
+      
+      // Mostrar el indicador de carga cuando hay una nueva sesión
+      setIsLoading(true);
+      
+      let bytesReceived = 0;
+      let lastCheckTime = Date.now();
+      let contentCheckInterval: number | null = null;
+      let contentCheckTimeout: number | null = null;
+      let hasHiddenLoading = false;
+      
+      // Función más robusta: verifica múltiples condiciones
+      const checkAndHideLoading = () => {
+        if (hasHiddenLoading) return;
+        
+        try {
+          const buffer = term.buffer.active;
+          const now = Date.now();
+          
+          // Condición 1: Verificar si hay texto real en el buffer
+          let hasVisibleText = false;
+          const linesToCheck = Math.min(buffer.length, 20);
+          for (let i = 0; i < linesToCheck; i++) {
+            const line = buffer.getLine(i);
+            if (line) {
+              const text = line.translateToString(true).trim();
+              if (text.length > 0) {
+                hasVisibleText = true;
+                break;
+              }
+            }
+          }
+          
+          // Condición 2: Si recibimos suficientes bytes Y pasó suficiente tiempo
+          const receivedEnoughData = bytesReceived > 20;
+          const enoughTimePassed = (now - lastCheckTime) > 300;
+          
+          // Condición 3: Si hay texto visible Y no está vacío
+          if (hasVisibleText || (receivedEnoughData && enoughTimePassed)) {
+            // Esperar un frame adicional para asegurar que xterm renderizó
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                setIsLoading(false);
+                hasHiddenLoading = true;
+                if (contentCheckInterval) {
+                  window.clearInterval(contentCheckInterval);
+                  contentCheckInterval = null;
+                }
+                if (contentCheckTimeout) {
+                  window.clearTimeout(contentCheckTimeout);
+                  contentCheckTimeout = null;
+                }
+              });
+            });
+          }
+        } catch (e) {
+          console.warn('Error checking terminal content:', e);
+        }
+      };
+      
+      // Verificar cada 150ms (más agresivo)
+      contentCheckInterval = window.setInterval(checkAndHideLoading, 150);
+      
+      // Timeout de seguridad: después de 8 segundos, ocultar de todas formas
+      contentCheckTimeout = window.setTimeout(() => {
+        if (!hasHiddenLoading) {
+          setIsLoading(false);
+          hasHiddenLoading = true;
+        }
+        if (contentCheckInterval) {
+          window.clearInterval(contentCheckInterval);
+          contentCheckInterval = null;
+        }
+      }, 8000);
 
       disposers.push(term.onData((data) => {
         invoke('ssh_stdin', { id: sessionId, data }).catch(() => {});
@@ -382,7 +456,16 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
       listen<string>(`ssh_out_${safe}`, (event) => {
         if (event.payload) {
-          term.write(event.payload);
+          bytesReceived += event.payload.length;
+          
+          term.write(event.payload, () => {
+            // Callback que se ejecuta DESPUÉS de que xterm procese la escritura
+            setTimeout(checkAndHideLoading, 100);
+          });
+          
+          // También verificar inmediatamente por si acaso
+          setTimeout(checkAndHideLoading, 200);
+          
           // Enfocar cuando llega la primera salida (primer conexión) si aún no se enfocó
           try { if (!hasFocusedOnceRef.current && canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
           startFocusLoop();
@@ -394,10 +477,26 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
       // Señal de readiness: después de montar y ajustar tamaño
       invoke('ssh_ui_ready', { id: sessionId }).catch(() => {});
+      
       // Enfocar tras handshake inicial
-  try { if (canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
+      try { if (canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
       startFocusLoop();
       try { ensureBlinkClasses(); } catch {}
+      
+      // Cleanup function para limpiar los intervalos
+      return () => {
+        disposers.forEach(d => d.dispose());
+        if (unlistenRef.current) { try { unlistenRef.current(); } catch {} unlistenRef.current = null; }
+        if (contentCheckInterval) {
+          window.clearInterval(contentCheckInterval);
+        }
+        if (contentCheckTimeout) {
+          window.clearTimeout(contentCheckTimeout);
+        }
+      };
+    } else {
+      // Si no hay sesión, ocultar el indicador de carga
+      setIsLoading(false);
     }
 
     return () => {
@@ -406,7 +505,16 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     };
   }, [sessionId]);
 
-  return <div className="terminal-pane" ref={containerRef} />;
+  return (
+    <div className="terminal-pane" ref={containerRef}>
+      {isLoading && sessionId && (
+        <div className="terminal-loading-overlay">
+          <div className="terminal-loading-spinner"></div>
+          <div className="terminal-loading-text">Conectando al servidor...</div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default TerminalPane;
