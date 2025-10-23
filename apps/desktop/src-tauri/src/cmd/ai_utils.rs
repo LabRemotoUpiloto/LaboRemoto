@@ -243,6 +243,245 @@ pub async fn ai_test_key() -> Result<AiTestKeyResult, String> {
     }
 }
 
+/// Estructura para el resultado del análisis de archivos
+#[derive(Debug, Clone)]
+pub struct FileAnalysisResult {
+    pub description: Option<String>,
+    pub key_points: Option<Vec<String>>,
+    pub full_analysis: Option<String>,
+    pub error: Option<String>,
+}
+
+/// Llama a Claude API para análisis de archivos
+pub async fn call_claude_file_analysis(
+    api_key: &str,
+    path: &str,
+    size: usize,
+    sample: &str,
+    debug: bool
+) -> Result<FileAnalysisResult, String> {
+    use std::time::Duration;
+    
+    let prompt = format!(
+        "Analiza el siguiente código y proporciona un análisis completo en español con las siguientes secciones:\n\n\
+        ## PROPÓSITO DEL PROGRAMA\n\
+        [Descripción clara del propósito principal en 2-3 líneas]\n\n\
+        ## EJEMPLO DE EJECUCIÓN\n\
+        - Comando para ejecutar\n\
+        - Entradas esperadas\n\
+        - Salidas generadas\n\
+        - Ejemplo práctico\n\n\
+        ## POSIBLES MEJORAS\n\
+        - Mejora 1 con descripción detallada\n\
+        - Mejora 2 con descripción detallada\n\
+        - Mejora 3 con descripción detallada\n\n\
+        ## CONCLUSIONES\n\
+        - Conclusión 1 sobre el código\n\
+        - Conclusión 2 sobre el código\n\n\
+        Archivo: {}\n\
+        Tamaño: {} bytes\n\n\
+        CÓDIGO:\n\
+        {}",
+        path, size, sample
+    );
+    
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Error creando cliente: {}", e))?;
+    
+    let body = serde_json::json!({
+        "model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "claude-sonnet-4-5".into()),
+        "max_tokens": 2000,
+        "messages": [{"role": "user", "content": prompt}]
+    });
+    
+    let response = client
+        .post("https://api.anthropic.com/v1/messages")
+        .header("anthropic-version", "2023-06-01")
+        .header("x-api-key", api_key)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Error en request: {}", e))?;
+    
+    let status = response.status();
+    let text_body = response.text().await.unwrap_or_default();
+    
+    if debug {
+        eprintln!("[call_claude] Status: {}, Body length: {}", status, text_body.len());
+    }
+    
+    if !status.is_success() {
+        return Ok(FileAnalysisResult {
+            description: Some(format!("Error API Claude: HTTP {}", status)),
+            key_points: None,
+            full_analysis: None,
+            error: Some(format!("HTTP {}", status)),
+        });
+    }
+    
+    let json: serde_json::Value = serde_json::from_str(&text_body)
+        .map_err(|e| format!("Error parseando JSON: {}", e))?;
+    
+    // Extraer contenido de Claude
+    let content = json.pointer("/content/0/text")
+        .and_then(|v| v.as_str())
+        .ok_or("No se encontró texto en respuesta de Claude")?;
+    
+    if debug {
+        eprintln!("[call_claude] Contenido extraído ({} chars)", content.len());
+    }
+    
+    Ok(FileAnalysisResult {
+        description: None,
+        key_points: None,
+        full_analysis: Some(content.to_string()),
+        error: None,
+    })
+}
+
+/// Llama a OpenAI API para análisis de archivos
+pub async fn call_openai_file_analysis(
+    api_key: &str,
+    model: &str,
+    path: &str,
+    size: usize,
+    sample: &str,
+    debug: bool
+) -> Result<FileAnalysisResult, String> {
+    use std::time::Duration;
+    
+    let prompt = format!(
+        "Analiza el siguiente código y devuelve SOLO un objeto JSON con esta estructura:\n\
+        {{\n\
+          \"proposito\": \"Descripción del propósito principal (2-3 líneas)\",\n\
+          \"ejemplo_ejecucion\": [\n\
+            \"Comando para ejecutar\",\n\
+            \"Entradas esperadas\",\n\
+            \"Salidas generadas\",\n\
+            \"Ejemplo práctico\"\n\
+          ],\n\
+          \"mejoras\": [\n\
+            \"Mejora 1\",\n\
+            \"Mejora 2\",\n\
+            \"Mejora 3\"\n\
+          ],\n\
+          \"conclusiones\": [\n\
+            \"Conclusión 1\",\n\
+            \"Conclusión 2\"\n\
+          ]\n\
+        }}\n\n\
+        Archivo: {}\n\
+        Tamaño: {} bytes\n\n\
+        CÓDIGO:\n\
+        {}",
+        path, size, sample
+    );
+    
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Error creando cliente: {}", e))?;
+    
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "Eres un asistente experto que analiza código en español."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.15,
+        "max_tokens": 1500
+    });
+    
+    let response = client
+        .post("https://api.openai.com/v1/chat/completions")
+        .header("authorization", format!("Bearer {}", api_key))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Error en request: {}", e))?;
+    
+    let status = response.status();
+    let text_body = response.text().await.unwrap_or_default();
+    
+    if debug {
+        eprintln!("[call_openai] Status: {}, Body length: {}", status, text_body.len());
+    }
+    
+    if !status.is_success() {
+        return Ok(FileAnalysisResult {
+            description: Some(format!("Error API OpenAI: HTTP {}", status)),
+            key_points: None,
+            full_analysis: None,
+            error: Some(format!("HTTP {}", status)),
+        });
+    }
+    
+    let json: serde_json::Value = serde_json::from_str(&text_body)
+        .map_err(|e| format!("Error parseando JSON: {}", e))?;
+    
+    // Extraer contenido de OpenAI
+    let content = json.pointer("/choices/0/message/content")
+        .and_then(|v| v.as_str())
+        .ok_or("No se encontró contenido en respuesta de OpenAI")?;
+    
+    if debug {
+        eprintln!("[call_openai] Contenido extraído ({} chars)", content.len());
+    }
+    
+    // Parsear JSON de la respuesta
+    let trimmed = content.trim().trim_matches('`').trim_start_matches("json").trim();
+    let vj: serde_json::Value = serde_json::from_str(trimmed)
+        .map_err(|e| format!("Error parseando JSON interno: {}", e))?;
+    
+    let mut key_points = Vec::new();
+    
+    if let Some(p) = vj.get("proposito").and_then(|x| x.as_str()) {
+        // Construir key_points estructurados
+        if let Some(arr) = vj.get("ejemplo_ejecucion").and_then(|x| x.as_array()) {
+            key_points.push("**▶ EJEMPLO DE EJECUCIÓN**".to_string());
+            for item in arr.iter() {
+                if let Some(s) = item.as_str() {
+                    key_points.push(format!("{}", s));
+                }
+            }
+        }
+        
+        if let Some(arr) = vj.get("mejoras").and_then(|x| x.as_array()) {
+            key_points.push("**🔧 POSIBLES MEJORAS**".to_string());
+            for item in arr.iter() {
+                if let Some(s) = item.as_str() {
+                    key_points.push(format!("{}", s));
+                }
+            }
+        }
+        
+        if let Some(arr) = vj.get("conclusiones").and_then(|x| x.as_array()) {
+            key_points.push("**📊 CONCLUSIONES**".to_string());
+            for item in arr.iter() {
+                if let Some(s) = item.as_str() {
+                    key_points.push(format!("{}", s));
+                }
+            }
+        }
+        
+        return Ok(FileAnalysisResult {
+            description: Some(p.to_string()),
+            key_points: Some(key_points),
+            full_analysis: None,
+            error: None,
+        });
+    }
+    
+    Ok(FileAnalysisResult {
+        description: None,
+        key_points: None,
+        full_analysis: None,
+        error: Some("No se pudo extraer información del JSON".to_string()),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::force_python3_everywhere;

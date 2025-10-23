@@ -55,6 +55,11 @@
   background: linear-gradient(135deg, var(--background-primary) 0%, var(--background-tertiary) 100%);
   border-color: var(--accent-color);
   font-weight: 500;
+  min-width: 240px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .model-select:focus {

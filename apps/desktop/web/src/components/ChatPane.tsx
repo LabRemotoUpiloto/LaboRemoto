@@ -242,15 +242,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     // Con el nuevo prompt simplificado, la respuesta viene completa en ai_response
     let aiText = String((res as any).ai_response || (res as any).explanation || '');
     
-    // DEBUG: Verificar qué recibe el frontend
-    if (aiText.includes('calculadora')) {
-      console.log('[FRONTEND DEBUG] ===== RESPUESTA RECIBIDA =====');
-      console.log('[FRONTEND DEBUG] ai_response:', (res as any).ai_response?.substring(0, 500));
-      console.log('[FRONTEND DEBUG] explanation:', (res as any).explanation?.substring(0, 500));
-      console.log('[FRONTEND DEBUG] aiText contiene #!/bin/bash?:', aiText.includes('#!/bin/bash'));
-      console.log('[FRONTEND DEBUG] aiText contiene #!/bin/?:', aiText.includes('#!/bin/'));
-      console.log('[FRONTEND DEBUG] =====================================');
-    }
+  
     
     const displayText = cleanText(aiText);
     
@@ -308,9 +300,9 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         <button onClick={handleNewChat} aria-label="Nuevo chat">Nuevo chat</button>
         <select className="mode-select" value={mode} onChange={handleModeChange} aria-label="Seleccionar modo de chat">
           <option value="ask">Consulta</option>
-          <option value="busqueda">Búsqueda</option>
-          <option value="pines">Pines</option>
-          <option value="analisis">Análisis</option>
+         {/* <option value="busqueda">Búsqueda</option>
+         {/* <option value="pines">Pines</option> */}
+          {/*<option value="analisis">Análisis</option>*/}
         </select>
         <select 
           className="model-select" 
@@ -349,16 +341,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
               <div className="message-text message-card">
                 <div className="message-content">
-                  {msg.sender !== 'system' && (
-                    <button
-                      type="button"
-                      className={`pin-btn ${pinnedIds.has(msg.id) ? 'pinned' : ''}`}
-                      aria-pressed={pinnedIds.has(msg.id)}
-                      aria-label={pinnedIds.has(msg.id) ? 'Quitar pin' : 'Fijar mensaje'}
-                      title={pinnedIds.has(msg.id) ? 'Quitar pin' : 'Fijar mensaje'}
-                      onClick={(e) => { e.stopPropagation(); togglePin(msg.id); }}
-                    >{pinnedIds.has(msg.id) ? '★' : '☆'}</button>
-                  )}
+
                   {msg.sender === 'ai' ? (
                     <>
                       {/* Remote badge */}

@@ -264,7 +264,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
   return (
     <div className="sftp-page">
       {/* Local */}
-      <div className={`sftp-panel ${activePane==='local'? 'active':''}`} onClick={()=> setActivePane('local')}>
+      <div className={`sftp-panel ${activePane==='local'? 'active':''}`} onClick={()=> setActivePane('local')} data-tour="sftp-panel-local">
         <div className="sftp-panel__header">
           <button 
             title='Atrás' 
@@ -375,7 +375,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
       </div>
 
       {/* Remote */}
-      <div className={`sftp-panel ${activePane==='remote'? 'active':''}`} onClick={()=> setActivePane('remote')}>
+      <div className={`sftp-panel ${activePane==='remote'? 'active':''}`} onClick={()=> setActivePane('remote')} data-tour="sftp-panel-remote">
         <div className="sftp-panel__header">
           <button 
             title='Atrás' 
