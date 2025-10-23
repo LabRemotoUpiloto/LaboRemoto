@@ -37,6 +37,95 @@ const createDriverConfig = (): Config => ({
   // Configuración de posicionamiento: separa el popover del elemento
   popoverOffset: 36,
   
+  // IMPEDIR CIERRE AL HACER CLIC FUERA DEL MODAL - Solo permitir cierre con botón X
+  allowClose: false,
+  
+  // Callback antes de avanzar al siguiente paso
+  onNextClick: (element, step, opts) => {
+    // Si estamos en el paso 6 (índice 5 - "Conéctate ahora"), verificar que haya sesión SSH
+    if (opts.state.activeIndex === 5) {
+      // Buscar si existe alguna pestaña de sesión activa en el DOM
+      const hasActiveSession = document.querySelector('.tab.session-tab.active') !== null;
+      
+      if (!hasActiveSession) {
+        // Mostrar notificación temporal en el popover
+        const popoverDesc = document.querySelector('.driver-popover-description');
+        if (popoverDesc) {
+          // Verificar si ya hay una alerta mostrada (evitar duplicados)
+          const existingAlert = popoverDesc.querySelector('.tour-validation-alert');
+          if (existingAlert) {
+            // Ya hay una alerta, no agregar otra
+            return;
+          }
+          
+          const originalContent = popoverDesc.innerHTML;
+          popoverDesc.innerHTML = `
+            <div class="tour-validation-alert">
+              <div style="color: #ff6b6b; font-weight: 600; margin-bottom: 12px; padding: 12px; background: rgba(255, 107, 107, 0.1); border-radius: 8px; border: 1px solid #ff6b6b;">
+                ⚠️ Debes conectarte primero antes de continuar
+              </div>
+            </div>
+            ${originalContent}
+          `;
+          
+          // Restaurar el contenido original después de 3 segundos
+          setTimeout(() => {
+            popoverDesc.innerHTML = originalContent;
+          }, 3000);
+        }
+        
+        // Prevenir el avance al siguiente paso
+        return;
+      }
+    }
+    
+    // Si estamos en el paso 8 (índice 7 - "Chat de IA"), verificar que se haya probado el chat
+    if (opts.state.activeIndex === 7) {
+      // Verificar si hay mensajes en el chat (buscar burbujas de mensajes del asistente)
+      const chatMessages = document.querySelectorAll('.chat-messages .message--assistant');
+      const hasTestedChat = chatMessages.length > 0;
+      
+      if (!hasTestedChat) {
+        // Mostrar notificación temporal en el popover
+        const popoverDesc = document.querySelector('.driver-popover-description');
+        if (popoverDesc) {
+          // Verificar si ya hay una alerta mostrada (evitar duplicados)
+          const existingAlert = popoverDesc.querySelector('.tour-validation-alert');
+          if (existingAlert) {
+            // Ya hay una alerta, no agregar otra
+            return;
+          }
+          
+          const originalContent = popoverDesc.innerHTML;
+          popoverDesc.innerHTML = `
+            <div class="tour-validation-alert">
+              <div style="color: #ff6b6b; font-weight: 600; margin-bottom: 12px; padding: 12px; background: rgba(255, 107, 107, 0.1); border-radius: 8px; border: 1px solid #ff6b6b;">
+                ⚠️ Debes probar el Chat de IA primero
+              </div>
+              <div style="color: #ffd93d; font-weight: 500; margin-bottom: 8px; padding: 8px; background: rgba(255, 217, 61, 0.1); border-radius: 6px;">
+                💡 Escribe en el chat: "¿Quién eres?" y espera la respuesta del asistente
+              </div>
+            </div>
+            ${originalContent}
+          `;
+          
+          // Restaurar el contenido original después de 5 segundos
+          setTimeout(() => {
+            popoverDesc.innerHTML = originalContent;
+          }, 5000);
+        }
+        
+        // Prevenir el avance al siguiente paso
+        return;
+      }
+    }
+    
+    // Si no es un paso con validación o la validación pasa, permitir avanzar
+    if (driverInstance) {
+      driverInstance.moveNext();
+    }
+  },
+  
   // Callbacks para gestión de estado y navegación
   onHighlighted: (element, step, opts) => {
     // Obtener atributos del elemento destacado
@@ -61,6 +150,29 @@ const createDriverConfig = (): Config => ({
       } catch {}
     }
 
+    // ACTIVAR observer de terminal SOLO cuando se llega al paso 6 (Conéctate ahora)
+    if (opts.state.activeIndex === 5) {
+      // Estamos en el paso de conexión, ahora SI observar si aparece la terminal
+      try {
+        if (tourObserver) tourObserver.disconnect();
+        hasJumpedToTerminal = false;
+        tourObserver = new MutationObserver(() => {
+          // Evitar disparos múltiples por cambios dentro del terminal
+          if (hasJumpedToTerminal) return;
+          const isMounted = !!document.querySelector('.terminal-stack');
+          if (!isMounted) return;
+          hasJumpedToTerminal = true;
+          if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
+          const idx = tourSteps.findIndex(s => (s as any).element === '.terminal-stack');
+          if (driverInstance && driverInstance.isActive() && idx >= 0) {
+            // Debounce para esperar a que el layout se estabilice
+            jumpTimer = setTimeout(() => { try { driverInstance?.drive(idx); } catch {} }, 180);
+          }
+        });
+        tourObserver.observe(document.body, { childList: true, subtree: true });
+      } catch {}
+    }
+
     // 2) Navegación automática cuando el paso corresponde a una página específica
     //    - Para elementos con data-tour del contenido de Connect, forzar navegación a 'connect'
     const tourKind = tourAttr || tourClosestAttr;
@@ -68,6 +180,50 @@ const createDriverConfig = (): Config => ({
       // Pequeño delay para no interrumpir el highlight actual
       setTimeout(() => onPageChangeCallback('connect'), 50);
     }
+
+    //    - Si el elemento destacado es el terminal-stack, navegar a la página de terminal
+    if (domEl?.classList?.contains('terminal-stack')) {
+      if (onPageChangeCallback) {
+        setTimeout(() => onPageChangeCallback('terminal'), 50);
+      }
+      // Dar foco al textarea de xterm
+      setTimeout(() => {
+        try {
+          const ta = document.querySelector(
+            '.terminal-pane .xterm textarea, .terminal-pane .xterm .xterm-helper-textarea'
+          ) as HTMLTextAreaElement | null;
+          if (ta) {
+            ta.focus();
+          } else {
+            // Fallback: enfocar el contenedor del terminal (xterm se auto-enfocará si es posible)
+            const pane = document.querySelector('.terminal-pane') as HTMLElement | null;
+            pane?.focus?.();
+          }
+        } catch {}
+      }, 200);
+    }
+
+    //    - Si el elemento destacado es el chat-pane, navegar a la página de terminal
+    if (domEl?.classList?.contains('chat-pane')) {
+      if (onPageChangeCallback) {
+        setTimeout(() => onPageChangeCallback('terminal'), 50);
+      }
+    }
+
+    //    - Si el elemento destacado es la página SFTP, navegar a SFTP
+    if (domEl?.classList?.contains('sftp-page')) {
+      if (onPageChangeCallback) {
+        setTimeout(() => onPageChangeCallback('sftp'), 50);
+      }
+    }
+
+    //    - Si el elemento destacado es un panel SFTP, navegar a SFTP
+    if (domEl?.classList?.contains('sftp-panel') || domEl?.classList?.contains('sftp-icon-btn--primary')) {
+      if (onPageChangeCallback) {
+        setTimeout(() => onPageChangeCallback('sftp'), 50);
+      }
+    }
+
 
     //    - Para elementos de la barra lateral (data-page), seleccionar ese botón y cambiar de página
     if (pageAttr) {
@@ -142,28 +298,16 @@ export const useTour = (onPageChange?: (page: string) => void) => {
       driverInstance.destroy();
     }
     
+    // Limpiar observers previos
+    if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
+    if (jumpTimer) { try { clearTimeout(jumpTimer); } catch {} jumpTimer = null; }
+    hasJumpedToTerminal = false;
+    
     const config = createDriverConfig();
     driverInstance = driver(config);
-    // Observar aparición del terminal para saltar a su paso
-    try {
-      if (tourObserver) tourObserver.disconnect();
-      hasJumpedToTerminal = false;
-      tourObserver = new MutationObserver(() => {
-        // Evitar disparos múltiples por cambios dentro del terminal
-        if (hasJumpedToTerminal) return;
-        const isMounted = !!document.querySelector('.terminal-view');
-        if (!isMounted) return;
-        hasJumpedToTerminal = true;
-        if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
-        const idx = tourSteps.findIndex(s => (s as any).element === '[data-page="terminal"]');
-        if (driverInstance && driverInstance.isActive() && idx >= 0) {
-          // Debounce para esperar a que el layout se estabilice
-          jumpTimer = setTimeout(() => { try { driverInstance?.drive(idx); } catch {} }, 180);
-        }
-      });
-      tourObserver.observe(document.body, { childList: true, subtree: true });
-    } catch {}
-    driverInstance.drive();
+    
+    // Iniciar siempre desde el paso 1
+    driverInstance.drive(0);
   };
 
   /**
@@ -174,24 +318,13 @@ export const useTour = (onPageChange?: (page: string) => void) => {
       driverInstance.destroy();
     }
     
+    // Limpiar observers previos
+    if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
+    if (jumpTimer) { try { clearTimeout(jumpTimer); } catch {} jumpTimer = null; }
+    hasJumpedToTerminal = false;
+    
     const config = createDriverConfig();
     driverInstance = driver(config);
-    try {
-      if (tourObserver) tourObserver.disconnect();
-      hasJumpedToTerminal = false;
-      tourObserver = new MutationObserver(() => {
-        if (hasJumpedToTerminal) return;
-        const isMounted = !!document.querySelector('.terminal-view');
-        if (!isMounted) return;
-        hasJumpedToTerminal = true;
-        if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
-        const idx = tourSteps.findIndex(s => (s as any).element === '[data-page="terminal"]');
-        if (driverInstance && driverInstance.isActive() && idx >= 0) {
-          jumpTimer = setTimeout(() => { try { driverInstance?.drive(idx); } catch {} }, 180);
-        }
-      });
-      tourObserver.observe(document.body, { childList: true, subtree: true });
-    } catch {}
     driverInstance.drive(stepIndex);
   };
 
