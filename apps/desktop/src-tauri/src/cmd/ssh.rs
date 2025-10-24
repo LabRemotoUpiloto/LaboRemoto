@@ -347,6 +347,142 @@ pub async fn rpi_pin_set_mode(id: String, gpio: u32, mode: String) -> Result<(),
 }
 
 #[tauri::command]
+pub async fn rpi_pin_set_pull(id: String, gpio: u32, pull: String) -> Result<(), String> {
+  let normalized = match pull.to_lowercase().as_str() {
+    "up" | "pu" => "pu",
+    "down" | "pd" => "pd",
+    "none" | "off" | "pn" => "pn",
+    other => return Err(format!("Pull no soportado: {} (usa 'up', 'down' o 'none')", other)),
+  };
+
+  let arc_cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    let s = map.get_mut(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    if let Some(existing) = s.sftp_cached.clone() {
+      existing
+    } else {
+      let (tcp, sess2) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
+        .map_err(|e| e.to_string())?;
+      let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess: sess2 }));
+      s.sftp_cached = Some(arc.clone());
+      arc
+    }
+  };
+
+  let (status, output) = {
+    let guard = arc_cached.lock().map_err(|_| "ssh2 lock poisoned")?;
+    let mut ch = guard.sess.channel_session().map_err(|e| e.to_string())?;
+    let command = format!("raspi-gpio set {} {}", gpio, normalized);
+    ch.exec(&command).map_err(|e| e.to_string())?;
+    use std::io::Read;
+    let mut buf = String::new();
+    let _ = ch.read_to_string(&mut buf);
+    let _ = ch.wait_close();
+    let status = ch.exit_status().unwrap_or(0);
+    (status, buf)
+  };
+
+  if status != 0 {
+    return Err(format!(
+      "raspi-gpio set devolvió código {}: {}",
+      status,
+      output.trim()
+    ));
+  }
+
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn rpi_pin_write_level(id: String, gpio: u32, level: u8) -> Result<(), String> {
+  let normalized = match level {
+    1 => "dh",
+    0 => "dl",
+    other => return Err(format!("Nivel no soportado: {} (usa 0 o 1)", other)),
+  };
+
+  let arc_cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    let s = map.get_mut(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    if let Some(existing) = s.sftp_cached.clone() {
+      existing
+    } else {
+      let (tcp, sess2) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
+        .map_err(|e| e.to_string())?;
+      let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess: sess2 }));
+      s.sftp_cached = Some(arc.clone());
+      arc
+    }
+  };
+
+  let (status, output) = {
+    let guard = arc_cached.lock().map_err(|_| "ssh2 lock poisoned")?;
+    let mut ch = guard.sess.channel_session().map_err(|e| e.to_string())?;
+    let command = format!("raspi-gpio set {} {}", gpio, normalized);
+    ch.exec(&command).map_err(|e| e.to_string())?;
+    use std::io::Read;
+    let mut buf = String::new();
+    let _ = ch.read_to_string(&mut buf);
+    let _ = ch.wait_close();
+    let status = ch.exit_status().unwrap_or(0);
+    (status, buf)
+  };
+
+  if status != 0 {
+    return Err(format!(
+      "raspi-gpio set devolvió código {}: {}",
+      status,
+      output.trim()
+    ));
+  }
+
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn rpi_pin_read(id: String, gpio: u32) -> Result<RpiGpioLine, String> {
+  let arc_cached = {
+    let mut map = SESSIONS.lock().unwrap();
+    let s = map.get_mut(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+    if let Some(existing) = s.sftp_cached.clone() {
+      existing
+    } else {
+      let (tcp, sess2) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
+        .map_err(|e| e.to_string())?;
+      let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess: sess2 }));
+      s.sftp_cached = Some(arc.clone());
+      arc
+    }
+  };
+
+  let out = {
+    let guard = arc_cached.lock().map_err(|_| "ssh2 lock poisoned")?;
+    let mut ch = guard.sess.channel_session().map_err(|e| e.to_string())?;
+    let command = format!("raspi-gpio get {}", gpio);
+    ch.exec(&command).map_err(|e| e.to_string())?;
+    use std::io::Read;
+    let mut buf = String::new();
+    let _ = ch.read_to_string(&mut buf);
+    let _ = ch.wait_close();
+    buf
+  };
+
+  let re = Regex::new(r"(?i)^GPIO\s+(\d+)\s*:\s*(?:level=(\d))?.*?func=([A-Z0-9]+)(?:.*?pull=([A-Z]+))?")
+    .map_err(|e| e.to_string())?;
+  for line in out.lines() {
+    if let Some(c) = re.captures(line) {
+      let gpio: u32 = c.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+      let level: Option<u8> = c.get(2).and_then(|m| m.as_str().parse().ok());
+      let func = c.get(3).map(|m| m.as_str().to_string()).unwrap_or_else(|| "".into());
+      let pull = c.get(4).map(|m| m.as_str().to_string());
+      return Ok(RpiGpioLine { gpio, level, func, pull });
+    }
+  }
+
+  Err("No se pudo parsear la salida de raspi-gpio".into())
+}
+
+#[tauri::command]
 pub async fn ssh_connect_stored(
   app: AppHandle,
   state: tauri::State<'_, AppState>,
