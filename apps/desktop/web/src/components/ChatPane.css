@@ -7,15 +7,17 @@
   --chat-input-base-height: calc(var(--chat-input-line-height) + (var(--chat-input-padding-y) * 2)); 
   --chat-input-min-height: var(--chat-input-base-height); 
   width: clamp(var(--pane-min), var(--pane-ideal), var(--pane-max));
+  height: 100%;
   display: flex;
   flex-direction: column;
-
   background-color: var(--background-secondary);
   --chat-send-size: var(--chat-input-base-height);
+  overflow: hidden; /* Importante: evita que el pane crezca más allá de su contenedor */
 }
 
 /* Header del chat con controles */
 .chat-header {
+  flex-shrink: 0; /* No se comprime nunca */
   padding: 10px;
   background: var(--background-secondary);
   border-bottom: 1px solid var(--border-color);
@@ -107,6 +109,7 @@
 .message.analisis { border-left: 3px solid #8b5cf6; }
 
 .mode-help {
+  flex-shrink: 0; /* No se comprime nunca */
   font-size: 12px;
   padding: 4px 12px 8px;
   color: var(--text-secondary);
@@ -270,9 +273,11 @@
 .chat-header select:focus { outline: 2px solid var(--accent-primary-hover); outline-offset: 2px; }
 
 .chat-messages {
-  flex-grow: 1;
+  flex: 1 1 auto; /* Crece para ocupar espacio disponible */
+  min-height: 0; /* Importante: permite que el scroll funcione correctamente */
   padding: 10px 10px 24px; 
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -351,6 +356,7 @@
 }
 
 .chat-input {
+  flex-shrink: 0; /* NUNCA se comprime - siempre visible */
   --chat-gap: 6px;
   --chat-input-min-height: 38px;     
   --chat-input-height: auto;        
@@ -373,6 +379,7 @@
   border-top: 1px solid var(--border-color);
   height: var(--chat-input-height);
   min-height: var(--chat-input-min-height);
+  background-color: var(--background-secondary); /* Asegura que tenga fondo */
 }
 
 .chat-input textarea {
