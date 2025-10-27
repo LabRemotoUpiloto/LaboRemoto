@@ -259,7 +259,7 @@ cd /ruta/deseada
   // Determinar qué API key usar según el modelo seleccionado
   let api_key = if proxy_url.is_none() {
     if model_selection.is_claude() {
-      env::var("CLAUDE_CODE_API_KEY").ok()
+      crate::cmd::ai_utils::get_claude_api_key()
     } else {
       crate::cmd::ai_utils::get_openai_api_key()
     }
@@ -268,7 +268,7 @@ cd /ruta/deseada
   };
   
   if proxy_url.is_none() && api_key.is_none() {
-    let key_type = if model_selection.is_claude() { "CLAUDE_CODE_API_KEY" } else { "OPENAI_API_KEY (o variantes como OPENAI_API_KEY3P)" };
+    let key_type = if model_selection.is_claude() { "CLAUDE_API_KEY" } else { "OPENAI_API_KEY" };
     return Err(format!("{} not set", key_type));
   }
 
