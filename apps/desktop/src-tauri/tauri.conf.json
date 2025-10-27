@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ssh-ai-client",
+  "productName": "Cliente SSH Unipiloto",
   "version": "0.1.6",
   "identifier": "co.unipiloto.sshclient",
   "build": {
