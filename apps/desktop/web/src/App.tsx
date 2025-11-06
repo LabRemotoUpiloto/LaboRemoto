@@ -11,6 +11,7 @@ import SavedHostsPage from './pages/SavedHostsPage'
 import ConnectFormPage from './pages/ConnectFormPage'
 import LandingPage from './pages/LandingPage'
 import LogsPage from './pages/LogsPage'
+import LogDetailPage from './pages/LogDetailPage'
 import { connectFromHost } from './api/storage'
 import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/modals/GlobalLoader'
@@ -28,7 +29,7 @@ import { relaunch } from '@tauri-apps/plugin-process'
 
 const App: React.FC = () => {
   // Representa una pestaña: 'home' (persistente) o 'session' (SSH)
-  type Tab = { id: string; type: 'home' | 'session'; label: string }
+  type Tab = { id: string; type: 'home' | 'session' | 'log'; label: string; logData?: import('./components/logs/SessionCard').SessionLog }
   const HOME_ID = 'home'
   const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_ID, type: 'home', label: 'Inicio' }])
   const [activeTabId, setActiveTabId] = useState<string>(HOME_ID)
@@ -89,6 +90,18 @@ const App: React.FC = () => {
     openSession(id, label)
     // Asegurar que al conectar, la página esté en 'connect' para mostrar el terminal
     setSelectedPage('connect')
+  }
+
+  // Abrir un log en una pestaña nueva
+  const openLogTab = (session: import('./components/logs/SessionCard').SessionLog) => {
+    const logTabId = `log:${session.id}`
+    const logLabel = `Log ${session.user}@${session.host}`
+    setTabs(prev => {
+      const exists = prev.some(t => t.id === logTabId)
+      if (exists) return prev
+      return [...prev, { id: logTabId, type: 'log', label: logLabel, logData: session }]
+    })
+    setActiveTabId(logTabId)
   }
 
   const handleTabClick = (id: string) => {
@@ -324,7 +337,7 @@ const App: React.FC = () => {
               ) : selectedPage === 'themes' ? (
                 <ThemesPage />
               ) : selectedPage === 'logs' ? (
-                <LogsPage />
+                <LogsPage onOpenLog={openLogTab} />
               ) : selectedPage === 'sftp' ? (
                 <SftpPage
                   sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
@@ -368,7 +381,15 @@ const App: React.FC = () => {
                 
                 {/* Logs solo se renderiza cuando selectedPage es 'logs' */}
                 {selectedPage === 'logs' && (
-                  <LogsPage />
+                  <LogsPage onOpenLog={openLogTab} />
+                )}
+              </div>
+            ))}
+            {/* Pestañas de Logs */}
+            {tabs.filter(t => t.type==='log').map(t => (
+              <div key={t.id} style={{display: activeTabId===t.id ? 'block':'none', height:'100%', width:'100%'}}>
+                {t.logData && (
+                  <LogDetailPage session={t.logData} />
                 )}
               </div>
             ))}

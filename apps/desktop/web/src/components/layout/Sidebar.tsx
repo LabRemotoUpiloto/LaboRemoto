@@ -58,16 +58,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Filtrar items especiales basado en la sesión activa
   const getFilteredSpecialItems = () => {
     // Mostrar pines y cámara solo si hay una sesión activa de Raspberry Pi 
-    // Y solo cuando estás viendo el terminal (no en SFTP, Snippets, etc.)
+    // Y solo cuando estás viendo el terminal (no en SFTP, Snippets, Temas, Logs, etc.)
     const isRaspberryPiSession = activeSessionId && (
       activeSessionId.includes('200.115.181.211') ||
       activeSessionId.includes('Raspberry Pi')
     )
-    
-    const isInTerminalView = selectedPage !== 'sftp' && selectedPage !== 'snippets' && selectedPage !== 'themes'
-    
-    const shouldShowRaspberryFeatures = isRaspberryPiSession && isInTerminalView
-    
+
+    // Páginas donde NO se deben mostrar los botones especiales
+    const pagesWithoutSpecialItems = ['sftp', 'snippets', 'themes', 'logs']
+    const isInTerminalView = !pagesWithoutSpecialItems.includes(selectedPage)
+
+    const shouldShowRaspberryFeatures = !!isRaspberryPiSession && isInTerminalView
+
     return shouldShowRaspberryFeatures ? specialItems : []
   }
   
