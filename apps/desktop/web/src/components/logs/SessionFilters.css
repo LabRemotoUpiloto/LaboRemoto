@@ -1,0 +1,83 @@
+/* Filtros de sesiones */
+.session-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 24px;
+  padding: 1.5rem;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-group label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.filter-input,
+.filter-select {
+  padding: 0.6rem 0.8rem;
+  background: var(--background-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+.filter-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.refresh-button {
+  padding: 0.6rem 1rem;
+  background: var(--background-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+}
+
+.refresh-button:hover {
+  background: var(--background-hover);
+  border-color: var(--accent-primary);
+}
+
+.refresh-button:active {
+  transform: scale(0.95);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .session-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    min-width: auto;
+  }
+}

@@ -1,0 +1,120 @@
+/* ==================== LAYOUT PRINCIPAL ==================== */
+.logs-page {
+  /* Override global .page-content styles */
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  
+  /* Layout con header fijo y contenido scrollable */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+/* Header fijo en la parte superior - alineado con sidebar */
+.logs-page__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px 16px 24px; /* Alineado con .page-content padding */
+  border-bottom: 1px solid var(--border-subtle); /* Mismo color que sidebar-toggle-wrapper */
+  background: var(--background-primary);
+  z-index: 10;
+}
+
+.page-title {
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Separador visual entre título y descripción */
+.page-separator {
+  color: var(--accent-primary);
+  font-size: 18px;
+  font-weight: 700;
+  opacity: 0.6;
+  flex-shrink: 0;
+  line-height: 1;
+  user-select: none;
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0;
+  padding: 0;
+  line-height: 1.4;
+  flex: 1;
+  font-weight: 400;
+  opacity: 0.85;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Contenedor scrollable */
+.logs-page__scrollable {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding-top: 24px;
+}
+
+/* Contenedor interno con padding - alineado con la sidebar */
+.logs-page-inner {
+  padding: 0 24px 32px 24px; /* Alineado con la línea de la sidebar */
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Scrollbar personalizado para el área scrollable */
+.logs-page__scrollable::-webkit-scrollbar {
+  width: 10px;
+}
+
+.logs-page__scrollable::-webkit-scrollbar-track {
+  background: var(--background-tertiary);
+}
+
+.logs-page__scrollable::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 5px;
+}
+
+.logs-page__scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .logs-page__header {
+    padding: 16px 16px 14px 16px;
+  }
+
+  .logs-page-inner {
+    padding: 0 16px 24px 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-description {
+    display: none; /* Ocultar descripción en móvil para ahorrar espacio */
+  }
+
+  .page-separator {
+    display: none;
+  }
+}

@@ -10,6 +10,7 @@ import ConnectForm from './components/connect/ConnectForm'
 import SavedHostsPage from './pages/SavedHostsPage'
 import ConnectFormPage from './pages/ConnectFormPage'
 import LandingPage from './pages/LandingPage'
+import LogsPage from './pages/LogsPage'
 import { connectFromHost } from './api/storage'
 import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/modals/GlobalLoader'
@@ -322,6 +323,8 @@ const App: React.FC = () => {
                 />
               ) : selectedPage === 'themes' ? (
                 <ThemesPage />
+              ) : selectedPage === 'logs' ? (
+                <LogsPage />
               ) : selectedPage === 'sftp' ? (
                 <SftpPage
                   sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
@@ -344,8 +347,8 @@ const App: React.FC = () => {
             {/* Sesiones SSH persistentes */}
             {tabs.filter(t => t.type==='session').map(t => (
               <div key={t.id} style={{display: activeTabId===t.id ? 'block':'none', height:'100%', width:'100%'}}>
-                {/* Terminal siempre montado, se oculta con CSS cuando se muestra SFTP o Snippets */}
-                <div style={{display: selectedPage === 'sftp' || selectedPage === 'snippets' ? 'none' : 'block', height:'100%', width:'100%'}}>
+                {/* Terminal siempre montado, se oculta con CSS cuando se muestra SFTP, Snippets o Logs */}
+                <div style={{display: selectedPage === 'sftp' || selectedPage === 'snippets' || selectedPage === 'logs' ? 'none' : 'block', height:'100%', width:'100%'}}>
                   <TerminalView sessionId={t.id} isCameraOpen={isCameraOpen} />
                 </div>
                 
@@ -361,6 +364,11 @@ const App: React.FC = () => {
                 {/* Snippets solo se renderiza cuando selectedPage es 'snippets' */}
                 {selectedPage === 'snippets' && (
                   <SnippetsPage />
+                )}
+                
+                {/* Logs solo se renderiza cuando selectedPage es 'logs' */}
+                {selectedPage === 'logs' && (
+                  <LogsPage />
                 )}
               </div>
             ))}
