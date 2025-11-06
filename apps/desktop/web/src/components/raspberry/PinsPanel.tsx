@@ -71,6 +71,8 @@ const COLORS = {
   gpioAlt: 'var(--accent-strong, var(--accent-primary))',
   other: 'color-mix(in srgb, var(--pinout-muted) 65%, transparent)',
   idle: 'color-mix(in srgb, var(--pinout-muted) 45%, transparent)',
+  high: 'var(--success)',
+  low: 'color-mix(in srgb, var(--text-primary) 25%, transparent)'
 }
 
 const resolveColor = (pin: PinDefinition, line: Line | undefined) => {
@@ -81,6 +83,7 @@ const resolveColor = (pin: PinDefinition, line: Line | undefined) => {
   if (!line) return COLORS.idle
 
   const func = line.func.toUpperCase()
+  // Color del círculo según el modo (INPUT/OUTPUT/ALT)
   if (func.includes('INPUT')) return COLORS.gpioInput
   if (func.includes('OUTPUT')) return COLORS.gpioOutput
   return COLORS.gpioAlt
@@ -108,6 +111,33 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const [selectedPin, setSelectedPin] = useState<number | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [descriptions, setDescriptions] = useState<Record<number, string>>({})
+  const [showSummary, setShowSummary] = useState(false)
+
+  // Pines reservados por defecto (advertencias/bloqueo)
+  const RESERVED: Record<string, number[]> = useMemo(() => ({
+    I2C: [2, 3],
+    UART: [14, 15],
+    SPI: [7, 8, 9, 10, 11],
+    EEPROM: [0, 1],
+  }), [])
+
+  const RESERVED_SET = useMemo(() => new Set(Object.values(RESERVED).flat()), [RESERVED])
+  const isReserved = useCallback((gpio?: number | null) => gpio != null && RESERVED_SET.has(gpio), [RESERVED_SET])
+
+  // Storage para descripciones por sesión
+  const storageKey = useMemo(() => `pins:descriptions:${sessionId}`, [sessionId])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey)
+      if (raw) setDescriptions(JSON.parse(raw))
+    } catch {}
+  }, [storageKey])
+  const persistDescriptions = useCallback((next: Record<number, string>) => {
+    setDescriptions(next)
+    try { localStorage.setItem(storageKey, JSON.stringify(next)) } catch {}
+  }, [storageKey])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -133,6 +163,13 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   useEffect(() => {
     load()
   }, [load])
+
+  // Auto-actualizar cada 1s si está activado
+  useEffect(() => {
+    if (!autoRefresh) return
+    const t = window.setInterval(() => { load() }, 1000)
+    return () => { try { window.clearInterval(t) } catch {} }
+  }, [autoRefresh, load])
 
   const gpioMap = useMemo(() => {
     const map = new Map<number, Line>()
@@ -161,6 +198,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
   const setMode = async (mode: 'input' | 'output') => {
     if (!selectedDefinition || selectedDefinition.gpio == null) return
+    if (isReserved(selectedDefinition.gpio)) { setMessage('⚠ Pin reservado: operación bloqueada.'); return }
     setActionLoading(true)
     setMessage(null)
     try {
@@ -178,23 +216,85 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     }
   }
 
+  const setPull = async (pull: 'up' | 'down' | 'none') => {
+    if (!selectedDefinition || selectedDefinition.gpio == null) return
+    if (isReserved(selectedDefinition.gpio)) { setMessage('⚠ Pin reservado: operación bloqueada.'); return }
+    setActionLoading(true)
+    setMessage(null)
+    try {
+      await invoke('rpi_pin_set_pull', { id: sessionId, gpio: selectedDefinition.gpio, pull })
+      await load()
+      const label = pull === 'up' ? 'Pull-Up' : pull === 'down' ? 'Pull-Down' : 'Sin pull'
+      setMessage(`GPIO ${selectedDefinition.gpio}: ${label}.`)
+    } catch (e: any) {
+      setMessage(e?.toString?.() ?? 'No se pudo configurar el pull del pin')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const writeLevel = async (level: 0 | 1) => {
+    if (!selectedDefinition || selectedDefinition.gpio == null) return
+    if (isReserved(selectedDefinition.gpio)) { setMessage('⚠ Pin reservado: operación bloqueada.'); return }
+    setActionLoading(true)
+    setMessage(null)
+    try {
+      await invoke('rpi_pin_write_level', { id: sessionId, gpio: selectedDefinition.gpio, level })
+      await load()
+      setMessage(`GPIO ${selectedDefinition.gpio}: nivel ${level === 1 ? 'alto' : 'bajo'}.`)
+    } catch (e: any) {
+      setMessage(e?.toString?.() ?? 'No se pudo escribir el nivel del pin')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const readNow = async () => {
+    if (!selectedDefinition || selectedDefinition.gpio == null) return
+    try {
+      const r: any = await invoke('rpi_pin_read', { id: sessionId, gpio: selectedDefinition.gpio })
+      const updated: Line = {
+        gpio: Number(r.gpio),
+        level: r.level == null ? null : Number(r.level),
+        func: String(r.func || ''),
+        pull: r.pull == null ? null : String(r.pull),
+      }
+      setData(prev => {
+        const list = prev ? [...prev] : []
+        const idx = list.findIndex(x => x.gpio === updated.gpio)
+        if (idx >= 0) list[idx] = updated; else list.push(updated)
+        return list
+      })
+    } catch (e: any) {
+      setMessage(e?.toString?.() ?? 'No se pudo leer el estado del pin')
+    }
+  }
+
   const renderNode = (pin: PinDefinition, line: Line | undefined, isSelected: boolean) => {
     const color = resolveColor(pin, line)
+    const level = line?.level
+    const dotColor = level == null ? 'transparent' : level === 1 ? COLORS.high : COLORS.low
+    const occupied = pin.gpio != null && (isReserved(pin.gpio) || ((line?.func || '').toUpperCase().startsWith('ALT')))
+    const title = pin.gpio != null
+      ? `GPIO ${pin.gpio} · ${line?.func ?? '—'} · ${line?.level == null ? 'sin nivel' : (line.level === 1 ? 'HIGH' : 'LOW')}`
+      : pin.label
     return (
       <button
         type="button"
         key={pin.physical}
-        className={`pinout-node${isSelected ? ' selected' : ''}${pin.gpio == null ? ' static' : ''}`}
+        className={`pinout-node${isSelected ? ' selected' : ''}${pin.gpio == null ? ' static' : ''}${occupied ? ' occupied' : ''}`}
         onClick={() => handlePinClick(pin)}
+        title={title}
       >
         <span className="pinout-node-number">{pin.physical}</span>
         <span className="pinout-node-circle" style={{ backgroundColor: color }}>
-          <span className="pinout-node-dot" />
+          <span className="pinout-node-dot" style={{ backgroundColor: dotColor }} />
+          {occupied && <span className="pinout-node-badge" title="Ocupado (reservado/ALT)" />}
         </span>
         <span className="pinout-node-label">{pin.gpio != null ? `GPIO ${pin.gpio}` : pin.label}</span>
         {pin.alias && <span className="pinout-node-alias">{pin.alias}</span>}
         {pin.gpio != null && line && (
-          <span className="pinout-node-meta">
+          <span className="pinout-node-status">
             {line.func}
             {line.level == null ? '' : line.level === 1 ? ' • Nivel alto' : ' • Nivel bajo'}
           </span>
@@ -220,6 +320,13 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
   const renderDetail = () => {
     if (!selectedDefinition) return null
+    const reserved = isReserved(selectedDefinition.gpio)
+    const desc = selectedDefinition.gpio != null ? (descriptions[selectedDefinition.gpio] || '') : ''
+    const setDesc = (value: string) => {
+      if (selectedDefinition.gpio == null) return
+      const next = { ...descriptions, [selectedDefinition.gpio]: value }
+      persistDescriptions(next)
+    }
     return (
       <div className="pinout-detail-view">
         <button type="button" className="pinout-back" onClick={handleBack}>
@@ -227,10 +334,30 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         </button>
 
         <h3 className="pinout-detail-title">Pin físico {selectedDefinition.physical}</h3>
+
         <div className="pinout-detail-block">
-          <span className="pinout-detail-label">Descripción</span>
-          <span>{selectedDefinition.label}</span>
+          <span className="pinout-detail-label">Propósito (editable)</span>
+          <div className="pinout-desc-row">
+            <input
+              className="pinout-desc-input"
+              type="text"
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+              placeholder="Ej: Sensor de puerta, Relé 1"
+            />
+          </div>
         </div>
+
+        {reserved && (
+          <div className="pinout-warning">
+            ⚠ Este pin está asociado a un periférico del sistema.
+            {selectedDefinition.gpio === 2 || selectedDefinition.gpio === 3 ? ' (I2C SDA/SCL)' : ''}
+            {selectedDefinition.gpio === 14 || selectedDefinition.gpio === 15 ? ' (UART TX/RX)' : ''}
+            {([7, 8, 9, 10, 11] as number[]).includes(selectedDefinition.gpio as number) ? ' (SPI)' : ''}
+            Cambiarlo puede afectar sensores o la consola serie.
+          </div>
+        )}
+
         {selectedDefinition.alias && (
           <div className="pinout-detail-block">
             <span className="pinout-detail-label">Alias</span>
@@ -244,6 +371,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               <span className="pinout-detail-label">GPIO</span>
               <span>GPIO {selectedDefinition.gpio}</span>
             </div>
+
             <div className="pinout-detail-block">
               <span className="pinout-detail-label">Función actual</span>
               <span>{formatFunction(selectedStatus)}</span>
@@ -262,10 +390,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
                 type="button"
                 className="pinout-action"
                 onClick={() => setMode('input')}
-                disabled={
-                  actionLoading ||
-                  !!selectedStatus?.func?.toUpperCase().includes('INPUT')
-                }
+                disabled={actionLoading || !!selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
               >
                 Configurar como entrada
               </button>
@@ -273,12 +398,58 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
                 type="button"
                 className="pinout-action"
                 onClick={() => setMode('output')}
-                disabled={
-                  actionLoading ||
-                  !!selectedStatus?.func?.toUpperCase().includes('OUTPUT')
-                }
+                disabled={actionLoading || !!selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
               >
                 Configurar como salida
+              </button>
+
+              <button
+                type="button"
+                className="pinout-action"
+                onClick={() => setPull('up')}
+                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
+              >
+                Pull-Up (INPUT)
+              </button>
+              <button
+                type="button"
+                className="pinout-action"
+                onClick={() => setPull('down')}
+                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
+              >
+                Pull-Down (INPUT)
+              </button>
+              <button
+                type="button"
+                className="pinout-action"
+                onClick={() => setPull('none')}
+                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
+              >
+                Sin pull (INPUT)
+              </button>
+              <button
+                type="button"
+                className="pinout-action"
+                onClick={() => writeLevel(1)}
+                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
+              >
+                Escribir HIGH (1)
+              </button>
+              <button
+                type="button"
+                className="pinout-action"
+                onClick={() => writeLevel(0)}
+                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
+              >
+                Escribir LOW (0)
+              </button>
+              <button
+                type="button"
+                className="pinout-action"
+                onClick={readNow}
+                disabled={actionLoading}
+              >
+                Leer ahora
               </button>
             </div>
           </>
@@ -314,8 +485,55 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       {error && <div className="pinout-error">{error}</div>}
       {isDetail && message && !error && <div className="pinout-message">{message}</div>}
 
+      <div className="pinout-toolbar">
+        <label className="pinout-checkbox"><input type="checkbox" checked={showSummary} onChange={e => setShowSummary(e.target.checked)} /> Mostrar resumen</label>
+      </div>
+
       <div className="pinout-content">
-        {isDetail ? renderDetail() : renderGrid()}
+        {isDetail ? renderDetail() : (
+          <>
+            {renderGrid()}
+            {showSummary && (
+              <div className="pinout-summary">
+                <table className="pinout-table">
+                  <thead>
+                    <tr>
+                      <th>Físico</th>
+                      <th>GPIO</th>
+                      <th>Modo</th>
+                      <th>Pull</th>
+                      <th>Estado</th>
+                      <th>Propósito</th>
+                      <th>Ocupado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PIN_DEFINITIONS.filter(p => p.gpio != null).map(p => {
+                      const line = gpioMap.get(p.gpio!)
+                      const func = (line?.func || '').toUpperCase()
+                      const modo = func.includes('INPUT') ? 'INPUT' : func.includes('OUTPUT') ? 'OUTPUT' : func || '—'
+                      const estado = line?.level == null ? '—' : (line.level === 1 ? 'HIGH' : 'LOW')
+                      const pull = line?.pull || (modo === 'OUTPUT' ? '—' : 'NONE')
+                      const desc = descriptions[p.gpio!] || ''
+                      const ocupado = isReserved(p.gpio) || func.startsWith('ALT')
+                      return (
+                        <tr key={p.gpio} onClick={() => handlePinClick(p)} className="pinout-row-clickable">
+                          <td>{p.physical}</td>
+                          <td>{p.gpio}</td>
+                          <td>{modo}</td>
+                          <td>{pull}</td>
+                          <td>{estado}</td>
+                          <td title={desc}>{desc || '—'}</td>
+                          <td>{ocupado ? 'Ocupado' : 'Libre'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <footer className="pinout-legend">
@@ -329,6 +547,12 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
           <span className="pinout-legend-color" style={{ backgroundColor: COLORS.gpioAlt }} /> Función alternativa
         </div>
         <div className="pinout-legend-item">
+          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.high }} /> HIGH (1)
+        </div>
+        <div className="pinout-legend-item">
+          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.low }} /> LOW (0)
+        </div>
+        <div className="pinout-legend-item">
           <span className="pinout-legend-color" style={{ backgroundColor: COLORS.power5 }} /> Alimentación 5V
         </div>
         <div className="pinout-legend-item">
@@ -336,6 +560,9 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         </div>
         <div className="pinout-legend-item">
           <span className="pinout-legend-color" style={{ backgroundColor: COLORS.ground }} /> Suelo
+        </div>
+        <div className="pinout-legend-item">
+          <span className="pinout-legend-badge" /> Ocupado (reservado/ALT)
         </div>
       </footer>
     </div>

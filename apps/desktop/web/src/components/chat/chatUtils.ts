@@ -45,19 +45,10 @@ export const cleanText = (text: string) => {
   const result = lines.join('\n')
     .replace(/:\s*\b(?:bash|sh|shell)\b/gmi, ': ')
     .replace(/^Comando sugerido:\s*/gmi, '')
-    .replace(/"""/g, '')
     .replace(/^\s+|\s+$/g, '')
     .trim();
   
-  // DEBUG: Log del resultado
-  if (isCalculadora) {
-    console.log('[cleanText] ===== SALIDA =====');
-    console.log('[cleanText] Resultado (primeros 800 chars):', result.substring(0, 800));
-    console.log('[cleanText] ¿Contiene "```bash"?:', result.includes('```bash'));
-    console.log('[cleanText] ¿Contiene "chmod +x calculadora.sh"?:', result.includes('chmod +x calculadora.sh'));
-    console.log('[cleanText] ¿Contiene "chmod +x calculadora."?:', result.includes('chmod +x calculadora.'));
-    console.log('[cleanText] ========================');
-  }
+
   
   return result;
 };
