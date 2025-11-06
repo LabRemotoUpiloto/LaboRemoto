@@ -1,0 +1,143 @@
+/* Tarjeta de sesión */
+.session-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 120px;
+  max-width: 320px;
+  box-sizing: border-box;
+}
+
+.session-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.session-card.selected {
+  border-color: var(--accent-primary);
+  background: var(--background-tertiary);
+}
+
+.session-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.session-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-info h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-port {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Badges de estado */
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.status-active {
+  background: rgba(46, 160, 67, 0.15);
+  color: #3fb950;
+  border: 1px solid rgba(46, 160, 67, 0.3);
+}
+
+.status-completed {
+  background: rgba(88, 166, 255, 0.15);
+  color: #58a6ff;
+  border: 1px solid rgba(88, 166, 255, 0.3);
+}
+
+.status-error {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+  border: 1px solid rgba(248, 81, 73, 0.3);
+}
+
+/* Cuerpo de la tarjeta */
+.session-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.5rem 0;
+}
+
+.session-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detail-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* Footer de la tarjeta */
+.session-card-footer {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.view-buffer-btn,
+.view-commands-btn {
+  flex: 1;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--background-tertiary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-buffer-btn:hover,
+.view-commands-btn:hover {
+  background: var(--background-hover);
+  border-color: var(--accent-primary);
+}
+
+.view-buffer-btn:active,
+.view-commands-btn:active {
+  transform: scale(0.97);
+}
