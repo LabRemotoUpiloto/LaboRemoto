@@ -12,6 +12,7 @@ pub mod local;   // Acceso a FS local
 pub mod hosts;   // Comandos de almacenamiento de hosts (envolturas de crate::storage)
 pub mod agent;   // Modo agente (planificación y tools internas) - puede depreciarse
 pub mod search_shared; // Búsqueda remota compartida
+pub mod logs;    // Sistema de logs de sesión (captura de buffers SSH)
 
 // Re-exportar comandos para no cambiar rutas usadas en lib.rs
 pub use ai::{ai_chat, AiChatRequest, AiChatResponse};
@@ -21,3 +22,4 @@ pub use local::*;
 pub use hosts::*;
 pub use agent::{agent_plan, AgentPlanRequest, AgentPlanResponse, ToolActionResult, FsSearchMatch};
 pub use file_edit::{analyze_file, analyze_any_file, plan_file_edit, apply_file_edit, list_file_backups, revert_file, AnalyzeFileResponse, PlanFileEditRequest, PlanFileEditResponse, ApplyFileEditRequest, ApplyFileEditResponse, ListBackupsResponse, RevertFileRequest, RevertFileResponse, AiRemoteEditRequest, AiRemoteEditResponse, ai_remote_edit_file};
+pub use logs::{save_session_log, list_session_logs, get_session_log_content, get_session_log, delete_session_log, cleanup_old_session_logs};

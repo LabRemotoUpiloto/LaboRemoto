@@ -71,6 +71,13 @@ pub fn run() {
       crate::state::mem_get,
       crate::state::mem_clear,
       crate::state::mem_push_terminal_result,
+      // Session logs (captura de buffers SSH)
+      cmd::logs::save_session_log,
+      cmd::logs::list_session_logs,
+      cmd::logs::get_session_log_content,
+      cmd::logs::get_session_log,
+      cmd::logs::delete_session_log,
+      cmd::logs::cleanup_old_session_logs,
       // (Persistence happens automatically on put/get/clear; explicit commands not needed)
     ])
     .run(tauri::generate_context!())
