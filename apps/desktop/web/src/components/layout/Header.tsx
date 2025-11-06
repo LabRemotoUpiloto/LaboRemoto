@@ -2,7 +2,7 @@ import React from 'react';
 import './Header.css';
 import { useToasts } from '../../contexts/ToastContext';
 
-type Tab = { id: string; type: 'home' | 'session'; label: string }
+type Tab = { id: string; type: 'home' | 'session' | 'log'; label: string }
 interface HeaderProps {
   tabs: Tab[];
   activeTabId: string;
@@ -28,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({ tabs, activeTabId, onTabClick, onCloseT
             tabIndex={activeTabId === t.id ? 0 : -1}
           >
             <span title={t.label}>{t.label}</span>
-            {t.type === 'session' && (
+            {(t.type === 'session' || t.type === 'log') && (
               <button 
                 className="close-tab" 
                 onClick={(e) => { e.stopPropagation(); onCloseTab(t.id); }}
