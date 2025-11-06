@@ -2,13 +2,15 @@ import React, { useEffect, useState } from 'react'
 import './LogsPage.css'
 import SessionFilters from '../components/logs/SessionFilters'
 import SessionsGrid from '../components/logs/SessionsGrid'
-import SessionDetailPanel from '../components/logs/SessionDetailPanel'
 import type { SessionLog } from '../components/logs/SessionCard'
 
-const LogsPage: React.FC = () => {
+interface LogsPageProps {
+  onOpenLog?: (session: SessionLog) => void
+}
+
+const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const [sessions, setSessions] = useState<SessionLog[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedSession, setSelectedSession] = useState<SessionLog | null>(null)
   const [filterUser, setFilterUser] = useState('')
   const [filterHost, setFilterHost] = useState('')
 
@@ -74,12 +76,14 @@ const LogsPage: React.FC = () => {
 
   const handleViewBuffer = (session: SessionLog) => {
     console.log('Ver buffer de sesión:', session.id)
-    // TODO: Implementar visualización del buffer
+    // Abrir el detalle del log en una nueva pestaña
+    onOpenLog?.(session)
   }
 
   const handleViewCommands = (session: SessionLog) => {
     console.log('Ver comandos de sesión:', session.id)
-    // TODO: Implementar visualización de comandos
+    // Abrir el detalle del log en una nueva pestaña
+    onOpenLog?.(session)
   }
 
   return (
@@ -104,19 +108,14 @@ const LogsPage: React.FC = () => {
 
           <SessionsGrid
             sessions={filteredSessions}
-            selectedSessionId={selectedSession?.id || null}
-            onSelectSession={setSelectedSession}
+            selectedSessionId={null}
+            onSelectSession={(s) => onOpenLog?.(s)}
             onViewBuffer={handleViewBuffer}
             onViewCommands={handleViewCommands}
             loading={loading}
           />
         </div>
       </div>
-
-      <SessionDetailPanel
-        session={selectedSession}
-        onClose={() => setSelectedSession(null)}
-      />
     </div>
   )
 }
