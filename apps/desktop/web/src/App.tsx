@@ -284,18 +284,6 @@ const App: React.FC = () => {
             />
             {isPinsVisible && (
               <aside className="pins-panel" aria-label="Panel de pines GPIO">
-                <div className="pins-panel__header">
-                  <strong className="pins-panel__title">📌 Pines GPIO</strong>
-                  <button
-                    onClick={closePinsPanel}
-                    className="pins-panel__close-button"
-                    type="button"
-                    title="Cerrar panel"
-                    aria-label="Cerrar panel de pines"
-                  >
-                    ×
-                  </button>
-                </div>
                 <div className="pins-panel__content">
                   <PinsPanel sessionId={activeTab.id} />
                 </div>
