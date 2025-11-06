@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import './App.css'
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
+import { navigateFromSidebar } from './navigation/navigation'
 import TerminalView from './components/terminal/TerminalView'
 import TerminalOnly from './components/terminal/TerminalOnly'
 import ConnectForm from './components/connect/ConnectForm'
@@ -268,33 +269,25 @@ const App: React.FC = () => {
               toggleSidebar={toggleSidebar}
               selectedPage={selectedPage}
               onSelectPage={(p) => {
-                // Limpiar pendingHost si se cambia de página (excepto cuando se va a 'connect' desde 'hosts')
-                if (p !== 'connect' && pendingHost) {
-                  setPendingHost(null);
-                }
-                
-                // Cerrar paneles laterales (pines, cámara) cuando cambias de página
-                if (p !== 'pins' && isPinsPanelOpen) {
-                  closePinsPanel();
-                }
-                if (p !== 'camera' && isCameraOpen) {
-                  setCameraOpen(false);
-                }
-                
-                // No cambiar el tab activo si se selecciona pines o cámara
-                if (p !== 'pins' && p !== 'camera') {
-                  // Solo cambiar a HOME si estás en una sesión y seleccionas una página que debe estar en HOME
-                  if (activeTab.type === 'session' && ['landing', 'connect', 'hosts', 'themes'].includes(p)) {
-                    setActiveTabId(HOME_ID)
-                  }
-                }
-                setSelectedPage(p)
+                navigateFromSidebar({
+                  page: p,
+                  activeTabType: activeTab.type,
+                  HOME_ID,
+                  setActiveTabId,
+                  setSelectedPage,
+                  pendingHost,
+                  setPendingHost,
+                  isPinsPanelOpen,
+                  closePinsPanel,
+                  isCameraOpen,
+                  setCameraOpen,
+                })
               }}
               activeSessionId={activeTab.type === 'session' ? activeTab.label : null}
-      isCameraOpen={isCameraOpen}
-      isPinsPanelOpen={isPinsPanelOpen}
-      onToggleCamera={toggleCameraPanel}
-      onTogglePins={togglePinsPanel}
+              isCameraOpen={isCameraOpen}
+              isPinsPanelOpen={isPinsPanelOpen}
+              onToggleCamera={toggleCameraPanel}
+              onTogglePins={togglePinsPanel}
             />
             {isPinsVisible && (
               <aside className="pins-panel" aria-label="Panel de pines GPIO">
