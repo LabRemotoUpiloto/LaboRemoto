@@ -3,11 +3,13 @@ import React, { useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { SerializeAddon } from '@xterm/addon-serialize';
 import 'xterm/css/xterm.css';
 import './TerminalPane.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useTheme } from '../../contexts/ThemeContext';
+import { captureAndSaveSession } from '../../api/sessionCapture';
 
 type Props = { sessionId: string | null };
 
@@ -18,6 +20,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const serializeRef = useRef<SerializeAddon | null>(null);
   const unlistenRef = useRef<(() => void) | null>(null);
   const hasFocusedOnceRef = useRef<boolean>(false);
   const focusLoopRef = useRef<number | null>(null);
@@ -28,6 +31,15 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const lastContainerSizeRef = useRef<{ width: number; height: number } | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  
+  // Metadatos de la sesión para captura de logs
+  const sessionMetadataRef = useRef<{
+    sessionId: string;
+    user: string;
+    host: string;
+    port: number;
+    startTime: string;
+  } | null>(null);
 
   // Only allow terminal to auto-focus when not interacting with other inputs (e.g., ChatPane textarea)
   const canRefocusTerminal = () => {
@@ -154,7 +166,9 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
   const term = new Terminal({ cursorBlink: true, cursorStyle: 'block', convertEol: true, allowProposedApi: true });
     const fit = new FitAddon();
+    const serialize = new SerializeAddon();
     term.loadAddon(fit);
+    term.loadAddon(serialize);
     term.loadAddon(new WebLinksAddon());
   // Asegura que el contenedor pueda recibir foco a nivel del navegador
   try { container.setAttribute('tabindex', '0'); container.setAttribute('role', 'textbox'); } catch {}
@@ -174,6 +188,7 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
     termRef.current = term;
     fitRef.current = fit;
+    serializeRef.current = serialize;
     // Initial theme
     try { applyXtermTheme(); } catch {}
     // Reaplicar tras el frame por si el atributo data-theme cambia después del efecto del provider
@@ -349,6 +364,31 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       }
       
       isResizingRef.current = false;
+      
+      // Capturar sesión antes de destruir el terminal
+      const captureBeforeDestroy = async () => {
+        const serialize = serializeRef.current;
+        const metadata = sessionMetadataRef.current;
+        
+        if (serialize && metadata) {
+          try {
+            const serializedContent = serialize.serialize();
+            if (serializedContent && serializedContent.length > 10) {
+              const endTime = new Date().toISOString();
+              await captureAndSaveSession(serializedContent, {
+                ...metadata,
+                endTime
+              });
+              console.log(`✅ Session captured on unmount: ${metadata.sessionId}`);
+            }
+          } catch (error) {
+            console.error('❌ Error capturing session on unmount:', error);
+          }
+        }
+      };
+      
+      captureBeforeDestroy();
+      
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
       if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
@@ -369,13 +409,61 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     const term = termRef.current;
     if (!term) return;
 
+    // Función para capturar y guardar la sesión actual antes de cambiar/cerrar
+    const captureCurrentSession = async () => {
+      const serialize = serializeRef.current;
+      const metadata = sessionMetadataRef.current;
+      
+      if (!serialize || !metadata) return;
+      
+      try {
+        const serializedContent = serialize.serialize();
+        
+        // Solo guardar si hay contenido significativo
+        if (serializedContent && serializedContent.length > 10) {
+          const endTime = new Date().toISOString();
+          
+          await captureAndSaveSession(serializedContent, {
+            ...metadata,
+            endTime
+          });
+          
+          console.log(`✅ Session captured: ${metadata.sessionId}`);
+        }
+      } catch (error) {
+        console.error('❌ Error capturing session:', error);
+      }
+    };
+
     // remove previous listeners
     if (unlistenRef.current) { try { unlistenRef.current(); } catch {} unlistenRef.current = null; }
+
+    // Capturar sesión anterior si existía
+    const previousMetadata = sessionMetadataRef.current;
+    if (previousMetadata && previousMetadata.sessionId !== sessionId) {
+      captureCurrentSession();
+    }
 
     const disposers: Array<{ dispose: () => void }> = [];
 
     if (sessionId) {
       const safe = sanitize(sessionId);
+      
+      // Obtener metadatos de la sesión para captura posterior
+      (async () => {
+        try {
+          const info = await invoke<{ host: string; port: number; user: string }>('ssh_session_info', { id: sessionId });
+          sessionMetadataRef.current = {
+            sessionId,
+            user: info.user,
+            host: info.host,
+            port: info.port,
+            startTime: new Date().toISOString()
+          };
+        } catch (error) {
+          console.warn('Could not fetch session info for logs:', error);
+        }
+      })();
       
       // Mostrar el indicador de carga cuando hay una nueva sesión
       setIsLoading(true);
@@ -485,6 +573,9 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       
       // Cleanup function para limpiar los intervalos
       return () => {
+        // Capturar sesión al cambiar
+        captureCurrentSession();
+        
         disposers.forEach(d => d.dispose());
         if (unlistenRef.current) { try { unlistenRef.current(); } catch {} unlistenRef.current = null; }
         if (contentCheckInterval) {
@@ -500,6 +591,9 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     }
 
     return () => {
+      // Capturar sesión al desmontar componente
+      captureCurrentSession();
+      
       disposers.forEach(d => d.dispose());
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} unlistenRef.current = null; }
     };

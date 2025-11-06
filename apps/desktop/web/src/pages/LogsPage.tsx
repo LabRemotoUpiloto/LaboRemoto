@@ -3,9 +3,24 @@ import './LogsPage.css'
 import SessionFilters from '../components/logs/SessionFilters'
 import SessionsGrid from '../components/logs/SessionsGrid'
 import type { SessionLog } from '../components/logs/SessionCard'
+import { listSessionLogs, type SessionLogMetadata } from '../api/sessionCapture'
 
 interface LogsPageProps {
   onOpenLog?: (session: SessionLog) => void
+}
+
+// Adaptador: convierte SessionLogMetadata del backend al formato SessionLog de la UI
+function adaptMetadataToSessionLog(metadata: SessionLogMetadata): SessionLog {
+  return {
+    id: metadata.session_id,
+    user: metadata.user,
+    host: metadata.host,
+    port: metadata.port,
+    startedAt: metadata.start_time,
+    endedAt: metadata.end_time,
+    duration: metadata.duration_seconds,
+    totalCommands: metadata.command_count ?? 0
+  }
 }
 
 const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
@@ -21,44 +36,15 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const loadSessions = async () => {
     setLoading(true)
     try {
-      // TODO: Implementar llamada al backend para obtener sesiones
-      // const { invoke } = await import('@tauri-apps/api/core')
-      // const result = await invoke('get_session_logs')
-      
-      // Datos de prueba temporales
-      const mockSessions: SessionLog[] = [
-        {
-          id: '123e4567-e89b-12d3-a456-426614174000',
-          user: 'admin',
-          host: '192.168.1.100',
-          port: 22,
-          startedAt: new Date(Date.now() - 3600000).toISOString(),
-          endedAt: new Date().toISOString(),
-          duration: 3600,
-          totalCommands: 45
-        },
-        {
-          id: '123e4567-e89b-12d3-a456-426614174001',
-          user: 'student1',
-          host: '200.115.181.211',
-          port: 9000,
-          startedAt: new Date(Date.now() - 7200000).toISOString(),
-          endedAt: new Date(Date.now() - 3600000).toISOString(),
-          duration: 3600,
-          totalCommands: 78
-        },
-        {
-          id: '123e4567-e89b-12d3-a456-426614174002',
-          user: 'student2',
-          host: '192.168.1.101',
-          port: 22,
-          startedAt: new Date(Date.now() - 1800000).toISOString(),
-          totalCommands: 23
-        }
-      ]
-      setSessions(mockSessions)
+      // Cargar logs reales desde el backend
+      const metadata = await listSessionLogs()
+      const adaptedSessions = metadata.map(adaptMetadataToSessionLog)
+      setSessions(adaptedSessions)
+      console.log(`✅ Loaded ${adaptedSessions.length} session logs`)
     } catch (error) {
       console.error('Error loading sessions:', error)
+      // Mostrar array vacío en caso de error
+      setSessions([])
     } finally {
       setLoading(false)
     }
