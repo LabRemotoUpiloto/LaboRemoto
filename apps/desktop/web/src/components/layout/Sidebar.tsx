@@ -10,7 +10,8 @@ import {
   CodeIcon, 
   PinIcon, 
   CameraIcon,
-  HomeIcon
+  HomeIcon,
+  FileTextIcon
 } from '../icons/SidebarIcons'
 
 interface SidebarProps {
@@ -29,6 +30,7 @@ const items = [
   { id: 'landing', label: 'Inicio', icon: HomeIcon },
   { id: 'connect', label: 'Connect', icon: MonitorIcon },
   { id: 'hosts', label: 'Hosts', icon: CompassIcon },
+  { id: 'logs', label: 'Logs', icon: FileTextIcon },
   { id: 'themes', label: 'Temas', icon: PaletteIcon },
   { id: 'sftp', label: 'SFTP', icon: FolderIcon },
   { id: 'snippets', label: 'Snippets', icon: CodeIcon },
