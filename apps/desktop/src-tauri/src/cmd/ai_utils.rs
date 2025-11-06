@@ -37,9 +37,22 @@ pub fn get_claude_api_key() -> Option<String> {
     // Cargar .env una vez por proceso
     static DID_DOTENV: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
     if let Ok(mut g) = DID_DOTENV.lock() { if !*g { let _ = dotenvy::dotenv(); *g = true; } }
-    // Preferir variable de entorno en tiempo de ejecución
-    if let Ok(raw) = std::env::var("CLAUDE_CODE_API_KEY") {
-        let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
+    
+    // Intentar múltiples nombres de variables para la API key de Claude
+    let possible_keys = ["CLAUDE_API_KEY", "CLAUDE_CODE_API_KEY"];
+    
+    for key_name in possible_keys.iter() {
+        if let Ok(raw) = std::env::var(key_name) {
+            let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
+            if !trimmed.is_empty() && trimmed.len() >= 40 { 
+                return Some(trimmed); 
+            }
+        }
+    }
+    
+    // Fallback opcional: clave embebida en tiempo de compilación (si se proveyó)
+    if let Some(baked) = option_env!("COMPILED_CLAUDE_KEY") {
+        let trimmed = baked.trim().trim_matches('\'').trim_matches('"').to_string();
         if !trimmed.is_empty() && trimmed.len() >= 40 { return Some(trimmed); }
     }
     None
@@ -87,7 +100,7 @@ pub fn ai_env_status() -> Result<AiEnvStatus, String> {
     }
     
     if openai_key_opt.is_none() && claude_key_opt.is_none() {
-        warning = Some("No se detectó ninguna API key válida (OPENAI_API_KEY o CLAUDE_CODE_API_KEY)".into());
+        warning = Some("No se detectó ninguna API key válida (OPENAI_API_KEY o CLAUDE_API_KEY)".into());
     }
     
     Ok(AiEnvStatus { 
@@ -147,7 +160,7 @@ pub async fn ai_test_key() -> Result<AiTestKeyResult, String> {
     
     if model.starts_with("claude") {
         // Probar Claude API
-        let key = get_claude_api_key().ok_or_else(|| "CLAUDE_CODE_API_KEY no encontrada".to_string())?;
+        let key = get_claude_api_key().ok_or_else(|| "CLAUDE_API_KEY no encontrada".to_string())?;
         
         let client = reqwest::Client::new();
         let test_payload = serde_json::json!({

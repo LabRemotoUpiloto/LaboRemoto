@@ -51,6 +51,7 @@ regex = "1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+dotenvy = "0.15"
 
 [profile.release]
 lto = true

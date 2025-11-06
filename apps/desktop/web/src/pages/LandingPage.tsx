@@ -33,7 +33,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onPageChange
                         </svg>
                     </div>
                     <h1 className="landing-hero__title">
-                        Bienvenido a Cliente SSH Unipiloto
+                        Conexion remota Unipiloto
                     </h1>
                     <p className="landing-hero__subtitle">
                         Tu compañero inteligente para dominar Linux y la administración remota

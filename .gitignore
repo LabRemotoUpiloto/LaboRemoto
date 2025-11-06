@@ -1,18 +1,9 @@
 node_modules/
 dist/
 .env
-.env.*
-!.env.example
+.env.local
+set-api-keys.ps1
+**/set-api-keys.ps1
 .github
 .workflows
 .vscode
-
-# API Keys y secretos
-*.key
-*.pem
-secrets/
-api-keys.txt
-
-# Archivos de configuración local con claves
-*-local.json
-*-secrets.json
