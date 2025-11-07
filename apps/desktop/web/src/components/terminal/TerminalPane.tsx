@@ -40,6 +40,11 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     port: number;
     startTime: string;
   } | null>(null);
+  
+  // Guardamos snapshots incrementales para preservar historial incluso después de 'clear'
+  // Cada snapshot captura lo nuevo desde el último snapshot
+  const snapshotsHistoryRef = useRef<string[]>([]);
+  const lastSnapshotRef = useRef<string>('');
 
   // Only allow terminal to auto-focus when not interacting with other inputs (e.g., ChatPane textarea)
   const canRefocusTerminal = () => {
@@ -367,19 +372,29 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       
       // Capturar sesión antes de destruir el terminal
       const captureBeforeDestroy = async () => {
-        const serialize = serializeRef.current;
         const metadata = sessionMetadataRef.current;
+        const serialize = serializeRef.current;
         
-        if (serialize && metadata) {
+        if (metadata && serialize) {
           try {
-            const serializedContent = serialize.serialize();
-            if (serializedContent && serializedContent.length > 10) {
+            // Tomar snapshot final del terminal
+            const finalSnapshot = serialize.serialize();
+            
+            // Combinar todo el historial guardado + snapshot final
+            const allSnapshots = [...snapshotsHistoryRef.current];
+            if (finalSnapshot && finalSnapshot.length > 10) {
+              allSnapshots.push(finalSnapshot);
+            }
+            
+            const fullHistory = allSnapshots.join('\n');
+              
+            if (fullHistory && fullHistory.length > 10) {
               const endTime = new Date().toISOString();
-              await captureAndSaveSession(serializedContent, {
+              await captureAndSaveSession(fullHistory, {
                 ...metadata,
                 endTime
               });
-              console.log(`✅ Session captured on unmount: ${metadata.sessionId}`);
+              console.log(`✅ Session captured on unmount: ${metadata.sessionId} (${fullHistory.length} bytes from ${allSnapshots.length} snapshots)`);
             }
           } catch (error) {
             console.error('❌ Error capturing session on unmount:', error);
@@ -411,24 +426,43 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
     // Función para capturar y guardar la sesión actual antes de cambiar/cerrar
     const captureCurrentSession = async () => {
-      const serialize = serializeRef.current;
       const metadata = sessionMetadataRef.current;
+      const serialize = serializeRef.current;
       
-      if (!serialize || !metadata) return;
+      if (!metadata || !serialize) return;
       
       try {
-        const serializedContent = serialize.serialize();
+        // Tomar snapshot final del terminal
+        const finalSnapshot = serialize.serialize();
+        
+        // Combinar todo el historial guardado + snapshot final
+        // Esto preserva lo que había antes de 'clear' commands
+        const allSnapshots = [...snapshotsHistoryRef.current];
+        if (finalSnapshot && finalSnapshot.length > 10) {
+          allSnapshots.push(finalSnapshot);
+        }
+        
+        // Unir sin separadores visibles
+        const fullHistory = allSnapshots.join('\n');
+        
+        console.log('🔍 Capturing session:', {
+          sessionId: metadata.sessionId,
+          snapshotCount: allSnapshots.length,
+          totalLength: fullHistory.length
+        });
         
         // Solo guardar si hay contenido significativo
-        if (serializedContent && serializedContent.length > 10) {
+        if (fullHistory && fullHistory.length > 10) {
           const endTime = new Date().toISOString();
           
-          await captureAndSaveSession(serializedContent, {
+          await captureAndSaveSession(fullHistory, {
             ...metadata,
             endTime
           });
           
-          console.log(`✅ Session captured: ${metadata.sessionId}`);
+          console.log(`✅ Session captured: ${metadata.sessionId} (${fullHistory.length} bytes)`);
+        } else {
+          console.warn(`⚠️ Session ${metadata.sessionId} has no significant content to save`);
         }
       } catch (error) {
         console.error('❌ Error capturing session:', error);
@@ -442,7 +476,34 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     const previousMetadata = sessionMetadataRef.current;
     if (previousMetadata && previousMetadata.sessionId !== sessionId) {
       captureCurrentSession();
+      // Limpiar el historial para la nueva sesión
+      snapshotsHistoryRef.current = [];
+      lastSnapshotRef.current = '';
     }
+    
+    // Función para capturar snapshot del estado actual del terminal
+    const captureSnapshot = () => {
+      const serialize = serializeRef.current;
+      if (serialize) {
+        try {
+          const snapshot = serialize.serialize();
+          // Guardar snapshot si es diferente al anterior
+          if (snapshot && snapshot !== lastSnapshotRef.current) {
+            // Si el snapshot es más corto, probablemente hubo un 'clear'
+            // En ese caso, guardamos el anterior antes de actualizar
+            if (snapshot.length < lastSnapshotRef.current.length / 2 && lastSnapshotRef.current.length > 50) {
+              console.log(`🧹 Clear detected, preserving previous snapshot (${lastSnapshotRef.current.length} bytes)`);
+              snapshotsHistoryRef.current.push(lastSnapshotRef.current);
+            }
+            
+            lastSnapshotRef.current = snapshot;
+            console.log(`📸 Snapshot updated (${snapshot.length} bytes, history: ${snapshotsHistoryRef.current.length} items)`);
+          }
+        } catch (err) {
+          console.warn('Error capturing snapshot:', err);
+        }
+      }
+    };
 
     const disposers: Array<{ dispose: () => void }> = [];
 
@@ -546,9 +607,14 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
         if (event.payload) {
           bytesReceived += event.payload.length;
           
+          // Escribir directamente al terminal (xterm.js procesará ANSI codes)
           term.write(event.payload, () => {
             // Callback que se ejecuta DESPUÉS de que xterm procese la escritura
             setTimeout(checkAndHideLoading, 100);
+            
+            // Capturar snapshot DESPUÉS de que xterm procese la escritura
+            // Esto preserva el historial antes de comandos como 'clear'
+            setTimeout(() => captureSnapshot(), 150);
           });
           
           // También verificar inmediatamente por si acaso

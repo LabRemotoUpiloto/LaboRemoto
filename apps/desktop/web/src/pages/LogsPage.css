@@ -78,6 +78,59 @@
   margin: 0 auto;
 }
 
+/* Controles de ordenamiento */
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.sort-controls label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.sort-select {
+  flex: 1;
+  max-width: 300px;
+  padding: 8px 12px;
+  background: var(--background-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-select:hover {
+  border-color: var(--accent-primary);
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1);
+}
+
+.sessions-count {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  background: var(--background-tertiary);
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+}
+
 /* Scrollbar personalizado para el área scrollable */
 .logs-page__scrollable::-webkit-scrollbar {
   width: 10px;

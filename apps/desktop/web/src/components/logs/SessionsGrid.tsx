@@ -8,6 +8,7 @@ interface SessionsGridProps {
   onSelectSession: (session: SessionLog) => void
   onViewBuffer: (session: SessionLog) => void
   onViewCommands: (session: SessionLog) => void
+  onDeleteLog?: (session: SessionLog) => void
   loading?: boolean
 }
 
@@ -17,6 +18,7 @@ const SessionsGrid: React.FC<SessionsGridProps> = ({
   onSelectSession,
   onViewBuffer,
   onViewCommands,
+  onDeleteLog,
   loading = false
 }) => {
   if (loading) {
@@ -50,6 +52,7 @@ const SessionsGrid: React.FC<SessionsGridProps> = ({
           onSelect={() => onSelectSession(session)}
           onViewBuffer={() => onViewBuffer(session)}
           onViewCommands={() => onViewCommands(session)}
+          onDelete={onDeleteLog ? () => onDeleteLog(session) : undefined}
         />
       ))}
     </div>
