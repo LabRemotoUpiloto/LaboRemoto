@@ -153,13 +153,25 @@ const App: React.FC = () => {
     })
   }, [activeTabId, tabs, sessionMeta, selectedPage])
 
-  // Al cerrar una sesión, pedir al backend que desconecte antes de remover la pestaña
+  // Al cerrar una sesión SSH, pedir al backend que desconecte antes de remover la pestaña
+  // Para pestañas de logs, simplemente cerrar sin desconectar
   const handleCloseTab = async (id: string) => {
+    // Verificar si es una pestaña de log
+    const tab = tabs.find(t => t.id === id);
+    if (tab?.type === 'log') {
+      // Para logs, simplemente cerrar la pestaña sin intentar desconectar
+      closeTab(id);
+      return;
+    }
+    
+    // Para sesiones SSH, intentar desconectar
     try {
       await invoke('ssh_disconnect', { id })
       closeTab(id)
     } catch (e: any) {
-      alert('No se pudo cerrar la sesión: ' + (e?.toString?.() ?? 'Error desconocido'))
+      // Si falla la desconexión (por ejemplo, sesión ya cerrada), cerrar la pestaña de todas formas
+      console.warn('Error al desconectar:', e);
+      closeTab(id);
     }
   }
 

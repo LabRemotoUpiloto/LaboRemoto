@@ -33,14 +33,107 @@ export interface SessionLog {
 }
 
 /**
+ * Procesa el stream del terminal simulando cómo xterm maneja backspaces
+ * NO procesamos \r porque puede causar pérdida de contenido
+ */
+function processTerminalStream(text: string): string {
+  // Primero limpiar códigos de control que no sean de color
+  const cleaned = cleanAnsiControlSequences(text);
+  
+  // Simplemente procesar backspaces carácter por carácter
+  let result = '';
+  
+  for (let i = 0; i < cleaned.length; i++) {
+    const char = cleaned[i];
+    
+    // Manejar backspace (\b o \x7F) - borrar carácter anterior
+    if (char === '\b' || char === '\x7F') {
+      if (result.length > 0 && result[result.length - 1] !== '\n') {
+        result = result.slice(0, -1);
+      }
+      continue;
+    }
+    
+    result += char;
+  }
+  
+  return result;
+}
+
+/**
+ * Limpia secuencias de escape ANSI de control que NO son de color/formato
+ * IMPORTANTE: NO toca las secuencias SGR (Select Graphic Rendition) que terminan en 'm'
+ */
+function cleanAnsiControlSequences(text: string): string {
+  return text
+    // Reemplazar secuencias de 'clear' con un separador visible
+    .replace(/\x1b\[H\x1b\[2J/g, '\n\n──────────── CLEAR ────────────\n\n')
+    .replace(/\x1b\[2J\x1b\[H/g, '\n\n──────────── CLEAR ────────────\n\n')
+    .replace(/\x1b\[3J/g, '\n\n──────────── CLEAR ────────────\n\n')
+    // Eliminar secuencias de modo del terminal
+    .replace(/\x1b\[\?[0-9;]+[hl]/g, '')
+    // Eliminar secuencias OSC (Operating System Command)
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+    // Eliminar bracketed paste mode
+    .replace(/\x1b\[200~|\x1b\[201~/g, '')
+    // Eliminar secuencias de cursor save/restore
+    .replace(/\x1b\[s|\x1b\[u/g, '')
+    .replace(/\x1b7|\x1b8/g, '')
+    // Eliminar secuencias de configuración de charset
+    .replace(/\x1b\([AB0]/g, '')
+    // Eliminar secuencias de movimiento de cursor (PERO NO las que terminan en 'm' que son colores)
+    .replace(/\x1b\[[0-9]*A/g, '')  // Cursor up
+    .replace(/\x1b\[[0-9]*B/g, '')  // Cursor down
+    .replace(/\x1b\[[0-9]*C/g, '')  // Cursor forward
+    .replace(/\x1b\[[0-9]*D/g, '')  // Cursor back
+    .replace(/\x1b\[[0-9]*E/g, '')  // Cursor next line
+    .replace(/\x1b\[[0-9]*F/g, '')  // Cursor previous line
+    .replace(/\x1b\[[0-9]*G/g, '')  // Cursor horizontal absolute
+    // Eliminar secuencias de posicionamiento de cursor (H y f, PERO NO m)
+    .replace(/\x1b\[[0-9;]*H/g, '')
+    .replace(/\x1b\[[0-9;]*f/g, '')
+    // Eliminar secuencias de borrado (J y K, PERO NO m)
+    .replace(/\x1b\[[0-9]*J/g, '')
+    .replace(/\x1b\[[0-9]*K/g, '')
+    // Eliminar scrolling
+    .replace(/\x1b\[[0-9;]*r/g, '')
+    // Eliminar insert/delete lines y characters
+    .replace(/\x1b\[[0-9]*L/g, '')
+    .replace(/\x1b\[[0-9]*M/g, '')
+    .replace(/\x1b\[[0-9]*@/g, '')
+    .replace(/\x1b\[[0-9]*P/g, '')
+    // Eliminar caracteres de control no imprimibles EXCEPTO \n, \r, \t y ESC
+    .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1A\x1C-\x1F\x7F]/g, '');
+    // NO eliminamos \x1b (ESC) porque es necesario para los códigos ANSI de color
+}
+
+/**
  * Convierte códigos ANSI a HTML con colores preservados
  */
 function convertAnsiToHtml(ansiText: string): string {
+  console.log('🎨 Converting ANSI to HTML:', {
+    inputLength: ansiText.length,
+    firstChars: ansiText.substring(0, 200),
+    hasEscapeSequences: ansiText.includes('\x1b'),
+    escapeCount: (ansiText.match(/\x1b/g) || []).length
+  });
+  
+  // Procesar el stream completo (backspaces, carriage returns, limpieza de control)
+  const processedText = processTerminalStream(ansiText);
+  
+  console.log('🧹 After processing stream:', {
+    processedLength: processedText.length,
+    firstChars: processedText.substring(0, 200),
+    hasEscapeSequences: processedText.includes('\x1b'),
+    escapeCount: (processedText.match(/\x1b/g) || []).length
+  });
+  
   const converter = new AnsiToHtml({
     fg: '#d4d4d4',
     bg: '#1e1e1e',
     newline: true,
-    escapeXML: false,
+    escapeXML: true,  // Cambiar a true para seguridad
+    stream: false,     // No usar stream mode
     colors: {
       0: '#1e1e1e',   // black
       1: '#cd3131',   // red
@@ -61,7 +154,14 @@ function convertAnsiToHtml(ansiText: string): string {
     }
   });
 
-  return converter.toHtml(ansiText);
+  const htmlResult = converter.toHtml(processedText);
+  
+  console.log('✨ HTML conversion result:', {
+    htmlLength: htmlResult.length,
+    firstChars: htmlResult.substring(0, 300)
+  });
+  
+  return htmlResult;
 }
 
 /**
@@ -226,8 +326,19 @@ export async function captureAndSaveSession(
   metadata: SessionMetadata
 ): Promise<void> {
   try {
+    console.log('📝 Capturing session:', {
+      sessionId: metadata.sessionId,
+      contentLength: serializedContent.length,
+      firstChars: serializedContent.substring(0, 100)
+    });
+    
     // Convertir contenido ANSI a HTML
     const htmlContent = convertAnsiToHtml(serializedContent);
+    
+    console.log('🎨 Converted to HTML:', {
+      htmlLength: htmlContent.length,
+      firstChars: htmlContent.substring(0, 200)
+    });
     
     // Generar HTML completo con estructura
     const fullHtml = generateSessionHtml(metadata, htmlContent);

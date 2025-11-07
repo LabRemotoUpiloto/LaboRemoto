@@ -3,7 +3,11 @@ import './LogsPage.css'
 import SessionFilters from '../components/logs/SessionFilters'
 import SessionsGrid from '../components/logs/SessionsGrid'
 import type { SessionLog } from '../components/logs/SessionCard'
-import { listSessionLogs, type SessionLogMetadata } from '../api/sessionCapture'
+import { listSessionLogs, deleteSessionLog, type SessionLogMetadata } from '../api/sessionCapture'
+import { useToasts } from '../contexts/ToastContext'
+import SweetAlert from '../components/modals/SweetAlert'
+
+type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'
 
 interface LogsPageProps {
   onOpenLog?: (session: SessionLog) => void
@@ -28,6 +32,10 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const [loading, setLoading] = useState(true)
   const [filterUser, setFilterUser] = useState('')
   const [filterHost, setFilterHost] = useState('')
+  const [sortBy, setSortBy] = useState<SortOption>('date-desc')
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [toDeleteSession, setToDeleteSession] = useState<SessionLog | null>(null)
+  const { push } = useToasts()
 
   useEffect(() => {
     loadSessions()
@@ -59,6 +67,49 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
     }
     return true
   })
+
+  // Ordenar sesiones según la opción seleccionada
+  const sortedSessions = [...filteredSessions].sort((a, b) => {
+    switch (sortBy) {
+      case 'date-desc':
+        return new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+      case 'date-asc':
+        return new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+      case 'duration-desc':
+        return (b.duration || 0) - (a.duration || 0)
+      case 'duration-asc':
+        return (a.duration || 0) - (b.duration || 0)
+      case 'host-asc':
+        return `${a.user}@${a.host}`.localeCompare(`${b.user}@${b.host}`)
+      case 'host-desc':
+        return `${b.user}@${b.host}`.localeCompare(`${a.user}@${a.host}`)
+      default:
+        return 0
+    }
+  })
+
+  const handleDeleteLog = (session: SessionLog) => {
+    setToDeleteSession(session)
+    setConfirmOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!toDeleteSession) return
+
+    try {
+      await deleteSessionLog(toDeleteSession.id)
+      push({ type: 'success', message: `Log de ${toDeleteSession.user}@${toDeleteSession.host} eliminado` })
+      
+      // Actualizar la lista
+      setSessions(prev => prev.filter(s => s.id !== toDeleteSession.id))
+    } catch (error) {
+      console.error('Error deleting log:', error)
+      push({ type: 'error', message: 'Error al eliminar el log' })
+    } finally {
+      setConfirmOpen(false)
+      setToDeleteSession(null)
+    }
+  }
 
   const handleViewBuffer = (session: SessionLog) => {
     console.log('Ver buffer de sesión:', session.id)
@@ -92,16 +143,55 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
             onRefresh={loadSessions}
           />
 
+          {/* Ordenamiento */}
+          <div className="sort-controls">
+            <label htmlFor="sort-select">Ordenar por:</label>
+            <select 
+              id="sort-select"
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="sort-select"
+            >
+              <option value="date-desc">Más recientes primero</option>
+              <option value="date-asc">Más antiguos primero</option>
+              <option value="duration-desc">Mayor duración</option>
+              <option value="duration-asc">Menor duración</option>
+              <option value="host-asc">Host (A-Z)</option>
+              <option value="host-desc">Host (Z-A)</option>
+            </select>
+            <span className="sessions-count">{sortedSessions.length} sesiones</span>
+          </div>
+
           <SessionsGrid
-            sessions={filteredSessions}
+            sessions={sortedSessions}
             selectedSessionId={null}
             onSelectSession={(s) => onOpenLog?.(s)}
             onViewBuffer={handleViewBuffer}
             onViewCommands={handleViewCommands}
+            onDeleteLog={handleDeleteLog}
             loading={loading}
           />
         </div>
       </div>
+
+      {/* Modal de confirmación de eliminación */}
+      <SweetAlert
+        open={confirmOpen}
+        title="¿Eliminar log?"
+        message={
+          toDeleteSession 
+            ? `¿Estás seguro de que deseas eliminar el log de ${toDeleteSession.user}@${toDeleteSession.host}? Esta acción no se puede deshacer.`
+            : ''
+        }
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        type="warning"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setConfirmOpen(false)
+          setToDeleteSession(null)
+        }}
+      />
     </div>
   )
 }
