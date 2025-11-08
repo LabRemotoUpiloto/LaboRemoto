@@ -3,8 +3,9 @@ import './LogsPage.css'
 import SessionFilters from '../components/logs/SessionFilters'
 import SessionsGrid from '../components/logs/SessionsGrid'
 import type { SessionLog } from '../components/logs/SessionCard'
-import { listSessionLogs, deleteSessionLog, type SessionLogMetadata } from '../api/sessionCapture'
+import { listSessionLogs, deleteSessionLog, getSessionLogsByRole, type SessionLogMetadata } from '../api/sessionCapture'
 import { useToasts } from '../contexts/ToastContext'
+import { useAuth } from '../contexts/AuthContext'
 import SweetAlert from '../components/modals/SweetAlert'
 
 type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'
@@ -36,16 +37,49 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [toDeleteSession, setToDeleteSession] = useState<SessionLog | null>(null)
   const { push } = useToasts()
+  const { user, isAuthenticated } = useAuth()
 
   useEffect(() => {
     loadSessions()
-  }, [])
+  }, [user])
 
   const loadSessions = async () => {
     setLoading(true)
     try {
-      // Cargar logs reales desde el backend
-      const metadata = await listSessionLogs()
+      let metadata: SessionLogMetadata[] = []
+      
+      // Si está autenticado, usar comandos cloud con filtrado por rol (Supabase)
+      if (isAuthenticated && user) {
+        console.log(`☁️ Loading logs from cloud for user: ${user.user_id}, role: ${user.role_id}`)
+        const cloudLogs = await getSessionLogsByRole(user.user_id, user.role_id, 100)
+        
+        // Adaptar formato cloud a SessionLogMetadata
+        metadata = cloudLogs.map((log: any) => ({
+          session_id: log.session_id,
+          user: log.username || user.username,
+          host: log.host,
+          port: 22, // Puede venir de log.port si lo guardamos
+          start_time: log.started_at,
+          end_time: log.ended_at,
+          duration_seconds: log.duration_seconds || 0,
+          buffer_size_bytes: 0, // No disponible en cloud logs
+          command_count: null
+        }))
+        
+        // Log info según rol
+        if (user.role_id === 3) {
+          console.log(`👑 Admin: Loaded ${metadata.length} logs (all users)`)
+        } else if (user.role_id === 2) {
+          console.log(`👨‍🏫 Professor: Loaded ${metadata.length} logs (groups)`)
+        } else {
+          console.log(`👨‍🎓 Student: Loaded ${metadata.length} logs (own only)`)
+        }
+      } else {
+        // Fallback: usar logs locales
+        console.log(`💾 Loading logs from local storage (no auth)`)
+        metadata = await listSessionLogs()
+      }
+      
       const adaptedSessions = metadata.map(adaptMetadataToSessionLog)
       setSessions(adaptedSessions)
       console.log(`✅ Loaded ${adaptedSessions.length} session logs`)

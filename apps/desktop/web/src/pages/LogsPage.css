@@ -171,3 +171,35 @@
     display: none;
   }
 }
+
+/* ==================== BOTÓN DE DESCARGA PDF ==================== */
+.download-pdf-button {
+  margin-left: auto;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.download-pdf-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.download-pdf-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.download-pdf-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
