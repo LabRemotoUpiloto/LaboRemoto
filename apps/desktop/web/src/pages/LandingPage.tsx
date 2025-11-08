@@ -1,6 +1,7 @@
 // Página de inicio/bienvenida para el cliente SSH inteligente
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTour } from '../tour';
+import { useAuth } from '../contexts/AuthContext';
 import './LandingPage.css';
 
 interface LandingPageProps {
@@ -10,6 +11,27 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onPageChange }) => {
     const { startTour } = useTour(onPageChange);
+    const { user } = useAuth();
+    
+    // Redirigir automáticamente al dashboard correspondiente según el rol
+    useEffect(() => {
+        if (user && onPageChange) {
+            // role_id: 1 = estudiante, 2 = profesor, 3 = admin
+            switch (user.role_id) {
+                case 1:
+                    onPageChange('student-dashboard');
+                    break;
+                case 2:
+                    onPageChange('professor-dashboard');
+                    break;
+                case 3:
+                    onPageChange('admin-dashboard');
+                    break;
+                default:
+                    console.warn('Rol de usuario desconocido:', user.role_id);
+            }
+        }
+    }, [user, onPageChange]);
     
     const handleStartTutorial = () => {
         // Ejecutar callback personalizado si existe

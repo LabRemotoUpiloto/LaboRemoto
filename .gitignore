@@ -7,6 +7,7 @@ set-api-keys.ps1
 .github
 .workflows
 .vscode
-
+.sql
+.md
 # Logs de sesión SSH capturados
 savedLogs/

@@ -362,6 +362,53 @@ export async function captureAndSaveSession(
 }
 
 /**
+ * Captura y guarda sesión en la nube (Supabase)
+ * Similar a captureAndSaveSession pero usa comandos cloud con user_id
+ */
+export async function captureAndSaveSessionCloud(
+  serializedContent: string,
+  metadata: SessionMetadata,
+  userId: string
+): Promise<void> {
+  try {
+    console.log('☁️ Capturing session to cloud:', {
+      sessionId: metadata.sessionId,
+      userId,
+      contentLength: serializedContent.length
+    });
+    
+    // Convertir contenido ANSI a HTML
+    const htmlContent = convertAnsiToHtml(serializedContent);
+    
+    // Generar HTML completo con estructura
+    const fullHtml = generateSessionHtml(metadata, htmlContent);
+    
+    // Calcular duración en segundos
+    const startTime = new Date(metadata.startTime);
+    const endTime = new Date(metadata.endTime);
+    const durationSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
+    
+    // Guardar en Supabase Storage (para logs grandes)
+    await saveSessionLogCloud({
+      userId,
+      sessionId: metadata.sessionId,
+      host: metadata.host,
+      username: metadata.user,
+      startedAt: metadata.startTime,
+      endedAt: metadata.endTime,
+      durationSeconds,
+      htmlContent: fullHtml,
+      saveToStorage: fullHtml.length > 50000 // Storage si > 50KB, DB si es pequeño
+    });
+    
+    console.log(`☁️ Session log saved to cloud: ${metadata.sessionId}`);
+  } catch (error) {
+    console.error('❌ Error saving session to cloud:', error);
+    throw error;
+  }
+}
+
+/**
  * Lista todos los logs de sesión disponibles
  */
 export async function listSessionLogs(): Promise<SessionLogMetadata[]> {
@@ -418,6 +465,110 @@ export async function cleanupOldLogs(days: number): Promise<number> {
     return await invoke<number>('cleanup_old_session_logs', { days });
   } catch (error) {
     console.error('❌ Error cleaning up old logs:', error);
+    throw error;
+  }
+}
+
+// ============================================================================
+// CLOUD STORAGE FUNCTIONS (Supabase)
+// ============================================================================
+
+export interface SaveLogCloudRequest {
+  userId: string;
+  sessionId: string;
+  host: string;
+  username: string;
+  startedAt: string;
+  endedAt?: string;
+  durationSeconds?: number;
+  htmlContent: string;
+  saveToStorage: boolean; // true: Storage, false: DB directo
+}
+
+/**
+ * Guarda un log de sesión en Supabase (Storage o DB)
+ */
+export async function saveSessionLogCloud(request: SaveLogCloudRequest): Promise<string> {
+  try {
+    // Convertir camelCase a snake_case para el backend
+    const backendRequest = {
+      user_id: request.userId,
+      session_id: request.sessionId,
+      host: request.host,
+      username: request.username,
+      started_at: request.startedAt,
+      ended_at: request.endedAt,
+      duration_seconds: request.durationSeconds,
+      html_content: request.htmlContent,
+      save_to_storage: request.saveToStorage,
+    };
+    
+    console.log('🔍 Sending to backend:', JSON.stringify(backendRequest, null, 2).substring(0, 500));
+    
+    const storagePath = await invoke<string>('save_session_log_cloud', { request: backendRequest });
+    console.log(`☁️ Session log saved to cloud: ${storagePath}`);
+    return storagePath;
+  } catch (error) {
+    console.error('❌ Error saving log to cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene los logs de sesión de un usuario desde Supabase
+ */
+export async function getUserSessionLogs(userId: string, limit?: number): Promise<any[]> {
+  try {
+    const logs = await invoke<any[]>('get_user_session_logs', { userId, limit });
+    console.log(`☁️ Loaded ${logs.length} session logs from cloud for user ${userId}`);
+    return logs;
+  } catch (error) {
+    console.error('❌ Error loading user logs from cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene el contenido HTML de un log desde Supabase Storage o DB
+ */
+export async function getLogHtmlContent(userId: string, sessionId: string): Promise<string> {
+  try {
+    const html = await invoke<string>('get_log_html_content', { userId, sessionId });
+    console.log(`☁️ Loaded HTML content for session ${sessionId}`);
+    return html;
+  } catch (error) {
+    console.error(`❌ Error loading HTML content for ${sessionId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene los logs de sesión filtrados por rol del usuario
+ * - Estudiante (role_id=1): solo sus propios logs
+ * - Profesor (role_id=2): logs de estudiantes de sus grupos
+ * - Admin (role_id=3): todos los logs
+ */
+export async function getSessionLogsByRole(userId: string, roleId: number, limit?: number): Promise<any[]> {
+  try {
+    const logs = await invoke<any[]>('get_session_logs_by_role', { userId, roleId, limit });
+    console.log(`☁️ Loaded ${logs.length} session logs from cloud for role ${roleId}`);
+    return logs;
+  } catch (error) {
+    console.error('❌ Error loading logs by role from cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene el contenido HTML de un log desde Supabase (DB o Storage)
+ */
+export async function getLogHtmlContentCloud(userId: string, sessionId: string): Promise<string> {
+  try {
+    const html = await invoke<string>('get_log_html_content', { userId, sessionId });
+    console.log(`☁️ Loaded HTML content for session ${sessionId} (${html.length} bytes)`);
+    return html;
+  } catch (error) {
+    console.error(`❌ Error loading HTML content from cloud for ${sessionId}:`, error);
     throw error;
   }
 }

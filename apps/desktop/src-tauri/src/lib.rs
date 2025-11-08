@@ -11,7 +11,10 @@ pub mod security; // Validaciones de seguridad y backups
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  // Construye la aplicación Tauri y registra los comandos accesibles desde JS (invoke()).
+  // Cargar variables de entorno desde .env
+  dotenvy::dotenv().ok();
+  
+  // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
     .manage(crate::state::AppState::new())
     .plugin(tauri_plugin_updater::Builder::new().build())
@@ -78,6 +81,35 @@ pub fn run() {
       cmd::logs::get_session_log,
       cmd::logs::delete_session_log,
       cmd::logs::cleanup_old_session_logs,
+      // Session logs cloud (Supabase Storage - multi-usuario)
+      cmd::logs_cloud::save_session_log_cloud,
+      cmd::logs_cloud::get_user_session_logs,
+      cmd::logs_cloud::get_log_html_content,
+      cmd::logs_cloud::get_session_logs_by_role,
+      // Auth (Mock + LDAP + JWT - modo configurable)
+      cmd::auth::login,
+      cmd::auth::validate_token,
+      cmd::auth::get_user_from_token,
+      cmd::mock_auth::register_mock_user,
+      // User management (admin)
+      cmd::users::list_all_users,
+      cmd::users::update_user,
+      cmd::users::get_user_statistics,
+      // Group management (professors)
+      cmd::groups::create_group,
+      cmd::groups::list_professor_groups,
+      cmd::groups::add_student_to_group,
+      cmd::groups::remove_student_from_group,
+      cmd::groups::list_group_members,
+      cmd::groups::delete_group,
+      // Dashboard stats (all roles)
+      cmd::dashboards::get_student_dashboard_stats,
+      cmd::dashboards::get_professor_dashboard_stats,
+      cmd::dashboards::get_admin_dashboard_stats,
+      // PDF reports (WeasyPrint)
+      cmd::pdf_reports::generate_session_report_pdf,
+      cmd::pdf_reports::copy_file,
+      cmd::pdf_reports::save_pdf_dialog,
       // (Persistence happens automatically on put/get/clear; explicit commands not needed)
     ])
     .run(tauri::generate_context!())
