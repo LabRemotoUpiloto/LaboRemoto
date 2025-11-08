@@ -110,6 +110,8 @@ pub fn run() {
       cmd::pdf_reports::generate_session_report_pdf,
       cmd::pdf_reports::copy_file,
       cmd::pdf_reports::save_pdf_dialog,
+      // Utilidades de migración/corrección
+      cmd::fix_unknown_hostnames::fix_unknown_hostnames,
       // (Persistence happens automatically on put/get/clear; explicit commands not needed)
     ])
     .run(tauri::generate_context!())
