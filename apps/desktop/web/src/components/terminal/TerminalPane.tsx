@@ -416,18 +416,36 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
               if (fullHistory && fullHistory.length > 10) {
                 const endTime = new Date().toISOString();
                 
+                // Extraer host y user reales del sessionId (formato: user@host:port o UUID)
+                let finalMetadata = { ...metadata };
+                if (metadata.sessionId.includes('@') && metadata.sessionId.includes(':')) {
+                  const parts = metadata.sessionId.split('@');
+                  const user = parts[0] || metadata.user;
+                  const hostPort = parts[1]?.split(':') || [];
+                  const host = hostPort[0] || metadata.host;
+                  const port = parseInt(hostPort[1]) || metadata.port;
+                  
+                  finalMetadata = {
+                    ...metadata,
+                    user,
+                    host,
+                    port,
+                    endTime
+                  };
+                  console.log('📝 Extracted metadata from sessionId:', { user, host, port });
+                } else {
+                  finalMetadata = {
+                    ...metadata,
+                    endTime
+                  };
+                }
+                
                 // Guardar en cloud si está autenticado, sino local
                 if (isAuthenticated && user) {
-                  await captureAndSaveSessionCloud(fullHistory, {
-                    ...metadata,
-                    endTime
-                  }, user.user_id);
+                  await captureAndSaveSessionCloud(fullHistory, finalMetadata, user.user_id);
                   console.log(`☁️ Session captured to cloud on unmount: ${metadata.sessionId} (${fullHistory.length} bytes from ${allSnapshots.length} snapshots)`);
                 } else {
-                  await captureAndSaveSession(fullHistory, {
-                    ...metadata,
-                    endTime
-                  });
+                  await captureAndSaveSession(fullHistory, finalMetadata);
                   console.log(`💾 Session captured locally on unmount: ${metadata.sessionId} (${fullHistory.length} bytes from ${allSnapshots.length} snapshots)`);
                 }
               }
@@ -516,20 +534,38 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
           if (fullHistory && fullHistory.length > 10) {
             const endTime = new Date().toISOString();
             
+            // Extraer host y user reales del sessionId (formato: user@host:port o UUID)
+            let finalMetadata = { ...metadata };
+            if (metadata.sessionId.includes('@') && metadata.sessionId.includes(':')) {
+              const parts = metadata.sessionId.split('@');
+              const user = parts[0] || metadata.user;
+              const hostPort = parts[1]?.split(':') || [];
+              const host = hostPort[0] || metadata.host;
+              const port = parseInt(hostPort[1]) || metadata.port;
+              
+              finalMetadata = {
+                ...metadata,
+                user,
+                host,
+                port,
+                endTime
+              };
+              console.log('📝 Extracted metadata from sessionId:', { user, host, port });
+            } else {
+              finalMetadata = {
+                ...metadata,
+                endTime
+              };
+            }
+            
             // Guardar en cloud si está autenticado, sino local
             if (isAuthenticated && user) {
               console.log('🔐 User info before save:', { userId: user.user_id, username: user.username, isAuthenticated });
-              await captureAndSaveSessionCloud(fullHistory, {
-                ...metadata,
-                endTime
-              }, user.user_id);
+              await captureAndSaveSessionCloud(fullHistory, finalMetadata, user.user_id);
               console.log(`☁️ Session captured to cloud: ${metadata.sessionId} (${fullHistory.length} bytes)`);
             } else {
               console.warn('⚠️ Not authenticated or no user, saving locally instead');
-              await captureAndSaveSession(fullHistory, {
-                ...metadata,
-                endTime
-              });
+              await captureAndSaveSession(fullHistory, finalMetadata);
               console.log(`💾 Session captured locally: ${metadata.sessionId} (${fullHistory.length} bytes)`);
             }
           } else {
@@ -619,13 +655,22 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
           const info = await invoke<{ host: string; port: number; user: string }>('ssh_session_info', { id: sessionId });
           sessionMetadataRef.current = {
             sessionId,
-            user: info.user,
-            host: info.host,
-            port: info.port,
+            user: info.user || 'unknown',
+            host: info.host || 'unknown',
+            port: info.port || 22,
             startTime: new Date().toISOString()
           };
+          console.log('✅ Session metadata loaded:', sessionMetadataRef.current);
         } catch (error) {
-          console.warn('Could not fetch session info for logs:', error);
+          console.warn('⚠️ Could not fetch session info, using defaults:', error);
+          // Si falla, intentar extraer del sessionId o usar defaults
+          sessionMetadataRef.current = {
+            sessionId,
+            user: 'student',
+            host: sessionId.split('@')[1]?.split(':')[0] || 'server',
+            port: 22,
+            startTime: new Date().toISOString()
+          };
         }
       })();
       

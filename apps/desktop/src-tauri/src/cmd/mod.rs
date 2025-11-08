@@ -23,6 +23,7 @@ pub mod users;   // Gestión de usuarios (admin)
 pub mod groups;  // Gestión de grupos (profesores)
 pub mod dashboards; // Estadísticas y dashboards por rol
 pub mod pdf_reports; // Generación de reportes PDF con WeasyPrint
+pub mod fix_unknown_hostnames; // Utilidad para corregir logs con hostname Unknown
 
 // Re-exportar comandos para no cambiar rutas usadas en lib.rs
 pub use ai::{ai_chat, AiChatRequest, AiChatResponse};
@@ -40,3 +41,4 @@ pub use users::{list_all_users, update_user, get_user_statistics, User, UpdateUs
 pub use groups::{create_group, list_professor_groups, add_student_to_group, remove_student_from_group, list_group_members, delete_group, Group, GroupMember, CreateGroupRequest, AddStudentRequest};
 pub use dashboards::{get_student_dashboard_stats, get_professor_dashboard_stats, get_admin_dashboard_stats, StudentDashboardStats, ProfessorDashboardStats, AdminDashboardStats};
 pub use pdf_reports::{generate_session_report_pdf, copy_file, save_pdf_dialog};
+pub use fix_unknown_hostnames::fix_unknown_hostnames;
