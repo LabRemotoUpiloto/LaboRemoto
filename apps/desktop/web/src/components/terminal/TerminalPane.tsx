@@ -9,7 +9,8 @@ import './TerminalPane.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useTheme } from '../../contexts/ThemeContext';
-import { captureAndSaveSession } from '../../api/sessionCapture';
+import { useAuth } from '../../contexts/AuthContext';
+import { captureAndSaveSession, captureAndSaveSessionCloud } from '../../api/sessionCapture';
 
 type Props = { sessionId: string | null };
 
@@ -17,6 +18,7 @@ const sanitize = (id: string) => (id || '').replace(/[^a-zA-Z0-9_:\-\/]/g, '_');
 
 const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const { theme } = useTheme();
+  const { user, isAuthenticated } = useAuth();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -40,6 +42,16 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     port: number;
     startTime: string;
   } | null>(null);
+  
+  // Guardamos snapshots incrementales para preservar historial incluso después de 'clear'
+  // Cada snapshot captura lo nuevo desde el último snapshot
+  const snapshotsHistoryRef = useRef<string[]>([]);
+  const lastSnapshotRef = useRef<string>('');
+  
+  // Bandera para evitar guardar la sesión múltiples veces
+  const hasBeenSavedRef = useRef<boolean>(false);
+  // Promise compartida para evitar ejecuciones concurrentes
+  const savingPromiseRef = useRef<Promise<void> | null>(null);
 
   // Only allow terminal to auto-focus when not interacting with other inputs (e.g., ChatPane textarea)
   const canRefocusTerminal = () => {
@@ -367,23 +379,70 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       
       // Capturar sesión antes de destruir el terminal
       const captureBeforeDestroy = async () => {
-        const serialize = serializeRef.current;
-        const metadata = sessionMetadataRef.current;
+        // Si ya hay un guardado en progreso, esperar a que termine
+        if (savingPromiseRef.current) {
+          console.log(`⏸️ Unmount: Session ${sessionId} save already in progress, waiting...`);
+          await savingPromiseRef.current;
+          return;
+        }
         
-        if (serialize && metadata) {
-          try {
-            const serializedContent = serialize.serialize();
-            if (serializedContent && serializedContent.length > 10) {
-              const endTime = new Date().toISOString();
-              await captureAndSaveSession(serializedContent, {
-                ...metadata,
-                endTime
-              });
-              console.log(`✅ Session captured on unmount: ${metadata.sessionId}`);
+        // Evitar guardar múltiples veces
+        if (hasBeenSavedRef.current) {
+          console.log(`⏭️ Session ${sessionId} already saved, skipping duplicate save on unmount`);
+          return;
+        }
+        
+        const metadata = sessionMetadataRef.current;
+        const serialize = serializeRef.current;
+        
+        if (metadata && serialize) {
+          // Crear la Promise y guardarla para que otros esperan
+          savingPromiseRef.current = (async () => {
+            try {
+              // Marcar como guardado INMEDIATAMENTE
+              hasBeenSavedRef.current = true;
+              
+              // Tomar snapshot final del terminal
+              const finalSnapshot = serialize.serialize();
+              
+              // Combinar todo el historial guardado + snapshot final
+              const allSnapshots = [...snapshotsHistoryRef.current];
+              if (finalSnapshot && finalSnapshot.length > 10) {
+                allSnapshots.push(finalSnapshot);
+              }
+              
+              const fullHistory = allSnapshots.join('\n');
+                
+              if (fullHistory && fullHistory.length > 10) {
+                const endTime = new Date().toISOString();
+                
+                // Guardar en cloud si está autenticado, sino local
+                if (isAuthenticated && user) {
+                  await captureAndSaveSessionCloud(fullHistory, {
+                    ...metadata,
+                    endTime
+                  }, user.user_id);
+                  console.log(`☁️ Session captured to cloud on unmount: ${metadata.sessionId} (${fullHistory.length} bytes from ${allSnapshots.length} snapshots)`);
+                } else {
+                  await captureAndSaveSession(fullHistory, {
+                    ...metadata,
+                    endTime
+                  });
+                  console.log(`💾 Session captured locally on unmount: ${metadata.sessionId} (${fullHistory.length} bytes from ${allSnapshots.length} snapshots)`);
+                }
+              }
+            } catch (error) {
+              console.error('❌ Error capturing session on unmount:', error);
+              // Resetear la bandera si hubo error
+              hasBeenSavedRef.current = false;
+              throw error;
+            } finally {
+              // Limpiar la promise
+              savingPromiseRef.current = null;
             }
-          } catch (error) {
-            console.error('❌ Error capturing session on unmount:', error);
-          }
+          })();
+          
+          await savingPromiseRef.current;
         }
       };
       
@@ -411,28 +470,83 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
 
     // Función para capturar y guardar la sesión actual antes de cambiar/cerrar
     const captureCurrentSession = async () => {
-      const serialize = serializeRef.current;
+      // Si ya hay un guardado en progreso, esperar a que termine
+      if (savingPromiseRef.current) {
+        console.log(`⏸️ Session ${sessionId} save already in progress, waiting...`);
+        return savingPromiseRef.current;
+      }
+      
+      // Evitar guardar múltiples veces
+      if (hasBeenSavedRef.current) {
+        console.log(`⏭️ Session ${sessionId} already saved, skipping duplicate save`);
+        return;
+      }
+      
       const metadata = sessionMetadataRef.current;
+      const serialize = serializeRef.current;
       
-      if (!serialize || !metadata) return;
+      if (!metadata || !serialize) return;
       
-      try {
-        const serializedContent = serialize.serialize();
-        
-        // Solo guardar si hay contenido significativo
-        if (serializedContent && serializedContent.length > 10) {
-          const endTime = new Date().toISOString();
+      // Crear la Promise y guardarla para que otros esperan
+      savingPromiseRef.current = (async () => {
+        try {
+          // Marcar como guardado INMEDIATAMENTE para evitar race conditions
+          hasBeenSavedRef.current = true;
           
-          await captureAndSaveSession(serializedContent, {
-            ...metadata,
-            endTime
+          // Tomar snapshot final del terminal
+          const finalSnapshot = serialize.serialize();
+          
+          // Combinar todo el historial guardado + snapshot final
+          // Esto preserva lo que había antes de 'clear' commands
+          const allSnapshots = [...snapshotsHistoryRef.current];
+          if (finalSnapshot && finalSnapshot.length > 10) {
+            allSnapshots.push(finalSnapshot);
+          }
+          
+          // Unir sin separadores visibles
+          const fullHistory = allSnapshots.join('\n');
+          
+          console.log('🔍 Capturing session:', {
+            sessionId: metadata.sessionId,
+            snapshotCount: allSnapshots.length,
+            totalLength: fullHistory.length
           });
           
-          console.log(`✅ Session captured: ${metadata.sessionId}`);
+          // Solo guardar si hay contenido significativo
+          if (fullHistory && fullHistory.length > 10) {
+            const endTime = new Date().toISOString();
+            
+            // Guardar en cloud si está autenticado, sino local
+            if (isAuthenticated && user) {
+              console.log('🔐 User info before save:', { userId: user.user_id, username: user.username, isAuthenticated });
+              await captureAndSaveSessionCloud(fullHistory, {
+                ...metadata,
+                endTime
+              }, user.user_id);
+              console.log(`☁️ Session captured to cloud: ${metadata.sessionId} (${fullHistory.length} bytes)`);
+            } else {
+              console.warn('⚠️ Not authenticated or no user, saving locally instead');
+              await captureAndSaveSession(fullHistory, {
+                ...metadata,
+                endTime
+              });
+              console.log(`💾 Session captured locally: ${metadata.sessionId} (${fullHistory.length} bytes)`);
+            }
+          } else {
+            console.warn(`⚠️ Session ${metadata.sessionId} has no significant content to save`);
+          }
+        } catch (error) {
+          console.error('❌ Error capturing session:', error);
+          // Resetear la bandera si hubo error
+          hasBeenSavedRef.current = false;
+          throw error;
+        } finally {
+          // Limpiar la promise
+          savingPromiseRef.current = null;
         }
-      } catch (error) {
-        console.error('❌ Error capturing session:', error);
-      }
+      })();
+      
+      return savingPromiseRef.current;
     };
 
     // remove previous listeners
@@ -442,7 +556,57 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     const previousMetadata = sessionMetadataRef.current;
     if (previousMetadata && previousMetadata.sessionId !== sessionId) {
       captureCurrentSession();
+      // Limpiar el historial para la nueva sesión
+      snapshotsHistoryRef.current = [];
+      lastSnapshotRef.current = '';
+      // Resetear bandera de guardado para la nueva sesión
+      hasBeenSavedRef.current = false;
+      savingPromiseRef.current = null;
     }
+    
+    // Listener para guardar sesión antes de cerrar (disparado desde App.tsx)
+    const handleSaveBeforeClose = async (event: CustomEvent) => {
+      const { sessionId: requestedSessionId } = event.detail;
+      if (requestedSessionId === sessionId) {
+        console.log(`📝 Saving session ${sessionId} before close (requested by App)`);
+        try {
+          await captureCurrentSession();
+          console.log(`✅ Session ${sessionId} saved successfully`);
+          // Emitir evento de confirmación
+          window.dispatchEvent(new CustomEvent('app:session-saved', { detail: { sessionId } }));
+        } catch (error) {
+          console.error(`❌ Error saving session ${sessionId}:`, error);
+          // Emitir evento de error para que App pueda continuar de todas formas
+          window.dispatchEvent(new CustomEvent('app:session-save-failed', { detail: { sessionId, error } }));
+        }
+      }
+    };
+    
+    window.addEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
+    
+    // Función para capturar snapshot del estado actual del terminal
+    const captureSnapshot = () => {
+      const serialize = serializeRef.current;
+      if (serialize) {
+        try {
+          const snapshot = serialize.serialize();
+          // Guardar snapshot si es diferente al anterior
+          if (snapshot && snapshot !== lastSnapshotRef.current) {
+            // Si el snapshot es más corto, probablemente hubo un 'clear'
+            // En ese caso, guardamos el anterior antes de actualizar
+            if (snapshot.length < lastSnapshotRef.current.length / 2 && lastSnapshotRef.current.length > 50) {
+              console.log(`🧹 Clear detected, preserving previous snapshot (${lastSnapshotRef.current.length} bytes)`);
+              snapshotsHistoryRef.current.push(lastSnapshotRef.current);
+            }
+            
+            lastSnapshotRef.current = snapshot;
+            console.log(`📸 Snapshot updated (${snapshot.length} bytes, history: ${snapshotsHistoryRef.current.length} items)`);
+          }
+        } catch (err) {
+          console.warn('Error capturing snapshot:', err);
+        }
+      }
+    };
 
     const disposers: Array<{ dispose: () => void }> = [];
 
@@ -546,9 +710,14 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
         if (event.payload) {
           bytesReceived += event.payload.length;
           
+          // Escribir directamente al terminal (xterm.js procesará ANSI codes)
           term.write(event.payload, () => {
             // Callback que se ejecuta DESPUÉS de que xterm procese la escritura
             setTimeout(checkAndHideLoading, 100);
+            
+            // Capturar snapshot DESPUÉS de que xterm procese la escritura
+            // Esto preserva el historial antes de comandos como 'clear'
+            setTimeout(() => captureSnapshot(), 150);
           });
           
           // También verificar inmediatamente por si acaso
@@ -573,8 +742,8 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
       
       // Cleanup function para limpiar los intervalos
       return () => {
-        // Capturar sesión al cambiar
-        captureCurrentSession();
+        // No capturar aquí - ya se captura en handleSaveBeforeClose o captureBeforeDestroy
+        // captureCurrentSession(); // REMOVIDO para evitar duplicados
         
         disposers.forEach(d => d.dispose());
         if (unlistenRef.current) { try { unlistenRef.current(); } catch {} unlistenRef.current = null; }
@@ -593,6 +762,9 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
     return () => {
       // Capturar sesión al desmontar componente
       captureCurrentSession();
+      
+      // Limpiar listener de guardar antes de cerrar
+      window.removeEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
       
       disposers.forEach(d => d.dispose());
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} unlistenRef.current = null; }

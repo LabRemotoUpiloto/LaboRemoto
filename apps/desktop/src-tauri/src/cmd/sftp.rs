@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+﻿use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::io::{Read, Write};
@@ -15,7 +15,7 @@ use super::state::{SESSIONS, TRANSFERS, SftpEntry};
 #[tauri::command]
 pub async fn sftp_open(id: String) -> Result<(), String> {
   let map = SESSIONS.lock().unwrap();
-  if !map.contains_key(&id) { return Err(AppError::NotFound.to_string()); }
+  if !map.contains_key(&id) { return Err(AppError::NotFoundSession.to_string()); }
   Ok(())
 }
 
@@ -26,7 +26,7 @@ pub async fn sftp_home(id: String) -> Result<String, String> {
   let home = tokio::task::spawn_blocking(move || {
     let mut map = SESSIONS.lock().unwrap();
     let user = {
-      let sref = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+      let sref = map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
       sref.user.clone()
     };
     // Intentar conectar (rellena cache si no existe)
@@ -59,7 +59,7 @@ fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>
   if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
   // 2) Copiar credenciales y soltar lock antes de conectar
   let (host, port, user, password) = {
-    let s = map.get(id).ok_or_else(|| AppError::NotFound.to_string())?;
+    let s = map.get(id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
     (s.host.clone(), s.port, s.user.clone(), s.password.clone())
   };
   // 3) Crear nueva conexión ssh2
@@ -86,7 +86,7 @@ pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, Strin
       Err(_) => {
         // Reconección
         let (host, port, user, password) = {
-          let s = map.get(&id).ok_or_else(|| AppError::NotFound.to_string())?;
+          let s = map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
           (s.host.clone(), s.port, s.user.clone(), s.password.clone())
         };
         let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;

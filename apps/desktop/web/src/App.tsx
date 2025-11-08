@@ -13,6 +13,11 @@ import ConnectFormPage from './pages/ConnectFormPage'
 import LandingPage from './pages/LandingPage'
 import LogsPage from './pages/LogsPage'
 import LogDetailPage from './pages/LogDetailPage'
+import UsersAdminPage from './pages/UsersAdminPage'
+import GroupsPage from './pages/GroupsPage'
+import StudentDashboardPage from './pages/StudentDashboardPage'
+import ProfessorDashboardPage from './pages/ProfessorDashboardPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import { connectFromHost } from './api/storage'
 import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/modals/GlobalLoader'
@@ -27,8 +32,40 @@ import ChatPane from './components/ChatPane'
 import PinsPanel from './components/raspberry/PinsPanel'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import LdapLoginPage from './pages/LdapLoginPage'
 
-const App: React.FC = () => {
+function AppContent() {
+  const { isAuthenticated, isLoading, login, user } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div>Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <LdapLoginPage 
+        onLoginSuccess={(loginResponse) => {
+          login(loginResponse.token, {
+            user_id: loginResponse.user_id,
+            username: loginResponse.username,
+            email: loginResponse.email,
+            name: loginResponse.name,
+            role_id: loginResponse.role_id,
+          });
+        }} 
+      />
+    );
+  }
+
+  return <AppMain />;
+}
+
+function AppMain() {
   // Representa una pestaña: 'home' (persistente) o 'session' (SSH)
   type Tab = { id: string; type: 'home' | 'session' | 'log'; label: string; logData?: import('./components/logs/SessionCard').SessionLog }
   const HOME_ID = 'home'
@@ -43,6 +80,7 @@ const App: React.FC = () => {
   const [isCameraOpen, setCameraOpen] = useState(false)
   const [isPinsPanelOpen, setPinsPanelOpen] = useState(false)
 
+  const { user, isProfessor, isAdmin } = useAuth()
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
 
@@ -153,13 +191,64 @@ const App: React.FC = () => {
     })
   }, [activeTabId, tabs, sessionMeta, selectedPage])
 
-  // Al cerrar una sesión, pedir al backend que desconecte antes de remover la pestaña
+  // Al cerrar una sesión SSH, pedir al backend que desconecte antes de remover la pestaña
+  // Para pestañas de logs, simplemente cerrar sin desconectar
   const handleCloseTab = async (id: string) => {
+    // Verificar si es una pestaña de log
+    const tab = tabs.find(t => t.id === id);
+    if (tab?.type === 'log') {
+      // Para logs, simplemente cerrar la pestaña sin intentar desconectar
+      closeTab(id);
+      return;
+    }
+    
+    // Para sesiones SSH, emitir evento para que TerminalPane guarde la sesión
+    console.log(`📝 Requesting session save for ${id} before disconnect`);
+    
+    // Crear una promesa que se resuelve cuando se recibe confirmación
+    const savePromise = new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        console.warn(`⏱️ Timeout waiting for session save confirmation for ${id}`);
+        resolve();
+      }, 2000); // 2 segundos timeout
+      
+      const handleSaved = (event: CustomEvent) => {
+        if (event.detail.sessionId === id) {
+          clearTimeout(timeout);
+          window.removeEventListener('app:session-saved', handleSaved as EventListener);
+          window.removeEventListener('app:session-save-failed', handleFailed as EventListener);
+          resolve();
+        }
+      };
+      
+      const handleFailed = (event: CustomEvent) => {
+        if (event.detail.sessionId === id) {
+          clearTimeout(timeout);
+          console.error(`❌ Session save failed for ${id}:`, event.detail.error);
+          window.removeEventListener('app:session-saved', handleSaved as EventListener);
+          window.removeEventListener('app:session-save-failed', handleFailed as EventListener);
+          resolve(); // Continuar de todas formas
+        }
+      };
+      
+      window.addEventListener('app:session-saved', handleSaved as EventListener);
+      window.addEventListener('app:session-save-failed', handleFailed as EventListener);
+    });
+    
+    // Emitir evento de guardado
+    window.dispatchEvent(new CustomEvent('app:save-session-before-close', { detail: { sessionId: id } }));
+    
+    // Esperar a que se guarde (o timeout)
+    await savePromise;
+    
+    // Luego desconectar
     try {
       await invoke('ssh_disconnect', { id })
       closeTab(id)
     } catch (e: any) {
-      alert('No se pudo cerrar la sesión: ' + (e?.toString?.() ?? 'Error desconocido'))
+      // Si falla la desconexión (por ejemplo, sesión ya cerrada), cerrar la pestaña de todas formas
+      console.warn('Error al desconectar:', e);
+      closeTab(id);
     }
   }
 
@@ -269,6 +358,12 @@ const App: React.FC = () => {
               toggleSidebar={toggleSidebar}
               selectedPage={selectedPage}
               onSelectPage={(p) => {
+                // Verificar permisos para logs: solo profesores y admins
+                if (p === 'logs' && !isProfessor && !isAdmin) {
+                  console.warn('Acceso denegado: solo profesores y administradores pueden ver logs')
+                  return
+                }
+                
                 navigateFromSidebar({
                   page: p,
                   activeTabType: activeTab.type,
@@ -331,6 +426,16 @@ const App: React.FC = () => {
                 <ThemesPage />
               ) : selectedPage === 'logs' ? (
                 <LogsPage onOpenLog={openLogTab} />
+              ) : selectedPage === 'users' ? (
+                <UsersAdminPage />
+              ) : selectedPage === 'groups' ? (
+                <GroupsPage />
+              ) : selectedPage === 'student-dashboard' ? (
+                <StudentDashboardPage />
+              ) : selectedPage === 'professor-dashboard' ? (
+                <ProfessorDashboardPage />
+              ) : selectedPage === 'admin-dashboard' ? (
+                <AdminDashboardPage />
               ) : selectedPage === 'sftp' ? (
                 <SftpPage
                   sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
@@ -408,4 +513,12 @@ const App: React.FC = () => {
   )
 }
 
-export default App
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
+
+export default App;
