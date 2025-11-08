@@ -78,6 +78,59 @@
   margin: 0 auto;
 }
 
+/* Controles de ordenamiento */
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.sort-controls label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.sort-select {
+  flex: 1;
+  max-width: 300px;
+  padding: 8px 12px;
+  background: var(--background-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-select:hover {
+  border-color: var(--accent-primary);
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1);
+}
+
+.sessions-count {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  background: var(--background-tertiary);
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+}
+
 /* Scrollbar personalizado para el área scrollable */
 .logs-page__scrollable::-webkit-scrollbar {
   width: 10px;
@@ -117,4 +170,36 @@
   .page-separator {
     display: none;
   }
+}
+
+/* ==================== BOTÓN DE DESCARGA PDF ==================== */
+.download-pdf-button {
+  margin-left: auto;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.download-pdf-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.download-pdf-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.download-pdf-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

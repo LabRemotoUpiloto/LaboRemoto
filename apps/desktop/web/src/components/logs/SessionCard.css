@@ -53,6 +53,34 @@
   color: var(--text-secondary);
 }
 
+.delete-log-btn {
+  padding: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.delete-log-btn:hover {
+  background: rgba(248, 81, 73, 0.1);
+  border-color: rgba(248, 81, 73, 0.3);
+  color: #f85149;
+}
+
+.delete-log-btn:active {
+  transform: scale(0.95);
+}
+
+.delete-log-btn svg {
+  display: block;
+}
+
 /* Badges de estado */
 .status-badge {
   padding: 0.25rem 0.75rem;

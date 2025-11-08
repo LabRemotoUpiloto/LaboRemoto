@@ -3,3 +3,5 @@ docs
 scripts/
 public/icon.png
 .github/
+.md
+.sql
