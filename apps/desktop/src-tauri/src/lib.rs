@@ -108,6 +108,7 @@ pub fn run() {
       cmd::dashboards::get_admin_dashboard_stats,
       // PDF reports (WeasyPrint)
       cmd::pdf_reports::generate_session_report_pdf,
+      cmd::pdf_reports::generate_commands_report,
       cmd::pdf_reports::copy_file,
       cmd::pdf_reports::save_pdf_dialog,
       // Utilidades de migración/corrección

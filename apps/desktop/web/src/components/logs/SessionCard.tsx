@@ -17,7 +17,7 @@ interface SessionCardProps {
   isSelected: boolean
   onSelect: () => void
   onViewBuffer: () => void
-  onViewCommands: () => void
+  onDownloadReport: () => void
   onDelete?: () => void
 }
 
@@ -26,7 +26,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
   isSelected,
   onSelect,
   onViewBuffer,
-  onViewCommands,
+  onDownloadReport,
   onDelete
 }) => {
   const formatDuration = (seconds?: number) => {
@@ -49,10 +49,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
   }
 
   return (
-    <div
-      className={`session-card ${isSelected ? 'selected' : ''}`}
-      onClick={onSelect}
-    >
+    <div className={`session-card ${isSelected ? 'selected' : ''}`}>
       <div className="session-card-header">
         <div className="session-info">
           <h3>{session.user}@{session.host}</h3>
@@ -107,16 +104,16 @@ const SessionCard: React.FC<SessionCardProps> = ({
             onViewBuffer()
           }}
         >
-          Ver Buffer
+          Ver Logs
         </button>
         <button 
           className="view-commands-btn"
           onClick={(e) => {
             e.stopPropagation()
-            onViewCommands()
+            onDownloadReport()
           }}
         >
-          Ver Comandos
+          Descargar Reporte
         </button>
       </div>
     </div>
