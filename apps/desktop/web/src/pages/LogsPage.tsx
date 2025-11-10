@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import './LogsPage.css'
 import SessionFilters from '../components/logs/SessionFilters'
 import SessionsGrid from '../components/logs/SessionsGrid'
@@ -146,15 +147,57 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   }
 
   const handleViewBuffer = (session: SessionLog) => {
-    console.log('Ver buffer de sesión:', session.id)
-    // Abrir el detalle del log en una nueva pestaña
+    console.log('Ver logs completos de sesión:', session.id)
+    // Abrir el detalle del log completo en una nueva pestaña
     onOpenLog?.(session)
   }
 
-  const handleViewCommands = (session: SessionLog) => {
-    console.log('Ver comandos de sesión:', session.id)
-    // Abrir el detalle del log en una nueva pestaña
-    onOpenLog?.(session)
+  const handleDownloadReport = async (session: SessionLog) => {
+    console.log('Generar reporte de comandos para sesión:', session.id)
+    
+    if (!user) {
+      push({ type: 'error', message: 'Debes estar autenticado para generar reportes' })
+      return
+    }
+
+    try {
+      push({ type: 'info', message: 'Generando reporte de comandos...' })
+      
+      console.log('🔵 Invocando generate_commands_report con:', {
+        sessionLogId: session.id,
+        userId: user.user_id,
+        roleId: user.role_id,
+      })
+      
+      // Llamar al comando que genera PDF solo con comandos
+      const pdfPath = await invoke<string>('generate_commands_report', {
+        sessionLogId: session.id,
+        userId: user.user_id,
+        roleId: user.role_id,
+      })
+      
+      console.log('✅ PDF temporal generado en:', pdfPath)
+
+      // Mostrar diálogo para guardar el PDF
+      const defaultFilename = `comandos_${session.host}_${new Date().toISOString().split('T')[0]}.pdf`
+      
+      console.log('🔵 Invocando save_pdf_dialog con:', {
+        tempPdfPath: pdfPath,
+        defaultFilename: defaultFilename,
+      })
+
+      const savedPath = await invoke<string>('save_pdf_dialog', {
+        tempPdfPath: pdfPath,
+        defaultFilename: defaultFilename,
+      })
+      
+      push({ type: 'success', message: `Reporte guardado en: ${savedPath}` })
+      console.log('✅ Reporte guardado exitosamente en:', savedPath)
+      
+    } catch (error) {
+      console.error('❌ Error generando reporte de comandos:', error)
+      push({ type: 'error', message: `Error: ${error}` })
+    }
   }
 
   return (
@@ -201,7 +244,7 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
             selectedSessionId={null}
             onSelectSession={(s) => onOpenLog?.(s)}
             onViewBuffer={handleViewBuffer}
-            onViewCommands={handleViewCommands}
+            onDownloadReport={handleDownloadReport}
             onDeleteLog={handleDeleteLog}
             loading={loading}
           />
