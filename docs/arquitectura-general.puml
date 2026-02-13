@@ -1,0 +1,160 @@
+@startuml arquitectura-general
+!theme plain
+skinparam backgroundColor #f8f9fa
+skinparam defaultTextColor #212529
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+title Arquitectura General - Cliente SSH Unipiloto
+
+package "APLICACIÓN DESKTOP (Tauri v2)" #e3f2fd {
+  
+  package "Frontend (React + Vite)" #bbdefb {
+    [UI Terminal\n(xterm.js)] as Terminal
+    [Chat IA] as Chat
+    [Gestión Logs] as Logs
+    [SFTP Browser] as SFTP
+    [GPIO Control\n(Raspberry Pi)] as GPIO
+  }
+  
+  package "Backend (Rust - Tokio)" #c5cae9 {
+    [SSH Client\n(russh)] as SSH
+    [SFTP Client\n(libssh2)] as SFTPClient
+    [AI Integration\n(OpenAI/Claude)] as AI
+    [Storage Manager\n(ChaCha20)] as Storage
+    [Logs Manager\n(Generación/Envío)] as LogsManager
+    [Moodle Client\n(Auth + Token)] as MoodleClient
+    [Session State\n(TTL 2h)] as State
+  }
+  
+  Terminal -down-> SSH : IPC\n(Tauri)
+  Chat -down-> AI : IPC
+  SSH -right-> LogsManager : Genera Logs\n(JSON/HTML)
+  LogsManager -down-> MoodleClient : Envía Logs
+  MoodleClient -up-> Logs : IPC\n(Logs desde Backend)
+  SFTP -down-> SFTPClient : IPC
+  GPIO -down-> SSH : IPC
+}
+
+cloud "Servicios Externos" {
+  
+  cloud "APIs IA" #e1f5fe {
+    [OpenAI API\ngpt-3.5-turbo] as OpenAI
+    [Anthropic API\nclaude-sonnet-4-5] as Claude
+  }
+  
+  package "Moodle LMS\n(Universidad Piloto)" #fff3e0 {
+    [API REST\n(Web Services)] as MoodleAPI
+    database "PostgreSQL/MySQL" as MoodleDB {
+      [mdl_user] as MoodleUsers
+      [mdl_role] as MoodleRoles
+      [mdl_log] as MoodleLogs
+      [mdl_course] as MoodleCourses
+    }
+    
+    MoodleAPI --> MoodleDB : Query
+  }
+  
+  node "GitHub Releases" #e8eaf6 {
+    [Binarios (.exe)] as Binaries
+    [latest.json] as Updates
+  }
+}
+
+node "Servidores Remotos" #e0e0e0 {
+  [Linux Servers] as Linux
+  [Raspberry Pi] as RPi
+  interface SSH_Port #ef5350
+  Linux - SSH_Port
+  RPi - SSH_Port
+}
+
+storage "Filesystem Local" #f5f5f5 {
+  folder "savedLogs/\n(backup local)" as LocalLogs
+  folder "hosts/" as LocalHosts
+}
+
+storage "OS Keyring" #fff9c4 {
+  [Master Key\n(AES-256)] as MasterKey
+}
+
+' Conexiones externas
+SSH --> SSH_Port : SSH Protocol\nPort 22
+SFTPClient --> SSH_Port : SFTP Protocol\nPort 22
+AI --> OpenAI : HTTPS REST
+AI --> Claude : HTTPS REST
+MoodleClient --> MoodleAPI : HTTPS REST\n(Token Auth)
+MoodleClient --> MoodleUsers : Autenticación
+MoodleClient --> MoodleLogs : Upload Logs\n(desde LogsManager)
+MoodleClient --> MoodleRoles : Verificar Permisos
+LogsManager --> LocalLogs : Backup Local\n(JSON + HTML)
+Storage --> LocalHosts : Cifrado\nChaCha20
+Storage --> MasterKey : Read/Write\nArgon2
+
+node "Auto-updater" as Updater #c8e6c9
+Updater --> Updates : HTTPS\nPolling
+
+note right of SSH
+  russh (async)
+  Terminal interactivo
+  Streaming I/O
+end note
+
+note right of SFTPClient
+  libssh2 (sync)
+  spawn_blocking
+end note
+
+note right of AI
+  reqwest (async)
+  Bearer token auth
+end note
+
+note bottom of Storage
+  Cifrado:
+  • ChaCha20-Poly1305 (AEAD)
+  • Argon2id (KDF)
+  • HKDF (derivación)
+end note
+
+note bottom of MoodleAPI
+  Autenticación:
+  Token-based (Web Services)
+  Integración con mdl_user
+  
+  Funciones:
+  • core_webservice_get_site_info
+  • core_user_get_users_by_field
+  • local_ssh_save_session_log
+end note
+
+note right of MoodleClient
+  Capacidades:
+  • Login con token
+  • Upload de logs (JSON/HTML)
+  • Verificación de roles
+  • Backup local automático
+end note
+
+note right of LogsManager
+  Funciones:
+  • Captura eventos SSH
+  • Formatea logs (JSON/HTML)
+  • Envía a Moodle vía MoodleClient
+  • Backup local automático
+  • Timestamp y sesión ID
+end note
+
+legend right
+  |= Protocolo |= Puerto |
+  | SSH/SFTP | 22 |
+  | HTTPS | 443 |
+  
+  |= Comunicación |= Tipo |
+  | Frontend ↔ Backend | IPC (Tauri) |
+  | Cliente ↔ Moodle | HTTPS REST |
+  | Cliente ↔ APIs IA | HTTPS REST |
+  | Cliente ↔ SSH | SSH Protocol |
+endlegend
+
+@enduml
