@@ -667,7 +667,7 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
               if use_claude && get_openai_api_key().is_some() {
                 eprintln!("[file_ai] ⚠️ Claude falló, intentando fallback a OpenAI...");
                 
-                let openai_key = get_openai_api_key().unwrap();
+                let openai_key = get_openai_api_key().unwrap_or_default();
                 let openai_body = serde_json::json!({
                   "model": "gpt-3.5-turbo",
                   "messages": [

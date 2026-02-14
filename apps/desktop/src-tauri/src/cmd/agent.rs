@@ -376,8 +376,10 @@ fn sanitize_term(term: &str) -> String {
 
 /// Obtiene el current_dir almacenado en la sesión (si existe)
 fn get_session_current_dir(session_id: &str) -> Option<String> {
-    let map = SESSIONS.lock().unwrap();
-    map.get(session_id).and_then(|s| s.current_dir.clone())
+    match SESSIONS.lock() {
+        Ok(map) => map.get(session_id).and_then(|s| s.current_dir.clone()),
+        Err(_) => None,
+    }
 }
 
 /// Obtiene el directorio base para búsqueda contextual: current_dir o, si no existe, $HOME (fallback a pwd)
@@ -395,7 +397,7 @@ fn sanitize_cd_path(path: &str) -> String {
 /// Obtiene (o crea) una sesión ssh2 reutilizable igual que hace el módulo SFTP.
 fn get_or_connect_ssh2(id: &str) -> Result<std::sync::Arc<std::sync::Mutex<crate::cmd::state::CachedSsh2>>, String> {
     use crate::cmd::state::SESSIONS;
-    let mut map = SESSIONS.lock().unwrap();
+    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     // Reutilizar lógica similar a sftp.rs (duplicamos mínima parte para evitar dependencia cruzada compleja)
     if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
     let (host, port, user, password) = {
@@ -446,7 +448,7 @@ fn remote_grep_ssh2(session_id: &str, pattern: &str, limit: usize) -> Result<Vec
     let cmd = if let Some(cd) = get_session_current_dir(session_id) { format!("cd {} && {}", sanitize_cd_path(&cd), base_cmd) } else { base_cmd };
     let output = {
         let arc = get_or_connect_ssh2(session_id)?;
-        let mut guard = arc.lock().unwrap();
+        let mut guard = arc.lock().map_err(|e| format!("Failed to lock SSH session: {}", e))?;
         ssh2_exec_capture(&mut guard.sess, &cmd, 5000)?
     };
     let mut res = Vec::new();
@@ -472,7 +474,7 @@ fn remote_read_ssh2(session_id: &str, path: &str, max_bytes: usize) -> Result<St
     let cmd = if let Some(cd) = get_session_current_dir(session_id) { format!("cd {} && {}", sanitize_cd_path(&cd), base_cmd) } else { base_cmd };
     let output = {
         let arc = get_or_connect_ssh2(session_id)?;
-        let mut guard = arc.lock().unwrap();
+        let mut guard = arc.lock().map_err(|e| format!("Failed to lock SSH session: {}", e))?;
         ssh2_exec_capture(&mut guard.sess, &cmd, 4000)?
     };
     Ok(output)
@@ -526,10 +528,18 @@ pub async fn agent_plan(req: AgentPlanRequest) -> Result<AgentPlanResponse, Stri
         if fuzzy_search_intent(&norm_msg) { intent = Some("search".into()); }
     }
     let intent = intent; // sombrear final
-    if std::env::var("SEARCH_INTENT_DEBUG").ok().as_deref()==Some("1") { eprintln!("[search_intent] raw='{}' norm='{}' detected={:?}", req.user_message, norm_msg, intent_detected); }
+    if std::env::var("SEARCH_INTENT_DEBUG").ok().as_deref()==Some("1") {
+        #[cfg(debug_assertions)]
+        eprintln!("[search_intent] raw='{}' norm='{}' detected={:?}", req.user_message, norm_msg, intent_detected);
+    }
     let root = infer_workspace_root(&req.workspace_root);
     // ¿Existe sesión SSH para modo remoto? (simplemente comprobar que session_id esté en el mapa)
-    let remote_mode = if let Some(ref sid) = req.session_id { SESSIONS.lock().unwrap().contains_key(sid) } else { false };
+    let remote_mode = if let Some(ref sid) = req.session_id {
+        match SESSIONS.lock() {
+            Ok(sessions) => sessions.contains_key(sid),
+            Err(_) => false,
+        }
+    } else { false };
     match intent.as_deref() {
         Some("search") => {
             let raw_term = extract_search_term(&req.user_message).unwrap_or_else(|| "".into());

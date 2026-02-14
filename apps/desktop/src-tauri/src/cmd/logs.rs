@@ -26,6 +26,77 @@ pub struct SessionLog {
     pub html_content: String,
 }
 
+fn build_session_html(metadata: &SessionLogMetadata, terminal_html: &str) -> String {
+    let duration = metadata.duration_seconds;
+    let duration_str = if duration >= 3600 {
+        format!("{}h {}m {}s", duration / 3600, (duration % 3600) / 60, duration % 60)
+    } else if duration >= 60 {
+        format!("{}m {}s", duration / 60, duration % 60)
+    } else {
+        format!("{}s", duration)
+    };
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session {session_id}</title>
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Cascadia Code','Fira Code','Consolas','Monaco',monospace;
+      font-size: 14px; line-height: 1.5;
+    }}
+    .session-header {{
+      background: #252526; border-bottom: 2px solid #007acc;
+      padding: 1.5rem 2rem; position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }}
+    .session-header h1 {{ color: #007acc; font-size: 1.5rem; margin-bottom: .75rem; font-weight: 600; }}
+    .session-info {{
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: .75rem; color: #ccc; font-size: .9rem;
+    }}
+    .info-item {{ display: flex; align-items: center; gap: .5rem; }}
+    .info-label {{ color: #858585; font-weight: 600; }}
+    .info-value {{ color: #d4d4d4; }}
+    .terminal-content {{ padding: 2rem; white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; font-size: 14px; line-height: 1.4; }}
+    ::-webkit-scrollbar {{ width: 12px; height: 12px; }}
+    ::-webkit-scrollbar-track {{ background: #1e1e1e; }}
+    ::-webkit-scrollbar-thumb {{ background: #424242; border-radius: 6px; }}
+    ::-webkit-scrollbar-thumb:hover {{ background: #4e4e4e; }}
+    ::selection {{ background: #264f78; color: #ffffff; }}
+  </style>
+</head>
+<body>
+  <div class="session-header">
+    <h1>📝 SSH Session Log</h1>
+    <div class="session-info">
+      <div class="info-item"><span class="info-label">Connection:</span><span class="info-value">{user}@{host}:{port}</span></div>
+      <div class="info-item"><span class="info-label">Session ID:</span><span class="info-value">{short_id}...</span></div>
+      <div class="info-item"><span class="info-label">Start:</span><span class="info-value">{start}</span></div>
+      <div class="info-item"><span class="info-label">End:</span><span class="info-value">{end}</span></div>
+      <div class="info-item"><span class="info-label">Duration:</span><span class="info-value">{duration}</span></div>
+    </div>
+  </div>
+  <div class="terminal-content">{terminal}</div>
+</body>
+</html>"#,
+        session_id = metadata.session_id,
+        user = metadata.user,
+        host = metadata.host,
+        port = metadata.port,
+        short_id = &metadata.session_id.chars().take(8).collect::<String>(),
+        start = metadata.start_time.to_rfc3339(),
+        end = metadata.end_time.to_rfc3339(),
+        duration = duration_str,
+        terminal = terminal_html
+    )
+}
+
 /// Trait que abstrae el almacenamiento de logs
 /// Permite migrar fácilmente de filesystem local a Azure SQL
 #[allow(dead_code)]
@@ -216,6 +287,44 @@ pub async fn save_session_log(
         html_content,
     };
     
+    STORAGE.save_log(log)
+}
+
+/// Guarda un log recibiendo SOLO el HTML del terminal (fragmento) y
+/// genera en backend el HTML completo con cabecera/estilos.
+#[tauri::command]
+pub async fn save_session_log_fragment(
+    session_id: String,
+    user: String,
+    host: String,
+    port: u16,
+    start_time: String, // ISO 8601
+    end_time: String,   // ISO 8601
+    html_fragment: String,
+) -> Result<(), String> {
+    let start_time = DateTime::parse_from_rfc3339(&start_time)
+        .map_err(|e| format!("Error parseando start_time: {}", e))?
+        .with_timezone(&Utc);
+    let end_time = DateTime::parse_from_rfc3339(&end_time)
+        .map_err(|e| format!("Error parseando end_time: {}", e))?
+        .with_timezone(&Utc);
+    let duration_seconds = (end_time - start_time).num_seconds();
+    let metadata = SessionLogMetadata {
+        session_id: session_id.clone(),
+        user,
+        host,
+        port,
+        start_time,
+        end_time,
+        duration_seconds,
+        buffer_size_bytes: html_fragment.len(),
+        command_count: None,
+    };
+    let full_html = build_session_html(&metadata, &html_fragment);
+    let log = SessionLog {
+        metadata,
+        html_content: full_html,
+    };
     STORAGE.save_log(log)
 }
 

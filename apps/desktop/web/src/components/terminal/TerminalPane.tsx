@@ -9,8 +9,7 @@ import './TerminalPane.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { captureAndSaveSession, captureAndSaveSessionCloud } from '../../api/sessionCapture';
+import { captureAndSaveSession } from '../../api/sessionCapture';
 
 type Props = { sessionId: string | null };
 
@@ -18,7 +17,6 @@ const sanitize = (id: string) => (id || '').replace(/[^a-zA-Z0-9_:\-\/]/g, '_');
 
 const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const { theme } = useTheme();
-  const { user, isAuthenticated } = useAuth();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -440,14 +438,9 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
                   };
                 }
                 
-                // Guardar en cloud si está autenticado, sino local
-                if (isAuthenticated && user) {
-                  await captureAndSaveSessionCloud(fullHistory, finalMetadata, user.user_id);
-                  console.log(`☁️ Session captured to cloud on unmount: ${metadata.sessionId} (${fullHistory.length} bytes from ${allSnapshots.length} snapshots)`);
-                } else {
-                  await captureAndSaveSession(fullHistory, finalMetadata);
-                  console.log(`💾 Session captured locally on unmount: ${metadata.sessionId} (${fullHistory.length} bytes from ${allSnapshots.length} snapshots)`);
-                }
+              // Guardar localmente (sin autenticación)
+              await captureAndSaveSession(fullHistory, finalMetadata);
+              console.log(`💾 Session captured locally on unmount: ${metadata.sessionId} (${fullHistory.length} bytes from ${allSnapshots.length} snapshots)`);
               }
             } catch (error) {
               console.error('❌ Error capturing session on unmount:', error);
@@ -558,16 +551,9 @@ const TerminalPane: React.FC<Props> = ({ sessionId }) => {
               };
             }
             
-            // Guardar en cloud si está autenticado, sino local
-            if (isAuthenticated && user) {
-              console.log('🔐 User info before save:', { userId: user.user_id, username: user.username, isAuthenticated });
-              await captureAndSaveSessionCloud(fullHistory, finalMetadata, user.user_id);
-              console.log(`☁️ Session captured to cloud: ${metadata.sessionId} (${fullHistory.length} bytes)`);
-            } else {
-              console.warn('⚠️ Not authenticated or no user, saving locally instead');
-              await captureAndSaveSession(fullHistory, finalMetadata);
-              console.log(`💾 Session captured locally: ${metadata.sessionId} (${fullHistory.length} bytes)`);
-            }
+            // Guardar localmente (sin autenticación)
+            await captureAndSaveSession(fullHistory, finalMetadata);
+            console.log(`💾 Session captured locally: ${metadata.sessionId} (${fullHistory.length} bytes)`);
           } else {
             console.warn(`⚠️ Session ${metadata.sessionId} has no significant content to save`);
           }
