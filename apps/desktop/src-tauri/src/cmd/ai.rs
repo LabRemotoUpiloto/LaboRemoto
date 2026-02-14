@@ -582,13 +582,16 @@ cd /ruta/deseada
     let mut any_fix = false;
     
     for (pattern, replacement) in patterns {
-      let re = Regex::new(pattern).unwrap();
-      if re.is_match(&result) {
-        if debug {
-          eprintln!("[SHEBANG] ✓ Corrigiendo '{}' -> '{}'", pattern, replacement);
+      if let Ok(re) = Regex::new(pattern) {
+        if re.is_match(&result) {
+          if debug {
+            eprintln!("[SHEBANG] ✓ Corrigiendo '{}' -> '{}'", pattern, replacement);
+          }
+          result = re.replace_all(&result, replacement).to_string();
+          any_fix = true;
         }
-        result = re.replace_all(&result, replacement).to_string();
-        any_fix = true;
+      } else if debug {
+         eprintln!("[SHEBANG] ⚠ Invalid regex pattern: '{}'", pattern);
       }
     }
     
@@ -621,16 +624,19 @@ cd /ruta/deseada
       let mut fixed = false;
       
       for (pattern, replacement) in &patterns {
-        let re = Regex::new(pattern).unwrap();
-        if re.is_match(&corrected) {
-          if debug {
-            eprintln!("[FILENAME] ✓ Corrigiendo línea: '{}'", corrected);
+        if let Ok(re) = Regex::new(pattern) {
+          if re.is_match(&corrected) {
+            if debug {
+              eprintln!("[FILENAME] ✓ Corrigiendo línea: '{}'", corrected);
+            }
+            corrected = re.replace(&corrected, *replacement).to_string();
+            fixed = true;
+            if debug {
+              eprintln!("[FILENAME] ✓ Resultado: '{}'", corrected);
+            }
           }
-          corrected = re.replace(&corrected, *replacement).to_string();
-          fixed = true;
-          if debug {
-            eprintln!("[FILENAME] ✓ Resultado: '{}'", corrected);
-          }
+        } else if debug {
+             eprintln!("[FILENAME] ⚠ Invalid regex pattern: '{}'", pattern);
         }
       }
       

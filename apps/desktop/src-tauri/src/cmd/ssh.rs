@@ -1,4 +1,4 @@
-﻿use base64::engine::general_purpose::STANDARD;
+use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
@@ -54,18 +54,28 @@ pub async fn ssh_connect(
       Ok((session, mut rx_out)) => {
         // Guardar sesión
         {
-          let mut map = SESSIONS.lock().unwrap();
-          map.insert(id_clone.clone(), SessionExt {
-            term: session,
-            host: host_clone.clone(),
-            port,
-            user: user_clone.clone(),
-            password: password_clone.clone(),
-            sftp_cached: None,
-            out_buffer: Arc::new(Mutex::new(Some(String::new()))),
-            ui_ready: Arc::new(AtomicBool::new(false)),
-            current_dir: None,
-          });
+          match SESSIONS.lock() {
+            Ok(mut map) => {
+              map.insert(id_clone.clone(), SessionExt {
+                term: session,
+                host: host_clone.clone(),
+                port,
+                user: user_clone.clone(),
+                password: password_clone.clone(),
+                sftp_cached: None,
+                out_buffer: Arc::new(Mutex::new(Some(String::new()))),
+                ui_ready: Arc::new(AtomicBool::new(false)),
+                current_dir: None,
+              });
+            }
+            Err(e) => {
+              let _ = app_clone.emit("ssh_connect_error", serde_json::json!({
+                "id": id_clone,
+                "error": format!("Session lock error: {}", e)
+              }));
+              return;
+            }
+          }
         }
         
         // Emitir evento de éxito
@@ -78,8 +88,10 @@ pub async fn ssh_connect(
         let app2 = app_clone.clone();
         let id_spawn = id_clone.clone();
         let buffer_ref = {
-          let map = SESSIONS.lock().unwrap();
-          map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone()))
+          match SESSIONS.lock() {
+            Ok(map) => map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone())),
+            Err(_) => None,
+          }
         };
         
         tokio::spawn(async move {
@@ -117,7 +129,7 @@ pub async fn ssh_connect(
 #[tauri::command]
 pub async fn ssh_ui_ready(app: AppHandle, id: String) -> Result<(), String> {
   let (out_buffer, ui_ready) = {
-    let map = SESSIONS.lock().unwrap();
+    let map = SESSIONS.lock().map_err(|e| e.to_string())?;
     let Some(sess) = map.get(&id) else { return Err(AppError::NotFoundSession.to_string()); };
     (sess.out_buffer.clone(), sess.ui_ready.clone())
   };
@@ -136,7 +148,7 @@ pub async fn ssh_ui_ready(app: AppHandle, id: String) -> Result<(), String> {
 pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Result<(), String> {
   // Preparar tx y también referencia para posible actualización de cwd
   let tx = {
-    let map = SESSIONS.lock().unwrap();
+    let map = SESSIONS.lock().map_err(|e| e.to_string())?;
     map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?.term.tx.clone()
   };
   let bytes = if let Some(enc) = encoding {
@@ -166,7 +178,10 @@ pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Re
     // Actualizar current_dir en background usando ssh2 (sin bloquear el loop async principal)
     tokio::task::spawn_blocking(move || {
       use std::path::PathBuf;
-      let mut map = SESSIONS.lock().unwrap();
+      let mut map = match SESSIONS.lock() {
+          Ok(m) => m,
+          Err(_) => return, // Si falla el lock, simplemente no actualizamos cwd
+      };
       if let Some(s) = map.get_mut(&id) {
         // Obtener/conectar sesión ssh2
         let arc = if let Some(existing) = s.sftp_cached.clone() { existing } else {
@@ -213,7 +228,7 @@ pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Re
 #[tauri::command]
 pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> {
   let tx = {
-    let map = SESSIONS.lock().unwrap();
+    let map = SESSIONS.lock().map_err(|e| e.to_string())?;
     map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?.term.tx.clone()
   };
   tx.send(ChanCmd::Resize { cols, rows }).map_err(|e| e.to_string())
@@ -222,7 +237,7 @@ pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> 
 #[tauri::command]
 pub async fn ssh_disconnect(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
   let tx = {
-    let mut map = SESSIONS.lock().unwrap();
+    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     let Some(session) = map.remove(&id) else { return Err(AppError::NotFoundSession.to_string()); };
     session.term.tx.clone()
   };
@@ -242,7 +257,7 @@ pub struct SessionInfo {
 
 #[tauri::command]
 pub async fn ssh_session_info(id: String) -> Result<SessionInfo, String> {
-  let map = SESSIONS.lock().unwrap();
+  let map = SESSIONS.lock().map_err(|e| e.to_string())?;
   let sess = map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
   let ip = sess.term.resolved_addr.ip().to_string();
   Ok(SessionInfo { host: sess.host.clone(), port: sess.port, user: sess.user.clone(), resolved_ip: ip })
@@ -260,7 +275,7 @@ pub struct RpiGpioLine {
 pub async fn rpi_pins_status(id: String) -> Result<Vec<RpiGpioLine>, String> {
   // Acquire ssh2 session (reuse cached or connect fresh like in cd handling)
   let arc_cached = {
-    let mut map = SESSIONS.lock().unwrap();
+    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     let s = map.get_mut(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
     if let Some(existing) = s.sftp_cached.clone() {
       existing
@@ -309,7 +324,7 @@ pub async fn rpi_pin_set_mode(id: String, gpio: u32, mode: String) -> Result<(),
   };
 
   let arc_cached = {
-    let mut map = SESSIONS.lock().unwrap();
+    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     let s = map.get_mut(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
     if let Some(existing) = s.sftp_cached.clone() {
       existing
@@ -356,7 +371,7 @@ pub async fn rpi_pin_set_pull(id: String, gpio: u32, pull: String) -> Result<(),
   };
 
   let arc_cached = {
-    let mut map = SESSIONS.lock().unwrap();
+    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     let s = map.get_mut(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
     if let Some(existing) = s.sftp_cached.clone() {
       existing
@@ -402,7 +417,7 @@ pub async fn rpi_pin_write_level(id: String, gpio: u32, level: u8) -> Result<(),
   };
 
   let arc_cached = {
-    let mut map = SESSIONS.lock().unwrap();
+    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     let s = map.get_mut(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
     if let Some(existing) = s.sftp_cached.clone() {
       existing
@@ -442,7 +457,7 @@ pub async fn rpi_pin_write_level(id: String, gpio: u32, level: u8) -> Result<(),
 #[tauri::command]
 pub async fn rpi_pin_read(id: String, gpio: u32) -> Result<RpiGpioLine, String> {
   let arc_cached = {
-    let mut map = SESSIONS.lock().unwrap();
+    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     let s = map.get_mut(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
     if let Some(existing) = s.sftp_cached.clone() {
       existing
@@ -508,7 +523,7 @@ pub async fn ssh_connect_stored(
 
   let id = Uuid::new_v4().to_string();
   {
-    let mut map = SESSIONS.lock().unwrap();
+    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     map.insert(id.clone(), SessionExt {
       term: session,
       host: host.clone(),
@@ -530,8 +545,10 @@ pub async fn ssh_connect_stored(
   let app2 = app.clone();
   let id_spawn = id.clone();
   let buffer_ref = {
-    let map = SESSIONS.lock().unwrap();
-    map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone()))
+    match SESSIONS.lock() {
+      Ok(map) => map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone())),
+      Err(_) => None,
+    }
   };
   tokio::spawn(async move {
     while let Some(buf) = rx_out.recv().await {

@@ -167,135 +167,7 @@ function convertAnsiToHtml(ansiText: string): string {
 /**
  * Genera HTML completo con estructura y estilos para el log de sesión
  */
-function generateSessionHtml(metadata: SessionMetadata, terminalContent: string): string {
-  const duration = calculateDuration(metadata.startTime, metadata.endTime);
-  
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Session ${metadata.sessionId}</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      background: #1e1e1e;
-      color: #d4d4d4;
-      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', monospace;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    
-    .session-header {
-      background: #252526;
-      border-bottom: 2px solid #007acc;
-      padding: 1.5rem 2rem;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-    
-    .session-header h1 {
-      color: #007acc;
-      font-size: 1.5rem;
-      margin-bottom: 0.75rem;
-      font-weight: 600;
-    }
-    
-    .session-info {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 0.75rem;
-      color: #cccccc;
-      font-size: 0.9rem;
-    }
-    
-    .info-item {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .info-label {
-      color: #858585;
-      font-weight: 600;
-    }
-    
-    .info-value {
-      color: #d4d4d4;
-    }
-    
-    .terminal-content {
-      padding: 2rem;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      overflow-x: auto;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-    
-    /* Scrollbar personalizado */
-    ::-webkit-scrollbar {
-      width: 12px;
-      height: 12px;
-    }
-    
-    ::-webkit-scrollbar-track {
-      background: #1e1e1e;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-      background: #424242;
-      border-radius: 6px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-      background: #4e4e4e;
-    }
-    
-    /* Estilos para selección de texto */
-    ::selection {
-      background: #264f78;
-      color: #ffffff;
-    }
-  </style>
-</head>
-<body>
-  <div class="session-header">
-    <h1>📝 SSH Session Log</h1>
-    <div class="session-info">
-      <div class="info-item">
-        <span class="info-label">Connection:</span>
-        <span class="info-value">${metadata.user}@${metadata.host}:${metadata.port}</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Session ID:</span>
-        <span class="info-value">${metadata.sessionId.substring(0, 8)}...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Start:</span>
-        <span class="info-value">${new Date(metadata.startTime).toLocaleString()}</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">End:</span>
-        <span class="info-value">${new Date(metadata.endTime).toLocaleString()}</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Duration:</span>
-        <span class="info-value">${duration}</span>
-      </div>
-    </div>
-  </div>
-  <div class="terminal-content">${terminalContent}</div>
-</body>
-</html>`;
-}
+// Eliminada generación de HTML completo en frontend; se realiza en el backend
 
 /**
  * Calcula la duración formateada entre dos timestamps
@@ -332,26 +204,20 @@ export async function captureAndSaveSession(
       firstChars: serializedContent.substring(0, 100)
     });
     
-    // Convertir contenido ANSI a HTML
     const htmlContent = convertAnsiToHtml(serializedContent);
-    
     console.log('🎨 Converted to HTML:', {
       htmlLength: htmlContent.length,
       firstChars: htmlContent.substring(0, 200)
     });
-    
-    // Generar HTML completo con estructura
-    const fullHtml = generateSessionHtml(metadata, htmlContent);
-    
-    // Guardar en el backend
-    await invoke('save_session_log', {
+
+    await invoke('save_session_log_fragment', {
       sessionId: metadata.sessionId,
       user: metadata.user,
       host: metadata.host,
       port: metadata.port,
       startTime: metadata.startTime,
       endTime: metadata.endTime,
-      htmlContent: fullHtml,
+      htmlFragment: htmlContent,
     });
     
     console.log(`✅ Session log saved: ${metadata.sessionId}`);
@@ -365,48 +231,7 @@ export async function captureAndSaveSession(
  * Captura y guarda sesión en la nube (Supabase)
  * Similar a captureAndSaveSession pero usa comandos cloud con user_id
  */
-export async function captureAndSaveSessionCloud(
-  serializedContent: string,
-  metadata: SessionMetadata,
-  userId: string
-): Promise<void> {
-  try {
-    console.log('☁️ Capturing session to cloud:', {
-      sessionId: metadata.sessionId,
-      userId,
-      contentLength: serializedContent.length
-    });
-    
-    // Convertir contenido ANSI a HTML
-    const htmlContent = convertAnsiToHtml(serializedContent);
-    
-    // Generar HTML completo con estructura
-    const fullHtml = generateSessionHtml(metadata, htmlContent);
-    
-    // Calcular duración en segundos
-    const startTime = new Date(metadata.startTime);
-    const endTime = new Date(metadata.endTime);
-    const durationSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
-    
-    // Guardar en Supabase Storage (para logs grandes)
-    await saveSessionLogCloud({
-      userId,
-      sessionId: metadata.sessionId,
-      host: metadata.host,
-      username: metadata.user,
-      startedAt: metadata.startTime,
-      endedAt: metadata.endTime,
-      durationSeconds,
-      htmlContent: fullHtml,
-      saveToStorage: fullHtml.length > 50000 // Storage si > 50KB, DB si es pequeño
-    });
-    
-    console.log(`☁️ Session log saved to cloud: ${metadata.sessionId}`);
-  } catch (error) {
-    console.error('❌ Error saving session to cloud:', error);
-    throw error;
-  }
-}
+// Cloud capture removed: sin autenticación ni Supabase
 
 /**
  * Lista todos los logs de sesión disponibles
@@ -473,74 +298,22 @@ export async function cleanupOldLogs(days: number): Promise<number> {
 // CLOUD STORAGE FUNCTIONS (Supabase)
 // ============================================================================
 
-export interface SaveLogCloudRequest {
-  userId: string;
-  sessionId: string;
-  host: string;
-  username: string;
-  startedAt: string;
-  endedAt?: string;
-  durationSeconds?: number;
-  htmlContent: string;
-  saveToStorage: boolean; // true: Storage, false: DB directo
-}
+// Eliminado: SaveLogCloudRequest (Supabase)
 
 /**
  * Guarda un log de sesión en Supabase (Storage o DB)
  */
-export async function saveSessionLogCloud(request: SaveLogCloudRequest): Promise<string> {
-  try {
-    // Convertir camelCase a snake_case para el backend
-    const backendRequest = {
-      user_id: request.userId,
-      session_id: request.sessionId,
-      host: request.host,
-      username: request.username,
-      started_at: request.startedAt,
-      ended_at: request.endedAt,
-      duration_seconds: request.durationSeconds,
-      html_content: request.htmlContent,
-      save_to_storage: request.saveToStorage,
-    };
-    
-    console.log('🔍 Sending to backend:', JSON.stringify(backendRequest, null, 2).substring(0, 500));
-    
-    const storagePath = await invoke<string>('save_session_log_cloud', { request: backendRequest });
-    console.log(`☁️ Session log saved to cloud: ${storagePath}`);
-    return storagePath;
-  } catch (error) {
-    console.error('❌ Error saving log to cloud:', error);
-    throw error;
-  }
-}
+// Eliminado: saveSessionLogCloud (Supabase)
 
 /**
  * Obtiene los logs de sesión de un usuario desde Supabase
  */
-export async function getUserSessionLogs(userId: string, limit?: number): Promise<any[]> {
-  try {
-    const logs = await invoke<any[]>('get_user_session_logs', { userId, limit });
-    console.log(`☁️ Loaded ${logs.length} session logs from cloud for user ${userId}`);
-    return logs;
-  } catch (error) {
-    console.error('❌ Error loading user logs from cloud:', error);
-    throw error;
-  }
-}
+// Eliminado: getUserSessionLogs (Supabase)
 
 /**
  * Obtiene el contenido HTML de un log desde Supabase Storage o DB
  */
-export async function getLogHtmlContent(userId: string, sessionId: string): Promise<string> {
-  try {
-    const html = await invoke<string>('get_log_html_content', { userId, sessionId });
-    console.log(`☁️ Loaded HTML content for session ${sessionId}`);
-    return html;
-  } catch (error) {
-    console.error(`❌ Error loading HTML content for ${sessionId}:`, error);
-    throw error;
-  }
-}
+// Eliminado: getLogHtmlContent (Supabase)
 
 /**
  * Obtiene los logs de sesión filtrados por rol del usuario
@@ -548,27 +321,9 @@ export async function getLogHtmlContent(userId: string, sessionId: string): Prom
  * - Profesor (role_id=2): logs de estudiantes de sus grupos
  * - Admin (role_id=3): todos los logs
  */
-export async function getSessionLogsByRole(userId: string, roleId: number, limit?: number): Promise<any[]> {
-  try {
-    const logs = await invoke<any[]>('get_session_logs_by_role', { userId, roleId, limit });
-    console.log(`☁️ Loaded ${logs.length} session logs from cloud for role ${roleId}`);
-    return logs;
-  } catch (error) {
-    console.error('❌ Error loading logs by role from cloud:', error);
-    throw error;
-  }
-}
+// Eliminado: getSessionLogsByRole (Supabase)
 
 /**
  * Obtiene el contenido HTML de un log desde Supabase (DB o Storage)
  */
-export async function getLogHtmlContentCloud(userId: string, sessionId: string): Promise<string> {
-  try {
-    const html = await invoke<string>('get_log_html_content', { userId, sessionId });
-    console.log(`☁️ Loaded HTML content for session ${sessionId} (${html.length} bytes)`);
-    return html;
-  } catch (error) {
-    console.error(`❌ Error loading HTML content from cloud for ${sessionId}:`, error);
-    throw error;
-  }
-}
+// Eliminado: getLogHtmlContentCloud (Supabase)
