@@ -8,22 +8,12 @@ const MENSAJE_IDENTIDAD: &str = "Soy un cliente SSH de la Universidad Piloto de 
 const MENSAJE_FUERA_DE_ALCANCE: &str = "No tengo contenido para esa solicitud. Puedo ayudarte con temas de Linux por terminal (comandos, scripts, configuración). Intenta con una pregunta relacionada o escribe de nuevo tu solicitud.";
 const MENSAJE_CAPACIDADES: &str = "Puedo ayudarte con temas de Linux por terminal:\n\n- Explicar comandos, rutas, permisos y procesos.\n- Sugerir y componer comandos seguros para tu objetivo.\n- Crear guías paso a paso y scripts listos sin editores interactivos (usando here-doc).\n- Generar scripts sencillos (bash/python) y explicar cómo usarlos.\n- Resolver errores de la terminal y configurar servicios comunes (systemctl, apt/yum/pacman, etc.).\n\nDime qué quieres lograr y te doy los pasos o el comando adecuado.";
 
-/// Tipo de modo del chat (normalizado). Se mantienen alias para compatibilidad con el frontend
-/// que todavía puede enviar 'busqueda', 'pines' o 'analisis'. Todos se tratan como consulta.
+/// Tipo de modo del chat canónico.
+/// Se unifica a un solo modo 'ask' para mantener FE y BE sincronizados.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ChatMode {
   #[default]
-  #[serde(
-    alias = "ASK", alias = "Ask",
-    alias = "consulta", alias = "CONSULTA", alias = "Consulta",
-    // Alias de modos frontend que se resuelven aquí al mismo comportamiento
-    alias = "busqueda", alias = "BUSQUEDA", alias = "Busqueda",
-    alias = "pines", alias = "PINES", alias = "Pines",
-    alias = "analisis", alias = "ANALISIS", alias = "Analisis",
-    // Alias históricos (se eliminó la lógica especial de agente/súper)
-    alias = "agent", alias = "AGENT", alias = "super", alias = "SUPER", alias = "Super"
-  )]
   Ask,
 }
 
