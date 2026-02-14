@@ -13,11 +13,6 @@ import ConnectFormPage from './pages/ConnectFormPage'
 import LandingPage from './pages/LandingPage'
 import LogsPage from './pages/LogsPage'
 import LogDetailPage from './pages/LogDetailPage'
-import UsersAdminPage from './pages/UsersAdminPage'
-import GroupsPage from './pages/GroupsPage'
-import StudentDashboardPage from './pages/StudentDashboardPage'
-import ProfessorDashboardPage from './pages/ProfessorDashboardPage'
-import AdminDashboardPage from './pages/AdminDashboardPage'
 import { connectFromHost } from './api/storage'
 import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/modals/GlobalLoader'
@@ -32,38 +27,9 @@ import ChatPane from './components/ChatPane'
 import PinsPanel from './components/raspberry/PinsPanel'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
-import LdapLoginPage from './pages/LdapLoginPage'
+// Sin autenticación
 
-function AppContent() {
-  const { isAuthenticated, isLoading, login, user } = useAuth();
-  
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Cargando...</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <LdapLoginPage 
-        onLoginSuccess={(loginResponse) => {
-          login(loginResponse.token, {
-            user_id: loginResponse.user_id,
-            username: loginResponse.username,
-            email: loginResponse.email,
-            name: loginResponse.name,
-            role_id: loginResponse.role_id,
-          });
-        }} 
-      />
-    );
-  }
-
-  return <AppMain />;
-}
+function AppContent() { return <AppMain /> }
 
 function AppMain() {
   // Representa una pestaña: 'home' (persistente) o 'session' (SSH)
@@ -80,7 +46,6 @@ function AppMain() {
   const [isCameraOpen, setCameraOpen] = useState(false)
   const [isPinsPanelOpen, setPinsPanelOpen] = useState(false)
 
-  const { user, isProfessor, isAdmin } = useAuth()
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
 
@@ -358,12 +323,6 @@ function AppMain() {
               toggleSidebar={toggleSidebar}
               selectedPage={selectedPage}
               onSelectPage={(p) => {
-                // Verificar permisos para logs: solo profesores y admins
-                if (p === 'logs' && !isProfessor && !isAdmin) {
-                  console.warn('Acceso denegado: solo profesores y administradores pueden ver logs')
-                  return
-                }
-                
                 navigateFromSidebar({
                   page: p,
                   activeTabType: activeTab.type,
@@ -426,16 +385,6 @@ function AppMain() {
                 <ThemesPage />
               ) : selectedPage === 'logs' ? (
                 <LogsPage onOpenLog={openLogTab} />
-              ) : selectedPage === 'users' ? (
-                <UsersAdminPage />
-              ) : selectedPage === 'groups' ? (
-                <GroupsPage />
-              ) : selectedPage === 'student-dashboard' ? (
-                <StudentDashboardPage />
-              ) : selectedPage === 'professor-dashboard' ? (
-                <ProfessorDashboardPage />
-              ) : selectedPage === 'admin-dashboard' ? (
-                <AdminDashboardPage />
               ) : selectedPage === 'sftp' ? (
                 <SftpPage
                   sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
@@ -514,11 +463,7 @@ function AppMain() {
 }
 
 const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+  return <AppContent />;
 };
 
 export default App;

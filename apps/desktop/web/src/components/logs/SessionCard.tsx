@@ -17,8 +17,8 @@ interface SessionCardProps {
   isSelected: boolean
   onSelect: () => void
   onViewBuffer: () => void
-  onDownloadReport: () => void
   onDelete?: () => void
+  onSavePdf?: () => void
 }
 
 const SessionCard: React.FC<SessionCardProps> = ({
@@ -26,8 +26,8 @@ const SessionCard: React.FC<SessionCardProps> = ({
   isSelected,
   onSelect,
   onViewBuffer,
-  onDownloadReport,
-  onDelete
+  onDelete,
+  onSavePdf
 }) => {
   const formatDuration = (seconds?: number) => {
     if (!seconds) return 'En curso'
@@ -106,15 +106,19 @@ const SessionCard: React.FC<SessionCardProps> = ({
         >
           Ver Logs
         </button>
-        <button 
-          className="view-commands-btn"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDownloadReport()
-          }}
-        >
-          Descargar Reporte
-        </button>
+        {onSavePdf && (
+          <button
+            className="download-report-btn"
+            onClick={(e) => {
+              e.stopPropagation()
+              onSavePdf()
+            }}
+            title="Guardar PDF en savedLogs"
+            aria-label="Guardar PDF en savedLogs"
+          >
+            Guardar PDF
+          </button>
+        )}
       </div>
     </div>
   )

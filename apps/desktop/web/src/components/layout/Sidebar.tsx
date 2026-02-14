@@ -13,7 +13,6 @@ import {
   HomeIcon,
   FileTextIcon
 } from '../icons/SidebarIcons'
-import { useAuth } from '../../contexts/AuthContext'
 
 interface SidebarProps {
   isOpen: boolean
@@ -32,8 +31,6 @@ const items = [
   { id: 'connect', label: 'Connect', icon: MonitorIcon },
   { id: 'hosts', label: 'Hosts', icon: CompassIcon },
   { id: 'logs', label: 'Logs', icon: FileTextIcon },
-  { id: 'users', label: 'Usuarios', icon: '👥' },
-  { id: 'groups', label: 'Grupos', icon: '👨‍🏫' },
   { id: 'themes', label: 'Temas', icon: PaletteIcon },
   { id: 'sftp', label: 'SFTP', icon: FolderIcon },
   { id: 'snippets', label: 'Snippets', icon: CodeIcon },
@@ -57,26 +54,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onTogglePins
 }) => {
   const [appVersion, setAppVersion] = React.useState<string>('')
-  const { user, isProfessor, isAdmin } = useAuth()
-
-  // Filtrar items del sidebar basado en el rol del usuario
-  const getFilteredItems = () => {
-    return items.filter(item => {
-      // Logs solo para profesores y admins (role_id 2 o 3)
-      if (item.id === 'logs') {
-        return isProfessor || isAdmin
-      }
-      // Usuarios solo para admins (role_id 3)
-      if (item.id === 'users') {
-        return isAdmin
-      }
-      // Grupos solo para profesores y admins (role_id 2 o 3)
-      if (item.id === 'groups') {
-        return isProfessor || isAdmin
-      }
-      return true
-    })
-  }
+  // Menú plano sin roles ni autenticación
+  const getFilteredItems = () => items
 
   // Filtrar items especiales basado en la sesión activa
   const getFilteredSpecialItems = () => {

@@ -28,7 +28,12 @@ fn get_or_connect_ssh2(id: &str) -> Result<std::sync::Arc<std::sync::Mutex<crate
 }
 
 fn session_base_dir(session_id: &str, sess: &mut ssh2::Session) -> String {
-  if let Some(cd) = { let map = SESSIONS.lock().unwrap(); map.get(session_id).and_then(|s| s.current_dir.clone()) } { return cd; }
+  if let Some(cd) = { 
+    match SESSIONS.lock() {
+        Ok(map) => map.get(session_id).and_then(|s| s.current_dir.clone()),
+        Err(_) => None,
+    }
+  } { return cd; }
   if let Ok(mut ch)=sess.channel_session(){ if ch.exec("echo $HOME 2>/dev/null").is_ok(){ use std::io::Read; let mut b=String::new(); let _=ch.read_to_string(&mut b); let _=ch.wait_close(); if let Some(l)=b.lines().next(){ let p=l.trim(); if !p.is_empty(){ return p.to_string(); } } } }
   if let Ok(mut ch)=sess.channel_session(){ if ch.exec("pwd 2>/dev/null").is_ok(){ use std::io::Read; let mut b=String::new(); let _=ch.read_to_string(&mut b); let _=ch.wait_close(); if let Some(l)=b.lines().next(){ let p=l.trim(); if !p.is_empty(){ return p.to_string(); } } } }
   ".".into()

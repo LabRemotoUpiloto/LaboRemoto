@@ -6,6 +6,11 @@ use serde::{Serialize, Deserialize};
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 
+#[cfg(debug_assertions)]
+macro_rules! dlog { ($($t:tt)*) => { eprintln!($($t)*); } }
+#[cfg(not(debug_assertions))]
+macro_rules! dlog { ($($t:tt)*) => {}; }
+
 // Helper centralizado para obtener la API key saneada.
 pub fn get_openai_api_key() -> Option<String> {
     // Cargar .env una vez por proceso (dotenvy es idempotente, pero evitamos ruido)
@@ -322,7 +327,7 @@ pub async fn call_claude_file_analysis(
     let text_body = response.text().await.unwrap_or_default();
     
     if debug {
-        eprintln!("[call_claude] Status: {}, Body length: {}", status, text_body.len());
+        dlog!("[call_claude] Status: {}, Body length: {}", status, text_body.len());
     }
     
     if !status.is_success() {
@@ -343,7 +348,7 @@ pub async fn call_claude_file_analysis(
         .ok_or("No se encontró texto en respuesta de Claude")?;
     
     if debug {
-        eprintln!("[call_claude] Contenido extraído ({} chars)", content.len());
+        dlog!("[call_claude] Contenido extraído ({} chars)", content.len());
     }
     
     Ok(FileAnalysisResult {
@@ -419,7 +424,7 @@ pub async fn call_openai_file_analysis(
     let text_body = response.text().await.unwrap_or_default();
     
     if debug {
-        eprintln!("[call_openai] Status: {}, Body length: {}", status, text_body.len());
+        dlog!("[call_openai] Status: {}, Body length: {}", status, text_body.len());
     }
     
     if !status.is_success() {
@@ -440,7 +445,7 @@ pub async fn call_openai_file_analysis(
         .ok_or("No se encontró contenido en respuesta de OpenAI")?;
     
     if debug {
-        eprintln!("[call_openai] Contenido extraído ({} chars)", content.len());
+        dlog!("[call_openai] Contenido extraído ({} chars)", content.len());
     }
     
     // Parsear JSON de la respuesta
