@@ -228,7 +228,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
     const history = [...messages, userMsg]
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: m.text }));
-    const mappedMode = mode === 'analisis' ? 'ANALISIS' : mode.toUpperCase();
+    // Enviamos siempre 'ask' al backend para mantener sincronización canónica
+    const mappedMode = 'ask';
     const res = await invoke<AiResponseRaw>('ai_chat', { 
       req: { 
         user_input: finalInput, 
