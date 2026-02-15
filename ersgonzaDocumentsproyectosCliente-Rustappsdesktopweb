@@ -1,0 +1,184 @@
+// Panel del terminal: instancia xterm, ajusta tamaño y suscribe a eventos Tauri.
+import React, { useEffect, useRef } from 'react';
+import { Terminal } from 'xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
+import { SerializeAddon } from '@xterm/addon-serialize';
+import 'xterm/css/xterm.css';
+import './TerminalPane.css';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { useTheme } from '../../contexts/ThemeContext';
+import { captureAndSaveSession } from '../../api/sessionCapture';
+
+type Props = { sessionId: string | null };
+
+const sanitize = (id: string) => (id || '').replace(/[^a-zA-Z0-9_:\-\/]/g, '_');
+
+const TerminalPane: React.FC<Props> = ({ sessionId }) => {
+  const { theme } = useTheme();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const termRef = useRef<Terminal | null>(null);
+  const fitRef = useRef<FitAddon | null>(null);
+  const serializeRef = useRef<SerializeAddon | null>(null);
+  const unlistenRef = useRef<(() => void) | null>(null);
+  const hasFocusedOnceRef = useRef<boolean>(false);
+  const focusLoopRef = useRef<number | null>(null);
+  const resizeTimeoutsRef = useRef<number[]>([]);
+  const isResizingRef = useRef<boolean>(false);
+  const lastResizeTimeRef = useRef<number>(0);
+  const resizeThrottleRef = useRef<number | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const lastContainerSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  
+  // Metadatos de la sesión para captura de logs
+  const sessionMetadataRef = useRef<{
+    sessionId: string;
+    user: string;
+    host: string;
+    port: number;
+    startTime: string;
+  } | null>(null);
+  
+  // Guardamos snapshots incrementales para preservar historial incluso después de 'clear'
+  // Cada snapshot captura lo nuevo desde el último snapshot
+  const snapshotsHistoryRef = useRef<string[]>([]);
+  const lastSnapshotRef = useRef<string>('');
+  
+  // Bandera para evitar guardar la sesión múltiples veces
+  const hasBeenSavedRef = useRef<boolean>(false);
+  // Promise compartida para evitar ejecuciones concurrentes
+  const savingPromiseRef = useRef<Promise<void> | null>(null);
+
+  // Only allow terminal to auto-focus when not interacting with other inputs (e.g., ChatPane textarea)
+  const canRefocusTerminal = () => {
+    const active = (document.activeElement as HTMLElement | null);
+    if (!active) return true;
+    if (containerRef.current && active && containerRef.current.contains(active)) return true; // already in terminal
+    if (active.closest && (active.closest('.chat-pane') || active.closest('.chat-input'))) return false;
+    const tag = active.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return false;
+    if (active.getAttribute && active.getAttribute('contenteditable') === 'true') return false;
+    return true;
+  };
+
+  const ensureBlinkClasses = () => {
+    const root = containerRef.current;
+    if (!root) return;
+    try {
+      const nodes = root.querySelectorAll('.xterm .xterm-cursor, .xterm .xterm-cursor-block, .xterm .xterm-cursor-bar, .xterm .xterm-cursor-underline');
+      nodes.forEach(n => { try { (n as HTMLElement).classList.add('blink'); } catch {} });
+    } catch {}
+  };
+
+  // Determina si el panel de terminal es visible (no está dentro de un contenedor display:none y tiene tamaño)
+  const isPaneVisible = () => {
+    const el = containerRef.current;
+    if (!el) return false;
+    try {
+      if (el.getClientRects && el.getClientRects().length === 0) return false;
+      const cs = window.getComputedStyle(el);
+      if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return false;
+      // offsetParent suele ser null cuando algún ancestro tiene display:none
+      if ((el as any).offsetParent === null) return false;
+      if (el.clientWidth <= 0 || el.clientHeight <= 0) return false;
+    } catch {}
+    return true;
+  };
+
+  // Reintenta enfocar el terminal por un corto periodo, útil si el SO/ventana roba el foco
+  const startFocusLoop = (ms: number = 2000) => {
+    if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
+    const start = Date.now();
+    focusLoopRef.current = window.setInterval(() => {
+      if (!termRef.current) return;
+      const elapsed = Date.now() - start;
+      if (elapsed > ms) {
+        if (focusLoopRef.current) { try { window.clearInterval(focusLoopRef.current); } catch {} focusLoopRef.current = null; }
+        return;
+      }
+      try {
+        const active = document.activeElement as HTMLElement | null;
+        const ta = containerRef.current?.querySelector('.xterm textarea') as HTMLTextAreaElement | null;
+        if (ta && active !== ta && canRefocusTerminal()) {
+          termRef.current.focus();
+          hasFocusedOnceRef.current = true;
+        }
+      } catch {}
+    }, 250);
+  };
+
+  // Apply xterm theme from CSS variables
+  const applyXtermTheme = () => {
+    const term = termRef.current;
+    if (!term) return;
+    const styles = getComputedStyle(document.documentElement);
+    // Resuelve una variable CSS, siguiendo referencias var(--x) hasta obtener un valor final (hex/rgb/rgba)
+    const resolveVar = (varName: string): string | undefined => {
+      let value = styles.getPropertyValue(varName).trim();
+      const seen = new Set<string>();
+      // Sigue cadenas var(--foo[, fallback])
+      while (value.startsWith('var(')) {
+        const m = value.match(/var\((--[a-z0-9\-]+)(?:,\s*([^\)]+))?\)/i);
+        if (!m) break;
+        const ref = m[1];
+        if (seen.has(ref)) break; // evita ciclos
+        seen.add(ref);
+        const next = styles.getPropertyValue(ref).trim();
+        if (next) {
+          value = next;
+        } else if (m[2]) {
+          value = m[2].trim();
+        } else {
+          break;
+        }
+      }
+      return value || undefined;
+    };
+
+    const theme = {
+      // Asegura que foreground siempre sea un color real (no una cadena var(...))
+      foreground: resolveVar('--terminal-foreground') || resolveVar('--text-primary'),
+      background: 'transparent',
+      cursor: resolveVar('--accent-primary'),
+      cursorAccent: resolveVar('--background-primary'),
+      selectionBackground: resolveVar('--selection-bg'),
+      selectionForeground: resolveVar('--selection-fg'),
+      black: resolveVar('--ansi-black'),
+      red: resolveVar('--ansi-red'),
+      green: resolveVar('--ansi-green'),
+      yellow: resolveVar('--ansi-yellow'),
+      blue: resolveVar('--ansi-blue'),
+      magenta: resolveVar('--ansi-magenta'),
+      cyan: resolveVar('--ansi-cyan'),
+      white: resolveVar('--ansi-white'),
+      brightBlack: resolveVar('--ansi-bright-black'),
+      brightRed: resolveVar('--ansi-bright-red'),
+      brightGreen: resolveVar('--ansi-bright-green'),
+      brightYellow: resolveVar('--ansi-bright-yellow'),
+      brightBlue: resolveVar('--ansi-bright-blue'),
+      brightMagenta: resolveVar('--ansi-bright-magenta'),
+      brightCyan: resolveVar('--ansi-bright-cyan'),
+      brightWhite: resolveVar('--ansi-bright-white'),
+    } as any;
+
+    // Aplica el tema y refuerza opciones del cursor; evita cambiar renderer para no romper el parpadeo
+    try { term.setOption('theme', theme); } catch { (term as any).options.theme = theme; }
+  try { term.setOption('cursorBlink', false); term.setOption('cursorStyle', 'block'); } catch {}
+    try { term.refresh(0, term.rows - 1); } catch {}
+  };
+
+  // Montaje del terminal (una sola vez)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+  const term = new Terminal({ cursorBlink: true, cursorStyle: 'block', convertEol: true, allowProposedApi: true });
+    const fit = new FitAddon();
+    const serialize = new SerializeAddon();
+    term.loadAddon(fit);
+    term.loadAddon(serialize);
+    term.loadAddon(new WebLinksAddon());
+  // Asegura que el contenedor pueda recibir foco a nivel del navegador
+  try { container.setAttribute('tabindex', '0'); container.setAttribute('rol
