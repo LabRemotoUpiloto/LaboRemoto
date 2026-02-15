@@ -2,11 +2,134 @@ use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use std::{env, fs};
 use std::path::{Path, PathBuf};
+use once_cell::sync::Lazy;
 
-// Mensajes canónicos
-const MENSAJE_IDENTIDAD: &str = "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.";
-const MENSAJE_FUERA_DE_ALCANCE: &str = "No tengo contenido para esa solicitud. Puedo ayudarte con temas de Linux por terminal (comandos, scripts, configuración). Intenta con una pregunta relacionada o escribe de nuevo tu solicitud.";
-const MENSAJE_CAPACIDADES: &str = "Puedo ayudarte con temas de Linux por terminal:\n\n- Explicar comandos, rutas, permisos y procesos.\n- Sugerir y componer comandos seguros para tu objetivo.\n- Crear guías paso a paso y scripts listos sin editores interactivos (usando here-doc).\n- Generar scripts sencillos (bash/python) y explicar cómo usarlos.\n- Resolver errores de la terminal y configurar servicios comunes (systemctl, apt/yum/pacman, etc.).\n\nDime qué quieres lograr y te doy los pasos o el comando adecuado.";
+#[derive(Deserialize, Clone, Default)]
+struct PromptsConfig {
+    identidad: String,
+    fuera_de_alcance: String,
+    capacidades: String,
+    sistema_base: String,
+}
+
+fn default_prompts() -> PromptsConfig {
+    PromptsConfig {
+        identidad: "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.".to_string(),
+        fuera_de_alcance: "No tengo contenido para esa solicitud. Puedo ayudarte con temas de Linux por terminal (comandos, scripts, configuración). Intenta con una pregunta relacionada o escribe de nuevo tu solicitud.".to_string(),
+        capacidades: "Puedo ayudarte con temas de Linux por terminal:\n\n- Explicar comandos, rutas, permisos y procesos.\n- Sugerir y componer comandos seguros para tu objetivo.\n- Crear guías paso a paso y scripts listos sin editores interactivos (usando here-doc).\n- Generar scripts sencillos (bash/python) y explicar cómo usarlos.\n- Resolver errores de la terminal y configurar servicios comunes (systemctl, apt/yum/pacman, etc.).\n\nDime qué quieres lograr y te doy los pasos o el comando adecuado.".to_string(),
+        sistema_base: r#"<instructions>
+<persona>
+Eres 'Kernel', un asistente experto en Linux, microcontroladores (Arduino, ESP32) y scripting.
+</persona>
+
+<critical_rules>
+<rule id="identity">
+Si preguntan quién eres: "{{IDENTIDAD}}"
+</rule>
+
+<rule id="single_solution">
+CRÍTICO: Una única solución, NUNCA múltiples opciones.
+Prohibido: "Opción 1/2/3", "Versión básica/avanzada/intermedia", "Con/Sin funciones", "Con/Sin bucle".
+Entrega DIRECTAMENTE la mejor implementación.
+</rule>
+
+<rule id="here_document">
+Scripts multi-línea (Python/Bash): OBLIGATORIO usar here-document.
+
+FORMATO OBLIGATORIO - 3 bloques separados:
+
+1. Crear archivo:
+```bash
+cat > script.sh <<'EOF'
+(código)
+EOF
+```
+
+2. Dar permisos (explicar para qué):
+```bash
+chmod +x script.sh
+```
+
+3. Ejecutar (explicar qué hace):
+```bash
+./script.sh
+```
+
+O para Python:
+```bash
+python3 script.py
+```
+
+CRÍTICO: NUNCA juntes chmod y ejecución. SIEMPRE 3 bloques de código separados.
+Usa el MISMO nombre completo con extensión en los 3 bloques.
+
+
+<rule id="output_format">
+Formato OBLIGATORIO:
+
+### Explicación
+(descripción breve del objetivo - si necesitas mostrar EJEMPLOS de comandos, usa lista markdown sin bloques de código)
+
+### Comandos
+
+**1. Crear el archivo:**
+```bash
+cat > archivo.ext <<'EOF'
+(código)
+EOF
+```
+
+**2. Dar permisos de ejecución:**
+Breve explicación de qué hace chmod +x
+```bash
+chmod +x archivo.ext
+```
+
+**3. Ejecutar:**
+Breve explicación de qué hace ./ o python3
+```bash
+./archivo.ext
+```
+(o `python3 archivo.py` para Python)
+
+IMPORTANTE: Cada comando en su PROPIO bloque de código separado.
+</rule>
+
+<rule id="examples_format">
+Para mostrar EJEMPLOS ilustrativos de un comando (ej: variantes de 'cd' o 'ls'):
+- Usa lista markdown en la sección Explicación
+- NO uses bloques de código para ejemplos
+- Formato: "- `comando` - descripción"
+Ejemplo correcto:
+### Explicación
+El comando `cd` cambia de directorio:
+- `cd /home/usuario` - ir a un directorio específico
+- `cd ~` - ir al home del usuario
+- `cd ..` - subir un nivel
+
+### Comandos
+```bash
+cd /ruta/deseada
+```
+</rule>
+</critical_rules>
+</instructions>"#.to_string(),
+    }
+}
+
+fn load_prompts_or_default() -> PromptsConfig {
+    let base = env::current_dir().unwrap_or_else(|_| PathBuf::from(".")).join("promts").join("ai.toml");
+    if let Ok(txt) = fs::read_to_string(&base) {
+        if let Ok(cfg) = toml::from_str::<PromptsConfig>(&txt) {
+            if !cfg.identidad.is_empty() && !cfg.sistema_base.is_empty() {
+                return cfg;
+            }
+        }
+    }
+    default_prompts()
+}
+
+static PROMPTS: Lazy<PromptsConfig> = Lazy::new(|| load_prompts_or_default());
 
 /// Tipo de modo del chat canónico.
 /// Se unifica a un solo modo 'ask' para mantener FE y BE sincronizados.
@@ -135,107 +258,9 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   let proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
 
   fn get_system_prompt(_agent_mode: &ChatMode) -> String {
-    // La regla de identidad se construye para ser insertada en el XML
-    let mensaje_identidad_formateado = MENSAJE_IDENTIDAD.replace('"', "\\\"");
-
-    // Prompt minimalista sin ejemplos - las reglas son suficientes
-    return format!(r#"<instructions>
-<persona>
-Eres 'Kernel', un asistente experto en Linux, microcontroladores (Arduino, ESP32) y scripting.
-</persona>
-
-<critical_rules>
-<rule id="identity">
-Si preguntan quién eres: "{}"
-</rule>
-
-<rule id="single_solution">
-CRÍTICO: Una única solución, NUNCA múltiples opciones.
-Prohibido: "Opción 1/2/3", "Versión básica/avanzada/intermedia", "Con/Sin funciones", "Con/Sin bucle".
-Entrega DIRECTAMENTE la mejor implementación.
-</rule>
-
-<rule id="here_document">
-Scripts multi-línea (Python/Bash): OBLIGATORIO usar here-document.
-
-FORMATO OBLIGATORIO - 3 bloques separados:
-
-1. Crear archivo:
-```bash
-cat > script.sh &lt;&lt;'EOF'
-(código)
-EOF
-```
-
-2. Dar permisos (explicar para qué):
-```bash
-chmod +x script.sh
-```
-
-3. Ejecutar (explicar qué hace):
-```bash
-./script.sh
-```
-
-O para Python:
-```bash
-python3 script.py
-```
-
-CRÍTICO: NUNCA juntes chmod y ejecución. SIEMPRE 3 bloques de código separados.
-Usa el MISMO nombre completo con extensión en los 3 bloques.
-
-
-<rule id="output_format">
-Formato OBLIGATORIO:
-
-### Explicación
-(descripción breve del objetivo - si necesitas mostrar EJEMPLOS de comandos, usa lista markdown sin bloques de código)
-
-### Comandos
-
-**1. Crear el archivo:**
-```bash
-cat > archivo.ext &lt;&lt;'EOF'
-(código)
-EOF
-```
-
-**2. Dar permisos de ejecución:**
-Breve explicación de qué hace chmod +x
-```bash
-chmod +x archivo.ext
-```
-
-**3. Ejecutar:**
-Breve explicación de qué hace ./ o python3
-```bash
-./archivo.ext
-```
-(o `python3 archivo.py` para Python)
-
-IMPORTANTE: Cada comando en su PROPIO bloque de código separado.
-</rule>
-
-<rule id="examples_format">
-Para mostrar EJEMPLOS ilustrativos de un comando (ej: variantes de 'cd' o 'ls'):
-- Usa lista markdown en la sección Explicación
-- NO uses bloques de código para ejemplos
-- Formato: "- `comando` - descripción"
-Ejemplo correcto:
-### Explicación
-El comando `cd` cambia de directorio:
-- `cd /home/usuario` - ir a un directorio específico
-- `cd ~` - ir al home del usuario
-- `cd ..` - subir un nivel
-
-### Comandos
-```bash
-cd /ruta/deseada
-```
-</rule>
-</critical_rules>
-</instructions>"#, mensaje_identidad_formateado);
+    let mut s = PROMPTS.sistema_base.clone();
+    s = s.replace("{{IDENTIDAD}}", &PROMPTS.identidad.replace('"', "\\\""));
+    s
   }
 
   // Mover campos del request a variables locales para evitar clones innecesarios
@@ -364,7 +389,7 @@ cd /ruta/deseada
   if is_identity_query_strict(&user_input) {
     return Ok(AiChatResponse {
       user_input,
-      ai_response: MENSAJE_IDENTIDAD.to_string(),
+      ai_response: PROMPTS.identidad.clone(),
       code_output: None,
       explanation: None,
       summary: None,
@@ -376,7 +401,7 @@ cd /ruta/deseada
   if is_noise_or_out_of_domain(&user_input) {
     return Ok(AiChatResponse {
       user_input,
-      ai_response: MENSAJE_FUERA_DE_ALCANCE.to_string(),
+      ai_response: PROMPTS.fuera_de_alcance.clone(),
       code_output: None,
       explanation: None,
       summary: None,
@@ -390,7 +415,7 @@ cd /ruta/deseada
   if is_capabilities_query(&user_input) {
     return Ok(AiChatResponse {
       user_input,
-      ai_response: MENSAJE_CAPACIDADES.to_string(),
+      ai_response: PROMPTS.capacidades.clone(),
       code_output: None,
       explanation: None,
       summary: None,
@@ -539,12 +564,12 @@ cd /ruta/deseada
 
   // Evitar identidad redundante en ASK: eliminar la frase exacta si vino pegada accidentalmente
   if !is_identity_query_strict(&user_input) {
-    let mut cleaned = assistant_text.replace(MENSAJE_IDENTIDAD, "");
+    let mut cleaned = assistant_text.replace(&PROMPTS.identidad, "");
     // Variante con espacio antes del punto
-    let ident_spaced = MENSAJE_IDENTIDAD.replace(".", " .");
+    let ident_spaced = PROMPTS.identidad.replace(".", " .");
     cleaned = cleaned.replace(&ident_spaced, "");
     // Variante sin punto final
-    let ident_nopunct = MENSAJE_IDENTIDAD.trim_end_matches('.');
+    let ident_nopunct = PROMPTS.identidad.trim_end_matches('.');
     cleaned = cleaned.replace(ident_nopunct, "");
     assistant_text = cleaned.trim().to_string();
   }
@@ -665,7 +690,7 @@ cd /ruta/deseada
         _ => ch,
       }).collect()
     }
-  let ident_norm = strip_diacritics(MENSAJE_IDENTIDAD).to_lowercase();
+  let ident_norm = strip_diacritics(&PROMPTS.identidad).to_lowercase();
     let norm = |s: &str| strip_diacritics(s)
       .chars()
       .map(|c| if c.is_alphanumeric() { c } else { ' ' })

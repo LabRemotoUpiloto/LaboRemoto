@@ -30,6 +30,21 @@ fn try_weasyprint(input: &PathBuf, output: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+fn try_py_weasyprint(input: &PathBuf, output: &PathBuf) -> Result<(), String> {
+    // Usar el launcher de Windows "py" si existe: py -m weasyprint
+    let status = Command::new("py")
+        .arg("-m")
+        .arg("weasyprint")
+        .arg(input.as_os_str())
+        .arg(output.as_os_str())
+        .status()
+        .map_err(|e| format!("Error ejecutando py -m weasyprint: {}", e))?;
+    if !status.success() {
+        return Err(format!("py -m weasyprint devolvió estado {:?}", status.code()));
+    }
+    Ok(())
+}
+
 fn try_wkhtmltopdf(input: &PathBuf, output: &PathBuf) -> Result<(), String> {
     let status = Command::new("wkhtmltopdf")
         .arg("--quiet")
@@ -51,8 +66,8 @@ pub async fn generate_session_pdf_local(session_log_id: String) -> Result<String
     }
     let pdf = pdf_path(&session_log_id)?;
 
-    // Intentar weasyprint primero, luego wkhtmltopdf
-    let weasy = try_weasyprint(&html, &pdf);
+    // Intentar weasyprint primero; luego py -m weasyprint; luego wkhtmltopdf
+    let weasy = try_weasyprint(&html, &pdf).or_else(|_| try_py_weasyprint(&html, &pdf));
     let result = match weasy {
         Ok(_) => Ok(()),
         Err(_) => try_wkhtmltopdf(&html, &pdf),
@@ -60,6 +75,6 @@ pub async fn generate_session_pdf_local(session_log_id: String) -> Result<String
 
     match result {
         Ok(_) => Ok(pdf.to_string_lossy().to_string()),
-        Err(_) => Err("No se encontró weasyprint ni wkhtmltopdf en PATH. Instala uno para generar PDF.".into()),
+        Err(_) => Err("No se encontró weasyprint (ni py -m weasyprint) ni wkhtmltopdf en PATH. Instala uno para generar PDF.".into()),
     }
 }
