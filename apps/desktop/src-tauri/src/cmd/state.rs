@@ -6,6 +6,7 @@ use std::sync::atomic::AtomicBool;
 // Ordering is used in ssh.rs; not needed here
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::ssh::client::Session;
 use ssh2::Session as Ssh2Session;
@@ -42,22 +43,29 @@ pub struct CachedSsh2 {
 }
 
 // ====== SFTP (tipos de datos) ======
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, TS)]
+#[ts(export)]
 pub struct SftpEntry {
   pub name: String,
   pub path: String,
   pub kind: String, // "file" | "dir" | "sym"
+  #[ts(optional)]
   pub size: Option<u64>,
+  #[ts(optional)]
   pub perms: Option<String>,
+  #[ts(optional)]
   pub mtime: Option<u64>,
 }
 
 // ====== Local FS (panel izquierdo)
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, TS)]
+#[ts(export)]
 pub struct LocalEntry {
   pub name: String,
   pub path: String,
   pub kind: String,
+  #[ts(optional)]
   pub size: Option<u64>,
+  #[ts(optional)]
   pub mtime: Option<i64>,
 }
