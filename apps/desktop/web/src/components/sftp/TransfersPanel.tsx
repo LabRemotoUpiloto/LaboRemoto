@@ -12,6 +12,7 @@ export interface Transfer {
   bytes?: number;
   total?: number;
   message?: string;
+  session_id?: string;
 }
 
 export interface TransfersPanelProps {

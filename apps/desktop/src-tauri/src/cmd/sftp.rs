@@ -140,6 +140,21 @@ pub async fn sftp_remove(id: String, path: String, recursive: Option<bool>) -> R
   Ok(())
 }
 
+fn classify_sftp_error(e: &str) -> String {
+  let lower = e.to_lowercase();
+  if lower.contains("no such file") || lower.contains("not found") {
+    "Ruta remota no encontrada o inaccesible".into()
+  } else if lower.contains("permission denied") || lower.contains("permission") {
+    "Permiso denegado al acceder a la ruta remota".into()
+  } else if lower.contains("connection reset") || lower.contains("session") || lower.contains("eof") {
+    "La sesión SFTP se ha perdido o ha sido cerrada".into()
+  } else if lower.contains("disk full") || lower.contains("no space") {
+    "No hay espacio suficiente en disco".into()
+  } else {
+    e.to_string()
+  }
+}
+
 #[tauri::command]
 pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String, local_path: String) -> Result<String, String> {
   let cached = {
@@ -192,7 +207,10 @@ pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String
         let _ = std::fs::remove_file(&local_path);
         let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"canceled","id":transfer_id2})));
       }
-      Err(e) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":e}))); }
+      Err(e) => {
+        let pretty = classify_sftp_error(&e);
+        let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":pretty})));
+      }
     }
     if let Ok(mut t) = TRANSFERS.lock() { t.remove(&transfer_id2); }
   });
@@ -244,7 +262,10 @@ pub async fn sftp_upload_start(app: AppHandle, id: String, local_path: String, r
       Err(e) if e == "__CANCELLED__" => {
         let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"canceled","id":transfer_id2})));
       }
-      Err(e) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":e}))); }
+      Err(e) => {
+        let pretty = classify_sftp_error(&e);
+        let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":pretty})));
+      }
     }
     if let Ok(mut t) = TRANSFERS.lock() { t.remove(&transfer_id2); }
   });
@@ -323,7 +344,10 @@ pub async fn sftp_upload_dir_start(app: AppHandle, id: String, local_path: Strin
     match res {
       Ok(()) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"done","id":transfer_id2}))); }
       Err(e) if e=="__CANCELLED__" => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"canceled","id":transfer_id2}))); }
-      Err(e) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":e}))); }
+      Err(e) => {
+        let pretty = classify_sftp_error(&e);
+        let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":pretty})));
+      }
     }
     if let Ok(mut t) = TRANSFERS.lock() { t.remove(&transfer_id2); }
   });
@@ -408,7 +432,10 @@ pub async fn sftp_download_dir_start(app: AppHandle, id: String, remote_path: St
     match res {
       Ok(()) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"done","id":transfer_id2}))); }
       Err(e) if e=="__CANCELLED__" => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"canceled","id":transfer_id2}))); }
-      Err(e) => { let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":e}))); }
+      Err(e) => {
+        let pretty = classify_sftp_error(&e);
+        let _ = app2.emit("sftp_transfer", Some(serde_json::json!({"type":"error","id":transfer_id2,"message":pretty})));
+      }
     }
     if let Ok(mut t) = TRANSFERS.lock() { t.remove(&transfer_id2); }
   });
