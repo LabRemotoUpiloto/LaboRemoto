@@ -12,10 +12,9 @@ import { useToasts } from '../contexts/ToastContext'
 import { formatDate, formatBytes } from '../components/shared/fileFormatters'
 import { joinLocalPath, joinRemotePath, getParentLocalPath, getParentRemotePath } from '../components/shared/pathUtils'
 import './SftpPage.css'
+import type { SftpEntry, LocalEntry } from '../types'
 
 type Props = { sessions: string[]; activeSessionId?: string; sessionsMeta?: Record<string,{ label: string }> }
-type SftpEntry = { name: string; path: string; kind: string; size?: number; perms?: string; mtime?: number }
-type LocalEntry = { name: string; path: string; kind: string; size?: number; mtime?: number }
 
 const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) => {
   const [sessionId, setSessionId] = useState<string | undefined>(activeSessionId)
