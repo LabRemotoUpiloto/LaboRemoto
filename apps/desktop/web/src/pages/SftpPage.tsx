@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import FileIcon from '../components/shared/FileIcon'
 import ContextMenu from '../components/shared/ContextMenu'
 import ConfirmModal from '../components/modals/ConfirmModal'
@@ -8,6 +7,9 @@ import PromptModal from '../components/modals/PromptModal'
 import FileNavigationBar from '../components/sftp/FileNavigationBar'
 import DataTable from '../components/sftp/DataTable'
 import TransfersPanel from '../components/sftp/TransfersPanel'
+import { useLocalFsBrowser } from '../hooks/useLocalFsBrowser'
+import { useRemoteFsBrowser } from '../hooks/useRemoteFsBrowser'
+import { useSftpTransfers } from '../hooks/useSftpTransfers'
 import { useToasts } from '../contexts/ToastContext'
 import { formatDate, formatBytes } from '../components/shared/fileFormatters'
 import { joinLocalPath, joinRemotePath, getParentLocalPath, getParentRemotePath } from '../components/shared/pathUtils'
@@ -23,84 +25,37 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
   const canUse = useMemo(()=> !!sessionId, [sessionId])
   const [activePane, setActivePane] = useState<'local'|'remote'>('local')
 
-  // local
-  const [lpath, setLpath] = useState<string>('')
-  const [lrows, setLrows] = useState<LocalEntry[]>([])
-  const [lload, setLload] = useState(false)
-  const [ldrives, setLdrives] = useState<string[]>([])
-  const [lSelectedPath, setLSelectedPath] = useState<string|undefined>()
-  const [lSort, setLSort] = useState<{key: 'name'|'mtime'|'size'|'kind'; dir: 'asc'|'desc'}>({key:'name',dir:'asc'})
-  const [lfilter, setLfilter] = useState<string>('')
-  const ldisplay = useMemo(()=>{
-    const arr = [...lrows]
-    const cmp = (a:LocalEntry,b:LocalEntry)=>{
-      const mult = lSort.dir==='asc'? 1 : -1
-      switch(lSort.key){
-        case 'name': return a.name.localeCompare(b.name) * mult
-        case 'mtime': return ((a.mtime||0) - (b.mtime||0)) * mult
-        case 'size': return ((a.size||0) - (b.size||0)) * mult
-        case 'kind': return a.kind.localeCompare(b.kind) * mult
-      }
-    }
-    arr.sort(cmp as any)
-    const q = (lfilter||'').trim().toLowerCase()
-    if(!q) return arr
-    const toRegex = (s:string)=> {
-      // escape regex then support * and ? wildcards
-      const esc = s.replace(/[.+^${}()|[\\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
-      return new RegExp('^'+esc+'$','i')
-    }
-    const rx = (q.includes('*')||q.includes('?'))? toRegex(q) : null
-    return arr.filter(e=> rx? rx.test(e.name) : e.name.toLowerCase().includes(q))
-  },[lrows,lSort,lfilter])
-  const refreshLocal = async (nextRoot?: string)=>{
-    try{
-      setLload(true)
-      let root = nextRoot ?? lpath
-      if(!root){ root = await invoke<string>('local_home_dir'); setLpath(root) }
-      if(ldrives.length===0){ try{ const d = await invoke<string[]>('local_list_drives'); setLdrives(d) }catch{} }
-      const list = await invoke<LocalEntry[]>('local_list_dir', { path: root })
-      setLrows(list||[])
-    } finally { setLload(false) }
-  }
-  useEffect(()=>{ refreshLocal() },[])
+  const {
+    path: lpath,
+    setPath: setLpath,
+    rows: lrows,
+    display: ldisplay,
+    loading: lload,
+    drives: ldrives,
+    selectedPath: lSelectedPath,
+    setSelectedPath: setLSelectedPath,
+    sort: lSort,
+    setSort: setLSort,
+    filter: lfilter,
+    setFilter: setLfilter,
+    refresh: refreshLocal
+  } = useLocalFsBrowser()
 
-  useEffect(()=>{
-    // clear selection if path changed
-    setLSelectedPath(undefined)
-  },[lpath])
-  // Clear local filter when navigating to a different local path
-  useEffect(()=>{ setLfilter('') }, [lpath])
-
-  // remote
-  const [rpath, setRpath] = useState<string>('/')
-  const [rrows, setRrows] = useState<SftpEntry[]>([])
-  const [rload, setRload] = useState(false)
-  const [rerr, setRerr] = useState<string|undefined>()
-  const [rSelectedPath, setRSelectedPath] = useState<string|undefined>()
-  const [rSort, setRSort] = useState<{key: 'name'|'mtime'|'size'|'kind'; dir: 'asc'|'desc'}>({key:'name',dir:'asc'})
-  const [rfilter, setRfilter] = useState<string>('')
-  const rdisplay = useMemo(()=>{
-    const arr = [...rrows]
-    const cmp = (a:SftpEntry,b:SftpEntry)=>{
-      const mult = rSort.dir==='asc'? 1 : -1
-      switch(rSort.key){
-        case 'name': return a.name.localeCompare(b.name) * mult
-        case 'mtime': return ((a.mtime||0) - (b.mtime||0)) * mult
-        case 'size': return ((a.size||0) - (b.size||0)) * mult
-        case 'kind': return a.kind.localeCompare(b.kind) * mult
-      }
-    }
-    arr.sort(cmp as any)
-    const q = (rfilter||'').trim().toLowerCase()
-    if(!q) return arr
-    const toRegex = (s:string)=> {
-      const esc = s.replace(/[.+^${}()|[\\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
-      return new RegExp('^'+esc+'$','i')
-    }
-    const rx = (q.includes('*')||q.includes('?'))? toRegex(q) : null
-    return arr.filter(e=> rx? rx.test(e.name) : e.name.toLowerCase().includes(q))
-  },[rrows,rSort,rfilter])
+  const {
+    path: rpath,
+    setPath: setRpath,
+    rows: rrows,
+    display: rdisplay,
+    loading: rload,
+    error: rerr,
+    selectedPath: rSelectedPath,
+    setSelectedPath: setRSelectedPath,
+    sort: rSort,
+    setSort: setRSort,
+    filter: rfilter,
+    setFilter: setRfilter,
+    refresh: refreshRemote
+  } = useRemoteFsBrowser(sessionId)
   const [ctx, setCtx] = useState<{open:boolean; x:number; y:number; side:'local'|'remote'; index:number|null}>({open:false,x:0,y:0,side:'local',index:null})
   useEffect(()=>{
     const close = ()=> setCtx(c=> ({...c, open:false}))
@@ -116,78 +71,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
       window.removeEventListener('resize', close)
     }
   },[])
-  const refreshRemote = async ()=>{
-    if(!sessionId) return
-    setRload(true); setRerr(undefined)
-    try{
-      await invoke('sftp_open', { id: sessionId })
-      const list = await invoke<SftpEntry[]>('sftp_list', { id: sessionId, path: rpath })
-      setRrows(list||[])
-    }catch(e:any){ setRerr(e?.toString?.()||'Error') }
-    finally{ setRload(false) }
-  }
-  // Al establecer sesión por primera vez, intentar obtener home remoto y cambiar rpath antes de listar
-  useEffect(()=>{
-    if(!canUse) return;
-    let cancelled = false;
-    (async()=>{
-      try{
-        // solo si seguimos en root inicial
-        if(rpath==='/'){
-          const home = await invoke<string>('sftp_home', { id: sessionId });
-          if(!cancelled && home && home.length>1){ setRpath(home); return; }
-        }
-      }catch{/* fallback root */}
-      if(!cancelled) refreshRemote();
-    })();
-    return ()=>{ cancelled=true };
-  }, [canUse, sessionId]);
-
-  useEffect(()=>{ if(canUse) refreshRemote() }, [rpath])
-
-  useEffect(()=>{ setRSelectedPath(undefined) }, [rpath])
-  // Clear remote filter when navigating to a different remote path
-  useEffect(()=>{ setRfilter('') }, [rpath])
-
-  // transfers panel
-  type Transfer = { id:string; direction:'download'|'upload'; session_id?:string; remote_path?:string; local_path?:string; total?: number|null; bytes?: number; status: 'running'|'done'|'error'|'canceled'; message?: string }
-  const [transfers, setTransfers] = useState<Transfer[]>([])
-  useEffect(()=>{
-    const unsubs: Array<() => void> = []
-    let mounted = true
-    listen('sftp_transfer', (e:any)=>{
-      if(!mounted) return
-      const p = e?.payload || {}
-      setTransfers(prev => {
-        const next = [...prev]
-        const idx = next.findIndex(t=> t.id===p.id)
-        if(p.type==='started'){
-          const t: Transfer = { id: p.id, direction: p.direction, session_id: p.session_id, remote_path: p.remote_path, local_path: p.local_path, total: p.total ?? null, bytes: 0, status:'running' }
-          if(idx>=0) next[idx] = t; else next.unshift(t)
-        } else if(idx>=0) {
-          const cur = next[idx]
-          // Ignore updates if already cancelled
-          if(cur.status === 'cancelled') {
-            return next;
-          }
-          if(p.type==='progress'){
-            cur.bytes = p.bytes; cur.total = p.total ?? cur.total
-          } else if(p.type==='done'){
-            cur.status='done'
-          } else if(p.type==='canceled'){
-            cur.status='cancelled'
-          } else if(p.type==='error'){
-            cur.status='error'; cur.message = p.message
-          }
-          next[idx] = { ...cur }
-        }
-        return next
-      })
-    }).then(unsub=> unsubs.push(unsub))
-    return ()=> { mounted=false; unsubs.forEach(u=>u()) }
-  },[])
-
-
+  const { transfers, cancelTransfer: doCancel, clearCompleted: doClearTransfers } = useSftpTransfers(sessionId)
 
   const [mkdirOpen, setMkdirOpen] = useState(false)
   const doRemoteMkdir = async ()=>{
@@ -228,7 +112,7 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
     try{
       if(isDir){ await invoke('sftp_download_dir_start', { id: sessionId, remotePath: rSelectedPath, localPath: local }) }
       else { await invoke('sftp_download_start', { id: sessionId, remotePath: rSelectedPath, localPath: local }) }
-    }catch(e:any){ alert('download: '+(e?.toString?.()||e)) }
+    }catch(e:any){ push({ type:'error', message:'Error al descargar: '+(e?.toString?.()||e) }) }
   }
   const doUpload = async ()=>{
     if(!sessionId || !lSelectedPath) return
@@ -238,27 +122,8 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
     try{
       if(entry.kind==='dir'){ await invoke('sftp_upload_dir_start', { id: sessionId, localPath: lSelectedPath, remotePath: remote }) }
       else { await invoke('sftp_upload_start', { id: sessionId, localPath: lSelectedPath, remotePath: remote }) }
-    }catch(e:any){ alert('upload: '+(e?.toString?.()||e)) }
+    }catch(e:any){ push({ type:'error', message:'Error al subir: '+(e?.toString?.()||e) }) }
   }
-  const doCancel = async (tid:string)=>{
-    if(!sessionId) return
-    // Immediately mark as cancelled in UI
-    setTransfers(prev => {
-      const next = [...prev];
-      const idx = next.findIndex(t => t.id === tid);
-      if (idx >= 0) {
-        next[idx] = { ...next[idx], status: 'cancelled' };
-      }
-      return next;
-    });
-    try{ await invoke('sftp_cancel', { id: sessionId, transferId: tid }) }catch(e:any){ /* ignore */ }
-  }
-
-  const doClearTransfers = () => {
-    // Remove all completed, cancelled, and error transfers
-    setTransfers(prev => prev.filter(t => t.status === 'running'));
-  }
-
   // UI Layout similar al screenshot: barra superior por pane (back/up, breadcrumbs, filter, actions)
   return (
     <div className="sftp-page">

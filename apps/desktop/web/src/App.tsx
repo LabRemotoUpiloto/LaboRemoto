@@ -13,7 +13,6 @@ import ConnectFormPage from './pages/ConnectFormPage'
 import LandingPage from './pages/LandingPage'
 import LogsPage from './pages/LogsPage'
 import LogDetailPage from './pages/LogDetailPage'
-import { connectFromHost } from './api/storage'
 import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/modals/GlobalLoader'
 import { ToastProvider } from './contexts/ToastContext'
@@ -27,86 +26,37 @@ import ChatPane from './components/ChatPane'
 import PinsPanel from './components/raspberry/PinsPanel'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { useAppTabs, HOME_TAB_ID } from './hooks/useAppTabs'
+import HomeContainer from './components/layout/HomeContainer'
+import SessionContainer from './components/layout/SessionContainer'
+import LogTabsContainer from './components/layout/LogTabsContainer'
 // Sin autenticación
 
 function AppContent() { return <AppMain /> }
 
 function AppMain() {
-  // Representa una pestaña: 'home' (persistente) o 'session' (SSH)
-  type Tab = { id: string; type: 'home' | 'session' | 'log'; label: string; logData?: import('./components/logs/SessionCard').SessionLog }
-  const HOME_ID = 'home'
-  const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_ID, type: 'home', label: 'Inicio' }])
-  const [activeTabId, setActiveTabId] = useState<string>(HOME_ID)
-  const [isSidebarOpen, setSidebarOpen] = useState(true)
-  const [sessionMeta, setSessionMeta] = useState<Record<string,{ label: string }>>({})
-  const [pendingHost, setPendingHost] = useState<any | null>(null)
-  const [selectedPage, setSelectedPage] = useState<string>('landing') // subpágina dentro de Inicio - empieza en landing
+  const {
+    tabs,
+    activeTabId,
+    setActiveTabId,
+    isSidebarOpen,
+    setIsSidebarOpen,
+    sessionMeta,
+    setSessionMeta,
+    pendingHost,
+    setPendingHost,
+    selectedPage,
+    setSelectedPage,
+    activeTab,
+    openSession,
+    closeTab,
+    handleNewSession,
+    openLogTab
+  } = useAppTabs()
   const [updateInfo, setUpdateInfo] = useState<null | { version: string; notes?: string }>(null)
   const [updating, setUpdating] = useState(false)
   const [isCameraOpen, setCameraOpen] = useState(false)
   const [isPinsPanelOpen, setPinsPanelOpen] = useState(false)
-
-  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
-
-
-  // Abre una nueva sesión si no existe, y la activa
-  const openSession = (id: string, label?: string) => {
-    setTabs(prev => {
-      const exists = prev.some(t => t.id === id)
-      if (exists) {
-        return prev.map(t => (t.id === id && label) ? { ...t, label } : t)
-      }
-      return [...prev, { id, type: 'session', label: label || sessionMeta[id]?.label || id }]
-    })
-    setActiveTabId(id)
-  }
-
-
-  // Cierra pestaña (no permite cerrar Inicio) y re-calcula activa
-  const closeTab = (id: string) => {
-    if (id === HOME_ID) return
-    
-    // Si estás cerrando la pestaña activa, cerrar los paneles laterales
-    if (id === activeTabId) {
-      if (isPinsPanelOpen) {
-        closePinsPanel();
-      }
-      if (isCameraOpen) {
-        setCameraOpen(false);
-      }
-    }
-    
-    setTabs(prev => {
-      const next = prev.filter(t => t.id !== id)
-      // recompute active fallback
-      if (activeTabId === id) {
-        const firstSession = next.find(t => t.type === 'session')
-        setActiveTabId(firstSession ? firstSession.id : HOME_ID)
-      }
-      return next
-    })
-  }
-
-  const handleNewSession = (info: { id: string; label?: string } | null) => {
-    if (!info) { setActiveTabId(HOME_ID); return }
-    const { id, label } = info
-    if (label) setSessionMeta(prev => ({ ...prev, [id]: { label } }))
-    openSession(id, label)
-    // Asegurar que al conectar, la página esté en 'connect' para mostrar el terminal
-    setSelectedPage('connect')
-  }
-
-  // Abrir un log en una pestaña nueva
-  const openLogTab = (session: import('./components/logs/SessionCard').SessionLog) => {
-    const logTabId = `log:${session.id}`
-    const logLabel = `Log ${session.user}@${session.host}`
-    setTabs(prev => {
-      const exists = prev.some(t => t.id === logTabId)
-      if (exists) return prev
-      return [...prev, { id: logTabId, type: 'log', label: logLabel, logData: session }]
-    })
-    setActiveTabId(logTabId)
-  }
 
   const handleTabClick = (id: string) => {
     console.log('🔄 Tab clicked:', id)
@@ -135,26 +85,6 @@ function AppMain() {
       setSelectedPage('connect')
     }
   }
-
-  // Mantiene sincronizadas las etiquetas de pestañas con los alias en sessionMeta
-  useEffect(() => {
-    console.log('🔄 Updating tabs labels from sessionMeta:', sessionMeta)
-    setTabs(prev => prev.map(t => (
-      t.type === 'session' && sessionMeta[t.id]?.label && t.label !== sessionMeta[t.id].label
-        ? { ...t, label: sessionMeta[t.id].label }
-        : t
-    )))
-  }, [sessionMeta])
-
-  // Log del estado actual
-  useEffect(() => {
-    console.log('📊 Current state:', {
-      activeTabId,
-      activeTab: tabs.find(t => t.id === activeTabId),
-      sessionMeta,
-      selectedPage
-    })
-  }, [activeTabId, tabs, sessionMeta, selectedPage])
 
   // Al cerrar una sesión SSH, pedir al backend que desconecte antes de remover la pestaña
   // Para pestañas de logs, simplemente cerrar sin desconectar
@@ -218,7 +148,7 @@ function AppMain() {
   }
 
   const toggleSidebar = () => {
-    setSidebarOpen(prev => {
+    setIsSidebarOpen(prev => {
       const next = !prev
       // Avisar a la UI que el layout cambiará (inicio)
       try { window.dispatchEvent(new CustomEvent('app:sidebar-toggled', { detail: { isOpen: next, phase: 'start' } })) } catch {}
@@ -326,15 +256,15 @@ function AppMain() {
                 navigateFromSidebar({
                   page: p,
                   activeTabType: activeTab.type,
-                  HOME_ID,
+                  HOME_ID: HOME_TAB_ID,
                   setActiveTabId,
                   setSelectedPage,
                   pendingHost,
-                  setPendingHost,
+                  setPendingHost: (val: any | null) => setPendingHost(val),
                   isPinsPanelOpen,
                   closePinsPanel,
                   isCameraOpen,
-                  setCameraOpen,
+                  setCameraOpen: (open: boolean) => setCameraOpen(open),
                 })
               }}
               activeSessionId={activeTab.type === 'session' ? activeTab.label : null}
@@ -356,90 +286,31 @@ function AppMain() {
             activeTabId={activeTabId}
             onTabClick={handleTabClick}
             onCloseTab={handleCloseTab}
-            onNewSession={() => { setActiveTabId(HOME_ID); setSelectedPage('connect'); }}
+            onNewSession={() => { setActiveTabId(HOME_TAB_ID); setSelectedPage('connect'); }}
           />
           <main className="content-area">
-            {/* Contenedor Home persistente */}
-            <div style={{display: activeTab.type==='home' ? 'block' : 'none', height:'100%'}}>
-              {selectedPage === 'landing' ? (
-                <LandingPage 
-                  onStartTutorial={() => setSelectedPage('landing')} 
-                  onPageChange={setSelectedPage}
-                />
-              ) : selectedPage === 'connect' ? (
-                <ConnectFormPage onConnected={handleNewSession} initialPayload={pendingHost} />
-              ) : selectedPage === 'hosts' ? (
-                <SavedHostsPage 
-                  onConnected={(sessionId: string, label: string) => {
-                    setSessionMeta(prev => ({ ...prev, [sessionId]: { label } }));
-                    openSession(sessionId, label);
-                  }}
-                  onEdit={(hostData, originalFile) => {
-                    // Cambiar a la página de conexión con los datos del host prellenados
-                    // Agregar el archivo original para que sepa que es edición
-                    setPendingHost({ ...hostData, _originalFile: originalFile })
-                    setSelectedPage('connect')
-                  }}
-                />
-              ) : selectedPage === 'themes' ? (
-                <ThemesPage />
-              ) : selectedPage === 'logs' ? (
-                <LogsPage onOpenLog={openLogTab} />
-              ) : selectedPage === 'sftp' ? (
-                <SftpPage
-                  sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
-                  sessionsMeta={sessionMeta}
-                  activeSessionId={(() => {
-                    // Usar la primera sesión disponible como fallback
-                    const sessionTabs = tabs.filter(t=>t.type==='session');
-                    return sessionTabs.length > 0 ? sessionTabs[0].id : undefined;
-                  })()}
-                />
-              ) : selectedPage === 'snippets' ? (
-                <SnippetsPage />
-              ) : (
-                <LandingPage 
-                  onStartTutorial={() => setSelectedPage('landing')} 
-                  onPageChange={setSelectedPage}
-                />
-              )}
+            <div style={{ display: activeTab.type === 'home' ? 'block' : 'none', height: '100%' }}>
+              <HomeContainer
+                tabs={tabs}
+                sessionMeta={sessionMeta}
+                setSessionMeta={setSessionMeta}
+                selectedPage={selectedPage}
+                setSelectedPage={setSelectedPage}
+                pendingHost={pendingHost}
+                setPendingHost={setPendingHost}
+                onConnectedFromConnect={handleNewSession}
+                onOpenLog={openLogTab}
+              />
             </div>
-            {/* Sesiones SSH persistentes */}
-            {tabs.filter(t => t.type==='session').map(t => (
-              <div key={t.id} style={{display: activeTabId===t.id ? 'block':'none', height:'100%', width:'100%'}}>
-                {/* Terminal siempre montado, se oculta con CSS cuando se muestra SFTP, Snippets o Logs */}
-                <div style={{display: selectedPage === 'sftp' || selectedPage === 'snippets' || selectedPage === 'logs' ? 'none' : 'block', height:'100%', width:'100%'}}>
-                  <TerminalView sessionId={t.id} isCameraOpen={isCameraOpen} />
-                </div>
-                
-                {/* SFTP solo se renderiza cuando selectedPage es 'sftp' */}
-                {selectedPage === 'sftp' && (
-                  <SftpPage
-                    sessions={tabs.filter(t=>t.type==='session').map(t=>t.id)}
-                    sessionsMeta={sessionMeta}
-                    activeSessionId={t.id}
-                  />
-                )}
-                
-                {/* Snippets solo se renderiza cuando selectedPage es 'snippets' */}
-                {selectedPage === 'snippets' && (
-                  <SnippetsPage />
-                )}
-                
-                {/* Logs solo se renderiza cuando selectedPage es 'logs' */}
-                {selectedPage === 'logs' && (
-                  <LogsPage onOpenLog={openLogTab} />
-                )}
-              </div>
-            ))}
-            {/* Pestañas de Logs */}
-            {tabs.filter(t => t.type==='log').map(t => (
-              <div key={t.id} style={{display: activeTabId===t.id ? 'block':'none', height:'100%', width:'100%'}}>
-                {t.logData && (
-                  <LogDetailPage session={t.logData} />
-                )}
-              </div>
-            ))}
+            <SessionContainer
+              tabs={tabs}
+              activeTabId={activeTabId}
+              selectedPage={selectedPage}
+              isCameraOpen={isCameraOpen}
+              sessionMeta={sessionMeta}
+              onOpenLog={openLogTab}
+            />
+            <LogTabsContainer tabs={tabs} activeTabId={activeTabId} />
           </main>
             </div>
           </div>

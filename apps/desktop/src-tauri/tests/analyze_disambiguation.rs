@@ -10,6 +10,6 @@ use app::cmd::file_edit::analyze_any_file;
 
 #[tokio::test]
 async fn test_analyze_file_no_session_err() {
-    let res = analyze_any_file(None, "noExiste_Archivo.xyz".into()).await;
+    let res = analyze_any_file(None, "noExiste_Archivo.xyz".into(), None).await;
     assert!(res.is_err());
 }
