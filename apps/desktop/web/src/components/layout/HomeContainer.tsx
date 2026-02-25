@@ -45,6 +45,7 @@ const HomeContainer: React.FC<Props> = ({
         <SavedHostsPage
           onConnected={(sessionId: string, label: string) => {
             setSessionMeta(prev => ({ ...prev, [sessionId]: { label } }))
+            onConnectedFromConnect({ id: sessionId, label })
           }}
           onEdit={(hostData, originalFile) => {
             setPendingHost({ ...hostData, _originalFile: originalFile })

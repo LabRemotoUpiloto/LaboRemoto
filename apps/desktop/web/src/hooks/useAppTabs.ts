@@ -23,14 +23,18 @@ export function useAppTabs() {
   }, [tabs, activeTabId]);
 
   const openSession = (id: string, label?: string) => {
+    console.log('📂 openSession called for:', id, label)
     setTabs(prev => {
       const exists = prev.some(t => t.id === id);
       if (exists) {
+        console.log('📂 Session already exists, just updating label')
         return prev.map(t => (t.id === id && label ? { ...t, label } : t));
       }
+      console.log('📂 Adding new session tab')
       return [...prev, { id, type: "session", label: label || sessionMeta[id]?.label || id }];
     });
     setActiveTabId(id);
+    setSelectedPage("terminal");
   };
 
   const closeTab = (id: string) => {
@@ -46,6 +50,7 @@ export function useAppTabs() {
   };
 
   const handleNewSession = (info: { id: string; label?: string } | null) => {
+    console.log('🚀 handleNewSession triggered with:', info)
     if (!info) {
       setActiveTabId(HOME_TAB_ID);
       return;
@@ -55,7 +60,6 @@ export function useAppTabs() {
       setSessionMeta(prev => ({ ...prev, [id]: { label } }));
     }
     openSession(id, label);
-    setSelectedPage("connect");
   };
 
   const openLogTab = (session: SessionLog) => {
