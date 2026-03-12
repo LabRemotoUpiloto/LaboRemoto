@@ -155,12 +155,20 @@ pub struct AgentState {
 pub enum ModelSelection {
     #[serde(alias = "gpt-3.5-turbo", alias = "gpt35", alias = "chatgpt")]
     Gpt35Turbo,
-    #[serde(alias = "claude-sonnet-4-5", alias = "claude", alias = "anthropic")]
+    #[serde(alias = "claude-sonnet-4-6", alias = "claude-sonnet-4-6", alias = "claude", alias = "anthropic")]
     ClaudeSonnet,
 }
 
 impl Default for ModelSelection {
     fn default() -> Self {
+        // Intentar obtener el modelo predeterminado de tiempo de compilación
+        if let Some(baked_model) = option_env!("COMPILED_OPENAI_MODEL") {
+            match baked_model.to_lowercase().as_str() {
+                "gpt-3.5-turbo" | "gpt35" => return ModelSelection::Gpt35Turbo,
+                "claude-sonnet-4-6" | "claude" => return ModelSelection::ClaudeSonnet,
+                _ => {}
+            }
+        }
         ModelSelection::ClaudeSonnet
     }
 }
@@ -169,7 +177,7 @@ impl ModelSelection {
     pub fn to_model_id(&self) -> &'static str {
         match self {
             ModelSelection::Gpt35Turbo => "gpt-3.5-turbo",
-            ModelSelection::ClaudeSonnet => "claude-sonnet-4-5",
+            ModelSelection::ClaudeSonnet => "claude-sonnet-4-6",
         }
     }
     
@@ -945,6 +953,11 @@ fn force_load_single_env() {
   }
   if let Ok(cwd) = std::env::current_dir() {
     // Caso desarrollo: normalmente cwd = .../apps/desktop/src-tauri
+    // 1. Probar en el directorio actual (.env local)
+    let local_env = cwd.join(".env");
+    candidate_paths.push(local_env.display().to_string());
+
+    // 2. Probar en el directorio "apps" si existe en la jerarquía
     let apps_candidate = cwd
       .ancestors()
       .find(|p| p.file_name().map(|n| n == "apps").unwrap_or(false))
@@ -976,9 +989,9 @@ fn force_load_single_env() {
               if ["OPENAI_API_KEY", "OPENAI_API_KEY1", "OPENAI_API_KEY2", "OPENAI_API_KEY3P"].contains(&key) {
                 std::env::set_var("OPENAI_API_KEY", val);
                 if debug { eprintln!("[env] Forzado override {} -> OPENAI_API_KEY desde {}", key, p.display()); }
-              } else if key == "CLAUDE_CODE_API_KEY" {
-                std::env::set_var("CLAUDE_CODE_API_KEY", val);
-                if debug { eprintln!("[env] Forzado override CLAUDE_CODE_API_KEY desde {}", p.display()); }
+              } else if key == "CLAUDE_CODE_API_KEY" || key == "CLAUDE_API_KEY" {
+                std::env::set_var("CLAUDE_API_KEY", val);
+                if debug { eprintln!("[env] Forzado override {} -> CLAUDE_API_KEY desde {}", key, p.display()); }
               }
             }
         }
