@@ -535,7 +535,7 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
                 let json: serde_json::Value = serde_json::from_str(&text_body).unwrap_or(serde_json::Value::Null);
                 if file_ai_debug { let slice=&text_body[..text_body.len().min(300)].replace("\n"," "); eprintln!("[file_ai] raw body (300 max): {}", slice);}                
                 // Extraer contenido - manejar tanto OpenAI como Claude
-                let mut extracted: Option<String> = None;
+                let mut extracted: Option<String>;
                 
                 if use_claude {
                   // Claude: content está en /content/0/text
