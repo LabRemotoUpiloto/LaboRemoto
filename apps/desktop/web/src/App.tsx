@@ -82,7 +82,7 @@ function AppMain() {
     } else if (clickedTab?.type === 'session') {
       console.log('🔗 Resetting selectedPage for session tab')
       // Cuando cambias a una pestaña de sesión SSH, resetear selectedPage para mostrar terminal
-      setSelectedPage('connect')
+      setSelectedPage('terminal')
     }
   }
 

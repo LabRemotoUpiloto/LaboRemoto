@@ -79,7 +79,11 @@ pub struct AiEnvStatus {
 pub fn ai_env_status() -> Result<AiEnvStatus, String> {
     let openai_key_opt = get_openai_api_key();
     let claude_key_opt = get_claude_api_key();
-    let model = std::env::var("OPENAI_MODEL").ok();
+    
+    // Intentar obtener el modelo de env o de tiempo de compilación
+    let model = std::env::var("OPENAI_MODEL").ok()
+        .or_else(|| option_env!("COMPILED_OPENAI_MODEL").map(|s| s.to_string()));
+
     let debug = std::env::var("FILE_AI_DEBUG").ok().map(|v| v=="1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
     
     let mut warning = None;
@@ -91,6 +95,13 @@ pub fn ai_env_status() -> Result<AiEnvStatus, String> {
     if let Some(k) = openai_key_opt.as_ref() {
         openai_key_length = Some(k.len() as u32);
         if debug { openai_key_prefix = Some(k.chars().take(8).collect()); }
+        
+        // Verificar si la clave es de tiempo de compilación
+        let is_baked = option_env!("COMPILED_OPENAI_KEY").map(|b| b == k).unwrap_or(false);
+        if is_baked {
+            openai_key_prefix = Some("Embebida".to_string());
+        }
+
         if !k.starts_with("sk-") { 
             warning = Some("La clave OpenAI no empieza con 'sk-'".into()); 
         }
@@ -99,6 +110,13 @@ pub fn ai_env_status() -> Result<AiEnvStatus, String> {
     if let Some(k) = claude_key_opt.as_ref() {
         claude_key_length = Some(k.len() as u32);
         if debug { claude_key_prefix = Some(k.chars().take(8).collect()); }
+
+        // Verificar si la clave es de tiempo de compilación
+        let is_baked = option_env!("COMPILED_CLAUDE_KEY").map(|b| b == k).unwrap_or(false);
+        if is_baked {
+            claude_key_prefix = Some("Embebida".to_string());
+        }
+
         if !k.starts_with("sk-ant-") { 
             warning = Some("La clave Claude no empieza con 'sk-ant-'".into()); 
         }
