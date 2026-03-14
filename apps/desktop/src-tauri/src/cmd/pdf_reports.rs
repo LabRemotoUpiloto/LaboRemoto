@@ -1,80 +1,43 @@
-use std::path::{PathBuf};
+use base64::{engine::general_purpose, Engine as _};
 use std::fs;
-use std::process::Command;
-
-fn saved_logs_dir() -> Result<PathBuf, String> {
-    let dir = std::env::current_dir()
-        .map_err(|e| format!("No se pudo obtener directorio actual: {}", e))?
-        .join("savedLogs");
-    fs::create_dir_all(&dir).map_err(|e| format!("No se pudo crear savedLogs: {}", e))?;
-    Ok(dir)
-}
-
-fn html_path(session_id: &str) -> Result<PathBuf, String> {
-    Ok(saved_logs_dir()?.join(format!("{}.html", session_id)))
-}
-
-fn pdf_path(session_id: &str) -> Result<PathBuf, String> {
-    Ok(saved_logs_dir()?.join(format!("{}.pdf", session_id)))
-}
-
-fn try_weasyprint(input: &PathBuf, output: &PathBuf) -> Result<(), String> {
-    let status = Command::new("weasyprint")
-        .arg(input.as_os_str())
-        .arg(output.as_os_str())
-        .status()
-        .map_err(|e| format!("Error ejecutando weasyprint: {}", e))?;
-    if !status.success() {
-        return Err(format!("weasyprint devolvió estado {:?}", status.code()));
-    }
-    Ok(())
-}
-
-fn try_py_weasyprint(input: &PathBuf, output: &PathBuf) -> Result<(), String> {
-    // Usar el launcher de Windows "py" si existe: py -m weasyprint
-    let status = Command::new("py")
-        .arg("-m")
-        .arg("weasyprint")
-        .arg(input.as_os_str())
-        .arg(output.as_os_str())
-        .status()
-        .map_err(|e| format!("Error ejecutando py -m weasyprint: {}", e))?;
-    if !status.success() {
-        return Err(format!("py -m weasyprint devolvió estado {:?}", status.code()));
-    }
-    Ok(())
-}
-
-fn try_wkhtmltopdf(input: &PathBuf, output: &PathBuf) -> Result<(), String> {
-    let status = Command::new("wkhtmltopdf")
-        .arg("--quiet")
-        .arg(input.as_os_str())
-        .arg(output.as_os_str())
-        .status()
-        .map_err(|e| format!("Error ejecutando wkhtmltopdf: {}", e))?;
-    if !status.success() {
-        return Err(format!("wkhtmltopdf devolvió estado {:?}", status.code()));
-    }
-    Ok(())
-}
+use crate::cmd::logs::{STORAGE, LogStorage};
 
 #[tauri::command]
-pub async fn generate_session_pdf_local(session_log_id: String) -> Result<String, String> {
-    let html = html_path(&session_log_id)?;
-    if !html.exists() {
-        return Err("No existe el HTML de la sesión. Abre el log primero para generarlo.".into());
-    }
-    let pdf = pdf_path(&session_log_id)?;
+pub async fn save_pdf_base64(session_log_id: String, base64_data: String) -> Result<String, String> {
+    // 1. Obtener metadatos para armar el nombre por defecto
+    let log = STORAGE.get_log(&session_log_id)
+        .map_err(|e| format!("Error obteniendo log: {}", e))?;
+    
+    let metadata = log.metadata;
+    let default_name = format!("SSH_Report_{}_{}.pdf", metadata.host, 
+        metadata.start_time.format("%Y%m%d_%H%M%S"));
 
-    // Intentar weasyprint primero; luego py -m weasyprint; luego wkhtmltopdf
-    let weasy = try_weasyprint(&html, &pdf).or_else(|_| try_py_weasyprint(&html, &pdf));
-    let result = match weasy {
-        Ok(_) => Ok(()),
-        Err(_) => try_wkhtmltopdf(&html, &pdf),
+    // 2. Extraer solo el contenido codificado (remover el prefijo "data:application/pdf;base64,")
+    let base64_payload = if base64_data.contains(",") {
+        base64_data.split(",").nth(1).unwrap_or(&base64_data)
+    } else {
+        &base64_data
     };
 
-    match result {
-        Ok(_) => Ok(pdf.to_string_lossy().to_string()),
-        Err(_) => Err("No se encontró weasyprint (ni py -m weasyprint) ni wkhtmltopdf en PATH. Instala uno para generar PDF.".into()),
-    }
+    // 3. Decodificar a bytes
+    let pdf_bytes = general_purpose::STANDARD
+        .decode(base64_payload)
+        .map_err(|e| format!("Error decodificando Base64: {}", e))?;
+
+    // 4. Abrir diálogo de guardado
+    let output_path = rfd::AsyncFileDialog::new()
+        .set_title("Guardar Reporte de Sesión SSH")
+        .set_file_name(&default_name)
+        .add_filter("PDF Document", &["pdf"])
+        .save_file()
+        .await
+        .ok_or("Operación cancelada por el usuario")?
+        .path()
+        .to_path_buf();
+
+    // 5. Guardar archivo en disco
+    fs::write(&output_path, pdf_bytes)
+        .map_err(|e| format!("Error escribiendo archivo: {}", e))?;
+
+    Ok(output_path.to_string_lossy().to_string())
 }

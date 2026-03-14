@@ -83,7 +83,7 @@ pub fn run() {
       cmd::logs::delete_session_log,
       cmd::logs::cleanup_old_session_logs,
       // PDF reports locales
-      cmd::pdf_reports::generate_session_pdf_local,
+      cmd::pdf_reports::save_pdf_base64,
       // Utilidades de migración/corrección
       // (Persistence happens automatically on put/get/clear; explicit commands not needed)
     ])

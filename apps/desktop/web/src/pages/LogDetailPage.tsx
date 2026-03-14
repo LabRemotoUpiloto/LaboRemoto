@@ -4,6 +4,8 @@ import { getSessionLogContent } from '../api/sessionCapture'
 import { invoke } from '@tauri-apps/api/core'
 import { useToasts } from '../contexts/ToastContext'
 import './LogsPage.css'
+import html2pdf from 'html2pdf.js'
+import { extractValidCommands, buildCommandsReportHtml } from '../utils/commandParser'
 
 interface LogDetailPageProps {
   session: SessionLog
@@ -39,11 +41,45 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session }) => {
 
   const handleSavePdf = async () => {
     try {
-      const savedPath = await invoke<string>('generate_session_pdf_local', { sessionLogId: session.id })
-      showToast({ type: 'success', message: `PDF guardado: ${savedPath}` })
+      if (!htmlContent) {
+        throw new Error('El contenido del log no está disponible.');
+      }
+
+      showToast({ type: 'info', message: 'Generando Reporte de Comandos PDF...' });
+      
+      const commands = extractValidCommands(htmlContent);
+      const reportHtml = buildCommandsReportHtml(commands, {
+        sessionId: session.id,
+        user: session.user,
+        host: session.host,
+        startTime: session.startedAt,
+        endTime: session.endedAt
+      });
+      
+      const container = document.createElement('div');
+      container.innerHTML = reportHtml;
+
+      const opt = {
+        margin:       10,
+        filename:     `Commands_Report_${session.host}.pdf`,
+        image:        { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1000 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+      };
+
+      // Generar PDF base64 en frontend
+      const base64 = await html2pdf().set(opt).from(container).outputPdf('datauristring');
+      
+      // Enviar a frontend
+      const savedPath = await invoke<string>('save_pdf_base64', { 
+        sessionLogId: session.id,
+        base64Data: base64
+      });
+      
+      showToast({ type: 'success', message: `Reporte guardado: ${savedPath}` })
     } catch (error) {
       console.error('Error generating PDF:', error)
-      showToast({ type: 'error', message: 'No se pudo generar el PDF. Instala weasyprint o wkhtmltopdf.' })
+      showToast({ type: 'error', message: `Error al generar Reporte: ${error}` })
     }
   }
 
@@ -75,6 +111,7 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session }) => {
           
           {!loading && !error && htmlContent && (
             <iframe
+              id="log-iframe"
               srcDoc={htmlContent}
               style={{
                 width: '100%',

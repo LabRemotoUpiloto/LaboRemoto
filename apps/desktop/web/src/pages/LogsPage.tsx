@@ -4,9 +4,11 @@ import './LogsPage.css'
 import SessionFilters from '../components/logs/SessionFilters'
 import SessionsGrid from '../components/logs/SessionsGrid'
 import type { SessionLog } from '../components/logs/SessionCard'
-import { listSessionLogs, deleteSessionLog, type SessionLogMetadata } from '../api/sessionCapture'
+import { listSessionLogs, deleteSessionLog, getSessionLogContent, type SessionLogMetadata } from '../api/sessionCapture'
+import html2pdf from 'html2pdf.js'
 import { useToasts } from '../contexts/ToastContext'
 import SweetAlert from '../components/modals/SweetAlert'
+import { extractValidCommands, buildCommandsReportHtml } from '../utils/commandParser'
 
 type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'
 
@@ -121,12 +123,44 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   }
 
   const handleDownloadReport = async (session: SessionLog) => {
+    push({ type: 'info', message: 'Preparando Reporte de Comandos...' })
     try {
-      const savedPath = await invoke<string>('generate_session_pdf_local', { sessionLogId: session.id })
-      push({ type: 'success', message: `PDF guardado: ${savedPath}` })
+      // 1. Obtener contenido
+      const content = await getSessionLogContent(session.id)
+      
+      const commands = extractValidCommands(content);
+      const reportHtml = buildCommandsReportHtml(commands, {
+        sessionId: session.id,
+        user: session.user,
+        host: session.host,
+        startTime: session.startedAt,
+        endTime: session.endedAt
+      });
+      
+      const container = document.createElement('div');
+      container.innerHTML = reportHtml;
+      
+      const opt = {
+        margin:       10,
+        filename:     `Commands_Report_${session.host}.pdf`,
+        image:        { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#1e1e1e', windowWidth: 1000 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+      }
+
+      // Convertir a base64
+      const base64 = await html2pdf().set(opt).from(container).outputPdf('datauristring')
+      
+      // Enviar a Rust para guardar
+      const savedPath = await invoke<string>('save_pdf_base64', { 
+        sessionLogId: session.id,
+        base64Data: base64
+      })
+      
+      push({ type: 'success', message: `Reporte guardado: ${savedPath}` })
     } catch (error) {
       console.error('Error generating PDF:', error)
-      push({ type: 'error', message: 'No se pudo generar el PDF. Instala weasyprint o wkhtmltopdf.' })
+      push({ type: 'error', message: `Error al generar Reporte: ${error}` })
     }
   }
 
