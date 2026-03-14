@@ -1,5 +1,8 @@
 fn main() {
   // Cargar .env si existe para obtener las keys durante la compilación
+  println!("cargo:rerun-if-changed=.env");
+  println!("cargo:rerun-if-env-changed=OPENAI_API_KEY");
+  println!("cargo:rerun-if-env-changed=CLAUDE_API_KEY");
   let _ = dotenvy::dotenv();
   
   // Si existe OPENAI_API_KEY en el entorno de build, la exponemos como COMPILED_OPENAI_KEY.

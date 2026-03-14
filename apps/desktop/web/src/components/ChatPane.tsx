@@ -30,9 +30,12 @@ import { cleanText, isNearBottom, norm } from './chat/chatUtils';
 // (extensión ligera sobre Message definido en types.ts)
 // Re-aplicar ToolActionResult en runtime sin redefinir estructura base.
 
-type Props = { sessionId?: string | null };
+type Props = {
+  sessionId?: string | null;
+  onClose?: () => void;
+};
 
-const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
+const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
@@ -49,6 +52,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
   });
   const [isSending, setIsSending] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   // Nueva memoria sincronizada con Rust (fuente de verdad) + cache UI
   const { mem, setLastCommand, clear } = useSessionMemory(sessionId ?? null);
@@ -60,16 +64,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
   // isNearBottom extraído a util (importado)
 
-  // Auto-scroll al último mensaje solo si el usuario está cerca del fondo
+  // Auto-scroll al último mensaje siempre que cambian los mensajes
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
-    if (isNearBottom(el)) {
-      el.scrollTop = el.scrollHeight;
-      setShowScrollToBottom(false);
-    } else {
-      setShowScrollToBottom(true);
-    }
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    setShowScrollToBottom(false);
   }, [messages]);
 
   // Escuchar eventos de feedback del renderer de resultados (doble click)
@@ -158,6 +158,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
       setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
     } finally {
       setIsSending(false);
+      setToast('✓ Respuesta lista');
+      setTimeout(() => setToast(null), 2500);
     }
   };
 
@@ -297,29 +299,51 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
 
   return (
     <div className="chat-pane">
-      <div className="chat-header">
-        <button onClick={handleNewChat} aria-label="Nuevo chat">Nuevo chat</button>
-        <select className="mode-select" value={mode} onChange={handleModeChange} aria-label="Seleccionar modo de chat">
+    <div className="chat-header">
+      <div className="chat-titlebar">
+        <div className="chat-tb-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="var(--accent-primary)" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+        </div>
+        <span className="chat-tb-title">Asistente SSH</span>
+        <div className="chat-tb-status" title="Activo"/>
+        <div className="chat-tb-actions">
+          <button className="chat-tb-btn is-new"
+            onClick={handleNewChat} title="Nuevo chat">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+          <button className="chat-tb-btn is-close"
+            onClick={onClose}
+            title="Cerrar panel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="chat-toolbar">
+        <select className="mode-select" value={mode} onChange={handleModeChange}>
           <option value="ask">Consulta</option>
-         {/* <option value="busqueda">Búsqueda</option>
-         {/* <option value="pines">Pines</option> */}
-          {/*<option value="analisis">Análisis</option>*/}
         </select>
-        <select 
-          className="model-select" 
-          value={selectedModel} 
-          onChange={(e) => setSelectedModel(e.target.value as ModelSelection)}
-          aria-label="Seleccionar modelo de IA"
-          title="Cambiar entre ChatGPT 3.5 y Claude"
-        >
-          {AVAILABLE_MODELS.map(model => (
-            <option key={model.value} value={model.value}>
-              {model.label} ({model.provider})
-            </option>
+        <select className="model-select" value={selectedModel}
+          onChange={(e) => setSelectedModel(e.target.value as ModelSelection)}>
+          {AVAILABLE_MODELS.map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
           ))}
         </select>
-        {/* removed Clear button per user request */}
       </div>
+    </div>
       <div className="mode-help" aria-live="polite">{modeHelp[mode]}</div>
 
       <div
@@ -336,7 +360,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
         {displayedMessages.map((msg) => (
           <div
             key={msg.id}
-            className={`message ${msg.sender} ${msg.sender === 'user' ? 'message--user' : 'message--assistant'} ${mode}`}
+            className={`message message-animate ${msg.sender} ${msg.sender === 'user' ? 'message--user' : 'message--assistant'} ${mode}`}
           >
             {/* Ocultar el texto superior para los mensajes de sistema con tarjeta de confirmación */}
             {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
@@ -422,6 +446,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             )}
           </div>
         ))}
+        {isSending && (
+          <div className="typing-indicator message-animate">
+            <div className="typing-dot"></div>
+            <div className="typing-dot"></div>
+            <div className="typing-dot"></div>
+          </div>
+        )}
+        
         {showScrollToBottom && (
           <button
             className="scroll-to-bottom"
@@ -436,37 +468,41 @@ const ChatPane: React.FC<Props> = ({ sessionId = null }) => {
             ↓
           </button>
         )}
+        
+        {toast && (
+          <div className="chat-toast">
+            {toast}
+          </div>
+        )}
       </div>
 
       <div className="chat-input">
-  <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={'Escribe tu mensaje…'}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !isComposingRef.current) {
-              e.preventDefault();
-              if (!isSending && modeHandlers[mode]?.canSend?.()) {
-                handleSend();
+        <div className="chat-input-wrap">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Escribe tu mensaje…"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !isComposingRef.current) {
+                e.preventDefault();
+                if (!isSending && modeHandlers[mode]?.canSend?.()) handleSend();
               }
-            }
-          }}
-          onCompositionStart={() => { isComposingRef.current = true; }}
-          onCompositionEnd={() => { isComposingRef.current = false; }}
-        />
-        <button
-          className="send-btn send-icon"
-          onClick={handleSend}
-          disabled={isSending || !modeHandlers[mode].canSend()}
-          aria-label={isSending ? 'Enviando mensaje' : (!modeHandlers[mode].canSend() ? 'Sólo lectura' : 'Enviar mensaje')}
-          title={isSending ? 'Enviando…' : (!modeHandlers[mode].canSend() ? 'Sólo lectura' : 'Enviar')}
-        >
-          {/* Icono de enviar (triángulo/paper plane) */}
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M2 21V14L17 12L2 10V3L23 12L2 21Z" fill="currentColor"></path>
-          </svg>
-        </button>
+            }}
+            onCompositionStart={() => { isComposingRef.current = true; }}
+            onCompositionEnd={() => { isComposingRef.current = false; }}
+          />
+          <button
+            className="send-btn send-icon"
+            onClick={handleSend}
+            disabled={isSending || !modeHandlers[mode].canSend()}
+            aria-label="Enviar"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

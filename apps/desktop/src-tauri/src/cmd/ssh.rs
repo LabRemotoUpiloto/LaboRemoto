@@ -128,10 +128,23 @@ pub async fn ssh_connect(
 
 #[tauri::command]
 pub async fn ssh_ui_ready(app: AppHandle, id: String) -> Result<(), String> {
-  let (out_buffer, ui_ready) = {
-    let map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let Some(sess) = map.get(&id) else { return Err(AppError::NotFoundSession.to_string()); };
-    (sess.out_buffer.clone(), sess.ui_ready.clone())
+  // Retry loop: la sesión puede no estar en el mapa aún porque ssh_connect
+  // devuelve el ID inmediatamente y la conexión se completa en background.
+  let max_attempts = 20; // 20 * 100ms = 2 segundos
+  let mut attempt = 0;
+  let (out_buffer, ui_ready) = loop {
+    let result = {
+      let map = SESSIONS.lock().map_err(|e| e.to_string())?;
+      map.get(&id).map(|sess| (sess.out_buffer.clone(), sess.ui_ready.clone()))
+    };
+    if let Some(refs) = result {
+      break refs;
+    }
+    attempt += 1;
+    if attempt >= max_attempts {
+      return Err(AppError::NotFoundSession.to_string());
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
   };
 
   // Marcar UI como lista y volcar el buffer

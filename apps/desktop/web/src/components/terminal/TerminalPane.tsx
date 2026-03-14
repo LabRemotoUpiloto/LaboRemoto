@@ -9,14 +9,23 @@ type Props = { sessionId: string | null };
 const TerminalPane: React.FC<Props> = ({ sessionId }) => {
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { isLoading } = useTerminal(sessionId, containerRef, theme);
+  const { isLoading, isFadingOut, waitingForPrompt } = useTerminal(sessionId, containerRef, theme);
 
   return (
     <div className="terminal-pane" ref={containerRef}>
       {isLoading && sessionId && (
-        <div className="terminal-loading-overlay">
+        <div className={`terminal-loading-overlay${isFadingOut ? ' terminal-loading-overlay--fade-out' : ''}`}>
           <div className="terminal-loading-spinner"></div>
-          <div className="terminal-loading-text">Conectando al servidor...</div>
+          <div className="terminal-loading-text">
+            {waitingForPrompt
+              ? 'Esperando respuesta del servidor...'
+              : 'Conectando al servidor...'}
+          </div>
+          {waitingForPrompt && (
+            <div className="terminal-loading-subtext">
+              Solicitando el prompt del shell
+            </div>
+          )}
         </div>
       )}
     </div>

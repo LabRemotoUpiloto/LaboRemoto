@@ -226,24 +226,124 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
     }
   }
 
+  const parseInlineElements = (text: string): React.ReactNode[] => {
+    const regex = /(\*\*.*?\*\*|\*[^*]+\*|`[^`]+`)/g;
+    const parts = text.split(regex);
+
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={i}>{part.slice(1, -1)}</em>;
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={i}>{part.slice(1, -1)}</code>;
+      }
+      // return normal text
+      return <React.Fragment key={i}>{part}</React.Fragment>;
+    });
+  };
+
   const renderPara = (txt: string) => {
     const lines = txt.split(/\r?\n/);
     const nodes: React.ReactNode[] = [];
     let buf: string[] = [];
     let currentPaso: number | null = null;
     let subIndex = 0;
-    const flush = () => { if (buf.length) { nodes.push(<p key={`p-${nodes.length}`}>{buf.join('\n')}</p>); buf = []; } };
+    
+    const flush = () => { 
+      if (buf.length) { 
+        nodes.push(<p key={`p-${nodes.length}`}>{parseInlineElements(buf.join(' '))}</p>); 
+        buf = []; 
+      } 
+    };
+
     for (const raw of lines) {
       const line = raw.replace(/\s+$/,'');
       if (/^\s*$/.test(line)) { flush(); continue; }
+      
+      // Horizontal Rules
+      if (/^---$/.test(line) || /^\*\*\*$/.test(line)) {
+        flush();
+        nodes.push(<hr key={`hr-${nodes.length}`} />);
+        continue;
+      }
+
+      // Headings
       const h = line.match(/^(#{1,4})\s+(.*)$/);
-      if (h) { flush(); const level = h[1].length; const text = h[2]; const Tag = (`h${Math.min(4, level)}` as any); const pasoMatch = text.match(/\bPaso\s+(\d+)\b/i); if (pasoMatch) { currentPaso = parseInt(pasoMatch[1], 10); subIndex = 0; } nodes.push(<Tag key={`h-${nodes.length}`}>{text}</Tag>); continue; }
+      if (h) { 
+        flush(); 
+        const level = h[1].length; 
+        const text = h[2]; 
+        const Tag = (`h${Math.min(4, level)}` as any); 
+        const pasoMatch = text.match(/\bPaso\s+(\d+)\b/i); 
+        if (pasoMatch) { 
+          currentPaso = parseInt(pasoMatch[1], 10); 
+          subIndex = 0; 
+        } 
+        nodes.push(<Tag key={`h-${nodes.length}`}>{parseInlineElements(text)}</Tag>); 
+        continue; 
+      }
+
+      // Unordered Lists
       const li = line.match(/^\s*[-*]\s+(.*)$/);
-      if (li) { const last = nodes[nodes.length - 1] as any; const text = li[1].replace(/^\s*\d+[\.)]\s+/, ''); const label = (currentPaso != null) ? `${currentPaso}.${(++subIndex)}` : null; const liContent = label ? `${label} ${text}` : text; const makeUl = () => React.createElement('ul', { key: `ul-${nodes.length}`, style: { listStyleType: (currentPaso!=null?'none':'disc'), paddingLeft: (currentPaso!=null?0:undefined) } }, [React.createElement('li', { key: `li-${nodes.length}-0` }, liContent)]); if (!last || (last.type !== 'ul')) { nodes.push(makeUl()); } else { (last.props.children as any[]).push(React.createElement('li', { key: `li-${nodes.length}-${(last.props.children as any[]).length}` }, liContent)); if (currentPaso != null && last.props && last.props.style && last.props.style.listStyleType !== 'none') { last.props.style = { ...(last.props.style||{}), listStyleType: 'none', paddingLeft: 0 }; } } continue; }
+      if (li) { 
+        const last = nodes[nodes.length - 1] as any; 
+        const text = li[1].replace(/^\s*\d+[\.)]\s+/, ''); 
+        const label = (currentPaso != null) ? `${currentPaso}.${(++subIndex)}` : null; 
+        const liContent = label ? <>{label} {parseInlineElements(text)}</> : parseInlineElements(text); 
+        
+        const makeUl = () => React.createElement('ul', { 
+          key: `ul-${nodes.length}`, 
+          style: { listStyleType: (currentPaso != null ? 'none' : 'disc'), paddingLeft: (currentPaso != null ? 0 : undefined) } 
+        }, [React.createElement('li', { key: `li-${nodes.length}-0` }, liContent)]); 
+        
+        if (!last || (last.type !== 'ul')) { 
+          nodes.push(makeUl()); 
+        } else { 
+          (last.props.children as any[]).push(React.createElement('li', { key: `li-${nodes.length}-${(last.props.children as any[]).length}` }, liContent)); 
+          if (currentPaso != null && last.props && last.props.style && last.props.style.listStyleType !== 'none') { 
+            last.props.style = { ...(last.props.style||{}), listStyleType: 'none', paddingLeft: 0 }; 
+          } 
+        } 
+        continue; 
+      }
+
+      // Ordered Lists
       const oli = line.match(/^\s*\d+\)\s+(.*)$|^\s*\d+\.\s+(.*)$/);
-      if (oli) { const textRaw = oli[1] || oli[2] || ''; const text = String(textRaw).replace(/^\s*\d+[\.)]\s+/, ''); const last = nodes[nodes.length - 1] as any; const label = (currentPaso != null) ? `${currentPaso}.${(++subIndex)}` : null; const liContent = label ? `${label} ${text}` : text; if (!last || (last.type !== 'ol' && last.type !== 'ul')) { if (currentPaso != null) { nodes.push(React.createElement('ul', { key: `ul-${nodes.length}`, style: { listStyleType: 'none', paddingLeft: 0 } }, [React.createElement('li', { key: `li-${nodes.length}-0` }, liContent)])); } else { nodes.push(React.createElement('ol', { key: `ol-${nodes.length}` }, [React.createElement('li', { key: `oli-${nodes.length}-0` }, liContent)])); } } else { (last.props.children as any[]).push(React.createElement('li', { key: `oli-${nodes.length}-${(last.props.children as any[]).length}` }, liContent)); if (currentPaso != null && last.type === 'ol') { last.type = 'ul'; last.props = { ...(last.props||{}), style: { ...(last.props?.style||{}), listStyleType: 'none', paddingLeft: 0 } }; } } continue; }
+      if (oli) { 
+        const textRaw = oli[1] || oli[2] || ''; 
+        const text = String(textRaw).replace(/^\s*\d+[\.)]\s+/, ''); 
+        const last = nodes[nodes.length - 1] as any; 
+        const label = (currentPaso != null) ? `${currentPaso}.${(++subIndex)}` : null; 
+        const liContent = label ? <>{label} {parseInlineElements(text)}</> : parseInlineElements(text); 
+        
+        if (!last || (last.type !== 'ol' && last.type !== 'ul')) { 
+          if (currentPaso != null) { 
+            nodes.push(React.createElement('ul', { key: `ul-${nodes.length}`, style: { listStyleType: 'none', paddingLeft: 0 } }, [React.createElement('li', { key: `li-${nodes.length}-0` }, liContent)])); 
+          } else { 
+            nodes.push(React.createElement('ol', { key: `ol-${nodes.length}` }, [React.createElement('li', { key: `oli-${nodes.length}-0` }, liContent)])); 
+          } 
+        } else { 
+          (last.props.children as any[]).push(React.createElement('li', { key: `oli-${nodes.length}-${(last.props.children as any[]).length}` }, liContent)); 
+          if (currentPaso != null && last.type === 'ol') { 
+            last.type = 'ul'; 
+            last.props = { ...(last.props||{}), style: { ...(last.props?.style||{}), listStyleType: 'none', paddingLeft: 0 } }; 
+          } 
+        } 
+        continue; 
+      }
+
+      // Paragraph continuation
       const numPara = line.match(/^\s*(\d+(?:\.\d+)*[\.)]?)\s+(.*)$/);
-      if (numPara && currentPaso != null) { const text = numPara[2]; const label = `${currentPaso}.${(++subIndex)}`; buf.push(`${label} ${text}`); continue; }
+      if (numPara && currentPaso != null) { 
+        const text = numPara[2]; 
+        const label = `${currentPaso}.${(++subIndex)}`; 
+        buf.push(`${label} ${text}`); 
+        continue; 
+      }
+      
       buf.push(line);
     }
     flush();

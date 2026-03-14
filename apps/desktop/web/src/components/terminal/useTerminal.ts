@@ -20,8 +20,12 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
   const lastResizeTimeRef = useRef<number>(0);
   const resizeThrottleRef = useRef<number | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const isResizingRef2 = useRef<boolean>(false);
+  const lastColsRef = useRef<number>(80);
   const lastContainerSizeRef = useRef<{ width: number; height: number } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
+  const [waitingForPrompt, setWaitingForPrompt] = useState<boolean>(false);
 
   const sessionMetadataRef = useRef<{
     sessionId: string;
@@ -52,8 +56,18 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
     const root = containerRef.current;
     if (!root) return;
     try {
-      const nodes = root.querySelectorAll('.xterm .xterm-cursor, .xterm .xterm-cursor-block, .xterm .xterm-cursor-bar, .xterm .xterm-cursor-underline');
-      nodes.forEach(n => { try { (n as HTMLElement).classList.add('blink'); } catch {} });
+      // Selector más amplio para capturar cursor del DOM renderer 
+      const nodes = root.querySelectorAll( 
+        '.xterm-cursor, .xterm-cursor-block, [class*="xterm-cursor"]' 
+      ); 
+      nodes.forEach(n => { 
+        const el = n as HTMLElement; 
+        el.classList.add('blink'); 
+        // Solo quitamos animation: none si existiera inline 
+        if (el.style.animation === 'none') {
+          el.style.animation = '';
+        }
+      }); 
     } catch {}
   };
 
@@ -121,15 +135,33 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
     } as any;
 
     try { term.setOption('theme', themeObj); } catch { (term as any).options.theme = themeObj; }
-    try { term.setOption('cursorBlink', false); term.setOption('cursorStyle', 'block'); } catch {}
+    
+    // Forzamos el parpadeo y estilo del cursor en cada cambio de tema
+    try { term.setOption('cursorBlink', true); } catch {}
+    try { term.setOption('cursorStyle', 'block'); } catch {}
+    
+    try { term.write('\x1b[?25h'); } catch {}
     try { term.refresh(0, term.rows - 1); } catch {}
+    try { ensureBlinkClasses(); } catch {}
   };
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const term = new Terminal({ cursorBlink: true, cursorStyle: 'block', convertEol: true, allowProposedApi: true });
+    const term = new Terminal({
+      cursorBlink: true,
+      cursorStyle: 'block',
+      convertEol: true,
+      allowProposedApi: true,
+      cols: 80,
+      rows: 24,
+      scrollback: 0, // Evita reflow del historial al cambiar columnas
+      scrollOnUserInput: true,
+      windowsMode: false,
+      overviewRulerWidth: 0,
+      screenReaderMode: false,
+    });
     const fit = new FitAddon();
     const serialize = new SerializeAddon();
     term.loadAddon(fit);
@@ -139,18 +171,44 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
     try { container.setAttribute('tabindex', '0'); container.setAttribute('role', 'textbox'); } catch {}
 
     const initializeTerminal = () => {
+      // Fuerza DOM renderer ANTES de open() para que xterm lo use desde el inicio
+      try { (term as any).options.rendererType = 'dom'; } catch {}
+
       term.open(container);
-      try { fit.fit(); } catch {}
-      try { if (canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
-      try { (term as any).setOption?.('rendererType', 'dom'); } catch {}
-      try { (term as any).options.cursorBlink = false; (term as any).options.cursorStyle = 'block'; } catch {}
-      try { ensureBlinkClasses(); requestAnimationFrame(() => ensureBlinkClasses()); } catch {}
+      
+      // Blink JS directo - más confiable que CSS con xterm DOM renderer 
+      let blinkVisible = true; 
+      const blinkInterval = window.setInterval(() => { 
+        const root = containerRef.current; 
+        if (!root) return; 
+        const cursor = root.querySelector<HTMLElement>('.xterm-cursor-outline, .xterm-cursor-block, .xterm-cursor-bar'); 
+        if (cursor) { 
+          cursor.style.setProperty('opacity', blinkVisible ? '1' : '0', 'important'); 
+        } 
+        blinkVisible = !blinkVisible; 
+      }, 600); 
+      (term as any)._blinkInterval = blinkInterval; 
+
+      term.write('\x1b[?25h');
+      
+      requestAnimationFrame(() => {
+        try {
+          termRef.current?.focus();
+          hasFocusedOnceRef.current = true;
+          ensureBlinkClasses();
+        } catch {}
+      });
 
       termRef.current = term;
       fitRef.current = fit;
       serializeRef.current = serialize;
       try { applyXtermTheme(); } catch {}
       try { requestAnimationFrame(() => applyXtermTheme()); } catch {}
+
+      // Suscribirse al renderizado para asegurar que el cursor siempre tenga la clase blink
+      if ((term as any).onRender) {
+        (term as any).onRender(() => ensureBlinkClasses());
+      }
 
       try {
         container.addEventListener('mousedown', () => {
@@ -187,47 +245,70 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
       if (!isPaneVisible()) return;
       try { fit.fit(); } catch {}
       try { if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal()) termRef.current.focus(); } catch {}
-      if (sessionId && term.cols > 0 && term.rows > 0) invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
     };
 
     window.addEventListener('resize', onResize);
 
     const smartResize = () => {
       if (!termRef.current || !fitRef.current || !containerRef.current) return;
-      const cont = containerRef.current;
-      const currentSize = { width: cont.clientWidth, height: cont.clientHeight };
-      if (lastContainerSizeRef.current &&
-        lastContainerSizeRef.current.width === currentSize.width &&
-        lastContainerSizeRef.current.height === currentSize.height) {
-        return;
-      }
-      lastContainerSizeRef.current = currentSize;
       if (!isPaneVisible()) return;
+      const cont = containerRef.current;
+      if (cont.clientWidth < 50 || cont.clientHeight < 30) return;
+
       try {
-        fitRef.current.fit();
-        if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal()) {
-          termRef.current.focus();
-        }
-        if (sessionId && termRef.current.cols > 0 && termRef.current.rows > 0) {
-          invoke('ssh_resize', { id: sessionId, cols: termRef.current.cols, rows: termRef.current.rows }).catch(() => {});
+        const proposed = fitRef.current.proposeDimensions();
+        if (!proposed || proposed.cols <= 0 || proposed.rows <= 0) return;
+
+        // Lógica Asimétrica: Solo permitimos que las columnas CREZCAN visualmente de forma inmediata.
+        // Esto evita que xterm intente hacer wrap del prompt cuando achicas el panel.
+        const currentCols = termRef.current.cols;
+        const newCols = proposed.cols > currentCols ? proposed.cols : currentCols;
+        const newRows = proposed.rows;
+
+        if (newCols !== termRef.current.cols || newRows !== termRef.current.rows) {
+          termRef.current.resize(newCols, newRows);
+          lastColsRef.current = newCols;
         }
       } catch (e) {
-        console.warn('Error during terminal fit:', e);
+        try { fitRef.current.fit(); } catch {}
       }
     };
 
     const debouncedResize = () => {
-      const now = Date.now();
-      if (now - lastResizeTimeRef.current < 100) {
-        if (resizeThrottleRef.current) {
-          try { window.clearTimeout(resizeThrottleRef.current); } catch {}
-          resizeThrottleRef.current = null;
-        }
+      if (resizeThrottleRef.current) {
+        window.clearTimeout(resizeThrottleRef.current);
       }
-      lastResizeTimeRef.current = now;
+
+      // Ajuste visual instantáneo (crecimiento asimétrico) para fluidez
+      smartResize();
+
+      // Notificación al servidor con un delay mayor (fin del drag)
       resizeThrottleRef.current = window.setTimeout(() => {
-        smartResize();
-      }, 50);
+        const term = termRef.current;
+        const fit = fitRef.current;
+        if (!term || !fit || !sessionId) return;
+
+        try {
+          const proposed = fit.proposeDimensions();
+          if (proposed) {
+            // Bloqueamos la salida del servidor durante el proceso de resize real
+            isResizingRef2.current = true;
+            
+            // Aquí sí aplicamos el tamaño real (incluso si es menor) al servidor
+            term.resize(proposed.cols, proposed.rows);
+            invoke('ssh_resize', { 
+              id: sessionId, 
+              cols: proposed.cols, 
+              rows: proposed.rows 
+            }).catch(() => {});
+
+            // Desbloqueamos después de 600ms para ignorar el "eco" del prompt del servidor
+            setTimeout(() => {
+              isResizingRef2.current = false;
+            }, 600);
+          }
+        } catch {}
+      }, 500);
     };
 
     const onSidebarToggled = () => { debouncedResize(); };
@@ -270,12 +351,7 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
     };
     try { bottomBarContent?.addEventListener('transitionend', onBottomBarTransitionEnd); } catch {}
 
-    const disposeOnResize = term.onResize(({ cols, rows }) => {
-      if (sessionId) invoke('ssh_resize', { id: sessionId, cols, rows }).catch(() => {});
-    });
-
     return () => {
-      try { disposeOnResize.dispose(); } catch {}
       window.removeEventListener('resize', onResize);
       window.removeEventListener('app:sidebar-toggled', onSidebarToggled as any);
       window.removeEventListener('app:bottombar-toggled', onBottomBarToggled as any);
@@ -355,6 +431,11 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
       };
 
       captureBeforeDestroy();
+
+      try { 
+        const bi = (term as any)._blinkInterval; 
+        if (bi) window.clearInterval(bi); 
+      } catch {} 
 
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
@@ -492,20 +573,44 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
       })();
 
       setIsLoading(true);
+      setWaitingForPrompt(false);
 
       let bytesReceived = 0;
-      let lastCheckTime = Date.now();
       let contentCheckInterval: number | null = null;
       let contentCheckTimeout: number | null = null;
+      let nudgeTimeout: number | null = null;
       let hasHiddenLoading = false;
+      let nudgeSent = false;
+
+      const fadeOutAndHide = () => {
+        if (hasHiddenLoading) return;
+        hasHiddenLoading = true;
+        setIsFadingOut(true);
+        setTimeout(() => {
+          setIsLoading(false);
+          setWaitingForPrompt(false);
+          setIsFadingOut(false);
+        }, 400);
+        if (contentCheckInterval) {
+          window.clearInterval(contentCheckInterval);
+          contentCheckInterval = null;
+        }
+        if (contentCheckTimeout) {
+          window.clearTimeout(contentCheckTimeout);
+          contentCheckTimeout = null;
+        }
+        if (nudgeTimeout) {
+          window.clearTimeout(nudgeTimeout);
+          nudgeTimeout = null;
+        }
+      };
 
       const checkAndHideLoading = () => {
         if (hasHiddenLoading) return;
         try {
           const buffer = term.buffer.active;
-          const now = Date.now();
           let hasVisibleText = false;
-          const linesToCheck = Math.min(buffer.length, 20);
+          const linesToCheck = Math.min(buffer.length, 30);
           for (let i = 0; i < linesToCheck; i++) {
             const line = buffer.getLine(i);
             if (line) {
@@ -516,23 +621,8 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
               }
             }
           }
-          const receivedEnoughData = bytesReceived > 20;
-          const enoughTimePassed = (now - lastCheckTime) > 300;
-          if (hasVisibleText || (receivedEnoughData && enoughTimePassed)) {
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                setIsLoading(false);
-                hasHiddenLoading = true;
-                if (contentCheckInterval) {
-                  window.clearInterval(contentCheckInterval);
-                  contentCheckInterval = null;
-                }
-                if (contentCheckTimeout) {
-                  window.clearTimeout(contentCheckTimeout);
-                  contentCheckTimeout = null;
-                }
-              });
-            });
+          if (hasVisibleText) {
+            fadeOutAndHide();
           }
         } catch (e) {
           console.warn('Error checking terminal content:', e);
@@ -541,16 +631,21 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
 
       contentCheckInterval = window.setInterval(checkAndHideLoading, 150);
 
+      // Después de 6 segundos sin prompt, enviar un \n como "nudge" para forzar al shell
+      nudgeTimeout = window.setTimeout(() => {
+        if (!hasHiddenLoading && !nudgeSent) {
+          nudgeSent = true;
+          setWaitingForPrompt(true);
+          invoke('ssh_stdin', { id: sessionId, data: '\n' }).catch(() => {});
+        }
+      }, 6000);
+
+      // Safety timeout: después de 15 segundos, forzar ocultar el loading
       contentCheckTimeout = window.setTimeout(() => {
         if (!hasHiddenLoading) {
-          setIsLoading(false);
-          hasHiddenLoading = true;
+          fadeOutAndHide();
         }
-        if (contentCheckInterval) {
-          window.clearInterval(contentCheckInterval);
-          contentCheckInterval = null;
-        }
-      }, 8000);
+      }, 15000);
 
       disposers.push(term.onData((data) => {
         invoke('ssh_stdin', { id: sessionId, data }).catch(() => {});
@@ -558,6 +653,9 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
 
       listen<string>(`ssh_out_${safe}`, (event) => {
         if (event.payload) {
+          // Descarta output del servidor durante resize para evitar duplicación del prompt
+          if (isResizingRef2.current) return;
+
           bytesReceived += event.payload.length;
           term.write(event.payload, () => {
             setTimeout(checkAndHideLoading, 100);
@@ -583,6 +681,9 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
         if (contentCheckTimeout) {
           window.clearTimeout(contentCheckTimeout);
         }
+        if (nudgeTimeout) {
+          window.clearTimeout(nudgeTimeout);
+        }
         captureCurrentSession();
         window.removeEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
       };
@@ -594,5 +695,5 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
     }
   }, [sessionId]);
 
-  return { isLoading };
+  return { isLoading, isFadingOut, waitingForPrompt };
 }
