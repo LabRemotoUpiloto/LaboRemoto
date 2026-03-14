@@ -69,7 +69,7 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             <h1 className="connect-form__title">Conectar</h1>
             {props.quickHost && (
               <span className="connect-form__badge">
-                {quickHost.name || quickHost.host}
+                {props.quickHost.name || props.quickHost.host}
               </span>
             )}
             {!props.quickHost && props.recentConnection && isRaspberryPi() && (

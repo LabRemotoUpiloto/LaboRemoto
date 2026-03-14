@@ -151,7 +151,7 @@ impl Session {
                                         } else { None };
                                         pending.clear();
                                         squelch = false;
-                                        if let Some(rest) = remainder { let _ = tx_out.send(rest); }
+                                        if let Some(rest) = &remainder { let _ = tx_out.send(rest.clone()); }
                                     }
                                 } else {
                                     let _ = tx_out.send(bytes.to_vec());
@@ -167,7 +167,7 @@ impl Session {
                                         } else { None };
                                         pending.clear();
                                         squelch = false;
-                                        if let Some(rest) = remainder { let _ = tx_out.send(rest); }
+                                        if let Some(rest) = &remainder { let _ = tx_out.send(rest.clone()); }
                                     }
                                 } else {
                                     let _ = tx_out.send(bytes.to_vec());
