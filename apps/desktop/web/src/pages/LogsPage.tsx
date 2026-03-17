@@ -74,24 +74,27 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   })
 
   // Ordenar sesiones según la opción seleccionada
-  const sortedSessions = [...filteredSessions].sort((a, b) => {
-    switch (sortBy) {
-      case 'date-desc':
-        return new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
-      case 'date-asc':
-        return new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-      case 'duration-desc':
-        return (b.duration || 0) - (a.duration || 0)
-      case 'duration-asc':
-        return (a.duration || 0) - (b.duration || 0)
-      case 'host-asc':
-        return `${a.user}@${a.host}`.localeCompare(`${b.user}@${b.host}`)
-      case 'host-desc':
-        return `${b.user}@${b.host}`.localeCompare(`${a.user}@${a.host}`)
-      default:
-        return 0
-    }
-  })
+  const sortedSessions = React.useMemo(() => {
+    const filtered = [...filteredSessions]
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-desc':
+          return new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+        case 'date-asc':
+          return new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+        case 'duration-desc':
+          return (b.duration || 0) - (a.duration || 0)
+        case 'duration-asc':
+          return (a.duration || 0) - (b.duration || 0)
+        case 'host-asc':
+          return `${a.user}@${a.host}`.localeCompare(`${b.user}@${b.host}`)
+        case 'host-desc':
+          return `${b.user}@${b.host}`.localeCompare(`${a.user}@${a.host}`)
+        default:
+          return 0
+      }
+    })
+  }, [filteredSessions, sortBy])
 
   const handleDeleteLog = (session: SessionLog) => {
     setToDeleteSession(session)
@@ -102,14 +105,16 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
     if (!toDeleteSession) return
 
     try {
+      // Usar eliminación local (única disponible en esta versión)
       await deleteSessionLog(toDeleteSession.id)
+      
       push({ type: 'success', message: `Log de ${toDeleteSession.user}@${toDeleteSession.host} eliminado` })
       
       // Actualizar la lista
       setSessions(prev => prev.filter(s => s.id !== toDeleteSession.id))
     } catch (error) {
       console.error('Error deleting log:', error)
-      push({ type: 'error', message: 'Error al eliminar el log' })
+      push({ type: 'error', message: `Error al eliminar el log: ${error}` })
     } finally {
       setConfirmOpen(false)
       setToDeleteSession(null)
