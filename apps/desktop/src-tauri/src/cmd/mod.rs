@@ -26,4 +26,4 @@ pub use agent::{agent_plan, AgentPlanRequest, AgentPlanResponse, ToolActionResul
 pub use file_edit::{analyze_file, analyze_any_file, plan_file_edit, apply_file_edit, list_file_backups, revert_file, AnalyzeFileResponse, PlanFileEditRequest, PlanFileEditResponse, ApplyFileEditRequest, ApplyFileEditResponse, ListBackupsResponse, RevertFileRequest, RevertFileResponse, AiRemoteEditRequest, AiRemoteEditResponse, ai_remote_edit_file};
 pub use logs::{save_session_log, list_session_logs, get_session_log_content, get_session_log, delete_session_log, cleanup_old_session_logs};
 pub use logs::save_session_log_fragment;
-pub use pdf_reports::{generate_session_pdf_local};
+pub use pdf_reports::{save_pdf_base64};

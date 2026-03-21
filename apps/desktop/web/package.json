@@ -8,6 +8,7 @@
     "preview": "vite preview --port 5174"
   },
   "dependencies": {
+    "@novnc/novnc": "^1.4.0",
     "@tauri-apps/api": "2.8.0",
     "@tauri-apps/plugin-process": "2.3.0",
     "@tauri-apps/plugin-updater": "2.9.0",

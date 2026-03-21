@@ -14,6 +14,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
+use tungstenite::handshake::server::{Request, Response};
+use tungstenite::http::HeaderValue;
 
 use crate::cmd::state::SESSIONS;
 use crate::error::AppError;
@@ -678,13 +680,12 @@ fn handle_vnc_client(
     // WS handshake con tungstenite (bloqueante)
     let mut ws = match tungstenite::accept_hdr(
         tcp_stream,
-        |req: &tungstenite::handshake::server::Request,
-         mut resp: tungstenite::handshake::server::Response| {
+        |req: &Request, mut resp: Response| {
             if let Some(proto) = req.headers().get("Sec-WebSocket-Protocol") {
                 if proto.to_str().unwrap_or("").contains("binary") {
                     resp.headers_mut().insert(
                         "Sec-WebSocket-Protocol",
-                        tungstenite::http::HeaderValue::from_static("binary"),
+                        HeaderValue::from_static("binary"),
                     );
                 }
             }
