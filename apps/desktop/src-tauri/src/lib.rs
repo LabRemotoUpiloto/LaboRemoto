@@ -83,7 +83,7 @@ pub fn run() {
       cmd::logs::delete_session_log,
       cmd::logs::cleanup_old_session_logs,
       // PDF reports locales
-      cmd::pdf_reports::generate_session_pdf_local,
+      cmd::pdf_reports::save_pdf_base64,
       // Escritorio gráfico remoto (VNC sobre SSH)
       cmd::vnc::vnc_start,
       cmd::vnc::vnc_stop,

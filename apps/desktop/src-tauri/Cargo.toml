@@ -51,8 +51,7 @@ wildmatch = "2.1"
 walkdir = "2"
 regex = "1"
 rfd = "0.14"
-genpdf = "0.2"
-image = "0.24"
+tungstenite = "0.21"
 
 # LDAP authentication
 ldap3 = "0.11"

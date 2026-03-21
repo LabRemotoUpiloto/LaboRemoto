@@ -11,5 +11,5 @@ export default defineConfig({
   preview: {
     port: 5174
   },
-  build: { target: ["es2020"], outDir: "dist" }
+  build: { target: ["esnext"], outDir: "dist" }
 })
