@@ -3,7 +3,7 @@
 export type TabType = 'home' | 'session' | 'log'
 
 export const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs'] as const
-export const SESSION_PAGES = ['sftp', 'snippets'] as const
+export const SESSION_PAGES = ['sftp', 'snippets', 'desktop'] as const
 export const SPECIAL_TOGGLE_PAGES = ['pins', 'camera'] as const
 
 type PageId = typeof HOME_PAGES[number] | typeof SESSION_PAGES[number] | typeof SPECIAL_TOGGLE_PAGES[number]

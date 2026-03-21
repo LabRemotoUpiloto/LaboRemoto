@@ -11,7 +11,8 @@ import {
   PinIcon, 
   CameraIcon,
   HomeIcon,
-  FileTextIcon
+  FileTextIcon,
+  DesktopIcon
 } from '../icons/SidebarIcons'
 
 interface SidebarProps {
@@ -34,6 +35,7 @@ const items = [
   { id: 'themes', label: 'Temas', icon: PaletteIcon },
   { id: 'sftp', label: 'SFTP', icon: FolderIcon },
   { id: 'snippets', label: 'Snippets', icon: CodeIcon },
+  { id: 'desktop', label: 'Escritorio', icon: DesktopIcon, sessionOnly: true },
 ]
 
 // Items especiales que se controlan por separado (no cambian de página)
@@ -55,7 +57,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [appVersion, setAppVersion] = React.useState<string>('')
   // Menú plano sin roles ni autenticación
-  const getFilteredItems = () => items
+  const getFilteredItems = () =>
+    items.filter(it => !('sessionOnly' in it && it.sessionOnly) || !!activeSessionId)
 
   // Filtrar items especiales basado en la sesión activa
   const getFilteredSpecialItems = () => {

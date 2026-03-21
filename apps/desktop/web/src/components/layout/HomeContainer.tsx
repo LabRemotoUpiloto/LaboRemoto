@@ -45,6 +45,7 @@ const HomeContainer: React.FC<Props> = ({
         <SavedHostsPage
           onConnected={(sessionId: string, label: string) => {
             setSessionMeta(prev => ({ ...prev, [sessionId]: { label } }))
+            // Abrir pestaña de sesión (igual que al conectar desde ConnectForm)
             onConnectedFromConnect({ id: sessionId, label })
           }}
           onEdit={(hostData, originalFile) => {

@@ -83,9 +83,11 @@ pub fn run() {
       cmd::logs::delete_session_log,
       cmd::logs::cleanup_old_session_logs,
       // PDF reports locales
-      cmd::pdf_reports::save_pdf_base64,
-      // Utilidades de migración/corrección
-      // (Persistence happens automatically on put/get/clear; explicit commands not needed)
+      cmd::pdf_reports::generate_session_pdf_local,
+      // Escritorio gráfico remoto (VNC sobre SSH)
+      cmd::vnc::vnc_start,
+      cmd::vnc::vnc_stop,
+      cmd::vnc::vnc_status,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
