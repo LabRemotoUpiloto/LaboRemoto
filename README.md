@@ -35,7 +35,7 @@ Además, cuenta con módulos específicos para la enseñanza y el control de har
 *   **Auditoría y Logs**: Grabación de sesiones de terminal y almacenamiento de logs locales con búsqueda optimizada.
 *   **Seguridad**: Credenciales locales protegidas con algoritmos de cifrado robustos (`Argon2`, `ChaCha20Poly1305`).
 
-![Entorno Gráfico Remoto](apps/desktop/web/public/WhatsApp%20Image%202026-03-21%20at%206.50.54%20PM.jpeg)
+![Entorno Gráfico Remoto](apps/desktop/web/public/vnc_preview.jpeg)
 
 ## Cómo Funciona
 
