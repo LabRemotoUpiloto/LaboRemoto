@@ -156,7 +156,7 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
       allowProposedApi: true,
       cols: 80,
       rows: 24,
-      scrollback: 0, // Evita reflow del historial al cambiar columnas
+      scrollback: 5000, // Permitir scroll de hasta 5000 líneas hacia arriba
       scrollOnUserInput: true,
       windowsMode: false,
       overviewRulerWidth: 0,
