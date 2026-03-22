@@ -2,7 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import './TerminalView.css';
 import TerminalPane from './TerminalPane';
 import ChatPane from '../ChatPane';
+import DesktopPane from '../desktop/DesktopPane';
+import { DesktopIcon } from '../icons/SidebarIcons';
 import { invoke } from '@tauri-apps/api/core';
+import './TerminalWithVNC.css';
 
 
 interface TerminalViewProps {
@@ -15,6 +18,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
   const [isResizing, setIsResizing] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [enableBottomBar, setEnableBottomBar] = useState(false);
+  const [showDesktop, setShowDesktop] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const onMouseDown = () => { setIsResizing(true); };
@@ -61,8 +65,66 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
 
   return (
     <div className={`terminal-view ${isResizing ? 'is-resizing' : ''}`} ref={containerRef} style={{ display: 'flex', width: '100%', height: '100%' }}>
-      <div className="terminal-stack" style={{ flex: 1, minWidth: 0 }}>
-        <TerminalPane sessionId={sessionId} />
+      <div className="terminal-stack" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        
+        {/* Utilizamos un contenedor envolvente flex y Grid para apilar perfectamente 
+            el Terminal y el VNC uno encima de otro sin aplicar "display: none". 
+            xterm.js pierde totalmente sus columnas/filas si su padre es display: none. */}
+        <div style={{ flex: 1, display: 'grid', minHeight: 0, position: 'relative' }}>
+          
+          {/* Capa 1: Terminal. Se oculta con visibility para preservar dimensiones en el DOM */}
+          <div style={{ 
+            gridArea: '1 / 1', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            visibility: showDesktop ? 'hidden' : 'visible',
+            zIndex: showDesktop ? 0 : 1
+          }}>
+            <TerminalPane sessionId={sessionId} />
+          </div>
+
+          {/* Capa 2: Escritorio Remoto VNC */}
+          <div style={{ 
+            gridArea: '1 / 1', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            visibility: showDesktop ? 'visible' : 'hidden',
+            zIndex: showDesktop ? 1 : 0
+          }}>
+            <DesktopPane sessionId={sessionId} isActive={showDesktop} />
+          </div>
+
+        </div>
+
+        {/* Floating Pill Button to toggle Desktop View within the terminal stack boundaries */}
+        {!showDesktop && (
+          <button 
+            className="vnc-floating-pill"
+            style={{ right: isChatVisible ? '24px' : '84px' }}
+            onClick={() => setShowDesktop(true)}
+            title="Abrir Escritorio Remoto (VNC)"
+          >
+            <DesktopIcon size={20} />
+            <span>Escritorio Remoto</span>
+            <div className="vnc-pill-ring"></div>
+          </button>
+        )}
+
+        {showDesktop && (
+          <button 
+            className="vnc-floating-pill vnc-floating-pill-active"
+            style={{ right: isChatVisible ? '24px' : '84px' }}
+            onClick={() => setShowDesktop(false)}
+            title="Regresar a Terminal"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Volver a Terminal</span>
+          </button>
+        )}
+
       </div>
       
       {isChatVisible && (

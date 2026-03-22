@@ -170,14 +170,53 @@ fn start_vnc_server(
     let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
     let panel_profile = format!("lxde-pi-{display}");
     let browser_desktop = format!("/tmp/browser-{display}.desktop");
+    let webserver_desktop = format!("/tmp/webserver-{display}.desktop");
 
-    // 1. Wrapper de chromium único para este display
+    // 0. Crear XDG_RUNTIME_DIR y el directorio de datos de Chromium
+    //    XDG_RUNTIME_DIR DEBE existir antes de que cualquier proceso lo use;
+    //    sin él, Chromium y otros procesos pierden acceso a sockets de red.
     run_remote(
         sess,
         &format!(
-            "mkdir -p /home/pi/.local/bin {chromium_dir} && \
-             printf '#!/bin/sh\\nrm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\nexec /usr/bin/chromium-browser --no-sandbox --disable-gpu --no-first-run --user-data-dir={chromium_dir} \"$@\"\\n' \
+            "mkdir -p /tmp/xdg{display} {chromium_dir}/Default /home/pi/.local/bin /home/pi/Desktop; true"
+        ),
+    )?;
+
+    // 1. Wrapper de chromium único para este display
+    //    Flags clave para acceso a red dentro de Xvfb:
+    //      --no-sandbox           → evita sandbox de kernel (no disponible en SSH)
+    //      --disable-gpu          → sin GPU en display virtual
+    //      --no-first-run         → salta welcome page
+    //      --disable-dev-shm-usage → usa /tmp en vez de /dev/shm (evita crashes)
+    run_remote(
+        sess,
+        &format!(
+            "printf '#!/bin/sh\\nrm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\nexec /usr/bin/chromium-browser --no-sandbox --disable-gpu --no-first-run --disable-dev-shm-usage --user-data-dir={chromium_dir} \"$@\"\\n' \
              > /home/pi/.local/bin/chromium-browser-{display} && chmod +x /home/pi/.local/bin/chromium-browser-{display}; true"
+        ),
+    )?;
+
+    // 1b. Pre-configurar Chromium: Preferences para que arranque limpio
+    //     y no muestre diálogos de primera ejecución que bloqueen la interfaz.
+    run_remote(
+        sess,
+        &format!(
+            "cat > {chromium_dir}/Default/Preferences << 'PREFS_EOF'\n\
+{{\n\
+  \"browser\": {{\n\
+    \"has_seen_welcome_page\": true,\n\
+    \"check_default_browser\": false\n\
+  }},\n\
+  \"session\": {{\n\
+    \"restore_on_startup\": 4,\n\
+    \"startup_urls\": [\"http://localhost:10000\"]\n\
+  }},\n\
+  \"distribution\": {{\n\
+    \"skip_first_run_ui\": true,\n\
+    \"suppress_first_run_default_browser_prompt\": true\n\
+  }}\n\
+}}\n\
+PREFS_EOF\ntrue"
         ),
     )?;
 
@@ -187,6 +226,19 @@ fn start_vnc_server(
         &format!(
             "printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec=/home/pi/.local/bin/chromium-browser-{display}\\nIcon=chromium-browser\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
              > {browser_desktop}; true"
+        ),
+    )?;
+
+    // 2b. Acceso directo en el escritorio para ver páginas del Servidor Web (Apache)
+    //     Apunta a http://localhost:10000 — cualquier página en /var/www/html será accesible
+    //     desde aquí navegando normalmente dentro de Chromium.
+    run_remote(
+        sess,
+        &format!(
+            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver páginas de Apache (localhost:10000)\\nExec=/home/pi/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
+             > {webserver_desktop} && \
+             cp {webserver_desktop} /home/pi/Desktop/servidor-web.desktop 2>/dev/null && \
+             chmod +x /home/pi/Desktop/servidor-web.desktop 2>/dev/null; true"
         ),
     )?;
 
@@ -216,11 +268,26 @@ fn start_vnc_server(
         ),
     )?;
 
-    // 4. xstartup único — guarda PID de openbox para poder matarlo selectivamente
+    // 4. xstartup único — exporta TODAS las variables de entorno necesarias
+    //    para que los procesos hijos (especialmente Chromium desde lxpanel)
+    //    hereden el entorno completo y puedan acceder a la red (localhost/Apache).
+    //    Sin estas exports, Chromium no puede resolver localhost ni conectarse.
     run_remote(
         sess,
         &format!(
-            "printf '#!/bin/sh\\nexport DISPLAY=:{display}\\nrm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\nopenbox >/tmp/openbox{display}.log 2>&1 & echo $! > /tmp/openbox-{display}.pid\\nsleep 2\\nlxpanel --profile {panel_profile} >/tmp/lxpanel{display}.log 2>&1 &\\npcmanfm --desktop --profile {panel_profile} >/tmp/pcmanfm{display}.log 2>&1 &\\nwait\\n' \
+            "printf '#!/bin/sh\\n\
+export DISPLAY=:{display}\\n\
+export HOME=/home/pi\\n\
+export XDG_RUNTIME_DIR=/tmp/xdg{display}\\n\
+export XDG_DATA_HOME=/home/pi/.local/share\\n\
+export XDG_DATA_DIRS=/home/pi/.local/share:/usr/local/share:/usr/share\\n\
+export PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin\\n\
+rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\n\
+openbox >/tmp/openbox{display}.log 2>&1 & echo $! > /tmp/openbox-{display}.pid\\n\
+sleep 2\\n\
+lxpanel --profile {panel_profile} >/tmp/lxpanel{display}.log 2>&1 &\\n\
+pcmanfm --desktop --profile {panel_profile} >/tmp/pcmanfm{display}.log 2>&1 &\\n\
+wait\\n' \
              > {xstartup_path} && chmod +x {xstartup_path}; true"
         ),
     )?;
@@ -289,6 +356,7 @@ pub fn stop_vnc_server(
     let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
     let panel_profile = format!("lxde-pi-{display}");
     let browser_desktop = format!("/tmp/browser-{display}.desktop");
+    let webserver_desktop = format!("/tmp/webserver-{display}.desktop");
     let _ = run_remote(
         sess,
         &format!(
@@ -300,7 +368,9 @@ pub fn stop_vnc_server(
              pkill -f 'Xvfb :{display} ' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} \
                    {xstartup_path} /tmp/openbox-{display}.pid \
-                   {browser_desktop} 2>/dev/null; \
+                   {browser_desktop} {webserver_desktop} \
+                   /home/pi/Desktop/servidor-web.desktop 2>/dev/null; \
+             rm -rf /tmp/xdg{display} 2>/dev/null; \
              true"
         ),
     );

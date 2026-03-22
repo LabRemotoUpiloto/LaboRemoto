@@ -11,8 +11,7 @@ import {
   PinIcon, 
   CameraIcon,
   HomeIcon,
-  FileTextIcon,
-  DesktopIcon
+  FileTextIcon
 } from '../icons/SidebarIcons'
 
 interface SidebarProps {
@@ -34,8 +33,7 @@ const items = [
   { id: 'logs', label: 'Logs', icon: FileTextIcon },
   { id: 'themes', label: 'Temas', icon: PaletteIcon },
   { id: 'sftp', label: 'SFTP', icon: FolderIcon },
-  { id: 'snippets', label: 'Snippets', icon: CodeIcon },
-  { id: 'desktop', label: 'Escritorio', icon: DesktopIcon, sessionOnly: true },
+  { id: 'snippets', label: 'Snippets', icon: CodeIcon }
 ]
 
 // Items especiales que se controlan por separado (no cambian de página)
