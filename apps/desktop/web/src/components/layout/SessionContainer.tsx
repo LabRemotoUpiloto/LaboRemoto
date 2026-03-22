@@ -3,7 +3,6 @@ import TerminalView from '../terminal/TerminalView'
 import SftpPage from '../../pages/SftpPage'
 import SnippetsPage from '../../pages/SnippetsPage'
 import LogsPage from '../../pages/LogsPage'
-import DesktopPane from '../desktop/DesktopPane'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 
@@ -30,7 +29,7 @@ const SessionContainer: React.FC<Props> = ({
         <div key={t.id} style={{ display: activeTabId === t.id ? 'block' : 'none', height: '100%', width: '100%' }}>
           <div
             style={{
-              display: selectedPage === 'sftp' || selectedPage === 'snippets' || selectedPage === 'logs' || selectedPage === 'desktop' ? 'none' : 'block',
+              display: selectedPage === 'sftp' || selectedPage === 'snippets' || selectedPage === 'logs' ? 'none' : 'block',
               height: '100%',
               width: '100%'
             }}
@@ -46,10 +45,6 @@ const SessionContainer: React.FC<Props> = ({
           )}
           {selectedPage === 'snippets' && <SnippetsPage />}
           {selectedPage === 'logs' && <LogsPage onOpenLog={onOpenLog} />}
-          <DesktopPane
-            sessionId={t.id}
-            isActive={selectedPage === 'desktop' && activeTabId === t.id}
-          />
         </div>
       ))}
     </>

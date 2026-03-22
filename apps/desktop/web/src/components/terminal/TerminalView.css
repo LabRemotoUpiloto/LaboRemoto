@@ -7,6 +7,7 @@
 
 /* Left: terminal stack (terminal + bottom bar), Right: chat */
 .terminal-view .terminal-stack {
+  position: relative;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -16,7 +17,7 @@
   --bb-handle: 32px; /* reserved height for the bottom bar handle (matches .bb-toggle height) */
 }
 
-.terminal-view .terminal-stack > .terminal-pane {
+.terminal-view .terminal-stack .terminal-pane {
   flex: 1 1 auto;
   min-height: 0;
   /* reduce visible height by bottom bar content height to avoid overlap */
