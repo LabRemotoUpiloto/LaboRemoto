@@ -78,7 +78,9 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
             display: 'flex', 
             flexDirection: 'column', 
             visibility: showDesktop ? 'hidden' : 'visible',
-            zIndex: showDesktop ? 0 : 1
+            zIndex: showDesktop ? 0 : 1,
+            minWidth: 0,
+            minHeight: 0
           }}>
             <TerminalPane sessionId={sessionId} />
           </div>
@@ -89,7 +91,9 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
             display: 'flex', 
             flexDirection: 'column', 
             visibility: showDesktop ? 'visible' : 'hidden',
-            zIndex: showDesktop ? 1 : 0
+            zIndex: showDesktop ? 1 : 0,
+            minWidth: 0,
+            minHeight: 0
           }}>
             <DesktopPane sessionId={sessionId} isActive={showDesktop} />
           </div>
