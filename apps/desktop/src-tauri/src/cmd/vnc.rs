@@ -58,7 +58,7 @@ fn run_remote(sess: &ssh2::Session, cmd: &str) -> Result<(i32, String), String> 
 
 fn check_dependencies(sess: &ssh2::Session) -> Result<(), String> {
     let cmd = "MISS=''; \
-        for B in Xvfb x11vnc lxsession; do \
+        for B in Xvfb x11vnc openbox lxpanel pcmanfm dbus-launch; do \
             command -v \"$B\" >/dev/null 2>&1 || MISS=\"$MISS $B\"; \
         done; \
         [ -z \"$MISS\" ] && echo ok || echo \"MISSING:$MISS\"";
@@ -67,7 +67,7 @@ fn check_dependencies(sess: &ssh2::Session) -> Result<(), String> {
         let pkgs = out.trim().trim_start_matches("MISSING:").trim();
         return Err(format!(
             "El servidor no tiene los paquetes requeridos:{pkgs}. \
-             Instala con:\n  sudo apt install xvfb x11vnc"
+             Instala con:\n  sudo apt install xvfb x11vnc openbox lxpanel pcmanfm dbus-x11"
         ));
     }
     Ok(())
@@ -137,9 +137,21 @@ fn start_vnc_server(
         ),
     )?;
 
-    // Esperar en el hilo Rust (no en el servidor) — corremos dentro de
-    // spawn_blocking así que bloquear aquí es seguro.
+    // Dar tiempo al Xvfb para crear el socket
     std::thread::sleep(std::time::Duration::from_secs(2));
+
+    // Verificar que Xvfb está corriendo y el socket existe
+    let (_, out) = run_remote(
+        sess,
+        &format!(
+            "pgrep -f 'Xvfb :{display} ' >/dev/null && [ -S /tmp/.X11-unix/X{display} ] && echo ok || echo fail"
+        ),
+    )?;
+    if out.trim() != "ok" {
+        return Err(format!(
+            "Xvfb no arrancó correctamente en el display :{display}. Revisa /tmp/xvfb{display}.log"
+        ));
+    }
 
     // 2. Entorno gráfico completo: lanzamos los componentes DIRECTAMENTE
     //    sin lxsession (que tiene dependencias de logind/ConsoleKit en SSH).
@@ -147,37 +159,69 @@ fn start_vnc_server(
     //      openbox (WM) → lxpanel (barra de tareas) → pcmanfm --desktop (iconos)
     //    Un script temporal agrupa todo bajo dbus-launch para tener D-Bus básico.
     //
-    // Wrapper script para Chromium en ~/.local/bin (tiene prioridad en PATH sobre /usr/bin).
-    // lxpanel lanza 'chromium-browser' directamente desde su config de panel, NO desde el
-    // .desktop file — por eso parchear el .desktop no era suficiente.
-    // El wrapper también limpia el SingletonLock de sesiones anteriores que hayan crasheado.
-    run_remote(
-        sess,
-        "mkdir -p /home/pi/.local/bin /tmp/chromium-vnc && \
-         printf '#!/bin/sh\\nrm -f /tmp/chromium-vnc/SingletonLock /tmp/chromium-vnc/SingletonCookie 2>/dev/null\\nexec /usr/bin/chromium-browser --no-sandbox --disable-gpu --no-first-run --user-data-dir=/tmp/chromium-vnc \"$@\"\\n' \
-         > /home/pi/.local/bin/chromium-browser && chmod +x /home/pi/.local/bin/chromium-browser; true",
-    )?;
-    // Override del .desktop que lxpanel realmente usa: id=lxde-x-www-browser.desktop
-    // lxpanel busca primero en ~/.local/share/applications/, así que un override ahí
-    // tiene prioridad sobre /usr/share/applications/lxde-x-www-browser.desktop del sistema.
-    run_remote(
-        sess,
-        "mkdir -p /home/pi/.local/share/applications && \
-         printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nComment=Browse the World Wide Web\\nExec=/home/pi/.local/bin/chromium-browser\\nIcon=chromium-browser\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
-         > /home/pi/.local/share/applications/lxde-x-www-browser.desktop; \
-         for name in chromium-browser chromium; do \
-           src=\"\"; \
-           [ -f /usr/share/applications/${name}.desktop ] && src=\"/usr/share/applications/${name}.desktop\"; \
-           [ -n \"$src\" ] && \
-             sed 's|Exec=[^ ]*chromium[^ ]*|Exec=/home/pi/.local/bin/chromium-browser|g' \
-               \"$src\" > \"/home/pi/.local/share/applications/${name}.desktop\" 2>/dev/null; \
-         done; true",
-    )?;
+    // Aislamiento por sesión — cada display tiene sus propios:
+    //   - chromium wrapper + user-data-dir: /tmp/chromium-vnc-{display}
+    //   - xstartup:                         /tmp/vnc-xstartup-{display}.sh
+    //   - browser .desktop:                 /tmp/browser-{display}.desktop
+    //   - lxpanel/pcmanfm profile:          lxde-pi-{display}  (copia de LXDE-pi)
+    //   - openbox pid file:                 /tmp/openbox-{display}.pid
+    // Así stop_vnc_server puede matar exactamente los procesos de este display.
+    let chromium_dir = format!("/tmp/chromium-vnc-{display}");
+    let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
+    let panel_profile = format!("lxde-pi-{display}");
+    let browser_desktop = format!("/tmp/browser-{display}.desktop");
+
+    // 1. Wrapper de chromium único para este display
     run_remote(
         sess,
         &format!(
-            "printf '#!/bin/sh\\nexport DISPLAY=:{display}\\nrm -f /tmp/chromium-vnc/SingletonLock /tmp/chromium-vnc/SingletonCookie 2>/dev/null\\nopenbox &\\nsleep 1\\nlxpanel &\\npcmanfm --desktop --profile LXDE-pi &\\nwait\\n' \
-             > /home/pi/.vnc-xstartup && chmod +x /home/pi/.vnc-xstartup; true"
+            "mkdir -p /home/pi/.local/bin {chromium_dir} && \
+             printf '#!/bin/sh\\nrm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\nexec /usr/bin/chromium-browser --no-sandbox --disable-gpu --no-first-run --user-data-dir={chromium_dir} \"$@\"\\n' \
+             > /home/pi/.local/bin/chromium-browser-{display} && chmod +x /home/pi/.local/bin/chromium-browser-{display}; true"
+        ),
+    )?;
+
+    // 2. .desktop temporal para este display — apunta al wrapper correcto
+    run_remote(
+        sess,
+        &format!(
+            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec=/home/pi/.local/bin/chromium-browser-{display}\\nIcon=chromium-browser\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
+             > {browser_desktop}; true"
+        ),
+    )?;
+
+    // 3. Copiar perfil LXDE-pi para lxpanel y pcmanfm, sustituir botón del browser
+    //    por el .desktop temporal de este display. Buscamos primero en el home
+    //    y si no existe, en el sistema.
+    run_remote(
+        sess,
+        &format!(
+            "mkdir -p /home/pi/.config/lxpanel/{panel_profile}/panels && \
+             if [ -f /home/pi/.config/lxpanel/LXDE-pi/panels/panel ]; then \
+                cp /home/pi/.config/lxpanel/LXDE-pi/panels/panel /home/pi/.config/lxpanel/{panel_profile}/panels/panel; \
+             elif [ -f /etc/xdg/lxpanel/LXDE-pi/panels/panel ]; then \
+                cp /etc/xdg/lxpanel/LXDE-pi/panels/panel /home/pi/.config/lxpanel/{panel_profile}/panels/panel; \
+             fi; \
+             [ -f /home/pi/.config/lxpanel/{panel_profile}/panels/panel ] && \
+             sed -i 's|id=lxde-x-www-browser.desktop|id={browser_desktop}|g' \
+                /home/pi/.config/lxpanel/{panel_profile}/panels/panel; \
+             \
+             mkdir -p /home/pi/.config/pcmanfm/{panel_profile} && \
+             if [ -d /home/pi/.config/pcmanfm/LXDE-pi ]; then \
+                cp -r /home/pi/.config/pcmanfm/LXDE-pi/. /home/pi/.config/pcmanfm/{panel_profile}/; \
+             elif [ -d /etc/xdg/pcmanfm/LXDE-pi ]; then \
+                cp -r /etc/xdg/pcmanfm/LXDE-pi/. /home/pi/.config/pcmanfm/{panel_profile}/; \
+             fi; \
+             true"
+        ),
+    )?;
+
+    // 4. xstartup único — guarda PID de openbox para poder matarlo selectivamente
+    run_remote(
+        sess,
+        &format!(
+            "printf '#!/bin/sh\\nexport DISPLAY=:{display}\\nrm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\nopenbox >/tmp/openbox{display}.log 2>&1 & echo $! > /tmp/openbox-{display}.pid\\nsleep 2\\nlxpanel --profile {panel_profile} >/tmp/lxpanel{display}.log 2>&1 &\\npcmanfm --desktop --profile {panel_profile} >/tmp/pcmanfm{display}.log 2>&1 &\\nwait\\n' \
+             > {xstartup_path} && chmod +x {xstartup_path}; true"
         ),
     )?;
     run_remote(
@@ -187,7 +231,7 @@ fn start_vnc_server(
              XDG_DATA_HOME=/home/pi/.local/share \
              XDG_DATA_DIRS=/home/pi/.local/share:/usr/local/share:/usr/share \
              PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin \
-             nohup dbus-launch --exit-with-session /home/pi/.vnc-xstartup \
+             nohup dbus-launch --exit-with-session {xstartup_path} \
              >/tmp/lxsession{display}.log 2>&1 </dev/null & echo started"
         ),
     )?;
@@ -236,15 +280,27 @@ pub fn stop_vnc_server(
     display: u32,
     vnc_port: u16,
 ) -> Result<(), String> {
+    // Matar SOLO los procesos de este display usando los identificadores únicos:
+    //   - x11vnc por puerto  (único por sesión)
+    //   - openbox por pid file guardado en el xstartup
+    //   - lxpanel/pcmanfm por nombre de perfil único
+    //   - Xvfb por número de display
+    // NO se usa 'pkill openbox' global porque mataría otras sesiones activas.
+    let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
+    let panel_profile = format!("lxde-pi-{display}");
+    let browser_desktop = format!("/tmp/browser-{display}.desktop");
     let _ = run_remote(
         sess,
         &format!(
             "pkill -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
-             pkill -f 'lxsession' 2>/dev/null; \
-             pkill -f 'lxpanel' 2>/dev/null; \
-             pkill -f 'pcmanfm' 2>/dev/null; \
-             pkill -f 'Xvfb :{display}' 2>/dev/null; \
-             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; \
+             pkill -f '{xstartup_path}' 2>/dev/null; \
+             kill $(cat /tmp/openbox-{display}.pid 2>/dev/null) 2>/dev/null; \
+             pkill -f 'lxpanel.*{panel_profile}' 2>/dev/null; \
+             pkill -f 'pcmanfm.*{panel_profile}' 2>/dev/null; \
+             pkill -f 'Xvfb :{display} ' 2>/dev/null; \
+             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} \
+                   {xstartup_path} /tmp/openbox-{display}.pid \
+                   {browser_desktop} 2>/dev/null; \
              true"
         ),
     );

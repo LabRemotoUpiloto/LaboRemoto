@@ -32,8 +32,12 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
 
   // Función reutilizable para crear la conexión RFB
   const connectRFB = (container: HTMLDivElement, wsUrl: string) => {
-    import('@novnc/novnc/lib/rfb')
-      .then(m => {
+    // Diferir un frame para garantizar que el contenedor tiene dimensiones reales
+    // (evita que noVNC calcule una escala de 0 cuando el padre sale de display:none)
+    requestAnimationFrame(() => {
+      if (rfbRef.current) return  // ya conectado (evitar doble conexión por timing)
+      import('@novnc/novnc/lib/rfb')
+        .then(m => {
         const RFB = m.default
         const rfb = new RFB(container, wsUrl, { wsProtocols: ['binary'] })
         rfb.scaleViewport = true
@@ -58,6 +62,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         rfbRef.current = rfb
       })
       .catch(err => console.error('[noVNC] Error:', err))
+    }) // fin requestAnimationFrame
   }
 
   // Cleanup al desmontar: solo desconectar noVNC del WebSocket
