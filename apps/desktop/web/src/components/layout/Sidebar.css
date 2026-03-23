@@ -62,6 +62,12 @@
   justify-content: center;
 }
 
+/* Quita el margin-left: auto cuando está colapsado */
+.sidebar:not(.expanded) .sidebar-header .sb-btn {
+  margin-left: 0;
+  width: 40px;
+}
+
 .sidebar.expanded .sidebar-nav {
   align-items: stretch;
 }

@@ -76,6 +76,7 @@ interface HeaderProps {
   onTabClick: (id: string) => void;
   onCloseTab: (id: string) => void;
   onNewSession: () => void;
+  onReorderTabs: (dragID: string, dropID: string) => void;
   // View toggle
   activeView: ActiveView;
   onViewChange: (view: ActiveView) => void;
@@ -100,7 +101,47 @@ const Header: React.FC<HeaderProps> = ({
   showViewToggle = false,
   isChatOpen,
   onToggleChat,
+  onReorderTabs,
 }) => {
+  const [dragOverID, setDragOverID] = React.useState<string | null>(null);
+
+  // Drag and Drop state
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    const target = e.currentTarget as HTMLElement;
+    setTimeout(() => target.classList.add('dragging'), 0);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.currentTarget as HTMLElement).classList.remove('dragging');
+    setDragOverID(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+  };
+
+  const handleDragEnter = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    setDragOverID(id);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverID(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropID: string) => {
+    e.preventDefault();
+    setDragOverID(null);
+    const dragID = e.dataTransfer.getData('text/plain');
+    if (dragID && dragID !== dropID) {
+      onReorderTabs(dragID, dropID);
+    }
+  };
+
   return (
     <header className="dual-header" role="banner">
       {/* ═══ H1: Panel Tabs ═══ */}
@@ -128,8 +169,15 @@ const Header: React.FC<HeaderProps> = ({
             {tabs.filter(t => t.type === 'session').map(t => (
               <div
                 key={t.id}
-                className={`h2-tab ${activeTabId === t.id ? 'active' : ''}`}
+                className={`h2-tab ${activeTabId === t.id ? 'active' : ''} ${dragOverID === t.id ? 'drag-over' : ''}`}
                 onClick={() => onTabClick(t.id)}
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, t.id)}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDragEnter={(e) => handleDragEnter(e, t.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, t.id)}
               >
                 <div className="h2-tab-ico">SSH</div>
                 <div className={`h2-dot ${activeTabId === t.id ? 'on' : 'off'}`} />

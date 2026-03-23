@@ -145,6 +145,17 @@
   border-top-color: var(--accent-primary);
 }
 
+.h2-tab.dragging {
+  opacity: 0.4;
+  background: var(--background-secondary);
+  border-right: none;
+}
+
+.h2-tab.drag-over {
+  border-left: 2px solid var(--accent-primary) !important;
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .h2-tab-ico {
   width: 18px;
   height: 14px;

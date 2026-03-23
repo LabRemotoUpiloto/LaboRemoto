@@ -55,7 +55,20 @@ export function useAppTabs() {
         const firstSession = next.find(t => t.type === "session");
         setActiveTabId(firstSession ? firstSession.id : HOME_TAB_ID);
       }
-      return next;
+    });
+  };
+
+  const reorderTabs = (dragID: string, dropID: string) => {
+    if (dragID === dropID) return;
+    setTabs(prev => {
+      const idxA = prev.findIndex(t => t.id === dragID);
+      const idxB = prev.findIndex(t => t.id === dropID);
+      if (idxA < 0 || idxB < 0) return prev;
+      
+      const newTabs = [...prev];
+      const [moved] = newTabs.splice(idxA, 1);
+      newTabs.splice(idxB, 0, moved);
+      return newTabs;
     });
   };
 
@@ -178,6 +191,7 @@ export function useAppTabs() {
     setActiveView,
     isChatOpen,
     setIsChatOpen,
+    reorderTabs,
   };
 }
 
