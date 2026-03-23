@@ -10,7 +10,10 @@ type Props = {
   tabs: Tab[]
   activeTabId: string
   selectedPage: string
+  activeView: 'terminal' | 'escritorio'
   isCameraOpen: boolean
+  isChatOpen: boolean
+  onCloseChat: () => void
   sessionMeta: Record<string, { label: string }>
   onOpenLog: (session: SessionLog) => void
 }
@@ -19,7 +22,10 @@ const SessionContainer: React.FC<Props> = ({
   tabs,
   activeTabId,
   selectedPage,
+  activeView,
   isCameraOpen,
+  isChatOpen,
+  onCloseChat,
   sessionMeta,
   onOpenLog
 }) => {
@@ -34,7 +40,7 @@ const SessionContainer: React.FC<Props> = ({
               width: '100%'
             }}
           >
-            <TerminalView sessionId={t.id} isCameraOpen={isCameraOpen} />
+            <TerminalView sessionId={t.id} activeView={activeView} isCameraOpen={isCameraOpen} isChatOpen={isChatOpen} onCloseChat={onCloseChat} />
           </div>
           {selectedPage === 'sftp' && (
             <SftpPage

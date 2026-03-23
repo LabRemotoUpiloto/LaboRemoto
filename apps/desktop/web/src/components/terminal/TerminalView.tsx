@@ -3,23 +3,24 @@ import './TerminalView.css';
 import TerminalPane from './TerminalPane';
 import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
-import { DesktopIcon } from '../icons/SidebarIcons';
 import { invoke } from '@tauri-apps/api/core';
-import './TerminalWithVNC.css';
 
 
 interface TerminalViewProps {
   sessionId: string;
+  activeView?: 'terminal' | 'escritorio';
   isCameraOpen?: boolean;
+  isChatOpen?: boolean;
+  onCloseChat?: () => void;
 }
 
-const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = false }) => {
+const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'terminal', isCameraOpen = false, isChatOpen = false, onCloseChat = () => {} }) => {
   const [paneWidth, setPaneWidth] = useState(420);
   const [isResizing, setIsResizing] = useState(false);
-  const [isChatVisible, setIsChatVisible] = useState(true);
   const [enableBottomBar, setEnableBottomBar] = useState(false);
-  const [showDesktop, setShowDesktop] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+
 
   const onMouseDown = () => { setIsResizing(true); };
 
@@ -64,7 +65,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
   }, [sessionId]);
 
   return (
-    <div className={`terminal-view ${isResizing ? 'is-resizing' : ''}`} ref={containerRef} style={{ display: 'flex', width: '100%', height: '100%' }}>
+    <div className={`terminal-view ${isResizing ? 'is-resizing' : ''}`} ref={containerRef} style={{ display: 'flex', width: '100%', height: '100%', minHeight: 0 }}>
       <div className="terminal-stack" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         
         {/* Utilizamos un contenedor envolvente flex y Grid para apilar perfectamente 
@@ -77,8 +78,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
             gridArea: '1 / 1', 
             display: 'flex', 
             flexDirection: 'column', 
-            visibility: showDesktop ? 'hidden' : 'visible',
-            zIndex: showDesktop ? 0 : 1,
+            visibility: activeView === 'escritorio' ? 'hidden' : 'visible',
+            zIndex: activeView === 'escritorio' ? 0 : 1,
             minWidth: 0,
             minHeight: 0
           }}>
@@ -90,48 +91,18 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
             gridArea: '1 / 1', 
             display: 'flex', 
             flexDirection: 'column', 
-            visibility: showDesktop ? 'visible' : 'hidden',
-            zIndex: showDesktop ? 1 : 0,
+            visibility: activeView === 'escritorio' ? 'visible' : 'hidden',
+            zIndex: activeView === 'escritorio' ? 1 : 0,
             minWidth: 0,
             minHeight: 0
           }}>
-            <DesktopPane sessionId={sessionId} isActive={showDesktop} />
+            <DesktopPane sessionId={sessionId} isActive={activeView === 'escritorio'} />
           </div>
 
         </div>
-
-        {/* Floating Pill Button to toggle Desktop View within the terminal stack boundaries */}
-        {!showDesktop && (
-          <button 
-            className="vnc-floating-pill"
-            style={{ right: isChatVisible ? '24px' : '84px' }}
-            onClick={() => setShowDesktop(true)}
-            title="Abrir Escritorio Remoto (VNC)"
-          >
-            <DesktopIcon size={20} />
-            <span>Escritorio Remoto</span>
-            <div className="vnc-pill-ring"></div>
-          </button>
-        )}
-
-        {showDesktop && (
-          <button 
-            className="vnc-floating-pill vnc-floating-pill-active"
-            style={{ right: isChatVisible ? '24px' : '84px' }}
-            onClick={() => setShowDesktop(false)}
-            title="Regresar a Terminal"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12"></line>
-              <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            <span>Volver a Terminal</span>
-          </button>
-        )}
-
       </div>
       
-      {isChatVisible && (
+      {isChatOpen && (
         <>
           {/* Handle de resize */}
           <div
@@ -146,22 +117,10 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, isCameraOpen = f
             onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-primary)'}
             onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
           />
-          <div style={{ width: paneWidth, flexShrink: 0 }}>
-            <ChatPane sessionId={sessionId} onClose={() => setIsChatVisible(false)} />
+          <div style={{ width: paneWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <ChatPane sessionId={sessionId} onClose={onCloseChat} />
           </div>
         </>
-      )}
-      
-      {!isChatVisible && (
-        <button 
-          className="chat-toggle-btn" 
-          onClick={() => setIsChatVisible(true)}
-          title="Abrir chat"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        </button>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SessionLog } from "../components/logs/SessionCard";
 
 export type Tab = {
@@ -10,13 +10,21 @@ export type Tab = {
 
 export const HOME_TAB_ID = "home";
 
+export type ActiveView = 'terminal' | 'escritorio';
+
 export function useAppTabs() {
   const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_TAB_ID, type: "home", label: "Inicio" }]);
   const [activeTabId, setActiveTabId] = useState<string>(HOME_TAB_ID);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // sidebar always compact now
   const [sessionMeta, setSessionMeta] = useState<Record<string, { label: string }>>({});
   const [pendingHost, setPendingHost] = useState<any | null>(null);
   const [selectedPage, setSelectedPage] = useState<string>("landing");
+
+  // ── Dual-header panel state ──
+  const [openPanels, setOpenPanels] = useState<string[]>(['landing']);
+  const [activePanel, setActivePanel] = useState<string>('landing');
+  const [activeView, setActiveView] = useState<ActiveView>('terminal');
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const activeTab = useMemo(() => {
     return tabs.find(t => t.id === activeTabId) || tabs[0];
@@ -35,6 +43,8 @@ export function useAppTabs() {
     });
     setActiveTabId(id);
     setSelectedPage("terminal");
+    setOpenPanels(prev => prev.includes('terminal') ? prev : [...prev, 'terminal']);
+    setActivePanel('terminal');
   };
 
   const closeTab = (id: string) => {
@@ -73,6 +83,29 @@ export function useAppTabs() {
     setActiveTabId(logTabId);
   };
 
+  // ── Panel tab management (H1) ──
+  const openPanel = useCallback((panelId: string) => {
+    setOpenPanels(prev => {
+      if (!prev.includes(panelId)) return [...prev, panelId];
+      return prev;
+    });
+    setActivePanel(panelId);
+    // Sync selectedPage for content rendering
+    setSelectedPage(panelId);
+  }, []);
+
+  const closePanel = useCallback((panelId: string) => {
+    setOpenPanels(prev => {
+      const next = prev.filter(p => p !== panelId);
+      if (activePanel === panelId) {
+        const last = next[next.length - 1] || 'terminal';
+        setActivePanel(last);
+        setSelectedPage(last);
+      }
+      return next.length === 0 ? ['terminal'] : next;
+    });
+  }, [activePanel]);
+
   useEffect(() => {
     setTabs(prev =>
       prev.map(t =>
@@ -82,6 +115,32 @@ export function useAppTabs() {
       )
     );
   }, [sessionMeta]);
+
+  // Auto-switch to first connected session when entering terminal view
+  useEffect(() => {
+    if (activePanel === 'terminal' && activeTabId === HOME_TAB_ID) {
+      const firstSession = tabs.find(t => t.type === 'session');
+      if (firstSession) {
+        setActiveTabId(firstSession.id);
+      }
+    }
+  }, [activePanel, activeTabId, tabs]);
+
+  // Clean up terminal panel if last session closes
+  useEffect(() => {
+    const hasSessions = tabs.some(t => t.type === 'session');
+    
+    // If no sessions exist but terminal panel is open, remove it
+    if (!hasSessions && openPanels.includes('terminal')) {
+      setOpenPanels(prev => prev.filter(p => p !== 'terminal'));
+      
+      // If we are currently looking at the terminal panel, safely fallback to landing page
+      if (activePanel === 'terminal') {
+        setActivePanel('landing');
+        setSelectedPage('landing');
+      }
+    }
+  }, [tabs, openPanels, activePanel]);
 
   useEffect(() => {
     console.log("📊 Current state:", {
@@ -109,7 +168,16 @@ export function useAppTabs() {
     openSession,
     closeTab,
     handleNewSession,
-    openLogTab
+    openLogTab,
+    // Dual-header panel state
+    openPanels,
+    activePanel,
+    openPanel,
+    closePanel,
+    activeView,
+    setActiveView,
+    isChatOpen,
+    setIsChatOpen,
   };
 }
 

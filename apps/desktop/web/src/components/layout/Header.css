@@ -1,448 +1,320 @@
-.app-header {
-  display: flex;
-  align-items: center;
-  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-  backdrop-filter: blur(10px) saturate(160%);
-  -webkit-backdrop-filter: blur(10px) saturate(160%);
-  padding: 0 10px 0 0;
-  height: 50px;
-  border-bottom: 1px solid var(--border-color);
+/* ═══════════════════════════════════════════
+   DUAL HEADER — H1 (panel tabs) + H2 (sessions)
+   All colors use CSS variables for theme compat.
+   ═══════════════════════════════════════════ */
+
+.dual-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 2000;
-  transition: left 220ms cubic-bezier(.2,.9,.2,1), width 220ms cubic-bezier(.2,.9,.2,1), background-color 220ms ease;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Mantener fondo sólido en temas claros para legibilidad */
-html[data-theme="light"],
-html[data-theme="paper-sand"],
-html[data-theme="mist-harbor"],
-html[data-theme="polar-mint"],
-html[data-theme="midday-azure"],
-html[data-theme="sakura-blush"],
-html[data-theme="cosmic-latte"],
-html[data-theme="sepia-paper"] .app-header {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+/* ─── H1: Panel Tabs ─── */
+.h1 {
+  display: flex;
+  align-items: stretch;
   background: var(--background-secondary);
-}
-
-.tabs {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  gap: 0;
-  flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none; /* Firefox */
-}
-
-.tabs::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Edge */
-}
-
-.tab {
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  height: 100%;
-  cursor: pointer;
-  border-right: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  position: relative;
-  min-width: 120px;
-  max-width: 200px;
-  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
-}
-
-.tab > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.tab.active {
-  background-color: var(--background-primary);
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--accent-primary);
-}
-
-.tab:hover {
-  background-color: var(--interactive-hover);
-  color: var(--text-primary);
-}
-
-.tab:focus {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: -2px;
-  z-index: 1;
-}
-
-.tab:focus:not(:focus-visible) {
-  outline: none;
-}
-
-.close-tab {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  margin-left: 10px;
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 50%;
-}
-
-.close-tab:hover {
-  background-color: var(--border-color);
-  color: var(--text-primary);
-}
-
-.close-tab {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  width: 20px;
-  height: 20px;
-  margin-left: 4px;
-  cursor: pointer;
-  padding: 0;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  line-height: 1;
-  opacity: 0;
-  transform: translateX(4px);
-  transition: background 140ms ease, color 140ms ease, opacity 140ms ease, transform 180ms ease;
-}
-.tab:hover .close-tab, .tab.active .close-tab { opacity: .9; transform: translateX(0); }
-
-.close-tab:hover {
-  background: var(--accent-primary);
-  color: #000;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.4);
-}
-
-.close-tab:focus {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-}
-
-.close-tab:focus:not(:focus-visible) {
-  outline: none;
-}
-
-.close-tab:active { transform: scale(.9); }
-
-.new-tab {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 22px;
-  cursor: pointer;
-  padding: 0 14px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  transition: background 160ms ease, color 160ms ease;
-}
-
-.new-tab:hover {
-  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
-  color: var(--text-primary);
-}
-
-.new-tab:focus {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: -2px;
-}
-
-.new-tab:focus:not(:focus-visible) {
-  outline: none;
-}
-
-.new-tab:active { transform: scale(.92); }
-
-/* Ajuste de colores para header arcoiris: texto oscuro ya definido en globals, pero mantener contraste en tabs activas */
-html[data-theme="bold-rainbow"] .tab.active, html[data-theme="sunburst-rainbow"] .tab.active {
-  color: #111;
-  background: rgba(255,255,255,0.65);
-  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.6);
-}
-html[data-theme="bold-rainbow"] .tab:hover, html[data-theme="sunburst-rainbow"] .tab:hover {
-  background: rgba(255,255,255,0.45);
-  color: #111;
-}
-html[data-theme="bold-rainbow"] .close-tab:hover, html[data-theme="sunburst-rainbow"] .close-tab:hover {
-  background: #111;
-  color: #fff;
-  box-shadow: none;
-}
-
-/* Updater button */
-.btn-update {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  border-bottom: 0.5px solid var(--border-subtle);
   height: 34px;
-  padding: 0 12px;
-  margin-left: 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--interactive-bg);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease, transform 100ms ease;
-}
-.btn-update:hover { background: var(--interactive-hover); border-color: var(--border-strong); }
-.btn-update:active { transform: translateY(1px); }
-.btn-update .icon {
-  width: 16px; height: 16px; display: inline-block;
-}
-.btn-update.loading { cursor: progress; opacity: .8; }
-.btn-update.loading .spinner {
-  width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-primary);
-  border-radius: 50%; animation: spin 900ms linear infinite;
-}
-
-@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-
-/* Small version badge next to the app icon */
-.version-badge {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 6px;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--text-primary);
-  background: rgba(255,255,255,0.08);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
-}
-
-/* Secondary button */
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 12px;
-  margin-left: 8px;
-  border: 1px dashed var(--border-subtle);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
-}
-.btn-secondary:hover {
-  background: rgba(255,255,255,0.06);
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-}
-.btn-secondary .icon { width: 16px; height: 16px; }
-
-/* ============================================
-   PROFILE SECTION
-   ============================================ */
-.profile-section {
-  position: relative;
-  margin-left: auto;
-  margin-right: 12px;
-  display: flex;
-  align-items: center;
-}
-
-.profile-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: var(--interactive-normal);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 180ms ease;
-  color: var(--text-primary);
-}
-
-.profile-button:hover {
-  background: var(--interactive-hover);
-  border-color: var(--accent-primary);
-}
-
-.profile-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.profile-name {
-  font-size: 14px;
-  font-weight: 500;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2100;
-}
-
-.profile-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 280px;
-  background: var(--background-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  z-index: 2200;
-  overflow: hidden;
-  animation: profileMenuSlide 180ms ease;
-}
-
-@keyframes profileMenuSlide {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.profile-menu-header {
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  background: linear-gradient(135deg, 
-    rgba(128, 90, 213, 0.1), 
-    rgba(236, 64, 122, 0.05)
-  );
-}
-
-.profile-menu-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 20px;
   flex-shrink: 0;
 }
 
-.profile-menu-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.profile-menu-name {
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-menu-email {
-  font-size: 13px;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: 2px;
-}
-
-.profile-menu-role {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 3px 8px;
-  background: var(--accent-primary);
-  color: white;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.profile-menu-divider {
-  height: 1px;
-  background: var(--border-color);
-  margin: 8px 0;
-}
-
-.profile-menu-item {
-  width: 100%;
-  padding: 12px 16px;
-  background: none;
-  border: none;
+.h1-tab {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  padding: 0 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
   cursor: pointer;
+  border-bottom: 2px solid transparent;
+  border-right: 0.5px solid var(--border-subtle);
+  transition: all 120ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.h1-tab:hover {
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
-  transition: background-color 150ms ease;
-  text-align: left;
+  background: color-mix(in srgb, var(--background-tertiary) 80%, transparent);
 }
 
-.profile-menu-item:hover {
-  background: var(--interactive-hover);
+.h1-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-primary);
+  background: var(--background-primary);
 }
 
-.profile-menu-item.logout {
-  color: #e74c3c;
+.h1-tab-icon {
+  display: flex;
+  align-items: center;
 }
 
-.profile-menu-item.logout:hover {
-  background: rgba(231, 76, 60, 0.1);
+.h1-tab-icon svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
-.profile-menu-icon {
-  font-size: 18px;
-  width: 24px;
+.h1-tab-label {
+  text-transform: capitalize;
+}
+
+.h1-tab-close {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0;
+  margin-left: 3px;
+  transition: opacity 80ms, background 80ms;
 }
 
-/* Responsive: ocultar nombre en pantallas pequeñas */
-@media (max-width: 768px) {
-  .profile-name {
-    display: none;
-  }
-  
-  .profile-button {
-    padding: 6px;
-  }
+.h1-tab:hover .h1-tab-close,
+.h1-tab.active .h1-tab-close {
+  opacity: 1;
+}
+
+.h1-tab-close:hover {
+  background: var(--border-color);
+}
+
+.h1-tab-close svg {
+  width: 7px;
+  height: 7px;
+}
+
+.h1-empty {
+  flex: 1;
+}
+
+/* ─── H2: Session Bar ─── */
+.h2 {
+  display: flex;
+  align-items: stretch;
+  background: color-mix(in srgb, var(--background-primary) 85%, black);
+  border-bottom: 0.5px solid var(--border-subtle);
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.h2-sessions {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.h2-sessions::-webkit-scrollbar {
+  height: 0;
+}
+
+.h2-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-right: 0.5px solid var(--border-subtle);
+  border-top: 1px solid transparent;
+  transition: color 100ms, background 100ms;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  user-select: none;
+  background: transparent;
+}
+
+.h2-tab:hover {
+  background: var(--background-secondary);
+  color: var(--text-primary);
+}
+
+.h2-tab.active {
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border-top-color: var(--accent-primary);
+}
+
+.h2-tab-ico {
+  width: 18px;
+  height: 14px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  color: var(--accent-primary);
+}
+
+.h2-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.h2-dot.on {
+  background: var(--success, #4ade80);
+}
+
+.h2-dot.off {
+  background: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.h2-tab-label {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.h2-tab-close {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  flex-shrink: 0;
+  margin-left: 2px;
+  transition: opacity 100ms, background 100ms;
+}
+
+.h2-tab:hover .h2-tab-close,
+.h2-tab.active .h2-tab-close {
+  opacity: 1;
+}
+
+.h2-tab-close:hover {
+  background: var(--border-subtle);
+}
+
+.h2-tab-close svg {
+  width: 8px;
+  height: 8px;
+}
+
+.h2-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 100ms, background 100ms;
+}
+
+.h2-new:hover {
+  color: var(--text-primary);
+  background: var(--background-secondary);
+}
+
+.h2-new svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ─── H2 Action Buttons ─── */
+.h2-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  border-left: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+/* Divider between groups within actions */
+.h2-actions .h2-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border-subtle);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.h2-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  flex-shrink: 0;
+}
+
+.h2-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.h2-btn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-color: var(--border-subtle);
+}
+
+.h2-btn.active-btn {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+/* Terminal toggle state */
+.h2-btn.term {
+  color: var(--accent-primary);
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+
+.h2-btn.term:hover {
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+.h2-btn.term.active-btn {
+  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  border-color: var(--accent-primary);
+}
+
+
+
+/* ═══ Theme overrides for rainbow headers ═══ */
+html[data-theme="bold-rainbow"] .h1,
+html[data-theme="sunburst-rainbow"] .h1 {
+  background: var(--background-secondary);
+}
+
+html[data-theme="bold-rainbow"] .h1-tab.active,
+html[data-theme="sunburst-rainbow"] .h1-tab.active {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.1);
+}
+
+html[data-theme="bold-rainbow"] .h2-tab.active,
+html[data-theme="sunburst-rainbow"] .h2-tab.active {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.08);
 }

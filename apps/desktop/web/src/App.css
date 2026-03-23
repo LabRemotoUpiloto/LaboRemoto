@@ -1,30 +1,25 @@
+/* ═══ App Layout — Dual Header (68px) + Sidebar (44px) + StatusBar (22px) ═══ * Dynamic height variables based on header state */
+
 .app-container {
   display: flex;
   height: 100vh;
+  --header-height: 34px; /* default with only H1 */
+}
+
+.app-container.h2-visible {
+  --header-height: 74px; /* H1 (34px) + H2 (40px) */
 }
 
 .main-content {
-  flex-grow: 1;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--header-height);
+  bottom: 22px; /* above status bar */
   display: flex;
   flex-direction: column;
-  margin-left: 0;
-  margin-top: 50px; /* reserve space for fixed header */
-  min-width: 0; /* allow inner flex content to shrink and avoid overflow clipping */
-}
-
-.main-content.sidebar-open {
-  margin-left: 180px; /* match Sidebar width to avoid visual gap */
-  /* In flex context, ensure the item actually shrinks and doesn't overflow */
-  flex: 0 0 calc(100% - 180px);
-  max-width: calc(100% - 180px);
-  transition: margin-left 220ms cubic-bezier(.2,.9,.2,1), flex 220ms cubic-bezier(.2,.9,.2,1), max-width 220ms cubic-bezier(.2,.9,.2,1);
-}
-
-/* When sidebar is collapsed, adjust for narrow width */
-.main-content:not(.sidebar-open) {
-  margin-left: 48px; /* match collapsed width */
-  flex: 0 0 calc(100% - 48px);
-  max-width: calc(100% - 48px);
+  min-width: 0;
+  margin-left: 50px; /* fallback, GSAP injects inline */
 }
 
 .content-area {
@@ -32,22 +27,19 @@
   overflow: hidden;
   padding: 0;
   background-color: var(--background-primary);
-  height: calc(100vh - 50px); /* full height below header */
-  min-width: 0; /* allow inner flex (TerminalView) to shrink properly */
+  height: calc(100vh - var(--header-height) - 22px); /* below headers, above statusbar */
+  min-width: 0;
 }
 
-.app-container.sidebar-open .pins-panel {
-  margin-left: 180px;
-}
-
-.app-container.sidebar-collapsed .pins-panel {
-  margin-left: 48px;
+/* ─── Pins Panel ─── */
+.app-container .pins-panel {
+  margin-left: 50px; /* fallback, GSAP injects inline */
 }
 
 .pins-panel {
   width: 320px;
-  height: calc(100vh - 50px);
-  margin-top: 50px;
+  height: calc(100vh - var(--header-height) - 22px);
+  margin-top: var(--header-height);
   background: var(--background-secondary);
   border-right: 1px solid var(--border-color);
   border-left: 1px solid var(--border-color);
@@ -55,7 +47,6 @@
   flex-direction: column;
   flex-shrink: 0;
   position: relative;
-  transition: margin-left 220ms cubic-bezier(.2,.9,.2,1);
 }
 
 .pins-panel__header {
@@ -94,14 +85,6 @@
 
 .app-container.pins-open .main-content {
   margin-left: 0;
-}
-
-.app-container.pins-open .main-content.sidebar-open {
-  flex: 0 0 calc(100% - 180px - 320px);
-  max-width: calc(100% - 180px - 320px);
-}
-
-.app-container.pins-open .main-content:not(.sidebar-open) {
-  flex: 0 0 calc(100% - 48px - 320px);
-  max-width: calc(100% - 48px - 320px);
+  flex: 0 0 calc(100% - 44px - 320px);
+  max-width: calc(100% - 44px - 320px);
 }
