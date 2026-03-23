@@ -22,6 +22,7 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const isResizingRef2 = useRef<boolean>(false);
   const lastColsRef = useRef<number>(80);
+  const lastBackendSizeRef = useRef<{ cols: number; rows: number } | null>(null);
   const lastContainerSizeRef = useRef<{ width: number; height: number } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
@@ -176,6 +177,10 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
 
       term.open(container);
       
+      term.onWriteParsed(() => {
+        try { term.scrollToBottom(); } catch {}
+      });
+      
       // Blink JS directo - más confiable que CSS con xterm DOM renderer 
       let blinkVisible = true; 
       const blinkInterval = window.setInterval(() => { 
@@ -289,11 +294,13 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
         if (!term || !fit || !sessionId) return;
 
         try {
+          if (!isPaneVisible()) return;
           const proposed = fit.proposeDimensions();
-          if (proposed) {
-            // Bloqueamos la salida del servidor durante el proceso de resize real
-            isResizingRef2.current = true;
-            
+          if (proposed && proposed.cols > 0 && proposed.rows > 0) {
+            const last = lastBackendSizeRef.current;
+            if (last && last.cols === proposed.cols && last.rows === proposed.rows) return;
+            lastBackendSizeRef.current = { cols: proposed.cols, rows: proposed.rows };
+
             // Aquí sí aplicamos el tamaño real (incluso si es menor) al servidor
             term.resize(proposed.cols, proposed.rows);
             invoke('ssh_resize', { 
@@ -302,10 +309,10 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
               rows: proposed.rows 
             }).catch(() => {});
 
-            // Desbloqueamos después de 600ms para ignorar el "eco" del prompt del servidor
+            // Forzar scroll al fondo después del reflow real de tamaño
             setTimeout(() => {
-              isResizingRef2.current = false;
-            }, 600);
+              try { term.scrollToBottom(); } catch {}
+            }, 50);
           }
         } catch {}
       }, 500);
@@ -653,14 +660,12 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
 
       listen<string>(`ssh_out_${safe}`, (event) => {
         if (event.payload) {
-          // Descarta output del servidor durante resize para evitar duplicación del prompt
-          if (isResizingRef2.current) return;
-
           bytesReceived += event.payload.length;
           term.write(event.payload, () => {
             setTimeout(checkAndHideLoading, 100);
             setTimeout(() => captureSnapshot(), 150);
           });
+          try { term.scrollToBottom(); } catch {}
           setTimeout(checkAndHideLoading, 200);
           try { if (!hasFocusedOnceRef.current && canRefocusTerminal()) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
           try { ensureBlinkClasses(); } catch {}

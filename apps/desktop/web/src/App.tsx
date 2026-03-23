@@ -1,10 +1,11 @@
 // App raíz: manejo de pestañas (Inicio persistente + sesiones) y navegación lateral.
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { gsap } from 'gsap'
 import './App.css'
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
-import { navigateFromSidebar } from './navigation/navigation'
+import StatusBar from './components/layout/StatusBar'
 import TerminalView from './components/terminal/TerminalView'
 import TerminalOnly from './components/terminal/TerminalOnly'
 import ConnectForm from './components/connect/ConnectForm'
@@ -34,7 +35,9 @@ import LogTabsContainer from './components/layout/LogTabsContainer'
 
 function AppContent() { return <AppMain /> }
 
-function AppMain() {
+const AppMain: React.FC = () => {
+  const appContainerRef = useRef<HTMLDivElement>(null)
+  
   const {
     tabs,
     activeTabId,
@@ -51,61 +54,55 @@ function AppMain() {
     openSession,
     closeTab,
     handleNewSession,
-    openLogTab
+    openLogTab,
+    // Dual-header panel state
+    openPanels,
+    activePanel,
+    openPanel,
+    closePanel: closePanelTab,
+    activeView,
+    setActiveView,
+    isChatOpen,
+    setIsChatOpen,
   } = useAppTabs()
   const [updateInfo, setUpdateInfo] = useState<null | { version: string; notes?: string }>(null)
   const [updating, setUpdating] = useState(false)
   const [isCameraOpen, setCameraOpen] = useState(false)
   const [isPinsPanelOpen, setPinsPanelOpen] = useState(false)
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
 
   const handleTabClick = (id: string) => {
     console.log('🔄 Tab clicked:', id)
-    console.log('📋 Current tabs:', tabs.map(t => ({ id: t.id, type: t.type, label: t.label })))
-    
     setActiveTabId(id)
     
     const clickedTab = tabs.find(t => t.id === id)
-    console.log('🎯 Clicked tab:', clickedTab)
     
     // Cerrar paneles laterales al cambiar de tab
-    if (isPinsPanelOpen) {
-      closePinsPanel();
-    }
-    if (isCameraOpen) {
-      setCameraOpen(false);
-    }
+    if (isPinsPanelOpen) closePinsPanel();
+    if (isCameraOpen) setCameraOpen(false);
     
-    // Resetear selectedPage si cambias a la pestaña "Inicio" o a una pestaña de sesión SSH
     if (clickedTab?.type === 'home') {
-      console.log('🏠 Resetting selectedPage for home tab')
       setSelectedPage('landing')
     } else if (clickedTab?.type === 'session') {
-      console.log('🔗 Resetting selectedPage for session tab')
-      // Cuando cambias a una pestaña de sesión SSH, resetear selectedPage para mostrar terminal
       setSelectedPage('terminal')
     }
   }
 
   // Al cerrar una sesión SSH, pedir al backend que desconecte antes de remover la pestaña
-  // Para pestañas de logs, simplemente cerrar sin desconectar
   const handleCloseTab = async (id: string) => {
-    // Verificar si es una pestaña de log
     const tab = tabs.find(t => t.id === id);
     if (tab?.type === 'log') {
-      // Para logs, simplemente cerrar la pestaña sin intentar desconectar
       closeTab(id);
       return;
     }
     
-    // Para sesiones SSH, emitir evento para que TerminalPane guarde la sesión
     console.log(`📝 Requesting session save for ${id} before disconnect`);
     
-    // Crear una promesa que se resuelve cuando se recibe confirmación
     const savePromise = new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
         console.warn(`⏱️ Timeout waiting for session save confirmation for ${id}`);
         resolve();
-      }, 2000); // 2 segundos timeout
+      }, 2000);
       
       const handleSaved = (event: CustomEvent) => {
         if (event.detail.sessionId === id) {
@@ -122,7 +119,7 @@ function AppMain() {
           console.error(`❌ Session save failed for ${id}:`, event.detail.error);
           window.removeEventListener('app:session-saved', handleSaved as EventListener);
           window.removeEventListener('app:session-save-failed', handleFailed as EventListener);
-          resolve(); // Continuar de todas formas
+          resolve();
         }
       };
       
@@ -130,36 +127,18 @@ function AppMain() {
       window.addEventListener('app:session-save-failed', handleFailed as EventListener);
     });
     
-    // Emitir evento de guardado
     window.dispatchEvent(new CustomEvent('app:save-session-before-close', { detail: { sessionId: id } }));
     
-    // Esperar a que se guarde (o timeout)
     await savePromise;
     
-    // Luego desconectar
     try {
       await invoke('ssh_disconnect', { id })
       closeTab(id)
     } catch (e: any) {
-      // Si falla la desconexión (por ejemplo, sesión ya cerrada), cerrar la pestaña de todas formas
       console.warn('Error al desconectar:', e);
       closeTab(id);
     }
   }
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(prev => {
-      const next = !prev
-      // Avisar a la UI que el layout cambiará (inicio)
-      try { window.dispatchEvent(new CustomEvent('app:sidebar-toggled', { detail: { isOpen: next, phase: 'start' } })) } catch {}
-      // Aviso tras el siguiente frame, por si hay cálculos vinculados al DOM
-      try { requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('app:sidebar-toggled', { detail: { isOpen: next, phase: 'frame' } }))) } catch {}
-      // Aviso al final de la transición CSS (~300ms declarados en App.css)
-      try { window.setTimeout(() => window.dispatchEvent(new CustomEvent('app:sidebar-toggled', { detail: { isOpen: next, phase: 'end' } })), 320) } catch {}
-      return next
-    })
-  }
-
 
   const emitPinsToggleEvents = (next: boolean) => {
     const detail = { isOpen: next }
@@ -207,7 +186,6 @@ function AppMain() {
     })
   }
 
-
   // Check for updates on startup (once)
   useEffect(() => {
     (async () => {
@@ -243,35 +221,72 @@ function AppMain() {
 
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
 
+  // Detect if active session is a Raspberry Pi
+  const isRaspberryPi = activeTab.type === 'session' && (
+    activeTab.label.includes('Raspberry Pi') || activeTab.label.includes('200.115.181.211')
+  )
+
+  // Pages that belong to the HOME tab context
+  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets'];
+
+  // Wrapper: when sidebar opens a panel that's a "home" page, also switch to HOME tab
+  const handleOpenPanel = (panelId: string) => {
+    openPanel(panelId);
+    if (HOME_PAGES.includes(panelId)) {
+      setActiveTabId(HOME_TAB_ID);
+    }
+  }
+
+  // Parse session info for StatusBar
+  const getSessionInfo = () => {
+    if (activeTab.type !== 'session') return null;
+    const parts = activeTab.label.split('@');
+    if (parts.length >= 2) return { user: parts[0], host: parts.slice(1).join('@') };
+    return { user: 'user', host: activeTab.label };
+  }
+
+  const sessionCount = tabs.filter(t => t.type === 'session').length;
+
+  const isH2Visible = activePanel === 'terminal';
+
+  useEffect(() => {
+    if (appContainerRef.current) {
+      gsap.to(appContainerRef.current, {
+        '--sidebar-width': isSidebarExpanded ? '190px' : '50px',
+        duration: 0.35,
+        ease: 'power3.out'
+      });
+    }
+  }, [isSidebarExpanded]);
+
   return (
     <LoadingProvider>
       <ToastProvider>
         <ThemeProvider>
-          <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : 'sidebar-collapsed'} ${isPinsVisible ? 'pins-open' : ''}`}>
+          <div ref={appContainerRef} className={`app-container ${isPinsVisible ? 'pins-open' : ''} ${isH2Visible ? 'h2-visible' : ''} ${isSidebarExpanded ? 'sidebar-expanded' : ''}`}>
+            <Header
+              openPanels={openPanels}
+              activePanel={activePanel}
+              onPanelClick={handleOpenPanel}
+              onPanelClose={closePanelTab}
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onTabClick={handleTabClick}
+              onCloseTab={handleCloseTab}
+              onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect'); }}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              showViewToggle={isRaspberryPi && activeTab.type === 'session'}
+              isChatOpen={isChatOpen}
+              onToggleChat={() => setIsChatOpen(!isChatOpen)}
+            />
             <Sidebar
-              isOpen={isSidebarOpen}
-              toggleSidebar={toggleSidebar}
-              selectedPage={selectedPage}
-              onSelectPage={(p) => {
-                navigateFromSidebar({
-                  page: p,
-                  activeTabType: activeTab.type,
-                  HOME_ID: HOME_TAB_ID,
-                  setActiveTabId,
-                  setSelectedPage,
-                  pendingHost,
-                  setPendingHost: (val: any | null) => setPendingHost(val),
-                  isPinsPanelOpen,
-                  closePinsPanel,
-                  isCameraOpen,
-                  setCameraOpen: (open: boolean) => setCameraOpen(open),
-                })
-              }}
+              activePanel={activePanel}
+              onOpenPanel={handleOpenPanel}
               activeSessionId={activeTab.type === 'session' ? activeTab.label : null}
-              isCameraOpen={isCameraOpen}
-              isPinsPanelOpen={isPinsPanelOpen}
-              onToggleCamera={toggleCameraPanel}
-              onTogglePins={togglePinsPanel}
+              selectedPage={selectedPage}
+              isExpanded={isSidebarExpanded}
+              onToggleExpand={() => setIsSidebarExpanded(prev => !prev)}
             />
             {isPinsVisible && (
               <aside className="pins-panel" aria-label="Panel de pines GPIO">
@@ -280,39 +295,39 @@ function AppMain() {
                 </div>
               </aside>
             )}
-            <div className={`main-content ${isSidebarOpen ? 'sidebar-open' : ''}`}>
-          <Header
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onTabClick={handleTabClick}
-            onCloseTab={handleCloseTab}
-            onNewSession={() => { setActiveTabId(HOME_TAB_ID); setSelectedPage('connect'); }}
-          />
-          <main className="content-area">
-            <div style={{ display: activeTab.type === 'home' ? 'block' : 'none', height: '100%' }}>
-              <HomeContainer
-                tabs={tabs}
-                sessionMeta={sessionMeta}
-                setSessionMeta={setSessionMeta}
-                selectedPage={selectedPage}
-                setSelectedPage={setSelectedPage}
-                pendingHost={pendingHost}
-                setPendingHost={setPendingHost}
-                onConnectedFromConnect={handleNewSession}
-                onOpenLog={openLogTab}
-              />
+            <div className="main-content">
+              <main className="content-area">
+                <div style={{ display: activeTab.type === 'home' ? 'block' : 'none', height: '100%' }}>
+                  <HomeContainer
+                    tabs={tabs}
+                    sessionMeta={sessionMeta}
+                    setSessionMeta={setSessionMeta}
+                    selectedPage={selectedPage}
+                    setSelectedPage={setSelectedPage}
+                    pendingHost={pendingHost}
+                    setPendingHost={setPendingHost}
+                    onConnectedFromConnect={handleNewSession}
+                    onOpenLog={openLogTab}
+                  />
+                </div>
+                <SessionContainer
+                  tabs={tabs}
+                  activeTabId={activeTabId}
+                  selectedPage={selectedPage}
+                  activeView={activeView}
+                  isCameraOpen={isCameraOpen}
+                  isChatOpen={isChatOpen}
+                  onCloseChat={() => setIsChatOpen(false)}
+                  sessionMeta={sessionMeta}
+                  onOpenLog={openLogTab}
+                />
+                <LogTabsContainer tabs={tabs} activeTabId={activeTabId} />
+              </main>
             </div>
-            <SessionContainer
-              tabs={tabs}
-              activeTabId={activeTabId}
-              selectedPage={selectedPage}
-              isCameraOpen={isCameraOpen}
-              sessionMeta={sessionMeta}
-              onOpenLog={openLogTab}
+            <StatusBar
+              sessionInfo={getSessionInfo()}
+              sessionCount={sessionCount}
             />
-            <LogTabsContainer tabs={tabs} activeTabId={activeTabId} />
-          </main>
-            </div>
           </div>
           <GlobalLoader />
           <ToastContainer />

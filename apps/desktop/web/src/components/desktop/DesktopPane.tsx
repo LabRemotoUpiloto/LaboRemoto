@@ -77,6 +77,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Auto-start al abrir el panel si está inactivo
+  useEffect(() => {
+    if (isActive && status === 'idle') {
+      start(resolution)
+    }
+  }, [isActive, status])
+
   // Inicializar noVNC cuando el backend está listo (primera vez)
   useEffect(() => {
     if (status !== 'connected' || !sessionInfo || !canvasContainerRef.current) return
@@ -131,17 +138,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         sessionInfo={sessionInfo}
       />
 
-      {/* Estado idle: botón para iniciar */}
-      {status === 'idle' && (
-        <div className="desktop-loading">
-          <button className="desktop-btn-start" onClick={handleStart}>
-            ▶ Iniciar escritorio remoto
-          </button>
-          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-            Arrancará Xvfb + Openbox + x11vnc en el servidor
-          </span>
-        </div>
-      )}
+      {/* Estado idle inicial lo ocultamos porque auto-inicia automáticamente */}
 
       {status === 'starting' && (
         <div className="desktop-loading">

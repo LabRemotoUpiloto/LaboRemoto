@@ -1,20 +1,23 @@
+/* ═══════════════════════════════════════════
+   DYNAMIC SIDEBAR
+   ═══════════════════════════════════════════ */
+
 .sidebar {
-  width: 180px; /* Más delgado - antes 200px */
-  height: calc(100vh - 50px);
+  height: calc(100vh - var(--header-height) - 24px); /* resta la statusbar */
+  padding-bottom: 8px;
   position: fixed;
   left: 0;
-  top: 50px; /* sit below the fixed header */
-  /* Simplified background - solid with subtle overlay */
+  top: var(--header-height);
   background: var(--background-secondary);
-  padding: 8px 6px 8px 8px; /* Más padding izquierdo - antes 8px 4px */
   display: flex;
   flex-direction: column;
-  gap: 4px; /* Reducido - antes 6px */
-  /* Clean border instead of shadow */
-  border-right: 1px solid var(--border-subtle);
+  align-items: center;
+  padding: 8px 0;
+  gap: 2px;
+  flex-shrink: 0;
+  border-right: 0.5px solid var(--border-subtle);
   z-index: 1000;
-  transform: translateX(0); /* visible by default */
-  transition: transform 220ms cubic-bezier(.2,.9,.2,1), width 220ms cubic-bezier(.2,.9,.2,1);
+  overflow: hidden;
 }
 
 .sidebar::before {
@@ -22,40 +25,118 @@
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, 
-    rgba(16, 185, 129, 0.02) 0%, 
+    color-mix(in srgb, var(--accent-primary) 2%, transparent) 0%, 
     transparent 30%, 
     rgba(0, 0, 0, 0.05) 100%
   );
   pointer-events: none;
 }
 
-.sidebar.collapsed {
-  width: 48px; /* Más delgado - antes 50px */
-  padding: 8px 2px; /* Reducido - antes 10px 3px */
-  transform: translateX(0); /* visible but narrow */
-}
-
-/* Contenedor del botón toggle hamburguesa */
-.sidebar-toggle-wrapper {
-  position: relative;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 2px 0 4px 0; /* Reducido - antes 2px 0 6px 0 */
-  margin-bottom: 6px; /* Reducido - antes 8px */
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.sidebar.collapsed .sidebar-toggle-wrapper {
-  justify-content: center;
-  padding: 2px 0 4px 0;
-}
-
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 8px; /* Aumentado para mayor separación */
+  gap: 2px;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+/* ═══════════════════════════════════════════
+   EXPANDED STATE OVERRIDES
+   ═══════════════════════════════════════════ */
+
+.sidebar.expanded {
   align-items: stretch;
+  padding: 8px 12px;
+}
+
+.sidebar.expanded .sidebar-header {
+  padding: 12px 12px 8px;
+  justify-content: flex-end !important;
+}
+
+.sidebar.expanded .sidebar-header .sb-btn {
+  width: auto;
+  padding: 6px;
+  margin-left: auto;
+  justify-content: center;
+}
+
+.sidebar.expanded .sidebar-nav {
+  align-items: stretch;
+}
+
+.sidebar.expanded .sidebar-nav .sb-btn {
+  width: 100%;
+  padding: 0 10px;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.sb-label {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: none;
+}
+
+.sidebar.expanded .sb-tip {
+  display: none !important;
+}
+
+.sb-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 120ms ease;
+  position: relative;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.sb-btn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--background-tertiary));
+}
+
+.sb-btn.active {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--background-tertiary));
+}
+
+.sb-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Tooltip */
+.sb-tip {
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms;
+  border: 0.5px solid var(--border-color);
+  z-index: 99;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.sb-btn:hover .sb-tip {
+  opacity: 1;
 }
 
 .sidebar-footer {
@@ -63,380 +144,78 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 10px 8px 0 8px;
-}
-
-.version-badge {
-  font-size: 11px;
-  color: var(--text-secondary);
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  transition: all 0.25s cubic-bezier(.2,.9,.2,1);
+  padding: 8px 0;
 }
 
 .version-badge.compact {
   font-size: 10px;
-  padding: 4px 6px;
-  min-width: 28px;
+  padding: 3px 5px;
+  min-width: 22px;
   text-align: center;
-}
-
-.version-badge:hover {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: var(--accent-primary);
-  transform: scale(1.05);
-}
-
-.nav-item {
-  background: transparent;
-  border: none;
-  padding: 3px 6px; /* Padding simétrico para que el hover llegue hasta los bordes */
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-/* ensure nav content appears above any sidebar overlay */
-.sidebar-nav, .nav-item, .nav-pill, .nav-item .icon, .nav-item .label { position: relative }
-
-.nav-pill {
-  display: flex;
-  gap: 10px; /* Restaurado para mejor espaciado interno */
-  align-items: center;
-  padding: 10px 12px; /* Aumentado para botones más grandes */
-  border-radius: 8px;
   color: var(--text-secondary);
-  transition: all 0.25s cubic-bezier(.2,.9,.2,1);
-  justify-content: flex-start;
-  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  border-radius: 999px;
 }
 
-.nav-item .icon {
-  font-size: 19px; /* Aumentado para iconos más grandes */
-  width: 28px; /* Aumentado proporcionalmente */
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  transition: all 0.25s cubic-bezier(.2,.9,.2,1);
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
+/* ═══════════════════════════════════════════
+   🎨 THEME-SPECIFIC ICON STYLES
+   Preserved from existing design
+   ═══════════════════════════════════════════ */
 
-/* Slightly larger icons when collapsed for better visibility */
-.sidebar.collapsed .nav-item .icon {
-  font-size: 20px; /* Aumentado proporcionalmente */
-  width: auto;
-}
-
-/* Icon hover effect */
-.nav-item:hover .icon {
-  color: var(--accent-primary);
-  transform: scale(1.1);
-}
-
-.nav-item.active .icon {
-  color: var(--accent-primary);
-}
-
-.nav-item .label {
-  font-size: 14px; /* Aumentado para mejor legibilidad */
-  white-space: nowrap;
-  opacity: 0.95;
-  display: inline-block;
-  transition: opacity 220ms cubic-bezier(.2,.9,.2,1);
-}
-
-/* Hide labels when sidebar is collapsed */
-.sidebar.collapsed .nav-item .label {
-  opacity: 0;
-  width: 0;
-  overflow: hidden;
-}
-
-/* Center icons when sidebar is collapsed */
-.sidebar.collapsed .nav-pill {
-  justify-content: center;
-  align-items: center;
-  padding: 8px 4px; /* Reducido - antes 10px 6px */
-  width: 100%;
-  gap: 0;
-}
-
-/* active item visual: rounded pill with slight contrast */
-.nav-item.active .nav-pill {
-  /* subtle contrast that respects the dark palette */
-  background: linear-gradient(135deg, 
-    color-mix(in srgb, var(--accent-primary) 18%, var(--background-tertiary)) 0%,
-    color-mix(in srgb, var(--accent-primary) 10%, var(--background-tertiary)) 100%);
-  box-shadow: 
-    inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 35%, transparent),
-    0 3px 12px rgba(16, 185, 129, 0.15);
-  color: var(--text-primary);
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
-}
-
-/* Active icon is always green */
-.nav-item.active .icon {
-  color: var(--accent-primary);
-}
-
-/* When open, slide into view */
-.sidebar.open {
-  transform: translateX(0);
-}
-
-.nav-item:hover .nav-pill { 
-  background: color-mix(in srgb, var(--accent-primary) 6%, var(--background-tertiary));
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transform: translateX(2px);
-}
-
-/* Don't transform active items on hover, just brighten */
-.nav-item.active:hover .nav-pill {
-  background: linear-gradient(135deg, 
-    color-mix(in srgb, var(--accent-primary) 22%, var(--background-tertiary)) 0%,
-    color-mix(in srgb, var(--accent-primary) 12%, var(--background-tertiary)) 100%);
-  transform: none;
-  box-shadow: 
-    inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 40%, transparent),
-    0 4px 16px rgba(16, 185, 129, 0.2);
-}
-
-.nav-item:active .nav-pill { 
-  transform: translateX(2px) translateY(1px) scale(0.98);
-}
-
-.nav-item.active:active .nav-pill { 
-  transform: scale(0.97);
-}
-
-/* Tooltips en modo colapsado */
-.sidebar.collapsed .nav-item {
-  position: relative;
-}
-
-.sidebar.collapsed .nav-item::after {
-  content: attr(title);
-  position: absolute;
-  left: calc(100% + 12px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--background-secondary);
-  color: var(--text-primary);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1002;
-}
-
-.sidebar.collapsed .nav-item:hover::after {
-  opacity: 1;
-  visibility: visible;
-}
-
-.empty { color: var(--text-secondary); padding: 12px }
-
-/* Subtle animated RGB tint for Bold Rainbow theme (overlays the existing dark palette) */
-/* no animated overlay on sidebar - keep palette-driven background */
-
-/* ============================================
-   🎨 ICONOS TEMÁTICOS POR TEMA
-   Modificaciones visuales de iconos según el tema activo
-   ============================================ */
-
-/* ⚽ FC BARCELONA - Iconos con efecto azulgrana */
-html[data-theme="fc-barcelona"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 3px rgba(165, 0, 68, 0.6)) 
-          drop-shadow(0 0 6px rgba(0, 77, 152, 0.4));
-  stroke-width: 2.5;
-}
-
-html[data-theme="fc-barcelona"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 6px rgba(237, 187, 0, 0.8)) 
-          drop-shadow(0 0 10px rgba(165, 0, 68, 0.6));
-  stroke-width: 2.8;
-}
-
-html[data-theme="fc-barcelona"] .nav-item.active .icon svg {
+/* ⚽ FC BARCELONA */
+html[data-theme="fc-barcelona"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 6px rgba(237, 187, 0, 0.8));
   stroke: #edbb00;
-  filter: drop-shadow(0 0 8px rgba(237, 187, 0, 0.9)) 
-          drop-shadow(0 0 12px rgba(165, 0, 68, 0.7));
-  animation: barcaIconPulse 3s ease-in-out infinite;
 }
 
-/* 🔥 CRIMSON GOLD - Iconos con resplandor rojo-dorado */
-html[data-theme="crimson-gold"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 4px rgba(220, 20, 60, 0.5));
-  stroke-width: 2.3;
-}
-
-html[data-theme="crimson-gold"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 8px rgba(220, 20, 60, 0.8)) 
-          drop-shadow(0 0 12px rgba(184, 134, 11, 0.6));
-}
-
-html[data-theme="crimson-gold"] .nav-item.active .icon svg {
+/* 🔥 CRIMSON GOLD */
+html[data-theme="crimson-gold"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 8px rgba(184, 134, 11, 0.9));
   stroke: #b8860b;
-  filter: drop-shadow(0 0 10px rgba(184, 134, 11, 1)) 
-          drop-shadow(0 0 15px rgba(220, 20, 60, 0.8));
-  animation: crimsonGoldGlow 4s ease-in-out infinite;
 }
 
-/* ⚡ ELECTRIC INDIGO - Iconos con chispas eléctricas */
-html[data-theme="electric-indigo"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.6));
-  stroke-width: 2.2;
-}
-
-html[data-theme="electric-indigo"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.9)) 
-          drop-shadow(0 0 12px rgba(99, 102, 241, 0.7));
-  transform: scale(1.15);
-}
-
-html[data-theme="electric-indigo"] .nav-item.active .icon svg {
+/* ⚡ ELECTRIC INDIGO */
+html[data-theme="electric-indigo"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 10px rgba(6, 182, 212, 1));
   stroke: #06b6d4;
-  filter: drop-shadow(0 0 12px rgba(6, 182, 212, 1)) 
-          drop-shadow(0 0 18px rgba(99, 102, 241, 0.8));
-  animation: electricSpark 2s ease-in-out infinite;
 }
 
-/* ☢️ TOXIC LIME - Iconos con efecto radioactivo */
-html[data-theme="toxic-lime"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 5px rgba(132, 204, 22, 0.7));
-  stroke-width: 2.4;
-}
-
-html[data-theme="toxic-lime"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 10px rgba(132, 204, 22, 1)) 
-          drop-shadow(0 0 15px rgba(74, 222, 128, 0.8));
-  transform: scale(1.12);
-}
-
-html[data-theme="toxic-lime"] .nav-item.active .icon svg {
+/* ☢️ TOXIC LIME */
+html[data-theme="toxic-lime"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 12px rgba(74, 222, 128, 1));
   stroke: #4ade80;
-  filter: drop-shadow(0 0 15px rgba(74, 222, 128, 1)) 
-          drop-shadow(0 0 22px rgba(132, 204, 22, 0.9));
-  animation: toxicRadiation 3s ease-in-out infinite;
 }
 
-/* 💜 LAVENDER DREAM - Iconos con aura lavanda suave */
-html[data-theme="lavender-dream"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.4));
-  stroke-width: 2;
-}
-
-html[data-theme="lavender-dream"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.7)) 
-          drop-shadow(0 0 10px rgba(124, 58, 237, 0.5));
-}
-
-html[data-theme="lavender-dream"] .nav-item.active .icon svg {
+/* 💜 LAVENDER DREAM */
+html[data-theme="lavender-dream"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.9));
   stroke: #7c3aed;
-  filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.9)) 
-          drop-shadow(0 0 15px rgba(139, 92, 246, 0.7));
-  animation: lavenderBreath 5s ease-in-out infinite;
 }
 
-/* 🍑 PEACHY SUNRISE - Iconos con brillo durazno-coral */
-html[data-theme="peachy-sunrise"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 3px rgba(251, 146, 60, 0.4));
-  stroke-width: 2.1;
-}
-
-html[data-theme="peachy-sunrise"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 7px rgba(249, 115, 22, 0.7)) 
-          drop-shadow(0 0 11px rgba(251, 146, 60, 0.5));
-}
-
-html[data-theme="peachy-sunrise"] .nav-item.active .icon svg {
+/* 🍑 PEACHY SUNRISE */
+html[data-theme="peachy-sunrise"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 10px rgba(249, 115, 22, 1));
   stroke: #f97316;
-  filter: drop-shadow(0 0 12px rgba(249, 115, 22, 1)) 
-          drop-shadow(0 0 18px rgba(251, 146, 60, 0.8));
-  animation: peachyGlow 4s ease-in-out infinite;
 }
 
-/* 🌹 ROSE QUARTZ - Iconos con resplandor rosa-dorado */
-html[data-theme="rose-quartz"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 3px rgba(236, 72, 153, 0.4));
-  stroke-width: 2;
-}
-
-html[data-theme="rose-quartz"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 7px rgba(219, 39, 119, 0.7)) 
-          drop-shadow(0 0 11px rgba(251, 191, 36, 0.4));
-}
-
-html[data-theme="rose-quartz"] .nav-item.active .icon svg {
+/* 🌹 ROSE QUARTZ */
+html[data-theme="rose-quartz"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 8px rgba(219, 39, 119, 0.9));
   stroke: #db2777;
-  filter: drop-shadow(0 0 10px rgba(219, 39, 119, 0.9)) 
-          drop-shadow(0 0 15px rgba(251, 191, 36, 0.6));
-  animation: roseQuartzShimmer 4s ease-in-out infinite;
 }
 
-/* 🌅 SUNBURST RAINBOW - Iconos con arcoíris cálido */
-html[data-theme="sunburst-rainbow"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 4px rgba(251, 146, 60, 0.5)) 
-          drop-shadow(0 0 6px rgba(236, 72, 153, 0.3));
-  stroke-width: 2.3;
+/* 🌅 SUNBURST RAINBOW */
+html[data-theme="sunburst-rainbow"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.7)) drop-shadow(0 0 10px rgba(236, 72, 153, 0.5));
 }
 
-html[data-theme="sunburst-rainbow"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 8px rgba(251, 146, 60, 0.8)) 
-          drop-shadow(0 0 12px rgba(236, 72, 153, 0.6))
-          drop-shadow(0 0 15px rgba(253, 224, 71, 0.4));
+/* ⚡ BOLD RAINBOW */
+html[data-theme="bold-rainbow"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 6px rgba(255, 0, 0, 0.5)) drop-shadow(0 0 6px rgba(0, 255, 0, 0.5)) drop-shadow(0 0 6px rgba(0, 0, 255, 0.5));
 }
 
-html[data-theme="sunburst-rainbow"] .nav-item.active .icon svg {
-  animation: sunburstIconRainbow 6s linear infinite;
-  stroke-width: 2.5;
-}
-
-/* ⚡ BOLD RAINBOW - Iconos con RGB intenso */
-html[data-theme="bold-rainbow"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.4)) 
-          drop-shadow(0 0 5px rgba(0, 255, 0, 0.4))
-          drop-shadow(0 0 5px rgba(0, 0, 255, 0.4));
-  stroke-width: 2.4;
-}
-
-html[data-theme="bold-rainbow"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.7)) 
-          drop-shadow(0 0 10px rgba(0, 255, 0, 0.7))
-          drop-shadow(0 0 10px rgba(0, 0, 255, 0.7));
-  transform: scale(1.12);
-}
-
-html[data-theme="bold-rainbow"] .nav-item.active .icon svg {
-  animation: boldRgbIconCycle 3s linear infinite;
-  stroke-width: 2.6;
-}
-
-/* 🍭 PASTEL DREAM - Iconos con colores pastel suaves */
-html[data-theme="pastel-dream"] .nav-item .icon svg {
-  filter: drop-shadow(0 0 4px rgba(232, 121, 249, 0.3));
-  stroke-width: 1.9;
-}
-
-html[data-theme="pastel-dream"] .nav-item:hover .icon svg {
-  filter: drop-shadow(0 0 8px rgba(232, 121, 249, 0.6)) 
-          drop-shadow(0 0 12px rgba(255, 201, 229, 0.4));
-}
-
-html[data-theme="pastel-dream"] .nav-item.active .icon svg {
-  animation: pastelDreamFlow 8s ease-in-out infinite;
-  stroke-width: 2.1;
+/* 🍭 PASTEL DREAM */
+html[data-theme="pastel-dream"] .sb-btn.active svg {
+  filter: drop-shadow(0 0 6px rgba(232, 121, 249, 0.5));
 }

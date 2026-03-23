@@ -138,7 +138,7 @@ fn start_vnc_server(
     )?;
 
     // Dar tiempo al Xvfb para crear el socket
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(std::time::Duration::from_millis(500));
 
     // Verificar que Xvfb está corriendo y el socket existe
     let (_, out) = run_remote(
@@ -169,8 +169,8 @@ fn start_vnc_server(
     let chromium_dir = format!("/tmp/chromium-vnc-{display}");
     let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
     let panel_profile = format!("lxde-pi-{display}");
-    let browser_desktop = format!("/tmp/browser-{display}.desktop");
-    let webserver_desktop = format!("/tmp/webserver-{display}.desktop");
+    let browser_desktop = format!("/home/pi/.local/share/applications/browser-vnc-{display}.desktop");
+    let webserver_desktop = format!("/home/pi/.local/share/applications/webserver-vnc-{display}.desktop");
 
     // 0. Crear XDG_RUNTIME_DIR y el directorio de datos de Chromium
     //    XDG_RUNTIME_DIR DEBE existir antes de que cualquier proceso lo use;
@@ -224,7 +224,8 @@ PREFS_EOF\ntrue"
     run_remote(
         sess,
         &format!(
-            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec=/home/pi/.local/bin/chromium-browser-{display}\\nIcon=chromium-browser\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
+            "mkdir -p /home/pi/.local/share/applications && \
+             printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec=/home/pi/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
              > {browser_desktop}; true"
         ),
     )?;
@@ -242,22 +243,92 @@ PREFS_EOF\ntrue"
         ),
     )?;
 
-    // 3. Copiar perfil LXDE-pi para lxpanel y pcmanfm, sustituir botón del browser
-    //    por el .desktop temporal de este display. Buscamos primero en el home
-    //    y si no existe, en el sistema.
+    // 3. Crear perfil lxpanel minimalista (solo plugins seguros para SSH)
+    //    y copiar perfil pcmanfm para fondo de escritorio e iconos.
     run_remote(
         sess,
         &format!(
             "mkdir -p /home/pi/.config/lxpanel/{panel_profile}/panels && \
-             if [ -f /home/pi/.config/lxpanel/LXDE-pi/panels/panel ]; then \
-                cp /home/pi/.config/lxpanel/LXDE-pi/panels/panel /home/pi/.config/lxpanel/{panel_profile}/panels/panel; \
-             elif [ -f /etc/xdg/lxpanel/LXDE-pi/panels/panel ]; then \
-                cp /etc/xdg/lxpanel/LXDE-pi/panels/panel /home/pi/.config/lxpanel/{panel_profile}/panels/panel; \
-             fi; \
-             [ -f /home/pi/.config/lxpanel/{panel_profile}/panels/panel ] && \
-             sed -i 's|id=lxde-x-www-browser.desktop|id={browser_desktop}|g' \
-                /home/pi/.config/lxpanel/{panel_profile}/panels/panel; \
-             \
+             cat > /home/pi/.config/lxpanel/{panel_profile}/panels/panel << 'PANEL_EOF'\n\
+# lxpanel <profile> config file.\n\
+Global {{\n\
+  edge=top\n\
+  align=left\n\
+  margin=0\n\
+  widthtype=percent\n\
+  width=100\n\
+  height=36\n\
+  transparent=0\n\
+  tintcolor=#000000\n\
+  alpha=0\n\
+  autohide=0\n\
+  heightwhenhidden=2\n\
+  setdocktype=1\n\
+  setpartialstrut=1\n\
+  usefontcolor=0\n\
+  fontsize=12\n\
+  fontcolor=#ffffff\n\
+  usefontsize=0\n\
+  background=0\n\
+  iconsize=36\n\
+  monitor=0\n\
+}}\n\
+Plugin {{\n\
+  type=menu\n\
+  Config {{\n\
+    padding=4\n\
+    image=start-here\n\
+    system {{\n\
+    }}\n\
+    separator {{\n\
+    }}\n\
+    item {{\n\
+      image=system-shutdown\n\
+      command=logout\n\
+    }}\n\
+  }}\n\
+}}\n\
+Plugin {{\n\
+  type=launchbar\n\
+  Config {{\n\
+    Button {{\n\
+      id=browser-vnc-{display}.desktop\n\
+    }}\n\
+    Button {{\n\
+      id=pcmanfm.desktop\n\
+    }}\n\
+    Button {{\n\
+      id=lxterminal.desktop\n\
+    }}\n\
+  }}\n\
+}}\n\
+Plugin {{\n\
+  type=taskbar\n\
+  expand=1\n\
+  Config {{\n\
+    tooltips=1\n\
+    IconsOnly=0\n\
+    ShowAllDesks=0\n\
+    MaxTaskWidth=200\n\
+  }}\n\
+}}\n\
+Plugin {{\n\
+  type=tray\n\
+  Config {{\n\
+  }}\n\
+}}\n\
+Plugin {{\n\
+  type=dclock\n\
+  Config {{\n\
+    ClockFmt=%R\n\
+    TooltipFmt=%A %x\n\
+    BoldFont=0\n\
+    IconOnly=0\n\
+    CenterText=1\n\
+  }}\n\
+}}\n\
+PANEL_EOF\n\
+             \n\
              mkdir -p /home/pi/.config/pcmanfm/{panel_profile} && \
              if [ -d /home/pi/.config/pcmanfm/LXDE-pi ]; then \
                 cp -r /home/pi/.config/pcmanfm/LXDE-pi/. /home/pi/.config/pcmanfm/{panel_profile}/; \
@@ -267,6 +338,39 @@ PREFS_EOF\ntrue"
              true"
         ),
     )?;
+
+    // =========================================================================
+    // INICIAR x11vnc PRIMERO (Escritorio instantáneo)
+    // =========================================================================
+
+    // Al iniciar VNC antes del DE, la UI cargará frente al usuario de inmediato.
+    run_remote(
+        sess,
+        &format!(
+            "nohup x11vnc -display :{display} -rfbport {vnc_port} \
+             -nopw -shared -forever -noxdamage -xrandr resize \
+             >/tmp/x11vnc{display}.log 2>&1 </dev/null & echo started"
+        ),
+    )?;
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    let (_, out_vnc) = run_remote(
+        sess,
+        &format!(
+            "ss -tlnp 2>/dev/null | grep -q ':{vnc_port}' && echo ok \
+             || (echo fail; tail -8 /tmp/x11vnc{display}.log 2>/dev/null)"
+        ),
+    )?;
+
+    if !out_vnc.trim().starts_with("ok") {
+        let log_lines: String = out_vnc.lines().skip(1).collect::<Vec<_>>().join(" | ");
+        let _ = stop_vnc_server(sess, display, vnc_port);
+        return Err(format!(
+            "x11vnc no arrancó en el puerto {vnc_port}. Log: {log_lines}"
+        ));
+    }
+    // =========================================================================
 
     // 4. xstartup único — exporta TODAS las variables de entorno necesarias
     //    para que los procesos hijos (especialmente Chromium desde lxpanel)
@@ -303,42 +407,8 @@ wait\\n' \
         ),
     )?;
 
-    // Dar tiempo al DE para que levante el compositor, panel y escritorio
-    std::thread::sleep(std::time::Duration::from_secs(5));
-
-    // 3. Servidor VNC: sin contraseña, persistente.
-    // -localhost se omite porque la seguridad la provee el túnel SSH;
-    // además, con algunas versiones de sshd/x11vnc el check falla si
-    // la conexión llega como ::1 (IPv6 loopback) en lugar de 127.0.0.1.
-    run_remote(
-        sess,
-        &format!(
-            "nohup x11vnc -display :{display} -rfbport {vnc_port} \
-             -nopw -shared -forever -noxdamage -xrandr resize \
-             >/tmp/x11vnc{display}.log 2>&1 </dev/null & echo started"
-        ),
-    )?;
-
-    // Dar tiempo a que x11vnc abra su puerto
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
-    // 4. Verificar que x11vnc está escuchando
-    let (_, out) = run_remote(
-        sess,
-        &format!(
-            "ss -tlnp 2>/dev/null | grep -q ':{vnc_port}' && echo ok \
-             || (echo fail; tail -8 /tmp/x11vnc{display}.log 2>/dev/null)"
-        ),
-    )?;
-
-    if !out.trim().starts_with("ok") {
-        let log_lines: String = out.lines().skip(1).collect::<Vec<_>>().join(" | ");
-        let _ = stop_vnc_server(sess, display, vnc_port);
-        return Err(format!(
-            "x11vnc no arrancó en el puerto {vnc_port}. Log: {log_lines}"
-        ));
-    }
-
+    // Ya no hacemos sleep aquí porque x11vnc ya está corriendo.
+    // El frontend intentará conectarse casi de inmediato.
     Ok(())
 }
 
