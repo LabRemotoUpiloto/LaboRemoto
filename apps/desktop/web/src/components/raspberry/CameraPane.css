@@ -1,0 +1,121 @@
+/* ═══════════════════════════════════════════
+   CameraPane — Bottom Panel (polished)
+   ═══════════════════════════════════════════ */
+
+.camera-pane {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--background-primary, #111116);
+  position: relative;
+  overflow: hidden;
+  align-items: center; /* keep content centered */
+  justify-content: center;
+}
+
+.camera-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+}
+
+.camera-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f87171;
+  animation: cam-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes cam-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.camera-status span {
+  font-weight: 600;
+  color: #f87171;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.camera-controls .cam-btn {
+  font-size: 11px;
+  font-family: var(--font-sans);
+  color: var(--text-secondary, #aaa);
+  background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
+  border: 0.5px solid var(--border-subtle, #333);
+  border-radius: 6px;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.camera-controls .cam-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  color: var(--text-primary, #ddd);
+  border-color: var(--accent-primary);
+}
+
+.camera-controls .cam-btn.connect {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.camera-controls .cam-btn.connect:hover {
+  background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+/* Controls overlay (inside camera pane, top area) */
+.camera-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+  gap: 8px;
+}
+
+/* Idle/connecting/error: full pane centered */
+.camera-idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-secondary, #555);
+  background: #000;
+  z-index: 1;
+}
+
+.camera-idle svg {
+  width: 36px;
+  height: 36px;
+  opacity: 0.25;
+}
+
+.camera-idle p {
+  font-size: 12px;
+  margin: 0;
+}
+
+.camera-pane video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* shows full video always */
+  z-index: 0;
+}

@@ -64,6 +64,7 @@ const AppMain: React.FC = () => {
     isChatOpen,
     setIsChatOpen,
     reorderTabs,
+    reorderPanels,
   } = useAppTabs()
   const [updateInfo, setUpdateInfo] = useState<null | { version: string; notes?: string }>(null)
   const [updating, setUpdating] = useState(false)
@@ -274,10 +275,15 @@ const AppMain: React.FC = () => {
               onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect'); }}
               activeView={activeView}
               onViewChange={setActiveView}
-              showViewToggle={isRaspberryPi && activeTab.type === 'session'}
+              showViewToggle={activeTab.type === 'session'}
               isChatOpen={isChatOpen}
               onToggleChat={() => setIsChatOpen(!isChatOpen)}
               onReorderTabs={reorderTabs}
+              onReorderPanels={reorderPanels}
+              onToggleCamera={toggleCameraPanel}
+              onTogglePins={togglePinsPanel}
+              isCameraActive={isCameraOpen}
+              isPinsActive={isPinsPanelOpen}
             />
             <Sidebar
               activePanel={activePanel}
@@ -287,13 +293,6 @@ const AppMain: React.FC = () => {
               isExpanded={isSidebarExpanded}
               onToggleExpand={() => setIsSidebarExpanded(prev => !prev)}
             />
-            {isPinsVisible && (
-              <aside className="pins-panel" aria-label="Panel de pines GPIO">
-                <div className="pins-panel__content">
-                  <PinsPanel sessionId={activeTab.id} />
-                </div>
-              </aside>
-            )}
             <div className="main-content">
               <main className="content-area">
                 <div style={{ display: activeTab.type === 'home' ? 'block' : 'none', height: '100%' }}>
@@ -323,6 +322,23 @@ const AppMain: React.FC = () => {
                 <LogTabsContainer tabs={tabs} activeTabId={activeTabId} />
               </main>
             </div>
+            {isPinsVisible && (
+              <aside className="pins-panel" aria-label="Panel de pines GPIO">
+                <div className="pins-panel__header">
+                  <span className="pins-panel__title">Control de Pines GPIO</span>
+                  <button 
+                    className="pins-panel__close-button" 
+                    onClick={closePinsPanel}
+                    title="Cerrar panel"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="pins-panel__content">
+                  <PinsPanel sessionId={activeTab.id} />
+                </div>
+              </aside>
+            )}
             <StatusBar
               sessionInfo={getSessionInfo()}
               sessionCount={sessionCount}

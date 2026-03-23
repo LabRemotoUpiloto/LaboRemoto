@@ -94,3 +94,76 @@
   transform: translateY(-2px);
   background: var(--accent-primary-hover);
 }
+
+/* ═══ Camera Top Panel ═══ */
+.camera-top-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--background-secondary, #1a1a1e);
+  border-bottom: 1px solid var(--border-subtle, #2a2a2e);
+  overflow: hidden;
+}
+
+.camera-top-panel .camera-pane {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ═══ Shared Resizers ═══ */
+.side-resizer,
+.bottom-resizer {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.03);
+  transition: background 0.15s;
+  position: relative;
+}
+
+.side-resizer {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.bottom-resizer {
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.side-resizer::after,
+.bottom-resizer::after {
+  content: '';
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  transition: background 0.15s;
+}
+
+.side-resizer::after {
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 30px;
+}
+
+.bottom-resizer::after {
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 2px;
+}
+
+.side-resizer:hover,
+.bottom-resizer:hover,
+.terminal-view.is-resizing .side-resizer,
+.terminal-view.is-resizing .bottom-resizer {
+  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+.side-resizer:hover::after,
+.bottom-resizer:hover::after,
+.terminal-view.is-resizing .side-resizer::after,
+.terminal-view.is-resizing .bottom-resizer::after {
+  background: var(--accent-primary);
+}

@@ -93,6 +93,8 @@ pub struct SessionExt {
   pub current_dir: Option<String>,
   // Sesión gráfica VNC activa (None si no hay escritorio remoto iniciado)
   pub vnc_session: Option<VncSessionState>,
+  // Señal de parada para el hilo de stream (port-forward genérico)
+  pub stream_stop_flag: Option<Arc<AtomicBool>>,
 }
 
 // Conexión ssh2 reutilizable por sesión
