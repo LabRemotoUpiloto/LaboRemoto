@@ -134,7 +134,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside ref={sidebarRef} className={`sidebar ${isExpanded ? 'expanded' : ''}`} aria-label="Main navigation">
-      <div className="sidebar-header" style={{ padding: '12px 12px 8px', display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+      <div className="sidebar-header" style={{ 
+        padding: '12px 12px 8px', 
+        display: 'flex', 
+        justifyContent: isExpanded ? 'flex-end' : 'center', 
+        width: '100%' 
+      }}>
         <button 
           className="sb-btn toggle-btn" 
           onClick={onToggleExpand} 
@@ -180,7 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="sidebar-footer">
         {appVersion && (
           <span className="version-badge">
-            {isExpanded ? `v${appVersion}` : appVersion.split('.')[0]}
+            {isExpanded ? `v${appVersion}` : `v${appVersion.split('.').slice(0, 2).join('.')}`}
           </span>
         )}
       </div>

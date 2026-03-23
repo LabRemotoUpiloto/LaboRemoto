@@ -1,7 +1,6 @@
 // App raíz: manejo de pestañas (Inicio persistente + sesiones) y navegación lateral.
 import React, { useEffect, useState, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { gsap } from 'gsap'
 import './App.css'
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
@@ -64,6 +63,7 @@ const AppMain: React.FC = () => {
     setActiveView,
     isChatOpen,
     setIsChatOpen,
+    reorderTabs,
   } = useAppTabs()
   const [updateInfo, setUpdateInfo] = useState<null | { version: string; notes?: string }>(null)
   const [updating, setUpdating] = useState(false)
@@ -249,15 +249,13 @@ const AppMain: React.FC = () => {
 
   const isH2Visible = activePanel === 'terminal';
 
-  useEffect(() => {
-    if (appContainerRef.current) {
-      gsap.to(appContainerRef.current, {
-        '--sidebar-width': isSidebarExpanded ? '190px' : '50px',
-        duration: 0.35,
-        ease: 'power3.out'
-      });
+  const handleClosePanel = (panelId: string) => {
+    if (panelId === 'terminal') {
+      const sessionTabs = tabs.filter(t => t.type === 'session');
+      sessionTabs.forEach(t => handleCloseTab(t.id));
     }
-  }, [isSidebarExpanded]);
+    closePanelTab(panelId);
+  }
 
   return (
     <LoadingProvider>
@@ -268,7 +266,7 @@ const AppMain: React.FC = () => {
               openPanels={openPanels}
               activePanel={activePanel}
               onPanelClick={handleOpenPanel}
-              onPanelClose={closePanelTab}
+              onPanelClose={handleClosePanel}
               tabs={tabs}
               activeTabId={activeTabId}
               onTabClick={handleTabClick}
@@ -279,6 +277,7 @@ const AppMain: React.FC = () => {
               showViewToggle={isRaspberryPi && activeTab.type === 'session'}
               isChatOpen={isChatOpen}
               onToggleChat={() => setIsChatOpen(!isChatOpen)}
+              onReorderTabs={reorderTabs}
             />
             <Sidebar
               activePanel={activePanel}
