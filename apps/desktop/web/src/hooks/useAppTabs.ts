@@ -55,6 +55,7 @@ export function useAppTabs() {
         const firstSession = next.find(t => t.type === "session");
         setActiveTabId(firstSession ? firstSession.id : HOME_TAB_ID);
       }
+      return next;
     });
   };
 
@@ -68,7 +69,24 @@ export function useAppTabs() {
       const newTabs = [...prev];
       const [moved] = newTabs.splice(idxA, 1);
       newTabs.splice(idxB, 0, moved);
+      
       return newTabs;
+    });
+    // Mantén la tab activa después del reorder
+    setActiveTabId(prev => prev);
+  };
+
+  const reorderPanels = (dragID: string, dropID: string) => {
+    if (dragID === dropID) return;
+    setOpenPanels(prev => {
+      const idxA = prev.indexOf(dragID);
+      const idxB = prev.indexOf(dropID);
+      if (idxA < 0 || idxB < 0) return prev;
+
+      const newPanels = [...prev];
+      const [moved] = newPanels.splice(idxA, 1);
+      newPanels.splice(idxB, 0, moved);
+      return newPanels;
     });
   };
 
@@ -192,6 +210,7 @@ export function useAppTabs() {
     isChatOpen,
     setIsChatOpen,
     reorderTabs,
+    reorderPanels,
   };
 }
 

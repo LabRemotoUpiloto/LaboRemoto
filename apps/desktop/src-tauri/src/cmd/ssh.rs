@@ -67,6 +67,7 @@ pub async fn ssh_connect(
                 ui_ready: Arc::new(AtomicBool::new(false)),
                 current_dir: None,
                 vnc_session: None,
+                stream_stop_flag: None,
               });
             }
             Err(e) => {
@@ -536,6 +537,7 @@ pub async fn ssh_connect_stored(
       ui_ready: Arc::new(AtomicBool::new(false)),
       current_dir: None,
       vnc_session: None,
+      stream_stop_flag: None,
     });
   }
 

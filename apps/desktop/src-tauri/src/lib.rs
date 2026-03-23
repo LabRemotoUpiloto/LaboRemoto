@@ -88,6 +88,9 @@ pub fn run() {
       cmd::vnc::vnc_start,
       cmd::vnc::vnc_stop,
       cmd::vnc::vnc_status,
+      // Port-forwarding genérico (streaming)
+      cmd::stream::stream_start,
+      cmd::stream::stream_stop,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

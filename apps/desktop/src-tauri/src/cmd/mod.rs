@@ -15,6 +15,7 @@ pub mod search_shared; // Búsqueda remota compartida
 pub mod logs;    // Sistema de logs de sesión (captura de buffers SSH)
 pub mod pdf_reports; // Reportes PDF locales en savedLogs
 pub mod vnc;     // Sesiones de escritorio gráfico remoto (Xvfb + x11vnc + noVNC)
+pub mod stream;  // Port-forwarding genérico para streaming de video/otros
 
 // Re-exportar comandos para no cambiar rutas usadas en lib.rs
 pub use ai::{ai_chat, AiChatRequest, AiChatResponse};
@@ -27,3 +28,4 @@ pub use file_edit::{analyze_file, analyze_any_file, plan_file_edit, apply_file_e
 pub use logs::{save_session_log, list_session_logs, get_session_log_content, get_session_log, delete_session_log, cleanup_old_session_logs};
 pub use logs::save_session_log_fragment;
 pub use pdf_reports::{save_pdf_base64};
+pub use stream::{stream_start, stream_stop};

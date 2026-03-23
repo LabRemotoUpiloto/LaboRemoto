@@ -77,12 +77,11 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Auto-start al abrir el panel si está inactivo
-  useEffect(() => {
-    if (isActive && status === 'idle') {
-      start(resolution)
-    }
-  }, [isActive, status])
+  // Only auto-start VNC when the user explicitly navigates to the desktop view
+  // Do NOT auto-start on mount — the DesktopPane is always mounted (visibility: hidden)
+  // and auto-starting causes port-forward spam when viewing terminal/camera
+  // The user must click the "escritorio" toggle button first.
+
 
   // Inicializar noVNC cuando el backend está listo (primera vez)
   useEffect(() => {
@@ -94,7 +93,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   }, [status, sessionInfo])
 
   // Al ocultar: desconectar WS para no desperdiciar ancho de banda
-  // Al mostrar: reconectar — el canvas ya tiene dimensiones reales en este punto
+  // Al mostrar: iniciar sesión VNC si no está activa, o reconectar RFB
   useEffect(() => {
     if (!isActive) {
       if (rfbRef.current) {
@@ -103,7 +102,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
       }
       return
     }
-    // isActive acaba de ser true → React ya aplicó display:flex antes de este efecto
+    // isActive acaba de ser true (user switched to desktop view)
+    // If VNC session hasn't been started yet, start it now
+    if (status === 'idle') {
+      start(resolution)
+      return
+    }
+    // If already connected, just reconnect the RFB websocket
     if (status !== 'connected' || !sessionInfo || !canvasContainerRef.current) return
     if (rfbRef.current) return
     connectRFB(canvasContainerRef.current, `ws://127.0.0.1:${sessionInfo.ws_port}`)

@@ -700,5 +700,18 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
     }
   }, [sessionId]);
 
+  useEffect(() => {
+    if (!sessionId || !termRef.current) return;
+    // Pequeño delay para que React termine el re-render
+    const t = setTimeout(() => {
+      try {
+        if (canRefocusTerminal()) {
+          termRef.current?.focus();
+        }
+      } catch {}
+    }, 50);
+    return () => clearTimeout(t);
+  }, [sessionId]);
+
   return { isLoading, isFadingOut, waitingForPrompt };
 }

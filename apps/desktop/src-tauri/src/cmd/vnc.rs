@@ -645,13 +645,13 @@ fn restart_x11vnc_log_and_notify(
 // Por cada conexión TCP local, abre un channel_direct_tcpip en una sesión
 // ssh2 nueva y hace copy bidireccional en dos hilos.
 // ─────────────────────────────────────────────────────────────────────────────
-fn run_port_forward(
+pub fn run_port_forward(
     listener: std::net::TcpListener,
     host: String,
     port: u16,
     user: String,
     password: String,
-    vnc_port: u16,
+    remote_port: u16,
     stop_flag: Arc<AtomicBool>,
 ) {
     // El listener ya viene en modo no-bloqueante desde vnc_start
@@ -680,12 +680,12 @@ fn run_port_forward(
             sess.set_blocking(true);
             // timeout=0 → infinito en libssh2; lo cambiaremos a 5 ms para el poll
             sess.set_timeout(0);
-            let Ok(mut channel) = sess.channel_direct_tcpip("127.0.0.1", vnc_port, None)
+            let Ok(mut channel) = sess.channel_direct_tcpip("127.0.0.1", remote_port, None)
             else {
-                eprintln!("[vnc-fwd] channel_direct_tcpip({vnc_port}) falló");
+                eprintln!("[vnc-fwd] channel_direct_tcpip({remote_port}) falló");
                 return;
             };
-            eprintln!("[vnc-fwd] Canal abierto hacia x11vnc:{vnc_port}");
+            eprintln!("[vnc-fwd] Canal abierto hacia {remote_port}");
 
             // ── Lectura diagnóstica: 1 s de espera para el saludo RFB ────────
             // Si x11vnc manda el saludo ("RFB 003.xxx\n", 12 bytes) antes de
@@ -695,7 +695,7 @@ fn run_port_forward(
             sess.set_timeout(1000);
             match channel.read(&mut diag_buf) {
                 Ok(0) => {
-                    eprintln!("[vnc-fwd] DIAGNÓSTICO: x11vnc cerró sin enviar datos (EOF inmediato)");
+                    eprintln!("[vnc-fwd] DIAGNÓSTICO: remote cerró sin enviar datos (EOF inmediato)");
                     let _ = local_conn.shutdown(std::net::Shutdown::Both);
                     let _ = channel.send_eof();
                     let _ = channel.close();
@@ -703,7 +703,7 @@ fn run_port_forward(
                 }
                 Ok(n) => {
                     eprintln!(
-                        "[vnc-fwd] DIAGNÓSTICO: x11vnc envió {} bytes: {:?}",
+                        "[vnc-fwd] DIAGNÓSTICO: remote envió {} bytes: {:?}",
                         n,
                         std::str::from_utf8(&diag_buf[..n]).unwrap_or("<binary>")
                     );
@@ -715,9 +715,9 @@ fn run_port_forward(
                         return;
                     }
                 }
-                Err(e) => {
-                    eprintln!("[vnc-fwd] DIAGNÓSTICO: timeout/error en primera lectura ({e})");
-                    // Continuar de todas formas — puede ser alta latencia
+                Err(_e) => {
+                    // Timeout normal en primera lectura — protocolo HTTP/HLS envía request primero
+                    // No loguear: ocurre constantemente para HLS camera stream
                 }
             }
             // ────────────────────────────────────────────────────────────────
@@ -734,8 +734,7 @@ fn run_port_forward(
                 // ── SSH channel → local TCP ──────────────────────────────────
                 match channel.read(&mut buf) {
                     Ok(0) => {
-                        eprintln!("[vnc-fwd] SSH channel EOF");
-                        break;
+                        break; // SSH channel EOF — fin normal
                     }
                     Ok(n) => {
                         progress = true;
@@ -754,8 +753,7 @@ fn run_port_forward(
                 // ── local TCP → SSH channel ──────────────────────────────────
                 match local_conn.read(&mut buf) {
                     Ok(0) => {
-                        eprintln!("[vnc-fwd] local_conn EOF");
-                        break;
+                        break; // local_conn EOF — fin normal
                     }
                     Ok(n) => {
                         progress = true;
@@ -787,7 +785,7 @@ fn run_port_forward(
             let _ = local_conn.shutdown(std::net::Shutdown::Both);
             let _ = channel.send_eof();
             let _ = channel.close();
-            eprintln!("[vnc-fwd] Sesión port-forward terminada");
+            // Port-forward session ended (normal)
         });
     }
 }

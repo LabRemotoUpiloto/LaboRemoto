@@ -77,6 +77,7 @@ interface HeaderProps {
   onCloseTab: (id: string) => void;
   onNewSession: () => void;
   onReorderTabs: (dragID: string, dropID: string) => void;
+  onReorderPanels: (dragID: string, dropID: string) => void;
   // View toggle
   activeView: ActiveView;
   onViewChange: (view: ActiveView) => void;
@@ -84,6 +85,11 @@ interface HeaderProps {
   // Chat toggle
   isChatOpen: boolean;
   onToggleChat: () => void;
+  // Camera & Pins toggle
+  onToggleCamera?: () => void;
+  onTogglePins?: () => void;
+  isCameraActive?: boolean;
+  isPinsActive?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -102,59 +108,60 @@ const Header: React.FC<HeaderProps> = ({
   isChatOpen,
   onToggleChat,
   onReorderTabs,
+  onReorderPanels,
+  onToggleCamera,
+  onTogglePins,
+  isCameraActive = false,
+  isPinsActive = false,
 }) => {
-  const [dragOverID, setDragOverID] = React.useState<string | null>(null);
+  const dragRef = React.useRef<string | null>(null);
+  const [dragOver, setDragOver] = React.useState<string | null>(null);
 
-  // Drag and Drop state
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    e.dataTransfer.setData('text/plain', id);
-    e.dataTransfer.effectAllowed = 'move';
-    const target = e.currentTarget as HTMLElement;
-    setTimeout(() => target.classList.add('dragging'), 0);
+  const handleMouseDown = (e: React.MouseEvent, id: string, type: 'panel' | 'tab') => {
+    if ((e.target as HTMLElement).closest('.h1-tab-close, .h2-tab-close')) return;
+    dragRef.current = `${type}:${id}`;
   };
 
-  const handleDragEnd = (e: React.DragEvent) => {
-    (e.currentTarget as HTMLElement).classList.remove('dragging');
-    setDragOverID(null);
+  const handleMouseEnter = (id: string) => {
+    if (dragRef.current) setDragOver(id);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-  };
-
-  const handleDragEnter = (e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    setDragOverID(id);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverID(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, dropID: string) => {
-    e.preventDefault();
-    setDragOverID(null);
-    const dragID = e.dataTransfer.getData('text/plain');
-    if (dragID && dragID !== dropID) {
-      onReorderTabs(dragID, dropID);
+  const handleMouseUp = (e: React.MouseEvent, dropId: string, type: 'panel' | 'tab') => {
+    if (!dragRef.current) return;
+    const [dragType, dragId] = dragRef.current.split(':');
+    if (dragId && dragId !== dropId && dragType === type) {
+      if (type === 'panel') onReorderPanels(dragId, dropId);
+      if (type === 'tab') onReorderTabs(dragId, dropId);
     }
+    dragRef.current = null;
+    setDragOver(null);
+  };
+
+  const handleMouseLeave = () => {
+    dragRef.current = null;
+    setDragOver(null);
   };
 
   return (
-    <header className="dual-header" role="banner">
+    <header className="dual-header" role="banner" onMouseLeave={handleMouseLeave}>
       {/* ═══ H1: Panel Tabs ═══ */}
       <div className="h1">
         {openPanels.map(panelId => (
           <div
             key={panelId}
-            className={`h1-tab ${activePanel === panelId ? 'active' : ''}`}
+            className={`h1-tab ${activePanel === panelId ? 'active' : ''} ${dragOver === panelId && dragRef.current !== `panel:${panelId}` ? 'drag-over' : ''}`}
             onClick={() => onPanelClick(panelId)}
+            onMouseDown={(e) => handleMouseDown(e, panelId, 'panel')}
+            onMouseEnter={() => handleMouseEnter(panelId)}
+            onMouseUp={(e) => handleMouseUp(e, panelId, 'panel')}
           >
             <span className="h1-tab-icon">{PANEL_ICONS[panelId] || null}</span>
             <span className="h1-tab-label">{PANEL_LABELS[panelId] || panelId}</span>
-            <div className="h1-tab-close" onClick={(e) => { e.stopPropagation(); onPanelClose(panelId); }}>
+            <div 
+              className="h1-tab-close" 
+              onMouseDown={(e) => e.stopPropagation()} 
+              onClick={(e) => { e.stopPropagation(); onPanelClose(panelId); }}
+            >
               <CloseIcon />
             </div>
           </div>
@@ -169,20 +176,20 @@ const Header: React.FC<HeaderProps> = ({
             {tabs.filter(t => t.type === 'session').map(t => (
               <div
                 key={t.id}
-                className={`h2-tab ${activeTabId === t.id ? 'active' : ''} ${dragOverID === t.id ? 'drag-over' : ''}`}
+                className={`h2-tab ${activeTabId === t.id ? 'active' : ''} ${dragOver === t.id && dragRef.current !== `tab:${t.id}` ? 'drag-over' : ''}`}
                 onClick={() => onTabClick(t.id)}
-                draggable={true}
-                onDragStart={(e) => handleDragStart(e, t.id)}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
-                onDragEnter={(e) => handleDragEnter(e, t.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, t.id)}
+                onMouseDown={(e) => handleMouseDown(e, t.id, 'tab')}
+                onMouseEnter={() => handleMouseEnter(t.id)}
+                onMouseUp={(e) => handleMouseUp(e, t.id, 'tab')}
               >
                 <div className="h2-tab-ico">SSH</div>
                 <div className={`h2-dot ${activeTabId === t.id ? 'on' : 'off'}`} />
                 <span className="h2-tab-label">{t.label}</span>
-                <div className="h2-tab-close" onClick={(e) => { e.stopPropagation(); onCloseTab(t.id); }}>
+                <div 
+                  className="h2-tab-close" 
+                  onMouseDown={(e) => e.stopPropagation()} 
+                  onClick={(e) => { e.stopPropagation(); onCloseTab(t.id); }}
+                >
                   <svg viewBox="0 0 8 8" fill="none"><path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
                 </div>
               </div>
@@ -213,15 +220,15 @@ const Header: React.FC<HeaderProps> = ({
               <div className="h2-divider" />
 
               <button
-                className="h2-btn"
-                onClick={() => onPanelClick('camara')}
+                className={`h2-btn ${isCameraActive ? 'active-btn' : ''}`}
+                onClick={onToggleCamera}
                 title="Cámara"
               >
                 {PANEL_ICONS['camara']}
               </button>
               <button
-                className="h2-btn"
-                onClick={() => onPanelClick('pines')}
+                className={`h2-btn ${isPinsActive ? 'active-btn' : ''}`}
+                onClick={onTogglePins}
                 title="GPIO / Pines"
               >
                 {PANEL_ICONS['pines']}

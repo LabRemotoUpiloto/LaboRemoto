@@ -39,6 +39,10 @@
   user-select: none;
 }
 
+.h1-tab *:not(.h1-tab-close) {
+  pointer-events: none;
+}
+
 .h1-tab:hover {
   color: var(--text-primary);
   background: color-mix(in srgb, var(--background-tertiary) 80%, transparent);
@@ -48,6 +52,16 @@
   color: var(--text-primary);
   border-bottom-color: var(--accent-primary);
   background: var(--background-primary);
+}
+
+.h1-tab.drag-over {
+  border-left: 2px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
+.h2-tab.drag-over {
+  border-left: 2px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
 }
 
 .h1-tab-icon {
@@ -66,6 +80,7 @@
 }
 
 .h1-tab-close {
+  pointer-events: all;
   width: 13px;
   height: 13px;
   border-radius: 3px;
@@ -145,15 +160,8 @@
   border-top-color: var(--accent-primary);
 }
 
-.h2-tab.dragging {
-  opacity: 0.4;
-  background: var(--background-secondary);
-  border-right: none;
-}
-
-.h2-tab.drag-over {
-  border-left: 2px solid var(--accent-primary) !important;
-  background: rgba(255, 255, 255, 0.05);
+.h2-tab *:not(.h2-tab-close) {
+  pointer-events: none;
 }
 
 .h2-tab-ico {
@@ -195,6 +203,7 @@
 }
 
 .h2-tab-close {
+  pointer-events: all;
   width: 16px;
   height: 16px;
   border-radius: 3px;
