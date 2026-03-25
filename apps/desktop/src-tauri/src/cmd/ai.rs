@@ -466,7 +466,7 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
     let recent_history = &hist[start_idx..];
     
     if env::var("AI_HISTORY_DEBUG").unwrap_or_default() == "1" {
-      eprintln!("[HISTORY] Total mensajes: {}, Enviando: {}", hist.len(), recent_history.len());
+      let _ = (hist.len(), recent_history.len());
     }
     
     // API sin estado: el cliente controla y envía el historial (limitado)
@@ -607,19 +607,16 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
     for (pattern, replacement) in patterns {
       if let Ok(re) = Regex::new(pattern) {
         if re.is_match(&result) {
-          if debug {
-            eprintln!("[SHEBANG] ✓ Corrigiendo '{}' -> '{}'", pattern, replacement);
-          }
           result = re.replace_all(&result, replacement).to_string();
           any_fix = true;
         }
       } else if debug {
-         eprintln!("[SHEBANG] ⚠ Invalid regex pattern: '{}'", pattern);
+        let _ = pattern;
       }
     }
     
     if debug && !any_fix {
-      eprintln!("[SHEBANG] ℹ No se encontraron shebangs incompletos");
+      let _ = ();
     }
     
     result
@@ -649,22 +646,16 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
       for (pattern, replacement) in &patterns {
         if let Ok(re) = Regex::new(pattern) {
           if re.is_match(&corrected) {
-            if debug {
-              eprintln!("[FILENAME] ✓ Corrigiendo línea: '{}'", corrected);
-            }
             corrected = re.replace(&corrected, *replacement).to_string();
             fixed = true;
-            if debug {
-              eprintln!("[FILENAME] ✓ Resultado: '{}'", corrected);
-            }
           }
         } else if debug {
-             eprintln!("[FILENAME] ⚠ Invalid regex pattern: '{}'", pattern);
+          let _ = pattern;
         }
       }
       
       if !fixed && debug && (corrected.contains("chmod") || corrected.contains("./")) {
-        eprintln!("[FILENAME] ℹ Línea sin cambios: '{}'", corrected);
+        let _ = &corrected;
       }
       
       corrected
@@ -679,9 +670,7 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   
   // Log de depuración para verificar el texto final
   if env::var("AI_FINAL_TEXT_DEBUG").unwrap_or_default() == "1" {
-    eprintln!("[AI] ═══ TEXTO FINAL DESPUÉS DE CORRECCIONES ═══");
-    eprintln!("{}", assistant_text);
-    eprintln!("[AI] ═══════════════════════════════════════════");
+    let _ = &assistant_text;
   }
 
   // Si en ASK la salida quedó vacía o parece solo identidad, reintenta una vez con instrucción más estricta (API genera el contenido)
@@ -938,7 +927,7 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
 
 // Carga forzada única desde apps/.env (raíz relativa: subir dos niveles desde src-tauri)
 fn force_load_single_env() {
-  let debug = std::env::var("AI_ENV_DEBUG").ok().map(|v| v == "1" || v.eq_ignore_ascii_case("true" )).unwrap_or(false);
+  let debug = std::env::var("FILE_AI_DEBUG").ok().as_deref() == Some("1");
   // Intentar localizar apps/.env partiendo de current_exe o current_dir
   let mut candidate_paths: Vec<String> = Vec::new();
   if let Ok(exe) = std::env::current_exe() {
@@ -974,7 +963,7 @@ fn force_load_single_env() {
   for path_str in candidate_paths {
     let p = Path::new(&path_str);
     if p.exists() {
-      if debug { eprintln!("[env] Cargando único apps/.env: {}", p.display()); }
+      if debug { let _ = p.display(); }
       // En lugar de confiar únicamente en dotenv (que puede dejar el antiguo si ya estaba seteado
       // dependiendo de ciertas variantes), parseamos manualmente y sobreescribimos.
       if let Ok(content) = std::fs::read_to_string(p) {
@@ -988,25 +977,22 @@ fn force_load_single_env() {
               // Buscar múltiples variantes de la API key de OpenAI
               if ["OPENAI_API_KEY", "OPENAI_API_KEY1", "OPENAI_API_KEY2", "OPENAI_API_KEY3P"].contains(&key) {
                 std::env::set_var("OPENAI_API_KEY", val);
-                if debug { eprintln!("[env] Forzado override {} -> OPENAI_API_KEY desde {}", key, p.display()); }
+                if debug { let _ = (key, p.display()); }
               } else if key == "CLAUDE_CODE_API_KEY" || key == "CLAUDE_API_KEY" {
                 std::env::set_var("CLAUDE_API_KEY", val);
-                if debug { eprintln!("[env] Forzado override {} -> CLAUDE_API_KEY desde {}", key, p.display()); }
+                if debug { let _ = (key, p.display()); }
               }
             }
         }
-      } else if debug { eprintln!("[env] No se pudo leer el archivo: {}", p.display()); }
+      } else if debug { let _ = p.display(); }
       break; // solo el primero válido
-    } else if debug { eprintln!("[env] No existe: {}", p.display()); }
+    } else if debug { let _ = p.display(); }
   }
   // Si aún no está set, intentar dotenv() (por si ejecutan desde raíz y .env ya está ahí)
   if std::env::var("OPENAI_API_KEY").ok().map(|v| v.trim().is_empty()).unwrap_or(true) {
     let _ = dotenvy::dotenv();
   }
   if debug {
-    match std::env::var("OPENAI_API_KEY") {
-      Ok(v) => eprintln!("[env] OPENAI_API_KEY cargada (long={}): {}...", v.len(), &v.chars().take(6).collect::<String>()),
-      Err(_) => eprintln!("[env] OPENAI_API_KEY NO encontrada"),
-    }
+    let _ = std::env::var("OPENAI_API_KEY");
   }
 }

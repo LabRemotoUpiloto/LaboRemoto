@@ -11,9 +11,10 @@ interface TerminalViewProps {
   isCameraOpen?: boolean;
   isChatOpen?: boolean;
   onCloseChat?: () => void;
+  isTabActive?: boolean;
 }
 
-const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'terminal', isCameraOpen = false, isChatOpen = false, onCloseChat = () => {} }) => {
+const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'terminal', isCameraOpen = false, isChatOpen = false, onCloseChat = () => {}, isTabActive = true }) => {
   const [chatWidth, setChatWidth] = useState(420);
   const [cameraHeight, setCameraHeight] = useState(450);
   const [isResizingChat, setIsResizingChat] = useState(false);
@@ -92,7 +93,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'te
             minWidth: 0,
             minHeight: 0
           }}>
-            <DesktopPane sessionId={sessionId} isActive={activeView === 'escritorio'} />
+            <DesktopPane sessionId={sessionId} isActive={activeView === 'escritorio' && isTabActive} />
           </div>
 
         </div>

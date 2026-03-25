@@ -32,8 +32,10 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
 
   // Función reutilizable para crear la conexión RFB
   const connectRFB = (container: HTMLDivElement, wsUrl: string) => {
-    // Diferir un frame para garantizar que el contenedor tiene dimensiones reales
-    // (evita que noVNC calcule una escala de 0 cuando el padre sale de display:none)
+    // Doble requestAnimationFrame: el primero espera al próximo frame de pintura,
+    // el segundo asegura que el browser ya computó el layout del contenedor
+    // (display:none → flex). Sin esto, noVNC calcula dimensiones 0×0 → pantalla negra.
+    requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       if (rfbRef.current) return  // ya conectado (evitar doble conexión por timing)
       import('@novnc/novnc/lib/rfb')
@@ -62,7 +64,8 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         rfbRef.current = rfb
       })
       .catch(err => console.error('[noVNC] Error:', err))
-    }) // fin requestAnimationFrame
+    }) // fin requestAnimationFrame (inner)
+    }) // fin requestAnimationFrame (outer)
   }
 
   // Cleanup al desmontar: solo desconectar noVNC del WebSocket
@@ -83,17 +86,12 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // The user must click the "escritorio" toggle button first.
 
 
-  // Inicializar noVNC cuando el backend está listo (primera vez)
-  useEffect(() => {
-    if (status !== 'connected' || !sessionInfo || !canvasContainerRef.current) return
-    if (rfbRef.current) return
-    if (!isActive) return  // esperar a que sea visible para tener dimensiones correctas
-    connectRFB(canvasContainerRef.current, `ws://127.0.0.1:${sessionInfo.ws_port}`)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, sessionInfo])
-
-  // Al ocultar: desconectar WS para no desperdiciar ancho de banda
-  // Al mostrar: iniciar sesión VNC si no está activa, o reconectar RFB
+  // Efecto unificado: reacciona a cambios en status, sessionInfo e isActive.
+  // Cubre todos los casos:
+  //   - isActive pasa a true con status 'idle' → inicia VNC
+  //   - status pasa a 'connected' con isActive true → conecta RFB
+  //   - isActive pasa a true con status ya 'connected' → reconecta RFB
+  //   - isActive pasa a false → desconecta WS para ahorrar ancho de banda
   useEffect(() => {
     if (!isActive) {
       if (rfbRef.current) {
@@ -102,18 +100,17 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
       }
       return
     }
-    // isActive acaba de ser true (user switched to desktop view)
-    // If VNC session hasn't been started yet, start it now
+    // isActive es true — iniciar VNC si aún no se ha hecho
     if (status === 'idle') {
       start(resolution)
       return
     }
-    // If already connected, just reconnect the RFB websocket
+    // Conectar RFB cuando el backend está listo y el contenedor es visible
     if (status !== 'connected' || !sessionInfo || !canvasContainerRef.current) return
     if (rfbRef.current) return
     connectRFB(canvasContainerRef.current, `ws://127.0.0.1:${sessionInfo.ws_port}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive])
+  }, [status, sessionInfo, isActive])
 
   const handleStart = () => {
     start(resolution)
@@ -148,10 +145,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
       {status === 'starting' && (
         <div className="desktop-loading">
           <div className="desktop-loading-spinner" />
-          <span>Iniciando escritorio remoto…</span>
-          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-            Arrancando Xvfb + Openbox + x11vnc en el servidor
-          </span>
+          <span>Conectando escritorio remoto…</span>
         </div>
       )}
 

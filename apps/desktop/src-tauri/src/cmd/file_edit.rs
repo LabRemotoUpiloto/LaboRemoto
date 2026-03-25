@@ -203,7 +203,7 @@ pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEdi
   // Unificar lectura de API key usando helper centralizado
   let api_key = get_openai_api_key().ok_or_else(|| "OPENAI_API_KEY no definida".to_string())?;
   if std::env::var("FILE_AI_DEBUG").ok().as_deref() == Some("1") {
-    eprintln!("[ai_remote_edit_file] usando modelo={} key_prefix={}", model, &api_key[..api_key.len().min(6)]);
+    let _ = (&model, &api_key);
   }
   let instruction = req.instruction.trim();
   let prompt = format!(
@@ -296,7 +296,7 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
     else { None }
   } else { effective_session };
   if std::env::var("FILE_AI_DEBUG").ok().as_deref() == Some("1") {
-    eprintln!("[analyze_any_file] path={path} session_id={:?} sessionId={:?} effective={:?}", session_id, sessionId, effective_session);
+    let _ = (&path, &session_id, &sessionId, &effective_session);
   }
   let mut reasons: Vec<String> = Vec::new();
   let mut bytes_opt: Option<Vec<u8>> = None;
@@ -346,20 +346,8 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
   let has_openai = get_openai_api_key().is_some();
   let has_key = has_claude || has_openai;
   
-  eprintln!("[file_ai] ═══ INICIO ANÁLISIS ═══");
-  eprintln!("[file_ai] API Keys disponibles: Claude={}, OpenAI={}", has_claude, has_openai);
-  eprintln!("[file_ai] Variables de entorno: ENABLE_FILE_AI_SUMMARY={:?}, FORCE_FILE_AI={:?}", env_flag, force_flag);
-  
-  let base_enable = match env_flag.as_deref() {
-    Some("0") | Some("false") | Some("FALSE") => false,
-    Some("1") | Some("true") | Some("TRUE") => true,
-    _ => has_key,
-  };
-  let enable_ai_summary = if force_flag.unwrap_or(false) { true } else { base_enable };
-  
-  eprintln!("[file_ai] Decisión: enable_ai_summary={}, base_enable={}, has_key={}", enable_ai_summary, base_enable, has_key);
-  
   let file_ai_debug = std::env::var("FILE_AI_DEBUG").ok().map(|v| v=="1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
+  let enable_ai_summary = force_flag.unwrap_or_else(|| env_flag.as_deref() == Some("1") || env_flag.as_deref().map(|v| v.eq_ignore_ascii_case("true")).unwrap_or(false));
   let mut semantic_summary: Option<String> = None; // anulamos heurística cuando AI activa
   let language_detected = detect_language(Path::new(&path), &content);
   if !enable_ai_summary && !ai_only_mode { // sólo usar heurística si AI summary desactivada
@@ -386,43 +374,27 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
   let mut key_points_ai: Option<Vec<String>> = None;
   let sha_cur = sha256_hex(&bytes);
   
-  eprintln!("[file_ai] Verificando condiciones para llamada a IA:");
-  eprintln!("[file_ai]   - enable_ai_summary: {}", enable_ai_summary);
-  eprintln!("[file_ai]   - has_key: {}", has_key);
-  eprintln!("[file_ai]   - bytes.len(): {} (límite: 200000)", bytes.len());
-  eprintln!("[file_ai]   - ¿Entrará al bloque de IA?: {}", enable_ai_summary && has_key && bytes.len() < 200_000);
-  
   if enable_ai_summary && has_key && bytes.len() < 200_000 {
-    eprintln!("[file_ai] ✓ ENTRANDO AL BLOQUE DE IA");
-    if file_ai_debug { eprintln!("[file_ai] AI summary candidate tamaño={} <200k, sha={}...", bytes.len(), &sha_cur[..8]); }
+    if file_ai_debug { let _ = &sha_cur; }
     let mut need_call = true;
     
-    eprintln!("[file_ai] Verificando caché con SHA256: {}...", &sha_cur[..16]);
     if let Ok(mut map) = AI_CACHE.lock() {
-      eprintln!("[file_ai] Tamaño de caché: {} entradas", map.len());
       if let Some((ts,p,kps)) = map.get(&sha_cur) {
         if ts.elapsed().unwrap_or_default() < Duration::from_secs(AI_CACHE_TTL_SECS) {
-          eprintln!("[file_ai] ✓ Cache hit! Usando resultado cacheado");
           purpose_ai = Some(p.clone());
           key_points_ai = Some(kps.clone());
           need_call = false;
-          if file_ai_debug { eprintln!("[file_ai] cache hit {}", &sha_cur[..8]); }
+          if file_ai_debug { let _ = map.len(); }
         } else { 
-          eprintln!("[file_ai] Cache expirado, removiendo entrada");
           map.remove(&sha_cur); 
         }
       } else {
-        eprintln!("[file_ai] No hay entrada en caché para este archivo");
       }
     }
     
-    eprintln!("[file_ai] need_call={}", need_call);
-    
     if need_call {
-      eprintln!("[file_ai] ✓ Iniciando llamada a API");
       // Primero intentar con Claude, si no está disponible usar OpenAI
       let use_claude = get_claude_api_key().is_some();
-      eprintln!("[file_ai] Proveedor seleccionado: {}", if use_claude { "Claude" } else { "OpenAI" });
       
       let api_key = if use_claude {
         get_claude_api_key().unwrap()
@@ -430,15 +402,8 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
         get_openai_api_key().unwrap_or_default()
       };
       
-      eprintln!("[file_ai] API key length: {}, is_empty: {}", api_key.len(), api_key.is_empty());
-      
       if !api_key.is_empty() {
-        eprintln!("[file_ai] ✓ API key válida, construyendo cliente HTTP");
-        if file_ai_debug { 
-          eprintln!("[file_ai] cache miss, llamando API, provider={}", if use_claude { "Claude" } else { "OpenAI" }); 
-        }
         if let Ok(client) = reqwest::Client::builder().timeout(Duration::from_secs(30)).build() {
-          eprintln!("[file_ai] ✓ Cliente HTTP creado, preparando prompt");
           let sample = if bytes.len()>40_000 { let h=content.lines().take(120).collect::<Vec<_>>().join("\n"); let t=content.lines().rev().take(120).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"); format!("[HEAD]\n{}\n[...OMITIDO...]\n[TAIL]\n{}",h,t) } else { content.to_string() };
           let prompt = format!(
             "Analiza el siguiente código y devuelve SOLO un objeto JSON con esta estructura exacta:\n\
@@ -498,30 +463,24 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
           
           let mut request = client.post(url).json(&request_body);
           
-          eprintln!("[file_ai] Request configurado para: {}", url);
-          
           // Agregar headers específicos según el proveedor
           if use_claude {
-            eprintln!("[file_ai] Agregando headers de Claude");
             request = request
               .header("anthropic-version", "2023-06-01")
               .header("x-api-key", &api_key);
           } else {
-            eprintln!("[file_ai] Agregando headers de OpenAI");
             request = request
               .header("authorization", format!("Bearer {}", api_key));
           }
           
-          eprintln!("[file_ai] ⏳ Enviando request HTTP...");
           match request.send().await {    
             Ok(resp) => {
               let status = resp.status();
               let text_body = resp.text().await.unwrap_or_default();
-              eprintln!("[file_ai] HTTP status={} provider={} length={}", status, if use_claude { "Claude" } else { "OpenAI" }, text_body.len());
               
               // Si status no es éxito, registrar y generar fallback inmediato
               if !status.is_success() {
-                if file_ai_debug { eprintln!("[file_ai] respuesta no exitosa: {}", status); }
+                if file_ai_debug { let _ = status; }
                 if let Ok(err_v) = serde_json::from_str::<serde_json::Value>(&text_body) {
                   if let Some(msg) = err_v.pointer("/error/message").and_then(|v| v.as_str()) { purpose_ai = Some(format!("(IA) Error API: {}", truncate_for(msg, 140))); }
                   else { purpose_ai = Some(format!("(IA) Error HTTP {} sin mensaje", status)); }
@@ -529,11 +488,11 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
                 if status.as_u16() == 401 { key_points_ai = Some(vec!["API key inválida o expirada".into()]); }
                 else if status.as_u16() == 429 { key_points_ai = Some(vec!["Rate limit alcanzado".into()]); }
                 else { key_points_ai.get_or_insert(Vec::new()).push("Fallo al obtener resumen".into()); }
-                if file_ai_debug { eprintln!("[file_ai] abortando parseo por status no exitoso"); }
+                if file_ai_debug { let _ = &text_body; }
                 // No parse normal en error
               } else {
                 let json: serde_json::Value = serde_json::from_str(&text_body).unwrap_or(serde_json::Value::Null);
-                if file_ai_debug { let slice=&text_body[..text_body.len().min(300)].replace("\n"," "); eprintln!("[file_ai] raw body (300 max): {}", slice);}                
+                if file_ai_debug { let _ = &text_body; }                
                 // Extraer contenido - manejar tanto OpenAI como Claude
                 let mut extracted: Option<String>;
                 
@@ -560,16 +519,13 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
                 }
                 
                 if let Some(text)=extracted {
-                  eprintln!("[file_ai] ✓ Contenido extraído (longitud: {} chars)", text.len());
-                  eprintln!("[file_ai] Primeros 300 chars: {}", &text[..text.len().min(300)]);
-                  
-                  if file_ai_debug { let preview=&text[..text.len().min(140)]; eprintln!("[file_ai] raw modelo (primeros 140 chars): {}", preview.replace("\n"," ")); }
+                  if file_ai_debug { let _ = &text; }
                   let trimmed=text.trim().trim_matches('`').trim_start_matches("json").trim();
                   
                   // Intentar parsear como JSON primero
                   let mut parsed_successfully = false;
                   if let Ok(vj)=serde_json::from_str::<serde_json::Value>(trimmed) {
-                    if file_ai_debug { eprintln!("[file_ai] respuesta parseada OK como JSON"); }
+                    if file_ai_debug { let _ = &vj; }
                     parsed_successfully = true;
                     
                     // Extraer el nuevo formato con proposito, ejemplo_ejecucion, mejoras, conclusiones
@@ -643,8 +599,7 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
                   
                   // Si no se pudo parsear como JSON, usar el texto completo como respuesta
                   if !parsed_successfully {
-                    if file_ai_debug { eprintln!("[file_ai] JSON inválido, usando texto raw como fallback"); }
-                    eprintln!("[file_ai] RESPUESTA COMPLETA DEL MODELO:\n{}", text);
+                    if file_ai_debug { let _ = &text; }
                     
                     // Dividir el texto en líneas y usar como purpose y key_points
                     let lines: Vec<&str> = text.lines().collect();
@@ -657,15 +612,13 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
                       purpose_ai = Some(text.clone());
                     }
                   }
-                } else if file_ai_debug { eprintln!("[file_ai] campo content ausente tras parseo; fallback"); }
+                } else if file_ai_debug { let _ = extracted; }
               }
             },
             Err(e) => { 
-              eprintln!("[file_ai] ✗ Request HTTP falló: {}", e);
               
               // Si Claude falló y tenemos OpenAI disponible, intentar con OpenAI como fallback
               if use_claude && get_openai_api_key().is_some() {
-                eprintln!("[file_ai] ⚠️ Claude falló, intentando fallback a OpenAI...");
                 
                 let openai_key = get_openai_api_key().unwrap_or_default();
                 let openai_body = serde_json::json!({
@@ -687,12 +640,10 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
                   Ok(resp2) => {
                     let status = resp2.status();
                     let text_body = resp2.text().await.unwrap_or_default();
-                    eprintln!("[file_ai] HTTP status={} provider=OpenAI(fallback) length={}", status, text_body.len());
                     
                     if status.is_success() {
                       let json: serde_json::Value = serde_json::from_str(&text_body).unwrap_or(serde_json::Value::Null);
                       if let Some(content_str) = json.pointer("/choices/0/message/content").and_then(|v| v.as_str()) {
-                        eprintln!("[file_ai] ✓ Contenido extraído de OpenAI (longitud: {} chars)", content_str.len());
                         let trimmed = content_str.trim().trim_matches('`').trim_start_matches("json").trim();
                         if let Ok(vj) = serde_json::from_str::<serde_json::Value>(trimmed) {
                           if let Some(p) = vj.get("proposito").and_then(|x| x.as_str()) { 
@@ -727,44 +678,29 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
                         }
                       }
                     } else {
-                      eprintln!("[file_ai] ✗ OpenAI fallback también falló con status {}", status);
                     }
                   }
                   Err(e2) => {
-                    eprintln!("[file_ai] ✗ OpenAI fallback también falló: {}", e2);
                   }
                 }
               }
               
-              if file_ai_debug { eprintln!("[file_ai] request HTTP falló: {e}"); } 
+              if file_ai_debug { let _ = &e; } 
             }
           }
           if let (Some(p),Some(kps))=(purpose_ai.clone(), key_points_ai.clone()) { 
-            eprintln!("[file_ai] Guardando en caché: purpose={}, key_points={} items", p.chars().take(50).collect::<String>(), kps.len());
             if let Ok(mut map)=AI_CACHE.lock(){ if map.len()>=AI_CACHE_MAX { map.retain(|_,(ts,_,_)| ts.elapsed().unwrap_or_default() < Duration::from_secs(AI_CACHE_TTL_SECS)); if map.len()>=AI_CACHE_MAX { if let Some(first)=map.keys().next().cloned() { map.remove(&first); } } } map.insert(sha_cur.clone(), (SystemTime::now(), p, kps)); } 
           } else {
-            eprintln!("[file_ai] ✗ No se guardará en caché (purpose o key_points ausentes)");
           }
         } else {
-          eprintln!("[file_ai] ✗ Falló crear cliente HTTP reqwest");
         }
       } else {
-        eprintln!("[file_ai] ✗ API key vacía, saltando llamada");
       }
     } else {
-      eprintln!("[file_ai] ✗ need_call=false, usando caché");
     }
   } else {
-    eprintln!("[file_ai] ✗ NO SE USARÁ IA:");
-    if !enable_ai_summary { eprintln!("[file_ai]   - enable_ai_summary=false"); }
-    if !has_key { eprintln!("[file_ai]   - sin API KEY"); }
-    if bytes.len() >= 200_000 { eprintln!("[file_ai]   - tamaño {} >= 200k", bytes.len()); }
   }
   
-  eprintln!("[file_ai] Resultados finales de IA:");
-  eprintln!("[file_ai]   - purpose_ai: {:?}", purpose_ai.as_ref().map(|s| s.chars().take(80).collect::<String>()));
-  eprintln!("[file_ai]   - key_points_ai: {} items", key_points_ai.as_ref().map(|v| v.len()).unwrap_or(0));
-
   let language = language_detected.clone();
   // purpose debería provenir de la IA cuando enable_ai_summary=1; si no, heurística.
   let mut purpose = purpose_ai.clone();

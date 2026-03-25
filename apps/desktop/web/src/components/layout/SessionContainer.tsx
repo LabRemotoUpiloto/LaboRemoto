@@ -40,7 +40,7 @@ const SessionContainer: React.FC<Props> = ({
               width: '100%'
             }}
           >
-            <TerminalView sessionId={t.id} activeView={activeView} isCameraOpen={isCameraOpen} isChatOpen={isChatOpen} onCloseChat={onCloseChat} />
+            <TerminalView sessionId={t.id} activeView={activeView} isCameraOpen={isCameraOpen} isChatOpen={isChatOpen} onCloseChat={onCloseChat} isTabActive={activeTabId === t.id} />
           </div>
           {selectedPage === 'sftp' && (
             <SftpPage
