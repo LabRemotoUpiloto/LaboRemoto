@@ -1,95 +1,75 @@
-// components/raspberry/CameraPane.tsx 
-import React, { useEffect, useRef } from 'react' 
-import Hls from 'hls.js' 
-import { useCameraStream } from '../../hooks/useCameraStream' 
-import './CameraPane.css' 
+// components/raspberry/CameraPane.tsx
+import React, { useEffect, useRef } from 'react'
+import { useCameraStream } from '../../hooks/useCameraStream'
+import './CameraPane.css'
 
-interface Props { 
-  sessionId: string | null 
-  isActive?: boolean 
-} 
+interface Props {
+  sessionId: string | null
+  isActive?: boolean
+}
 
 const CameraIcon = () => (
-  <svg viewBox="0 0 44 44" fill="none" width="36" height="36"> 
-    <rect x="1" y="8" width="28" height="28" rx="3" stroke="currentColor" strokeWidth="1.5"/> 
-    <path d="M29 17l13-5v18l-13-5V17z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/> 
+  <svg viewBox="0 0 44 44" fill="none" width="36" height="36">
+    <rect x="1" y="8" width="28" height="28" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M29 17l13-5v18l-13-5V17z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
   </svg>
 );
 
-const CameraPane: React.FC<Props> = ({ sessionId, isActive = true }) => { 
-  const videoRef = useRef<HTMLVideoElement>(null) 
-  const hlsRef = useRef<Hls | null>(null) 
-  const { localPort, status, error, start, stop } = useCameraStream(sessionId) 
+const CameraPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
+  const imgRef = useRef<HTMLImageElement>(null)
+  const { localPort, status, error, start, stop } = useCameraStream(sessionId)
 
-  useEffect(() => { 
-    if (status !== 'active' || !localPort || !videoRef.current) return 
+  useEffect(() => {
+    if (status !== 'active' || !localPort || !imgRef.current) return
 
-    const video = videoRef.current 
-    const streamUrl = `http://127.0.0.1:${localPort}/cam.m3u8` 
+    const img = imgRef.current
+    const url = `http://127.0.0.1:${localPort}/stream`
 
-    if (hlsRef.current) { 
-      hlsRef.current.destroy() 
-      hlsRef.current = null 
-    } 
-
-    if (Hls.isSupported()) { 
-      const hls = new Hls({ 
-        liveSyncDurationCount: 1, 
-        liveMaxLatencyDurationCount: 3, 
-        enableWorker: false,
-        liveBackBufferLength: 0,
-        manifestLoadingTimeOut: 10000,
-        manifestLoadingMaxRetry: 5,
-        levelLoadingTimeOut: 10000,
-        fragLoadingTimeOut: 20000,
-        lowLatencyMode: true,
-        backBufferLength: 0,
-      }) 
-      hlsRef.current = hls 
-      hls.loadSource(streamUrl) 
-      hls.attachMedia(video) 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => { 
-        video.play().catch(() => {}) 
-      }) 
-      hls.on(Hls.Events.ERROR, (_e, data) => { 
-        if (data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          hls.startLoad();
-        } 
-      }) 
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = streamUrl;
-      video.addEventListener('loadedmetadata', () => {
-        video.play().catch(() => {});
-      });
+    // El browser maneja el stream MJPEG nativamente — no requiere polling ni HLS.
+    // multipart/x-mixed-replace es soportado por Chrome, Firefox, Edge.
+    let retryDelay = 500
+    const tryConnect = () => {
+      img.src = `${url}?t=${Date.now()}`
     }
 
-    return () => { 
-      hlsRef.current?.destroy() 
-      hlsRef.current = null 
-    } 
-  }, [status, localPort]) 
+    img.onload = () => {
+      retryDelay = 500  // Reset delay cuando conecta exitosamente
+    }
 
-  useEffect(() => { 
-    if (!isActive) { 
-      hlsRef.current?.destroy() 
-      hlsRef.current = null 
-      stop() 
-    } 
-  }, [isActive]) 
+    img.onerror = () => {
+      // No limpiar src — mantiene el último frame visible mientras reconecta
+      setTimeout(tryConnect, retryDelay)
+      retryDelay = Math.min(retryDelay * 2, 5000)  // Backoff: 500 → 1000 → 2000 → 5000ms
+    }
 
-  return ( 
+    tryConnect()
+
+    return () => {
+      img.onerror = null
+      img.src = ''
+    }
+  }, [status, localPort])
+
+  useEffect(() => {
+    if (!isActive) {
+      if (imgRef.current) { imgRef.current.onerror = null; imgRef.current.src = '' }
+      stop()
+    }
+  }, [isActive])
+
+  return (
     <div className="camera-pane">
-
-      {/* ── Video (fills panel with object-fit: cover) ── */}
-      <video 
-        ref={videoRef} 
-        style={{ display: status === 'active' ? 'block' : 'none' }} 
-        muted 
-        playsInline 
-        autoPlay 
+      <img
+        ref={imgRef}
+        style={{
+          display: status === 'active' ? 'block' : 'none',
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+        }}
+        alt=""
       />
 
-      {/* ── Idle / Connecting / Error States ── */}
       {status !== 'active' && (
         <div className="camera-idle">
           {status === 'connecting' ? (
@@ -108,7 +88,6 @@ const CameraPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         </div>
       )}
 
-      {/* ── Controls Overlay (top gradient) ── */}
       {status === 'active' && (
         <div className="camera-controls">
           <div className="camera-status">
@@ -120,10 +99,8 @@ const CameraPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
           </button>
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* ── Live badge overlay (bottom-left when active) ── */}
-    </div> 
-  ) 
-} 
-
-export default CameraPane 
+export default CameraPane

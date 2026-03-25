@@ -530,7 +530,7 @@ pub async fn agent_plan(req: AgentPlanRequest) -> Result<AgentPlanResponse, Stri
     let intent = intent; // sombrear final
     if std::env::var("SEARCH_INTENT_DEBUG").ok().as_deref()==Some("1") {
         #[cfg(debug_assertions)]
-        eprintln!("[search_intent] raw='{}' norm='{}' detected={:?}", req.user_message, norm_msg, intent_detected);
+        let _ = (&req.user_message, &norm_msg, &intent_detected);
     }
     let root = infer_workspace_root(&req.workspace_root);
     // ¿Existe sesión SSH para modo remoto? (simplemente comprobar que session_id esté en el mapa)

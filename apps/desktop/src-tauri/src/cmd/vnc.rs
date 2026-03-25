@@ -597,28 +597,23 @@ fn restart_x11vnc_log_and_notify(
     display: u32, vnc_port: u16,
     app: &AppHandle, session_id: &str,
 ) {
-    eprintln!("[vnc-bridge] Diagnóstico post-EOF: conectando SSH...");
     let Ok((_tcp, sess)) = crate::ssh::ssh2_sftp::connect_password(host, port, user, password)
     else {
-        eprintln!("[vnc-bridge] No se pudo SSH para diagnóstico");
         return;
     };
 
     // Leer log de x11vnc
-    if let Ok((_, log)) = run_remote(
+    if let Ok((_, _log)) = run_remote(
         &sess,
         &format!("tail -40 /tmp/x11vnc{display}.log 2>/dev/null"),
     ) {
-        eprintln!("[vnc-bridge] === x11vnc log (últimas 40 líneas) ===\n{log}\n===");
     }
 
     // Verificar Xvfb
-    if let Ok((_, xvfb)) = run_remote(&sess, "pgrep -fl Xvfb 2>/dev/null || echo sin-Xvfb") {
-        eprintln!("[vnc-bridge] Xvfb: {}", xvfb.trim());
+    if let Ok((_, _xvfb)) = run_remote(&sess, "pgrep -fl Xvfb 2>/dev/null || echo sin-Xvfb") {
     }
 
     // Reiniciar x11vnc
-    eprintln!("[vnc-bridge] Reiniciando x11vnc en display :{display} port {vnc_port}...");
     let restart = format!(
         "pkill -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; sleep 1; \
          nohup x11vnc -display :{display} -rfbport {vnc_port} \
@@ -628,14 +623,13 @@ fn restart_x11vnc_log_and_notify(
     );
     match run_remote(&sess, &restart) {
         Ok((_, out)) if out.trim() == "ok" => {
-            eprintln!("[vnc-bridge] x11vnc reiniciado — puedes reconectar");
             let _ = app.emit(
                 &format!("vnc_retry_ready_{session_id}"),
                 serde_json::json!({ "reason": "x11vnc reiniciado automáticamente" }),
             );
         }
-        Ok((_, out)) => eprintln!("[vnc-bridge] reinicio x11vnc falló: {out}"),
-        Err(e)       => eprintln!("[vnc-bridge] reinicio x11vnc error: {e}"),
+        Ok((_, _out)) => {}
+        Err(_e)       => {}
     }
 }
 
@@ -674,7 +668,6 @@ pub fn run_port_forward(
         std::thread::spawn(move || {
             let Ok((_tcp, sess)) = crate::ssh::ssh2_sftp::connect_password(&h, port, &u, &p)
             else {
-                eprintln!("[vnc-fwd] SSH connect falló para el port-forward");
                 return;
             };
             sess.set_blocking(true);
@@ -682,10 +675,8 @@ pub fn run_port_forward(
             sess.set_timeout(0);
             let Ok(mut channel) = sess.channel_direct_tcpip("127.0.0.1", remote_port, None)
             else {
-                eprintln!("[vnc-fwd] channel_direct_tcpip({remote_port}) falló");
                 return;
             };
-            eprintln!("[vnc-fwd] Canal abierto hacia {remote_port}");
 
             // ── Lectura diagnóstica: 1 s de espera para el saludo RFB ────────
             // Si x11vnc manda el saludo ("RFB 003.xxx\n", 12 bytes) antes de
@@ -695,18 +686,12 @@ pub fn run_port_forward(
             sess.set_timeout(1000);
             match channel.read(&mut diag_buf) {
                 Ok(0) => {
-                    eprintln!("[vnc-fwd] DIAGNÓSTICO: remote cerró sin enviar datos (EOF inmediato)");
                     let _ = local_conn.shutdown(std::net::Shutdown::Both);
                     let _ = channel.send_eof();
                     let _ = channel.close();
                     return;
                 }
                 Ok(n) => {
-                    eprintln!(
-                        "[vnc-fwd] DIAGNÓSTICO: remote envió {} bytes: {:?}",
-                        n,
-                        std::str::from_utf8(&diag_buf[..n]).unwrap_or("<binary>")
-                    );
                     // Reenviar al bridge
                     if local_conn.write_all(&diag_buf[..n]).is_err() {
                         let _ = local_conn.shutdown(std::net::Shutdown::Both);
@@ -739,13 +724,11 @@ pub fn run_port_forward(
                     Ok(n) => {
                         progress = true;
                         if local_conn.write_all(&buf[..n]).is_err() {
-                            eprintln!("[vnc-fwd] Error escribiendo en local_conn");
                             break;
                         }
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
-                    Err(e) => {
-                        eprintln!("[vnc-fwd] SSH read err: {e}");
+                    Err(_e) => {
                         break;
                     }
                 }
@@ -761,7 +744,6 @@ pub fn run_port_forward(
                         let write_ok = channel.write_all(&buf[..n]).is_ok();
                         sess.set_blocking(false);
                         if !write_ok {
-                            eprintln!("[vnc-fwd] Error escribiendo en channel");
                             break;
                         }
                     }
@@ -771,8 +753,7 @@ pub fn run_port_forward(
                             std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
                         ) =>
                     {}
-                    Err(e) => {
-                        eprintln!("[vnc-fwd] Error leyendo local_conn: {e}");
+                    Err(_e) => {
                         break;
                     }
                 }
@@ -812,14 +793,13 @@ fn vnc_to_ws(mut vnc: std::net::TcpStream, mut ws: std::net::TcpStream) {
     let mut buf = vec![0u8; 65536];
     loop {
         match vnc.read(&mut buf) {
-            Ok(0) => { eprintln!("[vnc→ws] VNC EOF"); break; }
+            Ok(0) => { break; }
             Ok(n) => {
                 if ws_send_binary(&mut ws, &buf[..n]).is_err() {
-                    eprintln!("[vnc→ws] Error enviando frame WS");
                     break;
                 }
             }
-            Err(e) => { eprintln!("[vnc→ws] Error leyendo VNC: {e}"); break; }
+            Err(_e) => { break; }
         }
     }
     // Señalizar al otro hilo cerrando el socket WS
@@ -835,20 +815,17 @@ fn ws_to_vnc(mut ws: std::net::TcpStream, mut vnc: std::net::TcpStream) {
     loop {
         match parser.read_frame(&mut ws) {
             Ok(Some(WsFrame::Binary(data))) if !data.is_empty() => {
-                if let Err(e) = vnc.write_all(&data) {
-                    eprintln!("[ws→vnc] Error escribiendo VNC: {e}");
+                if let Err(_e) = vnc.write_all(&data) {
                     break;
                 }
             }
             Ok(Some(WsFrame::Close)) => {
-                eprintln!("[ws→vnc] noVNC envió Close");
                 break;
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                eprintln!("[ws→vnc] WS EOF");
                 break;
             }
-            Err(e) => { eprintln!("[ws→vnc] Error leyendo WS: {e}"); break; }
+            Err(_e) => { break; }
             _ => {}
         }
     }
@@ -857,19 +834,18 @@ fn ws_to_vnc(mut ws: std::net::TcpStream, mut vnc: std::net::TcpStream) {
 
 fn handle_vnc_client(
     tcp_stream: std::net::TcpStream,
-    host: String,
-    port: u16,
-    user: String,
-    password: String,
-    vnc_port: u16,
-    display: u32,
+    _host: String,
+    _port: u16,
+    _user: String,
+    _password: String,
+    _vnc_port: u16,
+    _display: u32,
     stop_flag: Arc<AtomicBool>,
-    app: AppHandle,
-    session_id: String,
+    _app: AppHandle,
+    _session_id: String,
     local_fwd_port: u16,
 ) {
     tcp_stream.set_nodelay(true).ok();
-    eprintln!("[vnc-bridge] Nueva conexión WS — tunnel en 127.0.0.1:{local_fwd_port}");
 
     // WS handshake con tungstenite (bloqueante)
     let mut ws = match tungstenite::accept_hdr(
@@ -887,14 +863,13 @@ fn handle_vnc_client(
         },
     ) {
         Ok(ws) => ws,
-        Err(e) => { eprintln!("[vnc-bridge] WS handshake failed: {e}"); return; }
+        Err(_e) => { return; }
     };
 
     // Obtener TcpStream raw del WS (BufReader interno vacío en este punto)
     let ws_stream = match ws.get_mut().try_clone() {
         Ok(s) => s,
-        Err(e) => {
-            eprintln!("[vnc-bridge] try_clone WS failed: {e}");
+        Err(_e) => {
             let _ = ws.close(None);
             return;
         }
@@ -908,11 +883,9 @@ fn handle_vnc_client(
     ) {
         Ok(s) => {
             s.set_nodelay(true).ok();
-            eprintln!("[vnc-bridge] Conectado al tunnel VNC local:{local_fwd_port}");
             s
         }
-        Err(e) => {
-            eprintln!("[vnc-bridge] No se pudo conectar al tunnel local:{local_fwd_port}: {e}");
+        Err(_e) => {
             let mut ws_stream_err = ws_stream;
             ws_send_close(&mut ws_stream_err);
             return;
@@ -922,11 +895,11 @@ fn handle_vnc_client(
     // Dos hilos bidireccionales — ambos son TcpStream puro (Send + Clone)
     let ws_for_vnc = match ws_stream.try_clone() {
         Ok(s) => s,
-        Err(e) => { eprintln!("[vnc-bridge] try_clone ws_for_vnc: {e}"); return; }
+        Err(_e) => { return; }
     };
     let vnc_for_ws = match vnc_stream.try_clone() {
         Ok(s) => s,
-        Err(e) => { eprintln!("[vnc-bridge] try_clone vnc_for_ws: {e}"); return; }
+        Err(_e) => { return; }
     };
 
     let stop = Arc::clone(&stop_flag);
@@ -949,7 +922,6 @@ fn handle_vnc_client(
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
-    eprintln!("[vnc-bridge] Conexión terminada (session_id={session_id})");
     // Los hilos terminarán solos al cerrarse sus sockets por el shutdown()
     // que cada uno llama en su propio loop de error.
     let _ = h_vnc.join();
