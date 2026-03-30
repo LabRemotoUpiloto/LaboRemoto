@@ -27,6 +27,7 @@ interface Props {
   onResolutionChange: (r: string) => void
   onStop: () => void
   sessionInfo: DesktopSessionInfo | null
+  onSendKey?: (keysym: number, code: string) => void
 }
 
 const DesktopToolbar: React.FC<Props> = ({
@@ -35,6 +36,7 @@ const DesktopToolbar: React.FC<Props> = ({
   onResolutionChange,
   onStop,
   sessionInfo,
+  onSendKey,
 }) => {
   return (
     <div className="desktop-toolbar">
@@ -71,6 +73,15 @@ const DesktopToolbar: React.FC<Props> = ({
           ))}
         </select>
 
+        {status === 'connected' && onSendKey && (
+          <button
+            className="desktop-btn-key"
+            onClick={() => onSendKey(0xFFE5, 'CapsLock')}
+            title="Enviar CapsLock al escritorio remoto (útil para sincronizar mayúsculas)"
+          >
+            ⇪ CapsLock
+          </button>
+        )}
         {(status === 'connected' || status === 'starting') && (
           <button
             className="desktop-btn-stop"

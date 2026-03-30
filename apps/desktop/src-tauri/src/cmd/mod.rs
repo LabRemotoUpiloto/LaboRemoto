@@ -28,4 +28,4 @@ pub use file_edit::{analyze_file, analyze_any_file, plan_file_edit, apply_file_e
 pub use logs::{save_session_log, list_session_logs, get_session_log_content, get_session_log, delete_session_log, cleanup_old_session_logs};
 pub use logs::save_session_log_fragment;
 pub use pdf_reports::{save_pdf_base64};
-pub use stream::{stream_start, stream_stop};
+pub use stream::{stream_start, stream_stop, stream_list_cameras};

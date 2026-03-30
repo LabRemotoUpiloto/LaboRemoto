@@ -8,6 +8,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+// Información de una cámara remota (devuelta por multi_cam_server.py)
+#[derive(Serialize, Deserialize, Clone, TS)]
+#[ts(export)]
+pub struct CameraInfo {
+    pub id: String,
+    pub name: String,
+    pub ip: String,
+    pub status: String,  // "active" | "connecting" | "offline"
+}
+
 use crate::ssh::client::Session;
 use ssh2::Session as Ssh2Session;
 
@@ -41,6 +51,11 @@ pub struct VncSessionState {
     pub port: u16,
     pub user: String,
     pub password: String,
+    /// true = display virtual (Xvfb + openbox, típico Pi headless)
+    /// false = display real preexistente (Jetson, Ubuntu desktop)
+    pub is_virtual: bool,
+    /// Directorio home del usuario remoto (e.g. /home/pi, /home/labiot)
+    pub home_dir: String,
 }
 
 impl Drop for VncSessionState {
@@ -60,13 +75,18 @@ impl Drop for VncSessionState {
             self.user.clone(),
             self.password.clone(),
         );
-        let (display, vnc_port) = (self.display_num, self.vnc_port_remote);
+        let (display, vnc_port, is_virtual) = (self.display_num, self.vnc_port_remote, self.is_virtual);
+        let home_dir = self.home_dir.clone();
 
         std::thread::spawn(move || {
             if let Ok((_tcp, sess)) =
                 crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password)
             {
-                let _ = crate::cmd::vnc::stop_vnc_server(&sess, display, vnc_port);
+                if is_virtual {
+                    let _ = crate::cmd::vnc::stop_vnc_server(&sess, display, vnc_port, &home_dir);
+                } else {
+                    let _ = crate::cmd::vnc::stop_vnc_server_real(&sess, vnc_port);
+                }
             }
         });
     }
@@ -95,6 +115,8 @@ pub struct SessionExt {
   pub vnc_session: Option<VncSessionState>,
   // Señal de parada para el hilo de stream (port-forward genérico)
   pub stream_stop_flag: Option<Arc<AtomicBool>>,
+  // Puerto local del tunnel SSH para el stream de cámaras
+  pub stream_local_port: Option<u16>,
 }
 
 // Conexión ssh2 reutilizable por sesión

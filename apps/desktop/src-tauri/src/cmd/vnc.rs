@@ -56,20 +56,41 @@ fn run_remote(sess: &ssh2::Session, cmd: &str) -> Result<(i32, String), String> 
 // Detección de recursos libres en el servidor remoto
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn check_dependencies(sess: &ssh2::Session) -> Result<(), String> {
-    let cmd = "MISS=''; \
-        for B in Xvfb x11vnc openbox lxpanel pcmanfm dbus-launch; do \
+fn check_dependencies(sess: &ssh2::Session, virtual_mode: bool) -> Result<(), String> {
+    let tools = if virtual_mode {
+        "Xvfb x11vnc openbox lxpanel pcmanfm dbus-launch"
+    } else {
+        "x11vnc"
+    };
+    let cmd = format!(
+        "MISS=''; \
+        for B in {tools}; do \
             command -v \"$B\" >/dev/null 2>&1 || MISS=\"$MISS $B\"; \
         done; \
-        [ -z \"$MISS\" ] && echo ok || echo \"MISSING:$MISS\"";
-    let (_, out) = run_remote(sess, cmd)?;
+        [ -z \"$MISS\" ] && echo ok || echo \"MISSING:$MISS\""
+    );
+    let (_, out) = run_remote(sess, &cmd)?;
     if out.trim().starts_with("MISSING:") {
         let pkgs = out.trim().trim_start_matches("MISSING:").trim();
+        let install = if virtual_mode {
+            "sudo apt install xvfb x11vnc openbox lxpanel pcmanfm dbus-x11"
+        } else {
+            "sudo apt install x11vnc"
+        };
         return Err(format!(
             "El servidor no tiene los paquetes requeridos:{pkgs}. \
-             Instala con:\n  sudo apt install xvfb x11vnc openbox lxpanel pcmanfm dbus-x11"
+             Instala con:\n  {install}"
         ));
     }
+    Ok(())
+}
+
+/// Detiene x11vnc para un display real (solo mata el proceso x11vnc por puerto).
+pub fn stop_vnc_server_real(sess: &ssh2::Session, vnc_port: u16) -> Result<(), String> {
+    let _ = run_remote(
+        sess,
+        &format!("pkill -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; true"),
+    );
     Ok(())
 }
 
@@ -107,6 +128,17 @@ fn find_free_vnc_port(sess: &ssh2::Session) -> Result<u16, String> {
     Err("No hay puerto VNC libre (5900–5998 todos en uso)".to_string())
 }
 
+/// Obtiene el directorio home del usuario remoto (e.g. /home/labiot, /home/pi).
+fn get_remote_home(sess: &ssh2::Session) -> String {
+    match run_remote(sess, "echo $HOME") {
+        Ok((_, out)) => {
+            let s = out.trim().to_string();
+            if !s.is_empty() && s.starts_with('/') { s } else { "/tmp".to_string() }
+        }
+        Err(_) => "/tmp".to_string(),
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Ciclo de vida del servidor VNC en el host remoto
 // ─────────────────────────────────────────────────────────────────────────────
@@ -116,6 +148,7 @@ fn start_vnc_server(
     display: u32,
     vnc_port: u16,
     resolution: &str,
+    home_dir: &str,
 ) -> Result<(), String> {
     // Limpiar artefactos de sesiones anteriores en este display
     let _ = run_remote(
@@ -169,8 +202,8 @@ fn start_vnc_server(
     let chromium_dir = format!("/tmp/chromium-vnc-{display}");
     let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
     let panel_profile = format!("lxde-pi-{display}");
-    let browser_desktop = format!("/home/pi/.local/share/applications/browser-vnc-{display}.desktop");
-    let webserver_desktop = format!("/home/pi/.local/share/applications/webserver-vnc-{display}.desktop");
+    let browser_desktop = format!("{home_dir}/.local/share/applications/browser-vnc-{display}.desktop");
+    let webserver_desktop = format!("{home_dir}/.local/share/applications/webserver-vnc-{display}.desktop");
 
     // 0. Crear XDG_RUNTIME_DIR y el directorio de datos de Chromium
     //    XDG_RUNTIME_DIR DEBE existir antes de que cualquier proceso lo use;
@@ -178,21 +211,33 @@ fn start_vnc_server(
     run_remote(
         sess,
         &format!(
-            "mkdir -p /tmp/xdg{display} {chromium_dir}/Default /home/pi/.local/bin /home/pi/Desktop; true"
+            "mkdir -p /tmp/xdg{display} {chromium_dir}/Default {home_dir}/.local/bin {home_dir}/Desktop; true"
         ),
     )?;
 
-    // 1. Wrapper de chromium único para este display
-    //    Flags clave para acceso a red dentro de Xvfb:
-    //      --no-sandbox           → evita sandbox de kernel (no disponible en SSH)
-    //      --disable-gpu          → sin GPU en display virtual
-    //      --no-first-run         → salta welcome page
-    //      --disable-dev-shm-usage → usa /tmp en vez de /dev/shm (evita crashes)
+    // 1. Wrapper de browser único para este display — prueba múltiples browsers
+    //    en orden (chromium → google-chrome → firefox) y loguea si ninguno funciona.
     run_remote(
         sess,
         &format!(
-            "printf '#!/bin/sh\\nrm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\nexec /usr/bin/chromium-browser --no-sandbox --disable-gpu --no-first-run --disable-dev-shm-usage --user-data-dir={chromium_dir} \"$@\"\\n' \
-             > /home/pi/.local/bin/chromium-browser-{display} && chmod +x /home/pi/.local/bin/chromium-browser-{display}; true"
+            "cat > {home_dir}/.local/bin/chromium-browser-{display} << 'WRAPPER_EOF'\n\
+#!/bin/sh\n\
+rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\n\
+export DISPLAY=:{display}\n\
+LOG=/tmp/browser-{display}.log\n\
+UDIR={chromium_dir}\n\
+CARGS='--no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-first-run'\n\
+for BROWSER in chromium-browser chromium google-chrome-stable google-chrome firefox-esr firefox midori x-www-browser; do\n\
+  if command -v \"$BROWSER\" >/dev/null 2>&1; then\n\
+    case \"$BROWSER\" in\n\
+      *chrom*|*google*) exec \"$BROWSER\" $CARGS --user-data-dir=\"$UDIR\" \"$@\" 2>>\"$LOG\" ;;\n\
+      *) exec \"$BROWSER\" \"$@\" 2>>\"$LOG\" ;;\n\
+    esac\n\
+  fi\n\
+done\n\
+echo no-browser-found >> \"$LOG\"\n\
+WRAPPER_EOF\n\
+chmod +x {home_dir}/.local/bin/chromium-browser-{display}; true"
         ),
     )?;
 
@@ -224,8 +269,8 @@ PREFS_EOF\ntrue"
     run_remote(
         sess,
         &format!(
-            "mkdir -p /home/pi/.local/share/applications && \
-             printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec=/home/pi/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
+            "mkdir -p {home_dir}/.local/share/applications && \
+             printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec={home_dir}/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
              > {browser_desktop}; true"
         ),
     )?;
@@ -236,10 +281,10 @@ PREFS_EOF\ntrue"
     run_remote(
         sess,
         &format!(
-            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver páginas de Apache (localhost:10000)\\nExec=/home/pi/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
+            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver páginas de Apache (localhost:10000)\\nExec={home_dir}/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
              > {webserver_desktop} && \
-             cp {webserver_desktop} /home/pi/Desktop/servidor-web.desktop 2>/dev/null && \
-             chmod +x /home/pi/Desktop/servidor-web.desktop 2>/dev/null; true"
+             cp {webserver_desktop} {home_dir}/Desktop/servidor-web.desktop 2>/dev/null && \
+             chmod +x {home_dir}/Desktop/servidor-web.desktop 2>/dev/null; true"
         ),
     )?;
 
@@ -248,8 +293,8 @@ PREFS_EOF\ntrue"
     run_remote(
         sess,
         &format!(
-            "mkdir -p /home/pi/.config/lxpanel/{panel_profile}/panels && \
-             cat > /home/pi/.config/lxpanel/{panel_profile}/panels/panel << 'PANEL_EOF'\n\
+            "mkdir -p {home_dir}/.config/lxpanel/{panel_profile}/panels && \
+             cat > {home_dir}/.config/lxpanel/{panel_profile}/panels/panel << 'PANEL_EOF'\n\
 # lxpanel <profile> config file.\n\
 Global {{\n\
   edge=top\n\
@@ -329,13 +374,48 @@ Plugin {{\n\
 }}\n\
 PANEL_EOF\n\
              \n\
-             mkdir -p /home/pi/.config/pcmanfm/{panel_profile} && \
-             if [ -d /home/pi/.config/pcmanfm/LXDE-pi ]; then \
-                cp -r /home/pi/.config/pcmanfm/LXDE-pi/. /home/pi/.config/pcmanfm/{panel_profile}/; \
+             mkdir -p {home_dir}/.config/pcmanfm/{panel_profile} && \
+             if [ -d {home_dir}/.config/pcmanfm/LXDE-pi ]; then \
+                cp -r {home_dir}/.config/pcmanfm/LXDE-pi/. {home_dir}/.config/pcmanfm/{panel_profile}/; \
              elif [ -d /etc/xdg/pcmanfm/LXDE-pi ]; then \
-                cp -r /etc/xdg/pcmanfm/LXDE-pi/. /home/pi/.config/pcmanfm/{panel_profile}/; \
+                cp -r /etc/xdg/pcmanfm/LXDE-pi/. {home_dir}/.config/pcmanfm/{panel_profile}/; \
              fi; \
              true"
+        ),
+    )?;
+
+    // Fondo de escritorio: generar PNG 1×1 px con color #2c3e50 via Python3.
+    // Usamos bytes([N,N,N]) en vez de \x.. para evitar problemas de escaping.
+    // Heredoc SIN comillas (PYEOF) para que {display} sea sustituido por Rust format!.
+    run_remote(
+        sess,
+        &format!(
+            "python3 << PYEOF\n\
+import struct, zlib\n\
+MAGIC = bytes([137, 80, 78, 71, 13, 10, 26, 10])\n\
+def chunk(t, d):\n\
+    c = t + d\n\
+    return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)\n\
+ihdr = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)\n\
+idat = zlib.compress(bytes([0, 44, 62, 80]))\n\
+png = MAGIC + chunk(b'IHDR', ihdr) + chunk(b'IDAT', idat) + chunk(b'IEND', b'')\n\
+open('/tmp/bg-{display}.png', 'wb').write(png)\n\
+PYEOF\n\
+[ -f /tmp/bg-{display}.png ] || convert -size 1x1 xc:'#2c3e50' /tmp/bg-{display}.png 2>/dev/null || true"
+        ),
+    )?;
+
+    // Fondo de escritorio: configurar pcmanfm con wallpaper_mode=4 (TILE).
+    // TILE de imagen 1×1 px = color sólido, funciona en TODAS las versiones de pcmanfm.
+    // Escribimos a AMBOS archivos: pcmanfm.conf (Ubuntu/Jetson) + desktop-preferences.conf (Raspberry Pi).
+    run_remote(
+        sess,
+        &format!(
+            "mkdir -p {home_dir}/.config/pcmanfm/{panel_profile} && \
+             printf '[desktop]\\nwallpaper=/tmp/bg-{display}.png\\nwallpaper_mode=4\\nwallpaper_common=0\\ndesktop_bg=\\#2c3e50\\ndesktop_fg=\\#ffffff\\ndesktop_shadow=\\#000000\\nshow_trash=1\\nshow_mounts=1\\n' \
+             | tee {home_dir}/.config/pcmanfm/{panel_profile}/pcmanfm.conf \
+                   {home_dir}/.config/pcmanfm/{panel_profile}/desktop-preferences.conf \
+             > /dev/null; true"
         ),
     )?;
 
@@ -365,7 +445,7 @@ PANEL_EOF\n\
 
     if !out_vnc.trim().starts_with("ok") {
         let log_lines: String = out_vnc.lines().skip(1).collect::<Vec<_>>().join(" | ");
-        let _ = stop_vnc_server(sess, display, vnc_port);
+        let _ = stop_vnc_server(sess, display, vnc_port, home_dir);
         return Err(format!(
             "x11vnc no arrancó en el puerto {vnc_port}. Log: {log_lines}"
         ));
@@ -381,11 +461,12 @@ PANEL_EOF\n\
         &format!(
             "printf '#!/bin/sh\\n\
 export DISPLAY=:{display}\\n\
-export HOME=/home/pi\\n\
+export HOME={home_dir}\\n\
 export XDG_RUNTIME_DIR=/tmp/xdg{display}\\n\
-export XDG_DATA_HOME=/home/pi/.local/share\\n\
-export XDG_DATA_DIRS=/home/pi/.local/share:/usr/local/share:/usr/share\\n\
-export PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin\\n\
+export XDG_DATA_HOME={home_dir}/.local/share\\n\
+export XDG_DATA_DIRS={home_dir}/.local/share:/usr/local/share:/usr/share\\n\
+export PATH={home_dir}/.local/bin:/usr/local/bin:/usr/bin:/bin\\n\
+xsetroot -solid \\#2c3e50 2>/dev/null || true\\n\
 rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\n\
 openbox >/tmp/openbox{display}.log 2>&1 & echo $! > /tmp/openbox-{display}.pid\\n\
 sleep 2\\n\
@@ -398,10 +479,10 @@ wait\\n' \
     run_remote(
         sess,
         &format!(
-            "DISPLAY=:{display} HOME=/home/pi XDG_RUNTIME_DIR=/tmp/xdg{display} \
-             XDG_DATA_HOME=/home/pi/.local/share \
-             XDG_DATA_DIRS=/home/pi/.local/share:/usr/local/share:/usr/share \
-             PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin \
+            "DISPLAY=:{display} HOME={home_dir} XDG_RUNTIME_DIR=/tmp/xdg{display} \
+             XDG_DATA_HOME={home_dir}/.local/share \
+             XDG_DATA_DIRS={home_dir}/.local/share:/usr/local/share:/usr/share \
+             PATH={home_dir}/.local/bin:/usr/local/bin:/usr/bin:/bin \
              nohup dbus-launch --exit-with-session {xstartup_path} \
              >/tmp/lxsession{display}.log 2>&1 </dev/null & echo started"
         ),
@@ -416,6 +497,7 @@ pub fn stop_vnc_server(
     sess: &ssh2::Session,
     display: u32,
     vnc_port: u16,
+    home_dir: &str,
 ) -> Result<(), String> {
     // Matar SOLO los procesos de este display usando los identificadores únicos:
     //   - x11vnc por puerto  (único por sesión)
@@ -439,7 +521,7 @@ pub fn stop_vnc_server(
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} \
                    {xstartup_path} /tmp/openbox-{display}.pid \
                    {browser_desktop} {webserver_desktop} \
-                   /home/pi/Desktop/servidor-web.desktop 2>/dev/null; \
+                   {home_dir}/Desktop/servidor-web.desktop 2>/dev/null; \
              rm -rf /tmp/xdg{display} 2>/dev/null; \
              true"
         ),
@@ -678,38 +760,36 @@ pub fn run_port_forward(
                 return;
             };
 
-            // ── Lectura diagnóstica: 1 s de espera para el saludo RFB ────────
-            // Si x11vnc manda el saludo ("RFB 003.xxx\n", 12 bytes) antes de
-            // 1 segundo lo veremos aquí. Si no manda nada o manda EOF,
-            // sabremos que x11vnc rechaza la conexión por algún motivo.
-            let mut diag_buf = [0u8; 64];
-            sess.set_timeout(1000);
-            match channel.read(&mut diag_buf) {
-                Ok(0) => {
-                    let _ = local_conn.shutdown(std::net::Shutdown::Both);
-                    let _ = channel.send_eof();
-                    let _ = channel.close();
-                    return;
-                }
-                Ok(n) => {
-                    // Reenviar al bridge
-                    if local_conn.write_all(&diag_buf[..n]).is_err() {
+            // ── Lectura diagnóstica: solo para VNC (puerto 5900) ─────────────
+            // HTTP (cámaras, port 8888) envía el request primero → no hay saludo
+            // del servidor; esperar 1 s solo añade latencia a cada reconexión.
+            if remote_port == 5900 {
+                let mut diag_buf = [0u8; 64];
+                sess.set_timeout(1000);
+                match channel.read(&mut diag_buf) {
+                    Ok(0) => {
                         let _ = local_conn.shutdown(std::net::Shutdown::Both);
                         let _ = channel.send_eof();
                         let _ = channel.close();
                         return;
                     }
-                }
-                Err(_e) => {
-                    // Timeout normal en primera lectura — protocolo HTTP/HLS envía request primero
-                    // No loguear: ocurre constantemente para HLS camera stream
+                    Ok(n) => {
+                        if local_conn.write_all(&diag_buf[..n]).is_err() {
+                            let _ = local_conn.shutdown(std::net::Shutdown::Both);
+                            let _ = channel.send_eof();
+                            let _ = channel.close();
+                            return;
+                        }
+                    }
+                    Err(_) => {}
                 }
             }
-            // ────────────────────────────────────────────────────────────────
+            // ─────────────────────────────────────────────────────────────────
 
-            // Modo no-bloqueante para el poll: EAGAIN = sin datos, Ok(0) = EOF real.
+            // local_conn: read timeout de 1 ms (no-bloqueante efectivo) pero
+            // escrituras bloqueantes para evitar WouldBlock al enviar frames grandes.
             sess.set_blocking(false);
-            local_conn.set_nonblocking(true).ok();
+            local_conn.set_read_timeout(Some(std::time::Duration::from_millis(1))).ok();
             local_conn.set_nodelay(true).ok();
 
             let mut buf = vec![0u8; 65536];
@@ -723,6 +803,8 @@ pub fn run_port_forward(
                     }
                     Ok(n) => {
                         progress = true;
+                        // Escritura bloqueante: espera hasta que el buffer del kernel
+                        // acepta todos los bytes. No falla con WouldBlock.
                         if local_conn.write_all(&buf[..n]).is_err() {
                             break;
                         }
@@ -1028,18 +1110,19 @@ pub async fn vnc_start(
     let p = password.clone();
     let r = res.clone();
 
-    let (display, vnc_port, ws_listener, local_fwd_port) =
-        tokio::task::spawn_blocking(move || -> Result<(u32, u16, std::net::TcpListener, u16), String> {
+    let (display, vnc_port, ws_listener, local_fwd_port, is_virtual, home_dir) =
+        tokio::task::spawn_blocking(move || -> Result<(u32, u16, std::net::TcpListener, u16, bool, String), String> {
             let (_tcp_setup, setup_sess) =
                 crate::ssh::ssh2_sftp::connect_password(&h, port, &u, &p)
                     .map_err(|e| format!("Conexión SSH para setup VNC falló: {e}"))?;
 
-            check_dependencies(&setup_sess)?;
-
+            // Siempre crear display virtual (Xvfb) — pantalla adicional separada,
+            // no tomar control del escritorio real (comportamiento tipo AnyDesk).
+            let home_dir = get_remote_home(&setup_sess);
+            check_dependencies(&setup_sess, true)?;
             let display  = find_free_display(&setup_sess)?;
             let vnc_port = find_free_vnc_port(&setup_sess)?;
-
-            start_vnc_server(&setup_sess, display, vnc_port, &r)?;
+            start_vnc_server(&setup_sess, display, vnc_port, &r, &home_dir)?;
 
             // Listener WS local en un puerto aleatorio asignado por el SO
             let ws_listener = std::net::TcpListener::bind("127.0.0.1:0")
@@ -1055,7 +1138,7 @@ pub async fn vnc_start(
             // Cerramos el listener temporal — el puerto queda libre para ssh -L
             drop(fwd_listener);
 
-            Ok((display, vnc_port, ws_listener, local_fwd_port))
+            Ok((display, vnc_port, ws_listener, local_fwd_port, true, home_dir))
         })
         .await
         .map_err(|e| format!("Error interno (spawn_blocking): {e}"))??
@@ -1131,6 +1214,8 @@ pub async fn vnc_start(
             port,
             user,
             password,
+            is_virtual,
+            home_dir,
         });
     }
 

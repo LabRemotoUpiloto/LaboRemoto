@@ -73,6 +73,23 @@
   cursor: not-allowed;
 }
 
+.desktop-btn-key {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--text-secondary, #aaa);
+  border: 1px solid var(--border, #555);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.desktop-btn-key:hover {
+  background: var(--accent, #4caf50);
+  color: #fff;
+  border-color: var(--accent, #4caf50);
+}
+
 .desktop-btn-stop {
   font-size: 12px;
   padding: 4px 10px;
