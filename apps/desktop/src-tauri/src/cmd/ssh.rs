@@ -68,6 +68,7 @@ pub async fn ssh_connect(
                 current_dir: None,
                 vnc_session: None,
                 stream_stop_flag: None,
+                stream_local_port: None,
               });
             }
             Err(e) => {
@@ -538,6 +539,7 @@ pub async fn ssh_connect_stored(
       current_dir: None,
       vnc_session: None,
       stream_stop_flag: None,
+      stream_local_port: None,
     });
   }
 

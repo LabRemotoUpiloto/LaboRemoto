@@ -91,6 +91,7 @@ pub fn run() {
       // Port-forwarding genérico (streaming)
       cmd::stream::stream_start,
       cmd::stream::stream_stop,
+      cmd::stream::stream_list_cameras,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

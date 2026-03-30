@@ -3,7 +3,7 @@ import './TerminalView.css';
 import TerminalPane from './TerminalPane';
 import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
-import CameraPane from '../raspberry/CameraPane';
+import CameraGrid from '../raspberry/CameraGrid';
 
 interface TerminalViewProps {
   sessionId: string;
@@ -20,6 +20,15 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'te
   const [isResizingChat, setIsResizingChat] = useState(false);
   const [isResizingCamera, setIsResizingCamera] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // When camera panel opens/closes, xterm must re-fit to the new height
+  useEffect(() => {
+    // Small double-fire: once immediately after layout change, once after transition settles
+    const t1 = setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+    const t2 = setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [isCameraOpen]);
+
 
   // Resize handlers
   useEffect(() => {
@@ -56,7 +65,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'te
         {isCameraOpen && (
           <>
             <div className="camera-top-panel" style={{ height: cameraHeight }}>
-              <CameraPane sessionId={sessionId} isActive={isCameraOpen} />
+              <CameraGrid sessionId={sessionId} isActive={isCameraOpen} />
             </div>
             {/* Horizontal Resize handle */}
             <div

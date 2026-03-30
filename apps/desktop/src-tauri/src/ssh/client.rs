@@ -2,7 +2,7 @@ use anyhow::Result;
 use russh::client::{self, Handle};
 use russh::{Channel, ChannelMsg};
 use std::{future::ready, net::ToSocketAddrs, sync::Arc};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 
 /// Handler básico de russh.
 #[derive(Clone, Default)]
@@ -30,7 +30,9 @@ pub enum ChanCmd {
 
 /// Sesión de alto nivel (no guarda el Channel; expone un TX para comandos).
 pub struct Session {
-    pub handle: Handle<RusshClient>,
+    /// Handle compartible: Arc<Mutex<...>> permite clonar y pasar a tasks para
+    /// abrir canales adicionales (direct-tcpip para port-forward) sin nuevo handshake.
+    pub handle: Arc<Mutex<Handle<RusshClient>>>,
     pub tx: mpsc::UnboundedSender<ChanCmd>,
     pub resolved_addr: std::net::SocketAddr,
 }
@@ -184,6 +186,6 @@ impl Session {
             }
         });
 
-        Ok((Session { handle, tx: tx_cmd, resolved_addr: addr }, rx_out))
+        Ok((Session { handle: Arc::new(Mutex::new(handle)), tx: tx_cmd, resolved_addr: addr }, rx_out))
     }
 }

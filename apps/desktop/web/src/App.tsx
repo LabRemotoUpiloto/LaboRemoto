@@ -230,11 +230,18 @@ const AppMain: React.FC = () => {
   // Pages that belong to the HOME tab context
   const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets'];
 
+  // Pages that have per-session context in SessionContainer (sftp, snippets, logs)
+  const SESSION_PAGES = ['sftp', 'snippets', 'logs'];
+
   // Wrapper: when sidebar opens a panel that's a "home" page, also switch to HOME tab
+  // Exception: session-contextual pages stay on the active session tab so the correct
+  // device's data is shown (e.g. Jetson vs Pi storage).
   const handleOpenPanel = (panelId: string) => {
     openPanel(panelId);
     if (HOME_PAGES.includes(panelId)) {
-      setActiveTabId(HOME_TAB_ID);
+      if (activeTab.type !== 'session' || !SESSION_PAGES.includes(panelId)) {
+        setActiveTabId(HOME_TAB_ID);
+      }
     }
   }
 
