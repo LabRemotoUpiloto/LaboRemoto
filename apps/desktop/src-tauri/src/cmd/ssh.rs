@@ -5,6 +5,7 @@ use uuid::Uuid;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use std::collections::VecDeque;
 use crate::error::AppError;
 use crate::ssh::client::{Session, ChanCmd};
 use crate::storage;
@@ -69,6 +70,7 @@ pub async fn ssh_connect(
                 vnc_session: None,
                 stream_stop_flag: None,
                 stream_local_port: None,
+                terminal_buf: Arc::new(Mutex::new(VecDeque::with_capacity(300))),
               });
             }
             Err(e) => {
@@ -92,7 +94,7 @@ pub async fn ssh_connect(
         let id_spawn = id_clone.clone();
         let buffer_ref = {
           match SESSIONS.lock() {
-            Ok(map) => map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone())),
+            Ok(map) => map.get(&id_spawn).map(|s| (s.out_buffer.clone(), s.ui_ready.clone(), s.terminal_buf.clone())),
             Err(_) => None,
           }
         };
@@ -100,7 +102,12 @@ pub async fn ssh_connect(
         tokio::spawn(async move {
           while let Some(buf) = rx_out.recv().await {
             let s = String::from_utf8_lossy(&buf).into_owned();
-            if let Some((out_buf, ready)) = &buffer_ref {
+            if let Some((out_buf, ready, term_buf)) = &buffer_ref {
+              // Siempre capturar en el buffer de contexto AI (máx 300 chunks)
+              if let Ok(mut q) = term_buf.lock() {
+                if q.len() >= 300 { q.pop_front(); }
+                q.push_back(s.clone());
+              }
               if ready.load(Ordering::SeqCst) {
                 let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
               } else {
@@ -540,6 +547,7 @@ pub async fn ssh_connect_stored(
       vnc_session: None,
       stream_stop_flag: None,
       stream_local_port: None,
+      terminal_buf: Arc::new(Mutex::new(VecDeque::with_capacity(300))),
     });
   }
 

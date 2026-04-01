@@ -16,6 +16,7 @@ pub mod logs;    // Sistema de logs de sesión (captura de buffers SSH)
 pub mod pdf_reports; // Reportes PDF locales en savedLogs
 pub mod vnc;     // Sesiones de escritorio gráfico remoto (Xvfb + x11vnc + noVNC)
 pub mod stream;  // Port-forwarding genérico para streaming de video/otros
+pub mod tools;   // Herramientas del agente AI (tool_use loop, contexto terminal)
 
 // Re-exportar comandos para no cambiar rutas usadas en lib.rs
 pub use ai::{ai_chat, AiChatRequest, AiChatResponse};
@@ -29,3 +30,4 @@ pub use logs::{save_session_log, list_session_logs, get_session_log_content, get
 pub use logs::save_session_log_fragment;
 pub use pdf_reports::{save_pdf_base64};
 pub use stream::{stream_start, stream_stop, stream_list_cameras};
+pub use tools::{get_terminal_context, agent_chat, AgentChatResponse};
