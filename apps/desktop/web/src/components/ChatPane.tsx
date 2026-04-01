@@ -11,8 +11,10 @@ import { AskModeHandler } from './chatModes/classes/AskModeHandler';
 import { BusquedaModeHandler } from './chatModes/classes/BusquedaModeHandler';
 import { PinesModeHandler } from './chatModes/classes/PinesModeHandler';
 import { AnalisisModeHandler } from './chatModes/classes/AnalisisModeHandler';
+import { AgenteModeHandler } from './chatModes/classes/AgenteModeHandler';
 // Componentes extraídos
 import AskRenderer from './chat/AskRenderer';
+import AgentStepsRenderer from './chat/AgentStepsRenderer';
 import ToolResultRenderer from './chat/ToolResultRenderer';
 import AnalysisActionButtons from './chat/AnalysisActionButtons';
 import DiffView from './analysis/DiffView';
@@ -20,6 +22,176 @@ import './analysis/DiffView.css';
 import './analysis/FileDisambiguation.css';
 // Utilidades
 import { cleanText, isNearBottom, norm } from './chat/chatUtils';
+
+// ── SVG icons por modo ──
+const ModeIcons: Record<string, React.ReactNode> = {
+  ask: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  ),
+  agente: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="4 17 10 11 4 5"/>
+      <line x1="12" y1="19" x2="20" y2="19"/>
+    </svg>
+  ),
+  busqueda: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  ),
+  analisis: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+  ),
+};
+
+// ── Model dropdown custom ──
+const ModelSelect: React.FC<{ value: ModelSelection; onChange: (m: ModelSelection) => void }> = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = AVAILABLE_MODELS.find(m => m.value === value) ?? AVAILABLE_MODELS[0];
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          height: 26, padding: '0 22px 0 10px', borderRadius: 5,
+          border: '1px solid rgba(255,255,255,0.10)',
+          background: 'rgba(255,255,255,0.05)',
+          color: 'var(--text-primary)', fontSize: 12, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6,
+          backgroundImage: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="%23ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>')`,
+          backgroundRepeat: 'no-repeat', backgroundPosition: 'right 5px center',
+          width: '100%', whiteSpace: 'nowrap', overflow: 'hidden',
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{current.label}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 3, zIndex: 999,
+          background: '#1e2130', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 7, overflow: 'hidden', minWidth: '100%',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+        }}>
+          {AVAILABLE_MODELS.map(m => (
+            <button
+              key={m.value}
+              onClick={() => { onChange(m.value); setOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', padding: '7px 12px', border: 'none',
+                background: m.value === value ? 'rgba(255,255,255,0.07)' : 'transparent',
+                color: m.value === value ? '#fff' : 'rgba(255,255,255,0.7)',
+                fontSize: 12.5, cursor: 'pointer', textAlign: 'left',
+                transition: 'background 0.1s', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
+              onMouseLeave={e => (e.currentTarget.style.background = m.value === value ? 'rgba(255,255,255,0.07)' : 'transparent')}
+            >
+              <span style={{ flex: 1 }}>{m.label}</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{m.provider}</span>
+              {m.value === value && (
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#60a5fa', flexShrink: 0, marginLeft: 4 }} />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Dropdown custom (evita el fondo blanco del OS nativo en Windows) ──
+const MODES: { value: ChatMode; label: string; color: string }[] = [
+  { value: 'ask',      label: 'Consulta',  color: '#4ade80' },
+  { value: 'agente',   label: 'Agente',    color: '#60a5fa' },
+  { value: 'busqueda', label: 'Búsqueda',  color: '#2563eb' },
+  { value: 'analisis', label: 'Análisis',  color: '#8b5cf6' },
+];
+
+const ModeSelect: React.FC<{ value: ChatMode; onChange: (m: ChatMode) => void }> = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = MODES.find(m => m.value === value) ?? MODES[0];
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          height: 26, padding: '0 22px 0 8px', borderRadius: 5,
+          border: '1px solid rgba(255,255,255,0.10)',
+          background: 'rgba(255,255,255,0.05)',
+          color: 'var(--text-primary)', fontSize: 12, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6,
+          backgroundImage: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="%23ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>')`,
+          backgroundRepeat: 'no-repeat', backgroundPosition: 'right 5px center',
+          minWidth: 110, whiteSpace: 'nowrap',
+        }}
+      >
+        <span style={{ color: current.color, display: 'flex', alignItems: 'center' }}>
+          {ModeIcons[current.value]}
+        </span>
+        <span>{current.label}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 3, zIndex: 999,
+          background: '#1e2130', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 7, overflow: 'hidden', minWidth: 148,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+        }}>
+          {MODES.map(m => (
+            <button
+              key={m.value}
+              onClick={() => { onChange(m.value); setOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 9,
+                width: '100%', padding: '7px 12px', border: 'none',
+                background: m.value === value ? 'rgba(255,255,255,0.07)' : 'transparent',
+                color: m.value === value ? '#fff' : 'rgba(255,255,255,0.7)',
+                fontSize: 12.5, cursor: 'pointer', textAlign: 'left',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
+              onMouseLeave={e => (e.currentTarget.style.background = m.value === value ? 'rgba(255,255,255,0.07)' : 'transparent')}
+            >
+              <span style={{ color: m.color, display: 'flex', alignItems: 'center' }}>
+                {ModeIcons[m.value]}
+              </span>
+              <span style={{ flex: 1 }}>{m.label}</span>
+              {m.value === value && (
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Modos del chat:
 // ask       -> consulta general explicativa
@@ -209,7 +381,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     ask: new AskModeHandler(),
     busqueda: new BusquedaModeHandler(),
     pines: new PinesModeHandler(),
-    analisis: new AnalisisModeHandler()
+    analisis: new AnalisisModeHandler(),
+    agente: new AgenteModeHandler(),
   };
 
   const modeHelp = Object.fromEntries(Object.entries(modeHandlers).map(([k,v]) => [k, v.help])) as Record<ChatMode,string>;
@@ -333,15 +506,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       </div>
 
       <div className="chat-toolbar">
-        <select className="mode-select" value={mode} onChange={handleModeChange}>
-          <option value="ask">Consulta</option>
-        </select>
-        <select className="model-select" value={selectedModel}
-          onChange={(e) => setSelectedModel(e.target.value as ModelSelection)}>
-          {AVAILABLE_MODELS.map(m => (
-            <option key={m.value} value={m.value}>{m.label}</option>
-          ))}
-        </select>
+        <ModeSelect value={mode} onChange={(m) => { setMode(m); if (m !== 'pines') { setMessages([]); clear(); } }} />
+        <ModelSelect value={selectedModel} onChange={setSelectedModel} />
       </div>
     </div>
       <div className="mode-help" aria-live="polite">{modeHelp[mode]}</div>
@@ -370,6 +536,10 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                   {msg.sender === 'ai' ? (
                     <>
                       {/* Remote badge */}
+                      {/* Pasos de tools del agente (tool_use loop) */}
+                      {msg.meta?.toolSteps && msg.meta.toolSteps.length > 0 && (
+                        <AgentStepsRenderer steps={msg.meta.toolSteps} />
+                      )}
                       {/* Si es un mensaje de desambiguación, ocultamos el texto base para no duplicar la UI */}
                       {!msg.meta?.fileAnalysisDisambiguation && (
                         <>

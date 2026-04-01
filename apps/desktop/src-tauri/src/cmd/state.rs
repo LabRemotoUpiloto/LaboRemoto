@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -117,6 +117,8 @@ pub struct SessionExt {
   pub stream_stop_flag: Option<Arc<AtomicBool>>,
   // Puerto local del tunnel SSH para el stream de cámaras
   pub stream_local_port: Option<u16>,
+  // Buffer rodante de las últimas 300 salidas del terminal (para contexto AI)
+  pub terminal_buf: Arc<Mutex<VecDeque<String>>>,
 }
 
 // Conexión ssh2 reutilizable por sesión

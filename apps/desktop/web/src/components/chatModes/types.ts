@@ -1,7 +1,7 @@
 import type React from 'react';
 
 // Tipos compartidos entre modos de chat
-export type ChatMode = 'ask' | 'busqueda' | 'pines' | 'analisis';
+export type ChatMode = 'ask' | 'busqueda' | 'pines' | 'analisis' | 'agente';
 
 // Modelos disponibles para el chat
 export type ModelSelection = 'gpt-3.5-turbo' | 'claude-sonnet-4-6';
@@ -76,6 +76,18 @@ export interface ModeHandlerContext {
   cleanText: (s: string) => string;
   invokeAsk: (args: { finalInput: string; mode: ChatMode; userMsg: Message }) => Promise<void>;
   invokeBusqueda: (args: { finalInput: string; userMsg: Message }) => Promise<void>;
+}
+
+export interface AgentStep {
+  kind: 'tool_call' | 'tool_result' | 'thinking';
+  name?: string;
+  input?: string;
+  output?: string;
+}
+
+export interface AgentChatResponse {
+  answer: string;
+  steps: AgentStep[];
 }
 
 export interface ModeHandler {

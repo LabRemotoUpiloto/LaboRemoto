@@ -92,6 +92,9 @@ pub fn run() {
       cmd::stream::stream_start,
       cmd::stream::stream_stop,
       cmd::stream::stream_list_cameras,
+      // Agente AI con tools (tool_use loop + contexto terminal)
+      cmd::tools::get_terminal_context,
+      cmd::tools::agent_chat,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
