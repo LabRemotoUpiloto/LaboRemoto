@@ -3,6 +3,8 @@ use reqwest::Client;
 use std::{env, fs};
 use std::path::{Path, PathBuf};
 use once_cell::sync::Lazy;
+use futures_util::StreamExt;
+use tauri::Emitter;
 
 #[derive(Deserialize, Clone, Default)]
 struct PromptsConfig {
@@ -206,6 +208,7 @@ pub struct AiChatRequest {
     pub image_base64: Option<String>,
     pub image_media_type: Option<String>,
     pub terminal_context: Option<String>,
+    pub request_id: Option<String>,
 }
 
 /// Respuesta del chat con IA
@@ -221,8 +224,47 @@ pub struct AiChatResponse {
     pub backup_path: Option<String>,
 }
 
+#[derive(Serialize, Clone)]
+struct AiChunkEvent {
+  request_id: String,
+  delta: String,
+}
+
+#[derive(Serialize, Clone)]
+struct AiUsageEvent {
+  request_id: String,
+  input_tokens: u64,
+  output_tokens: u64,
+  model: String,
+}
+
+/// Extrae el delta de texto de un chunk SSE (OpenAI o Claude).
+fn sse_extract_delta(data: &str, is_claude: bool) -> Option<String> {
+  let json: serde_json::Value = serde_json::from_str(data).ok()?;
+  if is_claude {
+    if json.get("type").and_then(|v| v.as_str()) == Some("content_block_delta") {
+      return json.get("delta")
+        .and_then(|d| d.get("text"))
+        .and_then(|t| t.as_str())
+        .map(|s| s.to_string());
+    }
+  } else {
+    return json.get("choices")
+      .and_then(|c| c.get(0))
+      .and_then(|c0| c0.get("delta"))
+      .and_then(|d| d.get("content"))
+      .and_then(|v| v.as_str())
+      .map(|s| s.to_string());
+  }
+  None
+}
+
 #[tauri::command]
-pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
+pub async fn ai_chat(
+  app: tauri::AppHandle,
+  cancel_state: tauri::State<'_, crate::state::AiCancelRegistry>,
+  req: AiChatRequest,
+) -> Result<AiChatResponse, String> {
   use crate::security::SecurityManager;
 
   
@@ -297,7 +339,9 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     s
   }
 
-  let AiChatRequest { user_input, mode: incoming_mode, history, state, model_selection: req_model_selection, image_base64, image_media_type, terminal_context } = req;
+  let AiChatRequest { user_input, mode: incoming_mode, history, state, model_selection: req_model_selection, image_base64, image_media_type, terminal_context, request_id: raw_req_id } = req;
+  let req_id = raw_req_id.filter(|s| !s.is_empty()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+  let mut cancel_rx = cancel_state.register(&req_id);
 
   // Usar modelo seleccionado por el usuario o fallback a variable de entorno
   let model_selection = req_model_selection.unwrap_or_default();
@@ -528,7 +572,9 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   }
 
   // Build the request payload - format differs between OpenAI and Claude
-  let (payload, base_url) = if model_selection.is_claude() {
+  let use_stream = proxy_url.is_none(); // Solo streaming para llamadas directas a la API
+  let is_claude = model_selection.is_claude();
+  let (payload, base_url) = if is_claude {
     // Claude API format - extract system message and put it in separate parameter
     let mut claude_messages = Vec::new();
     let mut system_parts = Vec::new(); // Concatenar TODOS los mensajes de sistema
@@ -552,6 +598,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       "model": model_id,
       "max_tokens": 800,
       "temperature": 0.1,
+      "stream": use_stream,
       "system": system_content,
       "messages": claude_messages
     });
@@ -563,7 +610,9 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       "model": model_id,
       "messages": messages,
       "max_tokens": 800,
-      "temperature": 0.1
+      "temperature": 0.1,
+      "stream": use_stream,
+      "stream_options": if use_stream { serde_json::json!({"include_usage": true}) } else { serde_json::Value::Null },
     });
     let openai_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
     (openai_payload, openai_url)
@@ -580,7 +629,13 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     if let Some(ref token) = proxy_auth { req_builder = req_builder.bearer_auth(token); }
     else if let Some(ref key) = api_key { req_builder = req_builder.bearer_auth(key); }
   }
-  let resp = req_builder.send().await.map_err(|e| e.to_string())?;
+  let resp = tokio::select! {
+    r = req_builder.send() => r.map_err(|e| e.to_string())?,
+    _ = cancel_rx.changed() => {
+      cancel_state.remove(&req_id);
+      return Err("cancelled".to_string());
+    }
+  };
 
   if !resp.status().is_success() {
     let status = resp.status();
@@ -589,28 +644,111 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     return Err(format!("{} error {}: {}", api_name, status, txt));
   }
 
-  let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-
-  // Extract the assistant message text based on API format
-  let mut assistant_text = if model_selection.is_claude() {
-    // Claude API response format
-    body
-      .get("content")
-      .and_then(|c| c.get(0))
-      .and_then(|c0| c0.get("text"))
-      .and_then(|v| v.as_str())
-      .unwrap_or("")
-      .to_string()
+  let mut assistant_text = if use_stream {
+    // ── Streaming SSE ──────────────────────────────────────────────────────────
+    let mut sse_buffer = String::new();
+    let mut accumulated = String::new();
+    let mut byte_stream = resp.bytes_stream();
+    let mut stream_ended = false;
+    let mut tok_input: u64 = 0;
+    let mut tok_output: u64 = 0;
+    'sse: loop {
+      tokio::select! {
+        _ = cancel_rx.changed() => {
+          cancel_state.remove(&req_id);
+          return Err("cancelled".to_string());
+        }
+        chunk_result = byte_stream.next() => {
+          match chunk_result {
+            None => break 'sse,
+            Some(Err(e)) => return Err(e.to_string()),
+            Some(Ok(bytes)) => {
+              sse_buffer.push_str(&String::from_utf8_lossy(&bytes));
+              loop {
+                match sse_buffer.find('\n') {
+                  None => break,
+                  Some(pos) => {
+                    let raw = sse_buffer[..pos].trim_end_matches('\r').to_string();
+                    sse_buffer.drain(..pos + 1);
+                    if let Some(data) = raw.strip_prefix("data: ") {
+                      if data.trim() == "[DONE]" {
+                        stream_ended = true;
+                        break;
+                      }
+                      // Extraer uso de tokens del chunk SSE
+                      if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                        if is_claude {
+                          // Claude emite input en message_start, output en message_delta
+                          match json.get("type").and_then(|v| v.as_str()) {
+                            Some("message_start") => {
+                              if let Some(u) = json.get("message").and_then(|m| m.get("usage")) {
+                                tok_input = u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_input);
+                              }
+                            }
+                            Some("message_delta") => {
+                              if let Some(u) = json.get("usage") {
+                                tok_output = u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_output);
+                              }
+                            }
+                            _ => {}
+                          }
+                        } else {
+                          // OpenAI: chunk final (con stream_options.include_usage) trae usage
+                          if let Some(u) = json.get("usage") {
+                            tok_input = u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_input);
+                            tok_output = u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_output);
+                          }
+                        }
+                      }
+                      if let Some(delta) = sse_extract_delta(data, is_claude) {
+                        if !delta.is_empty() {
+                          accumulated.push_str(&delta);
+                          let _ = app.emit("ai:chunk", AiChunkEvent {
+                            request_id: req_id.clone(),
+                            delta,
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              if stream_ended { break 'sse; }
+            }
+          }
+        }
+      }
+    }
+    // Log de tokens: consola Rust + evento al frontend (sin afectar UI)
+    if tok_input > 0 || tok_output > 0 {
+      eprintln!("[AI tokens] modelo={} entrada={} salida={} total={}", model_id, tok_input, tok_output, tok_input + tok_output);
+      let _ = app.emit("ai:usage", AiUsageEvent {
+        request_id: req_id.clone(),
+        input_tokens: tok_input,
+        output_tokens: tok_output,
+        model: model_id.clone(),
+      });
+    }
+    accumulated
   } else {
-    // OpenAI API response format
-    body
-      .get("choices")
-      .and_then(|c| c.get(0))
-      .and_then(|c0| c0.get("message"))
-      .and_then(|m| m.get("content"))
-      .and_then(|v| v.as_str())
-      .unwrap_or("")
-      .to_string()
+    // ── Non-streaming (proxy) ───────────────────────────────────────────────────
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if is_claude {
+      body.get("content")
+        .and_then(|c| c.get(0))
+        .and_then(|c0| c0.get("text"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+    } else {
+      body.get("choices")
+        .and_then(|c| c.get(0))
+        .and_then(|c0| c0.get("message"))
+        .and_then(|m| m.get("content"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+    }
   };
 
   // (Heurísticas desactivadas por pedido: no se hará clasificación difusa de identidad)
@@ -827,7 +965,14 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
         else if let Some(ref key) = api_key { retry_req = retry_req.bearer_auth(key); }
       }
       
-      if let Ok(retry_resp) = retry_req.send().await {
+      let retry_send = tokio::select! {
+        r = retry_req.send() => r,
+        _ = cancel_rx.changed() => {
+          cancel_state.remove(&req_id);
+          return Err("cancelled".to_string());
+        }
+      };
+      if let Ok(retry_resp) = retry_send {
         if retry_resp.status().is_success() {
           if let Ok(v) = retry_resp.json::<serde_json::Value>().await {
             let text = if model_selection.is_claude() {
@@ -957,6 +1102,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
 
   // En modo ASK/CONSULTA nunca devolver comandos ejecutables
   code_output = None; // garantía consistente: no devolvemos comandos ejecutables
+  cancel_state.remove(&req_id);
 
   Ok(AiChatResponse {
     user_input,
@@ -1040,4 +1186,14 @@ fn force_load_single_env() {
   if debug {
     let _ = std::env::var("OPENAI_API_KEY");
   }
+}
+
+/// Cancela una petición ai_chat en curso por su request_id.
+#[tauri::command]
+pub async fn cancel_ai_chat(
+  cancel_state: tauri::State<'_, crate::state::AiCancelRegistry>,
+  request_id: String,
+) -> Result<(), String> {
+  cancel_state.cancel(&request_id);
+  Ok(())
 }

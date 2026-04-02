@@ -259,7 +259,8 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
       } 
     };
 
-    for (const raw of lines) {
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+      const raw = lines[lineIdx];
       const line = raw.replace(/\s+$/,'');
       if (/^\s*$/.test(line)) { flush(); continue; }
       
@@ -269,6 +270,43 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
         nodes.push(<hr key={`hr-${nodes.length}`} />);
         continue;
       }
+
+      // Markdown Tables — detect separator row like |---|---|
+      if (/^\s*\|[\s:]*-{2,}[\s:]*(\|[\s:]*-{2,}[\s:]*)*\|\s*$/.test(line)) {
+        flush();
+        // Previous line (header) might be in buf or already flushed
+        const headerLine = buf.length > 0 && /\|/.test(buf[buf.length - 1]) ? buf.pop()! : null;
+        flush(); // flush remaining buf
+        // Collect data rows
+        const dataRows: string[] = [];
+        while (lineIdx + 1 < lines.length && /^\s*\|.*\|\s*$/.test(lines[lineIdx + 1].trim())) {
+          lineIdx++;
+          dataRows.push(lines[lineIdx].trim());
+        }
+        // Parse cells
+        const parseCells = (row: string) => row.split('|').slice(1, -1).map(c => c.trim());
+        const headers = headerLine ? parseCells(headerLine) : [];
+        const tableKey = `tbl-${nodes.length}`;
+        nodes.push(
+          <div key={tableKey} className="md-table-wrap">
+            <table className="md-table">
+              {headers.length > 0 && (
+                <thead><tr>{headers.map((h, hi) => <th key={hi}>{parseInlineElements(h)}</th>)}</tr></thead>
+              )}
+              <tbody>
+                {dataRows.map((row, ri) => (
+                  <tr key={ri}>{parseCells(row).map((cell, ci) => <td key={ci}>{parseInlineElements(cell)}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
+
+      // Table data rows (part of a table that starts with |) — buffer if we haven't seen separator yet
+      // This handles cases where a | line appears outside a table context
+      // Just treat as regular text (falls through to buf.push)
 
       // Headings
       const h = line.match(/^(#{1,4})\s+(.*)$/);

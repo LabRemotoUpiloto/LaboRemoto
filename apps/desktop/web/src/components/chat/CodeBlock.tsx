@@ -1,6 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import hljs from 'highlight.js/lib/core';
+import bash from 'highlight.js/lib/languages/bash';
+import python from 'highlight.js/lib/languages/python';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import rust from 'highlight.js/lib/languages/rust';
+import yaml from 'highlight.js/lib/languages/yaml';
+import json from 'highlight.js/lib/languages/json';
 import './CodeBlock.css';
+
+hljs.registerLanguage('bash', bash);
+hljs.registerLanguage('sh', bash);
+hljs.registerLanguage('shell', bash);
+hljs.registerLanguage('python', python);
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('js', javascript);
+hljs.registerLanguage('typescript', typescript);
+hljs.registerLanguage('ts', typescript);
+hljs.registerLanguage('rust', rust);
+hljs.registerLanguage('yaml', yaml);
+hljs.registerLanguage('yml', yaml);
+hljs.registerLanguage('json', json);
 
 interface CodeBlockProps {
   code: string;
@@ -14,6 +35,19 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
   const [copied, setCopied] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  // Syntax highlighting
+  const highlighted = useMemo(() => {
+    if (!code) return null;
+    try {
+      if (language && hljs.getLanguage(language)) {
+        return hljs.highlight(code, { language }).value;
+      }
+      return hljs.highlightAuto(code, ['bash', 'python', 'javascript', 'typescript', 'rust', 'yaml', 'json']).value;
+    } catch {
+      return null;
+    }
+  }, [code, language]);
 
   const sanitizeForTerminal = (txt: string) => (txt || '')
     .split(/\r?\n/)
@@ -141,7 +175,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
           <span className="code-block-language">{language}</span>
         </div>
       )}
-      <pre className="code-block-content"><code>{code}</code></pre>
+      <pre className="code-block-content hljs"><code
+        {...(highlighted ? { dangerouslySetInnerHTML: { __html: highlighted } } : { children: code })}
+      /></pre>
     </div>
   );
 };
