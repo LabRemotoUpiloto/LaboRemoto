@@ -95,6 +95,7 @@ pub fn run() {
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::get_terminal_context,
       cmd::tools::agent_chat,
+      cmd::tools::plan_chat,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

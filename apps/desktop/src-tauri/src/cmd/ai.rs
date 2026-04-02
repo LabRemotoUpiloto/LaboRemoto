@@ -138,6 +138,8 @@ static PROMPTS: Lazy<PromptsConfig> = Lazy::new(|| load_prompts_or_default());
 pub enum ChatMode {
   #[default]
   Ask,
+  Agente,
+  Plan,
 }
 
 /// Estado de memoria del agente
@@ -201,6 +203,9 @@ pub struct AiChatRequest {
     pub history: Option<Vec<ChatHistoryItem>>,
     pub state: Option<AgentState>,
     pub model_selection: Option<ModelSelection>,
+    pub image_base64: Option<String>,
+    pub image_media_type: Option<String>,
+    pub terminal_context: Option<String>,
 }
 
 /// Respuesta del chat con IA
@@ -265,15 +270,34 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
   let proxy_url = cfg_proxy_url.or_else(|| env::var("AI_PROXY_URL").ok());
   let proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
 
-  fn get_system_prompt(_agent_mode: &ChatMode) -> String {
+  fn get_system_prompt(agent_mode: &ChatMode) -> String {
+    match agent_mode {
+      ChatMode::Plan => {
+        return r#"<instructions>
+<persona>
+Eres 'Kernel', un arquitecto de soluciones para servidores Linux y proyectos de software.
+</persona>
+<task>
+Genera SIEMPRE un plan estructurado, numerado y accionable para la tarea que describe el usuario.
+Formato obligatorio:
+1. Resumen en 1 línea de qué se va a lograr.
+2. Fases numeradas (máx 5), cada una con:
+   - Objetivo de la fase
+   - Pasos concretos (comandos, archivos, configs)
+   - Criterio de éxito
+3. Advertencias o dependencias importantes.
+Sé concreto con comandos reales. No des opciones alternativas, solo el camino óptimo.
+</task>
+</instructions>"#.to_string();
+      }
+      _ => {}
+    }
     let mut s = PROMPTS.sistema_base.clone();
     s = s.replace("{{IDENTIDAD}}", &PROMPTS.identidad.replace('"', "\\\""));
     s
   }
 
-  // Mover campos del request a variables locales para evitar clones innecesarios
-  // Desestructuramos pero ignoramos el modo recibido: todos los alias se tratan como Ask.
-  let AiChatRequest { user_input, mode: _incoming_mode, history, state, model_selection: req_model_selection } = req;
+  let AiChatRequest { user_input, mode: incoming_mode, history, state, model_selection: req_model_selection, image_base64, image_media_type, terminal_context } = req;
 
   // Usar modelo seleccionado por el usuario o fallback a variable de entorno
   let model_selection = req_model_selection.unwrap_or_default();
@@ -433,7 +457,7 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
     });
   }
 
-  let system_prompt = get_system_prompt(&ChatMode::Ask);
+  let system_prompt = get_system_prompt(&incoming_mode);
 
   // Construir historial de mensajes para OpenAI: system + historial completo del cliente + user actual
   let client = Client::builder().build().map_err(|e| e.to_string())?;
@@ -450,6 +474,15 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
     }
     if !hints.is_empty() {
       messages.push(serde_json::json!({"role":"system","content": format!("Contexto de sesión (NO imprimir): {}", hints.join(", "))}));
+    }
+  }
+  // Inyectar contexto de terminal si está disponible
+  if let Some(ref ctx) = terminal_context {
+    if !ctx.trim().is_empty() {
+      messages.push(serde_json::json!({
+        "role": "system",
+        "content": format!("Contexto actual de la terminal (NO imprimir, usar como referencia):\n```\n{}\n```", ctx)
+      }));
     }
   }
   if let Some(ref hist) = history {
@@ -480,7 +513,19 @@ pub async fn ai_chat(req: AiChatRequest) -> Result<AiChatResponse, String> {
       messages.push(serde_json::json!({"role": role, "content": item.content.clone()}));
     }
   }
-  messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
+  // Si hay imagen adjunta, construir mensaje multimodal (solo Claude soporta visión aquí)
+  if let Some(ref b64) = image_base64 {
+    let media = image_media_type.as_deref().unwrap_or("image/jpeg");
+    messages.push(serde_json::json!({
+      "role": "user",
+      "content": [
+        { "type": "image", "source": { "type": "base64", "media_type": media, "data": b64 } },
+        { "type": "text", "text": user_input.clone() }
+      ]
+    }));
+  } else {
+    messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
+  }
 
   // Build the request payload - format differs between OpenAI and Claude
   let (payload, base_url) = if model_selection.is_claude() {

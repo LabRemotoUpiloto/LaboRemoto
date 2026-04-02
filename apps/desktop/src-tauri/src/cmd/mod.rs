@@ -30,4 +30,4 @@ pub use logs::{save_session_log, list_session_logs, get_session_log_content, get
 pub use logs::save_session_log_fragment;
 pub use pdf_reports::{save_pdf_base64};
 pub use stream::{stream_start, stream_stop, stream_list_cameras};
-pub use tools::{get_terminal_context, agent_chat, AgentChatResponse};
+pub use tools::{get_terminal_context, agent_chat, AgentChatResponse, plan_chat, PlanChatRequest};

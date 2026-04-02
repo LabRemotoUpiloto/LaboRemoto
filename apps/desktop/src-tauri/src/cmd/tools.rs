@@ -60,13 +60,33 @@ pub fn get_terminal_context(session_id: String, lines: Option<usize>) -> Result<
 
 fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> ToolResult {
     match tool_name {
-        "ejecutar_comando"   => tool_ejecutar_comando(session_id, input),
-        "leer_archivo"       => tool_leer_archivo(session_id, input),
-        "escribir_archivo"   => tool_escribir_archivo(session_id, input),
-        "listar_directorio"  => tool_listar_directorio(session_id, input),
-        "info_sistema"       => tool_info_sistema(session_id),
-        "reiniciar_servicio" => tool_reiniciar_servicio(session_id, input),
+        "ejecutar_comando"     => tool_ejecutar_comando(session_id, input),
+        "leer_archivo"         => tool_leer_archivo(session_id, input),
+        "escribir_archivo"     => tool_escribir_archivo(session_id, input),
+        "listar_directorio"    => tool_listar_directorio(session_id, input),
+        "info_sistema"         => tool_info_sistema(session_id),
+        "reiniciar_servicio"   => tool_reiniciar_servicio(session_id, input),
+        "get_terminal_output"  => tool_get_terminal_output(session_id, input),
         other => ToolResult { tool: other.to_string(), output: format!("Tool desconocida: {other}"), ok: false },
+    }
+}
+
+// ── get_terminal_output ───────────────────────────────────────────────────────
+fn tool_get_terminal_output(session_id: &str, input: &serde_json::Value) -> ToolResult {
+    let lines = input.get("lines").and_then(|v| v.as_u64()).unwrap_or(60) as usize;
+    let lines = lines.min(300);
+    match get_terminal_context(session_id.to_string(), Some(lines)) {
+        Ok(ctx) if !ctx.trim().is_empty() => ToolResult {
+            tool: "get_terminal_output".into(),
+            output: ctx,
+            ok: true,
+        },
+        Ok(_) => ToolResult {
+            tool: "get_terminal_output".into(),
+            output: "El buffer de la terminal está vacío (no se ha ejecutado ningún comando aún).".into(),
+            ok: true,
+        },
+        Err(e) => ToolResult { tool: "get_terminal_output".into(), output: e, ok: false },
     }
 }
 
@@ -279,6 +299,17 @@ fn tool_definitions() -> serde_json::Value {
                 },
                 "required": ["servicio"]
             }
+        },
+        {
+            "name": "get_terminal_output",
+            "description": "Lee las últimas N líneas del buffer de la terminal interactiva del usuario. Úsalo cuando el usuario mencione un error, un comando que falló, o pida analizar lo que pasó en la terminal. NO lo uses si la pregunta es teórica o no está relacionada con la terminal activa.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "lines": { "type": "integer", "description": "Número de líneas a leer (default 60, máx 300)", "default": 60 }
+                },
+                "required": []
+            }
         }
     ])
 }
@@ -299,16 +330,9 @@ pub struct AgentChatRequest {
 pub async fn agent_chat(req: AgentChatRequest) -> Result<AgentChatResponse, String> {
     let api_key = get_claude_api_key().ok_or("No hay Claude API key configurada")?;
 
-    // Contexto del terminal (últimas N líneas)
-    let terminal_ctx = if req.include_terminal_context.unwrap_or(true) {
-        let n = req.terminal_lines.unwrap_or(80);
-        match get_terminal_context(req.session_id.clone(), Some(n)) {
-            Ok(ctx) if !ctx.trim().is_empty() => Some(ctx),
-            _ => None,
-        }
-    } else { None };
-
-    let system_prompt = build_system_prompt(terminal_ctx.as_deref());
+    // El contexto de terminal ya NO se inyecta en el system prompt.
+    // Claude lo pedirá llamando a la tool `get_terminal_output` solo cuando lo necesite.
+    let system_prompt = build_system_prompt(None);
 
     // Mensajes iniciales
     let mut messages: Vec<serde_json::Value> = vec![
@@ -407,6 +431,201 @@ pub async fn agent_chat(req: AgentChatRequest) -> Result<AgentChatResponse, Stri
 
     if final_answer.is_empty() {
         final_answer = "No se obtuvo respuesta del agente.".to_string();
+    }
+
+    Ok(AgentChatResponse { answer: final_answer, steps })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tauri command: plan_chat — loop Claude tool_use (read-only tools)
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn plan_tool_definitions() -> serde_json::Value {
+    serde_json::json!([
+        {
+            "name": "info_sistema",
+            "description": "Obtiene información del sistema: OS, CPU, RAM, disco y uptime. Úsalo para conocer el entorno antes de planificar.",
+            "input_schema": { "type": "object", "properties": {}, "required": [] }
+        },
+        {
+            "name": "listar_directorio",
+            "description": "Lista el contenido de un directorio en el servidor. Úsalo para entender la estructura existente del proyecto.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "ruta": { "type": "string", "description": "Ruta del directorio (default: ~)" }
+                },
+                "required": []
+            }
+        },
+        {
+            "name": "leer_archivo",
+            "description": "Lee el contenido de un archivo (configuraciones, código, etc.). Úsalo para adaptar el plan al estado actual real.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "ruta": { "type": "string", "description": "Ruta absoluta del archivo" }
+                },
+                "required": ["ruta"]
+            }
+        },
+        {
+            "name": "get_terminal_output",
+            "description": "Lee las últimas N líneas del buffer de la terminal del usuario. Úsalo para entender qué comandos corrió antes de pedir el plan.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "lines": { "type": "integer", "description": "Número de líneas a leer (default 40, máx 150)", "default": 40 }
+                },
+                "required": []
+            }
+        }
+    ])
+}
+
+fn plan_exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> ToolResult {
+    match tool_name {
+        "info_sistema"        => tool_info_sistema(session_id),
+        "listar_directorio"   => tool_listar_directorio(session_id, input),
+        "leer_archivo"        => tool_leer_archivo(session_id, input),
+        "get_terminal_output" => tool_get_terminal_output(session_id, input),
+        other => ToolResult { tool: other.to_string(), output: format!("Tool no disponible en modo Plan: {other}"), ok: false },
+    }
+}
+
+fn build_plan_system_prompt() -> String {
+    String::from(
+        "Eres 'Kernel', un arquitecto de soluciones para servidores Linux y proyectos de software.\n\
+        \n\
+        FLUJO OBLIGATORIO:\n\
+        1. Antes de generar el plan, usa las herramientas disponibles para inspeccionar el servidor \
+           (info_sistema, listar_directorio, leer_archivo, get_terminal_output) y conocer el estado real.\n\
+        2. Basa el plan ÚNICAMENTE en lo que encontraste — sin asumir qué hay instalado.\n\
+        3. Genera el plan final con este formato:\n\
+        \n\
+        **Objetivo:** [qué se va a lograr en 1 línea]\n\
+        \n\
+        **Fase 1 — [nombre]**\n\
+        - Pasos concretos con comandos reales y ejecutables directamente en la terminal\n\
+        - Criterio de éxito\n\
+        \n\
+        **Fase 2 — [nombre]** ... (máx 5 fases)\n\
+        \n\
+        **⚠ Advertencias:** dependencias, riesgos o prerequisitos encontrados.\n\
+        \n\
+        REGLAS DE COMANDOS:\n\
+        - PROHIBIDO usar editores interactivos (nano, vim, vi, emacs). USA SIEMPRE here-document:\n\
+          cat > /ruta/archivo.ext <<'EOF'\n\
+          (contenido del archivo)\n\
+          EOF\n\
+        - Todos los comandos deben poder pegarse y ejecutarse directamente sin intervención manual.\n\
+        - Para scripts bash/python multi-línea, usar obligatoriamente el patrón here-doc.\n\
+        \n\
+        Responde siempre en español. No des opciones alternativas, solo el camino óptimo."
+    )
+}
+
+#[derive(Deserialize)]
+pub struct PlanChatRequest {
+    pub session_id: String,
+    pub message: String,
+}
+
+#[tauri::command]
+pub async fn plan_chat(req: PlanChatRequest) -> Result<AgentChatResponse, String> {
+    let api_key = get_claude_api_key().ok_or("No hay Claude API key configurada")?;
+    let system_prompt = build_plan_system_prompt();
+
+    let mut messages: Vec<serde_json::Value> = vec![
+        serde_json::json!({ "role": "user", "content": req.message })
+    ];
+
+    let client = reqwest::Client::new();
+    let mut steps: Vec<AgentStep> = vec![];
+    let mut final_answer = String::new();
+
+    for _round in 0..6 {
+        let body = serde_json::json!({
+            "model": "claude-sonnet-4-5",
+            "max_tokens": 4096,
+            "system": system_prompt,
+            "tools": plan_tool_definitions(),
+            "messages": messages
+        });
+
+        let resp = client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP: {e}"))?;
+
+        let resp_json: serde_json::Value = resp.json().await.map_err(|e| format!("JSON: {e}"))?;
+
+        let stop_reason = resp_json["stop_reason"].as_str().unwrap_or("end_turn");
+        let content_blocks = resp_json["content"].as_array().cloned().unwrap_or_default();
+
+        messages.push(serde_json::json!({ "role": "assistant", "content": content_blocks }));
+
+        if stop_reason == "end_turn" {
+            for block in &content_blocks {
+                if block["type"].as_str() == Some("text") {
+                    if let Some(t) = block["text"].as_str() {
+                        final_answer.push_str(t);
+                    }
+                }
+            }
+            break;
+        }
+
+        if stop_reason == "tool_use" {
+            let mut tool_results: Vec<serde_json::Value> = vec![];
+
+            for block in &content_blocks {
+                if block["type"].as_str() != Some("tool_use") { continue; }
+                let tool_name = block["name"].as_str().unwrap_or("").to_string();
+                let tool_id   = block["id"].as_str().unwrap_or("").to_string();
+                let input     = block["input"].clone();
+
+                steps.push(AgentStep {
+                    kind: "tool_call".into(),
+                    name: Some(tool_name.clone()),
+                    input: Some(input.to_string()),
+                    output: None,
+                });
+
+                let sid = req.session_id.clone();
+                let tn  = tool_name.clone();
+                let inp = input.clone();
+                let result = tokio::task::spawn_blocking(move || plan_exec_tool(&sid, &tn, &inp))
+                    .await
+                    .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false });
+
+                steps.push(AgentStep {
+                    kind: "tool_result".into(),
+                    name: Some(tool_name.clone()),
+                    input: None,
+                    output: Some(result.output.clone()),
+                });
+
+                tool_results.push(serde_json::json!({
+                    "type": "tool_result",
+                    "tool_use_id": tool_id,
+                    "content": result.output
+                }));
+            }
+
+            messages.push(serde_json::json!({ "role": "user", "content": tool_results }));
+        } else {
+            break;
+        }
+    }
+
+    if final_answer.is_empty() {
+        final_answer = "No se pudo generar el plan.".to_string();
     }
 
     Ok(AgentChatResponse { answer: final_answer, steps })

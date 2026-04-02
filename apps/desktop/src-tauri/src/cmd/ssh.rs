@@ -108,6 +108,8 @@ pub async fn ssh_connect(
                 if q.len() >= 300 { q.pop_front(); }
                 q.push_back(s.clone());
               }
+              // Notificar al frontend que hay nuevo output disponible para análisis
+              let _ = app2.emit("terminal:activity", serde_json::json!({ "session_id": id_spawn }));
               if ready.load(Ordering::SeqCst) {
                 let _ = app2.emit(&format!("ssh_out_{}", id_spawn), Some(s));
               } else {

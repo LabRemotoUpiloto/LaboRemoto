@@ -2,16 +2,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './ChatPane.css';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 import { invokeAgentPlan, AgentPlanResponse, ToolActionResult } from '../api/agent';
 // Modo modularizado
 import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext, ModelSelection, AVAILABLE_MODELS } from './chatModes/types';
 // Handlers ahora como clases (instancias)
 import { AskModeHandler } from './chatModes/classes/AskModeHandler';
-import { BusquedaModeHandler } from './chatModes/classes/BusquedaModeHandler';
-import { PinesModeHandler } from './chatModes/classes/PinesModeHandler';
-import { AnalisisModeHandler } from './chatModes/classes/AnalisisModeHandler';
 import { AgenteModeHandler } from './chatModes/classes/AgenteModeHandler';
+import { PlanModeHandler } from './chatModes/classes/PlanModeHandler';
 // Componentes extraídos
 import AskRenderer from './chat/AskRenderer';
 import AgentStepsRenderer from './chat/AgentStepsRenderer';
@@ -36,15 +35,10 @@ const ModeIcons: Record<string, React.ReactNode> = {
       <line x1="12" y1="19" x2="20" y2="19"/>
     </svg>
   ),
-  busqueda: (
+  plan: (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8"/>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
-  ),
-  analisis: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+      <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
     </svg>
   ),
 };
@@ -117,10 +111,9 @@ const ModelSelect: React.FC<{ value: ModelSelection; onChange: (m: ModelSelectio
 
 // ── Dropdown custom (evita el fondo blanco del OS nativo en Windows) ──
 const MODES: { value: ChatMode; label: string; color: string }[] = [
-  { value: 'ask',      label: 'Consulta',  color: '#4ade80' },
-  { value: 'agente',   label: 'Agente',    color: '#60a5fa' },
-  { value: 'busqueda', label: 'Búsqueda',  color: '#2563eb' },
-  { value: 'analisis', label: 'Análisis',  color: '#8b5cf6' },
+  { value: 'ask',    label: 'Consulta', color: '#4ade80' },
+  { value: 'agente', label: 'Agente',   color: '#60a5fa' },
+  { value: 'plan',   label: 'Plan',     color: '#f59e0b' },
 ];
 
 const ModeSelect: React.FC<{ value: ChatMode; onChange: (m: ChatMode) => void }> = ({ value, onChange }) => {
@@ -223,8 +216,24 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     lastFile: undefined,
   });
   const [isSending, setIsSending] = useState(false);
+  const isSendingRef = useRef(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; mediaType: string; preview: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [terminalActivity, setTerminalActivity] = useState(false);
+  const terminalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Escuchar eventos de actividad de terminal — debounce 1.5s (solo indicador visual)
+  useEffect(() => {
+    if (!sessionId) return;
+    const unlisten = listen<{ session_id: string }>('terminal:activity', (ev) => {
+      if (ev.payload.session_id !== sessionId) return;
+      if (terminalDebounceRef.current) clearTimeout(terminalDebounceRef.current);
+      terminalDebounceRef.current = setTimeout(() => setTerminalActivity(true), 1500);
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, [sessionId]);
 
   // Nueva memoria sincronizada con Rust (fuente de verdad) + cache UI
   const { mem, setLastCommand, clear } = useSessionMemory(sessionId ?? null);
@@ -290,8 +299,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const next = e.target.value as ChatMode;
     setMode(next);
-    if (next !== 'pines') {
-      // No limpiar los mensajes al entrar en pines; sirve de visor.
+    {
       setMessages([]);
       clear();
     }
@@ -309,7 +317,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
   // Handler de envío (usa handlers modularizados)
   const handleSend = async () => {
-    if (isSending) return;
+    if (isSending || isSendingRef.current) return;
     const trimmed = input.trim();
     if (!trimmed) return;
     const handler = modeHandlers[mode];
@@ -319,8 +327,9 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       setInput('');
       return;
     }
+    isSendingRef.current = true;
     const finalInput = trimmed;
-    const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed };
+    const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed, meta: attachedImage ? { imagePreview: attachedImage.preview } as any : undefined };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     try {
@@ -329,14 +338,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     } catch (e: any) {
       setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
     } finally {
+      isSendingRef.current = false;
       setIsSending(false);
       setToast('✓ Respuesta lista');
       setTimeout(() => setToast(null), 2500);
     }
   };
 
-  // Derivar lista de mensajes a mostrar según modo (pines filtra)
-  const displayedMessages = mode === 'pines' ? messages.filter(m => pinnedIds.has(m.id)) : messages;
+  const displayedMessages = messages;
 
   const togglePin = (id: string) => {
     setPinnedIds(prev => {
@@ -379,39 +388,32 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   // Mode handlers registry
   const modeHandlers: Record<ChatMode, any> = {
     ask: new AskModeHandler(),
-    busqueda: new BusquedaModeHandler(),
-    pines: new PinesModeHandler(),
-    analisis: new AnalisisModeHandler(),
     agente: new AgenteModeHandler(),
+    plan: new PlanModeHandler(),
   };
 
   const modeHelp = Object.fromEntries(Object.entries(modeHandlers).map(([k,v]) => [k, v.help])) as Record<ChatMode,string>;
 
-  // Funciones invocadas por handlers
-  const invokeBusqueda = async ({ finalInput, userMsg }: { finalInput: string; userMsg: Message }) => {
-    const res: AgentPlanResponse = await invokeAgentPlan({ userMessage: finalInput, sessionId });
-    const aiMsg: Message = {
-      id: String(Date.now() + 1),
-      sender: 'ai',
-      text: res.ai_response || '',
-      meta: { toolAction: res.tool_action as any }
-    };
-    setMessages(prev => [...prev, aiMsg]);
-  };
+  // ── Funciones invocadas por handlers ──
 
   const invokeAsk = async ({ finalInput, mode, userMsg }: { finalInput: string; mode: ChatMode; userMsg: Message }) => {
     const history = [...messages, userMsg]
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: m.text }));
-    // Enviamos siempre 'ask' al backend para mantener sincronización canónica
-    const mappedMode = 'ask';
+    const mappedMode = mode;
+    const imgSnap = attachedImage;
+    setAttachedImage(null);
+    setTerminalActivity(false);
     const res = await invoke<AiResponseRaw>('ai_chat', { 
       req: { 
         user_input: finalInput, 
         mode: mappedMode, 
         history, 
         state: agentState,
-        model_selection: selectedModel
+        model_selection: selectedModel,
+        image_base64: imgSnap?.base64 ?? null,
+        image_media_type: imgSnap?.mediaType ?? null,
+        terminal_context: null,
       } 
     });
     
@@ -450,7 +452,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     setIsSending,
     cleanText,
     invokeAsk,
-    invokeBusqueda
   });
 
   const handleAnalyzeCandidate = async (base: string, candidate: string, action: string = 'analyze', index?: number) => {
@@ -462,7 +463,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                       action === 'optimize' ? `mejora ${candidate}` : `analizame ${candidate}`;
       const userMsg: Message = { id: String(Date.now()), sender: 'user', text: command };
       setMessages(prev => [...prev, userMsg]);
-      const handler = modeHandlers['analisis'];
+      const handler = modeHandlers['ask'];
       await handler.send(command, userMsg, buildModeContext());
     } catch (e) {
       const actionText = action === 'optimize' ? 'optimizando' : 'analizando';
@@ -506,7 +507,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       </div>
 
       <div className="chat-toolbar">
-        <ModeSelect value={mode} onChange={(m) => { setMode(m); if (m !== 'pines') { setMessages([]); clear(); } }} />
+        <ModeSelect value={mode} onChange={(m) => { setMode(m); setMessages([]); clear(); }} />
         <ModelSelect value={selectedModel} onChange={setSelectedModel} />
       </div>
     </div>
@@ -610,7 +611,18 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                         </div>
                       )}
                     </>
-                  ) : msg.text}
+                  ) : (
+                    <>
+                      {msg.meta?.imagePreview && (
+                        <img
+                          src={msg.meta.imagePreview}
+                          alt="adjunto"
+                          style={{ display: 'block', maxHeight: 160, maxWidth: '100%', borderRadius: 6, marginBottom: msg.text ? 6 : 0, objectFit: 'contain' }}
+                        />
+                      )}
+                      {msg.text}
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -646,8 +658,79 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         )}
       </div>
 
+      {/* Indicador pasivo de actividad en terminal — desaparece al enviar */}
+      {terminalActivity && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '3px 12px',
+          borderTop: '1px solid rgba(96,165,250,0.10)',
+          fontSize: 10.5,
+        }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#60a5fa', flexShrink: 0, animation: 'pulse 2s infinite' }} />
+          <span style={{ color: 'rgba(255,255,255,0.3)', flex: 1 }}>Terminal activa · el Agente puede leer el output si lo necesita</span>
+          <button onClick={() => setTerminalActivity(false)}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 12, padding: 0 }}
+          >×</button>
+        </div>
+      )}
       <div className="chat-input">
-        <div className="chat-input-wrap">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const mediaType = file.type || 'image/jpeg';
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              const dataUrl = ev.target?.result as string;
+              const base64 = dataUrl.split(',')[1];
+              setAttachedImage({ base64, mediaType, preview: dataUrl });
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+          }}
+        />
+        <div className="chat-input-wrap" style={attachedImage ? { flexDirection: 'column', alignItems: 'stretch', gap: 0 } : undefined}>
+          {/* Chip de imagen adjunta — integrado dentro del input box */}
+          {attachedImage && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 10px 4px',
+            }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <img
+                  src={attachedImage.preview}
+                  alt="adjunto"
+                  style={{
+                    width: 48, height: 48, borderRadius: 6,
+                    objectFit: 'cover',
+                    border: '1px solid rgba(255,255,255,0.10)',
+                    display: 'block',
+                  }}
+                />
+                <button
+                  onClick={() => setAttachedImage(null)}
+                  style={{
+                    position: 'absolute', top: -5, right: -5,
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: 'rgba(30,33,48,0.95)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.7)',
+                    fontSize: 9, lineHeight: 1, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 0,
+                  }}
+                >✕</button>
+              </div>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
+                imagen lista para enviar
+              </span>
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, flex: 1 }}>
           <textarea
             ref={inputRef}
             value={input}
@@ -661,7 +744,34 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
             }}
             onCompositionStart={() => { isComposingRef.current = true; }}
             onCompositionEnd={() => { isComposingRef.current = false; }}
+            onPaste={(e) => {
+              const items = Array.from(e.clipboardData?.items ?? [] as any) as DataTransferItem[];
+              const imgItem = items.find(it => it.type.startsWith('image/'));
+              if (!imgItem) return;
+              e.preventDefault();
+              const file = imgItem.getAsFile();
+              if (!file) return;
+              const mediaType = file.type || 'image/png';
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                const dataUrl = ev.target?.result as string;
+                const base64 = dataUrl.split(',')[1];
+                setAttachedImage({ base64, mediaType, preview: dataUrl });
+              };
+              reader.readAsDataURL(file);
+            }}
           />
+          <button
+            className="chat-tb-btn"
+            onClick={() => fileInputRef.current?.click()}
+            title="Adjuntar imagen"
+            style={{ opacity: attachedImage ? 1 : 0.5, color: attachedImage ? 'var(--accent-primary)' : undefined }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </button>
           <button
             className="send-btn send-icon"
             onClick={handleSend}
@@ -672,6 +782,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
               <polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>
           </button>
+          </div>
         </div>
       </div>
     </div>
