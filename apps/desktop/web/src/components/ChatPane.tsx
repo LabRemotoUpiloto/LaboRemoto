@@ -217,6 +217,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   });
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = useRef(false);
+  const [errorBanner, setErrorBanner] = useState<{ snippet: string } | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [attachedImage, setAttachedImage] = useState<{ base64: string; mediaType: string; preview: string } | null>(null);
@@ -224,13 +225,42 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const [terminalActivity, setTerminalActivity] = useState(false);
   const terminalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Escuchar eventos de actividad de terminal — debounce 1.5s (solo indicador visual)
+  const ERROR_PATTERNS = [
+    /bash:.*command not found/i,
+    /Failed to (start|restart|stop|reload)/i,
+    /Job for .* failed/i,
+    /Permission denied/i,
+    /No such file or directory/i,
+    /fatal:/i,
+    /Traceback \(most recent call last\)/i,
+    /npm ERR!/i,
+    /pip.*[Ee]rror/i,
+    /syntax error/i,
+    /cannot (access|connect|open|find)/i,
+    /\[error\]/i,
+    /Error:/,
+  ];
+
+  // Escuchar eventos de actividad de terminal — debounce 1.5s + detección de errores
   useEffect(() => {
     if (!sessionId) return;
     const unlisten = listen<{ session_id: string }>('terminal:activity', (ev) => {
       if (ev.payload.session_id !== sessionId) return;
       if (terminalDebounceRef.current) clearTimeout(terminalDebounceRef.current);
-      terminalDebounceRef.current = setTimeout(() => setTerminalActivity(true), 1500);
+      terminalDebounceRef.current = setTimeout(async () => {
+        setTerminalActivity(true);
+        try {
+          const ctx = await invoke<string>('get_terminal_context', { sessionId, lines: 20 });
+          const lines = ctx.split('\n');
+          for (const line of lines.slice(-20)) {
+            const clean = line.replace(/\x1b\[[\d;]*[mGKHF]/g, '').trim();
+            if (ERROR_PATTERNS.some(p => p.test(clean))) {
+              setErrorBanner({ snippet: clean.slice(0, 100) });
+              break;
+            }
+          }
+        } catch { /* sin sesión activa */ }
+      }, 1500);
     });
     return () => { unlisten.then(fn => fn()); };
   }, [sessionId]);
@@ -328,6 +358,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       return;
     }
     isSendingRef.current = true;
+    setErrorBanner(null);
     const finalInput = trimmed;
     const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed, meta: attachedImage ? { imagePreview: attachedImage.preview } as any : undefined };
     setMessages(prev => [...prev, userMsg]);
@@ -658,8 +689,45 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         )}
       </div>
 
-      {/* Indicador pasivo de actividad en terminal — desaparece al enviar */}
-      {terminalActivity && (
+      {/* Banner de error detectado en terminal */}
+      {errorBanner && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '5px 12px',
+          background: 'rgba(248,113,113,0.07)',
+          borderTop: '1px solid rgba(248,113,113,0.2)',
+          fontSize: 11,
+        }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span style={{ color: '#f87171', fontWeight: 500, flexShrink: 0 }}>Error detectado</span>
+          <span style={{ color: 'rgba(255,255,255,0.35)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: 10.5 }}>
+            {errorBanner.snippet}
+          </span>
+          <button
+            onClick={() => {
+              setMode('agente');
+              setErrorBanner(null);
+              setTerminalActivity(false);
+              setInput('hay un error en la terminal, revísalo y corrígelo');
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+            style={{
+              background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)',
+              color: '#f87171', borderRadius: 4, padding: '2px 10px', fontSize: 11,
+              cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+            }}
+          >→ Analizar</button>
+          <button onClick={() => setErrorBanner(null)}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 14, padding: 0, flexShrink: 0 }}
+          >×</button>
+        </div>
+      )}
+
+      {/* Indicador pasivo de actividad en terminal — oculto si hay banner de error */}
+      {terminalActivity && !errorBanner && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '3px 12px',
