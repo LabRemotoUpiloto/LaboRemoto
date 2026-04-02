@@ -365,14 +365,21 @@ pub async fn agent_chat(req: AgentChatRequest) -> Result<AgentChatResponse, Stri
 
         let resp_json: serde_json::Value = resp.json().await.map_err(|e| format!("JSON: {e}"))?;
 
+        // Detectar respuesta de error de la API antes de procesar
+        if resp_json["type"].as_str() == Some("error") {
+            let err_type = resp_json["error"]["type"].as_str().unwrap_or("unknown");
+            let err_msg  = resp_json["error"]["message"].as_str().unwrap_or("Error desconocido de la API");
+            return Err(format!("API Claude ({err_type}): {err_msg}"));
+        }
+
         let stop_reason = resp_json["stop_reason"].as_str().unwrap_or("end_turn");
         let content_blocks = resp_json["content"].as_array().cloned().unwrap_or_default();
 
         // Agregar respuesta del asistente al historial
         messages.push(serde_json::json!({ "role": "assistant", "content": content_blocks }));
 
-        if stop_reason == "end_turn" {
-            // Extraer texto final
+        if stop_reason == "end_turn" || stop_reason == "max_tokens" {
+            // Extraer texto final (incluye respuestas cortadas por max_tokens)
             for block in &content_blocks {
                 if block["type"].as_str() == Some("text") {
                     if let Some(t) = block["text"].as_str() {
@@ -565,12 +572,19 @@ pub async fn plan_chat(req: PlanChatRequest) -> Result<AgentChatResponse, String
 
         let resp_json: serde_json::Value = resp.json().await.map_err(|e| format!("JSON: {e}"))?;
 
+        // Detectar respuesta de error de la API antes de procesar
+        if resp_json["type"].as_str() == Some("error") {
+            let err_type = resp_json["error"]["type"].as_str().unwrap_or("unknown");
+            let err_msg  = resp_json["error"]["message"].as_str().unwrap_or("Error desconocido de la API");
+            return Err(format!("API Claude ({err_type}): {err_msg}"));
+        }
+
         let stop_reason = resp_json["stop_reason"].as_str().unwrap_or("end_turn");
         let content_blocks = resp_json["content"].as_array().cloned().unwrap_or_default();
 
         messages.push(serde_json::json!({ "role": "assistant", "content": content_blocks }));
 
-        if stop_reason == "end_turn" {
+        if stop_reason == "end_turn" || stop_reason == "max_tokens" {
             for block in &content_blocks {
                 if block["type"].as_str() == Some("text") {
                     if let Some(t) = block["text"].as_str() {
