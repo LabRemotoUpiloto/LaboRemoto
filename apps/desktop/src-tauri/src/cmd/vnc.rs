@@ -375,47 +375,98 @@ Plugin {{\n\
 PANEL_EOF\n\
              \n\
              mkdir -p {home_dir}/.config/pcmanfm/{panel_profile} && \
-             if [ -d {home_dir}/.config/pcmanfm/LXDE-pi ]; then \
-                cp -r {home_dir}/.config/pcmanfm/LXDE-pi/. {home_dir}/.config/pcmanfm/{panel_profile}/; \
-             elif [ -d /etc/xdg/pcmanfm/LXDE-pi ]; then \
-                cp -r /etc/xdg/pcmanfm/LXDE-pi/. {home_dir}/.config/pcmanfm/{panel_profile}/; \
-             fi; \
+             for SRC_PROFILE in LXDE-pi LXDE default; do \
+                if [ -d {home_dir}/.config/pcmanfm/$SRC_PROFILE ]; then \
+                   cp -r {home_dir}/.config/pcmanfm/$SRC_PROFILE/. {home_dir}/.config/pcmanfm/{panel_profile}/; break; \
+                elif [ -d /etc/xdg/pcmanfm/$SRC_PROFILE ]; then \
+                   cp -r /etc/xdg/pcmanfm/$SRC_PROFILE/. {home_dir}/.config/pcmanfm/{panel_profile}/; break; \
+                fi; \
+             done; \
              true"
         ),
     )?;
 
-    // Fondo de escritorio: generar PNG 1×1 px con color #2c3e50 via Python3.
-    // Usamos bytes([N,N,N]) en vez de \x.. para evitar problemas de escaping.
-    // Heredoc SIN comillas (PYEOF) para que {display} sea sustituido por Rust format!.
-    run_remote(
+    // Fondo de escritorio: detectar el wallpaper real del dispositivo.
+    // Cubre: pcmanfm/LXDE, GNOME (gsettings/dconf), XFCE (xfconf-query),
+    // y rutas comunes de Ubuntu/Jetson como último recurso.
+    let (_, wallpaper_detect_out) = run_remote(
         sess,
         &format!(
-            "python3 << PYEOF\n\
-import struct, zlib\n\
-MAGIC = bytes([137, 80, 78, 71, 13, 10, 26, 10])\n\
-def chunk(t, d):\n\
-    c = t + d\n\
-    return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)\n\
-ihdr = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)\n\
-idat = zlib.compress(bytes([0, 44, 62, 80]))\n\
-png = MAGIC + chunk(b'IHDR', ihdr) + chunk(b'IDAT', idat) + chunk(b'IEND', b'')\n\
-open('/tmp/bg-{display}.png', 'wb').write(png)\n\
-PYEOF\n\
-[ -f /tmp/bg-{display}.png ] || convert -size 1x1 xc:'#2c3e50' /tmp/bg-{display}.png 2>/dev/null || true"
+            "REAL_WP='';\
+             \
+             for F in \
+               {home_dir}/.config/pcmanfm/LXDE-pi/desktop-items-0.conf \
+               {home_dir}/.config/pcmanfm/LXDE-pi/pcmanfm.conf \
+               {home_dir}/.config/pcmanfm/LXDE/desktop-items-0.conf \
+               {home_dir}/.config/pcmanfm/LXDE/pcmanfm.conf \
+               /etc/xdg/pcmanfm/LXDE-pi/desktop-items-0.conf \
+               /etc/xdg/pcmanfm/LXDE/desktop-items-0.conf; do \
+               [ -f \"$F\" ] || continue; \
+               V=$(grep -m1 '^wallpaper=' \"$F\" 2>/dev/null | cut -d= -f2- | tr -d '\\r\\n'); \
+               [ -n \"$V\" ] && [ -f \"$V\" ] && REAL_WP=\"$V\" && break; \
+             done; \
+             \
+             if [ -z \"$REAL_WP\" ]; then \
+               V=$(dconf read /org/gnome/desktop/background/picture-uri 2>/dev/null | tr -d \"'\\\"\" | sed 's|file://||' | tr -d '\\r\\n'); \
+               [ -n \"$V\" ] && [ -f \"$V\" ] && REAL_WP=\"$V\"; \
+             fi; \
+             \
+             if [ -z \"$REAL_WP\" ]; then \
+               V=$(gsettings get org.gnome.desktop.background picture-uri 2>/dev/null | tr -d \"'\\\"\" | sed 's|file://||' | tr -d '\\r\\n'); \
+               [ -n \"$V\" ] && [ -f \"$V\" ] && REAL_WP=\"$V\"; \
+             fi; \
+             \
+             if [ -z \"$REAL_WP\" ]; then \
+               for MON in eDP-1 HDMI-1 VGA-1 screen0/monitor0; do \
+                 V=$(xfconf-query -c xfce4-desktop -p /backdrop/$MON/workspace0/last-image 2>/dev/null | tr -d '\\r\\n' || true); \
+                 [ -n \"$V\" ] && [ -f \"$V\" ] && REAL_WP=\"$V\" && break; \
+               done; \
+             fi; \
+             \
+             if [ -z \"$REAL_WP\" ]; then \
+               for TRYPATH in \
+                 $(ls /usr/share/backgrounds/*.jpg /usr/share/backgrounds/*.png /usr/share/backgrounds/NVIDIA/*.jpg /usr/share/backgrounds/NVIDIA/*.png 2>/dev/null | head -1) \
+                 $(ls {home_dir}/Pictures/*.jpg {home_dir}/Pictures/*.png 2>/dev/null | head -1); do \
+                 [ -f \"$TRYPATH\" ] && REAL_WP=\"$TRYPATH\" && break; \
+               done; \
+             fi; \
+             \
+             echo \"$REAL_WP\""
         ),
-    )?;
+    ).unwrap_or((0, String::new()));
+    let real_wallpaper = wallpaper_detect_out.trim().to_string();
 
-    // Fondo de escritorio: configurar pcmanfm con wallpaper_mode=4 (TILE).
-    // TILE de imagen 1×1 px = color sólido, funciona en TODAS las versiones de pcmanfm.
-    // Escribimos a AMBOS archivos: pcmanfm.conf (Ubuntu/Jetson) + desktop-preferences.conf (Raspberry Pi).
+    // Decidir qué wallpaper usar: el real del dispositivo o el color sólido de fallback.
+    // wallpaper_mode: legacy numérico (PCManFM <1.2) / string moderno (PCManFM 1.2+)
+    //   1/stretch  = escala la imagen al tamaño del escritorio
+    //   4/color    = color sólido (usa desktop_bg, ignora wallpaper=)
+    let (wallpaper_path, wallpaper_mode_legacy, wallpaper_mode_modern) =
+        if !real_wallpaper.is_empty() {
+            (real_wallpaper.clone(), "1".to_string(), "stretch".to_string())
+        } else {
+            (String::new(), "0".to_string(), "color".to_string())
+        };
+
+    // Escribir configuración de pcmanfm.
+    // Siempre se incluye desktop_bg=#2c3e50 como red de seguridad (si no hay imagen, o
+    // la imagen no carga, pcmanfm usa este color en lugar de negro).
+    let wp_line = if wallpaper_path.is_empty() {
+        String::new()
+    } else {
+        format!("wallpaper={wallpaper_path}\n")
+    };
     run_remote(
         sess,
         &format!(
             "mkdir -p {home_dir}/.config/pcmanfm/{panel_profile} && \
-             printf '[desktop]\\nwallpaper=/tmp/bg-{display}.png\\nwallpaper_mode=4\\nwallpaper_common=0\\ndesktop_bg=\\#2c3e50\\ndesktop_fg=\\#ffffff\\ndesktop_shadow=\\#000000\\nshow_trash=1\\nshow_mounts=1\\n' \
-             | tee {home_dir}/.config/pcmanfm/{panel_profile}/pcmanfm.conf \
-                   {home_dir}/.config/pcmanfm/{panel_profile}/desktop-preferences.conf \
-             > /dev/null; true"
+             printf '[desktop]\\n{wp_line}wallpaper_mode={wml}\\nwallpaper_common=0\\ndesktop_bg=#2c3e50\\ndesktop_fg=#ffffff\\ndesktop_shadow=#000000\\nshow_trash=1\\nshow_mounts=1\\n' \
+               | tee {home_dir}/.config/pcmanfm/{panel_profile}/pcmanfm.conf \
+                     {home_dir}/.config/pcmanfm/{panel_profile}/desktop-preferences.conf > /dev/null && \
+             printf '[*]\\n{wp_line}wallpaper_mode={wmm}\\ndesktop_bg=#2c3e50\\ndesktop_fg=#ffffff\\ndesktop_shadow=#000000\\nshow_trash=1\\nshow_mounts=1\\n' \
+               > {home_dir}/.config/pcmanfm/{panel_profile}/desktop-items-0.conf; true",
+            wp_line = wp_line,
+            wml = wallpaper_mode_legacy,
+            wmm = wallpaper_mode_modern,
         ),
     )?;
 
@@ -456,6 +507,17 @@ PYEOF\n\
     //    para que los procesos hijos (especialmente Chromium desde lxpanel)
     //    hereden el entorno completo y puedan acceder a la red (localhost/Apache).
     //    Sin estas exports, Chromium no puede resolver localhost ni conectarse.
+    //    wallpaper_path puede ser la imagen real del dispositivo o vacío (color sólido).
+    let xstartup_wp = wallpaper_path.replace('\'', "'\\''"); // escapar comillas simples
+    let set_wp_cmd = if xstartup_wp.is_empty() {
+        // Sin imagen real: pcmanfm usará desktop_bg del config (color sólido)
+        "pcmanfm --reconfigure 2>/dev/null || true".to_string()
+    } else {
+        format!(
+            "pcmanfm --set-wallpaper='{xstartup_wp}' 2>/dev/null || pcmanfm --set-wallpaper '{xstartup_wp}' 2>/dev/null || true\\\npcmanfm --reconfigure 2>/dev/null || true",
+            xstartup_wp = xstartup_wp
+        )
+    };
     run_remote(
         sess,
         &format!(
@@ -472,8 +534,11 @@ openbox >/tmp/openbox{display}.log 2>&1 & echo $! > /tmp/openbox-{display}.pid\\
 sleep 2\\n\
 lxpanel --profile {panel_profile} >/tmp/lxpanel{display}.log 2>&1 &\\n\
 pcmanfm --desktop --profile {panel_profile} >/tmp/pcmanfm{display}.log 2>&1 &\\n\
+sleep 2\\n\
+{set_wp_cmd}\\n\
 wait\\n' \
-             > {xstartup_path} && chmod +x {xstartup_path}; true"
+             > {xstartup_path} && chmod +x {xstartup_path}; true",
+            set_wp_cmd = set_wp_cmd,
         ),
     )?;
     run_remote(
