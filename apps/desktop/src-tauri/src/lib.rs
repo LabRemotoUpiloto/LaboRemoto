@@ -17,6 +17,7 @@ pub fn run() {
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
     .manage(crate::state::AppState::new())
+    .manage(crate::state::AiCancelRegistry::new())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .invoke_handler(tauri::generate_handler![
@@ -47,8 +48,13 @@ pub fn run() {
       cmd::local::local_home_dir,
       cmd::local::local_list_dir,
       cmd::local::local_list_drives,
+      cmd::local::save_text_file,
+      cmd::local::chat_history_load,
+      cmd::local::chat_history_save,
+      cmd::local::chat_history_delete_entry,
       // Chat IA
       cmd::ai::ai_chat,
+      cmd::ai::cancel_ai_chat,
   cmd::agent::agent_plan,
     cmd::ai_utils::ai_env_status,
   cmd::ai_utils::ai_test_key,

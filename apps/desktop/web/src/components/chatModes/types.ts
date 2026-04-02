@@ -51,6 +51,7 @@ export interface Message {
   id: string;
   sender: 'user' | 'ai' | 'system';
   text: string;
+  timestamp?: number;
   meta?: MessageMeta;
 }
 

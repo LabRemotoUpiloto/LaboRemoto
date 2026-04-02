@@ -43,7 +43,8 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 
 # HTTP client y otros
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }
+futures-util = "0.3"
 dotenvy = "0.15"
 parking_lot = "0.12"
 chrono = { version = "0.4", features = ["clock", "serde"] }
