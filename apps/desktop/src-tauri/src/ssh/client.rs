@@ -54,8 +54,13 @@ impl Session {
             .next()
             .ok_or_else(|| anyhow::anyhow!("no address"))?;
 
-        // Conexión y auth
-        let config = Arc::new(client::Config::default());
+        // Conexión y auth — keepalive cada 30 s para mantener la sesión activa al menos 1 h
+        let config = Arc::new(client::Config {
+            keepalive_interval: Some(std::time::Duration::from_secs(30)),
+            keepalive_max: 120, // cierra solo si 120 keepalives (≈1 h) quedan sin respuesta
+            inactivity_timeout: None,
+            ..client::Config::default()
+        });
         let sh = RusshClient::default();
         let mut handle = client::connect(config, addr, sh).await?;
 
