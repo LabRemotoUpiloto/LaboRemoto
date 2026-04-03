@@ -29,6 +29,7 @@ interface HistoryEntry {
   date: number;
   preview: string;
   messageCount: number;
+  mode?: string;
   messages: { id: string; sender: string; text: string; timestamp?: number }[];
 }
 const MAX_CHAR_WARN = 4000;
@@ -515,6 +516,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         date: Date.now(),
         preview: messages.find(m => m.sender === 'user')?.text?.slice(0, 100) ?? '',
         messageCount: userMsgs.length,
+        mode,
         messages: userMsgs.slice(-50).map(m => ({ id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp })),
       };
       const merged = [entry, ...existing.filter(e => !excludeIds.has(e.id))];
@@ -653,6 +655,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       setTimeout(() => setToast(null), 2000);
       return;
     }
+    setAttachedImage(null);
     if (messages.some(m => m.sender === 'user')) {
       setShowModeConfirm(newMode);
     } else {
@@ -764,12 +767,18 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   // Reset match index when query changes
   useEffect(() => { setSearchMatchIndex(0); }, [searchQuery]);
 
-  // Scroll to current match
+  // Scroll to current match — manual calculation avoids scrollIntoView misbehaving inside overflow containers
   useEffect(() => {
     if (searchMatchIds.length === 0) return;
     const id = searchMatchIds[searchMatchIndex];
-    const el = document.getElementById(`msg-${id}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const msgEl = document.getElementById(`msg-${id}`);
+    const container = messagesRef.current;
+    if (!msgEl || !container) return;
+    const containerRect = container.getBoundingClientRect();
+    const msgRect = msgEl.getBoundingClientRect();
+    const offset = container.scrollTop + msgRect.top - containerRect.top
+      - container.clientHeight / 2 + msgEl.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
   }, [searchMatchIndex, searchMatchIds]);
 
   // Cargar entradas del historial desde disco cuando el panel se abre
@@ -957,6 +966,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
           </button>
+          <button className="chat-tb-btn"
+            onClick={() => setShowShortcuts(s => !s)}
+            title="Atajos de teclado (Shift+?)"
+            style={{ opacity: showShortcuts ? 1 : undefined, color: showShortcuts ? 'var(--accent-primary)' : undefined }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </button>
           <button className="chat-tb-btn is-new"
             onClick={handleNewChat} title="Nuevo chat">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -1082,7 +1102,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
           >
             {/* Ocultar el texto superior para los mensajes de sistema con tarjeta de confirmación */}
             {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
-              <div className={`message-text message-card${streamingMsgId === msg.id ? ' is-streaming' : ''}`}>
+              <div className={`message-text message-card${streamingMsgId === msg.id ? ' is-streaming' : ''}${msg.sender === 'ai' && msg.text.startsWith('Error') ? ' message-card--error' : ''}`}>
                 {/* Timestamp */}
                 {msg.timestamp && (
                   <span className="msg-timestamp" title={new Date(msg.timestamp).toLocaleString('es')}>{fmtTime(msg.timestamp)}</span>
@@ -1461,14 +1481,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
           </button>
           </div>
         </div>
-        {/* ── Contador de caracteres ── */}
-        {input.length > 0 && (
-          <div className="chat-char-counter" data-warn={input.length > MAX_CHAR_WARN ? true : undefined}>
-            {input.length > MAX_CHAR_WARN
-              ? `${input.length} / ${MAX_CHAR_WARN} car.`
-              : `${input.length} car.`}
-          </div>
-        )}
+        {/* ── Contador de caracteres + hint Shift+Enter ── */}
+        <div className="chat-input-footer">
+          {input.length === 0
+            ? <span className="chat-input-hint">Shift+↵ nueva línea · Shift+? atajos</span>
+            : <span className="chat-char-counter" data-warn={input.length > MAX_CHAR_WARN ? true : undefined}>
+                {input.length > MAX_CHAR_WARN
+                  ? `⚠ ${input.length.toLocaleString()} car. — mensaje muy largo`
+                  : `${input.length} car.`}
+              </span>
+          }
+        </div>
         {/* ── Tokens de sesión ── */}
         <div className="session-token-wrap">
           <button
@@ -1562,6 +1585,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                     <div className="chat-history-item-meta">
                       <span className="chat-history-date">{fmtTime(entry.date)}</span>
                       <span className="chat-history-count">{entry.messageCount} msgs</span>
+                      {entry.mode && <span className="chat-history-mode" data-mode={entry.mode}>{entry.mode}</span>}
                     </div>
                     <p className="chat-history-preview">{entry.preview || 'Sin mensajes'}</p>
                     {pendingDeleteId === entry.id ? (

@@ -72,13 +72,7 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
     const basename = fullFilename.split('.')[0]; // ej: "calculadora"
     const extension = fullFilename.split('.').pop() || ''; // ej: "sh"
     
-    if (fullContent.includes('calculadora')) {
-      console.log('[AskRenderer] ✅ Archivo detectado en contenido completo:');
-      console.log('  fullFilename:', fullFilename);
-      console.log('  basename:', basename);
-      console.log('  extension:', extension);
-    }
-    
+
     return { basename, extension, fullFilename };
   };
   
@@ -113,71 +107,16 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
     return t;
   };
 
-  // Función para corregir nombres de archivo incompletos en scripts bash
+  // Corrige nombres de archivo incompletos en scripts bash (ej: chmod +x script. -> chmod +x script.sh)
   const fixIncompleteFilenames = (code: string, lang?: string): string => {
-    const isCalculadora = code.includes('calculadora');
-    
-    if (isCalculadora) {
-      console.log('[fixIncompleteFilenames] ===== ENTRADA =====');
-      console.log('[fixIncompleteFilenames] lang:', lang);
-      console.log('[fixIncompleteFilenames] code (primeros 500 chars):', code.substring(0, 500));
-    }
-    
-    // Solo aplicar a bloques bash/shell
-    if (!lang || !['bash', 'sh', 'shell'].includes(lang.toLowerCase())) {
-      if (isCalculadora) {
-        console.log('[fixIncompleteFilenames] ❌ NO SE APLICA - lang no es bash/sh/shell');
-      }
-      return code;
-    }
-
-    // NUEVO: Usar fileInfo global en lugar de buscar en el bloque individual
-    if (!fileInfo) {
-      if (isCalculadora) {
-        console.log('[fixIncompleteFilenames] ❌ NO hay fileInfo global');
-      }
-      return code;
-    }
-
-    const { fullFilename, basename, extension } = fileInfo;
-
-    if (isCalculadora) {
-      console.log('[fixIncompleteFilenames] ✅ USANDO fileInfo GLOBAL:');
-      console.log('  fullFilename:', fullFilename);
-      console.log('  basename:', basename);
-      console.log('  extension:', extension);
-    }
-
-    // Escapar caracteres especiales del basename para regex
+    if (!lang || !['bash', 'sh', 'shell'].includes(lang.toLowerCase())) return code;
+    if (!fileInfo) return code;
+    const { fullFilename, basename } = fileInfo;
     const escapedBasename = basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    // Corregir chmod +x NOMBRE. -> chmod +x NOMBRE.ext
-    // Buscar: chmod +x calculadora. (punto al final, posiblemente seguido de espacios/newline)
     const chmodRegex = new RegExp(`(chmod\\s+\\+x\\s+)${escapedBasename}\\.(?=\\s|$)`, 'g');
-    let fixed = code.replace(chmodRegex, `$1${fullFilename}`);
-    
-    if (isCalculadora) {
-      console.log('[fixIncompleteFilenames] Aplicando regex chmod:', chmodRegex.source);
-      console.log('[fixIncompleteFilenames] ¿Se aplicó cambio chmod?:', code !== fixed);
-    }
-
-    // Corregir ./NOMBRE. -> ./NOMBRE.ext
-    // Buscar: ./calculadora. (punto al final, posiblemente seguido de espacios/newline)
-    const execRegex = new RegExp(`(\\.\/)${escapedBasename}\\.(?=\\s|$)`, 'g');
-    const beforeExec = fixed;
-    fixed = fixed.replace(execRegex, `$1${fullFilename}`);
-    
-    if (isCalculadora) {
-      console.log('[fixIncompleteFilenames] Aplicando regex ejecución:', execRegex.source);
-      console.log('[fixIncompleteFilenames] ¿Se aplicó cambio ejecución?:', beforeExec !== fixed);
-      console.log('[fixIncompleteFilenames] ===== SALIDA =====');
-      console.log('[fixIncompleteFilenames] fixed (primeros 500 chars):', fixed.substring(0, 500));
-      console.log('[fixIncompleteFilenames] ========================');
-    }
-
-    return fixed;
+    const execRegex = new RegExp(`(\\./)${escapedBasename}\\.(?=\\s|$)`, 'g');
+    return code.replace(chmodRegex, `$1${fullFilename}`).replace(execRegex, `$1${fullFilename}`);
   };
-
   const looksLikeCodeParagraph = (txt: string): boolean => {
     const lines = (txt || '').split(/\r?\n/).filter(l => l.trim() !== '');
     if (lines.length < 3) return false;
@@ -273,10 +212,9 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
 
       // Markdown Tables — detect separator row like |---|---|
       if (/^\s*\|[\s:]*-{2,}[\s:]*(\|[\s:]*-{2,}[\s:]*)*\|\s*$/.test(line)) {
-        flush();
-        // Previous line (header) might be in buf or already flushed
+        // Pop the header line BEFORE flushing the rest of buf
         const headerLine = buf.length > 0 && /\|/.test(buf[buf.length - 1]) ? buf.pop()! : null;
-        flush(); // flush remaining buf
+        flush(); // flush any remaining non-header lines
         // Collect data rows
         const dataRows: string[] = [];
         while (lineIdx + 1 < lines.length && /^\s*\|.*\|\s*$/.test(lines[lineIdx + 1].trim())) {
