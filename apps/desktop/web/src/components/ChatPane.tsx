@@ -123,7 +123,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     /Error:/,
   ];
 
-  const isPromptLine = (l: string) => /[\$#%>]\s{0,3}$/.test(l) && l.length < 120;
+  // Detecta prompt vacío ("...$ ") Y prompt con comando ("...$ sas")
+  const isPromptLine = (l: string) => l.length < 120 && /[\$#%>]([ \t]{0,3}$|[ \t]\S)/.test(l);
 
   // ── Terminal error detection ──
   useEffect(() => {
