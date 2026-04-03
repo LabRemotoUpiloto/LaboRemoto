@@ -60,8 +60,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
       await navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Error al copiar:', err);
+    } catch {
     }
   };
 
@@ -98,8 +97,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
       } catch {}
       setExecutionStatus('success');
       setTimeout(() => setExecutionStatus('idle'), 2000);
-    } catch (err) {
-      console.error('Error al ejecutar:', err);
+    } catch {
       setExecutionStatus('error');
       setTimeout(() => setExecutionStatus('idle'), 2000);
     } finally {

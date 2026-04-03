@@ -309,8 +309,7 @@ export function useConnectForm({
       if (isEditMode && originalHostFile && originalHostFile !== newHostId) {
         try {
           await deleteHostFile(originalHostFile);
-        } catch (delError) {
-          console.warn("No se pudo eliminar el host original:", delError);
+        } catch {
         }
       }
       await saveHostWithMaster(newHostId, payload as any);
@@ -322,7 +321,6 @@ export function useConnectForm({
         setOriginalHostFile(null);
       }
     } catch (e: any) {
-      console.error("saveHostWithMaster error", e);
       push({ type: "error", message: "Error guardando host" });
     }
   };

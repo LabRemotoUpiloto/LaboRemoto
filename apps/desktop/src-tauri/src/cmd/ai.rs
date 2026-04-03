@@ -721,7 +721,6 @@ SÃ© concreto con comandos reales. No des opciones alternativas, solo el camino Ã
     }
     // Log de tokens: consola Rust + evento al frontend (sin afectar UI)
     if tok_input > 0 || tok_output > 0 {
-      eprintln!("[AI tokens] modelo={} entrada={} salida={} total={}", model_id, tok_input, tok_output, tok_input + tok_output);
       let _ = app.emit("ai:usage", AiUsageEvent {
         request_id: req_id.clone(),
         input_tokens: tok_input,

@@ -26,7 +26,6 @@ export function useCameraGrid(sessionId: string | null) {
       setCameras(list)
       setError(null)
     } catch (e: any) {
-      console.error('[CameraGrid] stream_list_cameras:', e)
       setError(String(e))
     }
   }, [])

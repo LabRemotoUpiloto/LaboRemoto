@@ -276,8 +276,6 @@ const createDriverConfig = (): Config => ({
   },
   
   onDestroyed: () => {
-    // Limpiar cualquier estado si es necesario
-    console.log('Tour finalizado');
   },
 });
 

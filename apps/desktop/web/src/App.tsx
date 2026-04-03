@@ -73,7 +73,6 @@ const AppMain: React.FC = () => {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
 
   const handleTabClick = (id: string) => {
-    console.log('🔄 Tab clicked:', id)
     setActiveTabId(id)
     
     const clickedTab = tabs.find(t => t.id === id)
@@ -97,11 +96,8 @@ const AppMain: React.FC = () => {
       return;
     }
     
-    console.log(`📝 Requesting session save for ${id} before disconnect`);
-    
     const savePromise = new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
-        console.warn(`⏱️ Timeout waiting for session save confirmation for ${id}`);
         resolve();
       }, 2000);
       
@@ -117,7 +113,6 @@ const AppMain: React.FC = () => {
       const handleFailed = (event: CustomEvent) => {
         if (event.detail.sessionId === id) {
           clearTimeout(timeout);
-          console.error(`❌ Session save failed for ${id}:`, event.detail.error);
           window.removeEventListener('app:session-saved', handleSaved as EventListener);
           window.removeEventListener('app:session-save-failed', handleFailed as EventListener);
           resolve();
@@ -135,8 +130,7 @@ const AppMain: React.FC = () => {
     try {
       await invoke('ssh_disconnect', { id })
       closeTab(id)
-    } catch (e: any) {
-      console.warn('Error al desconectar:', e);
+    } catch {
       closeTab(id);
     }
   }
@@ -195,8 +189,7 @@ const AppMain: React.FC = () => {
         if (upd) {
           setUpdateInfo({ version: upd.version, notes: upd.body })
         }
-      } catch (e) {
-        console.warn('Auto-update check failed', e)
+      } catch {
       }
     })()
   }, [])
@@ -212,8 +205,7 @@ const AppMain: React.FC = () => {
       } else {
         setUpdateInfo(null)
       }
-    } catch (e) {
-      console.error('Update install failed', e)
+    } catch {
       setUpdateInfo(null)
     } finally {
       setUpdating(false)

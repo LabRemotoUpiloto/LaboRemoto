@@ -18,6 +18,60 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
 
   // Portapapeles: texto copiado desde el escritorio remoto (sincronización automática)
   const remoteClipboardRef = useRef<string>('')
+  // Rastrea el estado de CapsLock en el servidor remoto (null = no sincronizado aún)
+  const remoteCapsRef = useRef<boolean | null>(null)
+
+  // ── CapsLock fix al nivel del componente ────────────────────────────────────
+  // Se usa rfbRef.current directamente, igual que el botón del toolbar.
+  // Al arrancar una nueva sesión VNC el servidor remoto siempre tiene CapsLock=OFF,
+  // por eso remoteCapsRef se resetea a null en cada conexión (ver connectRFB).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!rfbRef.current) return  // no hay sesión activa, ignorar
+
+      if (e.code === 'CapsLock') {
+        // Bloquear para que noVNC no lo procese a su vez (evita toggle doble)
+        e.preventDefault()
+        e.stopPropagation()
+        if (remoteCapsRef.current === null) remoteCapsRef.current = false
+        remoteCapsRef.current = !remoteCapsRef.current
+        // Mismo mecanismo exacto que el botón del toolbar
+        rfbRef.current.sendKey(0xFFE5, 'CapsLock', true)
+        rfbRef.current.sendKey(0xFFE5, 'CapsLock', false)
+        return
+      }
+
+      // Para cualquier tecla normal: detectar deriva con getModifierState.
+      // Si WebView2 se tragó el evento CapsLock sin dispararlo a JS,
+      // aquí detectamos el cambio de estado en el siguiente keydown normal.
+      const localCaps = e.getModifierState('CapsLock')
+      if (remoteCapsRef.current === null) {
+        remoteCapsRef.current = localCaps
+        if (localCaps) {
+          rfbRef.current.sendKey(0xFFE5, 'CapsLock', true)
+          rfbRef.current.sendKey(0xFFE5, 'CapsLock', false)
+        }
+      } else if (localCaps !== remoteCapsRef.current) {
+        remoteCapsRef.current = localCaps
+        rfbRef.current.sendKey(0xFFE5, 'CapsLock', true)
+        rfbRef.current.sendKey(0xFFE5, 'CapsLock', false)
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'CapsLock') {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown, true)
+    document.addEventListener('keyup',   handleKeyUp,   true)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true)
+      document.removeEventListener('keyup',   handleKeyUp,   true)
+    }
+  }, [])  // mount/unmount del componente
 
   // noVNC deja un <div id="noVNC_mouse_capture_elem"> visible (z-index 10000)
   // si se desconecta mientras un botón del ratón estaba pulsado.
@@ -49,61 +103,9 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         rfb.addEventListener('connect', () => {
           const canvas = container.querySelector('canvas')
           if (canvas) (canvas as HTMLElement).focus()
-
-          // ── CapsLock fix ────────────────────────────────────────────────────
-          // noVNC en WebView2/Windows tiene lógica interna (_syncModifiers) que
-          // cancela el toggle de CapsLock al detectar la discrepancia de estado.
-          // Solución: interceptar CapsLock en fase CAPTURE sobre el contenedor
-          // padre (antes de que llegue al canvas de noVNC), enviarlo manualmente
-          // con sendKey, y detener la propagación para que noVNC no lo procese.
-          // Si el usuario presiona CapsLock físicamente antes del sync inicial,
-          // marcamos capsWasPressed = true para que syncOnce no envíe un toggle
-          // extra que revierte el estado. Sin esta flag, la secuencia:
-          //   CapsLock↓ (ON) → CapsLock↓ (OFF) → tecla 'A' → syncOnce ve local=OFF
-          //   → manda toggle → remote vuelve a ON  ← bug
-          let capsWasPressed = false
-
-          const capsDownHandler = (e: KeyboardEvent) => {
-            if (e.code !== 'CapsLock') return
-            capsWasPressed = true
-            e.preventDefault()
-            e.stopPropagation()   // evita que llegue al canvas de noVNC
-            try {
-              ;(rfb as any).sendKey(0xFFE5, 'CapsLock', true)
-              ;(rfb as any).sendKey(0xFFE5, 'CapsLock', false)
-            } catch {}
-          }
-          const capsUpHandler = (e: KeyboardEvent) => {
-            if (e.code !== 'CapsLock') return
-            e.preventDefault()
-            e.stopPropagation()   // ya enviamos el key-up en capsDownHandler
-          }
-          container.addEventListener('keydown', capsDownHandler, true)
-          container.addEventListener('keyup',   capsUpHandler,   true)
-
-          // Auto-sync CapsLock: on the first non-CapsLock keypress detect local
-          // state. If local is OFF but remote has it ON, send one toggle to sync.
-          // Skipped if the user already physically toggled CapsLock (capsWasPressed),
-          // to avoid cancelling their intentional toggles.
-          const syncOnce = (e: KeyboardEvent) => {
-            if (!capsWasPressed) {
-              const localCaps = e.getModifierState('CapsLock')
-              if (!localCaps) {
-                try {
-                  ;(rfb as any).sendKey(0xFFE5, 'CapsLock', true)
-                  ;(rfb as any).sendKey(0xFFE5, 'CapsLock', false)
-                } catch {}
-              }
-            }
-            ;(canvas as HTMLElement).removeEventListener('keydown', syncOnce as EventListener)
-          }
-          ;(canvas as HTMLElement).addEventListener('keydown', syncOnce as EventListener, { once: true })
-
-          // Limpiar los handlers de CapsLock cuando noVNC se desconecte
-          rfb.addEventListener('disconnect', () => {
-            container.removeEventListener('keydown', capsDownHandler, true)
-            container.removeEventListener('keyup',   capsUpHandler,   true)
-          }, { once: true })
+          // El servidor VNC remoto siempre arranca con CapsLock=OFF.
+          // Resetear el tracker para que la próxima tecla sincronice el estado.
+          remoteCapsRef.current = null
         })
         rfb.addEventListener('disconnect', (e: any) => {
           rfbRef.current = null
@@ -118,7 +120,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         })
         rfbRef.current = rfb
       })
-      .catch(err => console.error('[noVNC] Error:', err))
+      .catch(() => {})
     }) // fin requestAnimationFrame (inner)
     }) // fin requestAnimationFrame (outer)
   }

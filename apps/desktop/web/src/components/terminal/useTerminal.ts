@@ -547,8 +547,7 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
             }
             lastSnapshotRef.current = snapshot;
           }
-        } catch (err) {
-          console.warn('Error capturing snapshot:', err);
+        } catch {
         }
       }
     };
@@ -631,8 +630,7 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
           if (hasVisibleText) {
             fadeOutAndHide();
           }
-        } catch (e) {
-          console.warn('Error checking terminal content:', e);
+        } catch {
         }
       };
 

@@ -26,13 +26,10 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session }) => {
     setLoading(true)
     setError(null)
     try {
-      // Cargar desde archivos locales
-      console.log(`💾 Loading log content from local files for session ${session.id}`)
       const content = await getSessionLogContent(session.id)
       
       setHtmlContent(content)
-    } catch (err) {
-      console.error('Error loading log content:', err)
+    } catch {
       setError('No se pudo cargar el contenido del log')
     } finally {
       setLoading(false)
@@ -78,7 +75,6 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session }) => {
       
       showToast({ type: 'success', message: `Reporte guardado: ${savedPath}` })
     } catch (error) {
-      console.error('Error generating PDF:', error)
       showToast({ type: 'error', message: `Error al generar Reporte: ${error}` })
     }
   }

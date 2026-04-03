@@ -63,7 +63,6 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
       // Configurar listeners
       const connectionPromise = new Promise<string>((resolve, reject) => {
         listen<any>('ssh_connected', (event) => {
-          console.log('✅ ssh_connected event:', event.payload);
           if (event.payload?.id && !abortController.signal.aborted) {
             resolve(event.payload.id);
           }
@@ -72,7 +71,6 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
         }).catch(reject);
         
         listen<any>('ssh_connect_error', (event) => {
-          console.log('❌ ssh_connect_error event:', event.payload);
           if (event.payload?.id && !abortController.signal.aborted) {
             reject(new Error(event.payload.error || 'Error conectando'));
           }
@@ -145,7 +143,6 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
       setConnectionAbortController(null);
       
     } catch (e: any) {
-      console.error('Connection error:', e);
       const errorMsg = e?.message || e?.toString?.() || 'Error conectando';
       push({ type: 'error', message: errorMsg });
       setLoading(false, null, null);
@@ -310,8 +307,7 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
             await deleteHostFile(toDeleteFile)
             setEntries(prev => prev.filter(e2 => e2.file !== toDeleteFile))
             push({ type: 'success', message: 'Host eliminado correctamente' })
-          } catch (err: any) {
-            console.error('deleteHostFile', err)
+          } catch {
             push({ type: 'error', message: 'Error al eliminar el host' })
           } finally {
             setLoading(false, null)
