@@ -262,53 +262,30 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
         continue; 
       }
 
-      // Unordered Lists
+      // Unordered / Ordered Lists — accumulate into mutable descriptor, flush to React element only at end
       const li = line.match(/^\s*[-*]\s+(.*)$/);
-      if (li) { 
-        const last = nodes[nodes.length - 1] as any; 
-        const text = li[1].replace(/^\s*\d+[\.)]\s+/, ''); 
-        const label = (currentPaso != null) ? `${currentPaso}.${(++subIndex)}` : null; 
-        const liContent = label ? <>{label} {parseInlineElements(text)}</> : parseInlineElements(text); 
-        
-        const makeUl = () => React.createElement('ul', { 
-          key: `ul-${nodes.length}`, 
-          style: { listStyleType: (currentPaso != null ? 'none' : 'disc'), paddingLeft: (currentPaso != null ? 0 : undefined) } 
-        }, [React.createElement('li', { key: `li-${nodes.length}-0` }, liContent)]); 
-        
-        if (!last || (last.type !== 'ul')) { 
-          nodes.push(makeUl()); 
-        } else { 
-          (last.props.children as any[]).push(React.createElement('li', { key: `li-${nodes.length}-${(last.props.children as any[]).length}` }, liContent)); 
-          if (currentPaso != null && last.props && last.props.style && last.props.style.listStyleType !== 'none') { 
-            last.props.style = { ...(last.props.style||{}), listStyleType: 'none', paddingLeft: 0 }; 
-          } 
-        } 
-        continue; 
-      }
-
-      // Ordered Lists
-      const oli = line.match(/^\s*\d+\)\s+(.*)$|^\s*\d+\.\s+(.*)$/);
-      if (oli) { 
-        const textRaw = oli[1] || oli[2] || ''; 
-        const text = String(textRaw).replace(/^\s*\d+[\.)]\s+/, ''); 
-        const last = nodes[nodes.length - 1] as any; 
-        const label = (currentPaso != null) ? `${currentPaso}.${(++subIndex)}` : null; 
-        const liContent = label ? <>{label} {parseInlineElements(text)}</> : parseInlineElements(text); 
-        
-        if (!last || (last.type !== 'ol' && last.type !== 'ul')) { 
-          if (currentPaso != null) { 
-            nodes.push(React.createElement('ul', { key: `ul-${nodes.length}`, style: { listStyleType: 'none', paddingLeft: 0 } }, [React.createElement('li', { key: `li-${nodes.length}-0` }, liContent)])); 
-          } else { 
-            nodes.push(React.createElement('ol', { key: `ol-${nodes.length}` }, [React.createElement('li', { key: `oli-${nodes.length}-0` }, liContent)])); 
-          } 
-        } else { 
-          (last.props.children as any[]).push(React.createElement('li', { key: `oli-${nodes.length}-${(last.props.children as any[]).length}` }, liContent)); 
-          if (currentPaso != null && last.type === 'ol') { 
-            last.type = 'ul'; 
-            last.props = { ...(last.props||{}), style: { ...(last.props?.style||{}), listStyleType: 'none', paddingLeft: 0 } }; 
-          } 
-        } 
-        continue; 
+      const oli = !li ? line.match(/^\s*\d+\)\s+(.*)$|^\s*\d+\.\s+(.*)$/) : null;
+      if (li || oli) {
+        const rawText = li ? li[1].replace(/^\s*\d+[\.)]\s+/, '') : String((oli![1] || oli![2] || '')).replace(/^\s*\d+[\.)]\s+/, '');
+        const label = (currentPaso != null) ? `${currentPaso}.${(++subIndex)}` : null;
+        const liContent = label ? <>{label} {parseInlineElements(rawText)}</> : parseInlineElements(rawText);
+        const isList = (n: any) => n && n.__listItems;
+        const last = nodes[nodes.length - 1] as any;
+        const useNumbered = !li && currentPaso == null;
+        if (!isList(last)) {
+          // Push a mutable accumulator object (not a React element)
+          nodes.push({
+            __listItems: [liContent],
+            __ordered: useNumbered,
+            __numbered: currentPaso != null,
+          } as any);
+        } else {
+          last.__listItems.push(liContent);
+          // If we entered a paso context after the list started as ol, upgrade to bullet
+          if (currentPaso != null) last.__numbered = true;
+          if (!li) last.__ordered = last.__ordered && currentPaso == null;
+        }
+        continue;
       }
 
       // Paragraph continuation
@@ -323,7 +300,21 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
       buf.push(line);
     }
     flush();
-    return nodes;
+    // Convert any remaining list accumulator objects to proper React elements
+    const materialize = (n: any, idx: number): React.ReactNode => {
+      if (!n || !n.__listItems) return n;
+      const items = (n.__listItems as React.ReactNode[]).map((child, ci) =>
+        React.createElement('li', { key: `li-${idx}-${ci}` }, child)
+      );
+      if (n.__numbered) {
+        return React.createElement('ul', { key: `ul-${idx}`, style: { listStyleType: 'none', paddingLeft: 0 } }, items);
+      }
+      if (n.__ordered) {
+        return React.createElement('ol', { key: `ol-${idx}` }, items);
+      }
+      return React.createElement('ul', { key: `ul-${idx}` }, items);
+    };
+    return nodes.map(materialize);
   };
 
   return (
