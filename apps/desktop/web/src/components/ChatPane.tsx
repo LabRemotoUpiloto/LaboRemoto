@@ -314,6 +314,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   // Clave estable para historial: "user@host" (reconectar al mismo host reutiliza el historial)
   const [hostKey, setHostKey] = useState<string>(sessionId ?? 'default');
 
@@ -397,6 +398,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const isComposingRef = useRef<boolean>(false);
   // Ref estable para handleSend — permite llamarlo desde callbacks sin deps stale
   const handleSendRef = useRef<((overrideText?: string) => void)>(() => {});
+  const loadedHistoryIdRef = useRef<string | null>(null);
+  const messageCountAtLoadRef = useRef<number>(0);
 
   // isNearBottom extraído a util (importado)
 
@@ -411,14 +414,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     }
   }, [messages]);
 
-  // Seguir el streaming: scroll instantáneo a medida que llegan chunks
+  // Seguir el streaming: scroll a medida que llegan chunks
+  // Si hay streaming activo, siempre seguimos (el usuario puede hacer scroll arriba para parar)
   useEffect(() => {
     if (!streamedText || !streamingMsgId) return;
     const el = messagesRef.current;
     if (!el) return;
-    if (isNearBottom(el)) {
-      el.scrollTop = el.scrollHeight;
-    }
+    // Siempre seguir durante streaming — el scroll manual del usuario activará el botón ↓
+    el.scrollTop = el.scrollHeight;
   }, [streamedText]);
 
   // Escuchar eventos de feedback del renderer de resultados (doble click)
@@ -495,16 +498,28 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
   const archiveCurrentChat = async (excludeEntryId?: string): Promise<boolean> => {
     if (!messages.some(m => m.sender === 'user')) return false;
+    const userMsgs = messages.filter(m => m.sender !== 'system');
+    // If loaded from history and no new messages were added, skip — it's already saved
+    if (loadedHistoryIdRef.current && userMsgs.length <= messageCountAtLoadRef.current) {
+      return false;
+    }
+    // Exclude both the passed ID and the previously-loaded entry to avoid duplicates
+    const excludeIds = new Set<string>([
+      ...(excludeEntryId ? [excludeEntryId] : []),
+      ...(loadedHistoryIdRef.current ? [loadedHistoryIdRef.current] : []),
+    ]);
     try {
       const existing = await invoke<HistoryEntry[]>('chat_history_load', { sessionId: hostKey, mode });
       const entry: HistoryEntry = {
         id: crypto.randomUUID(),
         date: Date.now(),
         preview: messages.find(m => m.sender === 'user')?.text?.slice(0, 100) ?? '',
-        messageCount: messages.filter(m => m.sender !== 'system').length,
-        messages: messages.filter(m => m.sender !== 'system').slice(-50).map(m => ({ id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp })),
+        messageCount: userMsgs.length,
+        messages: userMsgs.slice(-50).map(m => ({ id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp })),
       };
-      const updated = [entry, ...existing.filter(e => e.id !== excludeEntryId)].slice(0, 20);
+      const merged = [entry, ...existing.filter(e => !excludeIds.has(e.id))];
+      const seenIds = new Set<string>();
+      const updated = merged.filter(e => { if (seenIds.has(e.id)) return false; seenIds.add(e.id); return true; }).slice(0, 20);
       await invoke('chat_history_save', { sessionId: hostKey, mode, entries: updated });
       return true;
     } catch { return false; }
@@ -512,6 +527,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
   const handleNewChat = async () => {
     const saved = await archiveCurrentChat();
+    loadedHistoryIdRef.current = null;
+    messageCountAtLoadRef.current = 0;
     setMessages([]);
     setSessionTokens({ input: 0, output: 0 });
     try {
@@ -527,18 +544,32 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
   const handleLoadHistory = async (entry: HistoryEntry) => {
     await archiveCurrentChat(entry.id);
+    loadedHistoryIdRef.current = entry.id;
+    messageCountAtLoadRef.current = (entry.messages as Message[]).filter(m => m.sender !== 'system').length;
     setMessages(entry.messages as Message[]);
     setShowHistory(false);
   };
 
-  const handleDeleteHistoryEntry = async (id: string, ev: React.MouseEvent) => {
+  const handleDeleteHistoryEntry = (id: string, ev: React.MouseEvent) => {
+    ev.stopPropagation();
+    setPendingDeleteId(id);
+  };
+
+  const confirmDeleteHistoryEntry = async (id: string, ev: React.MouseEvent) => {
     ev.stopPropagation();
     try {
       const updated = await invoke<HistoryEntry[]>('chat_history_delete_entry', {
         sessionId: hostKey, mode, entryId: id,
       });
       setHistoryEntries(updated);
-    } catch { /* silencioso */ }
+    } catch { /* silencioso */ } finally {
+      setPendingDeleteId(null);
+    }
+  };
+
+  const cancelDeleteHistoryEntry = (ev: React.MouseEvent) => {
+    ev.stopPropagation();
+    setPendingDeleteId(null);
   };
 
   // ── Cancelar respuesta en curso ──
@@ -745,7 +776,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   useEffect(() => {
     if (!showHistory) return;
     invoke<HistoryEntry[]>('chat_history_load', { sessionId: hostKey, mode })
-      .then(entries => setHistoryEntries(entries))
+      .then(entries => {
+        // Deduplicate by id, keeping the most recent entry per id
+        const seen = new Set<string>();
+        const unique = entries.filter(e => {
+          if (seen.has(e.id)) return false;
+          seen.add(e.id);
+          return true;
+        });
+        setHistoryEntries(unique);
+      })
       .catch(() => setHistoryEntries([]));
   }, [showHistory, hostKey, mode]);
 
@@ -1524,11 +1564,19 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                       <span className="chat-history-count">{entry.messageCount} msgs</span>
                     </div>
                     <p className="chat-history-preview">{entry.preview || 'Sin mensajes'}</p>
-                    <button
-                      className="chat-history-delete"
-                      onClick={(ev) => handleDeleteHistoryEntry(entry.id, ev)}
-                      title="Eliminar"
-                    >×</button>
+                    {pendingDeleteId === entry.id ? (
+                      <div className="chat-history-confirm" onClick={ev => ev.stopPropagation()}>
+                        <span>¿Eliminar?</span>
+                        <button className="chat-history-confirm-yes" onClick={ev => confirmDeleteHistoryEntry(entry.id, ev)}>Sí</button>
+                        <button className="chat-history-confirm-no" onClick={cancelDeleteHistoryEntry}>No</button>
+                      </div>
+                    ) : (
+                      <button
+                        className="chat-history-delete"
+                        onClick={(ev) => handleDeleteHistoryEntry(entry.id, ev)}
+                        title="Eliminar"
+                      >×</button>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -454,7 +454,7 @@
   font-size: 13.5px; 
   line-height: 1.55; 
   color: var(--text-primary); 
-  min-height: 34px; 
+  min-height: 20px; 
   max-height: 160px; 
   overflow-y: auto; 
   padding: 7px 0; 
@@ -1680,4 +1680,50 @@
 .chat-history-delete:hover {
   color: #f87171;
   background: rgba(248,113,113,0.12);
+}
+
+.chat-history-confirm {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(20,20,28,0.95);
+  border: 1px solid rgba(248,113,113,0.35);
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 5;
+}
+.chat-history-confirm span {
+  color: rgba(255,255,255,0.7);
+  margin-right: 2px;
+}
+.chat-history-confirm-yes,
+.chat-history-confirm-no {
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: background 0.1s;
+}
+.chat-history-confirm-yes {
+  background: rgba(248,113,113,0.25);
+  color: #f87171;
+}
+.chat-history-confirm-yes:hover {
+  background: rgba(248,113,113,0.45);
+}
+.chat-history-confirm-no {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.55);
+}
+.chat-history-confirm-no:hover {
+  background: rgba(255,255,255,0.13);
 }
