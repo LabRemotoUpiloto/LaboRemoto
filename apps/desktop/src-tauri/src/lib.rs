@@ -9,10 +9,25 @@ pub mod state;   // Memoria efímera por sesión (AppState)
 pub mod security; // Validaciones de seguridad y backups
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
+fn load_dotenv() {
+  // 1. Intento estándar: caminar desde el CWD hacia arriba
+  if dotenvy::dotenv().is_ok() { return; }
+  // 2. Fallback: usar la ruta del manifest (conocida en tiempo de compilación)
+  //    y subir hasta encontrar un .env. Garantiza encontrar apps/.env en dev y release.
+  let mut dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+  loop {
+    if dotenvy::from_path(dir.join(".env")).is_ok() { return; }
+    match dir.parent() {
+      Some(parent) => dir = parent,
+      None => return,
+    }
+  }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   // Cargar variables de entorno desde .env
-  dotenvy::dotenv().ok();
+  load_dotenv();
   
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()

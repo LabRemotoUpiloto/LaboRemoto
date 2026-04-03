@@ -2,6 +2,15 @@ import { invoke } from '@tauri-apps/api/core';
 import { BaseModeHandler } from './BaseModeHandler';
 import { ModeHandlerContext, Message, AgentChatResponse } from '../types';
 
+async function fakeStream(text: string, ctx: ModeHandlerContext): Promise<void> {
+  const CHUNK = 20;
+  const DELAY = 15;
+  for (let i = 0; i < text.length; i += CHUNK) {
+    ctx.setStreamedText(prev => prev + text.slice(i, i + CHUNK));
+    await new Promise<void>(r => setTimeout(r, DELAY));
+  }
+}
+
 export class AgenteModeHandler extends BaseModeHandler {
   help = 'Agente: ejecuta comandos, lee/escribe archivos, diagnóstica el servidor. Usa Claude con tools reales.';
 
@@ -16,6 +25,17 @@ export class AgenteModeHandler extends BaseModeHandler {
     }
 
     ctx.setIsSending(true);
+    const streamId = String(Date.now() + 1);
+    ctx.setStreamingMsgId(streamId);
+    ctx.setStreamedText('');
+    ctx.setMessages(prev => [...prev, {
+      id: streamId,
+      sender: 'ai' as const,
+      text: '',
+      timestamp: Date.now(),
+      meta: { chat_mode: 'agente' } as any,
+    }]);
+
     try {
       const resp = await invoke<AgentChatResponse>('agent_chat', {
         req: {
@@ -26,23 +46,25 @@ export class AgenteModeHandler extends BaseModeHandler {
         },
       });
 
-      // Mensaje con pasos de tools + respuesta final
-      ctx.setMessages(prev => [...prev, {
-        id: String(Date.now()),
-        sender: 'ai',
-        text: resp.answer,
-        meta: {
-          toolSteps: resp.steps,
-        } as any,
-      }]);
+      await fakeStream(resp.answer, ctx);
+
+      ctx.setStreamedText('');
+      ctx.setStreamingMsgId(null);
+      ctx.setMessages(prev => prev.map(m =>
+        m.id === streamId
+          ? { ...m, text: resp.answer, meta: { toolSteps: resp.steps } as any }
+          : m
+      ));
     } catch (e: any) {
-      ctx.setMessages(prev => [...prev, {
-        id: String(Date.now()),
-        sender: 'system',
-        text: `Error del agente: ${String(e)}`,
-      }]);
+      ctx.setStreamedText('');
+      ctx.setStreamingMsgId(null);
+      ctx.setMessages(prev => [
+        ...prev.filter(m => m.id !== streamId),
+        { id: String(Date.now()), sender: 'system' as const, text: `Error del agente: ${String(e)}` },
+      ]);
     } finally {
       ctx.setIsSending(false);
     }
   }
 }
+
