@@ -4,7 +4,7 @@ import './ChatPane.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useSessionMemory } from '../hooks/useSessionMemory';
-import { invokeAgentPlan, AgentPlanResponse, ToolActionResult } from '../api/agent';
+
 // Modo modularizado
 import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext, ModelSelection, AVAILABLE_MODELS } from './chatModes/types';
 // Handlers ahora como clases (instancias)
@@ -15,12 +15,11 @@ import { PlanModeHandler } from './chatModes/classes/PlanModeHandler';
 import AskRenderer from './chat/AskRenderer';
 import AgentStepsRenderer from './chat/AgentStepsRenderer';
 import ToolResultRenderer from './chat/ToolResultRenderer';
-import AnalysisActionButtons from './chat/AnalysisActionButtons';
 import DiffView from './analysis/DiffView';
 import './analysis/DiffView.css';
 import './analysis/FileDisambiguation.css';
 // Utilidades
-import { cleanText, isNearBottom, norm } from './chat/chatUtils';
+import { cleanText, isNearBottom } from './chat/chatUtils';
 
 // ── Helpers ──
 const CHAT_STORAGE_KEY = (sid: string | null, mode: ChatMode) => `chat-history:${sid ?? 'default'}:${mode}`;
@@ -168,7 +167,18 @@ const MODE_SUGGESTIONS: Record<ChatMode, { text: string; icon: React.ReactNode }
   ],
 };
 
-const ModeSelect: React.FC<{ value: ChatMode; onChange: (m: ChatMode) => void }> = ({ value, onChange }) => {
+const MODE_DESCRIPTIONS: Record<ChatMode, string> = {
+  ask:    'Explica, responde preguntas y genera código sin ejecutar nada',
+  agente: 'Ejecuta comandos reales en el servidor y analiza el output',
+  plan:   'Genera un plan estructurado por fases antes de ejecutar',
+};
+
+const MODEL_CONTEXT_WINDOW: Record<string, number> = {
+  'claude-sonnet-4-6': 200_000,
+  'gpt-3.5-turbo': 16_384,
+};
+
+const ModeSelect: React.FC<{ value: ChatMode; onChange: (m: ChatMode) => void; sessionId?: string | null }> = ({ value, onChange, sessionId }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = MODES.find(m => m.value === value) ?? MODES[0];
@@ -208,30 +218,40 @@ const ModeSelect: React.FC<{ value: ChatMode; onChange: (m: ChatMode) => void }>
           borderRadius: 7, overflow: 'hidden', minWidth: 148,
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
         }}>
-          {MODES.map(m => (
-            <button
-              key={m.value}
-              onClick={() => { onChange(m.value); setOpen(false); }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 9,
-                width: '100%', padding: '7px 12px', border: 'none',
-                background: m.value === value ? 'rgba(255,255,255,0.07)' : 'transparent',
-                color: m.value === value ? '#fff' : 'rgba(255,255,255,0.7)',
-                fontSize: 12.5, cursor: 'pointer', textAlign: 'left',
-                transition: 'background 0.1s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
-              onMouseLeave={e => (e.currentTarget.style.background = m.value === value ? 'rgba(255,255,255,0.07)' : 'transparent')}
-            >
-              <span style={{ color: m.color, display: 'flex', alignItems: 'center' }}>
-                {ModeIcons[m.value]}
-              </span>
-              <span style={{ flex: 1 }}>{m.label}</span>
-              {m.value === value && (
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
-              )}
-            </button>
-          ))}
+          {MODES.map(m => {
+            const locked = !sessionId && (m.value === 'agente' || m.value === 'plan');
+            return (
+              <button
+                key={m.value}
+                onClick={() => { onChange(m.value); setOpen(false); }}
+                title={locked ? 'Requiere sesión SSH activa' : undefined}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  width: '100%', padding: '7px 12px', border: 'none',
+                  background: m.value === value ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  color: m.value === value ? '#fff' : 'rgba(255,255,255,0.7)',
+                  fontSize: 12.5, cursor: 'pointer', textAlign: 'left',
+                  transition: 'background 0.1s',
+                  opacity: locked ? 0.45 : 1,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
+                onMouseLeave={e => (e.currentTarget.style.background = m.value === value ? 'rgba(255,255,255,0.07)' : 'transparent')}
+              >
+                <span style={{ color: m.color, display: 'flex', alignItems: 'center' }}>
+                  {ModeIcons[m.value]}
+                </span>
+                <span style={{ flex: 1 }}>{m.label}</span>
+                {locked && (
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4, flexShrink: 0 }}>
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                )}
+                {m.value === value && !locked && (
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -260,7 +280,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     const saved = localStorage.getItem('chatSelectedModel');
     return (saved as ModelSelection) || 'claude-sonnet-4-5';
   });
-  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [agentState, setAgentState] = useState<AgentState>({
     cwd: '/',
     lastExitCode: undefined,
@@ -376,16 +395,31 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const isComposingRef = useRef<boolean>(false);
+  // Ref estable para handleSend — permite llamarlo desde callbacks sin deps stale
+  const handleSendRef = useRef<((overrideText?: string) => void)>(() => {});
 
   // isNearBottom extraído a util (importado)
 
-  // Auto-scroll al último mensaje siempre que cambian los mensajes
+  // Auto-scroll inteligente: solo si el usuario ya está cerca del final o acaba de enviar
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-    setShowScrollToBottom(false);
+    const last = messages[messages.length - 1];
+    if (last?.sender === 'user' || isNearBottom(el)) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      setShowScrollToBottom(false);
+    }
   }, [messages]);
+
+  // Seguir el streaming: scroll instantáneo a medida que llegan chunks
+  useEffect(() => {
+    if (!streamedText || !streamingMsgId) return;
+    const el = messagesRef.current;
+    if (!el) return;
+    if (isNearBottom(el)) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [streamedText]);
 
   // Escuchar eventos de feedback del renderer de resultados (doble click)
   useEffect(() => {
@@ -459,18 +493,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
   }, [input]);
 
-  // Restaurar selector de modo en la UI; el backend seguirá usando ASK por ahora
-  const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const next = e.target.value as ChatMode;
-    setMode(next);
-    {
-      setMessages([]);
-      clear();
-    }
-  };
-
-  const archiveCurrentChat = async (excludeEntryId?: string): Promise<void> => {
-    if (!messages.some(m => m.sender === 'user')) return;
+  const archiveCurrentChat = async (excludeEntryId?: string): Promise<boolean> => {
+    if (!messages.some(m => m.sender === 'user')) return false;
     try {
       const existing = await invoke<HistoryEntry[]>('chat_history_load', { sessionId: hostKey, mode });
       const entry: HistoryEntry = {
@@ -478,15 +502,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         date: Date.now(),
         preview: messages.find(m => m.sender === 'user')?.text?.slice(0, 100) ?? '',
         messageCount: messages.filter(m => m.sender !== 'system').length,
-        messages: messages.slice(-50).map(m => ({ id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp })),
+        messages: messages.filter(m => m.sender !== 'system').slice(-50).map(m => ({ id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp })),
       };
       const updated = [entry, ...existing.filter(e => e.id !== excludeEntryId)].slice(0, 20);
       await invoke('chat_history_save', { sessionId: hostKey, mode, entries: updated });
-    } catch { /* silencioso */ }
+      return true;
+    } catch { return false; }
   };
 
   const handleNewChat = async () => {
-    await archiveCurrentChat();
+    const saved = await archiveCurrentChat();
     setMessages([]);
     setSessionTokens({ input: 0, output: 0 });
     try {
@@ -494,6 +519,10 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       localStorage.removeItem(TOKEN_STORAGE_KEY(sessionId ?? null));
     } catch {}
     clear();
+    if (saved) {
+      setToast('Chat guardado en historial');
+      setTimeout(() => setToast(null), 2500);
+    }
   };
 
   const handleLoadHistory = async (entry: HistoryEntry) => {
@@ -553,6 +582,29 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     });
   }, [messages, mode]);
 
+  // ── Regenerar respuesta AI ──
+  const handleRegenerate = useCallback((msgId: string) => {
+    if (isSending) return;
+    const idx = messages.findIndex(m => m.id === msgId);
+    if (idx < 1) return;
+    let userMsg: Message | null = null;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (messages[i].sender === 'user') { userMsg = messages[i]; break; }
+    }
+    if (!userMsg) return;
+    setMessages(prev => prev.filter((_m, i) => i < idx));
+    const handler = modeHandlers[mode];
+    if (!handler?.canSend()) return;
+    setIsSending(true);
+    isSendingRef.current = true;
+    handler.send(userMsg.text, userMsg, buildModeContext()).catch((e: any) => {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+    }).finally(() => {
+      isSendingRef.current = false;
+      setIsSending(false);
+    });
+  }, [messages, mode]);
+
   // ── Copiar mensaje completo ──
   const handleCopyMessage = useCallback(async (text: string) => {
     try {
@@ -565,13 +617,18 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   // ── Cambio de modo con confirmación ──
   const handleModeSwitch = useCallback((newMode: ChatMode) => {
     if (newMode === mode) return;
-    if (messages.length > 0) {
+    if (!sessionId && (newMode === 'agente' || newMode === 'plan')) {
+      setToast('Requiere una sesión SSH activa');
+      setTimeout(() => setToast(null), 2000);
+      return;
+    }
+    if (messages.some(m => m.sender === 'user')) {
       setShowModeConfirm(newMode);
     } else {
       setMode(newMode);
       clear();
     }
-  }, [mode, messages.length]);
+  }, [mode, messages, sessionId]);
 
   const confirmModeSwitch = useCallback(() => {
     if (!showModeConfirm) return;
@@ -583,8 +640,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
   // ── Sugerencia rápida click ──
   const handleSuggestionClick = useCallback((text: string) => {
-    setInput(text);
-    setTimeout(() => inputRef.current?.focus(), 50);
+    handleSendRef.current?.(text);
   }, []);
 
   // ── Contador de palabras ──
@@ -635,9 +691,9 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   
 
   // Handler de envío (usa handlers modularizados)
-  const handleSend = async () => {
+  const handleSend = async (overrideText?: string) => {
     if (isSending || isSendingRef.current) return;
-    const trimmed = input.trim();
+    const trimmed = (overrideText ?? input).trim();
     if (!trimmed) return;
     const handler = modeHandlers[mode];
     if (!handler) return;
@@ -651,7 +707,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     const finalInput = trimmed;
     const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed, timestamp: Date.now(), meta: attachedImage ? { imagePreview: attachedImage.preview } as any : undefined };
     setMessages(prev => [...prev, userMsg]);
-    setInput('');
+    if (!overrideText) setInput('');
     try {
       setIsSending(true);
       await handler.send(finalInput, userMsg, buildModeContext());
@@ -662,6 +718,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       setIsSending(false);
     }
   };
+  handleSendRef.current = handleSend;
 
   // Search: show all messages, highlight + navigate matches
   const displayedMessages = messages;
@@ -692,52 +749,19 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       .catch(() => setHistoryEntries([]));
   }, [showHistory, hostKey, mode]);
 
-  const togglePin = (id: string) => {
-    setPinnedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
+  // ── Estimación de uso de context window ──
+  const maxCtxTokens = MODEL_CONTEXT_WINDOW[selectedModel] ?? 200_000;
+  const estimatedCtxTokens = Math.round(
+    messages.filter(m => m.sender !== 'system').reduce((sum, m) => sum + m.text.length / 4, 0)
+  );
+  const ctxUsagePct = Math.min(100, (estimatedCtxTokens / maxCtxTokens) * 100);
 
-  // Funciones para manejar acciones de análisis
-  const handleEditWithRecommendations = async () => {
-    setInput('edita ese archivo con las recomendaciones');
-    setTimeout(() => handleSend(), 100);
-  };
-
-  const handleImproveFile = async () => {
-    const lastAnalyzedFile = getLastAnalyzedFile();
-    if (lastAnalyzedFile) {
-      setInput(`mejora ${lastAnalyzedFile}`);
-      setTimeout(() => handleSend(), 100);
-    }
-  };
-
-  const handleApplyRecommendations = async () => {
-    setInput('aplica las recomendaciones');
-    setTimeout(() => handleSend(), 100);
-  };
-
-  // Helper para obtener el último archivo analizado
-  const getLastAnalyzedFile = (): string | null => {
-    const recentMessages = [...messages].reverse().slice(0, 10);
-    for (const msg of recentMessages) {
-      if (msg.meta?.analyzedFile) {
-        return msg.meta.analyzedFile;
-      }
-    }
-    return null;
-  };
-
-  // Mode handlers registry
-  const modeHandlers: Record<ChatMode, any> = {
+  // Mode handlers — memoizados: una sola instancia por montaje del componente
+  const modeHandlers = useMemo<Record<ChatMode, any>>(() => ({
     ask: new AskModeHandler(),
     agente: new AgenteModeHandler(),
     plan: new PlanModeHandler(),
-  };
-
-  const modeHelp = Object.fromEntries(Object.entries(modeHandlers).map(([k,v]) => [k, v.help])) as Record<ChatMode,string>;
+  }), []);
 
   // ── Funciones invocadas por handlers ──
 
@@ -893,17 +917,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
           </button>
-          <button className="chat-tb-btn"
-            onClick={() => setShowShortcuts(s => !s)}
-            title="Atajos de teclado (Shift+?)"
-            style={{ opacity: showShortcuts ? 1 : undefined, color: showShortcuts ? 'var(--accent-primary)' : undefined }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-          </button>
           <button className="chat-tb-btn is-new"
             onClick={handleNewChat} title="Nuevo chat">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -925,8 +938,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       </div>
 
       <div className="chat-toolbar">
-        <ModeSelect value={mode} onChange={handleModeSwitch} />
+        <ModeSelect value={mode} onChange={handleModeSwitch} sessionId={sessionId} />
         <ModelSelect value={selectedModel} onChange={setSelectedModel} />
+      </div>
+      <div className="chat-mode-desc">
+        <span className="chat-mode-desc__dot" data-mode={mode}/>
+        {MODE_DESCRIPTIONS[mode]}
       </div>
     </div>
       {/* ── Barra de búsqueda flotante (estilo Ctrl+F) ── */}
@@ -972,7 +989,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
           </button>
         </div>
       )}
-      <div className="mode-help" aria-live="polite">{modeHelp[mode]}</div>
 
       <div
         className="chat-messages"
@@ -1042,23 +1058,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                       )}
                       {/* Si es un mensaje de desambiguación, ocultamos el texto base para no duplicar la UI */}
                       {!msg.meta?.fileAnalysisDisambiguation && (
-                        <>
-                          <AskRenderer
-                            content={streamingMsgId === msg.id ? streamedText : msg.text}
-                            sessionId={sessionId || undefined}
-                            setLastCommand={setLastCommand as any}
-                            mode={mode}
-                          />
-                          {msg.meta?.showAnalysisActions && mode === 'analisis' && (
-                            <AnalysisActionButtons
-                              onEditWithRecommendations={handleEditWithRecommendations}
-                              onImproveFile={handleImproveFile}
-                              onApplyRecommendations={handleApplyRecommendations}
-                              fileName={msg.meta.analyzedFile}
-                              disabled={isSending}
-                            />
-                          )}
-                        </>
+                        <AskRenderer
+                          content={streamingMsgId === msg.id ? streamedText : msg.text}
+                          sessionId={sessionId || undefined}
+                          setLastCommand={setLastCommand as any}
+                          mode={mode}
+                        />
                       )}
                       {/* Structured results */}
                       {msg.meta?.toolAction && (
@@ -1076,6 +1081,19 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                           </svg>
                         </button>
+                        {streamingMsgId !== msg.id && !msg.text.startsWith('Error') && (
+                          <button
+                            className="msg-action-btn"
+                            onClick={() => handleRegenerate(msg.id)}
+                            title="Regenerar respuesta"
+                            disabled={isSending}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="1 4 1 10 7 10"/>
+                              <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+                            </svg>
+                          </button>
+                        )}
                         {msg.text.startsWith('Error') && (
                           <button
                             className="msg-action-btn msg-action-btn--retry"
@@ -1155,6 +1173,18 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                         />
                       )}
                       {msg.text}
+                      <div className="msg-actions">
+                        <button
+                          className="msg-action-btn msg-action-btn--delete"
+                          onClick={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
+                          title="Borrar mensaje"
+                          disabled={isSending}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                          </svg>
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>
@@ -1206,12 +1236,10 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
           </button>
         )}
         
-        {toast && (
-          <div className="chat-toast">
-            {toast}
-          </div>
-        )}
       </div>
+
+      {/* Toast de notificación — absolute sobre el área de mensajes */}
+      {toast && <div className="chat-toast">{toast}</div>}
 
       {/* Banner de error detectado en terminal */}
       {errorBanner && (
@@ -1322,7 +1350,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
               </span>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
           <textarea
             ref={inputRef}
             value={input}
@@ -1364,7 +1392,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
             }}
           />
           <button
-            className="chat-tb-btn"
+            className="chat-input-attach-btn"
             onClick={() => fileInputRef.current?.click()}
             title="Adjuntar imagen"
             style={{ opacity: attachedImage ? 1 : 0.5, color: attachedImage ? 'var(--accent-primary)' : undefined }}
@@ -1381,12 +1409,13 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
             aria-label={isSending ? 'Cancelar' : 'Enviar'}
           >
             {isSending ? (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <rect x="6" y="6" width="12" height="12" rx="2"/>
               </svg>
             ) : (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"/>
+              <polyline points="5 12 12 5 19 12"/>
             </svg>
             )}
           </button>
@@ -1443,6 +1472,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                 <span className="token-pop-val" style={{color:'#e2e8f0'}}>{(sessionTokens.input + sessionTokens.output).toLocaleString()}</span>
                 <span className="token-pop-unit">tok</span>
               </div>
+              <div className="token-popover-divider"/>
+              <div className="token-ctx-wrap">
+                <div className="token-popover-row">
+                  <span className="token-pop-label">Contexto ~</span>
+                  <span className="token-pop-val" style={{fontSize:10.5, color: ctxUsagePct > 90 ? '#f87171' : ctxUsagePct > 70 ? '#f59e0b' : 'rgba(167,139,250,0.6)'}}>{ctxUsagePct.toFixed(0)}%</span>
+                </div>
+                <div className="token-context-bar">
+                  <div className="token-context-bar__fill" style={{width:`${ctxUsagePct}%`}} data-warn={ctxUsagePct > 90 ? 'critical' : ctxUsagePct > 70 ? 'high' : undefined}/>
+                </div>
+              </div>
               <button className="token-pop-reset" onClick={() => {
                   const zeroed = { input: 0, output: 0 };
                   setSessionTokens(zeroed);
@@ -1461,7 +1500,10 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         <div className="chat-history-overlay" onClick={() => setShowHistory(false)}>
           <div className="chat-history-panel" onClick={e => e.stopPropagation()}>
             <div className="chat-history-header">
-              <span>Historial de chats</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span>Historial de chats</span>
+                {hostKey !== 'default' && <span className="chat-history-device">{hostKey}</span>}
+              </div>
               <button className="shortcuts-close" onClick={() => setShowHistory(false)}>×</button>
             </div>
             {historyEntries.length === 0 ? (

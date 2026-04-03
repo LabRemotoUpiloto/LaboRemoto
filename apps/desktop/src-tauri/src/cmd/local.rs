@@ -71,6 +71,7 @@ pub async fn save_text_file(content: String, default_name: String) -> Result<Str
 // ── Historial de chats en disco (AppData) ──
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatHistoryEntry {
   pub id: String,
   pub date: i64,
@@ -84,8 +85,8 @@ fn history_file(app: &tauri::AppHandle, session_id: &str, mode: &str) -> Result<
   let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
   let dir = base.join("chat-history");
   fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-  // Solo mantener caracteres seguros para el nombre del archivo
-  let safe_sid: String = session_id.chars().filter(|c| c.is_alphanumeric() || *c == '-').take(64).collect();
+  // Solo mantener caracteres seguros para el nombre del archivo (@ y . permitidos para user@host)
+  let safe_sid: String = session_id.chars().filter(|c| c.is_alphanumeric() || *c == '-' || *c == '@' || *c == '.').take(64).collect();
   let safe_mode: String = mode.chars().filter(|c| c.is_alphanumeric()).take(16).collect();
   Ok(dir.join(format!("{}-{}.json", safe_sid, safe_mode)))
 }
