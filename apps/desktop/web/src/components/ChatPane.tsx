@@ -18,7 +18,6 @@ import AgentStepsRenderer from './chat/AgentStepsRenderer';
 import ToolResultRenderer from './chat/ToolResultRenderer';
 import DiffView from './analysis/DiffView';
 import './analysis/DiffView.css';
-import './analysis/FileDisambiguation.css';
 // Utilidades
 import { cleanText, isNearBottom } from './chat/chatUtils';
 
