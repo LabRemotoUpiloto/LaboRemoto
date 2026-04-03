@@ -737,50 +737,6 @@ impl WsFrameParser {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-// ── Diagnóstico + auto-reinicio de x11vnc cuando hay EOF prematuro ──────────
-fn restart_x11vnc_log_and_notify(
-    host: &str, port: u16, user: &str, password: &str,
-    display: u32, vnc_port: u16,
-    app: &AppHandle, session_id: &str,
-) {
-    let Ok((_tcp, sess)) = crate::ssh::ssh2_sftp::connect_password(host, port, user, password)
-    else {
-        return;
-    };
-
-    // Leer log de x11vnc
-    if let Ok((_, _log)) = run_remote(
-        &sess,
-        &format!("tail -40 /tmp/x11vnc{display}.log 2>/dev/null"),
-    ) {
-    }
-
-    // Verificar Xvfb
-    if let Ok((_, _xvfb)) = run_remote(&sess, "pgrep -fl Xvfb 2>/dev/null || echo sin-Xvfb") {
-    }
-
-    // Reiniciar x11vnc
-    let restart = format!(
-        "pkill -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; sleep 1; \
-         nohup x11vnc -display :{display} -rfbport {vnc_port} \
-         -nopw -localhost -shared -forever -noxdamage -quiet \
-         >/tmp/x11vnc{display}.log 2>&1 </dev/null & sleep 3 && \
-         ss -tlnp 2>/dev/null | grep -q ':{vnc_port}' && echo ok || echo fail"
-    );
-    match run_remote(&sess, &restart) {
-        Ok((_, out)) if out.trim() == "ok" => {
-            let _ = app.emit(
-                &format!("vnc_retry_ready_{session_id}"),
-                serde_json::json!({ "reason": "x11vnc reiniciado automáticamente" }),
-            );
-        }
-        Ok((_, _out)) => {}
-        Err(_e)       => {}
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Port-forward local usando ssh2 (equivalente a ssh -L)
 //
 // Por cada conexión TCP local, abre un channel_direct_tcpip en una sesión

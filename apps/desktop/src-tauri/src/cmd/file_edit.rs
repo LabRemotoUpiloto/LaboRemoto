@@ -680,7 +680,7 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
                     } else {
                     }
                   }
-                  Err(e2) => {
+                  Err(_e2) => {
                   }
                 }
               }
@@ -831,33 +831,3 @@ pub struct ListBackupsResponse { pub backups: Vec<BackupMeta> }
 pub struct RevertFileRequest { pub path: String }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RevertFileResponse { pub restored_from: String }
-
-// ------------------ Intención de análisis desde mensaje libre ------------------
-fn extract_first_filename(msg: &str) -> Option<String> {
-  // Buscar patrón simple de nombre.ext (excluyendo cosas demasiado largas)
-  // Permitimos letras, números, _, -, / y puntos internos.
-  let re = regex::Regex::new(r"(?i)([A-Za-z0-9_./-]{1,120}?\.[A-Za-z0-9]{1,8})").ok()?;
-  for cap in re.captures_iter(msg) {
-    if let Some(m) = cap.get(1) { return Some(m.as_str().trim_matches(['"','\'']).to_string()); }
-  }
-  None
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AnalyzeFromMessageRequest { #[serde(alias="sessionId")] pub session_id: Option<String>, pub message: String }
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AnalyzeFromMessageResponse { pub used_filename: Option<String>, pub analysis: Option<FileAnalysis>, pub error: Option<String> }
-
-#[tauri::command]
-pub async fn analyze_from_message(req: AnalyzeFromMessageRequest) -> Result<AnalyzeFromMessageResponse, String> {
-  let _sec = SecurityManager::new();
-  let msg = req.message.trim();
-  // (Opcional) podríamos usar triggers semánticos aquí si en el futuro hay fallback sin filename.
-  let filename = extract_first_filename(msg);
-  if filename.is_none() { return Ok(AnalyzeFromMessageResponse { used_filename: None, analysis: None, error: Some("No se detectó nombre de archivo en el mensaje".into()) }); }
-  // Llamar al pipeline existente
-  match analyze_any_file(req.session_id.clone(), filename.clone().unwrap(), req.session_id.clone()).await {
-    Ok(r) => Ok(AnalyzeFromMessageResponse { used_filename: filename, analysis: Some(r.analysis), error: None }),
-    Err(e) => Ok(AnalyzeFromMessageResponse { used_filename: filename, analysis: None, error: Some(e) })
-  }
-}
