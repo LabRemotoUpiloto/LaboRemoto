@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { ChatMode, Message } from '../chatModes/types';
 import { MAX_CHAR_WARN, MODE_PLACEHOLDERS, TOKEN_STORAGE_KEY } from './chatPane.constants';
 import mammoth from 'mammoth';
@@ -14,8 +14,8 @@ interface Props {
   onSend: () => void;
   onCancel: () => void;
   canSend: boolean;
-  attachedImage: { base64: string; mediaType: string; preview: string } | null;
-  setAttachedImage: (v: { base64: string; mediaType: string; preview: string } | null) => void;
+  attachedImage: { base64: string; mediaType: string; preview: string; label?: string } | null;
+  setAttachedImage: (v: { base64: string; mediaType: string; preview: string; label?: string } | null) => void;
   attachedFile: { name: string; content: string } | null;
   setAttachedFile: (v: { name: string; content: string } | null) => void;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -41,109 +41,132 @@ const ChatInput: React.FC<Props> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // ── Handlers ──
+  const handleImageFile = (file: File) => {
+    const mediaType = file.type || 'image/jpeg';
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setAttachedImage({ base64: dataUrl.split(',')[1], mediaType, preview: dataUrl });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleTextFile = async (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const MAX_TEXT_SIZE = 200_000;
+    if (ext === 'docx' || ext === 'doc') {
+      if (file.size > 10_000_000) { setToast('Archivo Word demasiado grande (máx. 10 MB)'); setTimeout(() => setToast(null), 2500); return; }
+      try {
+        setToast(`Procesando "${file.name}"…`);
+        const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+        const text = result.value.trim();
+        if (!text) { setToast('El documento Word está vacío'); setTimeout(() => setToast(null), 2500); return; }
+        setAttachedFile({ name: file.name, content: text.slice(0, 30_000) });
+        setToast(`Word "${file.name}" adjuntado`); setTimeout(() => setToast(null), 2000);
+      } catch { setToast('Error al leer el archivo Word'); setTimeout(() => setToast(null), 2500); }
+      return;
+    }
+    if (ext === 'pdf') {
+      if (file.size > 20_000_000) { setToast('PDF demasiado grande (máx. 20 MB)'); setTimeout(() => setToast(null), 2500); return; }
+      try {
+        setToast(`Procesando "${file.name}"…`);
+        const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+        const pageTexts: string[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          pageTexts.push(content.items.map((item: any) => item.str).join(' '));
+        }
+        const text = pageTexts.join('\n\n').trim();
+        if (text) {
+          setAttachedFile({ name: `${file.name} (${pdf.numPages} págs.)`, content: text.slice(0, 30_000) });
+          setToast(`PDF "${file.name}" adjuntado (${pdf.numPages} págs.)`); setTimeout(() => setToast(null), 2000);
+        } else {
+          const MAX_PAGES = 5;
+          const pagesToRender = Math.min(pdf.numPages, MAX_PAGES);
+          setToast(`PDF escaneado — renderizando ${pagesToRender} pág(s.)…`);
+          const canvases: HTMLCanvasElement[] = [];
+          for (let i = 1; i <= pagesToRender; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 1.8 });
+            const c = document.createElement('canvas');
+            c.width = viewport.width; c.height = viewport.height;
+            await page.render({ canvasContext: c.getContext('2d')!, canvas: c, viewport }).promise;
+            canvases.push(c);
+          }
+          const merged = document.createElement('canvas');
+          merged.width = canvases[0].width;
+          merged.height = canvases.reduce((s, c) => s + c.height, 0);
+          const mctx = merged.getContext('2d')!;
+          let offsetY = 0;
+          for (const c of canvases) { mctx.drawImage(c, 0, offsetY); offsetY += c.height; }
+          // Anthropic image limit ~5 MB base64 — recompress if too large
+          let dataUrl = merged.toDataURL('image/jpeg', 0.82);
+          if (dataUrl.length > 3_800_000) dataUrl = merged.toDataURL('image/jpeg', 0.55);
+          if (dataUrl.length > 3_800_000) {
+            const scale = Math.sqrt(3_800_000 / dataUrl.length);
+            const small = document.createElement('canvas');
+            small.width = Math.round(merged.width * scale); small.height = Math.round(merged.height * scale);
+            small.getContext('2d')!.drawImage(merged, 0, 0, small.width, small.height);
+            dataUrl = small.toDataURL('image/jpeg', 0.65);
+          }
+          const label = `PDF escaneado · ${pagesToRender}${pdf.numPages > MAX_PAGES ? '/' + pdf.numPages : ''} pág(s.)`;
+          setAttachedImage({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg', preview: dataUrl, label });
+          const extra = pdf.numPages > MAX_PAGES ? ` (de ${pdf.numPages} totales)` : '';
+          setToast(`PDF escaneado: ${pagesToRender} pág(s.)${extra} → Claude Vision`); setTimeout(() => setToast(null), 3000);
+        }
+      } catch { setToast('Error al leer el PDF'); setTimeout(() => setToast(null), 2500); }
+      return;
+    }
+    if (file.size > MAX_TEXT_SIZE) { setToast('Archivo demasiado grande (máx. 200 KB)'); setTimeout(() => setToast(null), 2500); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAttachedFile({ name: file.name, content: ev.target?.result as string });
+      setToast(`Archivo "${file.name}" adjuntado`); setTimeout(() => setToast(null), 2000);
+    };
+    reader.readAsText(file);
+  };
+
+  // ── Drag & drop ──
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.items).some((i: any) => i.kind === 'file')) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false);
+  };
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault(); setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (file.type.startsWith('image/')) handleImageFile(file); else await handleTextFile(file);
+  };
 
   return (
-    <div className="chat-input">
+    <div
+      className="chat-input"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={isDragging ? { outline: '1.5px dashed rgba(96,165,250,0.45)', borderRadius: 8 } : undefined}
+    >
       {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif"
         style={{ display: 'none' }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const mediaType = file.type || 'image/jpeg';
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            const dataUrl = ev.target?.result as string;
-            const base64 = dataUrl.split(',')[1];
-            setAttachedImage({ base64, mediaType, preview: dataUrl });
-          };
-          reader.readAsDataURL(file);
-          e.target.value = '';
-        }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleImageFile(f); }}
       />
       <input
         ref={textFileInputRef}
         type="file"
         accept=".txt,.conf,.config,.log,.sh,.bash,.py,.js,.ts,.json,.yaml,.yml,.toml,.env,.ini,.cfg,.nginx,.service,.xml,.html,.md,.rs,.go,.java,.c,.cpp,.h,.docx,.doc,.pdf"
         style={{ display: 'none' }}
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          e.target.value = '';
-          const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-          const MAX_TEXT_SIZE = 200_000;
-
-          // ── Word (.docx / .doc) ──
-          if (ext === 'docx' || ext === 'doc') {
-            if (file.size > 10_000_000) {
-              setToast('Archivo Word demasiado grande (máx. 10 MB)');
-              setTimeout(() => setToast(null), 2500);
-              return;
-            }
-            try {
-              setToast(`Procesando "${file.name}"…`);
-              const arrayBuffer = await file.arrayBuffer();
-              const result = await mammoth.extractRawText({ arrayBuffer });
-              const text = result.value.trim();
-              if (!text) { setToast('El documento Word está vacío'); setTimeout(() => setToast(null), 2500); return; }
-              setAttachedFile({ name: file.name, content: text.slice(0, 30_000) });
-              setToast(`Word "${file.name}" adjuntado`);
-              setTimeout(() => setToast(null), 2000);
-            } catch {
-              setToast('Error al leer el archivo Word');
-              setTimeout(() => setToast(null), 2500);
-            }
-            return;
-          }
-
-          // ── PDF ──
-          if (ext === 'pdf') {
-            if (file.size > 20_000_000) {
-              setToast('PDF demasiado grande (máx. 20 MB)');
-              setTimeout(() => setToast(null), 2500);
-              return;
-            }
-            try {
-              setToast(`Procesando "${file.name}"…`);
-              const arrayBuffer = await file.arrayBuffer();
-              const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-              const pageTexts: string[] = [];
-              for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                const pageText = content.items.map((item: any) => item.str).join(' ');
-                pageTexts.push(pageText);
-              }
-              const text = pageTexts.join('\n\n').trim();
-              if (!text) { setToast('El PDF no contiene texto extraíble'); setTimeout(() => setToast(null), 2500); return; }
-              setAttachedFile({ name: `${file.name} (${pdf.numPages} págs.)`, content: text.slice(0, 30_000) });
-              setToast(`PDF "${file.name}" adjuntado (${pdf.numPages} págs.)`);
-              setTimeout(() => setToast(null), 2000);
-            } catch {
-              setToast('Error al leer el PDF');
-              setTimeout(() => setToast(null), 2500);
-            }
-            return;
-          }
-
-          // ── Texto plano (comportamiento original) ──
-          if (file.size > MAX_TEXT_SIZE) {
-            setToast('Archivo demasiado grande (máx. 200 KB)');
-            setTimeout(() => setToast(null), 2500);
-            return;
-          }
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            const text = ev.target?.result as string;
-            setAttachedFile({ name: file.name, content: text });
-            setToast(`Archivo "${file.name}" adjuntado`);
-            setTimeout(() => setToast(null), 2000);
-          };
-          reader.readAsText(file);
-        }}
+        onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await handleTextFile(f); }}
       />
 
       <div className="chat-input-wrap" style={(attachedImage || attachedFile) ? { flexDirection: 'column', alignItems: 'stretch', gap: 0 } : undefined}>
@@ -167,7 +190,7 @@ const ChatInput: React.FC<Props> = ({
                 }}
               >✕</button>
             </div>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>imagen lista para enviar</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>{attachedImage.label ?? 'imagen lista para enviar'}</span>
           </div>
         )}
         {/* File chip */}
@@ -247,7 +270,7 @@ const ChatInput: React.FC<Props> = ({
             className="chat-input-attach-btn"
             onClick={() => textFileInputRef.current?.click()}
             title="Adjuntar archivo de texto (.sh, .conf, .log, .py…)"
-            style={{ opacity: 0.5 }}
+            style={{ opacity: attachedFile ? 1 : 0.5, color: attachedFile ? 'var(--accent-primary)' : undefined }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>

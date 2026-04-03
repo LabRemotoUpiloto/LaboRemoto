@@ -48,13 +48,31 @@ pub async fn save_text_file(content: String, default_name: String) -> Result<Str
       .and_then(|u| u.document_dir().map(|p| p.to_path_buf()))
       .unwrap_or_else(|| PathBuf::from("."));
 
-    FileDialog::new()
+    // Determine filters based on file extension
+    let ext = std::path::Path::new(&default_name)
+      .extension()
+      .and_then(|e| e.to_str())
+      .unwrap_or("")
+      .to_lowercase();
+
+    let mut dialog = FileDialog::new()
       .set_title("Guardar chat como…")
       .set_file_name(&default_name)
-      .add_filter("Markdown", &["md"])
-      .add_filter("Texto", &["txt"])
-      .set_directory(&default_dir)
-      .save_file()
+      .set_directory(&default_dir);
+
+    dialog = match ext.as_str() {
+      "html" => dialog
+        .add_filter("HTML", &["html"])
+        .add_filter("Todos los archivos", &["*"]),
+      "md" => dialog
+        .add_filter("Markdown", &["md"])
+        .add_filter("Texto", &["txt"]),
+      _ => dialog
+        .add_filter("Texto", &["txt"])
+        .add_filter("Todos los archivos", &["*"]),
+    };
+
+    dialog.save_file()
   })
   .await
   .map_err(|e| e.to_string())?;
