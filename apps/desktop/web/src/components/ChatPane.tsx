@@ -589,6 +589,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     sessionId, agentState,
     setAgentState: s => setAgentState({ ...s }),
     messages, setMessages, setIsSending, cleanText, invokeAsk,
+    setStreamingMsgId, setStreamedText,
   });
 
   // ── handleSend ──

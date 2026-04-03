@@ -81,6 +81,8 @@ export interface ModeHandlerContext {
   setIsSending: (v: boolean) => void;
   cleanText: (s: string) => string;
   invokeAsk: (args: { finalInput: string; mode: ChatMode; userMsg: Message }) => Promise<void>;
+  setStreamingMsgId: React.Dispatch<React.SetStateAction<string | null>>;
+  setStreamedText: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export interface AgentStep {
