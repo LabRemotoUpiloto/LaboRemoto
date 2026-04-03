@@ -222,33 +222,11 @@ export async function getSessionLogContent(sessionId: string): Promise<string> {
 }
 
 /**
- * Obtiene un log completo (metadatos + contenido)
- */
-export async function getSessionLog(sessionId: string): Promise<SessionLog> {
-  try {
-    return await invoke<SessionLog>('get_session_log', { sessionId });
-  } catch (error) {
-    throw error;
-  }
-}
-
-/**
  * Elimina un log de sesión
  */
 export async function deleteSessionLog(sessionId: string): Promise<void> {
   try {
     await invoke('delete_session_log', { sessionId });
-  } catch (error) {
-    throw error;
-  }
-}
-
-/**
- * Limpia logs antiguos según política de retención
- */
-export async function cleanupOldLogs(days: number): Promise<number> {
-  try {
-    return await invoke<number>('cleanup_old_session_logs', { days });
   } catch (error) {
     throw error;
   }

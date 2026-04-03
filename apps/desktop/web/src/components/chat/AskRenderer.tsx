@@ -326,7 +326,7 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
           language={b.lang}
           sessionId={sessionId}
           setLastCommand={setLastCommand}
-          hideActions={mode === 'analisis' || !isExecutableCode(b.body, b.precedingText || '')}
+          hideActions={!isExecutableCode(b.body, b.precedingText || '')}
         />
       ) : (
         <div key={`p-${i}`}>{renderPara(b.body)}</div>
