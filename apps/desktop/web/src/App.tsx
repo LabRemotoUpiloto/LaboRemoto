@@ -214,11 +214,6 @@ const AppMain: React.FC = () => {
 
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
 
-  // Detect if active session is a Raspberry Pi
-  const isRaspberryPi = activeTab.type === 'session' && (
-    activeTab.label.includes('Raspberry Pi') || activeTab.label.includes('200.115.181.211')
-  )
-
   // Pages that belong to the HOME tab context
   const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets'];
 
