@@ -40,6 +40,24 @@ type Props = {
   onClose?: () => void;
 };
 
+// ── Constantes de módulo (evitar recreación por render) ──
+const ERROR_PATTERNS = [
+  /bash:.*command not found/i,
+  /Failed to (start|restart|stop|reload)/i,
+  /Job for .* failed/i,
+  /Permission denied/i,
+  /No such file or directory/i,
+  /fatal:/i,
+  /Traceback \(most recent call last\)/i,
+  /npm ERR!/i,
+  /pip.*[Ee]rror/i,
+  /syntax error/i,
+  /cannot (access|connect|open|find)/i,
+  /\[error\]/i,
+  /Error:/,
+];
+const isPromptLine = (l: string) => l.length < 120 && /[\$#%>]([ \t]{0,3}$|[ \t]\S)/.test(l);
+
 const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   // ── State ──
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,8 +75,9 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const [errorBanner, setErrorBanner] = useState<{ snippet: string } | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [attachedImage, setAttachedImage] = useState<{ base64: string; mediaType: string; preview: string } | null>(null);
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; mediaType: string; preview: string; label?: string } | null>(null);
   const [attachedFile, setAttachedFile] = useState<{ name: string; content: string } | null>(null);
+  const attachedFileRef = useRef<{ name: string; content: string } | null>(null);
   const currentReqIdRef = useRef<string | null>(null);
   const [terminalActivity, setTerminalActivity] = useState(false);
   const terminalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,6 +88,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [streamedText, setStreamedText] = useState('');
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
   const [sessionTokens, setSessionTokens] = useState<{ input: number; output: number }>(() => {
     try {
       const saved = localStorage.getItem(TOKEN_STORAGE_KEY(sessionId ?? null));
@@ -91,8 +112,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const handleSendRef = useRef<((overrideText?: string) => void)>(() => {});
   const loadedHistoryIdRef = useRef<string | null>(null);
   const messageCountAtLoadRef = useRef<number>(0);
-  const pendingAttachedImageRef = useRef<{ base64: string; mediaType: string; preview: string } | null>(null);
+  const pendingAttachedImageRef = useRef<{ base64: string; mediaType: string; preview: string; label?: string } | null>(null);
+  const pendingAttachedFileRef = useRef<{ name: string; content: string } | null>(null);
   const skipRestoreRef = useRef(false);
+  // Keep ref in sync with state so handleSend always reads the latest value
+  useEffect(() => { attachedFileRef.current = attachedFile; }, [attachedFile]);
   const archiveCurrentChatRef = useRef(archiveCurrentChat);
 
   // ── Session memory ──
@@ -105,26 +129,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       .then(info => setHostKey(`${info.user}@${info.host}`))
       .catch(() => setHostKey(sessionId));
   }, [sessionId]);
-
-  // ── Error patterns ──
-  const ERROR_PATTERNS = [
-    /bash:.*command not found/i,
-    /Failed to (start|restart|stop|reload)/i,
-    /Job for .* failed/i,
-    /Permission denied/i,
-    /No such file or directory/i,
-    /fatal:/i,
-    /Traceback \(most recent call last\)/i,
-    /npm ERR!/i,
-    /pip.*[Ee]rror/i,
-    /syntax error/i,
-    /cannot (access|connect|open|find)/i,
-    /\[error\]/i,
-    /Error:/,
-  ];
-
-  // Detecta prompt vacío ("...$ ") Y prompt con comando ("...$ sas")
-  const isPromptLine = (l: string) => l.length < 120 && /[\$#%>]([ \t]{0,3}$|[ \t]\S)/.test(l);
 
   // ── Terminal error detection ──
   useEffect(() => {
@@ -228,7 +232,13 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     if (messages.length === 0) return;
     try {
       const key = CHAT_STORAGE_KEY(sessionId ?? null, mode);
-      const toSave = messages.slice(-100).map(m => ({ id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp }));
+      const toSave = messages.slice(-100).map(m => {
+        // Preserve meta but strip large binary fields to avoid bloating localStorage
+        const { attachedFileContent, imagePreview, ...safeMeta } = (m.meta ?? {}) as any;
+        void attachedFileContent; void imagePreview;
+        const meta = Object.keys(safeMeta).length > 0 ? safeMeta : undefined;
+        return { id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp, ...(meta ? { meta } : {}) };
+      });
       localStorage.setItem(key, JSON.stringify(toSave));
     } catch { /* storage full */ }
   }, [messages, sessionId, mode]);
@@ -297,7 +307,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         id: crypto.randomUUID(), date: Date.now(),
         preview: messages.find(m => m.sender === 'user')?.text?.slice(0, 100) ?? '',
         messageCount: userMsgs.length, mode,
-        messages: userMsgs.slice(-50).map(m => ({ id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp })),
+        messages: userMsgs.slice(-50).map(m => {
+          const { attachedFileContent, imagePreview, ...safeMeta } = (m.meta ?? {}) as any;
+          void attachedFileContent; void imagePreview;
+          const meta = Object.keys(safeMeta).length > 0 ? safeMeta : undefined;
+          return { id: m.id, sender: m.sender, text: m.text, timestamp: m.timestamp, ...(meta ? { meta } : {}) };
+        }),
       };
       const merged = [entry, ...existing.filter(e => !excludeIds.has(e.id))];
       const seenIds = new Set<string>();
@@ -419,6 +434,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     }
     if (messages.some(m => m.sender === 'user')) {
       pendingAttachedImageRef.current = attachedImage;
+      pendingAttachedFileRef.current = attachedFile;
       setShowModeConfirm(newMode);
     } else {
       setAttachedImage(null); setAttachedFile(null); setMode(newMode); clear();
@@ -429,7 +445,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     if (!showModeConfirm) return;
     await archiveCurrentChatRef.current();
     loadedHistoryIdRef.current = null; messageCountAtLoadRef.current = 0;
-    setAttachedImage(null); setAttachedFile(null); pendingAttachedImageRef.current = null;
+    setAttachedImage(null); setAttachedFile(null); pendingAttachedImageRef.current = null; pendingAttachedFileRef.current = null;
     skipRestoreRef.current = true;
     setMode(showModeConfirm); setMessages([]); clear(); setShowModeConfirm(null);
   }, [showModeConfirm]);
@@ -438,6 +454,10 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     if (pendingAttachedImageRef.current !== null) {
       setAttachedImage(pendingAttachedImageRef.current);
       pendingAttachedImageRef.current = null;
+    }
+    if (pendingAttachedFileRef.current !== null) {
+      setAttachedFile(pendingAttachedFileRef.current);
+      pendingAttachedFileRef.current = null;
     }
     setShowModeConfirm(null);
   }, []);
@@ -465,6 +485,36 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     }
   }, [messages]);
 
+  // ── Export HTML ──
+  const handleExportHtml = useCallback(async () => {
+    if (messages.length === 0) return;
+    const date = new Date().toLocaleString('es');
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const renderBody = (text: string) =>
+      esc(text)
+        .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
+          `<pre class="cb"${lang ? ` data-lang="${lang}"` : ''}><code>${code}</code></pre>`)
+        .replace(/\n/g, '<br>');
+    const msgsHtml = messages
+      .filter(m => m.sender !== 'system')
+      .map(m => {
+        const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '';
+        const lbl = m.sender === 'user' ? 'Tú' : 'Asistente';
+        return `<div class="m ${m.sender === 'user' ? 'u' : 'a'}"><div class="ml">${lbl}<span class="mt">${time}</span></div><div class="mb">${renderBody(m.text)}</div></div>`;
+      })
+      .join('\n');
+    const html = `<!DOCTYPE html>\n<html lang="es"><head>\n<meta charset="UTF-8"><title>Chat SSH — ${date}</title>\n<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;padding:24px;line-height:1.6}.chat{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px}h1{font-size:1.1rem;color:#a78bfa;margin-bottom:2px}.date{font-size:.75rem;color:#475569;margin-bottom:20px}.m{padding:12px 16px;border-radius:10px;font-size:.875rem}.u{background:#1e2130;border:1px solid rgba(255,255,255,.07);align-self:flex-end;max-width:80%}.a{background:#161924;border:1px solid rgba(167,139,250,.12);max-width:92%}.ml{font-size:.7rem;font-weight:600;margin-bottom:6px;display:flex;gap:8px}.u .ml{color:#60a5fa}.a .ml{color:#a78bfa}.mt{font-weight:400;color:#475569}.cb{background:#0c0e16;border:1px solid rgba(255,255,255,.07);border-radius:6px;padding:12px;margin:8px 0;font-family:'Fira Code','Courier New',monospace;font-size:.8rem;overflow-x:auto;white-space:pre}</style>\n</head><body><div class="chat"><h1>Chat SSH</h1><div class="date">${date}</div>\n${msgsHtml}\n</div></body></html>`;
+    const defaultName = `chat-ssh-${new Date().toISOString().slice(0, 10)}.html`;
+    try {
+      const savedPath = await invoke<string>('save_text_file', { content: html, defaultName });
+      if (savedPath && savedPath !== 'cancelled') { setToast(`HTML guardado: ${savedPath.split(/[\\/]/).pop()}`); setTimeout(() => setToast(null), 2500); }
+    } catch (e) {
+      const err = String(e);
+      if (err !== 'cancelled') setToast('Error al exportar HTML');
+      setTimeout(() => setToast(null), 2000);
+    }
+  }, [messages]);
+
   // ── Misc helpers ──
   const countWords = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
   const handleSuggestionClick = useCallback((text: string) => { handleSendRef.current?.(text); }, []);
@@ -487,7 +537,16 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: getContent(m) }));
     const enrichedInput = getContent(userMsg);
-    const imgSnap = attachedImage;
+    // Si attachedImage ya fue limpiado (retry/regen), reconstruirlo desde el meta del mensaje
+    const imgSnap = attachedImage ?? (userMsg.meta?.imagePreview
+      ? (() => {
+          const preview = userMsg.meta.imagePreview!;
+          const commaIdx = preview.indexOf(',');
+          const base64 = preview.substring(commaIdx + 1);
+          const mediaType = preview.substring(0, commaIdx).replace('data:', '').replace(';base64', '');
+          return { base64, mediaType, preview, label: undefined as string | undefined };
+        })()
+      : null);
     setAttachedImage(null); setTerminalActivity(false);
     const reqId = crypto.randomUUID();
     currentReqIdRef.current = reqId;
@@ -544,8 +603,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       setInput(''); return;
     }
     isSendingRef.current = true; setErrorBanner(null);
-    const filesnap = attachedFile;
-    setAttachedFile(null);
+    const filesnap = attachedFileRef.current ?? attachedFile;
+    setAttachedFile(null); attachedFileRef.current = null;
     const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed, timestamp: Date.now(), meta: {
       ...(attachedImage ? { imagePreview: attachedImage.preview } : {}),
       ...(filesnap ? { attachedFileName: filesnap.name, attachedFileContent: filesnap.content } : {}),
@@ -632,6 +691,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         searchOpen={searchOpen}
         onToggleSearch={() => { setSearchOpen(o => !o); if (searchOpen) setSearchQuery(''); }}
         onExportMd={handleExportMd}
+        onExportHtml={handleExportHtml}
         messagesEmpty={messages.length === 0}
         showShortcuts={showShortcuts}
         onToggleShortcuts={() => setShowShortcuts(s => !s)}
@@ -653,7 +713,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
       {/* ── Messages ── */}
       <div
-        className="chat-messages"
+        className={`chat-messages${editingMsgId ? ' chat-messages--editing' : ''}`}
         ref={messagesRef}
         role="log"
         aria-live={isSending ? 'polite' : undefined}
@@ -689,125 +749,115 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         {messages.map((msg) => {
           const isSearchMatch = searchMatchIds.includes(msg.id);
           const isActiveMatch = searchMatchIds[searchMatchIndex] === msg.id;
+          const msgWordCount = msg.sender === 'ai' ? countWords(msg.text) : 0;
           return (
             <div
               key={msg.id}
               id={`msg-${msg.id}`}
-              className={`message message-animate ${msg.sender} ${msg.sender === 'user' ? 'message--user' : 'message--assistant'} ${mode}${isActiveMatch ? ' search-active-match' : isSearchMatch ? ' search-match' : ''}`}
+              className={`message message-animate ${msg.sender} ${msg.sender === 'user' ? 'message--user' : 'message--assistant'} ${mode}${isActiveMatch ? ' search-active-match' : isSearchMatch ? ' search-match' : ''}${editingMsgId === msg.id ? ' editing-active' : ''}`}
             >
               {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
-                <div className={`message-text message-card${streamingMsgId === msg.id ? ' is-streaming' : ''}${msg.sender === 'ai' && msg.text.startsWith('Error') ? ' message-card--error' : ''}`}>
-                  {msg.timestamp && (
-                    <span className="msg-timestamp" title={new Date(msg.timestamp).toLocaleString('es')}>{fmtTime(msg.timestamp)}</span>
-                  )}
-                  <div className="message-content">
-                    {msg.sender === 'ai' ? (
-                      <>
-                        {msg.meta?.toolSteps && msg.meta.toolSteps.length > 0 && (
-                          <AgentStepsRenderer steps={msg.meta.toolSteps} />
-                        )}
-                        {!msg.meta?.fileAnalysisDisambiguation && (
-                          <AskRenderer
-                            content={streamingMsgId === msg.id ? streamedText : msg.text}
-                            sessionId={sessionId || undefined}
-                            setLastCommand={setLastCommand as any}
-                            mode={mode}
-                          />
-                        )}
-                        {msg.meta?.toolAction && (
-                          <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />
-                        )}
-                        <div className="msg-actions">
-                          <button className="msg-action-btn" onClick={() => handleCopyMessage(msg.text)} title="Copiar mensaje">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="9" y="9" width="13" height="13" rx="2"/>
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                            </svg>
-                          </button>
-                          {streamingMsgId !== msg.id && !msg.text.startsWith('Error') && (
-                            <button className="msg-action-btn" onClick={() => handleRegenerate(msg.id)} title="Regenerar respuesta" disabled={isSending}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
-                              </svg>
-                            </button>
-                          )}
-                          {msg.text.startsWith('Error') && (
-                            <button className="msg-action-btn msg-action-btn--retry" onClick={() => handleRetry(msg.id)} title="Reintentar" disabled={isSending}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                              </svg>
-                            </button>
-                          )}
+                msg.sender === 'user' ? (
+                  /* ── Burbuja de usuario: card + acciones fuera ── */
+                  <div className="user-bubble-group">
+                    {editingMsgId === msg.id ? (
+                      /* ── Modo edición inline ── */
+                      <div className="user-edit-wrap">
+                        <textarea
+                          className="user-edit-textarea"
+                          value={editDraft}
+                          autoFocus
+                          rows={Math.max(3, editDraft.split('\n').length)}
+                          onChange={e => {
+                            setEditDraft(e.target.value);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              const draft = editDraft.trim();
+                              if (!draft) return;
+                              // Reemplaza este mensaje y elimina todo lo que vino después
+                              const idx = messages.findIndex(m => m.id === msg.id);
+                              const updatedMsg: Message = { ...msg, text: draft };
+                              setMessages(prev => prev.slice(0, idx).concat(updatedMsg));
+                              setEditingMsgId(null);
+                              // Reenvía
+                              const handler = modeHandlers[mode];
+                              if (handler?.canSend()) {
+                                setIsSending(true); isSendingRef.current = true;
+                                handler.send(draft, updatedMsg, buildModeContext()).catch((e: any) => {
+                                  setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+                                }).finally(() => { isSendingRef.current = false; setIsSending(false); });
+                              }
+                            }
+                            if (e.key === 'Escape') { setEditingMsgId(null); }
+                          }}
+                        />
+                        <div className="user-edit-actions">
+                          <button className="user-edit-btn user-edit-btn--cancel" onClick={() => setEditingMsgId(null)}>Cancelar</button>
+                          <button className="user-edit-btn user-edit-btn--save" disabled={!editDraft.trim() || isSending} onClick={() => {
+                            const draft = editDraft.trim();
+                            if (!draft) return;
+                            const idx = messages.findIndex(m => m.id === msg.id);
+                            const updatedMsg: Message = { ...msg, text: draft };
+                            setMessages(prev => prev.slice(0, idx).concat(updatedMsg));
+                            setEditingMsgId(null);
+                            const handler = modeHandlers[mode];
+                            if (handler?.canSend()) {
+                              setIsSending(true); isSendingRef.current = true;
+                              handler.send(draft, updatedMsg, buildModeContext()).catch((e: any) => {
+                                setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+                              }).finally(() => { isSendingRef.current = false; setIsSending(false); });
+                            }
+                          }}>Enviar</button>
                         </div>
-                        {streamingMsgId !== msg.id && countWords(msg.text) > 10 && (
-                          <span className="msg-word-count">~{countWords(msg.text)} pal.</span>
-                        )}
-                        {msg.meta?.fileEdit && (
-                          <div className="file-edit-diff">
-                            <h4>Diff propuesto</h4>
-                            <DiffView diff={msg.meta.fileEdit.diff} />
-                            {msg.meta.fileEdit.needsConfirmation && (
-                              <div className="file-edit-actions">
-                                <button onClick={() => setInput(`aplicar ${msg.meta?.fileEdit?.path}`)}>Preparar aplicar</button>
-                                <button onClick={() => setInput('descartar')}>Descartar</button>
-                                <button onClick={() => setInput(`backups ${msg.meta?.fileEdit?.path}`)}>Ver backups</button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {msg.meta?.fileAnalysisDisambiguation?.candidates && (
-                          <div className="file-disambiguation enhanced">
-                            <div className="file-disambiguation__header">
-                              <h4>
-                                {msg.meta.fileAnalysisDisambiguation.action === 'optimize'
-                                  ? 'Selecciona cuál archivo quieres optimizar'
-                                  : 'Selecciona cuál archivo quieres analizar'}
-                              </h4>
-                              <p className="hint">
-                                Se encontraron {msg.meta.fileAnalysisDisambiguation.candidates.length} rutas con el mismo nombre.
-                                Haz clic para {msg.meta.fileAnalysisDisambiguation.action === 'optimize' ? 'optimizar' : 'cargar el contenido'}.
-                              </p>
-                            </div>
-                            <ul className="file-disambiguation__list" role="list">
-                              {msg.meta.fileAnalysisDisambiguation.candidates.map((c: string, idx: number) => (
-                                <li key={c} className="file-disambiguation__item">
-                                  <button
-                                    type="button"
-                                    className="file-disambiguation__btn"
-                                    onClick={() => handleAnalyzeCandidate(msg.meta.fileAnalysisDisambiguation.base, c, msg.meta.fileAnalysisDisambiguation.action || 'analyze', idx)}
-                                    disabled={isSending}
-                                    aria-label={`${msg.meta.fileAnalysisDisambiguation.action === 'optimize' ? 'Optimizar' : 'Analizar'} opción ${idx + 1}: ${c}`}
-                                  >
-                                    <span className="file-disambiguation__index">{idx + 1}</span>
-                                    <span className="file-disambiguation__path">{c}</span>
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </>
+                        <span className="user-edit-hint">Enter · enviar &nbsp;·&nbsp; Esc · cancelar</span>
+                      </div>
                     ) : (
                       <>
-                        {msg.meta?.imagePreview && (
-                          <img src={msg.meta.imagePreview} alt="adjunto"
-                            style={{ display: 'block', maxHeight: 160, maxWidth: '100%', borderRadius: 6, marginBottom: msg.text ? 6 : 0, objectFit: 'contain' }}
-                          />
-                        )}
-                        {msg.meta?.attachedFileName && (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 5, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)', fontSize: 11, marginBottom: msg.text ? 5 : 0 }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                            </svg>
-                            <span style={{ color: 'rgba(255,255,255,0.6)' }}>{msg.meta.attachedFileName}</span>
+                        <div className="message-text message-card">
+                          <div className="message-content">
+                            {msg.meta?.imagePreview && (
+                              <img src={msg.meta.imagePreview} alt="adjunto"
+                                style={{ display: 'block', maxHeight: 160, maxWidth: '100%', borderRadius: 6, marginBottom: msg.text ? 6 : 0, objectFit: 'contain' }}
+                              />
+                            )}
+                            {msg.meta?.attachedFileName && (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.30)', fontSize: 11, marginBottom: msg.text ? 6 : 0, maxWidth: '100%' }}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                                <span style={{ opacity: 0.95, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.meta.attachedFileName}</span>
+                              </div>
+                            )}
+                            {msg.text}
                           </div>
-                        )}
-                        {msg.text}
-                        <div className="msg-actions">
-                          <button className="msg-action-btn msg-action-btn--delete"
+                          {msg.timestamp && (
+                            <span className="msg-timestamp" title={new Date(msg.timestamp).toLocaleString('es')}>{fmtTime(msg.timestamp)}</span>
+                          )}
+                        </div>
+                        {/* Acciones fuera del fondo morado — visibles al hover */}
+                        <div className="msg-actions msg-actions--user">
+                          <button
+                            className="msg-action-btn"
+                            title="Editar"
+                            disabled={isSending}
+                            onClick={() => { setEditingMsgId(msg.id); setEditDraft(msg.text); }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </button>
+                          <button
+                            className="msg-action-btn msg-action-btn--delete"
+                            title="Borrar mensaje"
+                            disabled={isSending}
                             onClick={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
-                            title="Borrar mensaje" disabled={isSending}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                               <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
                             </svg>
@@ -816,7 +866,105 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                       </>
                     )}
                   </div>
-                </div>
+                ) : (
+                  /* ── Mensaje IA / sistema ── */
+                  <div className={`message-text message-card${streamingMsgId === msg.id ? ' is-streaming' : ''}${msg.sender === 'ai' && msg.text.startsWith('Error') ? ' message-card--error' : ''}`}>
+                    {msg.timestamp && (
+                      <span className="msg-timestamp" title={new Date(msg.timestamp).toLocaleString('es')}>{fmtTime(msg.timestamp)}</span>
+                    )}
+                    <div className="message-content">
+                      {msg.sender === 'ai' ? (
+                        <>
+                          {msg.meta?.toolSteps && msg.meta.toolSteps.length > 0 && (
+                            <AgentStepsRenderer steps={msg.meta.toolSteps} />
+                          )}
+                          {!msg.meta?.fileAnalysisDisambiguation && (
+                            <AskRenderer
+                              content={streamingMsgId === msg.id ? streamedText : msg.text}
+                              sessionId={sessionId || undefined}
+                              setLastCommand={setLastCommand as any}
+                              mode={mode}
+                            />
+                          )}
+                          {msg.meta?.toolAction && (
+                            <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />
+                          )}
+                          <div className="msg-actions">
+                            <button className="msg-action-btn" onClick={() => handleCopyMessage(msg.text)} title="Copiar mensaje">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                              </svg>
+                            </button>
+                            {streamingMsgId !== msg.id && !msg.text.startsWith('Error') && (
+                              <button className="msg-action-btn" onClick={() => handleRegenerate(msg.id)} title="Regenerar respuesta" disabled={isSending}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+                                </svg>
+                              </button>
+                            )}
+                            {msg.text.startsWith('Error') && (
+                              <button className="msg-action-btn msg-action-btn--retry" onClick={() => handleRetry(msg.id)} title="Reintentar" disabled={isSending}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          {streamingMsgId !== msg.id && msgWordCount > 10 && (
+                            <span className="msg-word-count">~{msgWordCount} pal.</span>
+                          )}
+                          {msg.meta?.fileEdit && (
+                            <div className="file-edit-diff">
+                              <h4>Diff propuesto</h4>
+                              <DiffView diff={msg.meta.fileEdit.diff} />
+                              {msg.meta.fileEdit.needsConfirmation && (
+                                <div className="file-edit-actions">
+                                  <button onClick={() => setInput(`aplicar ${msg.meta?.fileEdit?.path}`)}>Preparar aplicar</button>
+                                  <button onClick={() => setInput('descartar')}>Descartar</button>
+                                  <button onClick={() => setInput(`backups ${msg.meta?.fileEdit?.path}`)}>Ver backups</button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {msg.meta?.fileAnalysisDisambiguation?.candidates && (
+                            <div className="file-disambiguation enhanced">
+                              <div className="file-disambiguation__header">
+                                <h4>
+                                  {msg.meta.fileAnalysisDisambiguation.action === 'optimize'
+                                    ? 'Selecciona cuál archivo quieres optimizar'
+                                    : 'Selecciona cuál archivo quieres analizar'}
+                                </h4>
+                                <p className="hint">
+                                  Se encontraron {msg.meta.fileAnalysisDisambiguation.candidates.length} rutas con el mismo nombre.
+                                  Haz clic para {msg.meta.fileAnalysisDisambiguation.action === 'optimize' ? 'optimizar' : 'cargar el contenido'}.
+                                </p>
+                              </div>
+                              <ul className="file-disambiguation__list" role="list">
+                                {msg.meta.fileAnalysisDisambiguation.candidates.map((c: string, idx: number) => (
+                                  <li key={c} className="file-disambiguation__item">
+                                    <button
+                                      type="button"
+                                      className="file-disambiguation__btn"
+                                      onClick={() => handleAnalyzeCandidate(msg.meta.fileAnalysisDisambiguation.base, c, msg.meta.fileAnalysisDisambiguation.action || 'analyze', idx)}
+                                      disabled={isSending}
+                                      aria-label={`${msg.meta.fileAnalysisDisambiguation.action === 'optimize' ? 'Optimizar' : 'Analizar'} opción ${idx + 1}: ${c}`}
+                                    >
+                                      <span className="file-disambiguation__index">{idx + 1}</span>
+                                      <span className="file-disambiguation__path">{c}</span>
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        msg.text
+                      )}
+                    </div>
+                  </div>
+                )
               )}
             </div>
           );
