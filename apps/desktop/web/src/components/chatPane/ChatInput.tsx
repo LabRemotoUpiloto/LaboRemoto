@@ -1,6 +1,10 @@
 import React, { useRef } from 'react';
 import { ChatMode, Message } from '../chatModes/types';
 import { MAX_CHAR_WARN, MODE_PLACEHOLDERS, TOKEN_STORAGE_KEY } from './chatPane.constants';
+import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface Props {
   input: string;
@@ -12,6 +16,8 @@ interface Props {
   canSend: boolean;
   attachedImage: { base64: string; mediaType: string; preview: string } | null;
   setAttachedImage: (v: { base64: string; mediaType: string; preview: string } | null) => void;
+  attachedFile: { name: string; content: string } | null;
+  setAttachedFile: (v: { name: string; content: string } | null) => void;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
   isComposingRef: React.MutableRefObject<boolean>;
   messages: Message[];
@@ -27,6 +33,7 @@ interface Props {
 const ChatInput: React.FC<Props> = ({
   input, setInput, mode, isSending, onSend, onCancel, canSend,
   attachedImage, setAttachedImage,
+  attachedFile, setAttachedFile,
   inputRef, isComposingRef,
   messages, sessionTokens, setSessionTokens, sessionId,
   ctxUsagePct, setToast,
@@ -60,33 +67,86 @@ const ChatInput: React.FC<Props> = ({
       <input
         ref={textFileInputRef}
         type="file"
-        accept=".txt,.conf,.config,.log,.sh,.bash,.py,.js,.ts,.json,.yaml,.yml,.toml,.env,.ini,.cfg,.nginx,.service,.xml,.html,.md,.rs,.go,.java,.c,.cpp,.h"
+        accept=".txt,.conf,.config,.log,.sh,.bash,.py,.js,.ts,.json,.yaml,.yml,.toml,.env,.ini,.cfg,.nginx,.service,.xml,.html,.md,.rs,.go,.java,.c,.cpp,.h,.docx,.doc,.pdf"
         style={{ display: 'none' }}
-        onChange={(e) => {
+        onChange={async (e) => {
           const file = e.target.files?.[0];
           if (!file) return;
+          e.target.value = '';
+          const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
           const MAX_TEXT_SIZE = 200_000;
+
+          // ── Word (.docx / .doc) ──
+          if (ext === 'docx' || ext === 'doc') {
+            if (file.size > 10_000_000) {
+              setToast('Archivo Word demasiado grande (máx. 10 MB)');
+              setTimeout(() => setToast(null), 2500);
+              return;
+            }
+            try {
+              setToast(`Procesando "${file.name}"…`);
+              const arrayBuffer = await file.arrayBuffer();
+              const result = await mammoth.extractRawText({ arrayBuffer });
+              const text = result.value.trim();
+              if (!text) { setToast('El documento Word está vacío'); setTimeout(() => setToast(null), 2500); return; }
+              setAttachedFile({ name: file.name, content: text.slice(0, 30_000) });
+              setToast(`Word "${file.name}" adjuntado`);
+              setTimeout(() => setToast(null), 2000);
+            } catch {
+              setToast('Error al leer el archivo Word');
+              setTimeout(() => setToast(null), 2500);
+            }
+            return;
+          }
+
+          // ── PDF ──
+          if (ext === 'pdf') {
+            if (file.size > 20_000_000) {
+              setToast('PDF demasiado grande (máx. 20 MB)');
+              setTimeout(() => setToast(null), 2500);
+              return;
+            }
+            try {
+              setToast(`Procesando "${file.name}"…`);
+              const arrayBuffer = await file.arrayBuffer();
+              const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+              const pageTexts: string[] = [];
+              for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const pageText = content.items.map((item: any) => item.str).join(' ');
+                pageTexts.push(pageText);
+              }
+              const text = pageTexts.join('\n\n').trim();
+              if (!text) { setToast('El PDF no contiene texto extraíble'); setTimeout(() => setToast(null), 2500); return; }
+              setAttachedFile({ name: `${file.name} (${pdf.numPages} págs.)`, content: text.slice(0, 30_000) });
+              setToast(`PDF "${file.name}" adjuntado (${pdf.numPages} págs.)`);
+              setTimeout(() => setToast(null), 2000);
+            } catch {
+              setToast('Error al leer el PDF');
+              setTimeout(() => setToast(null), 2500);
+            }
+            return;
+          }
+
+          // ── Texto plano (comportamiento original) ──
           if (file.size > MAX_TEXT_SIZE) {
             setToast('Archivo demasiado grande (máx. 200 KB)');
             setTimeout(() => setToast(null), 2500);
-            e.target.value = '';
             return;
           }
           const reader = new FileReader();
           reader.onload = (ev) => {
             const text = ev.target?.result as string;
-            const fenced = `\`\`\`${file.name.split('.').pop() ?? 'text'}\n${text}\n\`\`\``;
-            const prefix = `📄 ${file.name}:\n`;
-            setInput(prev => prev ? `${prev}\n\n${prefix}${fenced}` : `${prefix}${fenced}`);
+            setAttachedFile({ name: file.name, content: text });
             setToast(`Archivo "${file.name}" adjuntado`);
             setTimeout(() => setToast(null), 2000);
           };
           reader.readAsText(file);
-          e.target.value = '';
         }}
       />
 
-      <div className="chat-input-wrap" style={attachedImage ? { flexDirection: 'column', alignItems: 'stretch', gap: 0 } : undefined}>
+      <div className="chat-input-wrap" style={(attachedImage || attachedFile) ? { flexDirection: 'column', alignItems: 'stretch', gap: 0 } : undefined}>
         {/* Image chip */}
         {attachedImage && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px 4px' }}>
@@ -108,6 +168,30 @@ const ChatInput: React.FC<Props> = ({
               >✕</button>
             </div>
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>imagen lista para enviar</span>
+          </div>
+        )}
+        {/* File chip */}
+        {attachedFile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px 4px' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '4px 10px', borderRadius: 6,
+              background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.20)',
+              fontSize: 11.5, flex: 1, minWidth: 0,
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <span style={{ color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachedFile.name}</span>
+            </div>
+            <button
+              onClick={() => setAttachedFile(null)}
+              style={{
+                background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)',
+                cursor: 'pointer', fontSize: 15, padding: '0 2px', flexShrink: 0, lineHeight: 1,
+              }}
+              title="Quitar archivo"
+            >×</button>
           </div>
         )}
 

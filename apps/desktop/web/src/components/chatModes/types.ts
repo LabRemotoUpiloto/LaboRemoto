@@ -45,6 +45,11 @@ export interface MessageMeta {
     candidates: string[];
     action?: 'analyze' | 'optimize';
   };
+  // Archivo adjunto (Word, PDF, texto)
+  attachedFileName?: string;
+  attachedFileContent?: string;
+  imagePreview?: string;
+  chat_mode?: string;
 }
 
 export interface Message {

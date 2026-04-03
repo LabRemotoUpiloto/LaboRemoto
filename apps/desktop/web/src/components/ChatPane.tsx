@@ -58,6 +58,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [attachedImage, setAttachedImage] = useState<{ base64: string; mediaType: string; preview: string } | null>(null);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; content: string } | null>(null);
   const currentReqIdRef = useRef<string | null>(null);
   const [terminalActivity, setTerminalActivity] = useState(false);
   const terminalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -419,7 +420,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       pendingAttachedImageRef.current = attachedImage;
       setShowModeConfirm(newMode);
     } else {
-      setAttachedImage(null); setMode(newMode); clear();
+      setAttachedImage(null); setAttachedFile(null); setMode(newMode); clear();
     }
   }, [mode, messages, sessionId, attachedImage]);
 
@@ -427,7 +428,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     if (!showModeConfirm) return;
     await archiveCurrentChatRef.current();
     loadedHistoryIdRef.current = null; messageCountAtLoadRef.current = 0;
-    setAttachedImage(null); pendingAttachedImageRef.current = null;
+    setAttachedImage(null); setAttachedFile(null); pendingAttachedImageRef.current = null;
     skipRestoreRef.current = true;
     setMode(showModeConfirm); setMessages([]); clear(); setShowModeConfirm(null);
   }, [showModeConfirm]);
@@ -476,9 +477,15 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
   // ── invokeAsk ──
   const invokeAsk = async ({ finalInput, mode, userMsg }: { finalInput: string; mode: ChatMode; userMsg: Message }) => {
+    const getContent = (m: Message) => {
+      let c = m.text;
+      if (m.meta?.attachedFileContent) c += `\n\n📄 ${m.meta.attachedFileName}:\n\`\`\`text\n${m.meta.attachedFileContent}\n\`\`\``;
+      return c;
+    };
     const history = [...messages, userMsg]
       .filter(m => m.sender !== 'system')
-      .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: m.text }));
+      .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: getContent(m) }));
+    const enrichedInput = getContent(userMsg);
     const imgSnap = attachedImage;
     setAttachedImage(null); setTerminalActivity(false);
     const reqId = crypto.randomUUID();
@@ -494,7 +501,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     try {
       res = await invoke<AiResponseRaw>('ai_chat', {
         req: {
-          user_input: finalInput, mode, history, state: agentState,
+          user_input: enrichedInput, mode, history, state: agentState,
           model_selection: selectedModel,
           image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
           terminal_context: null, request_id: reqId,
@@ -536,7 +543,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       setInput(''); return;
     }
     isSendingRef.current = true; setErrorBanner(null);
-    const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed, timestamp: Date.now(), meta: attachedImage ? { imagePreview: attachedImage.preview } as any : undefined };
+    const filesnap = attachedFile;
+    setAttachedFile(null);
+    const userMsg: Message = { id: String(Date.now()), sender: 'user', text: trimmed, timestamp: Date.now(), meta: {
+      ...(attachedImage ? { imagePreview: attachedImage.preview } : {}),
+      ...(filesnap ? { attachedFileName: filesnap.name, attachedFileContent: filesnap.content } : {}),
+    } as any };
     setMessages(prev => [...prev, userMsg]);
     if (!overrideText) setInput('');
     try {
@@ -781,6 +793,14 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
                             style={{ display: 'block', maxHeight: 160, maxWidth: '100%', borderRadius: 6, marginBottom: msg.text ? 6 : 0, objectFit: 'contain' }}
                           />
                         )}
+                        {msg.meta?.attachedFileName && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 5, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)', fontSize: 11, marginBottom: msg.text ? 5 : 0 }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            <span style={{ color: 'rgba(255,255,255,0.6)' }}>{msg.meta.attachedFileName}</span>
+                          </div>
+                        )}
                         {msg.text}
                         <div className="msg-actions">
                           <button className="msg-action-btn msg-action-btn--delete"
@@ -852,6 +872,8 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         canSend={modeHandlers[mode]?.canSend() ?? false}
         attachedImage={attachedImage}
         setAttachedImage={setAttachedImage}
+        attachedFile={attachedFile}
+        setAttachedFile={setAttachedFile}
         inputRef={inputRef}
         isComposingRef={isComposingRef}
         messages={messages}
