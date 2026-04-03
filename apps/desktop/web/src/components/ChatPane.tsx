@@ -181,9 +181,6 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   useEffect(() => {
     const unlisten = listen<{ request_id: string; input_tokens: number; output_tokens: number; model: string }>('ai:usage', (ev) => {
       const { model, input_tokens, output_tokens } = ev.payload;
-      console.log('%c[AI tokens]%c modelo=%s  entrada=%d  salida=%d  total=%d',
-        'color:#a78bfa;font-weight:bold', 'color:#94a3b8',
-        model, input_tokens, output_tokens, input_tokens + output_tokens);
       setSessionTokens(prev => {
         const next = { input: prev.input + input_tokens, output: prev.output + output_tokens };
         try { localStorage.setItem(TOKEN_STORAGE_KEY(sessionId ?? null), JSON.stringify(next)); } catch {}

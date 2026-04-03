@@ -15,6 +15,7 @@ if (!import.meta.env.DEV) {
   console.debug = n;
   console.info = n;
   console.warn = n;
+  console.error = n;
 }
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

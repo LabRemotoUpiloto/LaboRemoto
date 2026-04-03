@@ -29,8 +29,7 @@ export function useRecentConnections() {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
         }
       }
-    } catch (error) {
-      console.error('Error loading recent connections:', error);
+    } catch {
       setRecentConnections([]);
     }
   }, []);
@@ -78,8 +77,7 @@ export function useRecentConnections() {
 
         return limited;
       });
-    } catch (error) {
-      console.error('Error saving recent connection:', error);
+    } catch {
     }
   }, []);
 
@@ -88,8 +86,7 @@ export function useRecentConnections() {
     try {
       localStorage.removeItem(STORAGE_KEY);
       setRecentConnections([]);
-    } catch (error) {
-      console.error('Error clearing recent connections:', error);
+    } catch {
     }
   }, []);
 
@@ -101,8 +98,7 @@ export function useRecentConnections() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         return updated;
       });
-    } catch (error) {
-      console.error('Error removing connection:', error);
+    } catch {
     }
   }, []);
 

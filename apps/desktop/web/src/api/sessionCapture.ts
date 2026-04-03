@@ -111,22 +111,8 @@ function cleanAnsiControlSequences(text: string): string {
  * Convierte códigos ANSI a HTML con colores preservados
  */
 function convertAnsiToHtml(ansiText: string): string {
-  console.log('🎨 Converting ANSI to HTML:', {
-    inputLength: ansiText.length,
-    firstChars: ansiText.substring(0, 200),
-    hasEscapeSequences: ansiText.includes('\x1b'),
-    escapeCount: (ansiText.match(/\x1b/g) || []).length
-  });
-  
   // Procesar el stream completo (backspaces, carriage returns, limpieza de control)
   const processedText = processTerminalStream(ansiText);
-  
-  console.log('🧹 After processing stream:', {
-    processedLength: processedText.length,
-    firstChars: processedText.substring(0, 200),
-    hasEscapeSequences: processedText.includes('\x1b'),
-    escapeCount: (processedText.match(/\x1b/g) || []).length
-  });
   
   const converter = new AnsiToHtml({
     fg: '#d4d4d4',
@@ -154,14 +140,7 @@ function convertAnsiToHtml(ansiText: string): string {
     }
   });
 
-  const htmlResult = converter.toHtml(processedText);
-  
-  console.log('✨ HTML conversion result:', {
-    htmlLength: htmlResult.length,
-    firstChars: htmlResult.substring(0, 300)
-  });
-  
-  return htmlResult;
+  return converter.toHtml(processedText);
 }
 
 /**
@@ -198,17 +177,7 @@ export async function captureAndSaveSession(
   metadata: SessionMetadata
 ): Promise<void> {
   try {
-    console.log('📝 Capturing session:', {
-      sessionId: metadata.sessionId,
-      contentLength: serializedContent.length,
-      firstChars: serializedContent.substring(0, 100)
-    });
-    
     const htmlContent = convertAnsiToHtml(serializedContent);
-    console.log('🎨 Converted to HTML:', {
-      htmlLength: htmlContent.length,
-      firstChars: htmlContent.substring(0, 200)
-    });
 
     await invoke('save_session_log_fragment', {
       sessionId: metadata.sessionId,
@@ -219,10 +188,7 @@ export async function captureAndSaveSession(
       endTime: metadata.endTime,
       htmlFragment: htmlContent,
     });
-    
-    console.log(`✅ Session log saved: ${metadata.sessionId}`);
   } catch (error) {
-    console.error('❌ Error saving session log:', error);
     throw error;
   }
 }
@@ -240,7 +206,6 @@ export async function listSessionLogs(): Promise<SessionLogMetadata[]> {
   try {
     return await invoke<SessionLogMetadata[]>('list_session_logs');
   } catch (error) {
-    console.error('❌ Error listing session logs:', error);
     throw error;
   }
 }
@@ -252,7 +217,6 @@ export async function getSessionLogContent(sessionId: string): Promise<string> {
   try {
     return await invoke<string>('get_session_log_content', { sessionId });
   } catch (error) {
-    console.error(`❌ Error getting log content for ${sessionId}:`, error);
     throw error;
   }
 }
@@ -264,7 +228,6 @@ export async function getSessionLog(sessionId: string): Promise<SessionLog> {
   try {
     return await invoke<SessionLog>('get_session_log', { sessionId });
   } catch (error) {
-    console.error(`❌ Error getting log for ${sessionId}:`, error);
     throw error;
   }
 }
@@ -275,9 +238,7 @@ export async function getSessionLog(sessionId: string): Promise<SessionLog> {
 export async function deleteSessionLog(sessionId: string): Promise<void> {
   try {
     await invoke('delete_session_log', { sessionId });
-    console.log(`🗑️ Session log deleted: ${sessionId}`);
   } catch (error) {
-    console.error(`❌ Error deleting log ${sessionId}:`, error);
     throw error;
   }
 }
@@ -289,7 +250,6 @@ export async function cleanupOldLogs(days: number): Promise<number> {
   try {
     return await invoke<number>('cleanup_old_session_logs', { days });
   } catch (error) {
-    console.error('❌ Error cleaning up old logs:', error);
     throw error;
   }
 }

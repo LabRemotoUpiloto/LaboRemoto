@@ -47,16 +47,10 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const loadSessions = async () => {
     setLoading(true)
     try {
-      // Usar logs locales
-      console.log(`💾 Loading logs from local storage`)
       const metadata = await listSessionLogs()
-      
       const adaptedSessions = metadata.map(adaptMetadataToSessionLog)
       setSessions(adaptedSessions)
-      console.log(`✅ Loaded ${adaptedSessions.length} session logs`)
-    } catch (error) {
-      console.error('Error loading sessions:', error)
-      // Mostrar array vacío en caso de error
+    } catch {
       setSessions([])
     } finally {
       setLoading(false)
@@ -113,7 +107,6 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
       // Actualizar la lista
       setSessions(prev => prev.filter(s => s.id !== toDeleteSession.id))
     } catch (error) {
-      console.error('Error deleting log:', error)
       push({ type: 'error', message: `Error al eliminar el log: ${error}` })
     } finally {
       setConfirmOpen(false)
@@ -122,8 +115,6 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   }
 
   const handleViewBuffer = (session: SessionLog) => {
-    console.log('Ver logs completos de sesión:', session.id)
-    // Abrir el detalle del log completo en una nueva pestaña
     onOpenLog?.(session)
   }
 
@@ -164,7 +155,6 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
       
       push({ type: 'success', message: `Reporte guardado: ${savedPath}` })
     } catch (error) {
-      console.error('Error generating PDF:', error)
       push({ type: 'error', message: `Error al generar Reporte: ${error}` })
     }
   }

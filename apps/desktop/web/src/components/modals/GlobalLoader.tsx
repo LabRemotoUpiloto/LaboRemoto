@@ -5,8 +5,6 @@ import './GlobalLoader.css'
 export default function GlobalLoader() {
   const { loading, label, onCancel } = useLoading()
   
-  console.log('🔄 GlobalLoader render:', { loading, label, hasCancel: !!onCancel })
-  
   if (!loading) return null
   
   return (
