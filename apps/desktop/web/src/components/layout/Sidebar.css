@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════ */
 
 .sidebar {
-  height: calc(100vh - var(--header-height) - 24px); /* resta la statusbar */
+  height: calc(100vh - var(--header-height)); 
   padding-bottom: 8px;
   position: fixed;
   left: 0;

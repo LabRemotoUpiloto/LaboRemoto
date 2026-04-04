@@ -14,7 +14,7 @@ type Props = {
   sessionMeta: Record<string, { label: string }>
   setSessionMeta: React.Dispatch<React.SetStateAction<Record<string, { label: string }>>>
   selectedPage: string
-  setSelectedPage: (page: string) => void
+  onOpenPanel: (panelId: string) => void
   pendingHost: any | null
   setPendingHost: (payload: any | null) => void
   onConnectedFromConnect: (info: { id: string; label?: string } | null) => void
@@ -26,7 +26,7 @@ const HomeContainer: React.FC<Props> = ({
   sessionMeta,
   setSessionMeta,
   selectedPage,
-  setSelectedPage,
+  onOpenPanel,
   pendingHost,
   setPendingHost,
   onConnectedFromConnect,
@@ -36,8 +36,8 @@ const HomeContainer: React.FC<Props> = ({
     <div style={{ height: '100%' }}>
       {selectedPage === 'landing' ? (
         <LandingPage
-          onStartTutorial={() => setSelectedPage('landing')}
-          onPageChange={setSelectedPage}
+          onStartTutorial={() => onOpenPanel('landing')}
+          onOpenPanel={onOpenPanel}
         />
       ) : selectedPage === 'connect' ? (
         <ConnectFormPage onConnected={onConnectedFromConnect} initialPayload={pendingHost} />
@@ -50,7 +50,7 @@ const HomeContainer: React.FC<Props> = ({
           }}
           onEdit={(hostData, originalFile) => {
             setPendingHost({ ...hostData, _originalFile: originalFile })
-            setSelectedPage('connect')
+            onOpenPanel('connect')
           }}
         />
       ) : selectedPage === 'themes' ? (
@@ -70,8 +70,8 @@ const HomeContainer: React.FC<Props> = ({
         <SnippetsPage />
       ) : (
         <LandingPage
-          onStartTutorial={() => setSelectedPage('landing')}
-          onPageChange={setSelectedPage}
+          onStartTutorial={() => onOpenPanel('landing')}
+          onOpenPanel={onOpenPanel}
         />
       )}
     </div>
