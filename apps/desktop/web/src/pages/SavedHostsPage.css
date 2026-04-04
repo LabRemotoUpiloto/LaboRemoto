@@ -1,17 +1,22 @@
 /* ==================== LAYOUT PRINCIPAL ==================== */
 .saved-hosts-page { 
-  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   background: var(--background-primary);
+  overflow: hidden;
 }
 
 /* El header integrado se maneja globalmente en globals.css */
 
 /* ==================== GRID DE HOSTS ==================== */
 .hosts-grid { 
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
   padding: 24px;
+  overflow-y: auto;
   animation: fadeIn 0.4s ease-out;
 }
 
