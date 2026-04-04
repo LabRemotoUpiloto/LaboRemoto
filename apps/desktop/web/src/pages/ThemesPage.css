@@ -21,16 +21,233 @@
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  scroll-behavior: smooth;
 }
 
 /* Contenedor interno con padding - alineado con la sidebar */
 .themes-page-inner {
-  padding: 24px;
-  max-width: 1600px;
+  padding: 40px 32px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
-/* Scrollbar personalizado para el área scrollable */
+/* ==================== CATEGORÍAS ==================== */
+.theme-category {
+  margin-bottom: 64px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  position: relative;
+}
+
+.category-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-subtle) 0%, transparent 100%);
+  margin-left: 20px;
+}
+
+.category-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--background-secondary);
+  color: var(--accent-primary);
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-subtle);
+}
+
+.category-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.category-count {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  background: var(--background-secondary);
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* ==================== GRID DE TEMAS ==================== */
+.themes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 32px;
+}
+
+/* ==================== TARJETA DE TEMA (MODERNA) ==================== */
+.theme-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.theme-card:hover {
+  transform: translateY(-8px);
+  border-color: var(--accent-primary);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  background: var(--background-tertiary);
+}
+
+.theme-card.active {
+  border-color: var(--accent-primary);
+  border-width: 2px;
+  background: color-mix(in srgb, var(--accent-primary) 3%, var(--background-secondary));
+}
+
+/* Previsualización del Tema */
+.preview {
+  height: 160px;
+  width: 100%;
+  background: var(--background-tertiary);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.2) 100%);
+  pointer-events: none;
+}
+
+/* Indicador Activo (Checkmark flotante) */
+.active-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  background: var(--accent-primary);
+  color: var(--background-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  animation: scaleIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  z-index: 5;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Swatches para temas especiales */
+.swatches {
+  display: flex;
+  gap: 6px;
+  padding: 12px 20px 0;
+}
+
+.sw {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Metadatos del Tema */
+.meta {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meta-label {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.meta-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* ==================== PREVIEWS ESPECÍFICAS ==================== */
+/* Colores de previsualización más inmersivos */
+
+.preview.default { background: linear-gradient(135deg, #1e293b, #0f172a); }
+.preview.dracula { background: linear-gradient(135deg, #44475a, #282a36); }
+.preview.crimson-gold { background: linear-gradient(135deg, #450a0a, #1a0f0f); }
+.preview.obsidian-rose { background: linear-gradient(135deg, #1c0a0a, #0a0505); }
+.preview.aurora-coral { background: linear-gradient(135deg, #2a1f1a, #1a1512); }
+.preview.electric-indigo { background: linear-gradient(135deg, #1e1b4b, #0f0a1a); }
+.preview.amber-night { background: linear-gradient(135deg, #2d241d, #120d0a); }
+.preview.oceanic-teal { background: linear-gradient(135deg, #134e4a, #0a1a1a); }
+.preview.toxic-lime { background: linear-gradient(135deg, #1a2e05, #0a1205); }
+.preview.violet-ember { background: linear-gradient(135deg, #2e1065, #120a1a); }
+.preview.metro-gray { background: linear-gradient(135deg, #334155, #1a1a1a); }
+
+.preview.light { background: linear-gradient(135deg, #f8fafc, #ffffff); }
+.preview.lavender-dream { background: linear-gradient(135deg, #f5f3ff, #ede9fe); }
+.preview.polar-mint { background: linear-gradient(135deg, #f0fdf4, #dcfce7); }
+.preview.peachy-sunrise { background: linear-gradient(135deg, #fff7ed, #ffedd5); }
+.preview.sakura-blush { background: linear-gradient(135deg, #fff1f2, #ffe4e6); }
+.preview.rose-quartz { background: linear-gradient(135deg, #fff1f2, #fce7f3); }
+.preview.silver-cloud { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); }
+
+.preview.sunburst-rainbow { background: linear-gradient(45deg, #ff4b6b, #ff8b3b, #ffd56b, #6bff8b, #6bd7ff); }
+.preview.bold-rainbow { background: linear-gradient(45deg, #ff0080, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff); }
+.preview.pastel-dream { background: linear-gradient(45deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff); }
+.preview.fc-barcelona { background: linear-gradient(45deg, #004d98, #a50044, #edbb00); }
+
+/* Scrollbar personalizado */
 .themes-page__scrollable::-webkit-scrollbar {
   width: 10px;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 1024px) {
+  .themes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .themes-grid {
+    grid-template-columns: 1fr;
+  }
+  .themes-page-inner {
+    padding: 24px 20px;
+  }
+  .category-header::after {
+    display: none;
+  }
+  .category-title {
+    font-size: 20px;
+  }
 }
