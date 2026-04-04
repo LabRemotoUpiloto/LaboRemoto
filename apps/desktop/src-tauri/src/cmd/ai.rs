@@ -19,103 +19,22 @@ fn default_prompts() -> PromptsConfig {
         identidad: "Soy un cliente SSH de la Universidad Piloto de Colombia que te ayudará con tus dudas de Linux y de la terminal en general.".to_string(),
         fuera_de_alcance: "No tengo contenido para esa solicitud. Puedo ayudarte con temas de Linux por terminal (comandos, scripts, configuración). Intenta con una pregunta relacionada o escribe de nuevo tu solicitud.".to_string(),
         capacidades: "Puedo ayudarte con temas de Linux por terminal:\n\n- Explicar comandos, rutas, permisos y procesos.\n- Sugerir y componer comandos seguros para tu objetivo.\n- Crear guías paso a paso y scripts listos sin editores interactivos (usando here-doc).\n- Generar scripts sencillos (bash/python) y explicar cómo usarlos.\n- Resolver errores de la terminal y configurar servicios comunes (systemctl, apt/yum/pacman, etc.).\n\nDime qué quieres lograr y te doy los pasos o el comando adecuado.".to_string(),
-        sistema_base: r#"<instructions>
-<persona>
-Eres 'Kernel', un asistente experto en Linux, microcontroladores (Arduino, ESP32) y scripting.
-</persona>
-
-<critical_rules>
-<rule id="identity">
+        sistema_base: r#"Eres Kernel — experto Linux/Arduino/ESP32/scripting. Responde SIEMPRE en español.
 Si preguntan quién eres: "{{IDENTIDAD}}"
-</rule>
-
-<rule id="single_solution">
-CRÍTICO: Una única solución, NUNCA múltiples opciones.
-Prohibido: "Opción 1/2/3", "Versión básica/avanzada/intermedia", "Con/Sin funciones", "Con/Sin bucle".
-Entrega DIRECTAMENTE la mejor implementación.
-</rule>
-
-<rule id="here_document">
-Scripts multi-línea (Python/Bash): OBLIGATORIO usar here-document.
-
-FORMATO OBLIGATORIO - 3 bloques separados:
-
-1. Crear archivo:
-```bash
-cat > script.sh <<'EOF'
-(código)
-EOF
-```
-
-2. Dar permisos (explicar para qué):
-```bash
-chmod +x script.sh
-```
-
-3. Ejecutar (explicar qué hace):
-```bash
-./script.sh
-```
-
-O para Python:
-```bash
-python3 script.py
-```
-
-CRÍTICO: NUNCA juntes chmod y ejecución. SIEMPRE 3 bloques de código separados.
-Usa el MISMO nombre completo con extensión en los 3 bloques.
-
-
-<rule id="output_format">
-Formato OBLIGATORIO:
-
+REGLAS:
+· Una sola solución. Prohibido: alternativas, opciones.
+· Comando simple → un bloque bash.
+· Script multi-línea → 3 bloques exactos con el mismo nombre:
+  1. `cat > nombre.ext <<'EOF'\n...\nEOF`
+  2. `chmod +x nombre.ext`
+  3. `./nombre.ext`  (o `python3 nombre.ext`)
+  NUNCA combinar 2 y 3.
+· Variantes ilustrativas → lista markdown (`- \`cmd\` — qué hace`), nunca bloques bash.
+FORMATO DE RESPUESTA:
 ### Explicación
-(descripción breve del objetivo - si necesitas mostrar EJEMPLOS de comandos, usa lista markdown sin bloques de código)
-
+(máx 3 líneas; variantes como lista si aplica)
 ### Comandos
-
-**1. Crear el archivo:**
-```bash
-cat > archivo.ext <<'EOF'
-(código)
-EOF
-```
-
-**2. Dar permisos de ejecución:**
-Breve explicación de qué hace chmod +x
-```bash
-chmod +x archivo.ext
-```
-
-**3. Ejecutar:**
-Breve explicación de qué hace ./ o python3
-```bash
-./archivo.ext
-```
-(o `python3 archivo.py` para Python)
-
-IMPORTANTE: Cada comando en su PROPIO bloque de código separado.
-</rule>
-
-<rule id="examples_format">
-Para mostrar EJEMPLOS ilustrativos de un comando (ej: variantes de 'cd' o 'ls'):
-- Usa lista markdown en la sección Explicación
-- NO uses bloques de código para ejemplos
-- Formato: "- `comando` - descripción"
-Ejemplo correcto:
-### Explicación
-El comando `cd` cambia de directorio:
-- `cd /home/usuario` - ir a un directorio específico
-- `cd ~` - ir al home del usuario
-- `cd ..` - subir un nivel
-
-### Comandos
-```bash
-cd /ruta/deseada
-```
-</rule>
-</critical_rules>
-</instructions>"#.to_string(),
+(bloques bash)"#.to_string(),
     }
 }
 
@@ -204,7 +123,7 @@ pub struct AiChatRequest {
     pub mode: ChatMode,
     pub history: Option<Vec<ChatHistoryItem>>,
     pub state: Option<AgentState>,
-    pub model_selection: Option<ModelSelection>,
+    pub model_selection: Option<String>,
     pub image_base64: Option<String>,
     pub image_media_type: Option<String>,
     pub terminal_context: Option<String>,
@@ -343,13 +262,25 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   let req_id = raw_req_id.filter(|s| !s.is_empty()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
   let mut cancel_rx = cancel_state.register(&req_id);
 
-  // Usar modelo seleccionado por el usuario o fallback a variable de entorno
-  let model_selection = req_model_selection.unwrap_or_default();
-  let model_id = model_selection.to_model_id().to_string();
-  
+  // Usar modelo seleccionado por el usuario o fallback a Claude
+  let model_selection = req_model_selection.unwrap_or_else(|| "claude-sonnet-4-6".to_string());
+  // Si OPENAI_MODEL del .env contiene "/" es un modelo OpenRouter (ej: "nvidia/nemotron-3-super-120b-a12b:free")
+  let env_model = std::env::var("OPENAI_MODEL").unwrap_or_default();
+  let model_id = if env_model.contains('/') { env_model } else { model_selection.clone() };
+  // Claude si el model_id empieza por "claude" y no es un modelo OpenRouter
+  let is_claude = model_id.starts_with("claude") && !model_id.contains('/');
+
+  // Auto-detectar OpenRouter: si el modelo tiene "/" y hay OPENROUTER_API_KEY, enrutar automáticamente
+  let or_key = crate::cmd::ai_utils::get_openrouter_api_key();
+  let (proxy_url, proxy_auth) = if proxy_url.is_none() && model_id.contains('/') && or_key.is_some() {
+    (Some("https://openrouter.ai/api/v1/chat/completions".to_string()), or_key)
+  } else {
+    (proxy_url, proxy_auth)
+  };
+
   // Determinar qué API key usar según el modelo seleccionado
   let api_key = if proxy_url.is_none() {
-    if model_selection.is_claude() {
+    if is_claude {
       crate::cmd::ai_utils::get_claude_api_key()
     } else {
       crate::cmd::ai_utils::get_openai_api_key()
@@ -359,7 +290,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   };
   
   if proxy_url.is_none() && api_key.is_none() {
-    let key_type = if model_selection.is_claude() { "CLAUDE_API_KEY" } else { "OPENAI_API_KEY" };
+    let key_type = if is_claude { "CLAUDE_API_KEY" } else { "OPENAI_API_KEY o OPENROUTER_API_KEY" };
     return Err(format!("{} not set", key_type));
   }
 
@@ -520,19 +451,22 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       messages.push(serde_json::json!({"role":"system","content": format!("Contexto de sesión (NO imprimir): {}", hints.join(", "))}));
     }
   }
-  // Inyectar contexto de terminal si está disponible
+  // Inyectar contexto de terminal si está disponible (comprimido para ahorrar tokens)
   if let Some(ref ctx) = terminal_context {
     if !ctx.trim().is_empty() {
-      messages.push(serde_json::json!({
-        "role": "system",
-        "content": format!("Contexto actual de la terminal (NO imprimir, usar como referencia):\n```\n{}\n```", ctx)
-      }));
+      let compressed = crate::cmd::ai_utils::compress_terminal_context(ctx);
+      if !compressed.is_empty() {
+        messages.push(serde_json::json!({
+          "role": "system",
+          "content": format!("Contexto actual de la terminal (NO imprimir, usar como referencia):\n```\n{}\n```", compressed)
+        }));
+      }
     }
   }
   if let Some(ref hist) = history {
-    // OPTIMIZACIÓN: Limitar historial a los últimos N mensajes para reducir tokens
-    // Mantener solo los últimos 10 mensajes (5 pares pregunta-respuesta aproximadamente)
-    const MAX_HISTORY_MESSAGES: usize = 10;
+    const MAX_HISTORY_MESSAGES: usize = 6;
+    // Truncar contenido largo para ahorrar tokens (máx 600 chars por mensaje)
+    const MAX_MSG_CHARS: usize = 600;
     
     let start_idx = if hist.len() > MAX_HISTORY_MESSAGES {
       hist.len() - MAX_HISTORY_MESSAGES
@@ -542,19 +476,19 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     
     let recent_history = &hist[start_idx..];
     
-    if env::var("AI_HISTORY_DEBUG").unwrap_or_default() == "1" {
-      let _ = (hist.len(), recent_history.len());
-    }
-    
-    // API sin estado: el cliente controla y envía el historial (limitado)
     for item in recent_history.iter() {
       let role = match item.role.as_str() {
         "assistant" | "user" | "system" => item.role.clone(),
-        // Fallbacks comunes
         "ai" | "bot" => "assistant".to_string(),
         _ => "user".to_string(),
       };
-      messages.push(serde_json::json!({"role": role, "content": item.content.clone()}));
+      // Truncar mensajes muy largos para reducir tokens de contexto
+      let content = if item.content.len() > MAX_MSG_CHARS {
+        format!("{}…[truncado]", &item.content[..MAX_MSG_CHARS])
+      } else {
+        item.content.clone()
+      };
+      messages.push(serde_json::json!({"role": role, "content": content}));
     }
   }
   // Si hay imagen adjunta, construir mensaje multimodal (solo Claude soporta visión aquí)
@@ -573,7 +507,6 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
 
   // Build the request payload - format differs between OpenAI and Claude
   let use_stream = proxy_url.is_none(); // Solo streaming para llamadas directas a la API
-  let is_claude = model_selection.is_claude();
   let (payload, base_url) = if is_claude {
     // Claude API format - extract system message and put it in separate parameter
     let mut claude_messages = Vec::new();
@@ -594,9 +527,10 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     // Unir todos los mensajes de sistema con doble salto de línea
     let system_content = system_parts.join("\n\n");
     
+    let max_tok = if matches!(incoming_mode, ChatMode::Plan) { 1000u32 } else { 500u32 };
     let claude_payload = serde_json::json!({
       "model": model_id,
-      "max_tokens": 800,
+      "max_tokens": max_tok,
       "temperature": 0.1,
       "stream": use_stream,
       "system": system_content,
@@ -606,14 +540,18 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     (claude_payload, claude_url)
   } else {
     // OpenAI API format
-    let openai_payload = serde_json::json!({
+    let max_tok = if matches!(incoming_mode, ChatMode::Plan) { 1000u32 } else { 500u32 };
+    let mut openai_payload = serde_json::json!({
       "model": model_id,
       "messages": messages,
-      "max_tokens": 800,
+      "max_tokens": max_tok,
       "temperature": 0.1,
       "stream": use_stream,
-      "stream_options": if use_stream { serde_json::json!({"include_usage": true}) } else { serde_json::Value::Null },
     });
+    // stream_options solo cuando se usa streaming; OpenRouter rechaza el campo si es null
+    if use_stream {
+      openai_payload["stream_options"] = serde_json::json!({"include_usage": true});
+    }
     let openai_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
     (openai_payload, openai_url)
   };
@@ -621,13 +559,19 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   let mut req_builder = client.post(&base_url).json(&payload);
   
   // Set appropriate headers for each API
-  if model_selection.is_claude() {
+  if is_claude && !base_url.contains("openrouter.ai") {
     req_builder = req_builder.header("anthropic-version", "2023-06-01");
     if let Some(ref token) = proxy_auth { req_builder = req_builder.header("x-api-key", token); }
     else if let Some(ref key) = api_key { req_builder = req_builder.header("x-api-key", key); }
   } else {
     if let Some(ref token) = proxy_auth { req_builder = req_builder.bearer_auth(token); }
     else if let Some(ref key) = api_key { req_builder = req_builder.bearer_auth(key); }
+  }
+  // Headers adicionales requeridos por OpenRouter
+  if base_url.contains("openrouter.ai") {
+    req_builder = req_builder
+      .header("HTTP-Referer", "https://github.com/ssh-ai-client")
+      .header("X-Title", "SSH AI Client");
   }
   let resp = tokio::select! {
     r = req_builder.send() => r.map_err(|e| e.to_string())?,
@@ -640,7 +584,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   if !resp.status().is_success() {
     let status = resp.status();
     let txt = resp.text().await.unwrap_or_default();
-    let api_name = if model_selection.is_claude() { "Claude API" } else { "OpenAI API" };
+    let api_name = if is_claude { "Claude API" } else { "OpenAI API" };
     return Err(format!("{} error {}: {}", api_name, status, txt));
   }
 
@@ -917,7 +861,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       retry_messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
 
       // Build retry payload with correct format for each API
-      let (retry_payload, retry_url) = if model_selection.is_claude() {
+      let (retry_payload, retry_url) = if is_claude {
         // Claude API format - extract system message and put it in separate parameter
         let mut claude_retry_messages = Vec::new();
         let mut retry_system_content = String::new();
@@ -955,7 +899,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       let mut retry_req = client.post(&retry_url).json(&retry_payload);
       
       // Set headers for retry request
-      if model_selection.is_claude() {
+      if is_claude {
         retry_req = retry_req.header("anthropic-version", "2023-06-01");
         if let Some(ref token ) = proxy_auth { retry_req = retry_req.header("x-api-key", token); }
         else if let Some(ref key) = api_key { retry_req = retry_req.header("x-api-key", key); }
@@ -974,7 +918,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       if let Ok(retry_resp) = retry_send {
         if retry_resp.status().is_success() {
           if let Ok(v) = retry_resp.json::<serde_json::Value>().await {
-            let text = if model_selection.is_claude() {
+            let text = if is_claude {
               // Claude response format
               v.get("content")
                 .and_then(|c| c.get(0))

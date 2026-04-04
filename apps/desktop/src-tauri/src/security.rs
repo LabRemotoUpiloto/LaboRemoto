@@ -27,49 +27,93 @@ pub struct SecurityManager {
 impl SecurityManager {
     pub fn new() -> Self {
         let mut dangerous_patterns = HashSet::new();
-        // Patrones peligrosos conocidos
         dangerous_patterns.insert("rm -rf /".to_string());
         dangerous_patterns.insert(":(){ :|:& };:".to_string());
-        dangerous_patterns.insert("chmod -R 777".to_string());
+        dangerous_patterns.insert("chmod -r 777".to_string());
         dangerous_patterns.insert("> /dev/sda".to_string());
         dangerous_patterns.insert("mkfs".to_string());
         dangerous_patterns.insert("dd if=/dev/zero".to_string());
+        Self { dangerous_patterns }
+    }
 
-        Self {
-            dangerous_patterns
-        }
+    /// Normaliza un comando: colapsa espacios múltiples, convierte a minúsculas.
+    /// Esto evita eludir el filtro con espacios extra (ej: "rm  -rf  /").
+    fn normalize(s: &str) -> String {
+        s.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
     }
 
     pub fn validate_command(&self, command: &str) -> SecurityValidation {
-        // Verificar patrones peligrosos
-        for pattern in &self.dangerous_patterns {
-            if command.contains(pattern) {
+        let norm = Self::normalize(command);
+
+        // --- Patrones críticos (evaluados sobre forma normalizada) ---
+        let critical = [
+            "rm -rf /", "rm -fr /", "rm -f -r /", "rm -r -f /",
+            ":(){ :|:& };:",
+            "chmod -r 777", "chmod -r a+rwx",
+            "> /dev/sda", ">/dev/sda",
+            "mkfs",
+            "dd if=/dev/zero",
+        ];
+        for pat in &critical {
+            if norm.contains(&Self::normalize(pat)) {
                 return SecurityValidation {
                     requires_confirmation: true,
-                    reason: format!("Comando potencialmente peligroso detectado: {}", pattern),
+                    reason: format!("Comando destructivo detectado: {}", pat),
                     risk_level: RiskLevel::Critical,
                     backup_path: None,
                 };
             }
         }
 
-        // Verificar otros patrones de riesgo
-        if command.contains("rm -r") || command.contains("rm -R") {
+        // --- Path traversal ---
+        if command.contains("../") || command.contains("..\\") {
             return SecurityValidation {
                 requires_confirmation: true,
-                reason: "Eliminación recursiva detectada".to_string(),
+                reason: "Posible path traversal detectado (../)".to_string(),
                 risk_level: RiskLevel::High,
                 backup_path: None,
             };
         }
 
-        if command.contains("chmod") && (command.contains("777") || command.contains("a+rwx")) {
+        // --- rm recursivo (variantes normalizadas) ---
+        let rm_recursive = [
+            "rm -r", "rm -rf", "rm -fr", "rm -f -r", "rm -r -f", "rm --recursive",
+        ];
+        for pat in &rm_recursive {
+            if norm.contains(&Self::normalize(pat)) {
+                return SecurityValidation {
+                    requires_confirmation: true,
+                    reason: "Eliminación recursiva detectada".to_string(),
+                    risk_level: RiskLevel::High,
+                    backup_path: None,
+                };
+            }
+        }
+
+        // --- chmod inseguro ---
+        if norm.contains("chmod") && (norm.contains("777") || norm.contains("a+rwx") || norm.contains("+rwx")) {
             return SecurityValidation {
                 requires_confirmation: true,
-                reason: "Cambio de permisos potencialmente inseguro".to_string(),
+                reason: "Cambio de permisos inseguro (777 / a+rwx)".to_string(),
                 risk_level: RiskLevel::High,
                 backup_path: None,
             };
+        }
+
+        // --- Inyección de comando peligroso vía pipe/chain ---
+        let has_chain = command.contains('|') || command.contains(';') || command.contains("&&");
+        if has_chain {
+            let injection_targets = ["dd ", "mkfs", "rm -r", "rm -f", "shred", "wipe ", ":(){" ];
+            for target in &injection_targets {
+                if norm.contains(&Self::normalize(target)) {
+                    return SecurityValidation {
+                        requires_confirmation: true,
+                        reason: format!("Posible inyección de comando peligroso en cadena: {}", target.trim()),
+                        risk_level: RiskLevel::High,
+                        backup_path: None,
+                    };
+                }
+            }
         }
 
         SecurityValidation {

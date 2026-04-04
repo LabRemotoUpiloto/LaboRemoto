@@ -58,10 +58,105 @@ pub fn get_claude_api_key() -> Option<String> {
     None
 }
 
+/// Helper para obtener la API key de OpenRouter
+pub fn get_openrouter_api_key() -> Option<String> {
+    static DID_DOTENV: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+    if let Ok(mut g) = DID_DOTENV.lock() { if !*g { let _ = dotenvy::dotenv(); *g = true; } }
+    if let Ok(raw) = std::env::var("OPENROUTER_API_KEY") {
+        let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
+        if !trimmed.is_empty() && trimmed.len() >= 20 { return Some(trimmed); }
+    }
+    None
+}
+
+/// Resuelve el endpoint y clave para llamadas OpenAI-compatibles.
+/// Modelos con "/" en el nombre (ej: "nvidia/nemotron-3-super-120b-a12b:free") se enrutan a OpenRouter.
+/// Retorna (url, api_key, is_openrouter)
+pub fn resolve_openai_endpoint(model: &str) -> (String, Option<String>, bool) {
+    if model.contains('/') {
+        if let Some(key) = get_openrouter_api_key() {
+            return (
+                "https://openrouter.ai/api/v1/chat/completions".to_string(),
+                Some(key),
+                true,
+            );
+        }
+    }
+    (
+        "https://api.openai.com/v1/chat/completions".to_string(),
+        get_openai_api_key(),
+        false,
+    )
+}
+
+/// Comprime la salida del terminal para reducir tokens al enviarse como contexto IA.
+/// - Elimina códigos ANSI de escape
+/// - Deduplica líneas consecutivas idénticas
+/// - Mantiene las últimas 40 líneas no vacías
+/// - Limita a 1200 caracteres totales (conservando las líneas más recientes)
+pub fn compress_terminal_context(raw: &str) -> String {
+    const MAX_LINES: usize = 40;
+    const MAX_CHARS: usize = 1200;
+
+    // Eliminar códigos ANSI (ESC[ ... letra_final)
+    let clean = {
+        let mut out = String::with_capacity(raw.len());
+        let mut chars = raw.chars().peekable();
+        while let Some(ch) = chars.next() {
+            if ch == '\x1b' {
+                match chars.peek() {
+                    Some('[') => {
+                        chars.next();
+                        loop {
+                            match chars.next() {
+                                Some(c) if c.is_ascii_alphabetic() => break,
+                                None => break,
+                                _ => {}
+                            }
+                        }
+                    }
+                    Some(_) => { chars.next(); }
+                    None => {}
+                }
+            } else {
+                out.push(ch);
+            }
+        }
+        out
+    };
+
+    // Deduplicar líneas consecutivas idénticas y filtrar líneas vacías
+    let mut deduped: Vec<&str> = Vec::new();
+    let mut prev = "";
+    for line in clean.lines() {
+        let t = line.trim();
+        if !t.is_empty() && t != prev {
+            deduped.push(t);
+            prev = t;
+        }
+    }
+
+    // Tomar las últimas MAX_LINES líneas
+    let start = deduped.len().saturating_sub(MAX_LINES);
+    let joined = deduped[start..].join("\n");
+
+    // Truncar al último MAX_CHARS conservando las líneas más recientes
+    if joined.len() <= MAX_CHARS {
+        joined
+    } else {
+        let offset = joined.len() - MAX_CHARS;
+        let safe_offset = (offset..=joined.len())
+            .find(|&o| joined.is_char_boundary(o))
+            .unwrap_or(joined.len());
+        format!("[...]\n{}", &joined[safe_offset..])
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct AiEnvStatus { 
     pub has_openai_key: bool, 
     pub has_claude_key: bool,
+    pub has_openrouter_key: bool,
     pub model: Option<String>, 
     pub openai_key_prefix: Option<String>, 
     pub claude_key_prefix: Option<String>,
@@ -74,6 +169,7 @@ pub struct AiEnvStatus {
 pub fn ai_env_status() -> Result<AiEnvStatus, String> {
     let openai_key_opt = get_openai_api_key();
     let claude_key_opt = get_claude_api_key();
+    let openrouter_key_opt = get_openrouter_api_key();
     
     // Intentar obtener el modelo de env o de tiempo de compilación
     let model = std::env::var("OPENAI_MODEL").ok()
@@ -117,13 +213,14 @@ pub fn ai_env_status() -> Result<AiEnvStatus, String> {
         }
     }
     
-    if openai_key_opt.is_none() && claude_key_opt.is_none() {
-        warning = Some("No se detectó ninguna API key válida (OPENAI_API_KEY o CLAUDE_API_KEY)".into());
+    if openai_key_opt.is_none() && claude_key_opt.is_none() && openrouter_key_opt.is_none() {
+        warning = Some("No se detectó ninguna API key válida (OPENAI_API_KEY, CLAUDE_API_KEY o OPENROUTER_API_KEY)".into());
     }
     
     Ok(AiEnvStatus { 
         has_openai_key: openai_key_opt.is_some(), 
         has_claude_key: claude_key_opt.is_some(),
+        has_openrouter_key: openrouter_key_opt.is_some(),
         model, 
         openai_key_prefix, 
         claude_key_prefix,

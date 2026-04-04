@@ -4,11 +4,13 @@ import type React from 'react';
 export type ChatMode = 'ask' | 'agente' | 'plan';
 
 // Modelos disponibles para el chat
-export type ModelSelection = 'gpt-3.5-turbo' | 'claude-sonnet-4-6';
+export type ModelSelection = string;
 
-export const AVAILABLE_MODELS: Array<{ value: ModelSelection; label: string; provider: string }> = [
+export const AVAILABLE_MODELS: Array<{ value: string; label: string; provider: string }> = [
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'Anthropic' },
   { value: 'gpt-3.5-turbo', label: 'ChatGPT 3.5 Turbo', provider: 'OpenAI' },
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'Anthropic' }
+  { value: 'qwen/qwen3.6-plus:free', label: 'Qwen 3.6 Plus (Gratis)', provider: 'OpenRouter' },
+  { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron Nano 30B (Gratis)', provider: 'OpenRouter' },
 ];
 
 export interface AgentState {
