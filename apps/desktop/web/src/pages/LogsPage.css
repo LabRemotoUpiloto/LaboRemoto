@@ -13,54 +13,7 @@
   background: var(--background-primary);
 }
 
-/* Header fijo en la parte superior - alineado con sidebar */
-.logs-page__header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 24px 16px 24px; /* Alineado con .page-content padding */
-  border-bottom: 1px solid var(--border-subtle); /* Mismo color que sidebar-toggle-wrapper */
-  background: var(--background-primary);
-  z-index: 10;
-}
-
-.page-title {
-  color: var(--text-primary);
-  margin: 0;
-  padding: 0;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-/* Separador visual entre título y descripción */
-.page-separator {
-  color: var(--accent-primary);
-  font-size: 18px;
-  font-weight: 700;
-  opacity: 0.6;
-  flex-shrink: 0;
-  line-height: 1;
-  user-select: none;
-}
-
-.page-description {
-  color: var(--text-secondary);
-  font-size: 13px;
-  margin: 0;
-  padding: 0;
-  line-height: 1.4;
-  flex: 1;
-  font-weight: 400;
-  opacity: 0.85;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* El header integrado se maneja globalmente en globals.css */
 
 /* Contenedor scrollable */
 .logs-page__scrollable {
@@ -68,12 +21,11 @@
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
-  padding-top: 24px;
 }
 
 /* Contenedor interno con padding - alineado con la sidebar */
 .logs-page-inner {
-  padding: 0 24px 32px 24px; /* Alineado con la línea de la sidebar */
+  padding: 24px;
   max-width: 1600px;
   margin: 0 auto;
 }
@@ -88,118 +40,4 @@
   background: var(--background-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-}
-
-.sort-controls label {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.sort-select {
-  flex: 1;
-  max-width: 300px;
-  padding: 8px 12px;
-  background: var(--background-tertiary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.sort-select:hover {
-  border-color: var(--accent-primary);
-}
-
-.sort-select:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1);
-}
-
-.sessions-count {
-  margin-left: auto;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-weight: 500;
-  padding: 6px 12px;
-  background: var(--background-tertiary);
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-}
-
-/* Scrollbar personalizado para el área scrollable */
-.logs-page__scrollable::-webkit-scrollbar {
-  width: 10px;
-}
-
-.logs-page__scrollable::-webkit-scrollbar-track {
-  background: var(--background-tertiary);
-}
-
-.logs-page__scrollable::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 5px;
-}
-
-.logs-page__scrollable::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .logs-page__header {
-    padding: 16px 16px 14px 16px;
-  }
-
-  .logs-page-inner {
-    padding: 0 16px 24px 16px;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .page-description {
-    display: none; /* Ocultar descripción en móvil para ahorrar espacio */
-  }
-
-  .page-separator {
-    display: none;
-  }
-}
-
-/* ==================== BOTÓN DE DESCARGA PDF ==================== */
-.download-pdf-button {
-  margin-left: auto;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.download-pdf-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.download-pdf-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.download-pdf-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
