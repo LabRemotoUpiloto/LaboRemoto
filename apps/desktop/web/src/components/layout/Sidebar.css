@@ -121,6 +121,33 @@
   height: 16px;
 }
 
+/* Hamburguer to X Animation */
+.hamburger-icon {
+  width: 24px !important;
+  height: 24px !important;
+  display: block;
+}
+
+.hamburger-icon path {
+  transition: transform 0.6s ease-in-out, 
+              opacity 0.4s ease-in-out;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.toggle-btn.active .line-top {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.toggle-btn.active .line-middle {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.toggle-btn.active .line-bottom {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
 /* Tooltip */
 .sb-tip {
   position: absolute;
