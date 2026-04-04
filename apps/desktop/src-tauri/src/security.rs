@@ -2,7 +2,6 @@ use std::path::Path;
 use std::fs;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
-use std::collections::HashSet;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SecurityValidation {
@@ -20,20 +19,11 @@ pub enum RiskLevel {
     Critical,
 }
 
-pub struct SecurityManager {
-    dangerous_patterns: HashSet<String>,
-}
+pub struct SecurityManager;
 
 impl SecurityManager {
     pub fn new() -> Self {
-        let mut dangerous_patterns = HashSet::new();
-        dangerous_patterns.insert("rm -rf /".to_string());
-        dangerous_patterns.insert(":(){ :|:& };:".to_string());
-        dangerous_patterns.insert("chmod -r 777".to_string());
-        dangerous_patterns.insert("> /dev/sda".to_string());
-        dangerous_patterns.insert("mkfs".to_string());
-        dangerous_patterns.insert("dd if=/dev/zero".to_string());
-        Self { dangerous_patterns }
+        Self
     }
 
     /// Normaliza un comando: colapsa espacios múltiples, convierte a minúsculas.
@@ -112,6 +102,60 @@ impl SecurityManager {
                         risk_level: RiskLevel::High,
                         backup_path: None,
                     };
+                }
+            }
+        }
+
+        // --- sedValidation: sed -i sin backup puede sobreescribir archivos críticos ---
+        if norm.starts_with("sed") && norm.contains("-i") && !norm.contains("-i.bak") && !norm.contains("-i '.bak'") {
+            return SecurityValidation {
+                requires_confirmation: true,
+                reason: "sed -i sin sufijo de backup modifica archivos en el lugar. Considera usar -i.bak".to_string(),
+                risk_level: RiskLevel::Medium,
+                backup_path: None,
+            };
+        }
+
+        // --- modeValidation: comandos que cambian modo del sistema ---
+        let mode_patterns = ["init 0", "init 6", "systemctl isolate", "telinit 0", "telinit 6", "shutdown", "reboot", "halt", "poweroff"];
+        for pat in &mode_patterns {
+            if norm.contains(pat) {
+                return SecurityValidation {
+                    requires_confirmation: true,
+                    reason: format!("Comando que afecta el estado del sistema: {}", pat),
+                    risk_level: RiskLevel::Critical,
+                    backup_path: None,
+                };
+            }
+        }
+
+        // --- destructiveCommandWarning: comandos de sobreescritura masiva ---
+        let destructive = ["> /etc/", "> /boot/", "> /usr/", "truncate -s 0 /", "shred /dev/", "dd of=/dev/sd"];
+        for pat in &destructive {
+            if norm.contains(&Self::normalize(pat)) {
+                return SecurityValidation {
+                    requires_confirmation: true,
+                    reason: format!("Escritura destructiva detectada en ruta crítica: {}", pat.trim()),
+                    risk_level: RiskLevel::Critical,
+                    backup_path: None,
+                };
+            }
+        }
+
+        // --- pathValidation: escritura directa en rutas del sistema ---
+        let sys_write_patterns = ["cp ", "mv ", "install ", "tee "];
+        let sys_paths = ["/etc/", "/boot/", "/usr/bin/", "/usr/sbin/", "/sbin/", "/bin/"];
+        for cmd in &sys_write_patterns {
+            if norm.starts_with(cmd) {
+                for path in &sys_paths {
+                    if norm.contains(path) {
+                        return SecurityValidation {
+                            requires_confirmation: true,
+                            reason: format!("Escritura en ruta del sistema protegida: {}", path),
+                            risk_level: RiskLevel::High,
+                            backup_path: None,
+                        };
+                    }
                 }
             }
         }
@@ -219,5 +263,57 @@ impl SecurityManager {
         }
 
         validation
+    }
+}
+
+// ─── PermissionMode — modos de operación del agente (inspirado en claw-code) ───
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum PermissionMode {
+    /// Solo puede leer archivos y ejecutar comandos no destructivos.
+    ReadOnly,
+    /// Puede leer y escribir dentro del workspace del proyecto (home del usuario SSH).
+    #[default]
+    WorkspaceWrite,
+    /// Sin restricciones — requiere confirmación explícita del usuario para activarse.
+    DangerFullAccess,
+}
+
+impl PermissionMode {
+    /// Devuelve true si el modo permite escribir archivos.
+    pub fn allows_write(&self) -> bool {
+        matches!(self, PermissionMode::WorkspaceWrite | PermissionMode::DangerFullAccess)
+    }
+
+    /// Devuelve true si el modo requiere confirmación para comandos mutantes (bash).
+    pub fn requires_bash_confirmation(&self) -> bool {
+        matches!(self, PermissionMode::ReadOnly)
+    }
+
+    /// Valida si un comando bash es permitido en este modo.
+    /// En ReadOnly se bloquean comandos que modifican el sistema de archivos.
+    pub fn check_bash(&self, command: &str) -> Result<(), String> {
+        if !self.requires_bash_confirmation() {
+            return Ok(());
+        }
+        let norm = command.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase();
+        let mutating = ["rm ", "mv ", "cp ", "mkdir ", "touch ", "chmod ", "chown ",
+                        "dd ", "mkfs", "tee ", "cat >", "echo >", "> /", ">>",
+                        "sed -i", "apt ", "apt-get ", "yum ", "pip ", "npm ", "cargo "];
+        for m in &mutating {
+            if norm.contains(m) {
+                return Err(format!("Modo read-only: '{}' no está permitido sin confirmar", m.trim()));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            PermissionMode::ReadOnly => "read-only",
+            PermissionMode::WorkspaceWrite => "workspace-write",
+            PermissionMode::DangerFullAccess => "danger-full-access",
+        }
     }
 }

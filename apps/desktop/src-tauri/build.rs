@@ -3,6 +3,7 @@ fn main() {
   println!("cargo:rerun-if-changed=.env");
   println!("cargo:rerun-if-env-changed=OPENAI_API_KEY");
   println!("cargo:rerun-if-env-changed=CLAUDE_API_KEY");
+  println!("cargo:rerun-if-env-changed=OPENROUTER_API_KEY");
   let _ = dotenvy::dotenv();
   
   // Si existe OPENAI_API_KEY en el entorno de build, la exponemos como COMPILED_OPENAI_KEY.
@@ -19,5 +20,10 @@ fn main() {
     println!("cargo:rustc-env=COMPILED_CLAUDE_KEY={}", val);
   }
   
+  // Si existe OPENROUTER_API_KEY en el entorno de build, la exponemos como COMPILED_OPENROUTER_KEY.
+  if let Ok(val) = std::env::var("OPENROUTER_API_KEY") {
+    println!("cargo:rustc-env=COMPILED_OPENROUTER_KEY={}", val);
+  }
+
   tauri_build::build()
 }

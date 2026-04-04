@@ -603,6 +603,32 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     if (isSending || isSendingRef.current) return;
     const trimmed = (overrideText ?? input).trim();
     if (!trimmed) return;
+
+    // ── /compact slash command ──
+    if (trimmed === '/compact') {
+      if (!overrideText) setInput('');
+      const userMsgs = messages.filter(m => m.sender === 'user').length;
+      if (userMsgs === 0) {
+        setMessages(prev => [...prev, { id: String(Date.now()), sender: 'system', text: '⚡ No hay historial que compactar.' }]);
+        return;
+      }
+      // Genera un resumen del historial y lo reemplaza con un solo mensaje de sistema
+      const summaryLines: string[] = [];
+      messages.forEach(m => {
+        if (m.sender === 'user') summaryLines.push(`U: ${m.text.slice(0, 120)}${m.text.length > 120 ? '…' : ''}`);
+        else if (m.sender === 'ai') summaryLines.push(`A: ${m.text.slice(0, 120)}${m.text.length > 120 ? '…' : ''}`);
+      });
+      const compactMsg: Message = {
+        id: String(Date.now()),
+        sender: 'system',
+        text: `🗜 Historial compactado (${userMsgs} turnos). Resumen:\n${summaryLines.join('\n')}`,
+        timestamp: Date.now(),
+      };
+      setMessages([compactMsg]);
+      setSessionTokens({ input: 0, output: 0 });
+      try { localStorage.setItem(TOKEN_STORAGE_KEY(sessionId ?? null), JSON.stringify({ input: 0, output: 0 })); } catch {}
+      return;
+    }
     const handler = modeHandlers[mode];
     if (!handler) return;
     if (!handler.canSend()) {

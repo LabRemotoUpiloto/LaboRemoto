@@ -66,6 +66,11 @@ pub fn get_openrouter_api_key() -> Option<String> {
         let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
         if !trimmed.is_empty() && trimmed.len() >= 20 { return Some(trimmed); }
     }
+    // Fallback a la key horneada en tiempo de compilación
+    if let Some(baked) = option_env!("COMPILED_OPENROUTER_KEY") {
+        let trimmed = baked.trim().trim_matches('\'').trim_matches('"');
+        if !trimmed.is_empty() && trimmed.len() >= 20 { return Some(trimmed.to_string()); }
+    }
     None
 }
 

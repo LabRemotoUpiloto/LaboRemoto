@@ -117,6 +117,11 @@ pub fn run() {
       cmd::tools::get_terminal_context,
       cmd::tools::agent_chat,
       cmd::tools::plan_chat,
+      // MCP (Model Context Protocol) – servidores externos de tools
+      cmd::mcp_client::mcp_register_server,
+      cmd::mcp_client::mcp_list_servers,
+      cmd::mcp_client::mcp_remove_server,
+      cmd::mcp_client::mcp_refresh_tools,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
