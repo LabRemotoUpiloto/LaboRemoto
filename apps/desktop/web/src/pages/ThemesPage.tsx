@@ -63,7 +63,15 @@ export default function ThemesPage() {
       tabIndex={0}
       onClick={()=>setTheme(t.id as any)}
     >
-      <div className={`preview ${t.previewClass ?? ''}`} />
+      <div className={`preview ${t.previewClass ?? ''}`}>
+        {theme === t.id && (
+          <div className="active-indicator">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        )}
+      </div>
       {(t.previewClass === 'sunburst-rainbow' || t.previewClass === 'bold-rainbow') && (
         <div className="swatches">
           {t.previewClass === 'sunburst-rainbow' ? (
