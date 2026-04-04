@@ -31,19 +31,11 @@
     text-align: center;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    box-shadow: none;
 }
 
 .hero-cta-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, var(--accent-primary-subtle) 0%, transparent 70%);
-    opacity: 0.4;
-    pointer-events: none;
+    display: none;
 }
 
 .hero-cta-badge {
@@ -71,15 +63,7 @@
 }
 
 .hero-cta-badge__dot::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: var(--accent-primary);
-    border-radius: 50%;
-    animation: badge-pulse 2s infinite;
+    display: none;
 }
 
 @keyframes badge-pulse {
@@ -127,13 +111,13 @@
     background: var(--accent-primary);
     color: var(--text-inverse);
     border: none;
-    box-shadow: 0 4px 15px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+    box-shadow: none;
 }
 
 .hero-cta-btn--primary:hover {
     transform: translateY(-2px);
     background: var(--accent-primary-hover);
-    box-shadow: 0 8px 25px color-mix(in srgb, var(--accent-primary) 50%, transparent);
+    box-shadow: none;
 }
 
 .hero-cta-btn--secondary {
@@ -187,7 +171,7 @@
     background: var(--background-tertiary);
     border-color: var(--accent-primary);
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 .quick-action-card__icon {

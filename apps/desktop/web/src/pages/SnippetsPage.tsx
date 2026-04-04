@@ -186,20 +186,18 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
 
   return (
     <div className="snippets-page">
-      {/* Header fijo */}
-      <div className="snippets-page__header">
-        <SnippetsHeader
-          totalCount={snippets.length}
-          filteredCount={filteredAndSortedSnippets.length}
-          filter={filter}
-          onFilterChange={setFilter}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          categories={allCategories}
-          categoryFilter={categoryFilter}
-          onCategoryFilterChange={setCategoryFilter}
-        />
-      </div>
+      {/* Header fijo - Doble Header Minimalista */}
+      <SnippetsHeader
+        totalCount={snippets.length}
+        filteredCount={filteredAndSortedSnippets.length}
+        filter={filter}
+        onFilterChange={setFilter}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        categories={allCategories}
+        categoryFilter={categoryFilter}
+        onCategoryFilterChange={setCategoryFilter}
+      />
 
       {/* Contenido con scroll */}
       <div className="snippets-page__scrollable">
