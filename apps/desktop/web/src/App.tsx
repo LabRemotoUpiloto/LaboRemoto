@@ -237,6 +237,16 @@ const AppMain: React.FC = () => {
 
   const isH2Visible = activePanel === 'terminal';
 
+  useEffect(() => {
+    const handleOpenPanelEvent = (e: any) => {
+      if (e.detail) {
+        handleOpenPanel(e.detail);
+      }
+    };
+    window.addEventListener('app:open-panel', handleOpenPanelEvent);
+    return () => window.removeEventListener('app:open-panel', handleOpenPanelEvent);
+  }, [handleOpenPanel]);
+
   const handleClosePanel = (panelId: string) => {
     if (panelId === 'terminal') {
       const sessionTabs = tabs.filter(t => t.type === 'session');

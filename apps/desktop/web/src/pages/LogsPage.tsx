@@ -161,12 +161,13 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
 
   return (
     <div className="logs-page">
-      {/* Header con título y descripción - siguiendo el patrón del proyecto */}
-      <div className="logs-page__header">
-        <h1 className="page-title">Logs</h1>
-        <span className="page-separator">•</span>
-        <p className="page-description">Visualiza y analiza el historial de sesiones SSH</p>
-      </div>
+      {/* Header con título y descripción - Doble Header Minimalista */}
+      <header className="page-header-integrated">
+        <h2 className="page-header-title">Logs</h2>
+        <div className="page-header-content">
+          <p className="page-header-description">Visualiza y analiza el historial de sesiones SSH</p>
+        </div>
+      </header>
 
       {/* Contenido scrollable */}
       <div className="logs-page__scrollable">
