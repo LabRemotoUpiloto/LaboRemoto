@@ -17,6 +17,7 @@ pub mod pdf_reports; // Reportes PDF locales en savedLogs
 pub mod vnc;     // Sesiones de escritorio gráfico remoto (Xvfb + x11vnc + noVNC)
 pub mod stream;  // Port-forwarding genérico para streaming de video/otros
 pub mod tools;   // Herramientas del agente AI (tool_use loop, contexto terminal)
+pub mod mcp_client; // Cliente MCP (Model Context Protocol) vía stdio
 
 // Re-exportar comandos para no cambiar rutas usadas en lib.rs
 pub use ai::{ai_chat, AiChatRequest, AiChatResponse};

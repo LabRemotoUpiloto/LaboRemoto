@@ -67,7 +67,14 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
         "info_sistema"         => tool_info_sistema(session_id),
         "reiniciar_servicio"   => tool_reiniciar_servicio(session_id, input),
         "get_terminal_output"  => tool_get_terminal_output(session_id, input),
-        other => ToolResult { tool: other.to_string(), output: format!("Tool desconocida: {other}"), ok: false },
+        other => {
+            // Intentar resolverlo como tool MCP registrada
+            if let Some((output, ok)) = crate::cmd::mcp_client::exec_mcp_call(other, input) {
+                ToolResult { tool: other.to_string(), output, ok }
+            } else {
+                ToolResult { tool: other.to_string(), output: format!("Tool desconocida: {other}"), ok: false }
+            }
+        }
     }
 }
 
@@ -343,13 +350,20 @@ pub async fn agent_chat(req: AgentChatRequest) -> Result<AgentChatResponse, Stri
     let mut steps: Vec<AgentStep> = vec![];
     let mut final_answer = String::new();
 
+    // Construir lista de tools: built-in + MCP (cargadas desde caché en disco)
+    let mut all_tools = tool_definitions();
+    let mcp_defs = crate::cmd::mcp_client::load_mcp_tool_defs();
+    if let Some(arr) = all_tools.as_array_mut() {
+        arr.extend(mcp_defs);
+    }
+
     // Loop: máx 8 rondas de tool use
     for _round in 0..8 {
         let body = serde_json::json!({
             "model": "claude-sonnet-4-5",
             "max_tokens": 4096,
             "system": system_prompt,
-            "tools": tool_definitions(),
+            "tools": all_tools,
             "messages": messages
         });
 
