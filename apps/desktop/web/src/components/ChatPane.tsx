@@ -64,7 +64,17 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const [mode, setMode] = useState<ChatMode>('ask');
   const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
     const saved = localStorage.getItem('chatSelectedModel');
-    return (saved as ModelSelection) || 'claude-sonnet-4-5';
+    // Migrar IDs de modelos obsoletos
+    const deprecated: Record<string, string> = {
+      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.6-plus:free',
+      'google/gemini-2.5-pro:free': 'qwen/qwen3.6-plus:free',
+      'nvidia/nemotron-super-49b-v1:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
+      'nvidia/nemotron-3-super-120b-a12b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
+      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.6-plus:free',
+      'claude-sonnet-4-5': 'claude-sonnet-4-6',
+    };
+    const migrated = deprecated[saved ?? ''] ?? saved;
+    return (migrated as ModelSelection) || 'claude-sonnet-4-6';
   });
   const [agentState, setAgentState] = useState<AgentState>({
     cwd: '/', lastExitCode: undefined, lastStdoutTail: undefined, lastFile: undefined,
@@ -529,7 +539,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       if (m.meta?.attachedFileContent) c += `\n\n📄 ${m.meta.attachedFileName}:\n\`\`\`text\n${m.meta.attachedFileContent}\n\`\`\``;
       return c;
     };
-    const history = [...messages, userMsg]
+    const history = messages
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: getContent(m) }));
     const enrichedInput = getContent(userMsg);
@@ -653,9 +663,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
   // ── Context usage ──
   const maxCtxTokens = MODEL_CONTEXT_WINDOW[selectedModel] ?? 200_000;
-  const estimatedCtxTokens = Math.round(
-    messages.filter(m => m.sender !== 'system').reduce((sum, m) => sum + m.text.length / 4, 0)
-  );
+  const estimatedCtxTokens = sessionTokens.input;
   const ctxUsagePct = Math.min(100, (estimatedCtxTokens / maxCtxTokens) * 100);
 
   // ── Analyze banner handler ──

@@ -97,6 +97,8 @@ export const MODE_DESCRIPTIONS: Record<ChatMode, string> = {
 export const MODEL_CONTEXT_WINDOW: Record<string, number> = {
   'claude-sonnet-4-6': 200_000,
   'gpt-3.5-turbo': 16_384,
+  'qwen/qwen3.6-plus:free': 32_768,
+  'nvidia/nemotron-3-nano-30b-a3b:free': 131_072,
 };
 
 // ── Patrones de error del terminal ──

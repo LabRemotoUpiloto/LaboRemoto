@@ -360,7 +360,7 @@ const ChatInput: React.FC<Props> = ({
                 <span className="token-pop-val" style={{
                   fontSize: 10.5,
                   color: ctxUsagePct > 90 ? '#f87171' : ctxUsagePct > 70 ? '#f59e0b' : 'rgba(167,139,250,0.6)',
-                }}>{ctxUsagePct.toFixed(0)}%</span>
+                }}>{sessionTokens.input.toLocaleString()} tok ({ctxUsagePct.toFixed(1)}%)</span>
               </div>
               <div className="token-context-bar">
                 <div className="token-context-bar__fill" style={{ width: `${ctxUsagePct}%` }}

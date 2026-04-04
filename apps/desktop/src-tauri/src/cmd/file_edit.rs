@@ -200,8 +200,9 @@ pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEdi
   let original_content = String::from_utf8_lossy(&bytes).to_string();
   let original_sha = sha256_hex(&bytes);
   let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into());
-  // Unificar lectura de API key usando helper centralizado
-  let api_key = get_openai_api_key().ok_or_else(|| "OPENAI_API_KEY no definida".to_string())?;
+  // Resolver endpoint y key: soporta OpenAI, Claude-via-OpenAI y OpenRouter
+  let (ai_url, ai_key_opt, is_openrouter) = crate::cmd::ai_utils::resolve_openai_endpoint(&model);
+  let api_key = ai_key_opt.ok_or_else(|| "No se encontró API key (OPENAI_API_KEY u OPENROUTER_API_KEY)".to_string())?;
   if std::env::var("FILE_AI_DEBUG").ok().as_deref() == Some("1") {
     let _ = (&model, &api_key);
   }
@@ -220,7 +221,11 @@ pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEdi
     "max_tokens": 1200
   });
   let client = reqwest::Client::builder().timeout(Duration::from_secs(20)).build().map_err(|e| e.to_string())?;
-  let resp = client.post("https://api.openai.com/v1/chat/completions").bearer_auth(&api_key).json(&body).send().await.map_err(|e| format!("http error: {e}"))?;
+  let mut req_b = client.post(&ai_url).bearer_auth(&api_key).json(&body);
+  if is_openrouter {
+    req_b = req_b.header("HTTP-Referer", "https://github.com/ssh-ai-client").header("X-Title", "SSH AI Client");
+  }
+  let resp = req_b.send().await.map_err(|e| format!("http error: {e}"))?;
   let json: serde_json::Value = resp.json().await.map_err(|e| format!("json error: {e}"))?;
   let raw = json.pointer("/choices/0/message/content").and_then(|v| v.as_str()).ok_or("sin contenido de modelo")?;
   let trimmed = raw.trim().trim_matches('`').trim_start_matches("json").trim();
