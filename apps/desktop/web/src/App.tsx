@@ -4,7 +4,6 @@ import { invoke } from '@tauri-apps/api/core'
 import './App.css'
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
-import StatusBar from './components/layout/StatusBar'
 import TerminalView from './components/terminal/TerminalView'
 import TerminalOnly from './components/terminal/TerminalOnly'
 import ConnectForm from './components/connect/ConnectForm'
@@ -48,7 +47,6 @@ const AppMain: React.FC = () => {
     pendingHost,
     setPendingHost,
     selectedPage,
-    setSelectedPage,
     activeTab,
     openSession,
     closeTab,
@@ -82,9 +80,14 @@ const AppMain: React.FC = () => {
     if (isCameraOpen) setCameraOpen(false);
     
     if (clickedTab?.type === 'home') {
-      setSelectedPage('landing')
+      // Al hacer clic en la pestaña de inicio, mantenemos la página actual si es una página de home,
+      // de lo contrario (si veníamos de terminal/escritorio) volvemos a landing.
+      if (!HOME_PAGES.includes(activePanel)) {
+        handleOpenPanel('landing')
+      }
     } else if (clickedTab?.type === 'session') {
-      setSelectedPage('terminal')
+      // Al hacer clic en una pestaña de sesión, nos aseguramos de mostrar el panel de terminal.
+      handleOpenPanel('terminal')
     }
   }
 
@@ -232,16 +235,6 @@ const AppMain: React.FC = () => {
     }
   }
 
-  // Parse session info for StatusBar
-  const getSessionInfo = () => {
-    if (activeTab.type !== 'session') return null;
-    const parts = activeTab.label.split('@');
-    if (parts.length >= 2) return { user: parts[0], host: parts.slice(1).join('@') };
-    return { user: 'user', host: activeTab.label };
-  }
-
-  const sessionCount = tabs.filter(t => t.type === 'session').length;
-
   const isH2Visible = activePanel === 'terminal';
 
   const handleClosePanel = (panelId: string) => {
@@ -295,7 +288,7 @@ const AppMain: React.FC = () => {
                     sessionMeta={sessionMeta}
                     setSessionMeta={setSessionMeta}
                     selectedPage={selectedPage}
-                    setSelectedPage={setSelectedPage}
+                    onOpenPanel={handleOpenPanel}
                     pendingHost={pendingHost}
                     setPendingHost={setPendingHost}
                     onConnectedFromConnect={handleNewSession}
@@ -333,10 +326,6 @@ const AppMain: React.FC = () => {
                 </div>
               </aside>
             )}
-            <StatusBar
-              sessionInfo={getSessionInfo()}
-              sessionCount={sessionCount}
-            />
           </div>
           <GlobalLoader />
           <ToastContainer />
