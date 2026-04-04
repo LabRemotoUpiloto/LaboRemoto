@@ -91,7 +91,7 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
             <button
               key={host.id}
               type="button"
-              className={`quick-host-pill ${selectedHostId === host.id ? 'selected' : ''}`}
+              className={`quick-host-item ${selectedHostId === host.id ? 'active' : ''}`}
               onClick={() => handleHostClick(host)}
               aria-pressed={selectedHostId === host.id}
               title={`Conectar a ${host.name}`}
