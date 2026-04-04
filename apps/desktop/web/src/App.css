@@ -1,4 +1,4 @@
-/* ═══ App Layout — Dual Header (68px) + Sidebar (44px) + StatusBar (22px) ═══ * Dynamic height variables based on header state */
+/* ═══ App Layout — Dual Header (68px) + Sidebar (44px) ═══ * Dynamic height variables based on header state */
 
 .app-container {
   display: flex;
@@ -15,7 +15,7 @@
   left: 0;
   right: 0;
   top: var(--header-height);
-  bottom: 22px; /* above status bar */
+  bottom: 0;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -27,14 +27,14 @@
   overflow: hidden;
   padding: 0;
   background-color: var(--background-primary);
-  height: calc(100vh - var(--header-height) - 22px); /* below headers, above statusbar */
+  height: calc(100vh - var(--header-height)); /* below headers */
   min-width: 0;
 }
 
 /* ─── Pins Panel ─── */
 .pins-panel {
   width: 350px;
-  height: calc(100vh - var(--header-height) - 22px);
+  height: calc(100vh - var(--header-height));
   position: absolute;
   right: 0;
   top: var(--header-height);

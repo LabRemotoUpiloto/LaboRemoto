@@ -5,11 +5,11 @@ import './LandingPage.css';
 
 interface LandingPageProps {
     onStartTutorial?: () => void;
-    onPageChange?: (page: string) => void;
+    onOpenPanel?: (panelId: string) => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onPageChange }) => {
-    const { startTour } = useTour(onPageChange);
+const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onOpenPanel }) => {
+    const { startTour } = useTour(onOpenPanel);
     
     const handleStartTutorial = () => {
         if (onStartTutorial) {
@@ -91,7 +91,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onPageChange
                         <div className="hero-cta-actions">
                             <button 
                                 className="hero-cta-btn hero-cta-btn--primary"
-                                onClick={() => onPageChange?.('connect')}
+                                onClick={() => onOpenPanel?.('connect')}
                             >
                                 Nueva Conexión
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -116,7 +116,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onPageChange
                             <button 
                                 key={action.id}
                                 className="quick-action-card"
-                                onClick={() => onPageChange?.(action.page)}
+                                onClick={() => onOpenPanel?.(action.page)}
                             >
                                 <div className="quick-action-card__icon">
                                     {action.icon}
