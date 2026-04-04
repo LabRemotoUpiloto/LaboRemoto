@@ -166,7 +166,7 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
   }, [activeMenu])
 
   return (
-    <div className="page-content saved-hosts-page">
+    <div className="saved-hosts-page">
       {/* Header con título y descripción - Doble Header Minimalista */}
       <header className="page-header-integrated">
         <h2 className="page-header-title">Hosts Guardados</h2>

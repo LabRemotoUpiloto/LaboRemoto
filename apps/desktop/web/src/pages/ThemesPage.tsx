@@ -95,7 +95,7 @@ export default function ThemesPage() {
   )
 
   return (
-    <div className="page-content themes-page">
+    <div className="themes-page">
       {/* Header fijo - Doble Header Minimalista */}
       <header className="page-header-integrated">
         <h2 className="page-header-title">Temas</h2>
