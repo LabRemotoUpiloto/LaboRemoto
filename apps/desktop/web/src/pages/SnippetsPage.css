@@ -7,13 +7,6 @@
   overflow: hidden;
 }
 
-/* Header section - alineado con sidebar */
-.snippets-page__header {
-  flex-shrink: 0;
-  padding: 0 24px; /* Solo padding lateral, el vertical lo maneja SnippetsHeader */
-  margin-bottom: 20px;
-}
-
 /* Scrollable content area */
 .snippets-page__scrollable {
   flex: 1;

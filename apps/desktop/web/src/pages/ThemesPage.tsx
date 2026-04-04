@@ -96,14 +96,15 @@ export default function ThemesPage() {
 
   return (
     <div className="page-content themes-page">
-      {/* Header fijo */}
-      <div className="themes-page__header">
-        <h2 className="page-title">Temas</h2>
-        <span className="page-separator">•</span>
-        <p className="page-description">
-          Personaliza la apariencia de la aplicación con una amplia variedad de temas oscuros, claros y coloridos.
-        </p>
-      </div>
+      {/* Header fijo - Doble Header Minimalista */}
+      <header className="page-header-integrated">
+        <h2 className="page-header-title">Temas</h2>
+        <div className="page-header-content">
+          <p className="page-header-description">
+            Personaliza la apariencia de la aplicación con temas únicos.
+          </p>
+        </div>
+      </header>
 
       {/* Contenido con scroll */}
       <div className="themes-page__scrollable">

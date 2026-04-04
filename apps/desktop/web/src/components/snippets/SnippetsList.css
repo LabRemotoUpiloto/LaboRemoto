@@ -18,9 +18,16 @@
 }
 
 .snippets-list__empty-icon {
-  font-size: 64px;
-  opacity: 0.3;
-  filter: grayscale(100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.snippets-list__empty:hover .snippets-list__empty-icon {
+  opacity: 0.7;
 }
 
 .snippets-list__empty-text {

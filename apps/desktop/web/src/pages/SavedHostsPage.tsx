@@ -167,14 +167,15 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
 
   return (
     <div className="page-content saved-hosts-page">
-      {/* Header con título y descripción */}
-      <div className="saved-hosts-page__header">
-        <h2 className="page-title">Hosts Guardados</h2>
-        <span className="page-separator">•</span>
-        <p className="page-description">
-          Gestiona y accede rápidamente a tus conexiones SSH guardadas.
-        </p>
-      </div>
+      {/* Header con título y descripción - Doble Header Minimalista */}
+      <header className="page-header-integrated">
+        <h2 className="page-header-title">Hosts Guardados</h2>
+        <div className="page-header-content">
+          <p className="page-header-description">
+            Gestiona y accede rápidamente a tus conexiones SSH guardadas.
+          </p>
+        </div>
+      </header>
 
       <div className="hosts-grid">
         {entries.map((it) => (
@@ -279,11 +280,32 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
           </article>
         ))}
         {entries.length === 0 && (
-          <div className="empty" role="status">
-            <div className="empty-title">No hay hosts guardados</div>
-            <div className="empty-message">
-              Comienza agregando tu primer servidor SSH para acceder rápidamente.
+          <div className="hosts-empty-state" role="status">
+            <div className="hosts-empty-icon" aria-hidden="true">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+                <path d="M12 7v6M9 10h6" opacity="0.5" />
+              </svg>
             </div>
+            <h3 className="hosts-empty-title">No hay hosts guardados</h3>
+            <p className="hosts-empty-message">
+              Comienza agregando tu primer servidor SSH para acceder rápidamente a tus equipos desde cualquier lugar.
+            </p>
+            <button 
+              className="btn-add-first-host"
+              onClick={() => {
+                const event = new CustomEvent('app:open-panel', { detail: 'connect' });
+                window.dispatchEvent(event);
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Añadir host
+            </button>
           </div>
         )}
       </div>
