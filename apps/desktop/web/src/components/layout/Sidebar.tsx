@@ -141,25 +141,25 @@ const Sidebar: React.FC<SidebarProps> = ({
         width: '100%' 
       }}>
         <button 
-          className="sb-btn toggle-btn" 
+          className={`sb-btn toggle-btn ${isExpanded ? 'active' : ''}`} 
           onClick={onToggleExpand} 
           title={isExpanded ? "Colapsar Menu" : "Expandir Menu"}
+          aria-expanded={isExpanded}
         >
           <svg 
             viewBox="0 0 24 24" 
-            fill="none" 
-            width="22" 
-            height="22" 
+            width="24" 
+            height="24" 
             stroke="currentColor" 
-            strokeWidth="2.5" 
+            strokeWidth="3" 
             strokeLinecap="round" 
             strokeLinejoin="round"
-            style={{
-              transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
-              transform: isExpanded ? 'rotate(135deg)' : 'rotate(0deg)'
-            }}
+            className="hamburger-icon"
+            fill="none"
           >
-            <path d="M12 5v14M5 12h14" />
+            <path d="M4 6L20 6" className="line-top" />
+            <path d="M4 12L20 12" className="line-middle" />
+            <path d="M4 18L20 18" className="line-bottom" />
           </svg>
         </button>
       </div>
