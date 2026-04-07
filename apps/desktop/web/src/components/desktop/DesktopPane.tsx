@@ -5,6 +5,44 @@ import { useDesktopSession } from '../../hooks/useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
 import './DesktopPane.css'
 
+// ── Mapa de keysyms X11 para teclas especiales ────────────────────────────────
+// Para caracteres imprimibles (e.key.length === 1) el keysym = código Unicode.
+// Esto cubre letras, dígitos, puntuación, mayúsculas (Shift+letra) sin caso especial.
+const X11_SPECIAL: Record<string, number> = {
+  Backspace:    0xFF08,
+  Tab:          0xFF09,
+  Enter:        0xFF0D,
+  Escape:       0xFF1B,
+  Delete:       0xFFFF,
+  Insert:       0xFF63,
+  Home:         0xFF50,
+  End:          0xFF57,
+  PageUp:       0xFF55,
+  PageDown:     0xFF56,
+  ArrowLeft:    0xFF51,
+  ArrowUp:      0xFF52,
+  ArrowRight:   0xFF53,
+  ArrowDown:    0xFF54,
+  ShiftLeft:    0xFFE1,
+  ShiftRight:   0xFFE2,
+  ControlLeft:  0xFFE3,
+  ControlRight: 0xFFE4,
+  AltLeft:      0xFFE9,
+  AltRight:     0xFFEA,
+  MetaLeft:     0xFFEB,
+  MetaRight:    0xFFEC,
+  CapsLock:     0xFFE5,
+  F1:  0xFFBE, F2:  0xFFBF, F3:  0xFFC0, F4:  0xFFC1,
+  F5:  0xFFC2, F6:  0xFFC3, F7:  0xFFC4, F8:  0xFFC5,
+  F9:  0xFFC6, F10: 0xFFC7, F11: 0xFFC8, F12: 0xFFC9,
+}
+
+function getX11Keysym(e: KeyboardEvent): number {
+  if (X11_SPECIAL[e.code]) return X11_SPECIAL[e.code]
+  if (e.key.length === 1)   return e.key.charCodeAt(0)   // 'A'=65, 'a'=97, '!'=33 …
+  return 0
+}
+
 interface Props {
   sessionId: string
   isActive?: boolean
@@ -21,29 +59,34 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // Rastrea el estado de CapsLock en el servidor remoto (null = no sincronizado aún)
   const remoteCapsRef = useRef<boolean | null>(null)
 
-  // ── CapsLock fix al nivel del componente ────────────────────────────────────
-  // Se usa rfbRef.current directamente, igual que el botón del toolbar.
-  // Al arrancar una nueva sesión VNC el servidor remoto siempre tiene CapsLock=OFF,
-  // por eso remoteCapsRef se resetea a null en cada conexión (ver connectRFB).
+  // ── Manejo de teclado para VNC ───────────────────────────────────────────────
+  // Regla: cuando el <canvas> de noVNC tiene foco, noVNC gestiona el teclado solo.
+  //        Cuando el foco está en otro elemento (toolbar, etc.), reenviamos manualmente.
+  //        CapsLock siempre se intercepta (noVNC no lo sincroniza bien en WebView2).
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!rfbRef.current) return  // no hay sesión activa, ignorar
+      if (!rfbRef.current) return
+
+      // No interceptar si el usuario escribe en un campo de texto real
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+
+      const canvas = canvasContainerRef.current?.querySelector('canvas')
+      const canvasHasFocus = document.activeElement === canvas
 
       if (e.code === 'CapsLock') {
-        // Bloquear para que noVNC no lo procese a su vez (evita toggle doble)
+        // Siempre interceptar CapsLock independientemente del foco
+        // (noVNC lo maneja mal en WebView2: toggle doble o swap de estado)
         e.preventDefault()
         e.stopPropagation()
         if (remoteCapsRef.current === null) remoteCapsRef.current = false
         remoteCapsRef.current = !remoteCapsRef.current
-        // Mismo mecanismo exacto que el botón del toolbar
         rfbRef.current.sendKey(0xFFE5, 'CapsLock', true)
         rfbRef.current.sendKey(0xFFE5, 'CapsLock', false)
         return
       }
 
-      // Para cualquier tecla normal: detectar deriva con getModifierState.
-      // Si WebView2 se tragó el evento CapsLock sin dispararlo a JS,
-      // aquí detectamos el cambio de estado en el siguiente keydown normal.
+      // Detectar deriva de CapsLock (WebView2 se traga el evento a veces)
       const localCaps = e.getModifierState('CapsLock')
       if (remoteCapsRef.current === null) {
         remoteCapsRef.current = localCaps
@@ -56,12 +99,40 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         rfbRef.current.sendKey(0xFFE5, 'CapsLock', true)
         rfbRef.current.sendKey(0xFFE5, 'CapsLock', false)
       }
+
+      // Si el canvas ya tiene foco, noVNC gestiona la tecla — no tocar nada
+      // (interceptar aquí causaría doble envío → Shift se cancela solo)
+      if (canvasHasFocus) return
+
+      // Canvas sin foco: reenviar manualmente para que las teclas lleguen al VNC
+      const keysym = getX11Keysym(e)
+      if (keysym) {
+        e.preventDefault()
+        e.stopPropagation()
+        rfbRef.current.sendKey(keysym, e.code, true)
+      }
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (!rfbRef.current) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+
       if (e.code === 'CapsLock') {
         e.preventDefault()
         e.stopPropagation()
+        return
+      }
+
+      const canvas = canvasContainerRef.current?.querySelector('canvas')
+      const canvasHasFocus = document.activeElement === canvas
+      if (canvasHasFocus) return
+
+      const keysym = getX11Keysym(e)
+      if (keysym) {
+        e.preventDefault()
+        e.stopPropagation()
+        rfbRef.current.sendKey(keysym, e.code, false)
       }
     }
 

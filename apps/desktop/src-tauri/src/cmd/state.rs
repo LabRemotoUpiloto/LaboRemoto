@@ -14,9 +14,13 @@ use ts_rs::TS;
 pub struct CameraInfo {
     pub id: String,
     pub name: String,
+    #[serde(default)]
     pub ip: String,
+    #[serde(default = "default_status")]
     pub status: String,  // "active" | "connecting" | "offline"
 }
+
+fn default_status() -> String { "active".to_string() }
 
 use crate::ssh::client::Session;
 use ssh2::Session as Ssh2Session;

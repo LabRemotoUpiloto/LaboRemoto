@@ -108,43 +108,80 @@ pub async fn stream_stop(session_id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn stream_list_cameras(session_id: String) -> Result<Vec<CameraInfo>, String> {
-    // Ejecutar curl directamente en el host remoto vía SSH exec.
-    // NO se usa el túnel (run_port_forward) porque cada conexión al túnel
-    // crea una nueva sesión SSH (~1-2 s) + lectura diagnóstica (1 s),
-    // lo que supera el timeout de 3 s en conexiones lentas (ngrok, WAN).
-    let (host, port, user, password) = {
+    // Reutiliza el handle russh ya autenticado para abrir un canal exec.
+    // Antes se abría una nueva conexión TCP (ssh2) cada poll → timeout 10060.
+    let handle = {
         let map = SESSIONS.lock().map_err(|e| e.to_string())?;
         let s = map.get(&session_id).ok_or("Sesión no encontrada")?;
-        (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+        s.term.handle.clone()
     };
 
-    tokio::task::spawn_blocking(move || {
-        use std::io::Read;
-        let (_tcp, sess) = crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password)
-            .map_err(|e| format!("SSH: {e}"))?;
+    // Abre un canal de sesión sobre la conexión SSH existente y ejecuta curl
+    let mut channel = handle.lock().await
+        .channel_open_session()
+        .await
+        .map_err(|e| format!("Canal SSH: {e}"))?;
 
-        // Modo bloqueante explícito — evita WouldBlock en read_to_string
-        sess.set_blocking(true);
-        sess.set_timeout(8000);
+    channel.exec(true, "curl -s --max-time 5 http://127.0.0.1:8877/cameras 2>/dev/null || curl -s --max-time 5 http://127.0.0.1:8888/cameras 2>/dev/null")
+        .await
+        .map_err(|e| format!("exec curl: {e}"))?;
 
-        let mut channel = sess.channel_session()
-            .map_err(|e| format!("Canal SSH: {e}"))?;
-        channel.exec("curl -s --max-time 5 http://127.0.0.1:8888/cameras 2>/dev/null")
-            .map_err(|e| format!("exec curl: {e}"))?;
-
-        let mut body = String::new();
-        channel.read_to_string(&mut body)
-            .map_err(|e| format!("Lectura SSH: {e}"))?;
-        channel.wait_close().ok();
-
-        let body = body.trim();
-        if body.is_empty() {
-            return Err("El servidor de cámaras no respondió (¿está multicam.service corriendo?)".to_string());
+    let mut body = Vec::new();
+    loop {
+        match channel.wait().await {
+            Some(russh::ChannelMsg::Data { data }) => body.extend_from_slice(&data),
+            Some(russh::ChannelMsg::Eof) | None => break,
+            Some(russh::ChannelMsg::ExitStatus { .. }) => {}
+            _ => {}
         }
+    }
 
-        serde_json::from_str::<Vec<CameraInfo>>(body)
-            .map_err(|e| format!("JSON inválido: {e} — body: {:?}", &body[..body.len().min(120)]))
-    })
-    .await
-    .map_err(|e| format!("Task: {e}"))?
+    let body = String::from_utf8_lossy(&body);
+    let body = body.trim();
+
+    if body.is_empty() {
+        return Err("El servidor de cámaras no respondió (¿está multicam.service corriendo?)".to_string());
+    }
+
+    serde_json::from_str::<Vec<CameraInfo>>(body)
+        .map_err(|e| format!("JSON inválido: {e} — body: {:?}", &body[..body.len().min(120)]))
+}
+
+/// Devuelve la IP del host remoto para que el frontend pueda construir URLs WHEP directas.
+/// WebRTC requiere conexión directa (LAN) — no se puede tunelizar RTP/SRTP por SSH.
+#[derive(serde::Serialize)]
+pub struct StreamHostInfo {
+    pub host: String,
+    pub whep_port: u16,
+}
+
+#[tauri::command]
+pub fn stream_get_host(session_id: String) -> Result<StreamHostInfo, String> {
+    let map = SESSIONS.lock().map_err(|e| e.to_string())?;
+    let s = map.get(&session_id).ok_or("Sesión no encontrada")?;
+    Ok(StreamHostInfo { host: s.host.clone(), whep_port: 8889 })
+}
+
+/// Realiza el POST WHEP desde Rust para evitar bloqueos CORS en el WebView.
+/// Recibe la URL WHEP y el SDP offer, devuelve el SDP answer de MediaMTX.
+#[tauri::command]
+pub async fn whep_exchange(url: String, sdp_offer: String) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .post(&url)
+        .header("Content-Type", "application/sdp")
+        .body(sdp_offer)
+        .send()
+        .await
+        .map_err(|e| format!("WHEP POST falló: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("WHEP {}", resp.status()));
+    }
+
+    resp.text().await.map_err(|e| e.to_string())
 }
