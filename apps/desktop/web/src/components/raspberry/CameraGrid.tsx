@@ -33,7 +33,7 @@ function getGridCols(count: number): number {
 }
 
 const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true }) => {
-  const { cameras, localPort, status, error, start, stop } = useCameraGrid(sessionId)
+  const { cameras, localPort, piHost, status, error, start, stop } = useCameraGrid(sessionId)
   const [expandedCam, setExpandedCam] = useState<string | null>(null)
 
   const activeCameras = cameras.filter(c => c.status === 'active')
@@ -79,12 +79,21 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true }) => {
           <button className="cam-btn-grid" onClick={stop}>Detener</button>
         </div>
         <div className="camera-grid-idle">
-          <div className="camera-grid-spinner" />
-          <p>Esperando cámaras activas…</p>
-          {allCameras.filter(c => c.status === 'connecting').length > 0 && (
-            <p style={{ fontSize: 10, color: '#888' }}>
-              {allCameras.filter(c => c.status === 'connecting').length} conectando...
-            </p>
+          {error ? (
+            <>
+              <p style={{ color: '#f87171', fontSize: 12, textAlign: 'center', maxWidth: 420 }}>{error}</p>
+              <button className="cam-btn-connect" style={{ marginTop: 12 }} onClick={start}>Reintentar</button>
+            </>
+          ) : (
+            <>
+              <div className="camera-grid-spinner" />
+              <p>Esperando cámaras activas…</p>
+              {allCameras.filter(c => c.status === 'connecting').length > 0 && (
+                <p style={{ fontSize: 10, color: '#888' }}>
+                  {allCameras.filter(c => c.status === 'connecting').length} conectando...
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -124,7 +133,8 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true }) => {
         {activeCameras.map((cam: CameraInfo) => (
           <CameraPane
             key={cam.id}
-            streamUrl={`http://127.0.0.1:${localPort}/stream/${cam.id}`}
+            streamUrl={`http://127.0.0.1:${localPort}/${cam.id}/index.m3u8`}
+            whepUrl={piHost ? `http://${piHost}:8889/${cam.id}/whep` : undefined}
             label={cam.name}
             camId={cam.id}
             isActive={isActive}
