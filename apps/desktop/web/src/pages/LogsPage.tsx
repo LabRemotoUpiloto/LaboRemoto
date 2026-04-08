@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import './LogsPage.css'
-import SessionFilters from '../components/logs/SessionFilters'
 import SessionsGrid from '../components/logs/SessionsGrid'
 import type { SessionLog } from '../components/logs/SessionCard'
 import { listSessionLogs, deleteSessionLog, getSessionLogContent, type SessionLogMetadata } from '../api/sessionCapture'
@@ -169,40 +168,65 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
         </div>
       </header>
 
-      {/* Contenido scrollable */}
       <div className="logs-page__scrollable">
         <div className="logs-page-inner">
-          <SessionFilters
-            filterUser={filterUser}
-            filterHost={filterHost}
-            onFilterUserChange={setFilterUser}
-            onFilterHostChange={setFilterHost}
-            onRefresh={loadSessions}
-          />
-
-          {/* Ordenamiento */}
-          <div className="sort-controls">
-            <label htmlFor="sort-select">Ordenar por:</label>
-            <select 
-              id="sort-select"
-              value={sortBy} 
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="sort-select"
-            >
-              <option value="date-desc">Más recientes primero</option>
-              <option value="date-asc">Más antiguos primero</option>
-              <option value="duration-desc">Mayor duración</option>
-              <option value="duration-asc">Menor duración</option>
-              <option value="host-asc">Host (A-Z)</option>
-              <option value="host-desc">Host (Z-A)</option>
-            </select>
-            <span className="sessions-count">{sortedSessions.length} sesiones</span>
+          {/* ── Unified toolbar ── */}
+          <div className="logs-toolbar">
+            <div className="logs-toolbar__search">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="usuario..."
+                value={filterUser}
+                onChange={e => setFilterUser(e.target.value)}
+                className="logs-toolbar__input"
+              />
+            </div>
+            <div className="logs-toolbar__search">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="host..."
+                value={filterHost}
+                onChange={e => setFilterHost(e.target.value)}
+                className="logs-toolbar__input"
+              />
+            </div>
+            <div className="logs-toolbar__right">
+              <select
+                id="sort-select"
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as SortOption)}
+                className="logs-toolbar__select"
+              >
+                <option value="date-desc">Más recientes</option>
+                <option value="date-asc">Más antiguos</option>
+                <option value="duration-desc">Mayor duración</option>
+                <option value="duration-asc">Menor duración</option>
+                <option value="host-asc">Host A→Z</option>
+                <option value="host-desc">Host Z→A</option>
+              </select>
+              <span className="logs-toolbar__count">{sortedSessions.length}</span>
+              <button
+                className="logs-toolbar__refresh"
+                onClick={loadSessions}
+                title="Recargar"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <SessionsGrid
             sessions={sortedSessions}
             selectedSessionId={null}
-            onSelectSession={(s) => onOpenLog?.(s)}
+            onSelectSession={s => onOpenLog?.(s)}
             onViewBuffer={handleViewBuffer}
             onSavePdf={handleDownloadReport}
             onDeleteLog={handleDeleteLog}
@@ -210,6 +234,7 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
           />
         </div>
       </div>
+
 
       {/* Modal de confirmación de eliminación */}
       <SweetAlert

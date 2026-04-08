@@ -9,10 +9,11 @@ import { extractValidCommands, buildCommandsReportHtml } from '../utils/commandP
 
 interface LogDetailPageProps {
   session: SessionLog
+  onBack?: () => void
 }
 
 // Página de detalle de un log (buffer/comandos próximamente)
-const LogDetailPage: React.FC<LogDetailPageProps> = ({ session }) => {
+const LogDetailPage: React.FC<LogDetailPageProps> = ({ session, onBack }) => {
   const { push: showToast } = useToasts()
   const [htmlContent, setHtmlContent] = useState<string>('')
   const [loading, setLoading] = useState(true)
@@ -82,6 +83,13 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session }) => {
   return (
     <div className="logs-page" data-log-id={session.id}>
       <div className="logs-page__header">
+        {onBack && (
+          <button className="log-back-btn" onClick={onBack} title="Volver a logs">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        )}
         <h1 className="page-title">Log</h1>
         <span className="page-separator">•</span>
         <p className="page-description">{session.user}@{session.host}:{session.port}</p>

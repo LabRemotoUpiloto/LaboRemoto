@@ -316,7 +316,7 @@ const AppMain: React.FC = () => {
                   sessionMeta={sessionMeta}
                   onOpenLog={openLogTab}
                 />
-                <LogTabsContainer tabs={tabs} activeTabId={activeTabId} />
+                <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />
               </main>
             </div>
             {isPinsVisible && (
