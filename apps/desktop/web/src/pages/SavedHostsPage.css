@@ -56,46 +56,13 @@
   position: relative;
   overflow: hidden;
   animation: cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* top accent line */
-.host-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent-primary) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  z-index: 1;
-}
-
-/* shimmer overlay on hover */
-.host-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg,
-    transparent 40%,
-    rgba(255,255,255,0.03) 50%,
-    transparent 60%);
-  transform: translateX(-100%);
-  pointer-events: none;
-  z-index: 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .host-card:hover {
-  border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-subtle));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-primary) 12%, transparent),
-              0 8px 32px rgba(0,0,0,0.3);
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
   transform: translateY(-2px);
-}
-
-.host-card:hover::before { opacity: 1; }
-
-.host-card:hover::after {
-  animation: shimmer 0.6s ease forwards;
 }
 
 .host-card:active {

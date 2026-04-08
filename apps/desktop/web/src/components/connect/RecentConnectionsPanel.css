@@ -96,12 +96,24 @@
    ======================================== */
 
 .recent-connections__list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
   padding: 0 14px 14px 14px;
   border-top: 1px solid transparent;
   animation: slideDown 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+  max-height: 250px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.recent-connections__list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.recent-connections__list::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
 }
 
 .recent-connections.is-expanded .recent-connections__list {
