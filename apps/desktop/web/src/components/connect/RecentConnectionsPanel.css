@@ -1,54 +1,95 @@
 /* ========================================
-   RecentConnectionsPanel - BEM Structure
+   RecentConnectionsPanel - Accordion Design
    ======================================== */
 
 .recent-connections {
-  background: var(--background-secondary);
+  margin: 16px 24px 0;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  padding: 16px;
-  margin-top: 16px;
+  background: var(--background-secondary);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Header
+.recent-connections.is-expanded {
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, var(--border-subtle));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Header (Toggle)
    ======================================== */
 
 .recent-connections__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--background-secondary);
+  transition: background 0.15s ease;
+}
+
+.recent-connections__header:hover {
+  background: var(--interactive-hover);
+}
+
+.recent-connections__header:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
 }
 
 .recent-connections__title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: color 0.15s ease;
+}
+
+.recent-connections__header:hover .recent-connections__title {
+  color: var(--text-primary);
+}
+
+.recent-connections__chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+  /* The SVG points right naturally (9 18 15 12 9 6) */
+}
+
+/* When expanded, the arrow should point down */
+.recent-connections__chevron.open {
+  transform: rotate(90deg);
+  color: var(--accent-primary);
+}
+
+.recent-connections.is-expanded .recent-connections__title {
+  color: var(--text-primary);
 }
 
 .recent-connections__clear-btn {
   background: transparent;
   border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  padding: 4px 12px;
-  font-size: 12px;
+  color: var(--text-muted);
+  padding: 3px 10px;
+  font-size: 11px;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .recent-connections__clear-btn:hover {
   background: var(--interactive-hover);
-  border-color: var(--border-color);
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
-.recent-connections__clear-btn:active {
-  transform: scale(0.98);
+.recent-connections__clear-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
 }
 
 /* List
@@ -57,7 +98,26 @@
 .recent-connections__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  padding: 0 14px 14px 14px;
+  border-top: 1px solid transparent;
+  animation: slideDown 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.recent-connections.is-expanded .recent-connections__list {
+  border-top-color: var(--border-subtle);
+  padding-top: 12px;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Connection Item
@@ -70,24 +130,27 @@
   background: var(--background-tertiary);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
   width: 100%;
   text-align: left;
-  font-family: 'Courier New', monospace;
+  font-family: var(--terminal-font-family, 'Courier New', monospace);
   font-size: 13px;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .recent-connection-item:hover {
   background: var(--interactive-hover);
-  border-color: var(--accent-primary);
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+  border-color: var(--border-strong);
 }
 
 .recent-connection-item:active {
-  transform: translateX(4px) scale(0.99);
+  transform: scale(0.99);
+}
+
+.recent-connection-item:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -1px;
 }
 
 /* Main Connection Info
@@ -101,21 +164,21 @@
 }
 
 .recent-connection-item__user {
-  color: var(--accent-primary);
-  font-weight: 600;
+  color: var(--text-primary);
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  max-width: 100px;
 }
 
 .recent-connection-item__separator {
-  color: var(--text-secondary);
-  margin: 0 4px;
+  color: var(--text-muted);
+  margin: 0 3px;
 }
 
 .recent-connection-item__host {
-  color: var(--text-primary);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -137,34 +200,12 @@
   font-size: 11px;
   white-space: nowrap;
   margin-left: 12px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Animations
-   ======================================== */
-
-@keyframes slideInFromBottom {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .recent-connections { transition: none; }
+  .recent-connections__list { animation: none; }
+  .recent-connections__chevron { transition: none; }
 }
-
-.recent-connections {
-  animation: slideInFromBottom 0.3s ease;
-}
-
-.recent-connection-item {
-  animation: slideInFromBottom 0.3s ease;
-  animation-fill-mode: both;
-}
-
-.recent-connection-item:nth-child(1) { animation-delay: 0.05s; }
-.recent-connection-item:nth-child(2) { animation-delay: 0.1s; }
-.recent-connection-item:nth-child(3) { animation-delay: 0.15s; }
-.recent-connection-item:nth-child(4) { animation-delay: 0.2s; }
-.recent-connection-item:nth-child(5) { animation-delay: 0.25s; }
