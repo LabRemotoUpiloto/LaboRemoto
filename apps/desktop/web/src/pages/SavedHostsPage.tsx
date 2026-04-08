@@ -202,7 +202,7 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
               <div className="host-card-body">
                 {it.payload?.name && <span className="host-badge">{it.payload.name}</span>}
                 <div className="host-title">{it.payload?.host}</div>
-                <div className="host-sub">ssh, {it.payload?.user}@{it.payload?.port}</div>
+                <div className="host-sub">{it.payload?.user}@{it.payload?.host}:{it.payload?.port}</div>
               </div>
               
               {/* Botón de menú de tres puntos */}
@@ -264,9 +264,10 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
                 )}
               </div>
             </div>
+            <div className="host-card-divider" />
             <div className="host-card-actions">
               <button 
-                className="btn btn-connect" 
+                className="btn-connect" 
                 disabled={loadingLocal}
                 aria-label={`Conectar a ${it.payload.host}`}
                 onClick={async (e) => { 

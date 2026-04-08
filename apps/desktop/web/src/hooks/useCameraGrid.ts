@@ -2,11 +2,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 
-/** Devuelve true si el host es claramente un túnel público (Pinggy/ngrok).
- *  En esos casos UDP no funciona, así que WebRTC no tiene sentido. */
+/** Devuelve true si el host es claramente un túnel público (Pinggy/ngrok/etc).
+ *  En esos casos UDP no funciona — WebRTC/RTP no puede atravesar el túnel TCP. */
 function isTunnelHost(host: string): boolean {
-  // Pinggy genera subdominios *.tun.pgy.io; ngrok usa *.ngrok-free.app etc.
-  return /\.(tun\.pgy\.io|ngrok|loca\.lt|serveo\.net|trycloudflare)/.test(host)
+  // Cubre: *.ngrok.io, *.ngrok-free.app, *.tcp.ngrok.io, *.tun.pgy.io, etc.
+  return /ngrok|tun\.pgy\.io|loca\.lt|serveo\.net|trycloudflare/i.test(host)
 }
 
 export interface CameraInfo {

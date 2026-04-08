@@ -1,11 +1,11 @@
 // components/raspberry/CameraPane.tsx
 import React, { useState } from 'react'
-import WebRTCPlayer from './WebRTCPlayer'
+import HlsPlayer from './HlsPlayer'
 import './CameraPane.css'
 
 interface Props {
-  streamUrl?: string   // conservado por compatibilidad pero ya no se usa
-  whepUrl?: string
+  streamUrl?: string   // HLS via túnel SSH — http://127.0.0.1:localPort/camId/index.m3u8
+  whepUrl?: string     // reservado para futuro WebRTC LAN directo
   label?: string
   camId?: string
   isActive?: boolean
@@ -13,31 +13,17 @@ interface Props {
   onToggleExpand?: () => void
 }
 
-const CameraPane: React.FC<Props> = ({ whepUrl, label, camId, isActive = true, isExpanded = false, onToggleExpand }) => {
-  const [failed, setFailed] = useState(false)
+const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true, isExpanded = false, onToggleExpand }) => {
   const [retryKey, setRetryKey] = useState(0)
 
-  if (!whepUrl || !isActive) {
+  if (!streamUrl || !isActive) {
     return (
       <div className={`camera-pane ${isExpanded ? 'camera-pane--expanded' : ''}`}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#555', fontSize: 12 }}>
-          Sin URL
-        </div>
-      </div>
-    )
-  }
-
-  if (failed) {
-    return (
-      <div className={`camera-pane ${isExpanded ? 'camera-pane--expanded' : ''}`} onDoubleClick={onToggleExpand}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 10, color: '#f87171', fontSize: 12 }}>
-          <span>WebRTC no disponible</span>
-          <button
-            onClick={() => { setFailed(false); setRetryKey(k => k + 1) }}
-            style={{ fontSize: 11, padding: '4px 12px', background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', borderRadius: 6, cursor: 'pointer' }}
-          >
-            Reintentar
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 6, color: '#64748b', fontSize: 11, textAlign: 'center', padding: '0 16px' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="7" width="15" height="10" rx="2"/><path d="M17 9l5-2v10l-5-2V9z"/>
+          </svg>
+          <span style={{ color: '#475569' }}>Sin stream disponible</span>
         </div>
         {camId && <div className="camera-id-badge">{camId}</div>}
       </div>
@@ -46,17 +32,21 @@ const CameraPane: React.FC<Props> = ({ whepUrl, label, camId, isActive = true, i
 
   return (
     <div className={`camera-pane ${isExpanded ? 'camera-pane--expanded' : ''}`} onDoubleClick={onToggleExpand}>
-      <WebRTCPlayer
+      <HlsPlayer
         key={retryKey}
-        whepUrl={whepUrl}
+        src={streamUrl}
         label={label}
-        onFailed={() => setFailed(true)}
       />
       <div className="camera-controls">
         <div className="camera-status">
           <div className="camera-live-dot" />
-          <span>WebRTC</span>
+          <span>HLS</span>
         </div>
+        <button
+          onClick={() => setRetryKey(k => k + 1)}
+          style={{ fontSize: 10, padding: '2px 8px', background: 'rgba(255,255,255,0.06)', color: '#64748b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, cursor: 'pointer' }}
+          title="Reconectar stream"
+        >↺</button>
       </div>
       {camId && <div className="camera-id-badge">{camId}</div>}
     </div>

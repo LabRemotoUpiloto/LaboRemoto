@@ -1,10 +1,51 @@
+/* Contenedor agrupado por día */
+.sessions-grouped {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-bottom: 2rem;
+}
+
+/* Grupo de un día */
+.sessions-day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Separador de día */
+.sessions-day-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sessions-day-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  letter-spacing: 0.03em;
+}
+
+.sessions-day-count {
+  font-size: 10px;
+  color: var(--text-tertiary, #64748b);
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-weight: 500;
+}
+
 /* Grid de sesiones */
 .sessions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-  padding-bottom: 2rem;
-  animation: fadeIn 0.4s ease-out;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  animation: fadeIn 0.3s ease-out;
 }
 
 @keyframes fadeIn {

@@ -24,6 +24,7 @@ const WebRTCPlayer: React.FC<Props> = ({ whepUrl, label, onFailed }) => {
   const playingRef = useRef(false)
   const [state, setState] = useState<'connecting' | 'playing' | 'error'>('connecting')
   const [errMsg, setErrMsg] = useState('')
+  const [lastErr, setLastErr] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -98,6 +99,8 @@ const WebRTCPlayer: React.FC<Props> = ({ whepUrl, label, onFailed }) => {
     }
 
     const scheduleRetry = (msg: string) => {
+      console.error(`[WebRTC] retry ${retries+1}/${MAX_RETRIES}: ${msg} — url: ${whepUrl}`)
+      setLastErr(msg)
       retries++
       if (retries > MAX_RETRIES) {
         setState('error')
@@ -132,6 +135,8 @@ const WebRTCPlayer: React.FC<Props> = ({ whepUrl, label, onFailed }) => {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: '#aaa', fontSize: 12 }}>
           <div style={{ width: 20, height: 20, border: '2px solid #444', borderTopColor: '#6ee7b7', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           <span>Conectando WebRTC…</span>
+          {lastErr && <span style={{ color: '#f87171', fontSize: 10, maxWidth: 180, textAlign: 'center' }}>{lastErr}</span>}
+          <span style={{ color: '#475569', fontSize: 9, maxWidth: 180, textAlign: 'center', wordBreak: 'break-all' }}>{whepUrl}</span>
         </div>
       )}
       {state === 'error' && (

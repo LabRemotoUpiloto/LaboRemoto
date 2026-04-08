@@ -36,7 +36,7 @@ const items = [
 
 
 
-const SIDEBAR_OPEN = 220
+const SIDEBAR_OPEN = 160
 const SIDEBAR_CLOSED = 50
 
 export function animateSidebar(
@@ -44,57 +44,13 @@ export function animateSidebar(
   labelsEl: NodeListOf<HTMLElement>,
   isOpen: boolean
 ) {
-  if (isOpen) {
-    const tl = gsap.timeline()
-
-    // 1. Sidebar expands
-    tl.to(sidebarEl, {
-      width: SIDEBAR_OPEN,
-      duration: 0.35,
-      ease: 'power3.out',
-    })
-
-    // 2. Labels appear with stagger
-    tl.to(labelsEl, {
-      display: 'inline-block',
-      opacity: 1,
-      x: 0,
-      duration: 0.2,
-      ease: 'power2.out',
-      stagger: 0.04,
-    }, '-=0.15')
-
-  } else {
-    const tl = gsap.timeline()
-
-    // 1. Labels disappear fast
-    tl.to(labelsEl, {
-      opacity: 0,
-      x: -6,
-      duration: 0.1,
-      ease: 'power2.in',
-      stagger: { each: 0.025, from: 'end' },
-      onComplete: () => {
-        gsap.set(labelsEl, { display: 'none' })
-      }
-    })
-
-    // 2. Width shrinks
-    tl.to(sidebarEl, {
-      width: SIDEBAR_CLOSED,
-      duration: 0.28,
-      ease: 'power3.inOut',
-    }, '-=0.05')
-  }
-
-  // Sincroniza containers externos que dependían del ancho
-  const duration = isOpen ? 0.35 : 0.28;
-  const ease = isOpen ? 'power3.out' : 'power3.inOut';
-  gsap.to(['.main-content', '.pins-panel'], {
-    marginLeft: isOpen ? SIDEBAR_OPEN : SIDEBAR_CLOSED,
-    duration,
-    ease,
-  })
+  // Clear any GSAP inline styles so CSS .expanded class controls display
+  labelsEl.forEach(el => el.style.removeProperty('display'))
+  const w = isOpen ? SIDEBAR_OPEN : SIDEBAR_CLOSED
+  const duration = isOpen ? 0.38 : 0.42
+  const ease = isOpen ? 'power2.out' : 'power1.inOut'
+  gsap.to(sidebarEl, { width: w, duration, ease })
+  gsap.to(['.main-content', '.pins-panel'], { marginLeft: w, duration, ease })
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -121,11 +77,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       isFirstRender.current = false;
       gsap.set(sidebarEl, { width: isExpanded ? SIDEBAR_OPEN : SIDEBAR_CLOSED });
       gsap.set(['.main-content', '.pins-panel'], { marginLeft: isExpanded ? SIDEBAR_OPEN : SIDEBAR_CLOSED });
-      gsap.set(labelsEl, { 
-        display: isExpanded ? 'inline-block' : 'none',
-        opacity: isExpanded ? 1 : 0, 
-        x: isExpanded ? 0 : -6 
-      });
       return;
     }
 
@@ -135,9 +86,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside ref={sidebarRef} className={`sidebar ${isExpanded ? 'expanded' : ''}`} aria-label="Main navigation">
       <div className="sidebar-header" style={{ 
-        padding: '12px 12px 8px', 
+        padding: '12px 5px 8px', 
         display: 'flex', 
-        justifyContent: isExpanded ? 'flex-end' : 'center', 
+        justifyContent: 'flex-start', 
         width: '100%' 
       }}>
         <button 
@@ -184,9 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       </nav>
       <div className="sidebar-footer">
         {appVersion && (
-          <span className="version-badge">
-            {isExpanded ? `v${appVersion}` : `v${appVersion.split('.').slice(0, 2).join('.')}`}
-          </span>
+          <span className="version-badge">v{appVersion}</span>
         )}
       </div>
     </aside>
