@@ -16,7 +16,7 @@
   flex-shrink: 0;
   border-right: 0.5px solid var(--border-subtle);
   z-index: 1000;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .sidebar::before {
