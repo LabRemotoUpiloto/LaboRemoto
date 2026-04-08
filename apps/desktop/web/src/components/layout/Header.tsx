@@ -157,13 +157,15 @@ const Header: React.FC<HeaderProps> = ({
           >
             <span className="h1-tab-icon">{PANEL_ICONS[panelId] || null}</span>
             <span className="h1-tab-label">{PANEL_LABELS[panelId] || panelId}</span>
-            <div 
-              className="h1-tab-close" 
-              onMouseDown={(e) => e.stopPropagation()} 
-              onClick={(e) => { e.stopPropagation(); onPanelClose(panelId); }}
-            >
-              <CloseIcon />
-            </div>
+            {panelId !== 'landing' && (
+              <div 
+                className="h1-tab-close" 
+                onMouseDown={(e) => e.stopPropagation()} 
+                onClick={(e) => { e.stopPropagation(); onPanelClose(panelId); }}
+              >
+                <CloseIcon />
+              </div>
+            )}
           </div>
         ))}
         <div className="h1-empty" />
