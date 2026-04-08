@@ -143,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="dual-header" role="banner" onMouseLeave={handleMouseLeave}>
+    <header className="dual-header" role="banner" onMouseLeave={handleMouseLeave} style={{ marginLeft: 0 }}>
       {/* ═══ H1: Panel Tabs ═══ */}
       <div className="h1">
         {openPanels.map(panelId => (
