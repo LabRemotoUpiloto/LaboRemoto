@@ -1,229 +1,300 @@
-@keyframes scardIn {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+/* ══════════════════════════════════════════
+   SESSION CARD — Bold Column Cards  
+   Uses only theme CSS variables
+══════════════════════════════════════════ */
+
+@keyframes sc-slide-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Card base ── */
-.session-card {
-  background: var(--background-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 12px 14px;
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+.sc {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  min-width: 0;
-  box-sizing: border-box;
-  position: relative;
+  gap: 10px;
+  padding: 0;
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   overflow: hidden;
-  animation: scardIn 0.3s ease-out both;
+  animation: sc-slide-in 0.25s ease-out both;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
-.session-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent-primary), transparent);
-  opacity: 0;
-  transition: opacity 0.2s ease;
+.sc:nth-child(1)  { animation-delay: 0.03s; }
+.sc:nth-child(2)  { animation-delay: 0.06s; }
+.sc:nth-child(3)  { animation-delay: 0.09s; }
+.sc:nth-child(4)  { animation-delay: 0.12s; }
+.sc:nth-child(5)  { animation-delay: 0.15s; }
+.sc:nth-child(n+6){ animation-delay: 0.18s; }
+
+.sc:hover {
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+  transform: scale(1.03);
+  z-index: 1;
 }
 
-.session-card:hover {
-  border-color: color-mix(in srgb, var(--accent-primary) 40%, var(--border-subtle));
-  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-  transform: translateY(-1px);
+.sc:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
-.session-card:hover::before { opacity: 1; }
-
-.session-card.selected {
-  border-color: color-mix(in srgb, var(--accent-primary) 50%, var(--border-subtle));
-  background: color-mix(in srgb, var(--accent-primary) 4%, var(--background-secondary));
+.sc--sel {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 5%, var(--background-secondary));
+  box-shadow: 0 0 0 1px var(--accent-primary-subtle) inset;
 }
 
-/* ── Header ── */
-.session-card-header {
+/* ── Top accent bar — hidden ── */
+.sc__topbar {
+  display: none;
+}
+
+/* ── Card body ── */
+.sc__body {
+  padding: 10px 14px 12px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
-  margin-bottom: 8px;
+  flex: 1;
 }
 
-.session-card-badge {
+/* ── Header row inside body ── */
+.sc__head {
   display: flex;
   align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
+  gap: 7px;
+  min-width: 0;
 }
 
-.session-ssh-tag {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  border-radius: 4px;
-  padding: 1px 5px;
-  text-transform: uppercase;
-}
-
-.session-live-dot {
+/* ── Status dot ── */
+.sc__dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4ade80;
-  box-shadow: 0 0 6px #4ade80;
-  animation: pulse-live 1.5s ease infinite;
   flex-shrink: 0;
 }
 
-@keyframes pulse-live {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+.sc__dot--on {
+  background: var(--success-text);
+  box-shadow: 0 0 0 2px var(--success-bg);
+  animation: dot-blink 2s ease infinite;
 }
 
-.session-info {
-  flex: 1;
-  min-width: 0;
+.sc__dot--off {
+  background: var(--border-strong);
+}
+
+@keyframes dot-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ── SSH tag ── */
+.sc__tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  background: var(--accent-primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-radius: 3px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+  font-family: var(--terminal-font-family);
+}
+
+/* ── Delete button (top-right) ── */
+.sc__del {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  touch-action: manipulation;
+}
+
+.sc:hover .sc__del,
+.sc--sel .sc__del {
+  opacity: 1;
+}
+
+.sc__del:hover {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+.sc__del:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+/* ── Identity ── */
+.sc__id {
   display: flex;
   align-items: baseline;
   gap: 0;
-  overflow: hidden;
+  min-width: 0;
+  font-family: var(--terminal-font-family);
 }
 
-.session-user {
+.sc__user {
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 80px;
 }
 
-.session-at {
-  font-size: 12px;
-  color: var(--text-tertiary, #64748b);
-  font-family: monospace;
+.sc__glyph {
+  font-size: 11px;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
-.session-host {
+.sc__host {
   font-size: 12.5px;
-  font-weight: 500;
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
-.session-port {
+.sc__port {
   font-size: 11px;
-  color: var(--text-tertiary, #64748b);
-  font-family: monospace;
+  color: var(--text-muted);
   flex-shrink: 0;
+  font-family: var(--terminal-font-family);
 }
-
-.delete-log-btn {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-tertiary, #64748b);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  opacity: 0;
-}
-
-.session-card:hover .delete-log-btn { opacity: 1; }
-
-.delete-log-btn:hover {
-  background: rgba(248, 81, 73, 0.12);
-  color: #f87171;
-}
-
-.delete-log-btn:active { transform: scale(0.95); }
 
 /* ── Stats row ── */
-.session-card-stats {
+.sc__stats {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 7px 0;
-  border-top: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
-.session-stat {
-  display: flex;
+.sc__stat {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.session-stat svg { flex-shrink: 0; opacity: 0.6; }
+.sc__stat svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
 
-.session-stat-date {
+.sc__stat--cmds {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sc__stat--date {
   margin-left: auto;
-  color: var(--text-tertiary, #64748b);
   font-size: 10.5px;
 }
 
-/* ── Footer buttons ── */
-.session-card-footer {
+/* ── Footer with action buttons ── */
+.sc__footer {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--background-tertiary) 60%, transparent);
 }
 
-.session-btn {
+.sc__btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
-  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  touch-action: manipulation;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
 }
 
-.session-btn-primary {
+.sc__btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.sc__btn--view {
+  background: var(--interactive-hover);
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
   flex: 1;
   justify-content: center;
+}
+
+.sc__btn--view:hover {
+  background: var(--interactive-active);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.sc__btn--pdf {
+  padding: 4px 8px;
   background: transparent;
-  border: 1px solid var(--border-subtle);
+  border-color: var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+.sc__btn--pdf:hover {
+  background: var(--interactive-hover);
+  border-color: var(--border-strong);
   color: var(--text-secondary);
 }
 
-.session-btn-primary:hover {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
-  color: #fff;
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .sc__stat--date { display: none; }
 }
 
-.session-btn-ghost {
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-tertiary, #64748b);
-}
-
-.session-btn-ghost:hover {
-  background: var(--background-tertiary);
-  color: var(--text-primary);
+@media (prefers-reduced-motion: reduce) {
+  .sc { animation: none; transition: border-color 0.15s ease; }
+  .sc:hover { transform: none; box-shadow: none; }
+  .sc__topbar, .sc__del, .sc__btn { transition: none; }
+  .sc__dot--on { animation: none; }
 }

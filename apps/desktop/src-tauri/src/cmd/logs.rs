@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
 use chrono::{DateTime, Utc};
+use regex::Regex;
 
 /// Metadatos de una sesión SSH capturada
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,6 +107,41 @@ fn build_session_html(metadata: &SessionLogMetadata, terminal_html: &str) -> Str
     )
 }
 
+/// Counts the number of commands detected in the HTML content.
+/// This mirrors the logic in the frontend `extractValidCommands` utility.
+fn count_commands_in_html(html: &str) -> i32 {
+    // Strip HTML tags, replace br/div with newlines
+    let br_re = Regex::new(r"(?i)<br\s*/?>|</div>").unwrap();
+    let tag_re = Regex::new(r"<[^>]*>").unwrap();
+    let br_replaced = br_re.replace_all(html, "\n");
+    let text = tag_re.replace_all(&br_replaced, "");
+
+    // Decode common HTML entities
+    let text = text
+        .replace("&nbsp;", " ")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'");
+
+    // Match terminal prompt endings: `$ cmd`, `# cmd`, `% cmd`
+    let prompt_re = Regex::new(r"[$#%]\s+(.+)$").unwrap();
+    let mut count = 0i32;
+    let mut last_cmd = String::new();
+
+    for line in text.lines() {
+        if let Some(cap) = prompt_re.captures(line) {
+            let cmd = cap[1].trim().to_string();
+            if !cmd.is_empty() && cmd != last_cmd {
+                count += 1;
+                last_cmd = cmd;
+            }
+        }
+    }
+    count
+}
+
 /// Trait que abstrae el almacenamiento de logs
 /// Permite migrar fácilmente de filesystem local a Azure SQL
 #[allow(dead_code)]
@@ -192,7 +228,19 @@ impl LogStorage for LocalFileLogStorage {
                 && path.to_string_lossy().contains(".meta.") {
                 
                 if let Ok(content) = fs::read_to_string(&path) {
-                    if let Ok(metadata) = serde_json::from_str::<SessionLogMetadata>(&content) {
+                    if let Ok(mut metadata) = serde_json::from_str::<SessionLogMetadata>(&content) {
+                        // Backfill command_count for old sessions that were saved with None
+                        if metadata.command_count.is_none() {
+                            let html_path = self.content_path(&metadata.session_id);
+                            if let Ok(html) = fs::read_to_string(&html_path) {
+                                let count = count_commands_in_html(&html);
+                                metadata.command_count = Some(count);
+                                // Persist back so next load is instant
+                                if let Ok(updated_json) = serde_json::to_string_pretty(&metadata) {
+                                    let _ = fs::write(&path, updated_json);
+                                }
+                            }
+                        }
                         logs.push(metadata);
                     }
                 }
@@ -203,6 +251,7 @@ impl LogStorage for LocalFileLogStorage {
         logs.sort_by(|a, b| b.start_time.cmp(&a.start_time));
         
         Ok(logs)
+
     }
     
     fn get_log_content(&self, session_id: &str) -> Result<String, String> {
@@ -288,7 +337,7 @@ pub async fn save_session_log(
         end_time,
         duration_seconds,
         buffer_size_bytes,
-        command_count: None,
+        command_count: Some(count_commands_in_html(&html_content)),
     };
     
     let log = SessionLog {
@@ -327,7 +376,7 @@ pub async fn save_session_log_fragment(
         end_time,
         duration_seconds,
         buffer_size_bytes: html_fragment.len(),
-        command_count: None,
+        command_count: Some(count_commands_in_html(&html_fragment)),
     };
     let full_html = build_session_html(&metadata, &html_fragment);
     let log = SessionLog {
