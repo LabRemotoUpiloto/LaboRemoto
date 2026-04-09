@@ -1,6 +1,7 @@
 // App raíz: manejo de pestañas (Inicio persistente + sesiones) y navegación lateral.
 import React, { useEffect, useState, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { emit } from '@tauri-apps/api/event'
 import './App.css'
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
@@ -218,7 +219,7 @@ const AppMain: React.FC = () => {
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
 
   // Pages that belong to the HOME tab context
-  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets'];
+  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices'];
 
   // Pages that have per-session context in SessionContainer (sftp, snippets, logs)
   const SESSION_PAGES = ['sftp', 'snippets', 'logs'];
@@ -254,6 +255,78 @@ const AppMain: React.FC = () => {
     }
     closePanelTab(panelId);
   }
+
+  // ── Lanzar práctica de laboratorio ──
+  // Emite eventos practice:log en cada paso para que el panel de log los muestre.
+  // Si CUALQUIER paso falla, lanza error → PracticesPage lo captura y queda en pantalla.
+  const handleStartPractice = async (practice: any) => {
+    const emitLog = (level: string, message: string) => {
+      emit('practice:log', { practice_id: practice.id, level, message });
+    };
+
+    // 1. Conectar via SSH al workspace
+    emitLog('info', `🔌 Conectando SSH al workspace (${practice.connection.user}@${practice.connection.host}:${practice.connection.port})...`);
+
+    let sessionId: string;
+    try {
+      sessionId = await invoke<string>('ssh_connect', {
+        host: practice.connection.host,
+        port: practice.connection.port,
+        user: practice.connection.user,
+        password: practice.connection.password,
+        cols: 120,
+        rows: 40,
+      });
+      emitLog('success', `✅ Conexión SSH al workspace exitosa (session: ${sessionId.substring(0, 8)}...)`);
+    } catch (err) {
+      emitLog('error', `❌ Error conectando al workspace: ${err}`);
+      throw err;
+    }
+
+    // 2. Esperar un momento para que la sesión se estabilice
+    emitLog('info', '⏳ Esperando estabilización de la sesión...');
+    await new Promise(r => setTimeout(r, 1200));
+
+    // 3. Abrir la sesión como nueva pestaña
+    emitLog('info', '📂 Abriendo pestaña de la sesión...');
+    handleNewSession({ id: sessionId, label: `Práctica: ${practice.name}` });
+    emitLog('success', '✅ Pestaña de sesión abierta');
+
+    // 4. Navegar al directorio de trabajo
+    if (practice.terminal?.working_directory) {
+      emitLog('info', `📁 Cambiando al directorio de trabajo: ${practice.terminal.working_directory}`);
+      try {
+        await invoke('ssh_stdin', {
+          id: sessionId,
+          data: `cd ${practice.terminal.working_directory}\n`,
+          encoding: null,
+        });
+        // Pequeño delay para verificar que el cd fue procesado
+        await new Promise(r => setTimeout(r, 500));
+        emitLog('success', `✅ Directorio de trabajo: ${practice.terminal.working_directory}`);
+      } catch (err) {
+        emitLog('error', `❌ Error cambiando de directorio: ${err}`);
+        throw err;
+      }
+    }
+
+    // 5. Abrir cámara si la práctica lo requiere
+    if (practice.panels?.camera) {
+      emitLog('info', '📷 Activando cámara del laboratorio...');
+      setCameraOpen(true);
+      emitLog('success', '✅ Cámara del laboratorio activada');
+    }
+
+    // 6. Abrir chat si la práctica lo requiere
+    if (practice.panels?.chat) {
+      emitLog('info', '💬 Activando chat de asistente IA...');
+      setIsChatOpen(true);
+      emitLog('success', '✅ Chat IA activado con contexto de la práctica');
+    }
+
+    // 7. Todo listo
+    emitLog('success', '🎉 Práctica lista — ¡buena suerte!');
+  };
 
   return (
     <LoadingProvider>
@@ -303,6 +376,7 @@ const AppMain: React.FC = () => {
                     setPendingHost={setPendingHost}
                     onConnectedFromConnect={handleNewSession}
                     onOpenLog={openLogTab}
+                    onStartPractice={handleStartPractice}
                   />
                 </div>
                 <SessionContainer

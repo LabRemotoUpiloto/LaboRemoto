@@ -197,3 +197,21 @@ export const DesktopIcon: React.FC<IconProps> = ({ size = 18, className = '' }) 
     <line x1="12" y1="17" x2="12" y2="21" />
   </svg>
 )
+
+export const LabIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M9 3h6M10 3v7.4a2 2 0 0 1-.5 1.3L4 19a2 2 0 0 0 1.5 3h13a2 2 0 0 0 1.5-3l-5.5-7.3A2 2 0 0 1 14 10.4V3" />
+    <path d="M8.5 14h7" />
+  </svg>
+)
+
