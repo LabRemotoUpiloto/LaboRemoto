@@ -292,6 +292,9 @@ html[data-theme="mist-harbor"]{
   --accent-strong: #0b6f78;
   --border-color: #d3dde0;
   --terminal-foreground: #0f2026;
+  --interactive-hover: rgba(0,0,0,0.06);
+  --interactive-active: rgba(0,0,0,0.09);
+  --interactive-selected: rgba(0,0,0,0.10);
 }
 
 /* Paper Sand (light, warm) */
@@ -307,6 +310,9 @@ html[data-theme="lavender-dream"]{
   --accent-strong: #7c3aed;
   --border-color: #c4b5fd;
   --terminal-foreground: #4c1d95;
+  --interactive-hover: rgba(76,29,149,0.06);
+  --interactive-active: rgba(76,29,149,0.09);
+  --interactive-selected: rgba(76,29,149,0.12);
 }
 
 /* Aurora Coral (dark, warm colorfulness) */
@@ -690,6 +696,9 @@ html[data-theme="pastel-dream"]{
   --accent-primary-hover: #f0abfc;
   --accent-strong: #d946ef;
   --border-color: rgba(232, 121, 249, 0.2);
+  --interactive-hover: rgba(61,26,47,0.06);
+  --interactive-active: rgba(61,26,47,0.09);
+  --interactive-selected: rgba(61,26,47,0.12);
 }
 
 /* Header con gradiente pastel animado */
@@ -1235,6 +1244,9 @@ html[data-theme="polar-mint"]{
   --border-color: #dfeff0;
   /* terminal overrides for legibility on very light backgrounds */
   --terminal-foreground: #072022;
+  --interactive-hover: rgba(7,32,34,0.06);
+  --interactive-active: rgba(7,32,34,0.09);
+  --interactive-selected: rgba(7,32,34,0.12);
 }
 
 /* 🍑 Peachy Sunrise - Durazno vibrante con amanecer coral */
@@ -1249,6 +1261,9 @@ html[data-theme="peachy-sunrise"]{
   --accent-strong: #f97316;
   --border-color: #fcd34d;
   --terminal-foreground: #7c2d12;
+  --interactive-hover: rgba(124,45,18,0.06);
+  --interactive-active: rgba(124,45,18,0.09);
+  --interactive-selected: rgba(124,45,18,0.12);
 }
 
 /* Sakura Blush (soft pink, light) */
@@ -1263,6 +1278,9 @@ html[data-theme="sakura-blush"]{
   --accent-strong: #ff4f85;
   --border-color: #fae6eb;
   --terminal-foreground: #2b1220;
+  --interactive-hover: rgba(43,18,32,0.06);
+  --interactive-active: rgba(43,18,32,0.09);
+  --interactive-selected: rgba(43,18,32,0.12);
 }
 
 /* 🌹 Rose Quartz - Rosa cuarzo con detalles fucsia */
@@ -1277,6 +1295,9 @@ html[data-theme="rose-quartz"]{
   --accent-strong: #db2777;
   --border-color: #fbbf24;
   --terminal-foreground: #831843;
+  --interactive-hover: rgba(131,24,67,0.06);
+  --interactive-active: rgba(131,24,67,0.09);
+  --interactive-selected: rgba(131,24,67,0.12);
 }
 
 /* Glass Water (muted, cool) */
@@ -1377,6 +1398,9 @@ html[data-theme="silver-cloud"]{
   --border-subtle: #cbd5e1;
   --border-strong: #64748b;
   --terminal-foreground: #0f172a;
+  --interactive-hover: rgba(15,23,42,0.06);
+  --interactive-active: rgba(15,23,42,0.09);
+  --interactive-selected: rgba(15,23,42,0.12);
 }
 
 /* Ensure header controls remain legible (keep this so header text contrasts) */
