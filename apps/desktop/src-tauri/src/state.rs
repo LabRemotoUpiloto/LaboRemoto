@@ -24,6 +24,8 @@ pub struct SessionMem {
   pub env_cwd: Option<String>,
   pub env_shell: Option<String>,
   pub env_os: Option<String>,
+  pub practice_context: Option<String>,
+  pub practice_tutorial: Option<String>,
   pub updated_at_ms: Option<i64>,
 }
 
@@ -41,6 +43,8 @@ pub struct SessionMemPatch {
   pub env_cwd: Option<String>,
   pub env_shell: Option<String>,
   pub env_os: Option<String>,
+  pub practice_context: Option<String>,
+  pub practice_tutorial: Option<String>,
 }
 
 pub struct AppState {
@@ -73,6 +77,8 @@ impl AppState {
     if let Some(v) = p.env_cwd           { mem.env_cwd = Some(v) }
     if let Some(v) = p.env_shell         { mem.env_shell = Some(v) }
     if let Some(v) = p.env_os            { mem.env_os = Some(v) }
+    if let Some(v) = p.practice_context  { mem.practice_context = Some(v) }
+    if let Some(v) = p.practice_tutorial { mem.practice_tutorial = Some(v) }
     mem.updated_at_ms = Some(chrono::Utc::now().timestamp_millis());
     // refresh TTL timestamp
     entry.1 = Instant::now();
