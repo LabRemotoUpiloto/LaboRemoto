@@ -181,7 +181,7 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
         {entries.map((it) => (
           <article 
             key={it.file} 
-            className="host-card"
+            className={`host-card ${activeMenu === it.file ? 'host-card-active' : ''}`}
             role="button"
             tabIndex={0}
             aria-label={`Conectar a ${it.payload.host}`}

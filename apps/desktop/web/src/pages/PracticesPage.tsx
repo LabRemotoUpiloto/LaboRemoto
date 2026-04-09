@@ -12,6 +12,7 @@ interface PanelConfig {
     camera: boolean;
     chat: boolean;
     chat_context: string;
+    chat_tutorial: string;
 }
 
 interface TerminalConfig {
