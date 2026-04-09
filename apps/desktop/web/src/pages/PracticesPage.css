@@ -1,0 +1,513 @@
+/* ==========================================================================
+   PRACTICES PAGE — Prácticas de Laboratorio Remoto
+   ========================================================================== */
+
+.practices-page {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--background-primary);
+    padding-top: 12px;
+}
+
+.practices-page__container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 28px 60px;
+}
+
+/* ── Loading ── */
+.practices-page__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 50vh;
+    gap: 16px;
+    color: var(--text-secondary);
+    font-size: 15px;
+}
+
+.practices-page__spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: practices-spin 0.7s linear infinite;
+}
+
+@keyframes practices-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Error ── */
+.practices-page__error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    color: var(--danger-text);
+    font-size: 14px;
+    animation: practices-fade-in 0.3s ease;
+}
+
+.practices-page__error button {
+    background: none;
+    border: none;
+    color: var(--danger-text);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 6px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.practices-page__error button:hover {
+    opacity: 1;
+}
+
+/* ── Header ── */
+.practices-page__header {
+    padding: 36px 0 32px;
+    animation: practices-fade-in 0.6s ease-out;
+}
+
+.practices-page__header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: var(--accent-primary-subtle);
+    color: var(--accent-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.practices-page__header-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.practices-page__title {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 14px;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+}
+
+.practices-page__subtitle {
+    font-size: 17px;
+    color: var(--text-secondary);
+    max-width: 600px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.practices-page__back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px 0;
+    margin-bottom: 16px;
+    transition: color 0.2s, gap 0.2s;
+}
+
+.practices-page__back-btn:hover {
+    color: var(--accent-primary);
+    gap: 12px;
+}
+
+/* ── Categories Grid ── */
+.practices-page__categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    animation: practices-slide-up 0.6s ease-out 0.15s both;
+}
+
+/* ── Category Card ── */
+.practice-category-card {
+    position: relative;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 28px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    min-height: 220px;
+}
+
+.practice-category-card__glow {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 50% 50%, var(--cat-color, #10b981), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+.practice-category-card:hover .practice-category-card__glow {
+    opacity: 0.04;
+}
+
+.practice-category-card:hover {
+    border-color: var(--cat-color, var(--accent-primary));
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.practice-category-card__icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--cat-color, #10b981) 12%, transparent), color-mix(in srgb, var(--cat-color, #10b981) 5%, transparent));
+    color: var(--cat-color, var(--accent-primary));
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid color-mix(in srgb, var(--cat-color, #10b981) 15%, transparent);
+}
+
+.practice-category-card__content h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+}
+
+.practice-category-card__content p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.practice-category-card__footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+.practice-category-card__count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.practice-category-card__footer svg {
+    color: var(--text-tertiary);
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.practice-category-card:hover .practice-category-card__footer svg {
+    opacity: 1;
+    color: var(--cat-color, var(--accent-primary));
+    transform: translateX(4px);
+}
+
+/* ── Practice List ── */
+.practices-page__list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    animation: practices-slide-up 0.5s ease-out;
+}
+
+/* ── Practice Card ── */
+.practice-card {
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.25s ease;
+    animation: practices-card-enter 0.4s ease-out both;
+}
+
+.practice-card:nth-child(2) { animation-delay: 0.08s; }
+.practice-card:nth-child(3) { animation-delay: 0.16s; }
+.practice-card:nth-child(4) { animation-delay: 0.24s; }
+
+.practice-card:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.practice-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.practice-card__badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 12px;
+    border-radius: 100px;
+    border: 1px solid;
+}
+
+.practice-card__badge--success {
+    color: var(--success-text, var(--success));
+    background: var(--success-bg);
+    border-color: var(--success-border);
+}
+
+.practice-card__badge--warning {
+    color: var(--warning-text, var(--warning));
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+}
+
+.practice-card__badge--danger {
+    color: var(--danger-text, var(--danger));
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+}
+
+.practice-card__panels {
+    display: flex;
+    gap: 8px;
+}
+
+.practice-card__panel-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--background-tertiary);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.practice-card__title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+}
+
+.practice-card__desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 20px;
+}
+
+.practice-card__start-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: var(--accent-primary);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.practice-card__start-btn:hover:not(:disabled) {
+    background: var(--accent-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+.practice-card__start-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.practice-card__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: practices-spin 0.6s linear infinite;
+}
+
+/* ── Log Terminal ── */
+.practices-page__log-terminal {
+    margin-top: 24px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--surface-0, var(--background-primary));
+    animation: practices-slide-up 0.4s ease-out;
+}
+
+.practices-page__log-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--surface-2, var(--background-tertiary));
+    border-bottom: 1px solid var(--border-color);
+}
+
+.practices-page__log-dots {
+    display: flex;
+    gap: 6px;
+}
+
+.practices-page__log-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border-color);
+}
+
+.practices-page__log-dots span:nth-child(1) { background: var(--danger, #ef4444); }
+.practices-page__log-dots span:nth-child(2) { background: var(--warning, #f59e0b); }
+.practices-page__log-dots span:nth-child(3) { background: var(--success, #22c55e); }
+
+.practices-page__log-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+    flex: 1;
+}
+
+.practices-page__log-close {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.practices-page__log-close:hover {
+    background: var(--interactive-hover);
+    color: var(--text-primary);
+}
+
+.practices-page__log-body {
+    padding: 14px 16px;
+    max-height: 280px;
+    overflow-y: auto;
+    font-family: var(--terminal-font-family, 'SF Mono', 'Fira Code', 'Cascadia Code', monospace);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.practices-page__log-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 2px 0;
+}
+
+.practices-page__log-time {
+    color: var(--text-muted);
+    font-size: 11px;
+    min-width: 65px;
+    flex-shrink: 0;
+    opacity: 0.6;
+    padding-top: 1px;
+}
+
+.practices-page__log-msg {
+    word-break: break-word;
+}
+
+.practices-page__log-entry--info .practices-page__log-msg {
+    color: var(--text-secondary);
+}
+
+.practices-page__log-entry--success .practices-page__log-msg {
+    color: var(--success-text, var(--success));
+}
+
+.practices-page__log-entry--warning .practices-page__log-msg {
+    color: var(--warning-text, var(--warning));
+}
+
+.practices-page__log-entry--error .practices-page__log-msg {
+    color: var(--danger-text, var(--danger));
+}
+
+.practices-page__log-cursor {
+    color: var(--accent-primary);
+    animation: practices-blink 1s step-end infinite;
+}
+
+@keyframes practices-blink {
+    50% { opacity: 0; }
+}
+
+/* ── Animations ── */
+@keyframes practices-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes practices-slide-up {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes practices-card-enter {
+    from { opacity: 0; transform: translateY(16px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .practices-page__categories {
+        grid-template-columns: 1fr;
+    }
+    .practices-page__title {
+        font-size: 32px;
+    }
+    .practice-category-card {
+        min-height: auto;
+    }
+}

@@ -11,15 +11,18 @@ pub mod security; // Validaciones de seguridad y backups
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 fn load_dotenv() {
   // 1. Intento estándar: caminar desde el CWD hacia arriba
-  if dotenvy::dotenv().is_ok() { return; }
+  if dotenvy::dotenv().is_ok() { /* ok */ }
   // 2. Fallback: usar la ruta del manifest (conocida en tiempo de compilación)
   //    y subir hasta encontrar un .env. Garantiza encontrar apps/.env en dev y release.
   let mut dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
   loop {
-    if dotenvy::from_path(dir.join(".env")).is_ok() { return; }
+    let _ = dotenvy::from_path(dir.join(".env"));
+    // También cargar .env.practicas si existe
+    let _ = dotenvy::from_path(dir.join(".env.practicas"));
+    if dir.join(".env").exists() { break; }
     match dir.parent() {
       Some(parent) => dir = parent,
-      None => return,
+      None => break,
     }
   }
 }
@@ -124,6 +127,10 @@ pub fn run() {
       cmd::mcp_client::mcp_list_servers,
       cmd::mcp_client::mcp_remove_server,
       cmd::mcp_client::mcp_refresh_tools,
+      // Prácticas de laboratorio remoto
+      cmd::practicas::practicas_list_categories,
+      cmd::practicas::practicas_get_config,
+      cmd::practicas::practicas_run_setup,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

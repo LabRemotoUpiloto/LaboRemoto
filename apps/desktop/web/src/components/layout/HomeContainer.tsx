@@ -6,6 +6,7 @@ import ThemesPage from '../../pages/ThemesPage'
 import LogsPage from '../../pages/LogsPage'
 import SftpPage from '../../pages/SftpPage'
 import SnippetsPage from '../../pages/SnippetsPage'
+import PracticesPage from '../../pages/PracticesPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 
@@ -19,6 +20,7 @@ type Props = {
   setPendingHost: (payload: any | null) => void
   onConnectedFromConnect: (info: { id: string; label?: string } | null) => void
   onOpenLog: (session: SessionLog) => void
+  onStartPractice?: (practice: any) => Promise<void>
 }
 
 const HomeContainer: React.FC<Props> = ({
@@ -30,7 +32,8 @@ const HomeContainer: React.FC<Props> = ({
   pendingHost,
   setPendingHost,
   onConnectedFromConnect,
-  onOpenLog
+  onOpenLog,
+  onStartPractice
 }) => {
   return (
     <div style={{ height: '100%' }}>
@@ -68,6 +71,8 @@ const HomeContainer: React.FC<Props> = ({
         />
       ) : selectedPage === 'snippets' ? (
         <SnippetsPage />
+      ) : selectedPage === 'practices' ? (
+        <PracticesPage onStartPractice={onStartPractice} />
       ) : (
         <LandingPage
           onStartTutorial={() => onOpenPanel('landing')}

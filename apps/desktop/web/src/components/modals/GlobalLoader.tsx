@@ -18,7 +18,7 @@ export default function GlobalLoader() {
         </div>
         <div className="loading-text">{label ?? 'Cargando...'}</div>
         <p className="loading-subtitle">
-          Puedes seguir usando la aplicación mientras se establece la conexión
+          Espera mientras se establece la conexión
         </p>
         {onCancel && (
           <button
