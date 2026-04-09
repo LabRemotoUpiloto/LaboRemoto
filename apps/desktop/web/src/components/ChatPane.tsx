@@ -257,10 +257,23 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
       const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved) as Message[];
-        if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+          return;
+        }
       }
     } catch { /* corrupted */ }
-  }, [sessionId, mode]);
+
+    // Inject tutorial automatically when starting a new practice chat
+    if (mem.practiceTutorial) {
+      setMessages([{
+        id: String(Date.now()),
+        sender: 'ai',
+        text: mem.practiceTutorial,
+        timestamp: Date.now()
+      }]);
+    }
+  }, [sessionId, mode, mem.practiceTutorial]);
 
   // ── Textarea auto-resize ──
   useEffect(() => {
@@ -334,13 +347,21 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     const saved = await archiveCurrentChat();
     loadedHistoryIdRef.current = null;
     messageCountAtLoadRef.current = 0;
-    setMessages([]);
     setSessionTokens({ input: 0, output: 0 });
     try {
       localStorage.removeItem(CHAT_STORAGE_KEY(sessionId ?? null, mode));
       localStorage.removeItem(TOKEN_STORAGE_KEY(sessionId ?? null));
     } catch {}
     clear();
+    
+    // Inject tutorial if practicing
+    setMessages(mem.practiceTutorial ? [{
+        id: String(Date.now()),
+        sender: 'ai',
+        text: mem.practiceTutorial,
+        timestamp: Date.now()
+    }] : []);
+
     if (saved) { setToast('Chat guardado en historial'); setTimeout(() => setToast(null), 2500); }
   };
 
@@ -542,6 +563,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     const history = messages
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: getContent(m) }));
+    
+    // Inject practice context to AI
+    if (mem.practiceContext) {
+      history.unshift({ role: 'system', content: mem.practiceContext });
+    }
     const enrichedInput = getContent(userMsg);
     // Si attachedImage ya fue limpiado (retry/regen), reconstruirlo desde el meta del mensaje
     const imgSnap = attachedImage ?? (userMsg.meta?.imagePreview
