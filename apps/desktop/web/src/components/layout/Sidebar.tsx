@@ -11,7 +11,8 @@ import {
   PinIcon, 
   CameraIcon,
   HomeIcon,
-  FileTextIcon
+  FileTextIcon,
+  LabIcon
 } from '../icons/SidebarIcons'
 
 interface SidebarProps {
@@ -26,6 +27,7 @@ interface SidebarProps {
 // Main nav items — each click opens a tab in H1
 const items = [
   { id: 'landing', label: 'Inicio', icon: HomeIcon },
+  { id: 'practices', label: 'Prácticas', icon: LabIcon },
   { id: 'connect', label: 'Connect', icon: MonitorIcon },
   { id: 'hosts', label: 'Hosts', icon: CompassIcon },
   { id: 'logs', label: 'Logs', icon: FileTextIcon },
