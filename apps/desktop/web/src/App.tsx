@@ -290,6 +290,22 @@ const AppMain: React.FC = () => {
     // 3. Abrir la sesión como nueva pestaña
     emitLog('info', '📂 Abriendo pestaña de la sesión...');
     handleNewSession({ id: sessionId, label: `Práctica: ${practice.name}` });
+    
+    // Inyectar contexto y tutorial de la práctica a la memoria de la sesión
+    if (practice.panels?.chat_context || practice.panels?.chat_tutorial) {
+      try {
+        await invoke('mem_put', {
+          sessionId,
+          patch: {
+            practice_context: practice.panels.chat_context,
+            practice_tutorial: practice.panels.chat_tutorial
+          }
+        });
+      } catch (e) {
+        console.error('Error inyectando contexto de práctica:', e);
+      }
+    }
+
     emitLog('success', '✅ Pestaña de sesión abierta');
 
     // 4. Navegar al directorio de trabajo

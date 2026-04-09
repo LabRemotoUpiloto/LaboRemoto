@@ -64,6 +64,7 @@ pub struct PanelConfig {
     pub camera: bool,
     pub chat: bool,
     pub chat_context: String,
+    pub chat_tutorial: String,
 }
 
 // ─── Helper: leer variables del .env.practicas ───
@@ -120,6 +121,28 @@ fn env_get_cmds(vars: &HashMap<String, String>, key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+// ─── Helper: leer contexto desde JSON ───
+fn load_practice_json(id: &str) -> (String, String) {
+    let mut dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    loop {
+        let candidate = dir.join("practicas").join(format!("{}.json", id));
+        if candidate.exists() {
+            if let Ok(content) = std::fs::read_to_string(&candidate) {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                    let ctx = val.get("context").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let tut = val.get("tutorial").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    return (ctx, tut);
+                }
+            }
+        }
+        match dir.parent() {
+            Some(parent) => dir = parent,
+            None => break,
+        }
+    }
+    ("".to_string(), "".to_string())
+}
+
 // ─── Construir categorías desde .env.practicas ───
 
 fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
@@ -170,10 +193,15 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
                 allow_navigation: env_get_bool(vars, "PRACTICE_EVE3_P1_ALLOW_NAV"),
                 allow_nano: env_get_bool(vars, "PRACTICE_EVE3_P1_ALLOW_NANO"),
             },
-            panels: PanelConfig {
-                camera: env_get_bool(vars, "PRACTICE_EVE3_P1_CAMERA"),
-                chat: true,
-                chat_context: env_get(vars, "PRACTICE_EVE3_P1_CHAT_CONTEXT"),
+            panels: {
+                let (json_ctx, json_tut) = load_practice_json("eve3-p1");
+                let fallback_ctx = env_get(vars, "PRACTICE_EVE3_P1_CHAT_CONTEXT");
+                PanelConfig {
+                    camera: env_get_bool(vars, "PRACTICE_EVE3_P1_CAMERA"),
+                    chat: true,
+                    chat_context: if !json_ctx.is_empty() { json_ctx } else { fallback_ctx },
+                    chat_tutorial: json_tut,
+                }
             },
         });
     }
@@ -208,10 +236,15 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
                 allow_navigation: env_get_bool(vars, "PRACTICE_EVE3_P2_ALLOW_NAV"),
                 allow_nano: env_get_bool(vars, "PRACTICE_EVE3_P2_ALLOW_NANO"),
             },
-            panels: PanelConfig {
-                camera: env_get_bool(vars, "PRACTICE_EVE3_P2_CAMERA"),
-                chat: true,
-                chat_context: env_get(vars, "PRACTICE_EVE3_P2_CHAT_CONTEXT"),
+            panels: {
+                let (json_ctx, json_tut) = load_practice_json("eve3-p2");
+                let fallback_ctx = env_get(vars, "PRACTICE_EVE3_P2_CHAT_CONTEXT");
+                PanelConfig {
+                    camera: env_get_bool(vars, "PRACTICE_EVE3_P2_CAMERA"),
+                    chat: true,
+                    chat_context: if !json_ctx.is_empty() { json_ctx } else { fallback_ctx },
+                    chat_tutorial: json_tut,
+                }
             },
         });
     }

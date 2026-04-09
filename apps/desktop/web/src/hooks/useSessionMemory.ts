@@ -13,6 +13,8 @@ export type SessionMem = {
   lastPath?: string;
   lastPathKind?: 'file' | 'dir';
   env?: { cwd?: string; shell?: string; os?: string };
+  practiceContext?: string;
+  practiceTutorial?: string;
 };
 
 type Patch = {
@@ -28,6 +30,8 @@ type Patch = {
   env_cwd?: string;
   env_shell?: string;
   env_os?: string;
+  practice_context?: string;
+  practice_tutorial?: string;
 };
 
 const MAX_SNIPPET_LINES = 50;
@@ -53,7 +57,9 @@ export function useSessionMemory(sessionId: string | null) {
             lastExitCode: data.last_exit_code ?? data.lastExitCode,
             lastPath: data.last_path ?? data.lastPath,
             lastPathKind: (data.last_path_kind ?? data.lastPathKind) as 'file' | 'dir' | undefined,
-            env: { cwd: data.env_cwd ?? data.env?.cwd, shell: data.env_shell ?? data.env?.shell, os: data.env_os ?? data.env?.os }
+            env: { cwd: data.env_cwd ?? data.env?.cwd, shell: data.env_shell ?? data.env?.shell, os: data.env_os ?? data.env?.os },
+            practiceContext: data.practice_context ?? data.practiceContext,
+            practiceTutorial: data.practice_tutorial ?? data.practiceTutorial
           });
         }
       } catch {}
@@ -105,6 +111,11 @@ export function useSessionMemory(sessionId: string | null) {
     await memPut({ env_cwd: env.cwd, env_shell: env.shell, env_os: env.os });
   };
 
+  const setPracticeContext = async (context: string, tutorial: string) => {
+    setMem(m => ({ ...m, practiceContext: context, practiceTutorial: tutorial }));
+    await memPut({ practice_context: context, practice_tutorial: tutorial });
+  };
+
   const clear = async () => {
     setMem({});
     await invoke("mem_clear", { sessionId: sessionId ?? "default" });
@@ -125,5 +136,5 @@ export function useSessionMemory(sessionId: string | null) {
     return parts.length ? `\n\n(Contexto de sesión)\n${parts.join("\n\n")}\n` : "";
   };
 
-  return { mem, setLastFile, setLastCommand, setLastPath, noteEnv, buildContextAppendix, clear };
+  return { mem, setLastFile, setLastCommand, setLastPath, noteEnv, setPracticeContext, buildContextAppendix, clear };
 }
