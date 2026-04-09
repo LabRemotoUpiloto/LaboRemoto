@@ -54,9 +54,13 @@
   border-radius: 12px;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
+  /* overflow: hidden; remouved to prevent clipping the dropdown */
   animation: cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.host-card.host-card-active {
+  z-index: 50; /* Ensure active card is above others */
 }
 
 .host-card:hover {
@@ -77,7 +81,7 @@
   gap: 11px;
   padding: 15px 15px 11px;
   position: relative;
-  z-index: 1;
+  z-index: 10;
 }
 
 .host-card-left { flex-shrink: 0; }
