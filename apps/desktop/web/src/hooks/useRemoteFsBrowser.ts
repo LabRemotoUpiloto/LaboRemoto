@@ -9,8 +9,8 @@ export type RemoteSort = {
   dir: "asc" | "desc";
 };
 
-export function useRemoteFsBrowser(sessionId?: string) {
-  const [path, setPath] = useState<string>("/");
+export function useRemoteFsBrowser(sessionId?: string, initialPath?: string) {
+  const [path, setPath] = useState<string>(initialPath || "/");
   const [rows, setRows] = useState<SftpEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -27,7 +27,18 @@ export function useRemoteFsBrowser(sessionId?: string) {
       const list = await invoke<SftpEntry[]>("sftp_list", { id: sessionId, path });
       setRows(list || []);
     } catch (e: any) {
-      setError(e?.toString?.() || "Error");
+      const errorMsg = e?.toString?.() || "Error";
+      // Si el path no existe, intentar volver al home
+      if (errorMsg.includes("no such file") && path !== "/") {
+        try {
+          const home = await invoke<string>("sftp_home", { id: sessionId });
+          if (home && home.length > 1) {
+            setPath(home);
+            return; // El useEffect de path llamará refresh de nuevo
+          }
+        } catch {}
+      }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
