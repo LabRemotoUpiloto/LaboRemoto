@@ -90,6 +90,8 @@ interface HeaderProps {
   onTogglePins?: () => void;
   isCameraActive?: boolean;
   isPinsActive?: boolean;
+  // Sidebar state for positioning
+  isSidebarExpanded?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -113,9 +115,27 @@ const Header: React.FC<HeaderProps> = ({
   onTogglePins,
   isCameraActive = false,
   isPinsActive = false,
+  isSidebarExpanded = false,
 }) => {
   const dragRef = React.useRef<string | null>(null);
   const [dragOver, setDragOver] = React.useState<string | null>(null);
+  const sessionsRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Scroll horizontal con rueda del ratón (Shift+wheel o wheel directo)
+  React.useEffect(() => {
+    const el = sessionsRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent, id: string, type: 'panel' | 'tab') => {
     if ((e.target as HTMLElement).closest('.h1-tab-close, .h2-tab-close')) return;
@@ -142,8 +162,19 @@ const Header: React.FC<HeaderProps> = ({
     setDragOver(null);
   };
 
+  // Limpiar estilos inline de GSAP que pudieran persistir
+  const headerRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    const el = headerRef.current;
+    if (el) {
+      el.style.marginLeft = '';
+      el.style.paddingLeft = '';
+      el.style.left = '';
+    }
+  }, []);
+
   return (
-    <header className="dual-header" role="banner" onMouseLeave={handleMouseLeave} style={{ marginLeft: 0 }}>
+    <header ref={headerRef} className="dual-header" role="banner" onMouseLeave={handleMouseLeave}>
       {/* ═══ H1: Panel Tabs ═══ */}
       <div className="h1">
         {openPanels.map(panelId => (
@@ -174,7 +205,7 @@ const Header: React.FC<HeaderProps> = ({
       {/* ═══ H2: Session Bar ═══ */}
       {activePanel === 'terminal' && (
         <div className="h2">
-          <div className="h2-sessions">
+          <div className="h2-sessions" ref={sessionsRef}>
             {tabs.filter(t => t.type === 'session').map(t => (
               <div
                 key={t.id}
