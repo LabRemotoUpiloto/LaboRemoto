@@ -52,7 +52,8 @@ export function animateSidebar(
   const duration = isOpen ? 0.38 : 0.42
   const ease = isOpen ? 'power2.out' : 'power1.inOut'
   gsap.to(sidebarEl, { width: w, duration, ease })
-  gsap.to(['.main-content', '.pins-panel', '.h2'], { marginLeft: w, duration, ease })
+  gsap.to(['.main-content', '.pins-panel'], { marginLeft: w, duration, ease })
+  gsap.to('.h2', { paddingLeft: w, duration, ease })
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -78,7 +79,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (isFirstRender.current) {
       isFirstRender.current = false;
       gsap.set(sidebarEl, { width: isExpanded ? SIDEBAR_OPEN : SIDEBAR_CLOSED });
-      gsap.set(['.main-content', '.pins-panel', '.h2'], { marginLeft: isExpanded ? SIDEBAR_OPEN : SIDEBAR_CLOSED });
+      gsap.set(['.main-content', '.pins-panel'], { marginLeft: isExpanded ? SIDEBAR_OPEN : SIDEBAR_CLOSED });
+      gsap.set('.h2', { paddingLeft: isExpanded ? SIDEBAR_OPEN : SIDEBAR_CLOSED });
       return;
     }
 

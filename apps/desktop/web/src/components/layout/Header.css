@@ -126,6 +126,12 @@
   border-bottom: 0.5px solid var(--border-subtle);
   height: 40px;
   flex-shrink: 0;
+  margin-left: 0 !important;
+  /* El padding-left se anima con GSAP para posicionar los tabs sin gap */
+}
+
+.h2.hidden {
+  display: none !important;
 }
 
 .h2-sessions {
