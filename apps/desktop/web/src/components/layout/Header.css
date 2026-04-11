@@ -167,8 +167,8 @@
   color: var(--text-secondary);
   cursor: pointer;
   border-right: 0.5px solid var(--border-subtle);
-  border-top: 1px solid transparent;
-  transition: color 100ms, background 100ms;
+  border-bottom: 2px solid transparent;
+  transition: all 120ms ease;
   white-space: nowrap;
   flex-shrink: 0;
   position: relative;
@@ -182,9 +182,9 @@
 }
 
 .h2-tab.active {
-  background: var(--background-secondary);
+  background: var(--interactive-selected);
   color: var(--text-primary);
-  border-top-color: var(--accent-primary);
+  border-bottom-color: transparent;
 }
 
 .h2-tab *:not(.h2-tab-close) {
