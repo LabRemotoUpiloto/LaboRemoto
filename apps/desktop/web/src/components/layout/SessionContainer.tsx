@@ -22,6 +22,8 @@ type Props = {
   onCloseChat: () => void
   sessionMeta: Record<string, { label: string }>
   onOpenLog: (session: SessionLog) => void
+  sftpPaths: Record<string, string>
+  setSftpPaths: React.Dispatch<React.SetStateAction<Record<string, string>>>
 }
 
 const SessionContainer: React.FC<Props> = ({
@@ -34,7 +36,9 @@ const SessionContainer: React.FC<Props> = ({
   isChatOpen,
   onCloseChat,
   sessionMeta,
-  onOpenLog
+  onOpenLog,
+  sftpPaths,
+  setSftpPaths
 }) => {
   return (
     <>
@@ -63,6 +67,8 @@ const SessionContainer: React.FC<Props> = ({
               sessions={tabs.filter(tt => tt.type === 'session').map(tt => tt.id)}
               sessionsMeta={sessionMeta}
               activeSessionId={t.id}
+              initialPath={sftpPaths[t.id]}
+              onPathChange={(path) => setSftpPaths(prev => ({ ...prev, [t.id]: path }))}
             />
           )}
           {selectedPage === 'snippets' && <SnippetsPage />}

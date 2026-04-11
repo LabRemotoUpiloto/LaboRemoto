@@ -70,6 +70,8 @@ const AppMain: React.FC = () => {
   const [isCameraOpen, setCameraOpen] = useState(false)
   const [isPinsPanelOpen, setPinsPanelOpen] = useState(false)
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
+  // Estado para preservar paths de SFTP por sesión entre cambios de tab
+  const [sftpPaths, setSftpPaths] = useState<Record<string, string>>({})
 
   const handleTabClick = (id: string) => {
     setActiveTabId(id)
@@ -406,6 +408,8 @@ const AppMain: React.FC = () => {
                   onCloseChat={() => setIsChatOpen(false)}
                   sessionMeta={sessionMeta}
                   onOpenLog={openLogTab}
+                  sftpPaths={sftpPaths}
+                  setSftpPaths={setSftpPaths}
                 />
                 <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />
               </main>

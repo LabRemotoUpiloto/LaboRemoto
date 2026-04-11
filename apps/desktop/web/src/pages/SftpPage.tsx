@@ -16,9 +16,15 @@ import { joinLocalPath, joinRemotePath, getParentLocalPath, getParentRemotePath 
 import './SftpPage.css'
 import type { SftpEntry, LocalEntry } from '../types'
 
-type Props = { sessions: string[]; activeSessionId?: string; sessionsMeta?: Record<string,{ label: string }> }
+type Props = {
+  sessions: string[]
+  activeSessionId?: string
+  sessionsMeta?: Record<string,{ label: string }>
+  initialPath?: string
+  onPathChange?: (path: string) => void
+}
 
-const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) => {
+const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, initialPath, onPathChange }) => {
   const [sessionId, setSessionId] = useState<string | undefined>(activeSessionId)
   const { push } = useToasts()
   useEffect(()=> setSessionId(activeSessionId), [activeSessionId])
@@ -55,7 +61,23 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta }) 
     filter: rfilter,
     setFilter: setRfilter,
     refresh: refreshRemote
-  } = useRemoteFsBrowser(sessionId)
+  } = useRemoteFsBrowser(sessionId, initialPath)
+
+  // Notificar al padre cuando cambia el path remoto
+  useEffect(() => {
+    if (onPathChange && rpath) {
+      onPathChange(rpath)
+    }
+  }, [rpath, onPathChange])
+
+  // Limpiar el path guardado si hay error (para no persistir paths inválidos)
+  useEffect(() => {
+    if (rerr && onPathChange && rerr.includes("no such file")) {
+      // No guardar el path problemático, dejar que vuelva al home
+      onPathChange("/")
+    }
+  }, [rerr, onPathChange])
+
   const [ctx, setCtx] = useState<{open:boolean; x:number; y:number; side:'local'|'remote'; index:number|null}>({open:false,x:0,y:0,side:'local',index:null})
   useEffect(()=>{
     const close = ()=> setCtx(c=> ({...c, open:false}))
