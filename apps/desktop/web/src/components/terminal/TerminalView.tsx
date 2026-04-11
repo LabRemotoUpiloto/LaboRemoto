@@ -12,23 +12,33 @@ interface TerminalViewProps {
   isChatOpen?: boolean;
   onCloseChat?: () => void;
   isTabActive?: boolean;
+  practiceId?: string | null;
+  student?: { id: number; username: string; fullname: string; email: string } | null;
 }
 
-const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'terminal', isCameraOpen = false, isChatOpen = false, onCloseChat = () => {}, isTabActive = true }) => {
+const TerminalView: React.FC<TerminalViewProps> = ({
+  sessionId,
+  activeView = 'terminal',
+  isCameraOpen = false,
+  isChatOpen = false,
+  onCloseChat = () => {},
+  isTabActive = true,
+  practiceId = null,
+  student = null,
+}) => {
   const [chatWidth, setChatWidth] = useState(420);
   const [cameraHeight, setCameraHeight] = useState(450);
   const [isResizingChat, setIsResizingChat] = useState(false);
   const [isResizingCamera, setIsResizingCamera] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+
   // When camera panel opens/closes, xterm must re-fit to the new height
   useEffect(() => {
-    // Small double-fire: once immediately after layout change, once after transition settles
     const t1 = setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     const t2 = setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [isCameraOpen]);
-
 
   // Resize handlers
   useEffect(() => {
@@ -38,8 +48,6 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'te
         setChatWidth(Math.max(300, Math.min(650, newW)));
       }
       if (isResizingCamera) {
-        // Camera is at the top, so we calculate height from top (or just use clientY offset)
-        // Adjusting roughly based on a standard top header height (~60px)
         const newH = e.clientY - 60;
         setCameraHeight(Math.max(150, Math.min(window.innerHeight - 200, newH)));
       }
@@ -59,7 +67,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'te
     <div className={`terminal-view ${isResizing ? 'is-resizing' : ''}`} ref={containerRef} style={{ display: 'flex', width: '100%', height: '100%', minHeight: 0 }}>
       
       {/* ── Main Stack (Camera Top, Terminal/VNC Bottom) ── */}
-      <div className="terminal-stack" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      <div className="terminal-stack" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
         
         {/* ── Top: Camera Panel ── */}
         {isCameraOpen && (
@@ -106,6 +114,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ sessionId, activeView = 'te
           </div>
 
         </div>
+
       </div>
 
       {/* ── Right: Chat Side Panel ── */}

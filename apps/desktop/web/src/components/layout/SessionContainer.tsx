@@ -6,9 +6,15 @@ import LogsPage from '../../pages/LogsPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 
+type PracticeMeta = {
+  practiceId: string
+  student: { id: number; username: string; fullname: string; email: string }
+}
+
 type Props = {
   tabs: Tab[]
   activeTabId: string
+  practiceMeta?: Record<string, PracticeMeta>
   selectedPage: string
   activeView: 'terminal' | 'escritorio'
   isCameraOpen: boolean
@@ -21,6 +27,7 @@ type Props = {
 const SessionContainer: React.FC<Props> = ({
   tabs,
   activeTabId,
+  practiceMeta,
   selectedPage,
   activeView,
   isCameraOpen,
@@ -40,7 +47,16 @@ const SessionContainer: React.FC<Props> = ({
               width: '100%'
             }}
           >
-            <TerminalView sessionId={t.id} activeView={activeView} isCameraOpen={isCameraOpen} isChatOpen={isChatOpen} onCloseChat={onCloseChat} isTabActive={activeTabId === t.id} />
+            <TerminalView
+              sessionId={t.id}
+              activeView={activeView}
+              isCameraOpen={isCameraOpen}
+              isChatOpen={isChatOpen}
+              onCloseChat={onCloseChat}
+              isTabActive={activeTabId === t.id}
+              practiceId={practiceMeta?.[t.id]?.practiceId ?? null}
+              student={practiceMeta?.[t.id]?.student ?? null}
+            />
           </div>
           {selectedPage === 'sftp' && (
             <SftpPage

@@ -370,6 +370,7 @@ const AppMain: React.FC = () => {
               onTogglePins={togglePinsPanel}
               isCameraActive={isCameraOpen}
               isPinsActive={isPinsPanelOpen}
+              isSidebarExpanded={isSidebarExpanded}
             />
             <Sidebar
               activePanel={activePanel}
