@@ -203,10 +203,9 @@ const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* ═══ H2: Session Bar ═══ */}
-      {activePanel === 'terminal' && (
-        <div className="h2">
-          <div className="h2-sessions" ref={sessionsRef}>
-            {tabs.filter(t => t.type === 'session').map(t => (
+      <div className={`h2 ${activePanel === 'terminal' ? '' : 'hidden'}`}>
+        <div className="h2-sessions" ref={sessionsRef}>
+          {tabs.filter(t => t.type === 'session').map(t => (
               <div
                 key={t.id}
                 className={`h2-tab ${activeTabId === t.id ? 'active' : ''} ${dragOver === t.id && dragRef.current !== `tab:${t.id}` ? 'drag-over' : ''}`}
@@ -268,8 +267,7 @@ const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
           )}
-        </div>
-      )}
+      </div>
     </header>
   );
 };
