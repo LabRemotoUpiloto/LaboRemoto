@@ -133,6 +133,11 @@ pub fn run() {
       cmd::practicas::practicas_run_setup,
       cmd::vnc::vnc_cleanup_all,
     ])
+    .on_window_event(|_win, event| {
+      if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {
+        cleanup_all_vnc_sessions();
+      }
+    })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

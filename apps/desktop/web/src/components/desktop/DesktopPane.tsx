@@ -87,6 +87,15 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         return
       }
 
+      // Tab (con o sin Alt): siempre enviar al VNC para cambiar ventanas dentro
+      // del escritorio virtual. preventDefault evita que el browser navegue el DOM.
+      if (e.code === 'Tab') {
+        e.preventDefault()
+        e.stopPropagation()
+        rfbRef.current.sendKey(0xFF09, 'Tab', true)
+        return
+      }
+
       // Detectar deriva de CapsLock (WebView2 se traga el evento a veces)
       const localCaps = e.getModifierState('CapsLock')
       if (remoteCapsRef.current === null) {
@@ -122,6 +131,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
       if (e.code === 'CapsLock') {
         e.preventDefault()
         e.stopPropagation()
+        return
+      }
+
+      if (e.code === 'Tab') {
+        e.preventDefault()
+        e.stopPropagation()
+        rfbRef.current.sendKey(0xFF09, 'Tab', false)
         return
       }
 
@@ -253,6 +269,14 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     await stop()
   }
 
+  const handleSendAltTab = () => {
+    if (!rfbRef.current) return
+    rfbRef.current.sendKey(0xFFE9, 'AltLeft', true)   // Alt down
+    rfbRef.current.sendKey(0xFF09, 'Tab',     true)   // Tab down
+    rfbRef.current.sendKey(0xFF09, 'Tab',     false)  // Tab up
+    rfbRef.current.sendKey(0xFFE9, 'AltLeft', false)  // Alt up
+  }
+
   const handleCleanupAll = async () => {
     try {
       const result = await invoke<string>('vnc_cleanup_all', { sessionId })
@@ -275,6 +299,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         resolution={resolution}
         onResolutionChange={setResolution}
         onStop={handleStop}
+        onSendAltTab={handleSendAltTab}
         onCleanupAll={handleCleanupAll}
         sessionInfo={sessionInfo}
         onSendKey={(keysym, code) => {

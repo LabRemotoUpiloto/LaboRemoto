@@ -229,6 +229,19 @@ fn start_vnc_server(
     let browser_desktop = format!("{home_dir}/.local/share/applications/browser-vnc-{display}.desktop");
     let webserver_desktop = format!("{home_dir}/.local/share/applications/webserver-vnc-{display}.desktop");
 
+    // -1. Limpiar TODOS los .desktop y perfiles de sesiones VNC anteriores
+    run_remote(
+        sess,
+        &format!(
+            "rm -f {home_dir}/.local/share/applications/browser-vnc-*.desktop \
+                   {home_dir}/.local/share/applications/webserver-vnc-*.desktop \
+                   {home_dir}/Desktop/servidor-web*.desktop 2>/dev/null; \
+             rm -rf {home_dir}/.config/lxpanel/lxde-pi-[0-9]* 2>/dev/null; \
+             rm -rf {home_dir}/.config/pcmanfm/lxde-pi-[0-9]* 2>/dev/null; \
+             update-desktop-database {home_dir}/.local/share/applications 2>/dev/null; true"
+        ),
+    )?;
+
     // 0. Crear XDG_RUNTIME_DIR y el directorio de datos de Chromium
     //    XDG_RUNTIME_DIR DEBE existir antes de que cualquier proceso lo use;
     //    sin él, Chromium y otros procesos pierden acceso a sockets de red.
@@ -236,6 +249,16 @@ fn start_vnc_server(
         sess,
         &format!(
             "mkdir -p /tmp/xdg{display} {chromium_dir}/Default {home_dir}/.local/bin {home_dir}/Desktop; true"
+        ),
+    )?;
+
+    // 0b. Configurar libfm para ejecutar .desktop sin preguntar (evita diálogo "Execute File")
+    run_remote(
+        sess,
+        &format!(
+            "mkdir -p {home_dir}/.config/libfm && \
+             grep -q 'quick_exec' {home_dir}/.config/libfm/libfm.conf 2>/dev/null || \
+             printf '[config]\\nquick_exec=1\\n' >> {home_dir}/.config/libfm/libfm.conf; true"
         ),
     )?;
 
@@ -300,8 +323,9 @@ PREFS_EOF\ntrue"
         sess,
         &format!(
             "mkdir -p {home_dir}/.local/share/applications && \
-             printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec={home_dir}/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
-             > {browser_desktop}; true"
+             printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec={home_dir}/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nTerminal=false\\nCategories=Network;WebBrowser;\\n' \
+             > {browser_desktop} && chmod +x {browser_desktop} && \
+             gio set {browser_desktop} metadata::trusted true 2>/dev/null; true"
         ),
     )?;
 
@@ -311,10 +335,12 @@ PREFS_EOF\ntrue"
     run_remote(
         sess,
         &format!(
-            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver páginas de Apache (localhost:10000)\\nExec={home_dir}/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nCategories=Network;WebBrowser;\\n' \
-             > {webserver_desktop} && \
+            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver paginas de Apache (localhost:10000)\\nExec={home_dir}/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nTerminal=false\\nCategories=Network;WebBrowser;\\n' \
+             > {webserver_desktop} && chmod +x {webserver_desktop} && \
+             gio set {webserver_desktop} metadata::trusted true 2>/dev/null && \
              cp {webserver_desktop} {home_dir}/Desktop/servidor-web.desktop 2>/dev/null && \
-             chmod +x {home_dir}/Desktop/servidor-web.desktop 2>/dev/null; true"
+             chmod +x {home_dir}/Desktop/servidor-web.desktop && \
+             gio set {home_dir}/Desktop/servidor-web.desktop metadata::trusted true 2>/dev/null; true"
         ),
     )?;
 
@@ -367,7 +393,7 @@ Plugin {{\n\
   type=launchbar\n\
   Config {{\n\
     Button {{\n\
-      id=browser-vnc-{display}.desktop\n\
+      id={browser_desktop}\n\
     }}\n\
     Button {{\n\
       id=pcmanfm.desktop\n\
