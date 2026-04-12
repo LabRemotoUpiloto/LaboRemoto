@@ -27,6 +27,7 @@ interface Props {
   onResolutionChange: (r: string) => void
   onStop: () => void
   onCleanupAll?: () => void
+  onSendAltTab?: () => void
   sessionInfo: DesktopSessionInfo | null
   onSendKey?: (keysym: number, code: string) => void
 }
@@ -37,6 +38,7 @@ const DesktopToolbar: React.FC<Props> = ({
   onResolutionChange,
   onStop,
   onCleanupAll,
+  onSendAltTab,
   sessionInfo,
   onSendKey,
 }) => {
@@ -74,6 +76,17 @@ const DesktopToolbar: React.FC<Props> = ({
             </option>
           ))}
         </select>
+
+        {status === 'connected' && (
+          <button
+            className="desktop-btn-stop"
+            style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '11px', padding: '3px 8px' }}
+            onClick={onSendAltTab}
+            title="Enviar Alt+Tab al escritorio virtual (cambiar ventana)"
+          >
+            Alt+Tab
+          </button>
+        )}
 
         {(status === 'connected' || status === 'starting') && (
           <button
