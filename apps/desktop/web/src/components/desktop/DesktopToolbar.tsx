@@ -26,6 +26,7 @@ interface Props {
   resolution: string
   onResolutionChange: (r: string) => void
   onStop: () => void
+  onCleanupAll?: () => void
   sessionInfo: DesktopSessionInfo | null
   onSendKey?: (keysym: number, code: string) => void
 }
@@ -35,6 +36,7 @@ const DesktopToolbar: React.FC<Props> = ({
   resolution,
   onResolutionChange,
   onStop,
+  onCleanupAll,
   sessionInfo,
   onSendKey,
 }) => {
@@ -82,6 +84,17 @@ const DesktopToolbar: React.FC<Props> = ({
             ✕ Desconectar
           </button>
         )}
+
+        {status === 'idle' || status === 'error' || status === 'disconnected' ? (
+          <button
+            className="desktop-btn-stop"
+            style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '11px', padding: '3px 8px' }}
+            onClick={onCleanupAll}
+            title="Limpiar todos los displays VNC huérfanos en el servidor"
+          >
+            Limpiar displays
+          </button>
+        ) : null}
 
       </div>
     </div>

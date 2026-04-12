@@ -254,20 +254,19 @@ pub async fn ssh_disconnect(state: tauri::State<'_, AppState>, id: String) -> Re
   };
 
   if let Some(mut vnc) = session.vnc_session.take() {
-      if let Some(ssh2_cache) = session.sftp_cached.clone() {
-          tokio::task::spawn_blocking(move || {
-              if let Ok(guard) = ssh2_cache.lock() {
-                  if vnc.is_virtual {
-                      let _ = crate::cmd::vnc::stop_vnc_server(&guard.sess, vnc.display_num, vnc.vnc_port_remote, &vnc.home_dir);
-                  } else {
-                      let _ = crate::cmd::vnc::stop_vnc_server_real(&guard.sess, vnc.vnc_port_remote);
-                  }
-              }
-              vnc.stop_flag.store(true, Ordering::Relaxed);
-              if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
-              vnc.host = "".to_string(); // Evita reconexión inútil en Drop
-          });
-      }
+      vnc.stop_flag.store(true, Ordering::Relaxed);
+      if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
+      let display  = vnc.display_num;
+      let vnc_port = vnc.vnc_port_remote;
+      vnc.host = "".to_string(); // Evita reconexión inútil en Drop
+      // Matar procesos remotos vía el canal russh ya conectado
+      let kill_cmd = format!(
+          "pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; \
+           pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
+           rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n"
+      );
+      let _ = session.term.tx.send(ChanCmd::Send(kill_cmd.into_bytes()));
+      tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
   }
 
   let _ = session.term.tx.send(ChanCmd::Close);

@@ -131,7 +131,45 @@ pub fn run() {
       cmd::practicas::practicas_list_categories,
       cmd::practicas::practicas_get_config,
       cmd::practicas::practicas_run_setup,
+      cmd::vnc::vnc_cleanup_all,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+fn cleanup_all_vnc_sessions() {
+  use crate::cmd::state::SESSIONS;
+  let sessions_info: Vec<(u32, u16, String, u16, String, String, bool)> = {
+    let mut map = match SESSIONS.lock() {
+      Ok(m) => m,
+      Err(_) => return,
+    };
+    map.values_mut()
+      .filter_map(|s| s.vnc_session.as_mut().map(|v| {
+        let info = (v.display_num, v.vnc_port_remote, v.host.clone(), v.port, v.user.clone(), v.password.clone(), v.is_virtual);
+        v.stop_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+        if let Some(mut child) = v.ssh_fwd_child.take() { let _ = child.kill(); }
+        v.host = "".to_string();
+        info
+      }))
+      .collect()
+  };
+
+  // Matar procesos remotos en un hilo OS (no bloquear el hilo principal)
+  if !sessions_info.is_empty() {
+    std::thread::spawn(move || {
+      for (display, vnc_port, host, port, user, password, is_virtual) in sessions_info {
+        if host.is_empty() { continue; }
+        if let Ok((_tcp, sess)) = crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password) {
+          if is_virtual {
+            // Matar con SIGKILL directo — no hay tiempo para stop_vnc_server completo
+            let _ = crate::cmd::vnc::run_remote_pub(
+              &sess,
+              &format!("pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true")
+            );
+          }
+        }
+      }
+    });
+  }
 }
