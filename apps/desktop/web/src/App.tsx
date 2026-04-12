@@ -26,6 +26,7 @@ import ChatPane from './components/ChatPane'
 import PinsPanel from './components/raspberry/PinsPanel'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useAppTabs, HOME_TAB_ID } from './hooks/useAppTabs'
 import HomeContainer from './components/layout/HomeContainer'
 import SessionContainer from './components/layout/SessionContainer'
@@ -72,6 +73,21 @@ const AppMain: React.FC = () => {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
   // Estado para preservar paths de SFTP por sesión entre cambios de tab
   const [sftpPaths, setSftpPaths] = useState<Record<string, string>>({})
+
+  // Interceptar cierre de la ventana para matar sesiones VNC antes de salir
+  useEffect(() => {
+    const win = getCurrentWindow()
+    const unlisten = win.onCloseRequested(async () => {
+      const sessionTabs = tabs.filter(t => t.type === 'session')
+      await Promise.allSettled(
+        sessionTabs.map(t =>
+          invoke('vnc_stop', { sessionId: t.id }).catch(() => {})
+        )
+      )
+      await win.destroy()
+    })
+    return () => { unlisten.then(fn => fn()) }
+  }, [tabs])
 
   const handleTabClick = (id: string) => {
     setActiveTabId(id)
