@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
-// Ordering is used in ssh.rs; not needed here
+use ssh2::Session as Ssh2Session;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -23,7 +23,6 @@ pub struct CameraInfo {
 fn default_status() -> String { "active".to_string() }
 
 use crate::ssh::client::Session;
-use ssh2::Session as Ssh2Session;
 
 // Sesiones SSH activas en memoria, indexadas por un ID (UUID)
 pub static SESSIONS: Lazy<Mutex<HashMap<String, SessionExt>>> =
@@ -72,7 +71,8 @@ impl Drop for VncSessionState {
             let _ = child.kill();
         }
 
-        // 3. Matar procesos remotos en background (sin bloquear al caller)
+        if self.host.is_empty() { return; } // ya limpiado por vnc_stop
+
         let (host, port, user, password) = (
             self.host.clone(),
             self.port,
@@ -82,8 +82,17 @@ impl Drop for VncSessionState {
         let (display, vnc_port, is_virtual) = (self.display_num, self.vnc_port_remote, self.is_virtual);
         let home_dir = self.home_dir.clone();
 
+        // 3. Guardar tarea pendiente en disco por si el proceso muere antes de limpiar
+        if is_virtual {
+            let pending = format!(
+                "{{\"host\":\"{host}\",\"port\":{port},\"user\":\"{user}\",\"password\":\"{password}\",\"display\":{display},\"vnc_port\":{vnc_port}}}"
+            );
+            let path = std::env::temp_dir().join(format!("vnc_pending_cleanup_{display}.json"));
+            let _ = std::fs::write(&path, &pending);
+        }
+
+        // 4. Intentar limpiar en background (puede no completarse si el proceso muere)
         std::thread::spawn(move || {
-            if host.is_empty() { return; }
             if let Ok((_tcp, sess)) =
                 crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password)
             {
@@ -92,8 +101,46 @@ impl Drop for VncSessionState {
                 } else {
                     let _ = crate::cmd::vnc::stop_vnc_server_real(&sess, vnc_port);
                 }
+                // Limpiar archivo pendiente si se completó
+                let path = std::env::temp_dir().join(format!("vnc_pending_cleanup_{display}.json"));
+                let _ = std::fs::remove_file(&path);
             }
         });
+    }
+}
+
+/// Lee y ejecuta cualquier cleanup VNC pendiente del arranque anterior.
+/// Llamar al inicio de vnc_start para evitar que displays huérfanos acumulen.
+pub fn run_pending_vnc_cleanups(sess: &Ssh2Session) {
+    let tmp = std::env::temp_dir();
+    let entries = match std::fs::read_dir(&tmp) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.starts_with("vnc_pending_cleanup_") || !name.ends_with(".json") { continue; }
+        let path = entry.path();
+        let Ok(content) = std::fs::read_to_string(&path) else { continue; };
+        // Parsear manualmente (evitar dep extra de serde_json aquí)
+        let display = name
+            .strip_prefix("vnc_pending_cleanup_").unwrap_or("")
+            .strip_suffix(".json").unwrap_or("")
+            .parse::<u32>().unwrap_or(0);
+        if display < 20 { let _ = std::fs::remove_file(&path); continue; }
+        // Extraer vnc_port del JSON
+        let vnc_port: u16 = content.split("\"vnc_port\":").nth(1)
+            .and_then(|s| s.split('}').next())
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(0);
+        let cmd = format!(
+            "pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; \
+             pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
+             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
+        );
+        let _ = crate::cmd::vnc::run_remote_pub(sess, &cmd);
+        let _ = std::fs::remove_file(&path);
     }
 }
 

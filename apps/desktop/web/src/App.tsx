@@ -134,6 +134,8 @@ const AppMain: React.FC = () => {
     await savePromise;
     
     try {
+      // Detener VNC primero si hay sesión gráfica activa
+      try { await invoke('vnc_stop', { sessionId: id }) } catch { /* ignore si no hay VNC */ }
       await invoke('ssh_disconnect', { id })
       closeTab(id)
     } catch {

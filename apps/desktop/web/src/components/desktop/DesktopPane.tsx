@@ -1,6 +1,7 @@
 // components/desktop/DesktopPane.tsx — Escritorio gráfico remoto via noVNC
 
 import React, { useRef, useEffect, useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { useDesktopSession } from '../../hooks/useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
 import './DesktopPane.css'
@@ -252,6 +253,15 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     await stop()
   }
 
+  const handleCleanupAll = async () => {
+    try {
+      const result = await invoke<string>('vnc_cleanup_all', { sessionId })
+      console.log('VNC cleanup:', result)
+    } catch (e) {
+      console.warn('vnc_cleanup_all error:', e)
+    }
+  }
+
   const handleRetry = () => {
     start(resolution)
   }
@@ -265,6 +275,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         resolution={resolution}
         onResolutionChange={setResolution}
         onStop={handleStop}
+        onCleanupAll={handleCleanupAll}
         sessionInfo={sessionInfo}
         onSendKey={(keysym, code) => {
           if (!rfbRef.current) return

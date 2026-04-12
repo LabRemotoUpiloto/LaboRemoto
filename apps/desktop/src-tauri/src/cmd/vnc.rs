@@ -42,6 +42,10 @@ pub enum VncStatusResponse {
 // Helpers SSH2 (bloqueantes, usados antes de que el bridge entre en el loop)
 // ─────────────────────────────────────────────────────────────────────────────
 
+pub fn run_remote_pub(sess: &ssh2::Session, cmd: &str) -> Result<(i32, String), String> {
+    run_remote(sess, cmd)
+}
+
 fn run_remote(sess: &ssh2::Session, cmd: &str) -> Result<(i32, String), String> {
     let mut ch = sess.channel_session().map_err(|e| e.to_string())?;
     ch.exec(cmd).map_err(|e| e.to_string())?;
@@ -95,30 +99,36 @@ pub fn stop_vnc_server_real(sess: &ssh2::Session, vnc_port: u16) -> Result<(), S
 }
 
 fn find_free_display(sess: &ssh2::Session) -> Result<u32, String> {
+    // Matar todos los Xvfb de :20-:99 que NO tienen x11vnc activo asociado (huérfanos)
+    // Esto limpia los residuos de cierres bruscos de la app.
+    let _ = run_remote(
+        sess,
+        "for d in $(seq 20 99); do \
+           pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 || { \
+             rm -f /tmp/.X$d-lock /tmp/.X11-unix/X$d 2>/dev/null; continue; \
+           }; \
+           pgrep -f \"x11vnc.*:$d\" >/dev/null 2>&1 || { \
+             pkill -9 -f \"Xvfb :$d \" 2>/dev/null; \
+             rm -f /tmp/.X$d-lock /tmp/.X11-unix/X$d 2>/dev/null; \
+           }; \
+         done; true"
+    );
+
+    // Buscar displays con AMBOS Xvfb Y x11vnc activos (sesión realmente en uso)
     let (_, out) = run_remote(
-        sess, 
-        "ls /tmp/.X*-lock /tmp/.X11-unix/X* 2>/dev/null; pgrep -a Xvfb 2>/dev/null | grep -o ':[0-9]\\+' | tr -d ':' || true"
+        sess,
+        "for d in $(seq 20 99); do \
+           pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 && \
+           pgrep -f \"x11vnc.*:$d\" >/dev/null 2>&1 && \
+           echo $d; \
+         done; true"
     )?;
     let mut used: Vec<u32> = out
         .lines()
-        .filter_map(|l| {
-            let s = l.trim();
-            if let Ok(n) = s.parse::<u32>() {
-                return Some(n);
-            }
-            let name = s.rsplit('/').next()?;
-            if name.ends_with("-lock") {
-                name.strip_prefix(".X")?.strip_suffix("-lock")?.parse().ok()
-            } else if name.starts_with('X') {
-                name.strip_prefix('X')?.parse().ok()
-            } else {
-                None
-            }
-        })
+        .filter_map(|l| l.trim().parse::<u32>().ok())
         .collect();
     used.sort();
     used.dedup();
-    // Empezar desde :20 para evitar colisión con displays del sistema
     for n in 20u32..100 {
         if !used.contains(&n) {
             return Ok(n);
@@ -236,15 +246,21 @@ fn start_vnc_server(
         &format!(
             "cat > {home_dir}/.local/bin/chromium-browser-{display} << 'WRAPPER_EOF'\n\
 #!/bin/sh\n\
-rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\n\
+# Limpiar singleton locks del perfil aislado\n\
+rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie {chromium_dir}/SingletonSocket 2>/dev/null\n\
+# Aislar completamente del display fisico\n\
 export DISPLAY=:{display}\n\
+export XDG_RUNTIME_DIR=/tmp/xdg{display}\n\
+export DBUS_SESSION_BUS_ADDRESS=\n\
+export XDG_SESSION_TYPE=x11\n\
 LOG=/tmp/browser-{display}.log\n\
 UDIR={chromium_dir}\n\
-CARGS='--no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-first-run'\n\
+CARGS='--no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars'\n\
 for BROWSER in chromium-browser chromium google-chrome-stable google-chrome firefox-esr firefox midori x-www-browser; do\n\
   if command -v \"$BROWSER\" >/dev/null 2>&1; then\n\
     case \"$BROWSER\" in\n\
       *chrom*|*google*) exec \"$BROWSER\" $CARGS --user-data-dir=\"$UDIR\" \"$@\" 2>>\"$LOG\" ;;\n\
+      *firefox*) exec \"$BROWSER\" --no-remote --profile \"$UDIR\" --display=:{display} \"$@\" 2>>\"$LOG\" ;;\n\
       *) exec \"$BROWSER\" \"$@\" 2>>\"$LOG\" ;;\n\
     esac\n\
   fi\n\
@@ -542,8 +558,11 @@ export XDG_RUNTIME_DIR=/tmp/xdg{display}\\n\
 export XDG_DATA_HOME={home_dir}/.local/share\\n\
 export XDG_DATA_DIRS={home_dir}/.local/share:/usr/local/share:/usr/share\\n\
 export PATH={home_dir}/.local/bin:/usr/local/bin:/usr/bin:/bin\\n\
+export XDG_SESSION_TYPE=x11\\n\
+unset DBUS_SESSION_BUS_ADDRESS\\n\
+unset DBUS_LAUNCHD_SESSION_BUS_SOCKET\\n\
 xsetroot -solid \\#2c3e50 2>/dev/null || true\\n\
-rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie 2>/dev/null\\n\
+rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie {chromium_dir}/SingletonSocket 2>/dev/null\\n\
 openbox >/tmp/openbox{display}.log 2>&1 & echo $! > /tmp/openbox-{display}.pid\\n\
 sleep 2\\n\
 lxpanel --profile {panel_profile} >/tmp/lxpanel{display}.log 2>&1 &\\n\
@@ -597,6 +616,9 @@ pub fn stop_vnc_server(
              pkill -f 'lxpanel.*{panel_profile}' 2>/dev/null; \
              pkill -f 'pcmanfm.*{panel_profile}' 2>/dev/null; \
              pkill -f 'Xvfb :{display} ' 2>/dev/null; \
+             sleep 0.5; \
+             pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; \
+             pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} \
                    {xstartup_path} /tmp/openbox-{display}.pid \
                    {browser_desktop} {webserver_desktop} \
@@ -1155,6 +1177,8 @@ pub async fn vnc_start(
             // no tomar control del escritorio real (comportamiento tipo AnyDesk).
             let home_dir = get_remote_home(&setup_sess);
             check_dependencies(&setup_sess, true)?;
+            // Limpiar cualquier display huérfano de cierres anteriores de la app
+            crate::cmd::state::run_pending_vnc_cleanups(&setup_sess);
             let display  = find_free_display(&setup_sess)?;
             let vnc_port = find_free_vnc_port(&setup_sess)?;
             start_vnc_server(&setup_sess, display, vnc_port, &r, &home_dir)?;
@@ -1267,33 +1291,68 @@ pub async fn vnc_start(
 }
 
 /// Detiene la sesión gráfica activa: para el bridge WS y mata los procesos
-/// remotos (Xvfb, Openbox, x11vnc).
+/// remotos (Xvfb, Openbox, x11vnc) usando el canal russh ya conectado.
 #[tauri::command]
 pub async fn vnc_stop(session_id: String) -> Result<(), String> {
-    let (vnc_opt, ssh_cache) = {
+    let (vnc_opt, term_tx) = {
         let mut map = crate::cmd::state::SESSIONS.lock().map_err(|e| e.to_string())?;
         let sess = map.get_mut(&session_id).ok_or("NotFoundSession")?;
-        (sess.vnc_session.take(), sess.sftp_cached.clone())
+        (sess.vnc_session.take(), sess.term.tx.clone())
     };
 
     if let Some(mut vnc) = vnc_opt {
-        if let Some(ssh2_cache) = ssh_cache {
-            tokio::task::spawn_blocking(move || {
-                if let Ok(guard) = ssh2_cache.lock() {
-                    if vnc.is_virtual {
-                        let _ = crate::cmd::vnc::stop_vnc_server(&guard.sess, vnc.display_num, vnc.vnc_port_remote, &vnc.home_dir);
-                    } else {
-                        let _ = crate::cmd::vnc::stop_vnc_server_real(&guard.sess, vnc.vnc_port_remote);
-                    }
-                }
-                vnc.stop_flag.store(true, std::sync::atomic::Ordering::Relaxed);
-                if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
-                vnc.host = "".to_string(); // Evitar reconexión en Drop
-            });
-        }
+        // Señalar al bridge que pare y matar el tunnel local
+        vnc.stop_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+        if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
+
+        let display  = vnc.display_num;
+        let vnc_port = vnc.vnc_port_remote;
+        vnc.host     = "".to_string(); // Evitar reconexión en Drop
+
+        // Enviar pkill por el canal russh ya conectado (sin nueva conexión SSH)
+        let kill_cmd = format!(
+            "pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; \
+             pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
+             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n"
+        );
+        let _ = term_tx.send(crate::ssh::client::ChanCmd::Send(kill_cmd.into_bytes()));
+
+        // Esperar a que los procesos mueran antes de retornar
+        tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
     }
-    
+
     Ok(())
+}
+
+/// Limpia todos los displays VNC virtuales desde :20 en el servidor activo.
+/// Útil para limpiar manualmente tras cierres inesperados de la app.
+#[tauri::command]
+pub async fn vnc_cleanup_all(session_id: String) -> Result<String, String> {
+    let (host, port, user, password) = {
+        let map = crate::cmd::state::SESSIONS.lock().map_err(|e| e.to_string())?;
+        let sess = map.get(&session_id).ok_or("NotFoundSession")?;
+        (sess.host.clone(), sess.port, sess.user.clone(), sess.password.clone())
+    };
+
+    let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let (_tcp, sess) = crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password)
+            .map_err(|e| format!("SSH error: {e}"))?;
+        // Matar todos los Xvfb de :20 a :99 que no tengan procesos activos o sean nuestros
+        let (_, out) = run_remote(
+            &sess,
+            "for d in $(seq 20 99); do \
+               pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 && { \
+                 pkill -9 -f \"Xvfb :$d \" 2>/dev/null; \
+                 pkill -9 -f \"x11vnc.*:$d\" 2>/dev/null; \
+                 rm -f /tmp/.X$d-lock /tmp/.X11-unix/X$d 2>/dev/null; \
+                 echo \"killed :$d\"; \
+               }; \
+             done; true"
+        ).map_err(|e| e)?;
+        Ok(out.trim().to_string())
+    }).await.map_err(|e| e.to_string())??;
+
+    Ok(if result.is_empty() { "No había displays activos".to_string() } else { result })
 }
 
 /// Consulta el estado de la sesión gráfica para un session_id dado.
