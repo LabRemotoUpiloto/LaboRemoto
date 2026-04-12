@@ -127,7 +127,13 @@
   height: 40px;
   flex-shrink: 0;
   margin-left: 0 !important;
-  /* El padding-left se anima con GSAP para posicionar los tabs sin gap */
+  padding-left: 50px;
+  transition: padding-left 0.42s cubic-bezier(0.455, 0.03, 0.515, 0.955);
+}
+
+.sidebar-expanded .h2 {
+  padding-left: 160px;
+  transition: padding-left 0.38s cubic-bezier(0.0, 0.0, 0.2, 1);
 }
 
 .h2.hidden {

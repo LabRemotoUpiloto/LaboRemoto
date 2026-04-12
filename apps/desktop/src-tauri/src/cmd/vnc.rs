@@ -95,15 +95,29 @@ pub fn stop_vnc_server_real(sess: &ssh2::Session, vnc_port: u16) -> Result<(), S
 }
 
 fn find_free_display(sess: &ssh2::Session) -> Result<u32, String> {
-    let (_, out) = run_remote(sess, "ls /tmp/.X*-lock 2>/dev/null || true")?;
-    let used: Vec<u32> = out
+    let (_, out) = run_remote(
+        sess, 
+        "ls /tmp/.X*-lock /tmp/.X11-unix/X* 2>/dev/null; pgrep -a Xvfb 2>/dev/null | grep -o ':[0-9]\\+' | tr -d ':' || true"
+    )?;
+    let mut used: Vec<u32> = out
         .lines()
         .filter_map(|l| {
-            let name = l.trim().rsplit('/').next()?;
-            let n = name.strip_prefix(".X")?.strip_suffix("-lock")?;
-            n.parse().ok()
+            let s = l.trim();
+            if let Ok(n) = s.parse::<u32>() {
+                return Some(n);
+            }
+            let name = s.rsplit('/').next()?;
+            if name.ends_with("-lock") {
+                name.strip_prefix(".X")?.strip_suffix("-lock")?.parse().ok()
+            } else if name.starts_with('X') {
+                name.strip_prefix('X')?.parse().ok()
+            } else {
+                None
+            }
         })
         .collect();
+    used.sort();
+    used.dedup();
     // Empezar desde :20 para evitar colisión con displays del sistema
     for n in 20u32..100 {
         if !used.contains(&n) {
@@ -154,7 +168,7 @@ fn start_vnc_server(
     let _ = run_remote(
         sess,
         &format!(
-            "rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
+            "pkill -f 'Xvfb :{display} ' 2>/dev/null; pkill -f 'x11vnc.*:{display}' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
         ),
     );
 
@@ -1256,12 +1270,29 @@ pub async fn vnc_start(
 /// remotos (Xvfb, Openbox, x11vnc).
 #[tauri::command]
 pub async fn vnc_stop(session_id: String) -> Result<(), String> {
-    if let Ok(mut map) = SESSIONS.lock() {
-        if let Some(sess) = map.get_mut(&session_id) {
-            // Drop del VncSessionState activa su impl Drop → cleanup automático
-            drop(sess.vnc_session.take());
+    let (vnc_opt, ssh_cache) = {
+        let mut map = crate::cmd::state::SESSIONS.lock().map_err(|e| e.to_string())?;
+        let sess = map.get_mut(&session_id).ok_or("NotFoundSession")?;
+        (sess.vnc_session.take(), sess.sftp_cached.clone())
+    };
+
+    if let Some(mut vnc) = vnc_opt {
+        if let Some(ssh2_cache) = ssh_cache {
+            tokio::task::spawn_blocking(move || {
+                if let Ok(guard) = ssh2_cache.lock() {
+                    if vnc.is_virtual {
+                        let _ = crate::cmd::vnc::stop_vnc_server(&guard.sess, vnc.display_num, vnc.vnc_port_remote, &vnc.home_dir);
+                    } else {
+                        let _ = crate::cmd::vnc::stop_vnc_server_real(&guard.sess, vnc.vnc_port_remote);
+                    }
+                }
+                vnc.stop_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+                if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
+                vnc.host = "".to_string(); // Evitar reconexión en Drop
+            });
         }
     }
+    
     Ok(())
 }
 

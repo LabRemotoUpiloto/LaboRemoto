@@ -83,6 +83,7 @@ impl Drop for VncSessionState {
         let home_dir = self.home_dir.clone();
 
         std::thread::spawn(move || {
+            if host.is_empty() { return; }
             if let Ok((_tcp, sess)) =
                 crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password)
             {

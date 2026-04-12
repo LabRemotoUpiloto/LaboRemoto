@@ -248,12 +248,29 @@ pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> 
 
 #[tauri::command]
 pub async fn ssh_disconnect(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
-  let tx = {
+  let mut session = {
     let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let Some(session) = map.remove(&id) else { return Err(AppError::NotFoundSession.to_string()); };
-    session.term.tx.clone()
+    map.remove(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?
   };
-  let _ = tx.send(ChanCmd::Close);
+
+  if let Some(mut vnc) = session.vnc_session.take() {
+      if let Some(ssh2_cache) = session.sftp_cached.clone() {
+          tokio::task::spawn_blocking(move || {
+              if let Ok(guard) = ssh2_cache.lock() {
+                  if vnc.is_virtual {
+                      let _ = crate::cmd::vnc::stop_vnc_server(&guard.sess, vnc.display_num, vnc.vnc_port_remote, &vnc.home_dir);
+                  } else {
+                      let _ = crate::cmd::vnc::stop_vnc_server_real(&guard.sess, vnc.vnc_port_remote);
+                  }
+              }
+              vnc.stop_flag.store(true, Ordering::Relaxed);
+              if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
+              vnc.host = "".to_string(); // Evita reconexión inútil en Drop
+          });
+      }
+  }
+
+  let _ = session.term.tx.send(ChanCmd::Close);
   // Limpiar memoria de la sesión al desconectar
   state.clear(&id);
   Ok(())
