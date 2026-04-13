@@ -115,58 +115,70 @@ Secciones~VI y VII abordan el trabajo futuro y las conclusiones.
 
 \section{Diseño Arquitectónico}
 
-\subsection{Arquitectura General: Sistemas y Subsistemas}
+\subsection{Arquitectura General: Topología de Red y Capas Lógicas}
 
-\textit{Smart SSH Terminal} adopta una arquitectura de tres capas bien diferenciadas que se comunican de forma asíncrona a través del bridge nativo provisto por Tauri. Esta separación garantiza que los módulos puedan evolucionar y probarse de manera independiente, a la vez que el canal de comunicación entre ellos permanece tipado y seguro.
+En un enfoque alineado con las arquitecturas de software modernas, el sistema ha sido concebido bajo un modelo encapsulado en el que la totalidad del aplicativo reside en la estación de usuario (Smart Client). Este diseño exime la necesidad de desplegar servidores propietarios intermedios; en su lugar, la lógica recae sobre una aplicación cliente autónoma que se acopla directamente a entidades externas y estandarizadas (como placas de desarrollo IoT o servidores Linux corporativos).
 
-Como se ilustra en la Figura~\ref{fig:arquitectura}, el sistema se divide en tres subsistemas principales: el \textbf{Subsistema de Presentación} (Frontend), el \textbf{Subsistema de Núcleo} (Backend en Rust) y el \textbf{Subsistema de Inteligencia Artificial}.
+Como se ilustra en la Figura~\ref{fig:arquitectura_general}, la topología global describe una única \textbf{Aplicación Local} que emplea protocolos seguros para orquestar la interacción técnica con: (1) el \textbf{Laboratorio Físico} (ej. dispositivos Raspberry Pi mediante servicios nativos), (2) \textbf{Servicios Semánticos} (Plataformas LLM en la nube o locales) y (3) Servicios de Directorio Institucional (\textbf{LDAP}).
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\linewidth]{images/ArquitecturaGeneral.png}
-    \caption{Arquitectura general del sistema, mostrando la interacción entre los tres subsistemas principales a través del bridge Tauri.}
-    \label{fig:arquitectura}
+    \includegraphics[width=\linewidth]{images/arquitectura_general.png}
+    \caption{Topología general del sistema que demuestra la autonomía de la aplicación local frente a integraciones externas, prescindiendo de servidores intermediarios propios.}
+    \label{fig:arquitectura_general}
 \end{figure}
 
-\subsubsection{Subsistema de Presentación (Frontend)}
-Implementado en React con TypeScript, este subsistema es responsable de toda la interacción visual con el usuario. Se estructura en componentes reutilizables organizados por responsabilidad: componentes de terminal (\texttt{TerminalView}), gestión de archivos (\texttt{FileManager}), panel del asistente de IA (\texttt{AiPanel}), visualización de entorno gráfico remoto vía VNC (\texttt{VncViewer}) y panel de monitoreo de cámara. El estado de la aplicación se centraliza mediante React Context, eliminando el acoplamiento entre componentes y facilitando la actualización reactiva de la interfaz ante eventos SSH entrantes.
+A nivel interno, la aplicación cliente se divide en tres capas lógicas fundamentales comunicadas asíncronamente mediante un canal de paso de mensajes (IPC, de sus siglas en inglés), lo cual garantiza alta resiliencia y el aislamiento de las operaciones de red.
 
-\subsubsection{Subsistema de Núcleo (Backend en Rust/Tauri)}
-Es el motor del sistema y se implementa íntegramente en Rust, expuesto al frontend mediante comandos Tauri. Se subdivide en tres módulos fundamentales:
-
+\subsubsection{Capa de Presentación e Interacción}
+Representa la superficie de control de cara al usuario. Su objetivo es unificar múltiples canales de administración remota de forma visual y reactiva (ver Figura~\ref{fig:subsistema_presentacion}). Esta capa se compone de módulos funcionales interdependientes que operan bajo un gestor de estado centralizado:
 \begin{itemize}
-    \item \textbf{Módulo SSH} (\texttt{ssh/client.rs}): Gestiona el ciclo de vida de las conexiones SSH, incluyendo autenticación por contraseña y por clave pública, multiplexación de sesiones y manejo de canales de ejecución remota.
-    \item \textbf{Módulo SFTP} (\texttt{cmd/sftp.rs}, \texttt{ssh/ssh2\_sftp.rs}): Provee todas las operaciones de transferencia y gestión de archivos sobre el protocolo SFTP, incluyendo listado de directorios, carga, descarga, renombrado y eliminación.
-    \item \textbf{Módulo de Trazabilidad} (\texttt{cmd/logs.rs}): Registra persistentemente cada comando ejecutado, respuesta del servidor, interacción con la IA y acción sobre archivos, conformando el historial de sesión utilizado en la fase de evaluación.
+    \item \textbf{Emulador de Terminal}: Procesa el flujo estándar de entrada y salida (I/O) emulando secuencias de control para soportar interactividad basada en texto de alta densidad.
+    \item \textbf{Explorador de Archivos y Paneles de Control}: Traducción gráfica que transforma acciones de alto nivel (como clicks sobre visores VNC) en operaciones de red directas al flujo del sistema operativo remoto.
+    \item \textbf{Interfaz de Asistencia Conversacional}: Elemento de retroalimentación pedagógica, que sincroniza su contenido bidireccionalmente con las salidas de error o bloqueos presentados en el emulador de terminal.
 \end{itemize}
 
-\subsubsection{Subsistema de Inteligencia Artificial}
-Implementado en los módulos \texttt{cmd/ai.rs}, \texttt{cmd/ai\_utils.rs} y \texttt{cmd/agent.rs}, este subsistema actúa como intermediario entre el usuario y uno o más LLM externos (OpenAI GPT-4o, Google Gemini, o modelos locales vía Ollama). Recibe la consulta del usuario junto con el contexto de la sesión activa (comandos recientes, directorio actual, mensajes de error) y retorna una respuesta contextualizada que puede incluso proponerse como comando ejecutable directamente en la terminal.
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\linewidth]{images/subsistema_presentacion.png}
+    \caption{Diagrama estructural de la Capa de Presentación e Interacción.}
+    \label{fig:subsistema_presentacion}
+\end{figure}
 
-\subsection{Articulación de Servicios: Más Allá de la Terminal}
-
-Una limitación frecuente de los clientes SSH tradicionales es la necesidad de recurrir a herramientas externas para la gestión de archivos en servidores remotos, siendo WinSCP uno de los ejemplos más comunes en entornos educativos \cite{mobaxterm_misc}. El diseño de \textit{Smart SSH Terminal} elimina esta fragmentación al integrar de forma nativa tres categorías de servicio dentro de una sola interfaz unificada:
-
-\begin{enumerate}
-    \item \textbf{Servicio de Terminal SSH}: Emulación completa de terminal con soporte de colores ANSI, pseudo-TTY y reenvío de señales al proceso remoto.
-    \item \textbf{Servicio de Gestión de Archivos SFTP}: Panel gráfico de exploración, carga y descarga de ficheros sobre el mismo canal SSH, sin necesidad de abrir una nueva conexión ni de utilizar una herramienta adicional.
-    \item \textbf{Servicio de Entorno Gráfico Remoto (VNC)}: Integración de un visor noVNC embebido que permite acceder al escritorio gráfico del servidor remoto directamente desde la aplicación, útil en entornos de laboratorio con Raspberry Pi.
-\end{enumerate}
-
-Esta tríada de servicios convierte a la herramienta en un entorno de trabajo completo, reduciendo el número de aplicaciones que el usuario debe gestionar simultáneamente y concentrando toda la actividad en un único punto de control trazable.
-
-\subsection{Diseño de la Interfaz y Trazabilidad}
-
-El diseño de la interfaz responde al principio de \textit{supervisión progresiva}: la pantalla principal expone en primer plano la terminal y el asistente de IA, mientras que los paneles de gestión de archivos, cámara y entorno gráfico son accesibles mediante pestañas colapsables, evitando la sobrecarga visual. La Figura~\ref{fig:vistaso_diseno} ilustra la distribución de paneles en la vista principal.
+\subsubsection{Capa de Procesamiento y Control (Core)}
+Actúa como el motor de red y de sesión en el que se delegan las operaciones críticas. Como se indica en la Figura~\ref{fig:subsistema_nucleo}, esta capa administra los algoritmos criptográficos, protocolos robustos de transporte y la auditoría de uso:
+\begin{itemize}
+    \item \textbf{Motor de Canal Seguro}: Implementa el estándar SSH y sus negociaciones seguras (cifrado asimétrico), operando sobre descriptores para mantener multiplexados de forma asíncrona un túnel de terminal y flujos de red.
+    \item \textbf{Motor de Transferencia de Archivos}: Encargado de empaquetar, enrutar y desempaquetar ráfagas binarias hacia el daemon SFTP o equivalentemente integrado en la conectividad del laboratorio remoto.
+    \item \textbf{Orquestador de Trazabilidad}: Mecanismo que captura heurísticamente trazas de ejecución en la sesión, brindando al sistema una bitácora altamente estructurada de cada paso del operario.
+\end{itemize}
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\linewidth]{images/VistasoPrograma.png}
-    \caption{Vista principal de la interfaz: terminal SSH (izquierda), panel del asistente de IA (derecha) y barra de herramientas con acceso a servicios SFTP y VNC.}
-    \label{fig:vistaso_diseno}
+    \includegraphics[width=\linewidth]{images/subsistema_nucleo.png}
+    \caption{Módulos transaccionales y de conectividad de la Capa de Procesamiento Interno.}
+    \label{fig:subsistema_nucleo}
 \end{figure}
 
-La trazabilidad se implementa a nivel de subsistema mediante el módulo \texttt{logs.rs}, que captura de forma estructurada cada evento relevante de la sesión: comando enviado, salida recibida, consulta a la IA, respuesta obtenida y acción SFTP realizada. Esta información se persiste localmente y sirvió como fuente primaria de datos cuantitativos durante las pruebas de usuario descritas en la Sección~\ref{sec:pruebas}, permitiendo calcular métricas objetivas tales como la tasa de comandos autogenerados por IA, el tiempo entre consulta y ejecución, y el número de errores resueltos de forma autónoma.
+\subsubsection{Capa de Inteligencia Artificial Contextual}
+Esta capa, ilustrada en la Figura~\ref{fig:subsistema_agente}, funge como puente middleware entre la estación cliente local y la red de transformadores y LLMs proveedores de respuestas, habilitando las capacidades de andamiaje:
+
+\begin{itemize}
+    \item \textbf{Descubrimiento de Recursos (Context Protocol)}: Dotación técnica que rompe el paradigma aislado de los chatbots, permitiendo a la IA inspeccionar el estado actual (archivos, logs del host remoto) como suplemento antes de retornar respuestas y deduciendo así el estado exacto del entorno con extrema fidelidad técnica.
+    \item \textbf{Construcción de Contexto Pragmático}: Submodulo que enhebra un grafo con las salidas de error previas y con los comandos que generaron dichas anomalías de red o fallo general.
+    \item \textbf{Motor Lógico de Prácticas Guiadas}: Autómata evaluador que sincroniza las habilidades demostradas en los comandos de sesión con escenarios metodológicos pautados de laboratorio (fases), personalizando la ayuda a la meta de aprendizaje.
+\end{itemize}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\linewidth]{images/subsistema_agente.png}
+    \caption{Capa Semántica responsable de la coordinación de contexto hacia endpoints LLM.}
+    \label{fig:subsistema_agente}
+\end{figure}
+
+\subsection{Integración Arquitectónica y Beneficios Subyacentes}
+
+La topología expuesta erradica la fragmentación típica encontrada en clientes remotos \cite{mobaxterm_misc}. La consolidación de canales (como conexiones SSH reusadas y WebSockets noVNC para escritorios virtuales) fusionados con un servicio \textit{endpoint} inteligente reduce de forma abismal la latencia cognitiva de transición. El estudiante experimenta un \textit{sandbox} único en donde errores operacionales son inmediatamente atrapados y digeridos semánticamente para proponer un apoyo educativo ininterrumpido.
 
 \section{Implementación}
 \subsection{Evolución del desarrollo}

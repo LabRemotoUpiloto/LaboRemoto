@@ -1,0 +1,16 @@
+@startuml subsistema_agente
+
+package "Capa de Inteligencia Artificial Contextual" {
+  [Orquestador Semántico (Agente)] as AI_Core
+  [Construcción y Agregación de Contexto] as ContextBuilder
+  [Descubrimiento de Recursos Dinámicos] as ContextDiscovery
+  [Controlador Lógico de Prácticas] as PracticeEngine
+}
+
+[Orquestador de Sesión Local] <--> AI_Core : Eventos Físicos (Excepciones, Comandos)
+AI_Core --> ContextBuilder : Requiere Prompt Extendido
+ContextBuilder <--> PracticeEngine : Sincronizar Fase de Laboratorio
+ContextBuilder <--> ContextDiscovery : Inspección Remota de Archivos
+
+AI_Core <--> [Proveedor LLM Nube / Servidor Inferencia] : Intercambio de Inferencia y Razonamiento
+@enduml

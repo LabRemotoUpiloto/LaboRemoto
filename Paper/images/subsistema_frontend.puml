@@ -1,0 +1,24 @@
+@startuml subsistema_frontend
+!theme plain
+skinparam componentStyle uml2
+
+package "Interfaz de Usuario (React + Vite)" {
+  [Terminal\n(xterm.js)] as Terminal
+  [ChatPane\n(Asistente IA)] as Chat
+  [Gestor SFTP\n(FileManager)] as SFTP
+  [Escritorio VNC\n(VncViewer)] as VNC
+  [Monitoreo\n(Raspberry/Dashboard)] as Dasbhoard
+  [Prácticas Lab\n(Practicas)] as Practicas
+
+  [Gestor de Estado\n(React Context/Hooks)] as StateManager
+}
+
+Terminal <--> StateManager
+Chat <--> StateManager
+SFTP <--> StateManager
+VNC <--> StateManager
+Dasbhoard <--> StateManager
+Practicas <--> StateManager
+
+StateManager <--> [Tauri API Bridge] : Comunicación Async (Rust)
+@enduml

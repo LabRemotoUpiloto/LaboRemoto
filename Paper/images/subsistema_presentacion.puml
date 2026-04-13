@@ -1,0 +1,20 @@
+@startuml subsistema_presentacion
+
+package "Capa de Presentación e Interacción" {
+  [Emulador de Terminal] as Terminal
+  [Interfaz de Asistente Conversacional] as Chat
+  [Explorador Gráfico de Archivos] as FileManager
+  [Visor de Entorno Gráfico Remoto] as VNCViewer
+  [Panel de Mando y Prácticas] as Dashboard
+
+  [Gestor Centralizado de Estado] as StateManager
+}
+
+Terminal <--> StateManager
+Chat <--> StateManager
+FileManager <--> StateManager
+VNCViewer <--> StateManager
+Dashboard <--> StateManager
+
+StateManager <--> [Capa de Procesamiento (Core)] : Sincronización de Eventos (IPC)
+@enduml
