@@ -1,10 +1,10 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.10.22)  23 OCT 2025 22:02
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.10.22)  13 APR 2026 17:04
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
  %&-line parsing enabled.
-**c:/Users/gonza/Documents/paper/Smart_Client_SSH_for_Learn_Linux.tex
-(c:/Users/gonza/Documents/paper/Smart_Client_SSH_for_Learn_Linux.tex
+**c:/Users/gonza/Documents/proyectos/Cliente-Rust/Paper/Smart_Client_SSH_for_Learn_Linux.tex
+(c:/Users/gonza/Documents/proyectos/Cliente-Rust/Paper/Smart_Client_SSH_for_Learn_Linux.tex
 LaTeX2e <2025-06-01> patch level 1
 L3 programming layer <2025-09-02>
 (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/ieeetran\IEEEtran.cls
@@ -339,137 +339,77 @@ Package: uniquecounter 2019/12/15 v1.4 Provide unlimited unique counter (HO)
 Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 284.
 )
 \Hy@SectionHShift=\skip55
+) (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/float\float.sty
+Package: float 2001/11/08 v1.3d Float enhancements (AL)
+\c@float@type=\count317
+\float@exts=\toks27
+\float@box=\box57
+\@float@everytoks=\toks28
+\@floatcapt=\box58
 ) (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend-pdftex.def
 File: l3backend-pdftex.def 2025-06-09 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count317
-) (c:\Users\gonza\Documents\paper\build\Smart_Client_SSH_for_Learn_Linux.aux
-LaTeX Info: Redefining \. on input line 18.
-LaTeX Info: Redefining \% on input line 18.
+\l__color_backend_stack_int=\count318
+) (c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.aux
+LaTeX Info: Redefining \. on input line 20.
+LaTeX Info: Redefining \% on input line 20.
 Package babel Info: 'spanish' activates 'spanish' shorthands.
-(babel)             Reported on input line 18.
+(babel)             Reported on input line 20.
 )
 \openout1 = `Smart_Client_SSH_for_Learn_Linux.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
 
 -- Lines per column: 56 (exact).
-LaTeX Info: Redefining \. on input line 19.
-LaTeX Info: Redefining \% on input line 19.
+LaTeX Info: Redefining \. on input line 20.
+LaTeX Info: Redefining \% on input line 20.
 (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count318
+\scratchcounter=\count319
 \scratchdimen=\dimen188
-\scratchbox=\box57
-\nofMPsegments=\count319
-\nofMParguments=\count320
-\everyMPshowfont=\toks27
-\MPscratchCnt=\count321
+\scratchbox=\box59
+\nofMPsegments=\count320
+\nofMParguments=\count321
+\everyMPshowfont=\toks29
+\MPscratchCnt=\count322
 \MPscratchDim=\dimen189
-\MPnumerator=\count322
-\makeMPintoPDFobject=\count323
-\everyMPtoPDFconversion=\toks28
+\MPnumerator=\count323
+\makeMPintoPDFobject=\count324
+\everyMPtoPDFconversion=\toks30
 ) (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstopdf-base.sty
 Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
 Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 485.
  (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-sys.cfg
 File: epstopdf-sys.cfg 2021/03/18 v2.0 Configuration of epstopdf for MiKTeX
 ))
-Package hyperref Info: Link coloring OFF on input line 19.
- (c:\Users\gonza\Documents\paper\build\Smart_Client_SSH_for_Learn_Linux.out) (c:\Users\gonza\Documents\paper\build\Smart_Client_SSH_for_Learn_Linux.out)
+Package hyperref Info: Link coloring OFF on input line 20.
+ (c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.out) (c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.out)
 \@outlinefile=\write3
 \openout3 = `Smart_Client_SSH_for_Learn_Linux.out'.
 
-LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 23.
+LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 24.
  (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\ot1pcr.fd
 File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 )
-Underfull \hbox (badness 4505) in paragraph at lines 41--49
-\OT1/ptm/m/n/10 de gran fle-xi-bi-li-dad y con-trol, aun-que fre-cuen-te-men-te
- []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 41--49
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 50--61
-
- []
-
-
-Underfull \hbox (badness 2426) in paragraph at lines 62--72
-\OT1/ptm/m/n/10 Es-tas tec-no-log[]^^Pas per-mi-ten pro-ce-sar y ge-ne-rar len-gua-je
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 62--72
-
- []
-
-
-
-
-Underfull \hbox (badness 1540) in paragraph at lines 73--78
-[]\OT1/ptm/m/n/10 Frente a es-tos dos mun-dos tec-nol[]ogi-cos, el prin-ci-pal
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 73--78
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 79--90
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 91--97
-
- []
-
-
-Underfull \hbox (badness 3989) in paragraph at lines 103--116
-\OT1/ptm/m/n/10 SSH asis-ti-do por In-te-li-gen-cia Ar-ti-fi-cial (IA), di-se[]nada
- []
-
-
-Underfull \hbox (badness 2521) in paragraph at lines 103--116
-\OT1/ptm/m/n/10 de co-man-dos (CLI). La pla-ta-for-ma bus-ca ser-vir co-mo
- []
-
-
-Underfull \hbox (badness 2828) in paragraph at lines 103--116
-\OT1/ptm/m/n/10 de ven-ta-nas que per-mi-te ma-ne-jar m[]ulti-ples co-ne-xio-nes
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 103--116
-\OT1/ptm/m/n/10 si-mult[]anea-men-te. Adem[]as de in-cor-po-rar he-rra-mien-tas
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 103--116
-
- []
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
 
 
@@ -477,41 +417,77 @@ Underfull \hbox (badness 10000) in paragraph at lines 103--116
 
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 118--123
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 129--131
-
- []
-
-<images/ArquitecturaGeneral.png, id=54, 706.64pt x 735.74875pt>
-File: images/ArquitecturaGeneral.png Graphic file (type png)
-<use images/ArquitecturaGeneral.png>
-Package pdftex.def Info: images/ArquitecturaGeneral.png  used on input line 135.
-(pdftex.def)             Requested size: 252.0pt x 262.37703pt.
-<images/flujoFuncional-clientessh.png, id=55, 931.48pt x 264.99pt>
-File: images/flujoFuncional-clientessh.png Graphic file (type png)
-<use images/flujoFuncional-clientessh.png>
-Package pdftex.def Info: images/flujoFuncional-clientessh.png  used on input line 143.
-(pdftex.def)             Requested size: 252.0pt x 71.68977pt.
-
-Underfull \vbox (badness 4492) has occurred while \output is active []
+<images/ar_ge_paper2.png, id=110, 1290.8225pt x 964.60374pt>
+File: images/ar_ge_paper2.png Graphic file (type png)
+<use images/ar_ge_paper2.png>
+Package pdftex.def Info: images/ar_ge_paper2.png  used on input line 126.
+(pdftex.def)             Requested size: 252.0pt x 188.3104pt.
 
 
 
-<images/VistasoPrograma.png, id=56, 1444.64719pt x 769.37437pt>
+LaTeX Warning: Citation `mobaxterm_misc' on page 2 undefined on input line 181.
+
+
+
+[2
+pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.182 
+      
+pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.182 
+      
+pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.182 
+      
+pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.182 
+       <./images/ar_ge_paper2.png (PNG copy)>]
+
+LaTeX Warning: Citation `jung2017rustbelt' on page 3 undefined on input line 188.
+
+
+LaTeX Warning: Citation `levy2017rust' on page 3 undefined on input line 188.
+
+
+LaTeX Warning: Citation `mobaxterm_misc' on page 3 undefined on input line 191.
+
+
+LaTeX Warning: Citation `garcia2010web' on page 3 undefined on input line 205.
+
+
+LaTeX Warning: Citation `de2011virlab' on page 3 undefined on input line 205.
+
+
+
+<images/VistasoPrograma.png, id=123, 1444.64719pt x 769.37437pt>
 File: images/VistasoPrograma.png Graphic file (type png)
 <use images/VistasoPrograma.png>
-Package pdftex.def Info: images/VistasoPrograma.png  used on input line 162.
+Package pdftex.def Info: images/VistasoPrograma.png  used on input line 209.
 (pdftex.def)             Requested size: 252.0pt x 134.19643pt.
-(c:\Users\gonza\Documents\paper\build\Smart_Client_SSH_for_Learn_Linux.bbl
-LaTeX Font Info:    Trying to load font information for U+msa on input line 37.
+
+LaTeX Warning: Citation `ojeda2021rust' on page 3 undefined on input line 225.
+
+(c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.bbl
+
+[3
+pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.41 
+      <./images/VistasoPrograma.png>]
+LaTeX Font Info:    Trying to load font information for U+msa on input line 78.
  (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 37.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 78.
  (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ))
@@ -528,29 +504,37 @@ Before submitting the final camera ready copy, remember to:
 
 
 
-[2 <./images/ArquitecturaGeneral.png (PNG copy)> <./images/flujoFuncional-clientessh.png (PNG copy)> <./images/VistasoPrograma.png>] (c:\Users\gonza\Documents\paper\build\Smart_Client_SSH_for_Learn_Linux.aux
-LaTeX Info: Redefining \. on input line 18.
-LaTeX Info: Redefining \% on input line 18.
+
+
+[4
+
+] (c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.aux
+LaTeX Info: Redefining \. on input line 20.
+LaTeX Info: Redefining \% on input line 20.
 )
  ***********
 LaTeX2e <2025-06-01> patch level 1
 L3 programming layer <2025-09-02>
  ***********
+
+
+LaTeX Warning: There were undefined references.
+
 Package rerunfilecheck Info: File `Smart_Client_SSH_for_Learn_Linux.out' has not changed.
-(rerunfilecheck)             Checksum: 3824110CA0147C9B506DCE9D8BCF5F30;1181.
+(rerunfilecheck)             Checksum: 3FB9EE4EE5C702177648B7C5355C43C6;3564.
  ) 
 Here is how much of TeX's memory you used:
- 12128 strings out of 468081
- 193729 string characters out of 5425788
- 634745 words of memory out of 5000000
- 40634 multiletter control sequences out of 15000+600000
- 661348 words of font info for 105 fonts, out of 8000000 for 9000
+ 12252 strings out of 468081
+ 195839 string characters out of 5425788
+ 637656 words of memory out of 5000000
+ 40733 multiletter control sequences out of 15000+600000
+ 663591 words of font info for 107 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,8n,79p,318b,470s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,8n,79p,647b,627s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/courier/ucrr8a.pfb><C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmb8a.pfb><C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmbi8a.pfb><C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmr8a.pfb><C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmri8a.pfb>
-Output written on c:\Users\gonza\Documents\paper\build\Smart_Client_SSH_for_Learn_Linux.pdf (2 pages, 246403 bytes).
+Output written on c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.pdf (4 pages, 273706 bytes).
 PDF statistics:
- 98 PDF objects out of 1000 (max. 8388607)
- 21 named destinations out of 1000 (max. 500000)
- 72 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 172 PDF objects out of 1000 (max. 8388607)
+ 40 named destinations out of 1000 (max. 500000)
+ 163 words of extra memory for PDF output out of 10000 (max. 10000000)
 
