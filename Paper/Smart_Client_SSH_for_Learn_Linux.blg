@@ -1,0 +1,65 @@
+This is BibTeX, Version 0.99e
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: Smart_Client_SSH_for_Learn_Linux.aux
+Reallocating 'name_of_file' (item size: 1) to 9 items.
+The style file: IEEEtran.bst
+Reallocating 'name_of_file' (item size: 1) to 13 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'wiz_functions' (item size: 4) to 6000 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Database file #1: bibliografia.bib
+Warning--I didn't find a database entry for "mobaxterm_misc"
+Warning--I didn't find a database entry for "jung2017rustbelt"
+Warning--I didn't find a database entry for "levy2017rust"
+Warning--I didn't find a database entry for "garcia2010web"
+Warning--I didn't find a database entry for "de2011virlab"
+Warning--I didn't find a database entry for "ojeda2021rust"
+-- IEEEtran.bst version 1.14 (2015/08/26) by Michael Shell.
+-- http://www.michaelshell.org/tex/ieeetran/bibtex/
+-- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
+
+Done.
+You've used 10 entries,
+            4087 wiz_defined-function locations,
+            888 strings with 9906 characters,
+and the built_in function-call counts, 9073 in all, are:
+= -- 679
+> -- 295
+< -- 76
++ -- 160
+- -- 57
+* -- 445
+:= -- 1275
+add.period$ -- 22
+call.type$ -- 10
+change.case$ -- 10
+chr.to.int$ -- 180
+cite$ -- 10
+duplicate$ -- 623
+empty$ -- 704
+format.name$ -- 65
+if$ -- 2115
+int.to.chr$ -- 0
+int.to.str$ -- 10
+missing$ -- 124
+newline$ -- 53
+num.names$ -- 10
+pop$ -- 303
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 2
+skip$ -- 684
+stack$ -- 0
+substring$ -- 431
+swap$ -- 530
+text.length$ -- 16
+text.prefix$ -- 0
+top$ -- 5
+type$ -- 10
+warning$ -- 0
+while$ -- 38
+width$ -- 12
+write$ -- 118
+(There were 6 warnings)
