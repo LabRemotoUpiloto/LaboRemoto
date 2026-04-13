@@ -1,0 +1,28 @@
+@startuml subsistema_backend
+!theme plain
+skinparam componentStyle uml2
+
+package "Backend Core (Rust)" {
+  [Gestor SSH\n(ssh.rs / client.rs)] as SSH
+  [Gestor SFTP\n(sftp.rs)] as SFTP
+  [Prácticas\n(practicas.rs)] as Practicas
+  [Gestor de Hosts\n(hosts.rs)] as Hosts
+  [Módulo de Logs\n(logs.rs)] as Logs
+  [Almacenamiento\n(storage.rs)] as Storage
+  [Seguridad Múltiple\n(security.rs)] as Security
+}
+
+[Tauri API (IPC)] <--> SSH
+[Tauri API (IPC)] <--> SFTP
+[Tauri API (IPC)] <--> Practicas
+[Tauri API (IPC)] <--> Hosts
+[Tauri API (IPC)] <--> Logs
+[Tauri API (IPC)] <--> Security
+
+Hosts --> Storage
+Storage --> Security
+SSH --> Security : Uso de Claves Seguras
+
+SSH --> [Servidor Remoto]
+SFTP --> [Servidor Remoto]
+@enduml
