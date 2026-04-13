@@ -115,7 +115,7 @@ Secciones~VI y VII abordan el trabajo futuro y las conclusiones.
 
 \section{Diseño Arquitectónico}
 
-\subsection{Arquitectura General: Topología de Red y Capas Lógicas}
+\subsection{Arquitectura General: Topología de Red y Subsistemas Lógicos}
 
 En un enfoque alineado con las arquitecturas de software modernas, el sistema ha sido concebido bajo un modelo encapsulado en el que la totalidad del aplicativo reside en la estación de usuario (Smart Client). Este diseño exime la necesidad de desplegar servidores propietarios intermedios; en su lugar, la lógica recae sobre una aplicación cliente autónoma que se acopla directamente a entidades externas y estandarizadas (como placas de desarrollo IoT o servidores Linux corporativos).
 
@@ -123,15 +123,15 @@ Como se ilustra en la Figura~\ref{fig:arquitectura_general}, la topología globa
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\linewidth]{images/arquitectura_general.png}
+    \includegraphics[width=\linewidth]{images/ar_ge_paper2.png}
     \caption{Topología general del sistema que demuestra la autonomía de la aplicación local frente a integraciones externas, prescindiendo de servidores intermediarios propios.}
     \label{fig:arquitectura_general}
 \end{figure}
 
-A nivel interno, la aplicación cliente se divide en tres capas lógicas fundamentales comunicadas asíncronamente mediante un canal de paso de mensajes (IPC, de sus siglas en inglés), lo cual garantiza alta resiliencia y el aislamiento de las operaciones de red.
+A nivel interno, la aplicación cliente se divide en tres subsistemas lógicos fundamentales comunicadas asíncronamente mediante un canal de paso de mensajes (IPC, de sus siglas en inglés), lo cual garantiza alta resiliencia y el aislamiento de las operaciones de red.
 
-\subsubsection{Capa de Presentación e Interacción}
-Representa la superficie de control de cara al usuario. Su objetivo es unificar múltiples canales de administración remota de forma visual y reactiva (ver Figura~\ref{fig:subsistema_presentacion}). Esta capa se compone de módulos funcionales interdependientes que operan bajo un gestor de estado centralizado:
+\subsubsection{Subsistema de Presentación e Interacción}
+Representa la superficie de control de cara al usuario. Su objetivo es unificar múltiples canales de administración remota de forma visual y reactiva (ver Figura~\ref{fig:subsistema_presentacion}). Este subsistema se compone de módulos funcionales interdependientes que operan bajo un gestor de estado centralizado:
 \begin{itemize}
     \item \textbf{Emulador de Terminal}: Procesa el flujo estándar de entrada y salida (I/O) emulando secuencias de control para soportar interactividad basada en texto de alta densidad.
     \item \textbf{Explorador de Archivos y Paneles de Control}: Traducción gráfica que transforma acciones de alto nivel (como clicks sobre visores VNC) en operaciones de red directas al flujo del sistema operativo remoto.
@@ -140,13 +140,13 @@ Representa la superficie de control de cara al usuario. Su objetivo es unificar 
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\linewidth]{images/subsistema_presentacion.png}
-    \caption{Diagrama estructural de la Capa de Presentación e Interacción.}
+    % [PENDIENTE DE EXPORTAR] \includegraphics[width=\linewidth]{images/subsistema_presentacion.png}
+    \caption{Diagrama estructural del Subsistema de Presentación e Interacción.}
     \label{fig:subsistema_presentacion}
 \end{figure}
 
-\subsubsection{Capa de Procesamiento y Control (Core)}
-Actúa como el motor de red y de sesión en el que se delegan las operaciones críticas. Como se indica en la Figura~\ref{fig:subsistema_nucleo}, esta capa administra los algoritmos criptográficos, protocolos robustos de transporte y la auditoría de uso:
+\subsubsection{Subsistema de Procesamiento y Control (Core)}
+Actúa como el motor de red y de sesión en el que se delegan las operaciones críticas. Como se indica en la Figura~\ref{fig:subsistema_nucleo}, este subsistema administra los algoritmos criptográficos, protocolos robustos de transporte y la auditoría de uso:
 \begin{itemize}
     \item \textbf{Motor de Canal Seguro}: Implementa el estándar SSH y sus negociaciones seguras (cifrado asimétrico), operando sobre descriptores para mantener multiplexados de forma asíncrona un túnel de terminal y flujos de red.
     \item \textbf{Motor de Transferencia de Archivos}: Encargado de empaquetar, enrutar y desempaquetar ráfagas binarias hacia el daemon SFTP o equivalentemente integrado en la conectividad del laboratorio remoto.
@@ -155,13 +155,13 @@ Actúa como el motor de red y de sesión en el que se delegan las operaciones cr
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\linewidth]{images/subsistema_nucleo.png}
-    \caption{Módulos transaccionales y de conectividad de la Capa de Procesamiento Interno.}
+    % [PENDIENTE DE EXPORTAR] \includegraphics[width=\linewidth]{images/subsistema_nucleo.png}
+    \caption{Módulos transaccionales y de conectividad del Subsistema de Procesamiento Interno.}
     \label{fig:subsistema_nucleo}
 \end{figure}
 
-\subsubsection{Capa de Inteligencia Artificial Contextual}
-Esta capa, ilustrada en la Figura~\ref{fig:subsistema_agente}, funge como puente middleware entre la estación cliente local y la red de transformadores y LLMs proveedores de respuestas, habilitando las capacidades de andamiaje:
+\subsubsection{Subsistema de Inteligencia Artificial Contextual}
+Este subsistema, ilustrado en la Figura~\ref{fig:subsistema_agente}, funge como puente middleware entre la estación cliente local y la red de transformadores y LLMs proveedores de respuestas, habilitando las capacidades de andamiaje:
 
 \begin{itemize}
     \item \textbf{Descubrimiento de Recursos (Context Protocol)}: Dotación técnica que rompe el paradigma aislado de los chatbots, permitiendo a la IA inspeccionar el estado actual (archivos, logs del host remoto) como suplemento antes de retornar respuestas y deduciendo así el estado exacto del entorno con extrema fidelidad técnica.
@@ -171,7 +171,7 @@ Esta capa, ilustrada en la Figura~\ref{fig:subsistema_agente}, funge como puente
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\linewidth]{images/subsistema_agente.png}
+    % [PENDIENTE DE EXPORTAR] \includegraphics[width=\linewidth]{images/subsistema_agente.png}
     \caption{Capa Semántica responsable de la coordinación de contexto hacia endpoints LLM.}
     \label{fig:subsistema_agente}
 \end{figure}
