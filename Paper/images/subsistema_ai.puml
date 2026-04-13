@@ -1,0 +1,23 @@
+@startuml subsistema_ai
+!theme plain
+skinparam componentStyle uml2
+
+package "Módulos de IA (Rust)" {
+  [Controlador IA\n(ai.rs)] as AI_Core
+  [Agente IA\n(agent.rs)] as Agent
+  [Gestor Contexto\n(ai_utils.rs)] as Context
+  [Cliente MCP\n(mcp_client.rs)] as MCP
+}
+
+cloud "Proveedores de IA" {
+  [Local (Ollama)] as Ollama
+  [Cloud (OpenAI/Gemini)] as CloudLLM
+}
+
+[Frontend\n(ChatPane)] <--> AI_Core : Consultas de Usuario
+AI_Core <--> Agent : Delegación / System Prompt
+Agent --> Context : Inyección de Errores e Historial
+Agent <--> MCP : Solicitud de Contexto Extra
+Agent <--> Ollama : Interfaz Rest
+Agent <--> CloudLLM : Interfaz API Gráfica
+@enduml

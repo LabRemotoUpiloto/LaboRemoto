@@ -1,0 +1,19 @@
+@startuml subsistema_nucleo
+
+package "Capa de Procesamiento Local (Core)" {
+  [Orquestador de Sesión Local] as SessionMgr
+  [Motor de Canal Seguro (SSH)] as SSHEngine
+  [Motor de Transferencia (SFTP)] as SFTPEngine
+  [Orquestador de Trazabilidad y Logs] as Logger
+  [Gestor Criptográfico de Identidades] as CryptoMgr
+
+  SessionMgr <--> SSHEngine
+  SessionMgr <--> SFTPEngine
+  SessionMgr <--> Logger
+  SSHEngine --> CryptoMgr : Intercambio de Llaves y Autenticación
+}
+
+[Capa de Presentación] <--> SessionMgr : Emisión/Recepción de Eventos
+SSHEngine <--> [Infraestructura Remota] : Flujo de Comandos y PTY multiplexado
+SFTPEngine <--> [Infraestructura Remota] : Flujo de Datos Binarios
+@enduml

@@ -1,0 +1,47 @@
+@startuml arquitectura_general
+
+node "Estación del Estudiante (Computador Local)" as NodoCliente {
+  package "Smart SSH Terminal (Aplicación Local)" {
+    [Capa de Presentación\ne Interacción] as CapaPresentacion
+    [Capa de Procesamiento\ny Control] as CapaCore
+    [Capa de Inteligencia\nContextual] as CapaIA
+
+    CapaPresentacion <--> CapaCore : IPC
+    CapaCore <--> CapaIA : Orquestación
+  }
+}
+
+node "Universidad / Sede Institucional" as NodoRemoto {
+  database "Servidor Central de Directorio\n(LDAP)" as LDAP
+
+  package "Gestión Educativa" {
+    [Plataforma LMS\n(Ej: Moodle)] as LMS
+  }
+
+  package "Laboratorio Físico Virtualizado" {
+    node "Clúster IoT (Múltiples Raspberry Pi)" as RaspberryPi {
+      [Sistema Operativo Linux\n(Daemons: SSH, SFTP, VNC)] as Daemons
+      card "Actividades Prácticas\n(Robótica, Domótica, Linux)" as Practicas
+      
+      Daemons --> Practicas : Ejecución Fáctica
+    }
+  }
+
+  ' Integración de Identidad Institucional
+  Daemons <..> LDAP : "Autenticación Institucional"
+  LMS <..> LDAP : "SSO / Autenticación Institucional"
+
+  ' Rastreo de la Práctica en la Universidad
+  Practicas <..> LMS : "Mapeo y Registro\nde Calificaciones"
+}
+
+cloud "Internet / Nube" as Nube {
+  [Servicios de Modelado LLM\n(Gemini/OpenAI/Ollama)] as CloudIA
+}
+
+' Flujos Maestro del Smart Client
+CapaCore <--> Daemons : "  VPN / Internet  \nSesión SSH y Extracción de Prácticas"
+CapaCore <--> LMS : "  LTI / API  \nReporte de Avances"
+CapaIA <--> CloudIA : "  Internet  \nInferencia Semántica"
+
+@enduml
