@@ -1,47 +1,58 @@
 @startuml arquitectura_general
 
-node "Estación del Estudiante (Computador Local)" as NodoCliente {
-  package "Smart SSH Terminal (Aplicación Local)" {
-    [Capa de Presentación\ne Interacción] as CapaPresentacion
-    [Capa de Procesamiento\ny Control] as CapaCore
-    [Capa de Inteligencia\nContextual] as CapaIA
+' Opciones estéticas para evitar cruces en desorden
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 60
+skinparam padding 5
+skinparam defaultTextAlignment center
 
-    CapaPresentacion <--> CapaCore : IPC
-    CapaCore <--> CapaIA : Orquestación
+node "Estación del Estudiante" as NodoCliente {
+  package "Smart SSH Terminal (Cliente Local)" {
+    [Subsistema de Presentación\ne Interacción] as SubPresentacion
+    [Subsistema de Procesamiento\ny Control] as SubCore
+    [Subsistema de Inteligencia\nContextual] as SubIA
+    
+    SubPresentacion -down-> SubCore : Eventos (Frontend-Backend)
+    SubCore -down-> SubIA : Peticiones de Contexto IA
   }
 }
 
 node "Universidad / Sede Institucional" as NodoRemoto {
-  database "Servidor Central de Directorio\n(LDAP)" as LDAP
-
-  package "Gestión Educativa" {
-    [Plataforma LMS\n(Ej: Moodle)] as LMS
-  }
-
-  package "Laboratorio Físico Virtualizado" {
+  package "Subsistema de Laboratorio Físico" {
     node "Clúster IoT (Múltiples Raspberry Pi)" as RaspberryPi {
-      [Sistema Operativo Linux\n(Daemons: SSH, SFTP, VNC)] as Daemons
-      card "Actividades Prácticas\n(Robótica, Domótica, Linux)" as Practicas
+      [Sistema Operativo\n(Daemons: SSH, VNC)] as Daemons
+      card "Actividades\n(Robótica, Linux)" as Practicas
       
-      Daemons --> Practicas : Ejecución Fáctica
+      Daemons -down-> Practicas : Ejecución Física de Código
     }
   }
 
-  ' Integración de Identidad Institucional
-  Daemons <..> LDAP : "Autenticación Institucional"
-  LMS <..> LDAP : "SSO / Autenticación Institucional"
+  package "Subsistema de Gestión Institucional" {
+    [Plataforma LMS\n(Moodle)] as LMS
+    database "Directorio Institucional\n(LDAP)" as LDAP
 
-  ' Rastreo de la Práctica en la Universidad
-  Practicas <..> LMS : "Mapeo y Registro\nde Calificaciones"
+    LMS .down.> LDAP : "Autenticación de Estudiantes"
+  }
+
+  ' Acomodar Gestión Institucional al lado del Laboratorio Físico
+  RaspberryPi -[hidden]right-> LMS
+
+  Practicas .right.> LMS : Registro de\nCalificaciones
+  Daemons .down.> LDAP : "Autenticación"
 }
 
-cloud "Internet / Nube" as Nube {
-  [Servicios de Modelado LLM\n(Gemini/OpenAI/Ollama)] as CloudIA
+cloud "Internet / Nube Estratégica" as Nube {
+  [Modelos LLM\n(Gemini/OpenAI)] as CloudIA
 }
 
-' Flujos Maestro del Smart Client
-CapaCore <--> Daemons : "  VPN / Internet  \nSesión SSH y Extracción de Prácticas"
-CapaCore <--> LMS : "  LTI / API  \nReporte de Avances"
-CapaIA <--> CloudIA : "  Internet  \nInferencia Semántica"
+' Forzar orden Cliente Izquierda, U Derecha, Nube Abajo
+NodoCliente -[hidden]right-> NodoRemoto
+CapaIA -[hidden]down-> Nube
+
+' Conexiones de red usando direccionales explícitos para no romper el grid
+SubCore -right-> Daemons : " VPN / Internet\n Control y Extracción"
+SubCore -right-> LMS : " HTTP (LTI)\n Reporte de Avances"
+SubIA -down-> CloudIA : " Internet\n Inferencia Semántica"
 
 @enduml
