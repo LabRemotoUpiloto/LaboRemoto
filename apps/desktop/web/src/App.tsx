@@ -34,9 +34,21 @@ import LogTabsContainer from './components/layout/LogTabsContainer'
 
 function AppContent() { return <AppMain /> }
 
+type PracticeLaunchStudent = {
+  id: number
+  username: string
+  fullname: string
+  email: string
+}
+
+type PracticeLaunchPayload = {
+  practice: any
+  student: PracticeLaunchStudent
+}
+
 const AppMain: React.FC = () => {
   const appContainerRef = useRef<HTMLDivElement>(null)
-  
+
   const {
     tabs,
     activeTabId,
@@ -72,11 +84,13 @@ const AppMain: React.FC = () => {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
   // Estado para preservar paths de SFTP por sesión entre cambios de tab
   const [sftpPaths, setSftpPaths] = useState<Record<string, string>>({})
+  const [practiceMeta, setPracticeMeta] = useState<Record<string, { practiceId: string; assignmentId?: number; student: PracticeLaunchStudent }>>({})
 
   const handleTabClick = (id: string) => {
     setActiveTabId(id)
-    
+
     const clickedTab = tabs.find(t => t.id === id)
+
     
     // Cerrar paneles laterales al cambiar de tab
     if (isPinsPanelOpen) closePinsPanel();
@@ -137,8 +151,18 @@ const AppMain: React.FC = () => {
       // Detener VNC primero si hay sesión gráfica activa
       try { await invoke('vnc_stop', { sessionId: id }) } catch { /* ignore si no hay VNC */ }
       await invoke('ssh_disconnect', { id })
+      setPracticeMeta(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       closeTab(id)
     } catch {
+      setPracticeMeta(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       closeTab(id);
     }
   }
@@ -223,7 +247,7 @@ const AppMain: React.FC = () => {
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
 
   // Pages that belong to the HOME tab context
-  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices'];
+  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test'];
 
   // Pages that have per-session context in SessionContainer (sftp, snippets, logs)
   const SESSION_PAGES = ['sftp', 'snippets', 'logs'];
@@ -263,7 +287,7 @@ const AppMain: React.FC = () => {
   // ── Lanzar práctica de laboratorio ──
   // Emite eventos practice:log en cada paso para que el panel de log los muestre.
   // Si CUALQUIER paso falla, lanza error → PracticesPage lo captura y queda en pantalla.
-  const handleStartPractice = async (practice: any) => {
+  const handleStartPractice = async ({ practice, student }: PracticeLaunchPayload) => {
     const emitLog = (level: string, message: string) => {
       emit('practice:log', { practice_id: practice.id, level, message });
     };
@@ -294,6 +318,14 @@ const AppMain: React.FC = () => {
     // 3. Abrir la sesión como nueva pestaña
     emitLog('info', '📂 Abriendo pestaña de la sesión...');
     handleNewSession({ id: sessionId, label: `Práctica: ${practice.name}` });
+    setPracticeMeta(prev => ({
+      ...prev,
+      [sessionId]: {
+        practiceId: practice.id,
+        assignmentId: practice.moodle_assignment_id,
+        student,
+      },
+    }));
     
     // Inyectar contexto y tutorial de la práctica a la memoria de la sesión
     if (practice.panels?.chat_context || practice.panels?.chat_tutorial) {
@@ -412,6 +444,7 @@ const AppMain: React.FC = () => {
                   onOpenLog={openLogTab}
                   sftpPaths={sftpPaths}
                   setSftpPaths={setSftpPaths}
+                  practiceMeta={practiceMeta}
                 />
                 <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />
               </main>

@@ -8,6 +8,7 @@ import type { SessionLog } from '../logs/SessionCard'
 
 type PracticeMeta = {
   practiceId: string
+  assignmentId?: number
   student: { id: number; username: string; fullname: string; email: string }
 }
 
@@ -59,6 +60,7 @@ const SessionContainer: React.FC<Props> = ({
               onCloseChat={onCloseChat}
               isTabActive={activeTabId === t.id}
               practiceId={practiceMeta?.[t.id]?.practiceId ?? null}
+              assignmentId={practiceMeta?.[t.id]?.assignmentId}
               student={practiceMeta?.[t.id]?.student ?? null}
             />
           </div>

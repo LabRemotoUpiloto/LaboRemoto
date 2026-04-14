@@ -4,6 +4,8 @@ import TerminalPane from './TerminalPane';
 import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
+import PracticeProgress from '../practice/PracticeProgress';
+import { useCommandHistory } from '../../hooks/useCommandHistory';
 
 interface TerminalViewProps {
   sessionId: string;
@@ -13,6 +15,7 @@ interface TerminalViewProps {
   onCloseChat?: () => void;
   isTabActive?: boolean;
   practiceId?: string | null;
+  assignmentId?: number;
   student?: { id: number; username: string; fullname: string; email: string } | null;
 }
 
@@ -24,6 +27,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   onCloseChat = () => {},
   isTabActive = true,
   practiceId = null,
+  assignmentId,
   student = null,
 }) => {
   const [chatWidth, setChatWidth] = useState(420);
@@ -31,7 +35,11 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   const [isResizingChat, setIsResizingChat] = useState(false);
   const [isResizingCamera, setIsResizingCamera] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const { commandHistory, commandEntries, processTerminalData, processTerminalInput, clearHistory } = useCommandHistory();
 
+  useEffect(() => {
+    clearHistory();
+  }, [sessionId, clearHistory]);
 
   // When camera panel opens/closes, xterm must re-fit to the new height
   useEffect(() => {
@@ -97,7 +105,22 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             minWidth: 0,
             minHeight: 0
           }}>
-            <TerminalPane sessionId={sessionId} />
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <TerminalPane
+                sessionId={sessionId}
+                onTerminalOutput={processTerminalData}
+                onTerminalInput={processTerminalInput}
+              />
+            </div>
+            {practiceId && student && (
+              <PracticeProgress
+                practiceId={practiceId}
+                assignmentId={assignmentId}
+                student={student}
+                commandHistory={commandHistory}
+                commandEntries={commandEntries}
+              />
+            )}
           </div>
 
           {/* Capa 2: Escritorio Remoto VNC */}

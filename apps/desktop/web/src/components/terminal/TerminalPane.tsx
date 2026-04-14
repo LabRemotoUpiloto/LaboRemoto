@@ -4,12 +4,16 @@ import './TerminalPane.css';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTerminal } from './useTerminal';
 
-type Props = { sessionId: string | null };
+type Props = {
+  sessionId: string | null;
+  onTerminalOutput?: (data: string) => void;
+  onTerminalInput?: (data: string) => void;
+};
 
-const TerminalPane: React.FC<Props> = ({ sessionId }) => {
+const TerminalPane: React.FC<Props> = ({ sessionId, onTerminalOutput, onTerminalInput }) => {
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { isLoading, isFadingOut, waitingForPrompt } = useTerminal(sessionId, containerRef, theme);
+  const { isLoading, isFadingOut, waitingForPrompt } = useTerminal(sessionId, containerRef, theme, onTerminalOutput, onTerminalInput);
 
   return (
     <div className="terminal-pane" ref={containerRef}>
