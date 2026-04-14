@@ -35,6 +35,7 @@ interface Practice {
     name: string;
     description: string;
     difficulty: string;
+    moodle_assignment_id?: number;
     connection: PracticeConnection;
     terminal: TerminalConfig;
     panels: PanelConfig;
@@ -50,7 +51,10 @@ interface PracticeCategory {
 }
 
 interface PracticesPageProps {
-    onStartPractice?: (practice: Practice) => Promise<void>;
+    onStartPractice?: (payload: {
+        practice: Practice;
+        student: { id: number; username: string; fullname: string; email: string };
+    }) => Promise<void>;
 }
 
 interface LogEntry {
@@ -106,6 +110,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
         if (startingPractice) return;
         setStartingPractice(practice.id);
         setSetupLogs([]); // Reset logs
+        setError(null);
 
         const addLog = (level: LogEntry['level'], message: string) => {
             const now = new Date();
@@ -113,7 +118,25 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
             setSetupLogs(prev => [...prev, { level, message, timestamp }]);
         };
 
+        const username = window.prompt('Ingresa tu usuario de Moodle para asociar esta práctica:');
+        if (!username || !username.trim()) {
+            addLog('warning', '⚠️ Debes ingresar un usuario de Moodle para iniciar la práctica.');
+            setStartingPractice(null);
+            return;
+        }
+
         try {
+            if (!practice.moodle_assignment_id) {
+                throw new Error(`La práctica ${practice.id} no tiene configurado PRACTICE_*_MOODLE_ASSIGNMENT_ID en .env.practicas`);
+            }
+
+            addLog('info', `👤 Validando usuario Moodle '${username.trim()}'...`);
+            const moodleSync = await invoke<{ user: { id: number; username: string; fullname: string; email: string } }>('moodle_sync_assignment', {
+                assignmentId: practice.moodle_assignment_id,
+                username: username.trim(),
+            });
+            addLog('success', `✅ Usuario Moodle validado: ${moodleSync.user.fullname}`);
+
             // 1. Ejecutar setup commands (ej: levantar servidor del robot)
             // Los logs de este paso llegan via evento practice:log desde Rust
             await invoke<string[]>('practicas_run_setup', { practiceId: practice.id });
@@ -126,9 +149,13 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
             // 3. Notificar al parent para abrir sesión SSH + workspace
             // handleStartPractice en App.tsx emite sus propios logs via practice:log
             // Si CUALQUIER paso falla, App.tsx lanza un throw y caemos en el catch
-            await onStartPractice?.(fullConfig);
+            await onStartPractice?.({
+                practice: fullConfig,
+                student: moodleSync.user,
+            });
 
         } catch (err) {
+            setError(`Error iniciando práctica: ${err}`);
             // Si llegamos acá, algo falló — el log de error ya fue emitido por quien falló
             // Agregamos un resumen de parada
             addLog('error', `🛑 Práctica detenida por error — revisa los mensajes anteriores`);

@@ -12,7 +12,8 @@ import {
   CameraIcon,
   HomeIcon,
   FileTextIcon,
-  LabIcon
+  LabIcon,
+  MoodleIcon
 } from '../icons/SidebarIcons'
 
 interface SidebarProps {
@@ -34,6 +35,7 @@ const items = [
   { id: 'themes', label: 'Temas', icon: PaletteIcon },
   { id: 'sftp', label: 'SFTP', icon: FolderIcon },
   { id: 'snippets', label: 'Snippets', icon: CodeIcon },
+  { id: 'moodle-test', label: 'Test Moodle', icon: MoodleIcon },
 ]
 
 

@@ -23,6 +23,7 @@ pub struct Practice {
     pub name: String,
     pub description: String,
     pub difficulty: String, // "beginner" | "intermediate" | "advanced"
+    pub moodle_assignment_id: Option<u32>,
     pub connection: PracticeConnection,
     pub terminal: TerminalConfig,
     pub panels: PanelConfig,
@@ -84,11 +85,12 @@ fn load_practices_env() -> HashMap<String, String> {
                         continue;
                     }
                     if let Some((key, val)) = trimmed.split_once('=') {
-                        map.insert(key.trim().to_string(), val.trim().to_string());
+                        let clean_key = key.trim().to_string();
+                        let clean_val = val.trim().trim_matches('"').trim_matches('\'').to_string();
+                        map.entry(clean_key).or_insert(clean_val);
                     }
                 }
             }
-            break;
         }
         match dir.parent() {
             Some(parent) => dir = parent,
@@ -107,6 +109,10 @@ fn env_get_u16(vars: &HashMap<String, String>, key: &str, default: u16) -> u16 {
     vars.get(key)
         .and_then(|v| v.parse().ok())
         .unwrap_or(default)
+}
+
+fn env_get_u32_opt(vars: &HashMap<String, String>, key: &str) -> Option<u32> {
+    vars.get(key).and_then(|v| v.parse().ok())
 }
 
 fn env_get_bool(vars: &HashMap<String, String>, key: &str) -> bool {
@@ -171,6 +177,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
             name: p1_name,
             description: env_get(vars, "PRACTICE_EVE3_P1_DESC"),
             difficulty: env_get(vars, "PRACTICE_EVE3_P1_DIFFICULTY"),
+            moodle_assignment_id: env_get_u32_opt(vars, "PRACTICE_EVE3_P1_MOODLE_ASSIGNMENT_ID"),
             connection: PracticeConnection {
                 host: rpi_host.clone(),
                 port: rpi_port,
@@ -214,6 +221,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
             name: p2_name,
             description: env_get(vars, "PRACTICE_EVE3_P2_DESC"),
             difficulty: env_get(vars, "PRACTICE_EVE3_P2_DIFFICULTY"),
+            moodle_assignment_id: env_get_u32_opt(vars, "PRACTICE_EVE3_P2_MOODLE_ASSIGNMENT_ID"),
             connection: PracticeConnection {
                 host: rpi_host.clone(),
                 port: rpi_port,

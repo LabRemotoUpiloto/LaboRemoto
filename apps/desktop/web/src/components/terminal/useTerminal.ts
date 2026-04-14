@@ -9,7 +9,13 @@ import { captureAndSaveSession } from '../../api/sessionCapture';
 
 const sanitize = (id: string) => (id || '').replace(/[^a-zA-Z0-9_:\-\/]/g, '_');
 
-export function useTerminal(sessionId: string | null, containerRef: RefObject<HTMLDivElement>, theme: string) {
+export function useTerminal(
+  sessionId: string | null,
+  containerRef: RefObject<HTMLDivElement>,
+  theme: string,
+  onTerminalOutput?: (data: string) => void,
+  onTerminalInput?: (data: string) => void,
+) {
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const serializeRef = useRef<SerializeAddon | null>(null);
@@ -653,11 +659,13 @@ export function useTerminal(sessionId: string | null, containerRef: RefObject<HT
       }, 15000);
 
       disposers.push(term.onData((data) => {
+        try { onTerminalInput?.(data); } catch {}
         invoke('ssh_stdin', { id: sessionId, data }).catch(() => {});
       }));
 
       listen<string>(`ssh_out_${safe}`, (event) => {
         if (event.payload) {
+          try { onTerminalOutput?.(event.payload); } catch {}
           bytesReceived += event.payload.length;
           term.write(event.payload, () => {
             setTimeout(checkAndHideLoading, 100);

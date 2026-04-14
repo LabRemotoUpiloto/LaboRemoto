@@ -7,6 +7,7 @@ import LogsPage from '../../pages/LogsPage'
 import SftpPage from '../../pages/SftpPage'
 import SnippetsPage from '../../pages/SnippetsPage'
 import PracticesPage from '../../pages/PracticesPage'
+import MoodleTestPage from '../../pages/MoodleTestPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 
@@ -73,6 +74,8 @@ const HomeContainer: React.FC<Props> = ({
         <SnippetsPage />
       ) : selectedPage === 'practices' ? (
         <PracticesPage onStartPractice={onStartPractice} />
+      ) : selectedPage === 'moodle-test' ? (
+        <MoodleTestPage />
       ) : (
         <LandingPage
           onStartTutorial={() => onOpenPanel('landing')}

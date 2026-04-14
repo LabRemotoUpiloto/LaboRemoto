@@ -131,6 +131,13 @@ pub fn run() {
       cmd::practicas::practicas_list_categories,
       cmd::practicas::practicas_get_config,
       cmd::practicas::practicas_run_setup,
+      // Integración con Moodle
+      cmd::moodle::moodle_sync_assignment,
+      cmd::moodle::moodle_prepare_grade,
+      cmd::moodle::moodle_submit_grade_direct,
+      // Validador de prácticas
+      cmd::practice_validator::validate_practice_progress,
+      cmd::practice_validator::calculate_practice_grade,
       cmd::vnc::vnc_cleanup_all,
     ])
     .on_window_event(|_win, event| {
