@@ -39,11 +39,12 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
   const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
     const saved = localStorage.getItem('chatSelectedModel');
     const deprecated: Record<string, string> = {
-      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.6-plus:free',
-      'google/gemini-2.5-pro:free': 'qwen/qwen3.6-plus:free',
+      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.6-plus',
+      'google/gemini-2.5-pro:free': 'qwen/qwen3.6-plus',
       'nvidia/nemotron-super-49b-v1:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
       'nvidia/nemotron-3-super-120b-a12b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.6-plus:free',
+      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.6-plus',
+      'qwen/qwen3.6-plus:free': 'qwen/qwen3.6-plus',
       'claude-sonnet-4-5': 'claude-sonnet-4-6',
     };
     return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'claude-sonnet-4-6';
