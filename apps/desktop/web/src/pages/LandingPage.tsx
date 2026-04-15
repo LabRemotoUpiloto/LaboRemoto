@@ -95,7 +95,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onOpenPanel 
                             <span className="hero-cta-badge__dot"></span>
                             Comienza aquí
                         </div>
-                        <h1 className="hero-cta-title">¿Listo para comenzar tu viaje?</h1>
+                        <h1 className="hero-cta-title">Bienvenido al laboratorio remoto de la Universidad Piloto de Colombia</h1>
                         <p className="hero-cta-description">
                             Domina Linux y la administración remota con el asistente SSH más inteligente. 
                             Conecta tu primer servidor en segundos.
