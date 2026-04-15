@@ -4,6 +4,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import Swal from 'sweetalert2';
 import CategoryCard from '../components/practicas/CategoryCard';
 import PracticeCard from '../components/practicas/PracticeCard';
 import './PracticesPage.css';
@@ -118,9 +119,23 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
             setSetupLogs(prev => [...prev, { level, message, timestamp }]);
         };
 
-        const username = window.prompt('Ingresa tu usuario de Moodle para asociar esta práctica:');
-        if (!username || !username.trim()) {
-            addLog('warning', '⚠️ Debes ingresar un usuario de Moodle para iniciar la práctica.');
+        const { value: username, isConfirmed } = await Swal.fire({
+            title: 'Usuario Moodle',
+            html: '<p style="color:#9ca3af;font-size:13px;margin:0 0 12px">Ingresa tu usuario de Moodle para asociar esta práctica</p>',
+            input: 'text',
+            inputPlaceholder: 'ej: estudiante01',
+            inputAttributes: { autocomplete: 'username', spellcheck: 'false' },
+            showCancelButton: true,
+            confirmButtonText: 'Iniciar práctica',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: 'var(--accent-secondary, #3B82F6)',
+            cancelButtonColor: 'transparent',
+            position: 'center',
+            customClass: { container: 'swal-fullscreen', input: 'swal-moodle-input' },
+            inputValidator: (v) => (!v || !v.trim()) ? 'Debes ingresar tu usuario de Moodle' : null,
+        });
+        if (!isConfirmed || !username || !username.trim()) {
+            addLog('warning', 'Debes ingresar un usuario de Moodle para iniciar la práctica.');
             setStartingPractice(null);
             return;
         }
@@ -155,11 +170,17 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
             });
 
         } catch (err) {
-            setError(`Error iniciando práctica: ${err}`);
-            // Si llegamos acá, algo falló — el log de error ya fue emitido por quien falló
-            // Agregamos un resumen de parada
-            addLog('error', `🛑 Práctica detenida por error — revisa los mensajes anteriores`);
-            // NO navegar ni cerrar — el usuario se queda viendo el log
+            const errMsg = err instanceof Error ? err.message : String(err);
+            addLog('error', `Práctica detenida por error — ${errMsg}`);
+            Swal.fire({
+                title: 'Error al iniciar práctica',
+                text: errMsg,
+                icon: 'error',
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: 'var(--danger, #EF4444)',
+                position: 'center',
+                customClass: { container: 'swal-fullscreen' },
+            });
             setStartingPractice(null);
             return;
         }
@@ -186,14 +207,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
     return (
         <div className="practices-page">
             <div className="practices-page__container">
-                {/* Error banner */}
-                {error && (
-                    <div className="practices-page__error">
-                        <span>{error}</span>
-                        <button onClick={() => setError(null)}>✕</button>
-                    </div>
-                )}
-
                 {!selectedCategory ? (
                     /* ── Vista de Categorías ── */
                     <>

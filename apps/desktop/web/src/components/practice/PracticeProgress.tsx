@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { type CommandEntry } from '../../hooks/useCommandHistory'
+import Swal from 'sweetalert2'
 import './PracticeProgress.css'
 
 interface ValidationResult {
@@ -117,36 +118,45 @@ const PracticeProgress: React.FC<Props> = ({
     const now = new Date()
     const fmt = (d: Date) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     const lines: string[] = []
-    lines.push(`Reporte de practica — ${now.toLocaleDateString('es-MX')} ${fmt(now)}`)
-    lines.push(`Estudiante: ${student?.username ?? '—'} (${student?.fullname ?? '—'})`)
-    lines.push(`Progreso: ${validation ? Math.round(validation.percentage) : 0}% (${(validation?.earned_points ?? 0).toFixed(1)}/${(validation?.total_points ?? 0).toFixed(1)} pts)`)
+    lines.push(`<strong>Reporte de práctica — ${now.toLocaleDateString('es-MX')} ${fmt(now)}</strong>`)
+    lines.push(`<strong>Estudiante:</strong> ${student?.username ?? '—'} (${student?.fullname ?? '—'})`)
+    lines.push(`<strong>Progreso:</strong> ${validation ? Math.round(validation.percentage) : 0}% (${(validation?.earned_points ?? 0).toFixed(1)}/${(validation?.total_points ?? 0).toFixed(1)} pts)`)
     lines.push('')
-    lines.push('Objetivos:')
+    lines.push('<strong>Objetivos:</strong>')
     for (const r of (validation?.results ?? [])) {
-      lines.push(`  ${r.passed ? '[OK]' : '[ ]'} ${r.rule_description}`)
+      lines.push(`&nbsp;&nbsp;${r.passed ? '✅' : '❌'} ${r.rule_description}`)
     }
     lines.push('')
-    lines.push('Comandos ejecutados:')
+    lines.push('<strong>Comandos ejecutados:</strong>')
     if (commandEntries.length > 0) {
       for (const e of commandEntries) {
-        lines.push(`  [${fmt(e.time)}] ${e.cmd}`)
+        lines.push(`&nbsp;&nbsp;<code>[${fmt(e.time)}] ${e.cmd}</code>`)
       }
     } else {
       for (const cmd of commandHistory) {
-        lines.push(`  ${cmd}`)
+        lines.push(`&nbsp;&nbsp;<code>${cmd}</code>`)
       }
     }
-    return lines.join('\n')
+    return lines.join('<br>')
   }
 
   const handleSubmitGrade = async () => {
     if (!assignmentId || !student || !moodleSync) return;
 
     if (moodleSync.is_graded) {
-      const confirm = window.confirm(
-        'Esta práctica ya fue calificada. ¿Deseas enviar una nueva calificación?'
-      )
-      if (!confirm) return
+      const result = await Swal.fire({
+        title: 'Práctica ya calificada',
+        text: '¿Deseas enviar una nueva calificación?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, reenviar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: 'var(--accent-secondary, #3B82F6)',
+        cancelButtonColor: 'transparent',
+        position: 'center',
+        customClass: { container: 'swal-fullscreen' },
+      })
+      if (!result.isConfirmed) return
     }
 
     setIsSubmitting(true)
@@ -174,11 +184,20 @@ const PracticeProgress: React.FC<Props> = ({
       await invoke('moodle_submit_grade_direct', {
         assignmentId,
         userId: moodleSync!.user.id,
+        username: moodleSync!.user.username || student?.username,
         grade,
         comment,
       })
 
-      alert(`¡Práctica entregada exitosamente!\n\nCalificación: ${grade.toFixed(2)}/${moodleSync.assignment.grade}\n\nEl profesor puede ver el reporte de comandos en Moodle.`)
+      await Swal.fire({
+        title: '¡Práctica entregada!',
+        html: `<div style="font-size:52px;font-weight:800;color:var(--accent-primary,#10B981);line-height:1;margin:8px 0">${grade.toFixed(1)}<span style="font-size:22px;color:var(--text-tertiary,#6B7280)"> / ${moodleSync.assignment.grade ?? 100}</span></div><p style="color:var(--text-secondary,#9CA3AF);margin:0">El reporte con tus comandos fue enviado al profesor en Moodle.</p>`,
+        icon: 'success',
+        confirmButtonText: 'Cerrar',
+        confirmButtonColor: 'var(--accent-primary, #10B981)',
+        position: 'center',
+        customClass: { container: 'swal-fullscreen' },
+      })
 
       if (onSubmitSuccess) {
         onSubmitSuccess()
@@ -190,7 +209,15 @@ const PracticeProgress: React.FC<Props> = ({
     } catch (err: any) {
       setError(err.toString())
       console.error('Error enviando calificación:', err)
-      alert(`Error al entregar la práctica: ${err.message || err}`)
+      Swal.fire({
+        title: 'Error al entregar',
+        text: err?.message || err?.toString() || 'Error desconocido',
+        icon: 'error',
+        confirmButtonText: 'Cerrar',
+        confirmButtonColor: 'var(--danger, #EF4444)',
+        position: 'center',
+        customClass: { container: 'swal-fullscreen' },
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -203,13 +230,6 @@ const PracticeProgress: React.FC<Props> = ({
   return (
     <div className={`practice-progress-container ${showDetails ? '' : 'compact'}`}>
 
-      {/* DEBUG temporal — quitar después */}
-      {import.meta.env.DEV && (
-        <div style={{ fontSize: 10, color: '#666', marginBottom: 4, fontFamily: 'monospace' }}>
-          [{commandHistory.join(' | ')}]
-        </div>
-      )}
-
       {/* ── Fila compacta siempre visible ── */}
       <div className="pp-bar-row">
         <span className="pp-label">Práctica</span>
@@ -220,13 +240,15 @@ const PracticeProgress: React.FC<Props> = ({
         <span className="pp-pts">{(validation?.earned_points ?? 0).toFixed(1)}/{(validation?.total_points ?? 0).toFixed(1)} pts</span>
         {moodleSync && (
           moodleSync.is_graded
-            ? <span className="pp-badge graded">✓ Calificada</span>
+            ? <span className="pp-badge graded"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Calificada</span>
             : moodleSync.has_submitted
-              ? <span className="pp-badge submitted">⏳ Entregada</span>
+              ? <span className="pp-badge submitted"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Entregada</span>
               : null
         )}
         <button className="pp-toggle" onClick={() => setShowDetails(v => !v)}>
-          {showDetails ? '▲ Ocultar' : '▼ Detalles'}
+          {showDetails
+            ? <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="18 15 12 9 6 15"/></svg> Ocultar</>
+            : <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="6 9 12 15 18 9"/></svg> Detalles</>}
         </button>
       </div>
 
@@ -236,7 +258,7 @@ const PracticeProgress: React.FC<Props> = ({
           <div className="objectives-list">
             {(validation?.results ?? []).map((result, idx) => (
               <div key={idx} className={`objective-item ${result.passed ? 'completed' : 'pending'}`}>
-                <span className="objective-icon">{result.passed ? '✓' : '○'}</span>
+                <span className="objective-icon">{result.passed ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/></svg>}</span>
                 <span className="objective-description">{result.rule_description}</span>
                 <span className="objective-points">+{result.points_earned.toFixed(1)}</span>
               </div>
@@ -252,7 +274,7 @@ const PracticeProgress: React.FC<Props> = ({
 
               {moodleSync?.is_graded ? (
                 <div className="submit-status-box graded">
-                  <span className="submit-status-icon">✅</span>
+                  <span className="submit-status-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
                   <div className="submit-status-text">
                     <strong>Práctica calificada</strong>
                     <span>El profesor ya revisó tu entrega</span>
@@ -262,12 +284,12 @@ const PracticeProgress: React.FC<Props> = ({
                     onClick={handleSubmitGrade}
                     disabled={isSubmitting || isLoading}
                   >
-                    {isSubmitting ? '⏳' : '🔄 Reenviar'}
+                    {isSubmitting ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 4 23 11 16 11"/><path d="M20.49 15a9 9 0 1 1-.18-3.63"/></svg> Reenviar</>}
                   </button>
                 </div>
               ) : moodleSync?.has_submitted ? (
                 <div className="submit-status-box submitted">
-                  <span className="submit-status-icon">⏳</span>
+                  <span className="submit-status-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
                   <div className="submit-status-text">
                     <strong>Entregada — pendiente de revisión</strong>
                     <span>El profesor revisará tu reporte pronto</span>
@@ -277,7 +299,7 @@ const PracticeProgress: React.FC<Props> = ({
                     onClick={handleSubmitGrade}
                     disabled={isSubmitting || isLoading}
                   >
-                    {isSubmitting ? '⏳' : '🔄 Reenviar'}
+                    {isSubmitting ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 4 23 11 16 11"/><path d="M20.49 15a9 9 0 1 1-.18-3.63"/></svg> Reenviar</>}
                   </button>
                 </div>
               ) : canSubmit ? (
@@ -287,7 +309,9 @@ const PracticeProgress: React.FC<Props> = ({
                     onClick={handleSubmitGrade}
                     disabled={isSubmitting || isLoading}
                   >
-                    {isSubmitting ? '⏳ Enviando...' : '📤 Entregar para revisión del profesor'}
+                    {isSubmitting
+                      ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Enviando...</>
+                      : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Entregar para revisión</>}
                   </button>
                   <p className="submit-hint">
                     Tu progreso ({progressPercentage}%) y comandos ejecutados se enviarán al profesor
@@ -300,7 +324,7 @@ const PracticeProgress: React.FC<Props> = ({
                     <span className="submit-locked-label">{progressPercentage}/60%</span>
                   </div>
                   <p className="submit-hint locked">
-                    🔒 Completa al menos el 60% para poder entregar
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Completa al menos el 60% para poder entregar
                   </p>
                 </div>
               )}
