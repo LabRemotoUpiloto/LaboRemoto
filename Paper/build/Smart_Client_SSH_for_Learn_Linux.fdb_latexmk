@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex build/Smart_Client_SSH_for_Learn_Linux"] 1776117842.03336 "build/Smart_Client_SSH_for_Learn_Linux.aux" "build/Smart_Client_SSH_for_Learn_Linux.bbl" "build/Smart_Client_SSH_for_Learn_Linux" 1776117845.8489 0
+["bibtex build/Smart_Client_SSH_for_Learn_Linux"] 0 "build/Smart_Client_SSH_for_Learn_Linux.aux" "build/Smart_Client_SSH_for_Learn_Linux.bbl" "build/Smart_Client_SSH_for_Learn_Linux" 1776212586.82152 -1
   "./bibliografia.bib" 1776096755 4394 bd5dd18f4974182744610a1e907d2017 ""
   "C:/Users/gonza/AppData/Local/Programs/MiKTeX/bibtex/bst/ieeetran/IEEEtran.bst" 1440622569 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "build/Smart_Client_SSH_for_Learn_Linux.aux" 1776117844 5564 ba616f6ac36d13df5288de631d4fbe7a "pdflatex"
+  "build/Smart_Client_SSH_for_Learn_Linux.aux" 1776212585 5527 b7677677e4b9e308049011387a6355e1 "pdflatex"
   (generated)
   "build/Smart_Client_SSH_for_Learn_Linux.bbl"
   "build/Smart_Client_SSH_for_Learn_Linux.blg"
   (rewritten before read)
-["pdflatex"] 1776117842.6783 "c:/Users/gonza/Documents/proyectos/Cliente-Rust/Paper/Smart_Client_SSH_for_Learn_Linux.tex" "build/Smart_Client_SSH_for_Learn_Linux.pdf" "Smart_Client_SSH_for_Learn_Linux" 1776117845.85027 0
+["pdflatex"] 1776212583.22404 "c:/Users/gonza/Documents/proyectos/Cliente-Rust/Paper/Smart_Client_SSH_for_Learn_Linux.tex" "build/Smart_Client_SSH_for_Learn_Linux.pdf" "Smart_Client_SSH_for_Learn_Linux" 1776212586.82332 0
   "C:/Users/gonza/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1762463665 82641 abcbe3180462766c4b61d6c8fe88f8e8 ""
   "C:/Users/gonza/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt" 1761155665 13321623 69f4b66333e205d8d89d6932973dcdf2 ""
   "C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc" 1458473887 4993 80dc9bab7f31fb78a000ccfed0e27cab ""
@@ -102,13 +102,15 @@
   "C:/Users/gonza/AppData/Local/Programs/MiKTeX/tex/latex/refcount/refcount.sty" 1576433952 9878 9e94e8fa600d95f9c7731bb21dfb67a4 ""
   "C:/Users/gonza/AppData/Local/Programs/MiKTeX/tex/latex/rerunfilecheck/rerunfilecheck.sty" 1751104012 9684 a33a14b82ce60d6e77cb9be689d79ee6 ""
   "C:/Users/gonza/AppData/Local/Programs/MiKTeX/tex/latex/url/url.sty" 1388490452 12796 8edb7d69a20b857904dd0ea757c14ec9 ""
-  "Smart_Client_SSH_for_Learn_Linux.tex" 1776117833 17030 937fbcc88be072401d888fabf81b4251 ""
-  "build/Smart_Client_SSH_for_Learn_Linux.aux" 1776117844 5564 ba616f6ac36d13df5288de631d4fbe7a "pdflatex"
-  "build/Smart_Client_SSH_for_Learn_Linux.bbl" 1776117842 3669 77438273633894ba9225ce9f1d3b0bdb "bibtex build/Smart_Client_SSH_for_Learn_Linux"
-  "build/Smart_Client_SSH_for_Learn_Linux.out" 1776117844 3564 3fb9ee4ee5c702177648b7c5355c43c6 "pdflatex"
-  "c:/Users/gonza/Documents/proyectos/Cliente-Rust/Paper/Smart_Client_SSH_for_Learn_Linux.tex" 1776117833 17030 937fbcc88be072401d888fabf81b4251 ""
+  "Smart_Client_SSH_for_Learn_Linux.tex" 1776124871 18489 de18b33735567e778481f99a18dabfba ""
+  "build/Smart_Client_SSH_for_Learn_Linux.aux" 1776212585 5527 b7677677e4b9e308049011387a6355e1 "pdflatex"
+  "build/Smart_Client_SSH_for_Learn_Linux.bbl" 1776124934 3669 77438273633894ba9225ce9f1d3b0bdb "bibtex build/Smart_Client_SSH_for_Learn_Linux"
+  "build/Smart_Client_SSH_for_Learn_Linux.out" 1776212585 3628 c30e0b15687f36ffc957b9867c802a96 "pdflatex"
+  "c:/Users/gonza/Documents/proyectos/Cliente-Rust/Paper/Smart_Client_SSH_for_Learn_Linux.tex" 1776124871 18489 de18b33735567e778481f99a18dabfba ""
   "images/VistasoPrograma.png" 1776096755 121677 87f202adfd0d488c8807720db814d432 ""
-  "images/ar_ge_paper2.png" 1776116088 90152 d6f3a03e1475a0baa67496a225a0ca34 ""
+  "images/ar_ge_paper2.png" 1776208679 472867 3c76c438a3fde694823d16c13aa08252 ""
+  "images/subsistema_agente.png" 1776212577 209836 2a3d5343eda5cb8d5e3c32e044f77a4e ""
+  "images/subsistema_nucleo.png" 1776212328 127588 a9ee186540072cad6ca4e745e28ada8c ""
   (generated)
   "build/Smart_Client_SSH_for_Learn_Linux.aux"
   "build/Smart_Client_SSH_for_Learn_Linux.log"

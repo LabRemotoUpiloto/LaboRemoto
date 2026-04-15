@@ -1,16 +1,61 @@
 @startuml subsistema_agente
 
-package "Capa de Inteligencia Artificial Contextual" {
-  [Orquestador Semántico (Agente)] as AI_Core
-  [Construcción y Agregación de Contexto] as ContextBuilder
-  [Descubrimiento de Recursos Dinámicos] as ContextDiscovery
-  [Controlador Lógico de Prácticas] as PracticeEngine
+' =============== ESTILOS ACADÉMICOS IEEE ===============
+skinparam dpi 300
+skinparam BackgroundColor white
+skinparam DefaultFontName "Arial"
+skinparam DefaultFontSize 13
+skinparam DefaultFontColor #1a1a1a
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 120
+skinparam padding 8
+skinparam Shadowing false
+skinparam roundcorner 5
+
+skinparam Package {
+    BackgroundColor #F8F9FA
+    BorderColor #495057
+    BorderThickness 1.5
+    FontSize 14
+    FontStyle bold
 }
 
-[Orquestador de Sesión Local] <--> AI_Core : Eventos Físicos (Excepciones, Comandos)
-AI_Core --> ContextBuilder : Requiere Prompt Extendido
-ContextBuilder <--> PracticeEngine : Sincronizar Fase de Laboratorio
-ContextBuilder <--> ContextDiscovery : Inspección Remota de Archivos
+skinparam Node {
+    BackgroundColor #FFFFFF
+    BorderColor #212529
+    BorderThickness 2
+    FontSize 15
+    FontStyle bold
+}
 
-AI_Core <--> [Proveedor LLM Nube / Servidor Inferencia] : Intercambio de Inferencia y Razonamiento
+skinparam Component {
+    BackgroundColor #E1F5FE
+    BorderColor #0288D1
+    BorderThickness 1.5
+}
+skinparam Cloud {
+    BackgroundColor #E3F2FD
+    BorderColor #0D47A1
+    BorderThickness 2
+}
+' ========================================================
+
+[Subsistema de Procesamiento\ny Control] as SubCore
+cloud "Nube de Inteligencia Artificial\n(Modelos de Inferencia LLM)" as NubeLLM
+
+package "Subsistema de Inteligencia Contextual (Agente)" as SubsistemaIA {
+  [Orquestador Semántico\n(Agente Central)] as AI_Core #E8F5E9
+  [Construcción y Agregación\nde Contexto] as ContextBuilder
+  [Controlador Lógico\nde Prácticas] as PracticeEngine
+  [Descubrimiento de\nRecursos Dinámicos] as ContextDiscovery
+  
+  AI_Core -down-> ContextBuilder : Requiere Prompt\nExtendido
+  ContextBuilder -down-> PracticeEngine : Extraer Fase\nde Laboratorio
+  ContextBuilder -right-> ContextDiscovery : Inspección\nRemota de Archivos
+}
+
+SubCore -right-> AI_Core : Eventos Lógicos\n(Excepciones, Logs)
+AI_Core -up-> NubeLLM : API REST\n(Inferencia y Razonamiento)
+
 @enduml
