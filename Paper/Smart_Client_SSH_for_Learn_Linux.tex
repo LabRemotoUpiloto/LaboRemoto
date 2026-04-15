@@ -128,9 +128,9 @@ Como se ilustra en la Figura~\ref{fig:arquitectura_general}, la arquitectura pro
     \label{fig:arquitectura_general}
 \end{figure}
 
-A nivel interno, la lógica transaccional de la aplicación se subdivide en ecosistemas modulares desacoplados entre sí. A través de un bus de Comunicación entre Procesos (IPC), el sistema promueve los eventos asíncronamente, garantizando un aislamiento crítico: la interfaz visual simplemente actúa como un suscriptor de interfaz reactivo desprovisto de lógica directa de red.
+A nivel interno, la lógica transaccional de la aplicación se subdivide en ecosistemas modulares desacoplados entre sí. A través de un bus de Comunicación entre Procesos (IPC), el sistema promueve los eventos asíncronamente, garantizando un aislamiento crítico: la interfaz visual simplemente actúa como un suscriptor de interfaz reactivo desprovisto de lógica directa de red. El subsistema frontal que asume la responsabilidad de la interfaz es el \textbf{Subsistema de Presentación e Interacción}, que engloba el emulador de terminal, la gestión gráfica de archivos y el chat conversacional.
 
-\subsection{Arquitectura Transaccional y Emisión de Eventos (Core Subsystem)}
+\subsection{Subsistema de Procesamiento y Control (Core)}
 
 El motor principal (Core), construido como un demonio local orientado a concurrencia y seguridad de memoria asíncrona, funge como el cerebro orquestador de las comunicaciones de bajo nivel (ver Figura~\ref{fig:subsistema_nucleo}):
 \begin{itemize}
@@ -140,12 +140,12 @@ El motor principal (Core), construido como un demonio local orientado a concurre
 
 \begin{figure}[ht]
     \centering
-    % [PENDIENTE DE EXPORTAR] \includegraphics[width=\linewidth]{images/subsistema_nucleo.png}
+    \includegraphics[width=\linewidth]{images/subsistema_nucleo.png}
     \caption{Diseño del Subsistema Transaccional para la orquestación distribuida de canales SSH/SFTP e interceptación de eventos de sesión local.}
     \label{fig:subsistema_nucleo}
 \end{figure}
 
-\subsection{Arquitectura Cognitiva y Modelado Sensible al Contexto (Agent Subsystem)}
+\subsection{Subsistema de Inteligencia Contextual (Agente)}
 
 Con el imperativo de reducir la ambigüedad computacional y posibilitar andamiajes pedagógicos predecibles, la topología destina una capa lógica final a procesar la semántica transaccional (Figura~\ref{fig:subsistema_agente}). Lejos del paradigma conversacional estándar, este subsistema ejecuta inferencias sobre manifiestos técnicos recolectados automáticamente:
 
@@ -156,7 +156,7 @@ Con el imperativo de reducir la ambigüedad computacional y posibilitar andamiaj
 
 \begin{figure}[ht]
     \centering
-    % [PENDIENTE DE EXPORTAR] \includegraphics[width=\linewidth]{images/subsistema_agente.png}
+    \includegraphics[width=\linewidth]{images/subsistema_agente.png}
     \caption{Estructura de la Capa Semántica enfocada en el protocolo de contexto pragmático y orquestación a endpoints proveedores de Modelos de Lenguaje.}
     \label{fig:subsistema_agente}
 \end{figure}
@@ -165,7 +165,7 @@ Con el imperativo de reducir la ambigüedad computacional y posibilitar andamiaj
 
 La topología expuesta erradica la fragmentación típica encontrada en clientes remotos \cite{mobaxterm_misc}. La consolidación de canales (como conexiones SSH reusadas y WebSockets noVNC para escritorios virtuales) fusionados con un servicio \textit{endpoint} inteligente reduce de forma abismal la latencia cognitiva de transición. El estudiante experimenta un \textit{sandbox} único en donde errores operacionales son inmediatamente atrapados y digeridos semánticamente para proponer un apoyo educativo ininterrumpido.
 
-\subsection{Gobernanza Académica e Integración LMS (Plataforma Institucional)}
+\subsection{Subsistema de Gestión Institucional (Gobernanza LMS)}
 
 De importancia crítica, y ontológicamente superior dentro del ciclo de vida de la aplicación tecnológica, se proyecta la integración bilateral con las Plataformas de Gestión de Aprendizaje Institucionales (LMS), tales como Moodle. Aunque la infraestructura de telemetría inmersiva y la inteligencia artificial habilitan laboratorios aislados de alto impacto, el verdadero valor fundacional reside en la Gobernanza Pedagógica otorgada al cuerpo docente.
 
