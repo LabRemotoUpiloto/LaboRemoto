@@ -2,6 +2,7 @@
 
 ' =============== ESTILOS ACADÉMICOS IEEE ===============
 ' Esta cabecera garantiza líneas nítidas, tipografía legible y colores sobrios
+skinparam dpi 300
 skinparam BackgroundColor white
 skinparam DefaultFontName "Arial"
 skinparam DefaultFontSize 13

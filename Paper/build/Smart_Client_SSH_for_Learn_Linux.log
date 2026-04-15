@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.10.22)  13 APR 2026 17:04
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.10.22)  14 APR 2026 19:23
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -417,15 +417,25 @@ Underfull \vbox (badness 10000) has occurred while \output is active []
 
 
 ]
-<images/ar_ge_paper2.png, id=110, 1290.8225pt x 964.60374pt>
+<images/ar_ge_paper2.png, id=110, 4033.0675pt x 3015.265pt>
 File: images/ar_ge_paper2.png Graphic file (type png)
 <use images/ar_ge_paper2.png>
 Package pdftex.def Info: images/ar_ge_paper2.png  used on input line 126.
-(pdftex.def)             Requested size: 252.0pt x 188.3104pt.
+(pdftex.def)             Requested size: 252.0pt x 188.36157pt.
 
 
+<images/subsistema_nucleo.png, id=112, 4111.36pt x 1978.39125pt>
+File: images/subsistema_nucleo.png Graphic file (type png)
+<use images/subsistema_nucleo.png>
+Package pdftex.def Info: images/subsistema_nucleo.png  used on input line 143.
+(pdftex.def)             Requested size: 252.0pt x 121.23412pt.
+<images/subsistema_agente.png, id=114, 2563.5775pt x 2230.3325pt>
+File: images/subsistema_agente.png Graphic file (type png)
+<use images/subsistema_agente.png>
+Package pdftex.def Info: images/subsistema_agente.png  used on input line 159.
+(pdftex.def)             Requested size: 252.0pt x 219.23473pt.
 
-LaTeX Warning: Citation `mobaxterm_misc' on page 2 undefined on input line 181.
+LaTeX Warning: Citation `mobaxterm_misc' on page 2 undefined on input line 166.
 
 
 
@@ -433,58 +443,49 @@ LaTeX Warning: Citation `mobaxterm_misc' on page 2 undefined on input line 181.
 pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.182 
+l.167 
       
 pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.182 
-      
+l.167 
+       <./images/ar_ge_paper2.png (PNG copy)> <./images/subsistema_nucleo.png>]
+
+
+LaTeX Warning: Citation `jung2017rustbelt' on page 3 undefined on input line 186.
+
+
+LaTeX Warning: Citation `levy2017rust' on page 3 undefined on input line 186.
+
+
+LaTeX Warning: Citation `mobaxterm_misc' on page 3 undefined on input line 189.
+
+
+
+[3
 pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.182 
-      
-pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) has been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.182 
-       <./images/ar_ge_paper2.png (PNG copy)>]
+l.201 
+       <./images/subsistema_agente.png (PNG copy)>]
 
-LaTeX Warning: Citation `jung2017rustbelt' on page 3 undefined on input line 188.
+LaTeX Warning: Citation `garcia2010web' on page 4 undefined on input line 203.
 
 
-LaTeX Warning: Citation `levy2017rust' on page 3 undefined on input line 188.
+LaTeX Warning: Citation `de2011virlab' on page 4 undefined on input line 203.
 
-
-LaTeX Warning: Citation `mobaxterm_misc' on page 3 undefined on input line 191.
-
-
-LaTeX Warning: Citation `garcia2010web' on page 3 undefined on input line 205.
-
-
-LaTeX Warning: Citation `de2011virlab' on page 3 undefined on input line 205.
-
-
-
-<images/VistasoPrograma.png, id=123, 1444.64719pt x 769.37437pt>
+<images/VistasoPrograma.png, id=128, 1444.64719pt x 769.37437pt>
 File: images/VistasoPrograma.png Graphic file (type png)
 <use images/VistasoPrograma.png>
-Package pdftex.def Info: images/VistasoPrograma.png  used on input line 209.
+Package pdftex.def Info: images/VistasoPrograma.png  used on input line 207.
 (pdftex.def)             Requested size: 252.0pt x 134.19643pt.
 
-LaTeX Warning: Citation `ojeda2021rust' on page 3 undefined on input line 225.
+LaTeX Warning: Citation `ojeda2021rust' on page 4 undefined on input line 223.
 
 (c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.bbl
 
-[3
-pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) has been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.41 
-      <./images/VistasoPrograma.png>]
 LaTeX Font Info:    Trying to load font information for U+msa on input line 78.
- (C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
+(C:\Users\gonza\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
 LaTeX Font Info:    Trying to load font information for U+msb on input line 78.
@@ -504,11 +505,12 @@ Before submitting the final camera ready copy, remember to:
 
 
 
-
-
 [4
-
-] (c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.aux
+pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.229 \end{document}
+                     <./images/VistasoPrograma.png>] (c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.aux
 LaTeX Info: Redefining \. on input line 20.
 LaTeX Info: Redefining \% on input line 20.
 )
@@ -521,20 +523,20 @@ L3 programming layer <2025-09-02>
 LaTeX Warning: There were undefined references.
 
 Package rerunfilecheck Info: File `Smart_Client_SSH_for_Learn_Linux.out' has not changed.
-(rerunfilecheck)             Checksum: 3FB9EE4EE5C702177648B7C5355C43C6;3564.
+(rerunfilecheck)             Checksum: C30E0B15687F36FFC957B9867C802A96;3628.
  ) 
 Here is how much of TeX's memory you used:
- 12252 strings out of 468081
- 195839 string characters out of 5425788
- 637656 words of memory out of 5000000
- 40733 multiletter control sequences out of 15000+600000
+ 12264 strings out of 468081
+ 196260 string characters out of 5425788
+ 637705 words of memory out of 5000000
+ 40746 multiletter control sequences out of 15000+600000
  663591 words of font info for 107 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,8n,79p,647b,627s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,8n,79p,913b,470s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/courier/ucrr8a.pfb><C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmb8a.pfb><C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmbi8a.pfb><C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmr8a.pfb><C:/Users/gonza/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmri8a.pfb>
-Output written on c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.pdf (4 pages, 273706 bytes).
+Output written on c:\Users\gonza\Documents\proyectos\Cliente-Rust\Paper\build\Smart_Client_SSH_for_Learn_Linux.pdf (4 pages, 972044 bytes).
 PDF statistics:
- 172 PDF objects out of 1000 (max. 8388607)
- 40 named destinations out of 1000 (max. 500000)
- 163 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 173 PDF objects out of 1000 (max. 8388607)
+ 39 named destinations out of 1000 (max. 500000)
+ 173 words of extra memory for PDF output out of 10000 (max. 10000000)
 

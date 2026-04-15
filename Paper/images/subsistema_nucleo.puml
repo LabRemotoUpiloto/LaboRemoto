@@ -1,19 +1,61 @@
 @startuml subsistema_nucleo
 
-package "Capa de Procesamiento Local (Core)" {
-  [Orquestador de Sesión Local] as SessionMgr
-  [Motor de Canal Seguro (SSH)] as SSHEngine
-  [Motor de Transferencia (SFTP)] as SFTPEngine
-  [Orquestador de Trazabilidad y Logs] as Logger
-  [Gestor Criptográfico de Identidades] as CryptoMgr
+' =============== ESTILOS ACADÉMICOS IEEE ===============
+skinparam dpi 300
+skinparam BackgroundColor white
+skinparam DefaultFontName "Arial"
+skinparam DefaultFontSize 13
+skinparam DefaultFontColor #1a1a1a
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam padding 8
+skinparam Shadowing false
+skinparam roundcorner 5
 
-  SessionMgr <--> SSHEngine
-  SessionMgr <--> SFTPEngine
-  SessionMgr <--> Logger
-  SSHEngine --> CryptoMgr : Intercambio de Llaves y Autenticación
+skinparam Package {
+    BackgroundColor #F8F9FA
+    BorderColor #495057
+    BorderThickness 1.5
+    FontSize 14
+    FontStyle bold
 }
 
-[Capa de Presentación] <--> SessionMgr : Emisión/Recepción de Eventos
-SSHEngine <--> [Infraestructura Remota] : Flujo de Comandos y PTY multiplexado
-SFTPEngine <--> [Infraestructura Remota] : Flujo de Datos Binarios
+skinparam Node {
+    BackgroundColor #FFFFFF
+    BorderColor #212529
+    BorderThickness 2
+    FontSize 15
+    FontStyle bold
+}
+
+skinparam Component {
+    BackgroundColor #E1F5FE
+    BorderColor #0288D1
+    BorderThickness 1.5
+}
+' ========================================================
+
+[Subsistema de Presentación\ne Interacción] as SubPresentacion
+[Subsistema de Inteligencia\nContextual] as SubIA
+node "Infraestructura Remota\n(Daemons SSH/SFTP)" as InfraRemota
+
+package "Subsistema de Procesamiento y Control (Core)" as SubsistemaCore {
+  [Orquestador de Sesión\nLocal] as SessionMgr #E8F5E9
+  [Orquestador de\nTrazabilidad y Logs] as Logger
+  [Motor de Canal\nSeguro (SSH)] as SSHEngine
+  [Gestor Criptográfico\nde Identidades] as CryptoMgr
+  [Motor de Transferencia\nde Archivos (SFTP)] as SFTPEngine
+  
+  SessionMgr -up-> Logger : Eventos de I/O
+  SessionMgr -down-> SSHEngine : Peticiones /\nRespuestas
+  SessionMgr -down-> SFTPEngine : Gestión de\nArchivos
+  SSHEngine -right-> CryptoMgr : Intercambio\nde Llaves
+}
+
+SubPresentacion -right-> SessionMgr : Eventos\n(IPC Frontend-Backend)
+SessionMgr -right-> SubIA : Peticiones IA\n(Excepciones)
+
+SSHEngine -down-> InfraRemota : Flujo PTY multiplexado
+SFTPEngine -down-> InfraRemota : Flujo Binario
 @enduml
