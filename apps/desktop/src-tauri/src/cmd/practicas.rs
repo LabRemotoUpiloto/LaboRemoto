@@ -468,27 +468,21 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
                 return Err(msg);
             }
 
+            // Timeout de 3 segundos para no bloquear si el proceso del robot sigue corriendo
+            sess.set_timeout(3000);
             use std::io::Read;
             let mut output = String::new();
             let _ = ch.read_to_string(&mut output);
-            let _ = ch.wait_close();
-            let exit = ch.exit_status().unwrap_or(-1);
+            let _ = ch.send_eof();
+            // No hacemos wait_close() para no bloquearnos esperando un proceso daemon
 
-            if exit == 0 || exit == -1 {
-                let _ = app_clone.emit("practice:log", serde_json::json!({
-                    "practice_id": pid,
-                    "level": "success",
-                    "message": format!("✅ Script ejecutado correctamente (exit: {})", exit)
-                }));
-            } else {
-                let _ = app_clone.emit("practice:log", serde_json::json!({
-                    "practice_id": pid,
-                    "level": "warning",
-                    "message": format!("⚠️ Script terminó con código: {} — {}", exit, output.trim())
-                }));
-            }
+            let _ = app_clone.emit("practice:log", serde_json::json!({
+                "practice_id": pid,
+                "level": "success",
+                "message": format!("✅ Script lanzado en background")
+            }));
 
-            Ok(format!("{}: exit={}", step_label, exit))
+            Ok(format!("{}: launched", step_label))
         })
         .await
         .map_err(|e| format!("Task join error: {}", e))?;

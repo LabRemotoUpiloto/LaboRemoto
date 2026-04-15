@@ -321,6 +321,15 @@ pub async fn get_user_by_username(username: &str) -> Result<MoodleUser, String> 
         .map_err(|e| format!("Error parseando JSON: {}", e))?;
     
     if let Some(error) = extract_moodle_error(&json, "core_user_get_users_by_field") {
+        if error.contains("accessexception") || error.contains("nopermission") || error.contains("required_capability") {
+            eprintln!("[Moodle] Sin permisos para buscar usuarios, usando placeholder para '{}'", username);
+            return Ok(MoodleUser {
+                id: 0,
+                username: username.to_string(),
+                fullname: username.to_string(),
+                email: String::new(),
+            });
+        }
         return Err(error);
     }
     
@@ -369,9 +378,9 @@ pub async fn submit_grade(grade_data: GradeSubmission) -> Result<(), String> {
         ("grade", grade_str.as_str()),
         ("attemptnumber", attempt_str.as_str()),
         ("addattempt", add_attempt_str.as_str()),
-        ("workflowstate", ""),
+        ("workflowstate", "readyforgrading"),
         ("applytoall", "0"),
-        ("plugindata[assignfeedbackcomments_editor][text]", ""),
+        ("plugindata[assignfeedbackcomments_editor][text]", grade_data.comment.as_str()),
         ("plugindata[assignfeedbackcomments_editor][format]", "1"),
     ];
     
@@ -408,8 +417,24 @@ pub async fn moodle_sync_assignment(
     assignment_id: u32,
     username: String,
 ) -> Result<serde_json::Value, String> {
-    // 1. Obtener información de la tarea
-    let assignment = get_assignment(assignment_id).await?;
+    // 1. Obtener información de la tarea — si falla por permisos, usar placeholder
+    let assignment = match get_assignment(assignment_id).await {
+        Ok(a) => a,
+        Err(e) if e.contains("accessexception") || e.contains("nopermission") || e.contains("required_capability") => {
+            eprintln!("[Moodle] Sin permisos para get_assignment, usando placeholder para assignment_id={}", assignment_id);
+            MoodleAssignment {
+                id: assignment_id,
+                cmid: None,
+                course_id: 0,
+                name: format!("Práctica {}", assignment_id),
+                intro: String::new(),
+                due_date: None,
+                allow_submissions_from_date: None,
+                grade: 100.0,
+            }
+        }
+        Err(e) => return Err(e),
+    };
     let real_assignment_id = assignment.id;
     
     // 2. Obtener información del usuario
@@ -465,12 +490,32 @@ pub async fn moodle_prepare_grade(
 pub async fn moodle_submit_grade_direct(
     assignment_id: u32,
     user_id: u32,
+    username: Option<String>,
     grade: f32,
     comment: String,
 ) -> Result<(), String> {
+    // Si user_id es 0 (placeholder por falta de permisos), intentar resolver por username
+    let resolved_user_id = if user_id == 0 {
+        if let Some(ref uname) = username {
+            match get_user_by_username(uname).await {
+                Ok(u) if u.id > 0 => {
+                    eprintln!("[Moodle] user_id resuelto por username '{}' → {}", uname, u.id);
+                    u.id
+                }
+                _ => return Err(format!("No se pudo resolver el usuario '{}' en Moodle. El token no tiene permisos para buscar usuarios.", uname.as_str())),
+            }
+        } else {
+            return Err("user_id es 0 y no se proporcionó username para resolver el usuario".to_string());
+        }
+    } else {
+        user_id
+    };
+
+    // save_submission no está disponible en esta versión de Moodle — se omite
+
     let grade_data = GradeSubmission {
         assignment_id,
-        user_id,
+        user_id: resolved_user_id,
         grade,
         comment,
         attempt_number: -1,
