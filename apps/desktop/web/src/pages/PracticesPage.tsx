@@ -119,54 +119,20 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
             setSetupLogs(prev => [...prev, { level, message, timestamp }]);
         };
 
-        const { value: username, isConfirmed } = await Swal.fire({
-            title: 'Usuario Moodle',
-            html: '<p style="color:#9ca3af;font-size:13px;margin:0 0 12px">Ingresa tu usuario de Moodle para asociar esta práctica</p>',
-            input: 'text',
-            inputPlaceholder: 'ej: estudiante01',
-            inputAttributes: { autocomplete: 'username', spellcheck: 'false' },
-            showCancelButton: true,
-            confirmButtonText: 'Iniciar práctica',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: 'var(--accent-secondary, #3B82F6)',
-            cancelButtonColor: 'transparent',
-            position: 'center',
-            customClass: { container: 'swal-fullscreen', input: 'swal-moodle-input' },
-            inputValidator: (v) => (!v || !v.trim()) ? 'Debes ingresar tu usuario de Moodle' : null,
-        });
-        if (!isConfirmed || !username || !username.trim()) {
-            addLog('warning', 'Debes ingresar un usuario de Moodle para iniciar la práctica.');
-            setStartingPractice(null);
-            return;
-        }
-
         try {
-            if (!practice.moodle_assignment_id) {
-                throw new Error(`La práctica ${practice.id} no tiene configurado PRACTICE_*_MOODLE_ASSIGNMENT_ID en .env.practicas`);
-            }
-
-            addLog('info', `👤 Validando usuario Moodle '${username.trim()}'...`);
-            const moodleSync = await invoke<{ user: { id: number; username: string; fullname: string; email: string } }>('moodle_sync_assignment', {
-                assignmentId: practice.moodle_assignment_id,
-                username: username.trim(),
-            });
-            addLog('success', `✅ Usuario Moodle validado: ${moodleSync.user.fullname}`);
-
             // 1. Ejecutar setup commands (ej: levantar servidor del robot)
             // Los logs de este paso llegan via evento practice:log desde Rust
             await invoke<string[]>('practicas_run_setup', { practiceId: practice.id });
 
             // 2. Obtener configuración completa (con credenciales) desde el backend
-            addLog('info', '📋 Obteniendo configuración de la práctica...');
+            addLog('info', 'Obteniendo configuración de la práctica...');
             const fullConfig = await invoke<Practice>('practicas_get_config', { practiceId: practice.id });
-            addLog('success', '✅ Configuración obtenida');
+            addLog('success', 'Configuración obtenida');
 
             // 3. Notificar al parent para abrir sesión SSH + workspace
-            // handleStartPractice en App.tsx emite sus propios logs via practice:log
-            // Si CUALQUIER paso falla, App.tsx lanza un throw y caemos en el catch
             await onStartPractice?.({
                 practice: fullConfig,
-                student: moodleSync.user,
+                student: { id: 0, username: '', fullname: 'Estudiante', email: '' },
             });
 
         } catch (err) {
