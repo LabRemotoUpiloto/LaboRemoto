@@ -4,7 +4,6 @@ import TerminalPane from './TerminalPane';
 import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
-import PracticeProgress from '../practice/PracticeProgress';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
 
 interface TerminalViewProps {
@@ -112,15 +111,6 @@ const TerminalView: React.FC<TerminalViewProps> = ({
                 onTerminalInput={processTerminalInput}
               />
             </div>
-            {practiceId && student && (
-              <PracticeProgress
-                practiceId={practiceId}
-                assignmentId={assignmentId}
-                student={student}
-                commandHistory={commandHistory}
-                commandEntries={commandEntries}
-              />
-            )}
           </div>
 
           {/* Capa 2: Escritorio Remoto VNC */}
