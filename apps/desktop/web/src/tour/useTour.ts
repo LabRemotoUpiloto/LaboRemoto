@@ -8,6 +8,7 @@ let onPageChangeCallback: ((page: string) => void) | null = null;
 let tourObserver: MutationObserver | null = null;
 let hasJumpedToTerminal = false;
 let jumpTimer: any = null;
+let chatOpenTimer: any = null;
 
 /**
  * Configuración del driver.js con estilos personalizados
@@ -42,8 +43,30 @@ const createDriverConfig = (): Config => ({
   
   // Callback antes de avanzar al siguiente paso
   onNextClick: (element, step, opts) => {
-    // Si estamos en el paso 6 (índice 5 - "Conéctate ahora"), verificar que haya sesión SSH
-    if (opts.state.activeIndex === 5) {
+
+    // Paso 4 (Formulario) → 5 (Hosts Rápidos):
+    // Asegurar que estamos en la página de connect y el elemento existe
+    if (opts.state.activeIndex === 4) {
+      const quickHostsEl = document.querySelector('[data-tour="quick-hosts-panel"]');
+      if (!quickHostsEl) {
+        // Navegar a connect y esperar que el elemento aparezca
+        window.dispatchEvent(new CustomEvent('app:open-panel', { detail: 'connect' }));
+        if (onPageChangeCallback) onPageChangeCallback('connect');
+        let waited = 0;
+        const interval = setInterval(() => {
+          waited += 60;
+          const el = document.querySelector('[data-tour="quick-hosts-panel"]');
+          if (el || waited >= 900) {
+            clearInterval(interval);
+            if (driverInstance) driverInstance.moveNext();
+          }
+        }, 60);
+        return;
+      }
+    }
+
+    // Paso 6 (índice 6 - "Conéctate ahora"), verificar que haya sesión SSH
+    if (opts.state.activeIndex === 6) {
       // Buscar si existe alguna pestaña de sesión activa en el DOM
       const hasActiveSession = document.querySelector('.tab.session-tab.active') !== null;
       
@@ -79,8 +102,8 @@ const createDriverConfig = (): Config => ({
       }
     }
     
-    // Si estamos en el paso 8 (índice 7 - "Chat de IA"), verificar que se haya probado el chat
-    if (opts.state.activeIndex === 7) {
+    // Si estamos en el paso 9 (índice 8 - "Chat de IA"), verificar que se haya probado el chat
+    if (opts.state.activeIndex === 8) {
       // Verificar si hay mensajes en el chat (buscar burbujas de mensajes del asistente)
       const chatMessages = document.querySelectorAll('.chat-messages .message--assistant');
       const hasTestedChat = chatMessages.length > 0;
@@ -120,6 +143,49 @@ const createDriverConfig = (): Config => ({
       }
     }
     
+    // Paso 7 (Terminal) → 8 (Chat IA):
+    // Abrir el chat ANTES de que driver.js intente destacar .chat-pane
+    if (opts.state.activeIndex === 7) {
+      const chatAlreadyOpen = !!document.querySelector('.chat-pane');
+      if (chatAlreadyOpen) {
+        // Ya está abierto, avanzar directamente
+        if (driverInstance) driverInstance.moveNext();
+        return;
+      }
+      // Disparar el evento para que App.tsx llame setIsChatOpen(true)
+      window.dispatchEvent(new CustomEvent('tour:open-chat'));
+      // Polling: esperar hasta 2s a que React monte el ChatPane en el DOM
+      let attempts = 0;
+      const MAX_ATTEMPTS = 25; // 25 × 80ms = 2000ms
+      const poll = setInterval(() => {
+        attempts++;
+        const chatEl = document.querySelector('.chat-pane');
+        if (chatEl || attempts >= MAX_ATTEMPTS) {
+          clearInterval(poll);
+          // Pequeño delay extra para que la animación de apertura termine
+          setTimeout(() => {
+            if (driverInstance) driverInstance.moveNext();
+          }, 80);
+        }
+      }, 80);
+      return; // No avanzar hasta que el chat esté montado (o timeout)
+    }
+
+    // Paso 15 (SFTP transfer) → 16 (VNC flotante):
+    // Navegar al terminal para que se vea el estado de la sesión en el header
+    if (opts.state.activeIndex === 15) {
+      window.dispatchEvent(new CustomEvent('app:open-panel', { detail: 'terminal' }));
+      if (onPageChangeCallback) onPageChangeCallback('terminal');
+      setTimeout(() => {
+        try {
+          const sessionTab = document.querySelector('.h2-tab') as HTMLElement | null;
+          if (sessionTab) sessionTab.click();
+        } catch {}
+      }, 80);
+      setTimeout(() => { if (driverInstance) driverInstance.moveNext(); }, 250);
+      return;
+    }
+
     // Si no es un paso con validación o la validación pasa, permitir avanzar
     if (driverInstance) {
       driverInstance.moveNext();
@@ -150,8 +216,8 @@ const createDriverConfig = (): Config => ({
       } catch {}
     }
 
-    // ACTIVAR observer de terminal SOLO cuando se llega al paso 6 (Conéctate ahora)
-    if (opts.state.activeIndex === 5) {
+    // ACTIVAR observer de terminal SOLO cuando se llega al paso 7 (índice 6 - "Conéctate ahora")
+    if (opts.state.activeIndex === 6) {
       // Estamos en el paso de conexión, ahora SI observar si aparece la terminal
       try {
         if (tourObserver) tourObserver.disconnect();
@@ -181,6 +247,13 @@ const createDriverConfig = (): Config => ({
       setTimeout(() => onPageChangeCallback('connect'), 50);
     }
 
+    //    - Para el botón de Escritorio Remoto (VNC), navegar al terminal (el botón vive en H2)
+    if (tourKind === 'btn-escritorio') {
+      if (onPageChangeCallback) {
+        setTimeout(() => onPageChangeCallback('terminal'), 50);
+      }
+    }
+
     //    - Si el elemento destacado es el terminal-stack, navegar a la página de terminal
     if (domEl?.classList?.contains('terminal-stack')) {
       if (onPageChangeCallback) {
@@ -203,11 +276,25 @@ const createDriverConfig = (): Config => ({
       }, 200);
     }
 
-    //    - Si el elemento destacado es el chat-pane, navegar a la página de terminal
+    //    - Si el elemento destacado es el chat-pane, abrir el chat y navegar a terminal
     if (domEl?.classList?.contains('chat-pane')) {
+      // Asegurar que estamos en la página de terminal
       if (onPageChangeCallback) {
         setTimeout(() => onPageChangeCallback('terminal'), 50);
       }
+      // Forzar apertura del chat y scroll al elemento
+      window.dispatchEvent(new CustomEvent('tour:open-chat'));
+      // Dar foco al input del chat
+      setTimeout(() => {
+        try {
+          const chatInput = document.querySelector(
+            '.chat-pane textarea, .chat-pane input[type="text"], .chat-input-area textarea'
+          ) as HTMLElement | null;
+          chatInput?.focus?.();
+          // Asegurar visibilidad
+          domEl?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+        } catch {}
+      }, 300);
     }
 
     //    - Si el elemento destacado es la página SFTP, navegar a SFTP
@@ -272,6 +359,7 @@ const createDriverConfig = (): Config => ({
     }
     if (tourObserver) { try { tourObserver.disconnect(); } catch {} tourObserver = null; }
     if (jumpTimer) { try { clearTimeout(jumpTimer); } catch {} jumpTimer = null; }
+    if (chatOpenTimer) { try { clearTimeout(chatOpenTimer); } catch {} chatOpenTimer = null; }
     hasJumpedToTerminal = false;
   },
   
