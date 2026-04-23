@@ -14,3 +14,4 @@ set-api-keys.ps1
 savedLogs/
 .agents/skills
 .windsurf
+/docs

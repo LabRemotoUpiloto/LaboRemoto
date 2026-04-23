@@ -21,6 +21,7 @@ pub mod mcp_client; // Cliente MCP (Model Context Protocol) vía stdio
 pub mod practicas;   // Sistema de prácticas de laboratorio remoto
 pub mod moodle;      // Integración con Moodle LMS
 pub mod practice_validator; // Validador automático de prácticas
+pub mod arduino;     // Bridge HTTP → Serial para Arduino de domótica
 
 // Re-exportar comandos para no cambiar rutas usadas en lib.rs
 pub use ai::{ai_chat, AiChatRequest, AiChatResponse};
