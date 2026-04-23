@@ -396,7 +396,7 @@ const AppMain: React.FC = () => {
     <LoadingProvider>
       <ToastProvider>
         <ThemeProvider>
-          <div ref={appContainerRef} className={`app-container ${isPinsVisible ? 'pins-open' : ''} ${isH2Visible ? 'h2-visible' : ''} ${isSidebarExpanded ? 'sidebar-expanded' : ''}`}>
+          <div ref={appContainerRef} className={`app-container ${isPinsVisible ? 'pins-open' : ''} ${isDomoticaVisible ? 'domotica-open' : ''} ${isH2Visible ? 'h2-visible' : ''} ${isSidebarExpanded ? 'sidebar-expanded' : ''}`}>
             <Header
               openPanels={openPanels}
               activePanel={activePanel}
