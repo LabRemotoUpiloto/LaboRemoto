@@ -255,6 +255,7 @@ body:has(.driver-overlay) .sidebar {
   z-index: 9999999 !important;
 }
 
+
 /* Animación de pulso para el elemento destacado */
 @keyframes driver-highlight-pulse {
   0%, 100% {

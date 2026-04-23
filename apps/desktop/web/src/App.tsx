@@ -288,6 +288,13 @@ const AppMain: React.FC = () => {
     return () => window.removeEventListener('app:open-panel', handleOpenPanelEvent);
   }, [handleOpenPanel]);
 
+  // Tour: abrir el chat cuando el tour llega al paso de Chat IA
+  useEffect(() => {
+    const handleTourOpenChat = () => setIsChatOpen(true);
+    window.addEventListener('tour:open-chat', handleTourOpenChat);
+    return () => window.removeEventListener('tour:open-chat', handleTourOpenChat);
+  }, [setIsChatOpen]);
+
   const handleClosePanel = (panelId: string) => {
     if (panelId === 'terminal') {
       const sessionTabs = tabs.filter(t => t.type === 'session');

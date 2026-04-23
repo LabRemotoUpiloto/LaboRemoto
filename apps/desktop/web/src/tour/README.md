@@ -38,6 +38,77 @@ function MyComponent() {
 - **`stopTour()`**: Detiene el tour manualmente
 - **`isTourActive()`**: Verifica si el tour está activo
 
+## Pasos del Tour
+
+El tour cubre **24 pasos** organizados en el siguiente orden:
+
+| # | Sección | Elemento | Descripción |
+|---|---|---|---|
+| 0 | Barra de Navegación | `[data-tour="sidebar-header"]` | Contracción/expansión del sidebar |
+| 1 | Página de Inicio | `[data-page="landing"]` | Accesos rápidos y botón de tutorial |
+| 2 | **Prácticas de Laboratorio** | `[data-page="practices"]` | Eve3, Linux, Circuitos, validación automática |
+| 3 | Conectar a Servidor | `[data-page="connect"]` | Entrada al formulario SSH |
+| 4 | Formulario de Conexión | `.connect-form` | Campos host/puerto/usuario/contraseña |
+| 5 | Hosts Rápidos | `[data-tour="quick-hosts-panel"]` | Servidores preconfigurados |
+| 6 | Conéctate ahora ⚠️ | `.connect-form` | **Paso validado**: requiere sesión SSH activa |
+| 7 | Terminal | `.terminal-stack` | Atajos de teclado, PTY interactivo |
+| 8 | Chat de IA ⚠️ | `.chat-pane` | **Paso validado**: requiere mensaje del asistente |
+| 9 | **Agente AI — Ejecutar** | `.chat-pane` | Loop tool_use: ejecuta comandos SSH reales |
+| 10 | **Agente AI — Plan** | `.chat-pane` | Inspecciona el servidor y genera plan (read-only) |
+| 11 | Hosts Guardados | `[data-page="hosts"]` | Cifrado ChaCha20Poly1305 |
+| 12 | Explorador SFTP | `[data-page="sftp"]` | Intro al explorador de archivos |
+| 13 | Panel Local (SFTP) | `[data-tour="sftp-panel-local"]` | Archivos de la PC local |
+| 14 | Panel Remoto (SFTP) | `[data-tour="sftp-panel-remote"]` | Archivos del servidor |
+| 15 | Transferir Archivos | `.sftp-icon-btn--primary` | Subir ↑ / Descargar ↓ |
+| 16 | **Escritorio Remoto VNC** | `[data-page="vnc"]` | Xvfb + LXDE + noVNC via SSH |
+| 17 | **GPIO Raspberry Pi** | `[data-page="raspberry"]` | Control de pines BCM en tiempo real |
+| 18 | **Arduino — Domótica** | `[data-page="arduino"]` | Bridge HTTP→Serial sobre SSH |
+| 19 | Historial de Logs | `[data-page="logs"]` | Sesiones guardadas y exportación PDF |
+| 20 | Snippets | `[data-page="snippets"]` | Comandos reutilizables |
+| 21 | Temas | `[data-page="themes"]` | Personalización visual |
+| 22 | Próximos Pasos | *(flotante)* | Recomendaciones finales |
+| 23 | ¡Tour Completado! | *(flotante)* | Cierre del tour |
+
+> **Nota:** Los pasos marcados con ⚠️ tienen validación: el usuario no puede avanzar sin completar la acción requerida.
+
+## Validaciones activas en `useTour.ts`
+
+```typescript
+// Paso índice 4 ("Formulario") → 5 ("Hosts Rápidos"):
+// Verifica que [data-tour="quick-hosts-panel"] esté en DOM; si no, navega a connect y espera.
+
+// Paso índice 6 ("Conéctate ahora") — requiere sesión SSH activa
+if (opts.state.activeIndex === 6) {
+  const hasActiveSession = document.querySelector('.tab.session-tab.active') !== null;
+  if (!hasActiveSession) { /* bloquear avance */ }
+}
+
+// Paso índice 7 ("Terminal") → 8 ("Chat de IA"):
+// Despacha tour:open-chat y espera a que .chat-pane aparezca en DOM antes de avanzar.
+
+// Paso índice 8 ("Chat de IA") — requiere respuesta del asistente
+if (opts.state.activeIndex === 8) {
+  const chatMessages = document.querySelectorAll('.chat-messages .message--assistant');
+  if (chatMessages.length === 0) { /* bloquear avance */ }
+}
+```
+
+> ⚠️ Si cambias el orden de pasos en `tourSteps.ts`, actualiza estos índices en `useTour.ts`.
+
+## Navegación automática de páginas
+
+El hook `useTour.ts` implementa navegación automática basada en el elemento destacado:
+
+| Condición | Página navegada |
+|---|---|
+| `data-tour="connect-form"` o `data-tour="quick-hosts-panel"` | `connect` |
+| Clase `.terminal-stack` | `terminal` |
+| Clase `.chat-pane` | `terminal` |
+| Clase `.sftp-page`, `.sftp-panel` o `.sftp-icon-btn--primary` | `sftp` |
+| `data-page="*"` | La página correspondiente (dispara click + callback) |
+
+El MutationObserver (activo solo en el paso 5) detecta cuando el terminal se monta tras la conexión SSH y salta automáticamente al paso del terminal.
+
 ## Configuración de pasos
 
 Los pasos del tour se definen en `tourSteps.ts`. Cada paso puede:
@@ -49,28 +120,42 @@ Los pasos del tour se definen en `tourSteps.ts`. Cada paso puede:
 
 ```typescript
 {
-  element: '.my-element',
+  element: '[data-page="practices"]',
   popover: {
-    title: 'Título del paso',
-    description: 'Descripción detallada...',
-    side: 'right',  // 'top' | 'right' | 'bottom' | 'left'
-    align: 'start', // 'start' | 'center' | 'end'
+    title: '🧪 Prácticas de Laboratorio',
+    description: 'Accede a tus prácticas configuradas...',
+    side: 'right',   // 'top' | 'right' | 'bottom' | 'left'
+    align: 'start',  // 'start' | 'center' | 'end'
   },
 }
 ```
 
-### Ejemplo de paso flotante
+### Ejemplo de paso flotante (sin elemento)
 
 ```typescript
 {
   popover: {
-    title: 'Información general',
-    description: 'Sin elemento destacado...',
+    title: '¡Tour Completado!',
+    description: 'Gracias por completar el tour...',
     side: 'left',
     align: 'start',
   },
 }
 ```
+
+## Características
+
+✅ **24 pasos** cubriendo todas las funcionalidades (incluye Prácticas, Agente AI, VNC, GPIO, Arduino)  
+✅ **Estilos adaptados** al sistema de temas de la app  
+✅ **Responsive** para móviles y tablets  
+✅ **Animaciones suaves** con CSS transitions  
+✅ **Progreso visual** mostrando "X de Y"  
+✅ **Navegación completa** (siguiente, anterior, cerrar)  
+✅ **Overlay oscuro** con blur para enfocar atención  
+✅ **HTML en descripciones** para formateo avanzado  
+✅ **Validación interactiva** en pasos clave (conexión SSH, prueba de chat)  
+✅ **Navegación automática** entre páginas durante el tour  
+✅ **MutationObserver** para detectar montaje del terminal tras conexión  
 
 ## Personalización de estilos
 
@@ -94,24 +179,16 @@ Los estilos se definen en `tourStyles.css` y respetan las variables CSS del tema
   └── .driver-popover-close-btn
 ```
 
-## Características
-
-✅ **16 pasos** cubriendo todas las funcionalidades  
-✅ **Estilos adaptados** al sistema de temas de la app  
-✅ **Responsive** para móviles y tablets  
-✅ **Animaciones suaves** con CSS transitions  
-✅ **Progreso visual** mostrando "X de Y"  
-✅ **Navegación completa** (siguiente, anterior, cerrar)  
-✅ **Overlay oscuro** con blur para enfocar atención  
-✅ **HTML en descripciones** para formateo avanzado
-
 ## Integración con páginas
 
-Para que los selectores funcionen, asegúrate de agregar atributos `data-page` en los botones de navegación:
+Para que los selectores funcionen, asegúrate de agregar atributos `data-page` en los botones de navegación del sidebar:
 
 ```tsx
-<button data-page="connect" onClick={() => setPage('connect')}>
-  Conectar
+<button data-page="practices" onClick={() => setPage('practices')}>
+  Prácticas
+</button>
+<button data-page="vnc" onClick={() => setPage('vnc')}>
+  Escritorio Remoto
 </button>
 ```
 
@@ -120,36 +197,16 @@ Para que los selectores funcionen, asegúrate de agregar atributos `data-page` e
 1. Abre `tourSteps.ts`
 2. Agrega un nuevo objeto al array `tourSteps`
 3. Define el selector y el contenido del popover
-4. Los cambios se reflejan automáticamente
+4. Si el paso requiere validación, agrega la lógica en `useTour.ts` (función `onNextClick`)
+5. Actualiza esta tabla de la sección **Pasos del Tour**
 
 ## Notas técnicas
 
 - **Singleton**: Solo una instancia del tour puede estar activa
 - **Cleanup**: El tour se destruye automáticamente al finalizar
+- **MutationObserver**: Se activa únicamente en el paso 5 (conexión) para detectar el montaje del terminal
 - **Smooth scroll**: Desplazamiento suave a elementos destacados
-- **Escape key**: Presionar ESC cierra el tour
-
-## Ejemplo completo
-
-```tsx
-import { useTour } from '@/tour';
-
-export function LandingPage() {
-  const { startTour } = useTour();
-  
-  return (
-    <div className="landing">
-      <h1>Bienvenido</h1>
-      <button 
-        className="cta-button"
-        onClick={startTour}
-      >
-        Iniciar Tutorial
-      </button>
-    </div>
-  );
-}
-```
+- **Escape key**: Desactivado (`allowClose: false`) — el usuario debe usar el botón X
 
 ## Referencias
 

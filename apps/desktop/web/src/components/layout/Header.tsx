@@ -244,6 +244,7 @@ const Header: React.FC<HeaderProps> = ({
           {showViewToggle && (
             <div className="h2-actions">
               <button
+                data-tour="btn-escritorio"
                 className={`h2-btn ${activeView === 'escritorio' ? 'active-btn' : ''}`}
                 onClick={() => onViewChange(activeView === 'terminal' ? 'escritorio' : 'terminal')}
                 title={activeView === 'escritorio' ? 'Volver a terminal' : 'Abrir escritorio remoto'}
