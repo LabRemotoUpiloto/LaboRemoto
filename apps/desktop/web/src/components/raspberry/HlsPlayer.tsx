@@ -73,15 +73,13 @@ const HlsPlayer: React.FC<Props> = ({ src, label }) => {
       {state === 'loading' && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: '#aaa', fontSize: 12 }}>
           <div style={{ width: 20, height: 20, border: '2px solid #444', borderTopColor: '#6ee7b7', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <span>Cargando HLS…</span>
-          <span style={{ color: '#475569', fontSize: 9, maxWidth: 200, textAlign: 'center', wordBreak: 'break-all' }}>{src}</span>
+          <span>Conectando…</span>
         </div>
       )}
       {state === 'error' && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#f87171', fontSize: 11, padding: '0 16px', textAlign: 'center' }}>
-          <span>⚠ HLS falló</span>
+          <span>⚠ Sin señal</span>
           <span style={{ color: '#888', fontSize: 10 }}>{errMsg}</span>
-          <span style={{ color: '#475569', fontSize: 9, wordBreak: 'break-all' }}>{src}</span>
         </div>
       )}
       {label && state === 'playing' && (
@@ -93,12 +91,6 @@ const HlsPlayer: React.FC<Props> = ({ src, label }) => {
           {label}
         </div>
       )}
-      <div style={{
-        position: 'absolute', top: 6, left: 8,
-        fontSize: 9, color: 'rgba(255,255,255,0.3)',
-        padding: '1px 5px', borderRadius: 3, background: 'rgba(0,0,0,0.4)',
-        pointerEvents: 'none',
-      }}>HLS</div>
     </div>
   )
 }

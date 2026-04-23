@@ -139,6 +139,10 @@ pub fn run() {
       cmd::practice_validator::validate_practice_progress,
       cmd::practice_validator::calculate_practice_grade,
       cmd::vnc::vnc_cleanup_all,
+      // Arduino domótica (bridge HTTP en la Pi)
+      cmd::arduino::arduino_bridge_status,
+      cmd::arduino::arduino_send_cmd,
+      cmd::arduino::arduino_read_buffer,
     ])
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {

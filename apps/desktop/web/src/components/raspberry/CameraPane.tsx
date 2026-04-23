@@ -40,7 +40,7 @@ const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true,
       <div className="camera-controls">
         <div className="camera-status">
           <div className="camera-live-dot" />
-          <span>HLS</span>
+          <span>EN VIVO</span>
         </div>
         <button
           onClick={() => setRetryKey(k => k + 1)}

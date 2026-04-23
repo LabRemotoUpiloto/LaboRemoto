@@ -78,8 +78,8 @@
 }
 
 .h1-tab-icon svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
@@ -124,7 +124,7 @@
   align-items: stretch;
   background: color-mix(in srgb, var(--background-primary) 85%, black);
   border-bottom: 0.5px solid var(--border-subtle);
-  height: 40px;
+  height: 38px;
   flex-shrink: 0;
   margin-left: 0 !important;
   padding-left: 50px;
@@ -306,8 +306,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 22px;
+  width: 36px;
+  height: 32px;
   border-radius: 6px;
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
@@ -318,8 +318,8 @@
 }
 
 .h2-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   display: block;
 }
 

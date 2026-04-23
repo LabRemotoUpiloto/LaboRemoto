@@ -24,6 +24,7 @@ import SnippetsPage from './pages/SnippetsPage'
 import ConfirmModal from './components/modals/ConfirmModal'
 import ChatPane from './components/ChatPane'
 import PinsPanel from './components/raspberry/PinsPanel'
+import DomoticaPanel from './components/arduino/DomoticaPanel'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { useAppTabs, HOME_TAB_ID } from './hooks/useAppTabs'
@@ -81,6 +82,7 @@ const AppMain: React.FC = () => {
   const [updating, setUpdating] = useState(false)
   const [isCameraOpen, setCameraOpen] = useState(false)
   const [isPinsPanelOpen, setPinsPanelOpen] = useState(false)
+  const [isDomoticaPanelOpen, setDomoticaPanelOpen] = useState(false)
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
   // Estado para preservar paths de SFTP por sesión entre cambios de tab
   const [sftpPaths, setSftpPaths] = useState<Record<string, string>>({})
@@ -95,6 +97,7 @@ const AppMain: React.FC = () => {
     // Cerrar paneles laterales al cambiar de tab
     if (isPinsPanelOpen) closePinsPanel();
     if (isCameraOpen) setCameraOpen(false);
+    if (isDomoticaPanelOpen) setDomoticaPanelOpen(false);
     
     if (clickedTab?.type === 'home') {
       // Al hacer clic en la pestaña de inicio, mantenemos la página actual si es una página de home,
@@ -213,6 +216,14 @@ const AppMain: React.FC = () => {
     })
   }
 
+  const toggleDomoticaPanel = () => {
+    setDomoticaPanelOpen(prev => !prev)
+  }
+
+  const closeDomoticaPanel = () => {
+    setDomoticaPanelOpen(false)
+  }
+
   // Check for updates on startup (once)
   useEffect(() => {
     (async () => {
@@ -245,6 +256,7 @@ const AppMain: React.FC = () => {
   }
 
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
+  const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
 
   // Pages that belong to the HOME tab context
   const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test'];
@@ -404,8 +416,10 @@ const AppMain: React.FC = () => {
               onReorderPanels={reorderPanels}
               onToggleCamera={toggleCameraPanel}
               onTogglePins={togglePinsPanel}
+              onToggleDomotica={toggleDomoticaPanel}
               isCameraActive={isCameraOpen}
               isPinsActive={isPinsPanelOpen}
+              isDomoticaActive={isDomoticaPanelOpen}
               isSidebarExpanded={isSidebarExpanded}
             />
             <Sidebar
@@ -463,6 +477,23 @@ const AppMain: React.FC = () => {
                 </div>
                 <div className="pins-panel__content">
                   <PinsPanel sessionId={activeTab.id} />
+                </div>
+              </aside>
+            )}
+            {isDomoticaVisible && (
+              <aside className="pins-panel" aria-label="Panel de Domótica">
+                <div className="pins-panel__header">
+                  <span className="pins-panel__title">Domótica (Arduino)</span>
+                  <button
+                    className="pins-panel__close-button"
+                    onClick={closeDomoticaPanel}
+                    title="Cerrar panel"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="pins-panel__content">
+                  <DomoticaPanel sessionId={activeTab.id} />
                 </div>
               </aside>
             )}
