@@ -94,3 +94,8 @@
 .app-container.pins-open .main-content {
   right: 350px;
 }
+
+/* Adjust main content when domotica panel is open */
+.app-container.domotica-open .main-content {
+  right: 350px;
+}

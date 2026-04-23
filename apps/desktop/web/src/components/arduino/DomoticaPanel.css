@@ -13,7 +13,7 @@
 
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   height: 100%;
   min-height: 0;
   padding: 14px;
@@ -92,25 +92,39 @@
 /* Grid de tarjetas */
 .dom-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 .dom-card {
   background: var(--dom-surface-alt);
   border: 1px solid var(--dom-border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dom-card:hover {
+  border-color: color-mix(in srgb, var(--dom-accent) 25%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 .dom-card--span {
   grid-column: 1 / -1;
 }
 .dom-card-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--dom-heading);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.dom-card-title svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
 }
 .dom-muted {
   font-weight: 400;
@@ -123,70 +137,136 @@
   flex-wrap: wrap;
 }
 
-/* Toggle de bombillo */
+/* Toggle de bombillo — Interruptor visual */
+.dom-toggle-row {
+  display: flex;
+  gap: 10px;
+}
 .dom-toggle {
   flex: 1;
-  min-width: 110px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 8px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: 10px;
   border: 1px solid var(--dom-border);
   background: var(--dom-surface);
   color: var(--dom-heading);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  position: relative;
 }
 .dom-toggle:hover:not(:disabled) {
-  border-color: var(--dom-accent);
+  border-color: color-mix(in srgb, var(--dom-accent) 40%, transparent);
+  transform: translateY(-1px);
 }
 .dom-toggle:disabled {
   opacity: 0.5;
   cursor: default;
 }
 .dom-bulb {
-  width: 20px;
-  height: 20px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--dom-surface-alt);
-  border: 1px solid var(--dom-border);
-  transition: all 0.2s ease;
+  border: 2px solid var(--dom-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dom-bulb svg {
+  width: 22px;
+  height: 22px;
+  color: var(--dom-muted);
+  transition: color 0.3s ease;
 }
 .dom-toggle.on .dom-bulb {
   background: #facc15;
   border-color: #facc15;
-  box-shadow: 0 0 12px #facc15aa;
+  box-shadow: 0 0 20px #facc1566, 0 0 40px #facc1522, inset 0 0 10px #facc1533;
+  transform: scale(1.05);
+}
+.dom-toggle.on .dom-bulb svg {
+  color: #713f12;
 }
 .dom-state {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
   color: var(--dom-muted);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 .dom-toggle.on .dom-state {
-  color: var(--dom-success);
+  color: #facc15;
+  text-shadow: 0 0 8px #facc1533;
+}
+
+/* Motor — Controles grandes con iconos */
+.dom-motor-controls {
+  display: flex;
+  gap: 8px;
+}
+.dom-motor-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--dom-border);
+  background: var(--dom-surface);
+  color: var(--dom-heading);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.dom-motor-btn:hover:not(:disabled) {
+  border-color: var(--dom-accent);
+  background: color-mix(in srgb, var(--dom-accent) 8%, var(--dom-surface));
+  transform: translateY(-1px);
+}
+.dom-motor-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.dom-motor-btn svg {
+  width: 20px;
+  height: 20px;
+}
+.dom-motor-btn.stop {
+  border-color: color-mix(in srgb, var(--dom-danger) 30%, transparent);
+}
+.dom-motor-btn.stop:hover:not(:disabled) {
+  border-color: var(--dom-danger);
+  background: color-mix(in srgb, var(--dom-danger) 10%, var(--dom-surface));
 }
 
 /* Slider */
 .dom-slider-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 .dom-slider {
   flex: 1;
   accent-color: var(--dom-accent);
   cursor: pointer;
+  height: 6px;
+  border-radius: 3px;
 }
 .dom-slider-value {
   min-width: 44px;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--dom-accent);
 }
 
 /* Botones */
@@ -245,21 +325,81 @@
   border-color: var(--dom-danger);
 }
 
-/* Distancia */
-.dom-distance {
+/* Sensor de distancia — Estilo gauge/radar */
+.dom-sensor-row {
   display: flex;
   align-items: center;
+  gap: 12px;
   justify-content: space-between;
-  gap: 10px;
 }
-.dom-distance-value {
-  font-size: 18px;
-  font-weight: 700;
+.dom-sensor-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+.dom-sensor-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dom-accent) 12%, var(--dom-surface));
+  border: 1.5px solid color-mix(in srgb, var(--dom-accent) 30%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dom-sensor-icon svg {
+  width: 18px;
+  height: 18px;
   color: var(--dom-accent);
+}
+.dom-sensor-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--dom-heading);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.dom-sensor-value.in-range {
+  color: #4ade80;
+}
+.dom-sensor-unit {
+  font-size: 11px;
+  color: var(--dom-muted);
+  font-weight: 500;
+}
+.dom-sensor-info {
+  display: flex;
+  flex-direction: column;
+}
+.dom-sensor-waiting {
+  color: var(--dom-muted);
+  font-style: italic;
+  font-size: 12px;
 }
 
-/* LCD I2C */
+/* LCD I2C — Estilo pantalla física */
+.dom-lcd-screen {
+  background: #1a3a1a;
+  border: 2px solid #2d5a2d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+.dom-lcd-line {
+  font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+  font-size: 13px;
+  color: #4ade80;
+  line-height: 1.6;
+  min-height: 20px;
+  text-shadow: 0 0 4px #4ade8033;
+  letter-spacing: 0.5px;
+}
+.dom-lcd-line.empty {
+  color: #2d5a2d;
+}
 .dom-lcd {
   display: flex;
   flex-direction: column;
@@ -272,7 +412,7 @@
 }
 .dom-input {
   flex: 1;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--dom-border);
   background: var(--dom-surface);
@@ -284,6 +424,7 @@
 .dom-input:focus {
   outline: none;
   border-color: var(--dom-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dom-accent) 15%, transparent);
 }
 .dom-input:disabled {
   opacity: 0.5;
@@ -307,6 +448,45 @@
   height: 16px;
   cursor: pointer;
 }
+
+/* Scripts — Tarjetas grandes con colores */
+.dom-scripts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.dom-script-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--dom-border);
+  background: var(--dom-surface);
+  color: var(--dom-heading);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.dom-script-btn:hover:not(:disabled) {
+  border-color: var(--dom-accent);
+  background: color-mix(in srgb, var(--dom-accent) 8%, var(--dom-surface));
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.dom-script-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.dom-script-btn svg {
+  width: 24px;
+  height: 24px;
+}
+.dom-script-btn.semaforo:hover:not(:disabled) { border-color: #facc15; background: color-mix(in srgb, #facc15 8%, var(--dom-surface)); }
+.dom-script-btn.alarma:hover:not(:disabled) { border-color: #f87171; background: color-mix(in srgb, #f87171 8%, var(--dom-surface)); }
+.dom-script-btn.proximidad:hover:not(:disabled) { border-color: #4ade80; background: color-mix(in srgb, #4ade80 8%, var(--dom-surface)); }
 
 /* Consola de log */
 .dom-log {

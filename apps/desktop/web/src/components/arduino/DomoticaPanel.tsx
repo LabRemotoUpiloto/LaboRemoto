@@ -49,7 +49,6 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   // Estados reflejados localmente (no confiables al 100%, el Arduino es la verdad)
   const [luz1, setLuz1] = useState(false)
   const [luz2, setLuz2] = useState(false)
-  const [servo, setServo] = useState(90)
   const [motor, setMotor] = useState(90)
   const [distancia, setDistancia] = useState<string | null>(null)
   const [lcdLine1, setLcdLine1] = useState('')
@@ -155,10 +154,6 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   }
 
   // Slider sin spam: envía sólo al soltar (onMouseUp / onTouchEnd / onChange final)
-  const commitServo = async (v: number) => {
-    const resp = await sendCmd(`SERVO:${v}`)
-    if (resp && resp.startsWith('OK')) setServo(v)
-  }
   const commitMotor = async (v: number) => {
     const resp = await sendCmd(`MOTOR:${v}`)
     if (resp && resp.startsWith('OK')) setMotor(v)
@@ -177,7 +172,6 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     if (resp && resp.startsWith('OK')) {
       setLuz1(false)
       setLuz2(false)
-      setServo(90)
       setMotor(90)
     }
   }
@@ -277,19 +271,24 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       </header>
 
       <section className="dom-grid">
-        {/* Luces */}
+        {/* Luces — Interruptores visuales con bombilla */}
         <div className="dom-card">
-          <div className="dom-card-title">Bombillos</div>
-          <div className="dom-row">
+          <div className="dom-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6M10 22h4M12 2v1M12 2a6 6 0 00-6 6c0 1.5.5 2.5 1.5 3.5L9 14h6l1.5-2.5C17.5 10.5 18 9.5 18 8a6 6 0 00-6-6z"/></svg>
+            Bombillos
+          </div>
+          <div className="dom-toggle-row">
             <button
               type="button"
               className={`dom-toggle ${luz1 ? 'on' : ''}`}
               onClick={() => toggleLuz(1)}
               disabled={busy}
             >
-              <span className="dom-bulb" />
+              <span className="dom-bulb">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6M10 22h4M12 2v1M12 2a6 6 0 00-6 6c0 1.5.5 2.5 1.5 3.5L9 14h6l1.5-2.5C17.5 10.5 18 9.5 18 8a6 6 0 00-6-6z"/></svg>
+              </span>
               <span>Bombillo 1</span>
-              <span className="dom-state">{luz1 ? 'ON' : 'OFF'}</span>
+              <span className="dom-state">{luz1 ? 'ENCENDIDO' : 'APAGADO'}</span>
             </button>
             <button
               type="button"
@@ -297,41 +296,21 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               onClick={() => toggleLuz(2)}
               disabled={busy}
             >
-              <span className="dom-bulb" />
+              <span className="dom-bulb">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6M10 22h4M12 2v1M12 2a6 6 0 00-6 6c0 1.5.5 2.5 1.5 3.5L9 14h6l1.5-2.5C17.5 10.5 18 9.5 18 8a6 6 0 00-6-6z"/></svg>
+              </span>
               <span>Bombillo 2</span>
-              <span className="dom-state">{luz2 ? 'ON' : 'OFF'}</span>
+              <span className="dom-state">{luz2 ? 'ENCENDIDO' : 'APAGADO'}</span>
             </button>
           </div>
         </div>
 
-        {/* Servo 180 */}
+        {/* Motor continuo — Controles con iconos grandes */}
         <div className="dom-card">
-          <div className="dom-card-title">Servo 180° <span className="dom-muted">(pin 2)</span></div>
-          <div className="dom-slider-row">
-            <input
-              type="range"
-              min={0}
-              max={180}
-              value={servo}
-              onChange={(e) => setServo(parseInt(e.target.value, 10))}
-              onMouseUp={(e) => commitServo(parseInt((e.target as HTMLInputElement).value, 10))}
-              onTouchEnd={(e) => commitServo(parseInt((e.target as HTMLInputElement).value, 10))}
-              onKeyUp={(e) => commitServo(parseInt((e.target as HTMLInputElement).value, 10))}
-              disabled={busy}
-              className="dom-slider"
-            />
-            <span className="dom-slider-value">{servo}°</span>
+          <div className="dom-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+            Motor continuo <span className="dom-muted">(pin 3)</span>
           </div>
-          <div className="dom-row">
-            <button className="dom-btn-sec" disabled={busy} onClick={() => commitServo(0)}>0°</button>
-            <button className="dom-btn-sec" disabled={busy} onClick={() => commitServo(90)}>90°</button>
-            <button className="dom-btn-sec" disabled={busy} onClick={() => commitServo(180)}>180°</button>
-          </div>
-        </div>
-
-        {/* Motor continuo */}
-        <div className="dom-card">
-          <div className="dom-card-title">Motor continuo <span className="dom-muted">(pin 3)</span></div>
           <div className="dom-slider-row">
             <input
               type="range"
@@ -347,31 +326,66 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
             />
             <span className="dom-slider-value">{motor}</span>
           </div>
-          <div className="dom-row">
-            <button className="dom-btn-sec" disabled={busy} onClick={() => commitMotor(0)}>← Máx</button>
-            <button className="dom-btn-sec" disabled={busy} onClick={() => commitMotor(90)}>■ Stop</button>
-            <button className="dom-btn-sec" disabled={busy} onClick={() => commitMotor(180)}>Máx →</button>
+          <div className="dom-motor-controls">
+            <button className="dom-motor-btn" disabled={busy} onClick={() => commitMotor(0)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              Izquierda
+            </button>
+            <button className="dom-motor-btn stop" disabled={busy} onClick={() => commitMotor(90)}>
+              <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              Stop
+            </button>
+            <button className="dom-motor-btn" disabled={busy} onClick={() => commitMotor(180)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              Derecha
+            </button>
           </div>
         </div>
 
-        {/* Sensor distancia */}
+        {/* Sensor distancia — Display estilo gauge */}
         <div className="dom-card">
-          <div className="dom-card-title">Sensor HC-SR04 <span className="dom-muted">(trig 5 · echo 6)</span></div>
-          <div className="dom-distance">
-            <span className="dom-distance-value">{distancia ?? '— —'}</span>
+          <div className="dom-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>
+            Sensor HC-SR04 <span className="dom-muted">(trig 5 · echo 6)</span>
+          </div>
+          <div className="dom-sensor-row">
+            <div className="dom-sensor-display">
+              <div className="dom-sensor-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <div className="dom-sensor-info">
+                {distancia ? (
+                  <>
+                    <span className={`dom-sensor-value ${(parseFloat(distancia) < 20 && distancia !== 'sin eco') ? 'in-range' : ''}`}>
+                      {distancia.replace(' cm', '').replace('sin eco', '—')}
+                    </span>
+                    <span className="dom-sensor-unit">{distancia.includes('sin eco') ? 'Sin eco' : 'centímetros'}</span>
+                  </>
+                ) : (
+                  <span className="dom-sensor-waiting">Presiona Medir</span>
+                )}
+              </div>
+            </div>
             <button className="dom-btn" disabled={busy} onClick={medirDist}>Medir</button>
           </div>
         </div>
 
-        {/* LCD I2C */}
+        {/* LCD I2C — Estilo pantalla física */}
         <div className="dom-card dom-card--span">
-          <div className="dom-card-title">Pantalla LCD I2C <span className="dom-muted">(16x2 · SDA 20 · SCL 21)</span></div>
+          <div className="dom-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h12M6 12h12M6 16h8"/></svg>
+            Pantalla LCD I2C <span className="dom-muted">(16x2 · SDA 20 · SCL 21)</span>
+          </div>
+          <div className="dom-lcd-screen">
+            <div className={`dom-lcd-line ${!lcdLine1 ? 'empty' : ''}`}>{lcdLine1 || '________________'}</div>
+            <div className={`dom-lcd-line ${!lcdLine2 ? 'empty' : ''}`}>{lcdLine2 || '________________'}</div>
+          </div>
           <div className="dom-lcd">
             <div className="dom-lcd-row">
               <input
                 type="text"
                 className="dom-input"
-                placeholder="Línea 1..."
+                placeholder="Escribe línea 1..."
                 value={lcdLine1}
                 onChange={(e) => setLcdLine1(e.target.value)}
                 disabled={busy}
@@ -384,7 +398,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               <input
                 type="text"
                 className="dom-input"
-                placeholder="Línea 2..."
+                placeholder="Escribe línea 2..."
                 value={lcdLine2}
                 onChange={(e) => setLcdLine2(e.target.value)}
                 disabled={busy}
@@ -399,19 +413,22 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
           </div>
         </div>
 
-        {/* Scripts guardados */}
+        {/* Scripts guardados — Tarjetas grandes */}
         <div className="dom-card dom-card--span">
-          <div className="dom-card-title">Scripts guardados</div>
-          <div className="dom-row">
+          <div className="dom-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Scripts guardados
+          </div>
+          <div className="dom-scripts-grid">
             {scripts.map(script => (
               <button
                 key={script.id}
-                className="dom-btn dom-btn--icon"
+                className={`dom-script-btn ${script.id}`}
                 disabled={busy}
                 onClick={() => runScript(script)}
               >
                 {script.id === 'semaforo' && (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="6" r="3" />
                     <circle cx="12" cy="12" r="3" />
                     <circle cx="12" cy="18" r="3" />
@@ -419,12 +436,12 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
                   </svg>
                 )}
                 {script.id === 'alarma' && (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                   </svg>
                 )}
                 {script.id === 'proximidad' && (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
@@ -440,7 +457,10 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
           <div className="dom-row">
             <button className="dom-btn" disabled={busy} onClick={ping}>PING</button>
             <button className="dom-btn dom-btn--danger" disabled={busy} onClick={stopAll}>
-              ⏻ Detener todo
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}>
+                <path d="M18.36 6.64a9 9 0 11-12.72 0M12 2v10"/>
+              </svg>
+              Detener todo
             </button>
           </div>
         </div>
