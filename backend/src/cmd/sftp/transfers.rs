@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::io::{Read, Write};
@@ -7,34 +7,8 @@ use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
 use crate::ssh::ssh2_sftp as sftp2;
-use crate::cmd::state::{SESSIONS, TRANSFERS, SessionExt, CachedSsh2};
-
-fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
-  if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
-  let (host, port, user, password) = {
-    let s = map.get(id).ok_or_else(|| "Session not found".to_string())?;
-    (s.host.clone(), s.port, s.user.clone(), s.password.clone())
-  };
-  let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-  let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess }));
-  if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); }
-  Ok(arc)
-}
-
-fn classify_sftp_error(e: &str) -> String {
-  let lower = e.to_lowercase();
-  if lower.contains("no such file") || lower.contains("not found") {
-    "Ruta remota no encontrada o inaccesible".into()
-  } else if lower.contains("permission denied") || lower.contains("permission") {
-    "Permiso denegado al acceder a la ruta remota".into()
-  } else if lower.contains("connection reset") || lower.contains("session") || lower.contains("eof") {
-    "La sesión SFTP se ha perdido o ha sido cerrada".into()
-  } else if lower.contains("disk full") || lower.contains("no space") {
-    "No hay espacio suficiente en disco".into()
-  } else {
-    e.to_string()
-  }
-}
+use crate::cmd::state::{SESSIONS, TRANSFERS};
+use super::{get_or_connect_cached, classify_sftp_error};
 
 #[tauri::command]
 pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String, local_path: String) -> Result<String, String> {
