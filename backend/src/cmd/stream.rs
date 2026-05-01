@@ -1,3 +1,11 @@
+//! cmd/stream — Streaming de video vía port-forwarding SSH y WebRTC
+//!
+//! Este módulo proporciona:
+//! - Port-forwarding SSH para streaming de cámaras (RTSP/HTTP)
+//! - Listado de cámaras disponibles en MediaMTX
+//! - Intercambio WHEP para WebRTC (SDP offer/answer)
+//! - Información del host remoto para URLs directas
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::cmd::state::{SESSIONS, CameraInfo};
