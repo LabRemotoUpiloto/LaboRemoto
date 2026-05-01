@@ -1,10 +1,11 @@
 import React from 'react';
-import PromptModal from '../modals/PromptModal';
-import SweetAlert from '../modals/SweetAlert';
+import {
+  TextInput, PasswordInput, Button, Group, Badge, Stack, Paper
+} from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { RecentConnection } from './RecentConnectionsPanel';
 import { ConnectionToSave } from '../../hooks/useRecentConnections';
 import { useConnectForm } from '../../hooks/useConnectForm';
-import './ConnectForm.css';
 
 interface QuickHost {
   id: string;
@@ -24,246 +25,175 @@ export interface ConnectFormProps {
   onConnectionSuccess?: (connection: ConnectionToSave) => void;
 }
 
-interface FieldError {
-  host?: string;
-  port?: string;
-  user?: string;
-  password?: string;
-}
-
 const ConnectForm: React.FC<ConnectFormProps> = (props) => {
   const {
-    host,
-    port,
-    user,
-    password,
-    showPassword,
-    errors,
-    isConnecting,
-    isPulsing,
-    isRaspberryPi,
-    saveModalOpen,
-    setSaveModalOpen,
-    successAlertOpen,
-    successAlertMessage,
-    setSuccessAlertOpen,
-    setSuccessAlertMessage,
-    isEditMode,
-    isValid,
-    handleHostChange,
-    handlePortChange,
-    setUser,
-    setPassword,
-    setShowPassword,
-    setErrors,
-    clearForm,
-    connect,
-    handleSaveHost
+    host, port, user, password, showPassword,
+    errors, isConnecting, isPulsing, isRaspberryPi,
+    saveModalOpen, setSaveModalOpen,
+    successAlertOpen, successAlertMessage,
+    setSuccessAlertOpen, setSuccessAlertMessage,
+    isEditMode, isValid,
+    handleHostChange, handlePortChange,
+    setUser, setPassword, setShowPassword,
+    setErrors, clearForm, connect, handleSaveHost,
   } = useConnectForm(props);
 
-  return (
-    <>
-      <div className="connect-form-wrapper">
-        <form className={`connect-form ${isPulsing ? 'connect-form--pulse' : ''}`} onSubmit={(e) => e.preventDefault()}>
-          <header className="connect-form__header">
-            <h1 className="connect-form__title">Conectar</h1>
-            {props.quickHost && (
-              <span className="connect-form__badge">
-                {props.quickHost.name || props.quickHost.host}
-                <button
-                  type="button"
-                  className="connect-form__badge-close"
-                  onClick={() => clearForm()}
-                  aria-label="Cambiar de host"
-                  title="Cambiar de host"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            {!props.quickHost && props.recentConnection && isRaspberryPi() && (
-              <span className="connect-form__badge">
-                Raspberry Pi 4
-              </span>
-            )}
-          </header>
-
-          <div className="connect-form__fields">
-            {/* Host - oculto si hay quickHost seleccionado */}
-            {!props.quickHost && (
-              <div className="connect-form__field">
-                <div className="connect-form__input-wrapper">
-                  <input
-                    id="field-host"
-                    className={`connect-form__input ${errors.host ? 'connect-form__input--error' : ''}`}
-                    placeholder=" "
-                    value={host}
-                    onChange={(e) => handleHostChange(e.target.value)}
-                    title="Dirección IP o nombre de dominio del servidor SSH (ej: 192.168.1.100 o servidor.ejemplo.com)"
-                  />
-                  <label htmlFor="field-host" className="connect-form__label">
-                    Host
-                  </label>
-                </div>
-                {errors.host && (
-                  <span className="connect-form__error">
-                    <span className="connect-form__error-icon">⚠️</span>
-                    {errors.host}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Port - oculto si hay quickHost seleccionado */}
-            {!props.quickHost && (
-              <div className="connect-form__field">
-                <div className="connect-form__input-wrapper">
-                  <input
-                    id="field-port"
-                    className={`connect-form__input ${errors.port ? 'connect-form__input--error' : ''}`}
-                    placeholder=" "
-                    type="text"
-                    inputMode="numeric"
-                    value={port}
-                    onChange={(e) => handlePortChange(e.target.value)}
-                    title="Puerto SSH del servidor (por defecto: 22). Rango válido: 1-65535"
-                  />
-                  <label htmlFor="field-port" className="connect-form__label">
-                    Puerto
-                  </label>
-                </div>
-                {errors.port && (
-                  <span className="connect-form__error">
-                    <span className="connect-form__error-icon">⚠️</span>
-                    {errors.port}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* User */}
-            <div className="connect-form__field connect-form__field--full">
-              <div className="connect-form__input-wrapper">
-                <input
-                  id="field-user"
-                  className={`connect-form__input ${errors.user ? 'connect-form__input--error' : ''}`}
-                  placeholder=" "
-                  value={user}
-                  onChange={(e) => {
-                    setUser(e.target.value);
-                    if (errors.user) setErrors(prev => ({ ...prev, user: undefined }));
-                  }}
-                  title="Nombre de usuario para la conexión SSH (ej: root, admin, ubuntu)"
-                />
-                <label htmlFor="field-user" className="connect-form__label">
-                  Usuario
-                </label>
-              </div>
-              {errors.user && (
-                <span className="connect-form__error">
-                  <span className="connect-form__error-icon">⚠️</span>
-                  {errors.user}
-                </span>
-              )}
-            </div>
-
-            {/* Password */}
-            <div className="connect-form__field connect-form__field--full">
-              <div className="connect-form__input-wrapper connect-form__input-wrapper--password">
-                <input
-                  id="field-pass"
-                  className={`connect-form__input ${errors.password ? 'connect-form__input--error' : ''}`}
-                  placeholder=" "
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
-                  }}
-                  autoComplete="off"
-                />
-                <label htmlFor="field-pass" className="connect-form__label">
-                  Password
-                </label>
-                <button
-                  type="button"
-                  className="connect-form__password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? (
-                    // Ojo abierto
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  ) : (
-                    // Ojo cerrado
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <span className="connect-form__error">
-                  <span className="connect-form__error-icon">⚠️</span>
-                  {errors.password}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="connect-form__actions">
-            <button
-              type="button"
-              className="connect-form__btn connect-form__btn--secondary"
-              onClick={() => setSaveModalOpen(true)}
-              disabled={isConnecting}
-              title="Guardar host (Ctrl+S)"
-            >
-              Guardar host
-            </button>
-            <button
-              type="submit"
-              className="connect-form__btn connect-form__btn--primary"
-              onClick={connect}
-              disabled={isConnecting || !isValid}
-              title={isValid ? 'Conectar (Enter)' : 'Completa todos los campos correctamente'}
-            >
-              {isConnecting && <span className="connect-form__spinner" />}
-              Conectar
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <PromptModal
-        open={saveModalOpen}
-        title={isEditMode ? "Editar host guardado" : "Guardar host"}
-        message={`${isEditMode ? 'Editar' : 'Guardar'} ${user}@${host}:${port || '22'}`}
-        placeholder="Nombre (opcional)"
-        onCancel={() => setSaveModalOpen(false)}
-        onConfirm={handleSaveHost}
-      />
-      
-      <SweetAlert
-        open={successAlertOpen}
-        type="success"
-        title="¡Éxito!"
-        message={successAlertMessage}
-        confirmText="Aceptar"
-        showCancel={false}
-        onConfirm={() => {
+  // Mantine notification: replace SweetAlert success
+  React.useEffect(() => {
+    if (successAlertOpen) {
+      modals.openConfirmModal({
+        title: '¡Éxito!',
+        centered: true,
+        children: <p style={{ fontSize: 14, opacity: 0.7 }}>{successAlertMessage}</p>,
+        labels: { confirm: 'Aceptar', cancel: '' },
+        cancelProps: { display: 'none' },
+        onConfirm: () => {
           setSuccessAlertOpen(false);
           setSuccessAlertMessage('');
-          // Limpiar formulario después de confirmar
           clearForm();
-        }}
-      />
-    </>
+        },
+        onClose: () => {
+          setSuccessAlertOpen(false);
+          setSuccessAlertMessage('');
+          clearForm();
+        },
+      });
+    }
+  }, [successAlertOpen]);
+
+  // Mantine modal: replace PromptModal for save host
+  const openSaveModal = () => {
+    let nameValue = '';
+    modals.open({
+      title: isEditMode ? 'Editar host guardado' : 'Guardar host',
+      centered: true,
+      children: (
+        <form onSubmit={(e) => { e.preventDefault(); handleSaveHost(nameValue); modals.closeAll(); }}>
+          <p style={{ fontSize: 13, opacity: 0.6, marginBottom: 12 }}>
+            {isEditMode ? 'Editar' : 'Guardar'} {user}@{host}:{port || '22'}
+          </p>
+          <TextInput
+            data-autofocus
+            placeholder="Nombre (opcional)"
+            onChange={(e) => { nameValue = e.currentTarget.value; }}
+            mb="md"
+          />
+          <Group justify="flex-end" gap="sm">
+            <Button variant="subtle" color="gray" onClick={() => modals.closeAll()}>
+              Cancelar
+            </Button>
+            <Button type="submit" color="teal">
+              {isEditMode ? 'Guardar cambios' : 'Guardar'}
+            </Button>
+          </Group>
+        </form>
+      ),
+    });
+  };
+
+  return (
+    <Paper
+      className={`w-full max-w-md mx-auto transition-all duration-300 ${isPulsing ? 'ring-2 ring-teal-500/50' : ''}`}
+      p="xl"
+      radius="lg"
+      withBorder
+    >
+      <form onSubmit={(e) => e.preventDefault()}>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <h1 className="text-xl font-semibold m-0">Conectar</h1>
+          {props.quickHost && (
+            <Badge color="teal" variant="light" size="sm">
+              {props.quickHost.name || props.quickHost.host}
+            </Badge>
+          )}
+          {!props.quickHost && props.recentConnection && isRaspberryPi() && (
+            <Badge color="teal" variant="light" size="sm">Raspberry Pi 4</Badge>
+          )}
+        </div>
+
+        <Stack gap="sm">
+          {/* Host — oculto para Raspberry Pi */}
+          {!isRaspberryPi() && (
+            <TextInput
+              id="field-host"
+              label="Host"
+              placeholder="192.168.1.100 o servidor.ejemplo.com"
+              value={host}
+              onChange={(e) => handleHostChange(e.currentTarget.value)}
+              error={errors.host}
+              title="Dirección IP o nombre de dominio del servidor SSH"
+            />
+          )}
+
+          {/* Puerto — oculto para Raspberry Pi */}
+          {!isRaspberryPi() && (
+            <TextInput
+              id="field-port"
+              label="Puerto"
+              placeholder="22"
+              inputMode="numeric"
+              value={port}
+              onChange={(e) => handlePortChange(e.currentTarget.value)}
+              error={errors.port}
+              title="Puerto SSH del servidor (por defecto: 22). Rango válido: 1-65535"
+            />
+          )}
+
+          {/* Usuario */}
+          <TextInput
+            id="field-user"
+            label="Usuario"
+            placeholder="root, admin, ubuntu..."
+            value={user}
+            onChange={(e) => {
+              setUser(e.currentTarget.value);
+              if (errors.user) setErrors(prev => ({ ...prev, user: undefined }));
+            }}
+            error={errors.user}
+            title="Nombre de usuario para la conexión SSH"
+          />
+
+          {/* Password */}
+          <PasswordInput
+            id="field-pass"
+            label="Contraseña"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.currentTarget.value);
+              if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
+            }}
+            error={errors.password}
+            visible={showPassword}
+            onVisibilityChange={setShowPassword}
+            autoComplete="off"
+          />
+        </Stack>
+
+        {/* Acciones */}
+        <Group mt="xl" gap="sm" justify="flex-end">
+          <Button
+            variant="subtle"
+            color="gray"
+            onClick={openSaveModal}
+            disabled={isConnecting}
+            title="Guardar host (Ctrl+S)"
+          >
+            Guardar host
+          </Button>
+          <Button
+            type="submit"
+            color="teal"
+            onClick={connect}
+            loading={isConnecting}
+            disabled={!isValid}
+            title={isValid ? 'Conectar (Enter)' : 'Completa todos los campos correctamente'}
+          >
+            Conectar
+          </Button>
+        </Group>
+      </form>
+    </Paper>
   );
 };
 

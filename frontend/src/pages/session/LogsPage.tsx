@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import './LogsPage.css'
+import { TextInput, Select, ActionIcon, Badge, Tooltip } from '@mantine/core'
+import { modals } from '@mantine/modals'
+import { Text } from '@mantine/core'
 import SessionsGrid from '../../components/logs/SessionsGrid'
 import type { SessionLog } from '../../components/logs/SessionCard'
 import { listSessionLogs, deleteSessionLog, getSessionLogContent, type SessionLogMetadata } from '../../api/sessionCapture'
 import html2pdf from 'html2pdf.js'
 import { useToasts } from '../../contexts/ToastContext'
-import SweetAlert from '../../components/modals/SweetAlert'
 import { extractValidCommands, buildCommandsReportHtml } from '../../utils/commandParser'
 
 type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'
@@ -35,8 +36,6 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const [filterUser, setFilterUser] = useState('')
   const [filterHost, setFilterHost] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('date-desc')
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [toDeleteSession, setToDeleteSession] = useState<SessionLog | null>(null)
   const { push } = useToasts()
 
   useEffect(() => {
@@ -90,28 +89,31 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   }, [filteredSessions, sortBy])
 
   const handleDeleteLog = (session: SessionLog) => {
-    setToDeleteSession(session)
-    setConfirmOpen(true)
+    modals.openConfirmModal({
+      title: '¿Eliminar log?',
+      centered: true,
+      overlayProps: { blur: 3 },
+      children: (
+        <Text size="sm" c="dimmed">
+          ¿Estás seguro de que deseas eliminar el log de{' '}
+          <strong>{session.user}@{session.host}</strong>? Esta acción no se puede deshacer.
+        </Text>
+      ),
+      labels: { confirm: 'Eliminar', cancel: 'Cancelar' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          await deleteSessionLog(session.id)
+          push({ type: 'success', message: `Log de ${session.user}@${session.host} eliminado` })
+          setSessions(prev => prev.filter(s => s.id !== session.id))
+        } catch (error) {
+          push({ type: 'error', message: `Error al eliminar el log: ${error}` })
+        }
+      },
+    })
   }
 
-  const confirmDelete = async () => {
-    if (!toDeleteSession) return
 
-    try {
-      // Usar eliminación local (única disponible en esta versión)
-      await deleteSessionLog(toDeleteSession.id)
-      
-      push({ type: 'success', message: `Log de ${toDeleteSession.user}@${toDeleteSession.host} eliminado` })
-      
-      // Actualizar la lista
-      setSessions(prev => prev.filter(s => s.id !== toDeleteSession.id))
-    } catch (error) {
-      push({ type: 'error', message: `Error al eliminar el log: ${error}` })
-    } finally {
-      setConfirmOpen(false)
-      setToDeleteSession(null)
-    }
-  }
 
   const handleViewBuffer = (session: SessionLog) => {
     onOpenLog?.(session)
@@ -160,7 +162,6 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
 
   return (
     <div className="logs-page">
-      {/* Header con título y descripción - Doble Header Minimalista */}
       <header className="page-header-integrated">
         <h2 className="page-header-title">Logs</h2>
         <div className="page-header-content">
@@ -170,56 +171,57 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
 
       <div className="logs-page__scrollable">
         <div className="logs-page-inner">
-          {/* ── Unified toolbar ── */}
-          <div className="logs-toolbar">
-            <div className="logs-toolbar__search">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <input
-                type="text"
-                placeholder="usuario..."
-                value={filterUser}
-                onChange={e => setFilterUser(e.target.value)}
-                className="logs-toolbar__input"
-              />
-            </div>
-            <div className="logs-toolbar__search">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-              </svg>
-              <input
-                type="text"
-                placeholder="host..."
-                value={filterHost}
-                onChange={e => setFilterHost(e.target.value)}
-                className="logs-toolbar__input"
-              />
-            </div>
-            <div className="logs-toolbar__right">
-              <select
-                id="sort-select"
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value as SortOption)}
-                className="logs-toolbar__select"
-              >
-                <option value="date-desc">Más recientes</option>
-                <option value="date-asc">Más antiguos</option>
-                <option value="duration-desc">Mayor duración</option>
-                <option value="duration-asc">Menor duración</option>
-                <option value="host-asc">Host A→Z</option>
-                <option value="host-desc">Host Z→A</option>
-              </select>
-              <span className="logs-toolbar__count">{sortedSessions.length}</span>
-              <button
-                className="logs-toolbar__refresh"
-                onClick={loadSessions}
-                title="Recargar"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+          {/* ── Toolbar con Mantine + Tailwind ── */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
+            <TextInput
+              placeholder="usuario..."
+              value={filterUser}
+              size="xs"
+              onChange={e => setFilterUser(e.currentTarget.value)}
+              leftSection={
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
-              </button>
+              }
+              styles={{ input: { fontSize: 12 } }}
+            />
+            <TextInput
+              placeholder="host..."
+              value={filterHost}
+              size="xs"
+              onChange={e => setFilterHost(e.currentTarget.value)}
+              leftSection={
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/>
+                </svg>
+              }
+              styles={{ input: { fontSize: 12 } }}
+            />
+            <div className="ml-auto flex items-center gap-2">
+              <Select
+                size="xs"
+                value={sortBy}
+                onChange={v => setSortBy((v ?? 'date-desc') as SortOption)}
+                data={[
+                  { value: 'date-desc', label: 'Más recientes' },
+                  { value: 'date-asc',  label: 'Más antiguos' },
+                  { value: 'duration-desc', label: 'Mayor duración' },
+                  { value: 'duration-asc',  label: 'Menor duración' },
+                  { value: 'host-asc',  label: 'Host A→Z' },
+                  { value: 'host-desc', label: 'Host Z→A' },
+                ]}
+                styles={{ input: { fontSize: 12 } }}
+                w={140}
+                allowDeselect={false}
+              />
+              <Badge variant="light" color="teal" size="sm">{sortedSessions.length}</Badge>
+              <Tooltip label="Recargar" withArrow>
+                <ActionIcon variant="subtle" color="gray" size="sm" onClick={loadSessions}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                  </svg>
+                </ActionIcon>
+              </Tooltip>
             </div>
           </div>
 
@@ -234,26 +236,6 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
           />
         </div>
       </div>
-
-
-      {/* Modal de confirmación de eliminación */}
-      <SweetAlert
-        open={confirmOpen}
-        title="¿Eliminar log?"
-        message={
-          toDeleteSession 
-            ? `¿Estás seguro de que deseas eliminar el log de ${toDeleteSession.user}@${toDeleteSession.host}? Esta acción no se puede deshacer.`
-            : ''
-        }
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        type="warning"
-        onConfirm={confirmDelete}
-        onCancel={() => {
-          setConfirmOpen(false)
-          setToDeleteSession(null)
-        }}
-      />
     </div>
   )
 }
