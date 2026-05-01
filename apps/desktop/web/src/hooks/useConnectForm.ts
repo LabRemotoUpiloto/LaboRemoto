@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLoading } from "../contexts/LoadingContext";
-import { useToasts } from "../contexts/ToastContext";
-import type { ConnectFormProps } from "../components/connect/ConnectForm";
-import { isRaspberryPi4, getDeviceLabel } from "../constants/devices";
-import { sshConnect } from "../services/ssh.service";
-import { saveHostWithMaster, deleteHostFile } from "../services/storage.service";
+/**
+ * useConnectForm.ts  — FACHADA DE COMPOSICIÓN
+ *
+ * Compone useConnectionForm (formulario + validación)
+ * y useConnectionActions (conexión SSH + guardado de host)
+ * en una sola interfaz pública compatible con ConnectForm.tsx.
+ *
+ * Migración interna: el código que usaba este hook no necesita cambiar.
+ * Si quieres usar los hooks directamente, importa desde:
+ *   - hooks/useConnectionForm.ts
+ *   - hooks/useConnectionActions.ts
+ */
 
-type FieldError = {
-  host?: string;
-  port?: string;
-  user?: string;
-  password?: string;
-};
+import { useState } from 'react';
+import type { ConnectFormProps } from '../components/connect/ConnectForm';
+import { useConnectionForm } from './useConnectionForm';
+import { useConnectionActions } from './useConnectionActions';
 
 export function useConnectForm({
   onConnected,
@@ -21,348 +24,55 @@ export function useConnectForm({
   recentConnection,
   recentConnections = [],
   onQuickHostCleared,
-  onConnectionSuccess
+  onConnectionSuccess,
 }: ConnectFormProps) {
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("22");
-  const [user, setUser] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<FieldError>({});
-  const { setLoading, loading: isConnecting } = useLoading();
-  const { push } = useToasts();
-
+  // UI state exclusivo del modal de guardado (no pertenece a ningún hook puro)
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [successAlertOpen, setSuccessAlertOpen] = useState(false);
-  const [successAlertMessage, setSuccessAlertMessage] = useState("");
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [originalHostFile, setOriginalHostFile] = useState<string | null>(null);
-  const [isPulsing, setIsPulsing] = useState(false);
-  const [connectionAbortController, setConnectionAbortController] = useState<AbortController | null>(null);
+  const [successAlertMessage, setSuccessAlertMessage] = useState('');
 
-  const isRaspberryPiConnection = useCallback(() => {
-    const h = quickHost?.host ?? recentConnection?.host ?? host;
-    const p = quickHost?.port ?? recentConnection?.port ?? Number(port);
-    return isRaspberryPi4(h, p);
-  }, [quickHost, recentConnection, host, port]);
+  // ── Hook 1: formulario + validación ─────────────────────────────────────────
+  const form = useConnectionForm({
+    quickHost,
+    recentConnection,
+    recentConnections,
+    onQuickHostCleared,
+    initialPayload,
+  });
 
-  const triggerPulse = useCallback(() => {
-    setIsPulsing(true);
-    setTimeout(() => setIsPulsing(false), 500);
-  }, []);
+  // ── Hook 2: acciones de red y persistencia ───────────────────────────────────
+  const actions = useConnectionActions({
+    host: form.host,
+    port: form.port,
+    user: form.user,
+    password: form.password,
+    isEditMode: form.isEditMode,
+    originalHostFile: form.originalHostFile,
+    validateForm: form.validateForm,
+    recentConnections,
+    getTermSize,
+    onConnected,
+    onConnectionSuccess,
+    setSaveModalOpen,
+    setSuccessAlertMessage,
+    setSuccessAlertOpen,
+  });
 
-  useEffect(() => {
-    if (!quickHost) return;
-    setHost(quickHost.host);
-    setPort(String(quickHost.port));
-    setUser("");
-    setPassword("");
-    setErrors({});
-    triggerPulse();
-  }, [quickHost, triggerPulse]);
-
-  useEffect(() => {
-    if (!recentConnection) return;
-    setHost(recentConnection.host);
-    setPort(String(recentConnection.port));
-    setUser(recentConnection.user);
-    setPassword("");
-    setErrors({});
-    triggerPulse();
-  }, [recentConnection, triggerPulse]);
-
-  useEffect(() => {
-    if (initialPayload) {
-      const p = initialPayload as any;
-      setHost("");
-      setPort("22");
-      setUser("");
-      setPassword("");
-      setShowPassword(false);
-      setErrors({});
-      if (p.host) setHost(p.host);
-      if (p.port) setPort(String(p.port));
-      if (p.user) setUser(p.user);
-      if (p.password) setPassword(p.password);
-      const isEdit = !!p.host && !p.autoConnect;
-      setIsEditMode(isEdit);
-      if (isEdit && p._originalFile) {
-        setOriginalHostFile(p._originalFile);
-      }
-      if (p.autoConnect) {
-        setTimeout(() => {
-          connect();
-        }, 50);
-      }
-    } else {
-      setHost("");
-      setPort("22");
-      setUser("");
-      setPassword("");
-      setShowPassword(false);
-      setErrors({});
-      setIsEditMode(false);
-      setOriginalHostFile(null);
-    }
-  }, [initialPayload]);
-
-  const validatePort = useCallback((value: string): string | undefined => {
-    if (!value.trim()) return undefined;
-    const num = parseInt(value, 10);
-    if (isNaN(num)) return "Puerto debe ser numérico";
-    if (num < 1 || num > 65535) return "Puerto debe estar entre 1-65535";
-    return undefined;
-  }, []);
-
-  const validateHost = useCallback((value: string): string | undefined => {
-    if (!value.trim()) return "Host es requerido";
-    const trimmed = value.trim();
-    if (value !== trimmed || /\s/.test(trimmed)) {
-      return "Host no puede contener espacios";
-    }
-    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (ipv4Regex.test(trimmed)) {
-      const parts = trimmed.split(".");
-      const validOctets = parts.every(part => {
-        const num = parseInt(part, 10);
-        return num >= 0 && num <= 255;
-      });
-      if (!validOctets) return "Dirección IP inválida (cada octeto debe ser 0-255)";
-      return undefined;
-    }
-    const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    if (!hostnameRegex.test(trimmed)) {
-      return "Host inválido (solo letras, números, puntos y guiones)";
-    }
-    if (trimmed.startsWith("-") || trimmed.endsWith("-") || trimmed.startsWith(".") || trimmed.endsWith(".")) {
-      return "Host no puede empezar/terminar con guión o punto";
-    }
-    return undefined;
-  }, []);
-
-  const clearQuickHostIfNeeded = useCallback(() => {
-    if (quickHost) onQuickHostCleared?.();
-  }, [quickHost, onQuickHostCleared]);
-
-  const handlePortChange = (value: string) => {
-    if (value && !/^\d+$/.test(value)) return;
-    setPort(value);
-    clearQuickHostIfNeeded();
-    const error = validatePort(value);
-    setErrors(prev => ({ ...prev, port: error }));
-  };
-
-  const handleHostChange = (value: string) => {
-    setHost(value);
-    clearQuickHostIfNeeded();
-    const error = validateHost(value);
-    setErrors(prev => ({ ...prev, host: error }));
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: FieldError = {};
-    newErrors.host = validateHost(host);
-    newErrors.port = validatePort(port);
-    if (!user.trim()) newErrors.user = "Usuario es requerido";
-    if (!password.trim()) newErrors.password = "Password es requerido";
-    setErrors(newErrors);
-    return !Object.values(newErrors).some(e => e !== undefined);
-  };
-
-  const checkDuplicateConnection = (): boolean => {
-    const parsedPort = parseInt(port.trim() || "22", 10);
-    const safePort = parsedPort > 0 && parsedPort <= 65535 ? parsedPort : 22;
-    const exists = recentConnections.some(conn => conn.host === host.trim() && conn.port === safePort && conn.user === user.trim());
-    if (exists) {
-      const displayInfo = getDeviceLabel(host.trim(), safePort, user.trim());
-      push({ type: "info", message: `Ya te has conectado a ${displayInfo} anteriormente` });
-    }
-    return exists;
-  };
-
-  const cancelConnection = () => {
-    if (connectionAbortController) {
-      connectionAbortController.abort();
-    }
-    setConnectionAbortController(null);
-    setLoading(false, null, null);
-    push({ type: "info", message: "Conexión cancelada" });
-  };
-
-  const connect = async () => {
-    if (!validateForm()) {
-      push({ type: "error", message: "Por favor corrige los errores" });
-      return;
-    }
-    checkDuplicateConnection();
-    const parsedPort = parseInt(port.trim() || "22", 10);
-    const safePort = parsedPort > 0 && parsedPort <= 65535 ? parsedPort : 22;
-    const size = getTermSize ? getTermSize() : { cols: 80, rows: 24 };
-    const abortController = new AbortController();
-    setConnectionAbortController(abortController);
-    const displayName = getDeviceLabel(host.trim(), safePort);
-    const loadingMessage = `Conectando a ${displayName}...`;
-    let unlistenSuccess: any = null;
-    let unlistenError: any = null;
-    let timeoutId: any = null;
-    try {
-      const { listen } = await import("@tauri-apps/api/event");
-      const connectionPromise = new Promise<{ id: string; label: string }>((resolve, reject) => {
-        listen<any>("ssh_connected", event => {
-          if (event.payload?.id && !abortController.signal.aborted) {
-            const label = `${user}@${displayName}`;
-            if (onConnectionSuccess) {
-              onConnectionSuccess({
-                host: host.trim(),
-                port: safePort,
-                user: user.trim()
-              } as any);
-            }
-            resolve({ id: event.payload.id, label });
-          }
-        })
-          .then(unlisten => {
-            unlistenSuccess = unlisten;
-          })
-          .catch(reject);
-        listen<any>("ssh_connect_error", event => {
-          if (event.payload?.id && !abortController.signal.aborted) {
-            reject(new Error(event.payload.error || "Error conectando"));
-          }
-        })
-          .then(unlisten => {
-            unlistenError = unlisten;
-          })
-          .catch(reject);
-      });
-      setLoading(true, loadingMessage, cancelConnection);
-      timeoutId = setTimeout(() => {
-        if (!abortController.signal.aborted) {
-          abortController.abort();
-          if (unlistenSuccess) unlistenSuccess();
-          if (unlistenError) unlistenError();
-          setLoading(false, null, null);
-          setConnectionAbortController(null);
-          push({ type: "error", message: "Tiempo de espera agotado (30s)" });
-        }
-      }, 30000);
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const id = await sshConnect({
-        host: host.trim(),
-        port: safePort,
-        user: user.trim(),
-        password,
-        cols: size.cols,
-        rows: size.rows,
-      });
-      if (abortController.signal.aborted) {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (unlistenSuccess) unlistenSuccess();
-        if (unlistenError) unlistenError();
-        return;
-      }
-      const result = await connectionPromise;
-      if (timeoutId) clearTimeout(timeoutId);
-      if (unlistenSuccess) unlistenSuccess();
-      if (unlistenError) unlistenError();
-      onConnected(result);
-      push({ type: "success", message: `Conectado a ${displayName}` });
-      setLoading(false, null, null);
-      setConnectionAbortController(null);
-    } catch (e: any) {
-      if (timeoutId) clearTimeout(timeoutId);
-      if (unlistenSuccess) unlistenSuccess();
-      if (unlistenError) unlistenError();
-      if (!abortController.signal.aborted) {
-        const errorMessage = e?.message || e?.toString?.() || "Error conectando";
-        push({ type: "error", message: errorMessage });
-        setLoading(false, null, null);
-        setConnectionAbortController(null);
-      }
-    }
-  };
-
-  const handleSaveHost = async (name: string) => {
-    if (!validateForm()) {
-      push({ type: "error", message: "Corrige los errores antes de guardar" });
-      return;
-    }
-    const parsedPort = parseInt(port.trim() || "22", 10);
-    const safePort = parsedPort > 0 && parsedPort <= 65535 ? parsedPort : 22;
-    const newHostId = `${host.trim()}:${safePort}:${user.trim()}`;
-    try {
-      const { saveHostWithMaster: save, deleteHostFile: del } = await import("../services/storage.service");
-      const payload = {
-        host: host.trim(),
-        port: safePort,
-        user: user.trim(),
-        password,
-        name: name.trim() || undefined
-      };
-      if (isEditMode && originalHostFile && originalHostFile !== newHostId) {
-        try { await del(originalHostFile); } catch { }
-      }
-      await save(newHostId, payload);
-      setSaveModalOpen(false);
-      setSuccessAlertMessage(isEditMode ? "Host editado correctamente" : "Host guardado correctamente");
-      setSuccessAlertOpen(true);
-      if (isEditMode) { setIsEditMode(false); setOriginalHostFile(null); }
-    } catch {
-      push({ type: "error", message: "Error guardando host" });
-    }
-  };
-
-  const clearForm = useCallback(() => {
-    setHost("");
-    setPort("22");
-    setUser("");
-    setPassword("");
-    setShowPassword(false);
-    setErrors({});
-    setIsEditMode(false);
-    setOriginalHostFile(null);
-    if (onQuickHostCleared) onQuickHostCleared();
-  }, [onQuickHostCleared]);
-
-  const isValid = useMemo(
-    () =>
-      !errors.host &&
-      !errors.port &&
-      !errors.user &&
-      !errors.password &&
-      host.trim() &&
-      user.trim() &&
-      password.trim(),
-    [errors, host, user, password]
-  );
-
+  // ── Interfaz pública unificada (compatible con el ConnectForm existente) ──────
   return {
-    host,
-    port,
-    user,
-    password,
-    showPassword,
-    errors,
-    isConnecting,
-    isPulsing,
-    isRaspberryPi: isRaspberryPiConnection,
+    // Campos
+    ...form,
+    // Acciones
+    connect: actions.connect,
+    handleSaveHost: actions.handleSaveHost,
+    cancelConnection: actions.cancelConnection,
+    isConnecting: actions.isConnecting,
+    // Estado de modales
     saveModalOpen,
     setSaveModalOpen,
     successAlertOpen,
     successAlertMessage,
     setSuccessAlertOpen,
     setSuccessAlertMessage,
-    isEditMode,
-    isValid,
-    handleHostChange,
-    handlePortChange,
-    setUser,
-    setPassword,
-    setShowPassword,
-    setErrors,
-    clearForm,
-    connect,
-    handleSaveHost
   };
 }
-
