@@ -90,7 +90,7 @@ pub async fn vnc_start(
     let (display, vnc_port, ws_listener, local_fwd_port, is_virtual, home_dir) =
         tokio::task::spawn_blocking(move || -> Result<(u32, u16, std::net::TcpListener, u16, bool, String), String> {
             let (_tcp_setup, setup_sess) =
-                crate::ssh::ssh2_sftp::connect_password(&h, port, &u, &p)
+                crate::ssh_core::ssh2_sftp::connect_password(&h, port, &u, &p)
                     .map_err(|e| format!("Conexión SSH para setup VNC falló: {e}"))?;
 
             let home_dir = utils::get_remote_home(&setup_sess);
@@ -212,7 +212,7 @@ pub async fn vnc_stop(session_id: String) -> Result<(), String> {
              pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n"
         );
-        let _ = term_tx.send(crate::ssh::client::ChanCmd::Send(kill_cmd.into_bytes()));
+        let _ = term_tx.send(crate::ssh_core::client::ChanCmd::Send(kill_cmd.into_bytes()));
 
         tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
     }
@@ -230,9 +230,9 @@ pub async fn vnc_cleanup_all(session_id: String) -> Result<String, String> {
     };
 
     let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
-        let (_tcp, sess) = crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password)
+        let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
             .map_err(|e| format!("SSH error: {e}"))?;
-        let (_, out) = crate::ssh::exec::ssh_exec_session(
+        let (_, out) = crate::ssh_core::exec::ssh_exec_session(
             &sess,
             "for d in $(seq 20 99); do \
                pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 && { \
@@ -289,9 +289,9 @@ pub fn cleanup_all_vnc_sessions() {
         std::thread::spawn(move || {
             for (display, vnc_port, host, port, user, password, is_virtual) in sessions_info {
                 if host.is_empty() { continue; }
-                if let Ok((_tcp, sess)) = crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password) {
+                if let Ok((_tcp, sess)) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password) {
                     if is_virtual {
-                        let _ = crate::ssh::exec::ssh_exec_session(
+                        let _ = crate::ssh_core::exec::ssh_exec_session(
                             &sess,
                             &format!("pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true")
                         );

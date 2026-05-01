@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
-use crate::ssh::ssh2_sftp as sftp2;
+use crate::ssh_core::ssh2_sftp as sftp2;
 use crate::cmd::state::{SESSIONS, TRANSFERS};
 use super::{get_or_connect_cached, classify_sftp_error};
 

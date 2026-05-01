@@ -1,4 +1,4 @@
-use crate::ssh::exec::ssh_exec_session;
+use crate::ssh_core::exec::ssh_exec_session;
 
 /// Verifica que las dependencias necesarias existan en el servidor remoto.
 pub(crate) fn check_dependencies(sess: &ssh2::Session, virtual_mode: bool) -> Result<(), String> {

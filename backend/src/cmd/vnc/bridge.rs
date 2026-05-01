@@ -146,7 +146,7 @@ pub fn run_port_forward(
         let (h, u, p) = (host.clone(), user.clone(), password.clone());
 
         std::thread::spawn(move || {
-            let Ok((_tcp, sess)) = crate::ssh::ssh2_sftp::connect_password(&h, port, &u, &p)
+            let Ok((_tcp, sess)) = crate::ssh_core::ssh2_sftp::connect_password(&h, port, &u, &p)
             else {
                 return;
             };

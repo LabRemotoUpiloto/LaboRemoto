@@ -39,7 +39,7 @@ pub struct ArduinoBridgeStatus {
 #[tauri::command]
 pub async fn arduino_bridge_status(id: String) -> Result<ArduinoBridgeStatus, String> {
     let cmd = format!("curl -s --max-time 2 {}/status", BRIDGE_URL);
-    let (_st, out) = crate::ssh::exec::ssh_exec(&id, &cmd)?;
+    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &cmd)?;
     let body = out.trim();
     if body.is_empty() {
         return Ok(ArduinoBridgeStatus {
@@ -85,7 +85,7 @@ pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdRespo
         "curl -s --max-time 5 -X POST -o - -w '\\n\\t%{{http_code}}' {}/cmd -d {}",
         BRIDGE_URL, quoted
     );
-    let (_st, out) = crate::ssh::exec::ssh_exec(&id, &shell)?;
+    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &shell)?;
 
     // Separar el código HTTP (última línea) del body.
     let (body, code) = match out.rsplit_once("\n\t") {
@@ -113,7 +113,7 @@ pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdRespo
 #[tauri::command]
 pub async fn arduino_read_buffer(id: String) -> Result<Vec<String>, String> {
     let cmd = format!("curl -s --max-time 2 {}/read", BRIDGE_URL);
-    let (_st, out) = crate::ssh::exec::ssh_exec(&id, &cmd)?;
+    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &cmd)?;
     Ok(out
         .lines()
         .map(|l| l.trim().to_string())

@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::VecDeque;
 use crate::error::AppError;
-use crate::ssh::client::{Session, ChanCmd};
+use crate::ssh_core::client::{Session, ChanCmd};
 use crate::storage;
 use crate::cmd::state::SESSIONS;
-use crate::state::AppState;
+use crate::state_core::AppState;
 
 #[tauri::command]
 pub async fn ssh_connect(
@@ -175,7 +175,7 @@ pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Re
       };
       if let Some(s) = map.get_mut(&id) {
         let arc = if let Some(existing) = s.sftp_cached.clone() { existing } else {
-          if let Ok((tcp, sess2)) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password) {
+          if let Ok((tcp, sess2)) = crate::ssh_core::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password) {
             let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess: sess2 }));
             s.sftp_cached = Some(arc.clone());
             arc

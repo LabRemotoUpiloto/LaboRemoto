@@ -6,7 +6,7 @@
 
 use std::sync::{Arc, Mutex};
 use crate::error::AppError;
-use crate::ssh::ssh2_sftp as sftp2;
+use crate::ssh_core::ssh2_sftp as sftp2;
 use crate::cmd::state::{SessionExt, CachedSsh2};
 
 pub mod operations;

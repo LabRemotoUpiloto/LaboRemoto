@@ -198,7 +198,7 @@ fn get_creds(session_id: &str) -> Result<(String, u16, String, String), String> 
 }
 
 fn run_ssh_exec(host: &str, port: u16, user: &str, password: &str, cmd: &str) -> Result<String, String> {
-    let (_tcp, sess) = crate::ssh::ssh2_sftp::connect_password(host, port, user, password)
+    let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(host, port, user, password)
         .map_err(|e| format!("SSH: {e}"))?;
     sess.set_blocking(true);
     sess.set_timeout(30_000);
@@ -217,7 +217,7 @@ fn run_ssh_exec(host: &str, port: u16, user: &str, password: &str, cmd: &str) ->
 }
 
 fn sftp_read(host: &str, port: u16, user: &str, password: &str, path: &str) -> Result<String, String> {
-    let (_tcp, sess) = crate::ssh::ssh2_sftp::connect_password(host, port, user, password)
+    let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(host, port, user, password)
         .map_err(|e| format!("SSH: {e}"))?;
     let sftp = sess.sftp().map_err(|e| format!("SFTP: {e}"))?;
     let mut f = sftp.open(std::path::Path::new(path)).map_err(|e| format!("open '{path}': {e}"))?;
@@ -231,7 +231,7 @@ fn sftp_read(host: &str, port: u16, user: &str, password: &str, path: &str) -> R
 }
 
 fn sftp_write(host: &str, port: u16, user: &str, password: &str, path: &str, data: &[u8]) -> Result<(), String> {
-    let (_tcp, sess) = crate::ssh::ssh2_sftp::connect_password(host, port, user, password)
+    let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(host, port, user, password)
         .map_err(|e| format!("SSH: {e}"))?;
     let sftp = sess.sftp().map_err(|e| format!("SFTP: {e}"))?;
     use std::io::Write;

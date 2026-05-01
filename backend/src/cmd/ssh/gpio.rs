@@ -17,7 +17,7 @@ fn get_or_connect_cached(id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
   if let Some(existing) = s.sftp_cached.clone() {
     Ok(existing)
   } else {
-    let (tcp, sess2) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
+    let (tcp, sess2) = crate::ssh_core::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
       .map_err(|e| e.to_string())?;
     let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess: sess2 }));
     s.sftp_cached = Some(arc.clone());

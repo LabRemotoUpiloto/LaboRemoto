@@ -17,7 +17,7 @@ fn sanitize_cd(path: &str) -> String {
 }
 
 fn get_or_connect_ssh2(id: &str) -> Result<std::sync::Arc<std::sync::Mutex<crate::cmd::state::CachedSsh2>>, String> {
-  use crate::ssh::ssh2_sftp; use std::sync::{Arc,Mutex};
+  use crate::ssh_core::ssh2_sftp; use std::sync::{Arc,Mutex};
   let mut map = SESSIONS.lock().map_err(|_| "lock sessions".to_string())?;
   if let Some(existing)=map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
   let (host,port,user,password) = { let s = map.get(id).ok_or("Sesión no encontrada")?; (s.host.clone(), s.port, s.user.clone(), s.password.clone()) };
