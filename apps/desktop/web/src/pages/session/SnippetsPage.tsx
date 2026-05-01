@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import ConfirmModal from '../components/modals/ConfirmModal';
-import SnippetsHeader from '../components/snippets/SnippetsHeader';
-import SnippetForm from '../components/snippets/SnippetForm';
-import SnippetsList from '../components/snippets/SnippetsList';
-import { useToasts } from '../contexts/ToastContext';
+import ConfirmModal from '../../components/modals/ConfirmModal';
+import SnippetsHeader from '../../components/snippets/SnippetsHeader';
+import SnippetForm from '../../components/snippets/SnippetForm';
+import SnippetsList from '../../components/snippets/SnippetsList';
+import { useToasts } from '../../contexts/ToastContext';
 import './SnippetsPage.css';
 
 /* -------------------------------------------------------------------------- */

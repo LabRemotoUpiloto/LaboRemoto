@@ -1,8 +1,8 @@
 import React from 'react'
 import TerminalView from '../terminal/TerminalView'
-import SftpPage from '../../pages/SftpPage'
-import SnippetsPage from '../../pages/SnippetsPage'
-import LogsPage from '../../pages/LogsPage'
+import SftpPage from '../../pages/session/SftpPage'
+import SnippetsPage from '../../pages/session/SnippetsPage'
+import LogsPage from '../../pages/session/LogsPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 

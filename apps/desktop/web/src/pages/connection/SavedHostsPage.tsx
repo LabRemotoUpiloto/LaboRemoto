@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listHostEntries, deleteHostFile } from '../api/storage'
+import { listHostEntries, deleteHostFile } from '../../api/storage'
 import './SavedHostsPage.css'
-import { useLoading } from '../contexts/LoadingContext'
-import SweetAlert from '../components/modals/SweetAlert'
-import { useToasts } from '../contexts/ToastContext'
-import DotsVerticalIcon from '../components/icons/DotsVerticalIcon'
+import { useLoading } from '../../contexts/LoadingContext'
+import SweetAlert from '../../components/modals/SweetAlert'
+import { useToasts } from '../../contexts/ToastContext'
+import DotsVerticalIcon from '../../components/icons/DotsVerticalIcon'
 
 type HostEntry = { file: string; payload: { host: string; port: number | string; user?: string; password?: string; name?: string } }
 

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react'
-import { useTheme } from '../contexts/ThemeContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import './ThemesPage.css'
 
 type ThemeCategory = 'dark' | 'light' | 'special'

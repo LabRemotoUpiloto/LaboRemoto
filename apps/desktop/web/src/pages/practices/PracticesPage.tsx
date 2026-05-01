@@ -5,8 +5,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import CategoryCard from '../components/practicas/CategoryCard';
-import PracticeCard from '../components/practicas/PracticeCard';
+import CategoryCard from '../../components/practicas/CategoryCard';
+import PracticeCard from '../../components/practicas/PracticeCard';
 import './PracticesPage.css';
 
 interface PanelConfig {
