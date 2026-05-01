@@ -131,7 +131,7 @@ fn env_get_cmds(vars: &HashMap<String, String>, key: &str) -> Vec<String> {
 fn load_practice_json(id: &str) -> (String, String) {
     let mut dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     loop {
-        let candidate = dir.join("practicas").join(format!("{}.json", id));
+        let candidate = dir.join("config").join("practicas").join(format!("{}.json", id));
         if candidate.exists() {
             if let Ok(content) = std::fs::read_to_string(&candidate) {
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
