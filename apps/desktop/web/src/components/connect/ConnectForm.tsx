@@ -70,6 +70,15 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             {props.quickHost && (
               <span className="connect-form__badge">
                 {props.quickHost.name || props.quickHost.host}
+                <button
+                  type="button"
+                  className="connect-form__badge-close"
+                  onClick={() => clearForm()}
+                  aria-label="Cambiar de host"
+                  title="Cambiar de host"
+                >
+                  ×
+                </button>
               </span>
             )}
             {!props.quickHost && props.recentConnection && isRaspberryPi() && (
@@ -80,8 +89,8 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
           </header>
 
           <div className="connect-form__fields">
-            {/* Host - Solo mostrar si NO es Raspberry Pi (desde quickHost o recentConnection) */}
-            {!isRaspberryPi() && (
+            {/* Host - oculto si hay quickHost seleccionado */}
+            {!props.quickHost && (
               <div className="connect-form__field">
                 <div className="connect-form__input-wrapper">
                   <input
@@ -105,8 +114,8 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
               </div>
             )}
 
-            {/* Port - Solo mostrar si NO es Raspberry Pi (desde quickHost o recentConnection) */}
-            {!isRaspberryPi() && (
+            {/* Port - oculto si hay quickHost seleccionado */}
+            {!props.quickHost && (
               <div className="connect-form__field">
                 <div className="connect-form__input-wrapper">
                   <input
