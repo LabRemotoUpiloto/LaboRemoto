@@ -4,9 +4,9 @@ use std::time::Duration;
 use sha2::{Sha256, Digest};
 use crate::security::SecurityManager;
 use crate::cmd::state::SESSIONS;
-use crate::cmd::search_shared::remote_search_ranked; // import para búsqueda remota compartida
-use crate::cmd::ai_utils::get_openai_api_key;
-use super::state::{SessionExt};
+use crate::cmd::tools::search_shared::remote_search_ranked; // import para búsqueda remota compartida
+use crate::cmd::ai::ai_utils::get_openai_api_key;
+use crate::cmd::state::SessionExt;
 use std::io::Read;
 use chrono; // ya está en Cargo.toml
 
@@ -137,7 +137,7 @@ fn unified_diff(old: &str, new: &str) -> String {
 
 // Utilidad SFTP (lectura/escritura) reintroducida
 fn get_sftp_for_session(session_id: &str) -> Result<ssh2::Sftp, String> {
-  use crate::ssh::ssh2_sftp as sftp2; use std::sync::{Arc, Mutex}; use super::state::CachedSsh2;
+  use crate::ssh::ssh2_sftp as sftp2; use std::sync::{Arc, Mutex}; use crate::cmd::state::CachedSsh2;
   fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
     if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
     let (host, port, user, password) = { let s = map.get(id).ok_or_else(|| "Sesión no encontrada".to_string())?; (s.host.clone(), s.port, s.user.clone(), s.password.clone()) };
@@ -201,7 +201,7 @@ pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEdi
   let original_sha = sha256_hex(&bytes);
   let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into());
   // Resolver endpoint y key: soporta OpenAI, Claude-via-OpenAI y OpenRouter
-  let (ai_url, ai_key_opt, is_openrouter) = crate::cmd::ai_utils::resolve_openai_endpoint(&model);
+  let (ai_url, ai_key_opt, is_openrouter) = crate::cmd::ai::ai_utils::resolve_openai_endpoint(&model);
   let api_key = ai_key_opt.ok_or_else(|| "No se encontró API key (OPENAI_API_KEY u OPENROUTER_API_KEY)".to_string())?;
   if std::env::var("FILE_AI_DEBUG").ok().as_deref() == Some("1") {
     let _ = (&model, &api_key);
@@ -260,7 +260,7 @@ pub fn analyze_file(path: String) -> Result<AnalyzeFileResponse, String> {
 fn sftp_read_file(session_id: &str, remote_path: &str) -> Result<Vec<u8>, String> {
   use crate::ssh::ssh2_sftp as sftp2;
   use std::sync::{Arc, Mutex};
-  use super::state::CachedSsh2;
+  use crate::cmd::state::CachedSsh2;
   // Reutilizar lógica de conexión de sftp.rs (simplificada aquí)
   fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
     if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
@@ -340,7 +340,7 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
   let summary_hint = if ai_only_mode { String::new() } else { format!("{} líneas", line_count) };
 
   // Carga .env temprana para garantizar lectura de API keys
-  use crate::cmd::ai_utils::get_claude_api_key;
+  use crate::cmd::ai::ai_utils::get_claude_api_key;
   if get_openai_api_key().is_none() && get_claude_api_key().is_none() { let _ = dotenvy::dotenv(); }
   
   // Determinar si usaremos IA; FORCE_FILE_AI fuerza el intento.

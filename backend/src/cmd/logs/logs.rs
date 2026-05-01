@@ -44,8 +44,8 @@ fn build_session_html(metadata: &SessionLogMetadata, terminal_html: &str) -> Str
     } else {
         format!("{}s", duration)
     };
-    let template = include_str!("../templates/session_log.html")
-        .replace("__LOGO_BASE64__", include_str!("../templates/logo_base64.txt"));
+    let template = include_str!("../../templates/session_log.html")
+        .replace("__LOGO_BASE64__", include_str!("../../templates/logo_base64.txt"));
     template
         .replace("{session_id}", &metadata.session_id)
         .replace("{user}", &metadata.user)

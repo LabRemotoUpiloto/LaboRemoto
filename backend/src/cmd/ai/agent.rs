@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use std::{path::{Path, PathBuf}, fs, time::{Instant, Duration}};
-use crate::cmd::search_shared::remote_search_ranked; // reutilizar búsqueda remota compartida
+use crate::cmd::tools::search_shared::remote_search_ranked; // reutilizar búsqueda remota compartida
 // (timeout import removed; not currently used)
 
 // Acceso a sesiones SSH para modo remoto

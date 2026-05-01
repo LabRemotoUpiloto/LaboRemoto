@@ -5,7 +5,7 @@ use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
-use super::state::LocalEntry;
+use crate::cmd::state::LocalEntry;
 
 #[tauri::command]
 pub async fn local_home_dir() -> Result<String, String> {

@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose, Engine as _};
 use std::fs;
-use crate::cmd::logs::{STORAGE, LogStorage};
+use crate::cmd::logs::logs::{STORAGE, LogStorage};
 
 #[tauri::command]
 pub async fn save_pdf_base64(session_log_id: String, base64_data: String) -> Result<String, String> {
