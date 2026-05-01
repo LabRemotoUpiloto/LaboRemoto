@@ -1,7 +1,3 @@
-//! Backend SFTP basado en ssh2/libssh2, ejecutado en hilos bloqueantes.
-//! Notas:
-//! - Se mantiene una conexión TCP y una sesión ssh2::Session por cada sesión SSH activa.
-//! - Las llamadas SFTP se ejecutan con tokio::task::spawn_blocking para no bloquear el runtime.
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
