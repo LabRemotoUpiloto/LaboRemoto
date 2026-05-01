@@ -11,8 +11,6 @@ pub struct RusshClient;
 impl client::Handler for RusshClient {
     type Error = anyhow::Error;
 
-    /// ⚠️ MVP: aceptar SIEMPRE la host key del servidor (sin known_hosts).
-    /// En russh 0.50.x este método NO es async: devuelve un Future.
     fn check_server_key(
         &mut self,
         _server_public_key: &russh::keys::PublicKey,
@@ -28,18 +26,15 @@ pub enum ChanCmd {
     Close,
 }
 
-/// Sesión de alto nivel (no guarda el Channel; expone un TX para comandos).
 pub struct Session {
-    /// Handle compartible: Arc<Mutex<...>> permite clonar y pasar a tasks para
-    /// abrir canales adicionales (direct-tcpip para port-forward) sin nuevo handshake.
+
     pub handle: Arc<Mutex<Handle<RusshClient>>>,
     pub tx: mpsc::UnboundedSender<ChanCmd>,
     pub resolved_addr: std::net::SocketAddr,
 }
 
 impl Session {
-    /// Conecta, autentica, abre PTY+shell y lanza la tarea propietaria del canal.
-    /// Devuelve: (Session, rx_out) por donde llegan bytes de salida.
+
     pub async fn connect_password(
         host: &str,
         port: u16,
