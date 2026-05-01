@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use crate::cmd::state::SESSIONS;
-use crate::cmd::ai_utils::get_claude_api_key;
+use crate::cmd::ai::ai_utils::get_claude_api_key;
 
 // ─── Resultado de una tool ────────────────────────────────────────────────────
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -69,7 +69,7 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
         "get_terminal_output"  => tool_get_terminal_output(session_id, input),
         other => {
             // Intentar resolverlo como tool MCP registrada
-            if let Some((output, ok)) = crate::cmd::mcp_client::exec_mcp_call(other, input) {
+            if let Some((output, ok)) = crate::cmd::integration::mcp_client::exec_mcp_call(other, input) {
                 ToolResult { tool: other.to_string(), output, ok }
             } else {
                 ToolResult { tool: other.to_string(), output: format!("Tool desconocida: {other}"), ok: false }
@@ -352,7 +352,7 @@ pub async fn agent_chat(req: AgentChatRequest) -> Result<AgentChatResponse, Stri
 
     // Construir lista de tools: built-in + MCP (cargadas desde caché en disco)
     let mut all_tools = tool_definitions();
-    let mcp_defs = crate::cmd::mcp_client::load_mcp_tool_defs();
+    let mcp_defs = crate::cmd::integration::mcp_client::load_mcp_tool_defs();
     if let Some(arr) = all_tools.as_array_mut() {
         arr.extend(mcp_defs);
     }

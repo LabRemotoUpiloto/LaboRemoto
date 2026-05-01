@@ -271,7 +271,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   let is_claude = model_id.starts_with("claude") && !model_id.contains('/');
 
   // Auto-detectar OpenRouter: si el modelo tiene "/" y hay OPENROUTER_API_KEY, enrutar automáticamente
-  let or_key = crate::cmd::ai_utils::get_openrouter_api_key();
+  let or_key = super::ai_utils::get_openrouter_api_key();
   let (proxy_url, proxy_auth) = if proxy_url.is_none() && model_id.contains('/') && or_key.is_some() {
     (Some("https://openrouter.ai/api/v1/chat/completions".to_string()), or_key)
   } else {
@@ -281,9 +281,9 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   // Determinar qué API key usar según el modelo seleccionado
   let api_key = if proxy_url.is_none() {
     if is_claude {
-      crate::cmd::ai_utils::get_claude_api_key()
+      super::ai_utils::get_claude_api_key()
     } else {
-      crate::cmd::ai_utils::get_openai_api_key()
+      super::ai_utils::get_openai_api_key()
     }
   } else { 
     None 
@@ -454,7 +454,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   // Inyectar contexto de terminal si está disponible (comprimido para ahorrar tokens)
   if let Some(ref ctx) = terminal_context {
     if !ctx.trim().is_empty() {
-      let compressed = crate::cmd::ai_utils::compress_terminal_context(ctx);
+      let compressed = super::ai_utils::compress_terminal_context(ctx);
       if !compressed.is_empty() {
         messages.push(serde_json::json!({
           "role": "system",
