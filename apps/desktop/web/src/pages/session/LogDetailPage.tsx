@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import type { SessionLog } from '../components/logs/SessionCard'
-import { getSessionLogContent } from '../api/sessionCapture'
+import type { SessionLog } from '../../components/logs/SessionCard'
+import { getSessionLogContent } from '../../api/sessionCapture'
 import { invoke } from '@tauri-apps/api/core'
-import { useToasts } from '../contexts/ToastContext'
+import { useToasts } from '../../contexts/ToastContext'
 import './LogsPage.css'
 import html2pdf from 'html2pdf.js'
-import { extractValidCommands, buildCommandsReportHtml } from '../utils/commandParser'
+import { extractValidCommands, buildCommandsReportHtml } from '../../utils/commandParser'
 
 interface LogDetailPageProps {
   session: SessionLog

@@ -1,6 +1,6 @@
 // Página de inicio/bienvenida para el cliente SSH inteligente
 import React from 'react';
-import { useTour } from '../tour';
+import { useTour } from '../../tour';
 import './LandingPage.css';
 
 interface LandingPageProps {

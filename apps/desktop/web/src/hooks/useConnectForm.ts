@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useLoading } from "../contexts/LoadingContext";
 import { useToasts } from "../contexts/ToastContext";
 import type { ConnectFormProps } from "../components/connect/ConnectForm";
+import { isRaspberryPi4, getDeviceLabel } from "../constants/devices";
+import { sshConnect } from "../services/ssh.service";
+import { saveHostWithMaster, deleteHostFile } from "../services/storage.service";
 
 type FieldError = {
   host?: string;
@@ -38,17 +40,10 @@ export function useConnectForm({
   const [isPulsing, setIsPulsing] = useState(false);
   const [connectionAbortController, setConnectionAbortController] = useState<AbortController | null>(null);
 
-  const isRaspberryPi = useCallback(() => {
-    if (quickHost?.host === "200.115.181.211" && quickHost?.port === 9000) {
-      return true;
-    }
-    if (recentConnection?.host === "200.115.181.211" && recentConnection?.port === 9000) {
-      return true;
-    }
-    if (host === "200.115.181.211" && port === "9000") {
-      return true;
-    }
-    return false;
+  const isRaspberryPiConnection = useCallback(() => {
+    const h = quickHost?.host ?? recentConnection?.host ?? host;
+    const p = quickHost?.port ?? recentConnection?.port ?? Number(port);
+    return isRaspberryPi4(h, p);
   }, [quickHost, recentConnection, host, port]);
 
   const triggerPulse = useCallback(() => {
@@ -179,8 +174,7 @@ export function useConnectForm({
     const safePort = parsedPort > 0 && parsedPort <= 65535 ? parsedPort : 22;
     const exists = recentConnections.some(conn => conn.host === host.trim() && conn.port === safePort && conn.user === user.trim());
     if (exists) {
-      const isRaspberryPiConnection = host.trim() === "200.115.181.211" && safePort === 9000;
-      const displayInfo = isRaspberryPiConnection ? `${user.trim()}@Raspberry Pi 4` : `${user.trim()}@${host.trim()}:${safePort}`;
+      const displayInfo = getDeviceLabel(host.trim(), safePort, user.trim());
       push({ type: "info", message: `Ya te has conectado a ${displayInfo} anteriormente` });
     }
     return exists;
@@ -206,9 +200,8 @@ export function useConnectForm({
     const size = getTermSize ? getTermSize() : { cols: 80, rows: 24 };
     const abortController = new AbortController();
     setConnectionAbortController(abortController);
-    const isRaspberryPiConn = host.trim() === "200.115.181.211" && port.trim() === "9000";
-    const displayName = isRaspberryPiConn ? "Raspberry Pi 4" : host.trim();
-    const loadingMessage = isRaspberryPiConn ? "Conectando a Raspberry Pi 4..." : `Conectando a ${host}...`;
+    const displayName = getDeviceLabel(host.trim(), safePort);
+    const loadingMessage = `Conectando a ${displayName}...`;
     let unlistenSuccess: any = null;
     let unlistenError: any = null;
     let timeoutId: any = null;
@@ -254,13 +247,13 @@ export function useConnectForm({
         }
       }, 30000);
       await new Promise(resolve => setTimeout(resolve, 100));
-      const id = await invoke<string>("ssh_connect", {
+      const id = await sshConnect({
         host: host.trim(),
         port: safePort,
         user: user.trim(),
         password,
         cols: size.cols,
-        rows: size.rows
+        rows: size.rows,
       });
       if (abortController.signal.aborted) {
         if (timeoutId) clearTimeout(timeoutId);
@@ -298,7 +291,7 @@ export function useConnectForm({
     const safePort = parsedPort > 0 && parsedPort <= 65535 ? parsedPort : 22;
     const newHostId = `${host.trim()}:${safePort}:${user.trim()}`;
     try {
-      const { saveHostWithMaster, deleteHostFile } = await import("../api/storage");
+      const { saveHostWithMaster: save, deleteHostFile: del } = await import("../services/storage.service");
       const payload = {
         host: host.trim(),
         port: safePort,
@@ -307,20 +300,14 @@ export function useConnectForm({
         name: name.trim() || undefined
       };
       if (isEditMode && originalHostFile && originalHostFile !== newHostId) {
-        try {
-          await deleteHostFile(originalHostFile);
-        } catch {
-        }
+        try { await del(originalHostFile); } catch { }
       }
-      await saveHostWithMaster(newHostId, payload as any);
+      await save(newHostId, payload);
       setSaveModalOpen(false);
       setSuccessAlertMessage(isEditMode ? "Host editado correctamente" : "Host guardado correctamente");
       setSuccessAlertOpen(true);
-      if (isEditMode) {
-        setIsEditMode(false);
-        setOriginalHostFile(null);
-      }
-    } catch (e: any) {
+      if (isEditMode) { setIsEditMode(false); setOriginalHostFile(null); }
+    } catch {
       push({ type: "error", message: "Error guardando host" });
     }
   };
@@ -358,7 +345,7 @@ export function useConnectForm({
     errors,
     isConnecting,
     isPulsing,
-    isRaspberryPi,
+    isRaspberryPi: isRaspberryPiConnection,
     saveModalOpen,
     setSaveModalOpen,
     successAlertOpen,
