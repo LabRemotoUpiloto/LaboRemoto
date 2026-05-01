@@ -6,46 +6,9 @@
 //!
 //! Ver `docs/arduino_domotica.md` para instalación en la Pi.
 
-use crate::error::AppError;
 use serde::{Deserialize, Serialize};
-use std::io::Read;
-
-use super::state::SESSIONS;
 
 const BRIDGE_URL: &str = "http://127.0.0.1:8765";
-
-/// Devuelve o crea la sesión ssh2 cacheada (misma lógica que `rpi_pins_status`).
-fn acquire_ssh2(id: &str) -> Result<std::sync::Arc<std::sync::Mutex<crate::cmd::state::CachedSsh2>>, String> {
-    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let s = map
-        .get_mut(id)
-        .ok_or_else(|| AppError::NotFoundSession.to_string())?;
-    if let Some(existing) = s.sftp_cached.clone() {
-        Ok(existing)
-    } else {
-        let (tcp, sess2) = crate::ssh::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
-            .map_err(|e| e.to_string())?;
-        let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 {
-            tcp,
-            sess: sess2,
-        }));
-        s.sftp_cached = Some(arc.clone());
-        Ok(arc)
-    }
-}
-
-/// Ejecuta un comando shell en la Pi y devuelve (exit_code, stdout).
-fn ssh_exec(id: &str, cmd: &str) -> Result<(i32, String), String> {
-    let arc = acquire_ssh2(id)?;
-    let guard = arc.lock().map_err(|_| "ssh2 lock poisoned")?;
-    let mut ch = guard.sess.channel_session().map_err(|e| e.to_string())?;
-    ch.exec(cmd).map_err(|e| e.to_string())?;
-    let mut buf = String::new();
-    let _ = ch.read_to_string(&mut buf);
-    let _ = ch.wait_close();
-    let status = ch.exit_status().unwrap_or(0);
-    Ok((status, buf))
-}
 
 /// Escapa un argumento para uso seguro dentro de comillas simples en bash.
 /// Convierte cada `'` en `'\''` y envuelve todo en comillas simples.
@@ -76,7 +39,7 @@ pub struct ArduinoBridgeStatus {
 #[tauri::command]
 pub async fn arduino_bridge_status(id: String) -> Result<ArduinoBridgeStatus, String> {
     let cmd = format!("curl -s --max-time 2 {}/status", BRIDGE_URL);
-    let (_st, out) = ssh_exec(&id, &cmd)?;
+    let (_st, out) = crate::ssh::exec::ssh_exec(&id, &cmd)?;
     let body = out.trim();
     if body.is_empty() {
         return Ok(ArduinoBridgeStatus {
@@ -122,7 +85,7 @@ pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdRespo
         "curl -s --max-time 5 -X POST -o - -w '\\n\\t%{{http_code}}' {}/cmd -d {}",
         BRIDGE_URL, quoted
     );
-    let (_st, out) = ssh_exec(&id, &shell)?;
+    let (_st, out) = crate::ssh::exec::ssh_exec(&id, &shell)?;
 
     // Separar el código HTTP (última línea) del body.
     let (body, code) = match out.rsplit_once("\n\t") {
@@ -150,7 +113,7 @@ pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdRespo
 #[tauri::command]
 pub async fn arduino_read_buffer(id: String) -> Result<Vec<String>, String> {
     let cmd = format!("curl -s --max-time 2 {}/read", BRIDGE_URL);
-    let (_st, out) = ssh_exec(&id, &cmd)?;
+    let (_st, out) = crate::ssh::exec::ssh_exec(&id, &cmd)?;
     Ok(out
         .lines()
         .map(|l| l.trim().to_string())

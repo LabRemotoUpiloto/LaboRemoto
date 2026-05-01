@@ -97,9 +97,9 @@ impl Drop for VncSessionState {
                 crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password)
             {
                 if is_virtual {
-                    let _ = crate::cmd::vnc::stop_vnc_server(&sess, display, vnc_port, &home_dir);
+                    let _ = crate::cmd::vnc::server::stop_vnc_server(&sess, display, vnc_port, &home_dir);
                 } else {
-                    let _ = crate::cmd::vnc::stop_vnc_server_real(&sess, vnc_port);
+                    let _ = crate::cmd::vnc::utils::stop_vnc_server_real(&sess, vnc_port);
                 }
                 // Limpiar archivo pendiente si se completó
                 let path = std::env::temp_dir().join(format!("vnc_pending_cleanup_{display}.json"));
@@ -139,7 +139,7 @@ pub fn run_pending_vnc_cleanups(sess: &Ssh2Session) {
              pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
         );
-        let _ = crate::cmd::vnc::run_remote_pub(sess, &cmd);
+        let _ = crate::ssh::exec::ssh_exec_session(sess, &cmd);
         let _ = std::fs::remove_file(&path);
     }
 }

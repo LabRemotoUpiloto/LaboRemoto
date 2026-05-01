@@ -1,6 +1,7 @@
 // Modularización de comandos Tauri.
-// Este módulo re-exporta todos los comandos para mantener la API pública estable
-// (cmd::nombre_funcion) mientras separa la implementación por dominios.
+// Cada submódulo expone sus propios comandos/funciones públicas;
+// lib.rs las consume explícitamente como cmd::<mod>::<item> para evitar
+// re-exports muertos y mantener el namespace limpio.
 
 pub mod state;   // Estado compartido entre comandos (sesiones SSH activas)
 pub mod ai;      // Chat con IA
@@ -22,17 +23,3 @@ pub mod practicas;   // Sistema de prácticas de laboratorio remoto
 pub mod moodle;      // Integración con Moodle LMS
 pub mod practice_validator; // Validador automático de prácticas
 pub mod arduino;     // Bridge HTTP → Serial para Arduino de domótica
-
-// Re-exportar comandos para no cambiar rutas usadas en lib.rs
-pub use ai::{ai_chat, AiChatRequest, AiChatResponse};
-pub use ssh::{ssh_connect, ssh_stdin, ssh_resize, ssh_disconnect, ssh_connect_stored};
-pub use sftp::*;
-pub use local::*;
-pub use hosts::*;
-pub use agent::{agent_plan, AgentPlanRequest, AgentPlanResponse, ToolActionResult, FsSearchMatch};
-pub use file_edit::{analyze_file, analyze_any_file, plan_file_edit, apply_file_edit, list_file_backups, revert_file, AnalyzeFileResponse, PlanFileEditRequest, PlanFileEditResponse, ApplyFileEditRequest, ApplyFileEditResponse, ListBackupsResponse, RevertFileRequest, RevertFileResponse, AiRemoteEditRequest, AiRemoteEditResponse, ai_remote_edit_file};
-pub use logs::{save_session_log, list_session_logs, get_session_log_content, get_session_log, delete_session_log, cleanup_old_session_logs};
-pub use logs::save_session_log_fragment;
-pub use pdf_reports::{save_pdf_base64};
-pub use stream::{stream_start, stream_stop, stream_list_cameras};
-pub use tools::{get_terminal_context, agent_chat, AgentChatResponse, plan_chat, PlanChatRequest};
