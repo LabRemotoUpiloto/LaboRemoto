@@ -1,5 +1,11 @@
-// cmd/practice_validator.rs — Validador automático de prácticas de laboratorio
-// Analiza el historial de comandos SSH para determinar si se cumplieron los objetivos
+//! cmd/practice_validator — Validador automático de prácticas de laboratorio
+//!
+//! Este módulo proporciona:
+//! - Validación de prácticas basada en el historial de comandos SSH
+//! - Reglas de validación configurables por práctica
+//! - Cálculo de calificaciones numéricas para Moodle
+//! - Feedback personalizado basado en los resultados
+//! - Tests unitarios para validación de reglas
 
 use serde::{Deserialize, Serialize};
 

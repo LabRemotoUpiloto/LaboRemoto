@@ -1,5 +1,13 @@
-/// Módulo de gestión de logs de sesión
-/// Diseñado con capa de abstracción (trait LogStorage) para facilitar migración futura a Azure SQL
+//! cmd/logs — Gestión de logs de sesión SSH
+//!
+//! Este módulo proporciona:
+//! - Almacenamiento de logs de sesión (HTML + metadatos)
+//! - Trait LogStorage para abstracción de almacenamiento (facilita migración a Azure SQL)
+//! - Implementación LocalFileLogStorage para almacenamiento en filesystem
+//! - Comandos Tauri para guardar, listar, obtener y eliminar logs
+//! - Conteo de comandos ejecutados en una sesión
+//! - Limpieza automática de logs antiguos (política de retención)
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;

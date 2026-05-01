@@ -1,5 +1,12 @@
-// cmd/practicas.rs — Módulo Rust para el sistema de prácticas de laboratorio.
-// Lee la configuración desde .env.practicas y expone comandos Tauri al frontend.
+//! cmd/practicas — Sistema de prácticas de laboratorio remoto
+//!
+//! Este módulo proporciona:
+//! - Configuración de prácticas desde .env.practicas
+//! - Categorías de prácticas (Eve3, Linux, Circuitos)
+//! - Comandos de setup pre-práctica (ej: levantar servidor del robot)
+//! - Configuración de terminal y paneles por práctica
+//! - Integración con Moodle (assignment IDs)
+//! - Contexto y tutoriales de chat AI por práctica
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
