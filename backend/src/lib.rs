@@ -2,10 +2,10 @@
 
 // Módulos públicos expuestos al resto de la app.
 pub mod error;   // Tipos de error compartidos
-pub mod ssh;     // Cliente SSH basado en russh (para terminal) + ssh2_sftp
+pub mod ssh_core; // Cliente SSH basado en russh (para terminal) + ssh2_sftp
 pub mod cmd;     // Comandos invocables desde el frontend (Tauri commands)
 pub mod storage; // Utilidades de almacenamiento cifrado de hosts
-pub mod state;   // Memoria efímera por sesión (AppState)
+pub mod state_core; // Memoria efímera por sesión (AppState)
 pub mod security; // Validaciones de seguridad y backups
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
@@ -34,8 +34,8 @@ pub fn run() {
   
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
-    .manage(crate::state::AppState::new())
-    .manage(crate::state::AiCancelRegistry::new())
+    .manage(crate::state_core::AppState::new())
+    .manage(crate::state_core::AiCancelRegistry::new())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .invoke_handler(tauri::generate_handler![
@@ -94,10 +94,10 @@ pub fn run() {
       cmd::state::hosts::list_hosts_files,
       cmd::state::hosts::delete_host_file,
       // Session ephemeral memory
-      crate::state::mem_put,
-      crate::state::mem_get,
-      crate::state::mem_clear,
-      crate::state::mem_push_terminal_result,
+      crate::state_core::mem_put,
+      crate::state_core::mem_get,
+      crate::state_core::mem_clear,
+      crate::state_core::mem_push_terminal_result,
       // Session logs (captura de buffers SSH)
       cmd::logs::logs::save_session_log,
       cmd::logs::logs::save_session_log_fragment,

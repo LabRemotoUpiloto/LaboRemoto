@@ -181,7 +181,7 @@ fn sse_extract_delta(data: &str, is_claude: bool) -> Option<String> {
 #[tauri::command]
 pub async fn ai_chat(
   app: tauri::AppHandle,
-  cancel_state: tauri::State<'_, crate::state::AiCancelRegistry>,
+  cancel_state: tauri::State<'_, crate::state_core::AiCancelRegistry>,
   req: AiChatRequest,
 ) -> Result<AiChatResponse, String> {
   use crate::security::SecurityManager;
@@ -1134,7 +1134,7 @@ fn force_load_single_env() {
 /// Cancela una petición ai_chat en curso por su request_id.
 #[tauri::command]
 pub async fn cancel_ai_chat(
-  cancel_state: tauri::State<'_, crate::state::AiCancelRegistry>,
+  cancel_state: tauri::State<'_, crate::state_core::AiCancelRegistry>,
   request_id: String,
 ) -> Result<(), String> {
   cancel_state.cancel(&request_id);

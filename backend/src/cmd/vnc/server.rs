@@ -1,4 +1,4 @@
-use crate::ssh::exec::ssh_exec_session;
+use crate::ssh_core::exec::ssh_exec_session;
 
 /// Inicia Xvfb + entorno gráfico + x11vnc en el display/puerto dados.
 pub(crate) fn start_vnc_server(
@@ -15,7 +15,7 @@ pub(crate) fn start_vnc_server(
         ),
     );
 
-    crate::ssh::exec::ssh_exec_session(
+    crate::ssh_core::exec::ssh_exec_session(
         sess,
         &format!(
             "nohup Xvfb :{display} -screen 0 {resolution}x24 -ac \

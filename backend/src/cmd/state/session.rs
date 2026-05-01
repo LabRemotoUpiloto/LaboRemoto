@@ -4,7 +4,7 @@ use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use ssh2::Session as Ssh2Session;
 
-use crate::ssh::client::Session;
+use crate::ssh_core::client::Session;
 
 // Envoltorio de sesión: terminal (russh) + credenciales para SFTP (ssh2)
 pub struct SessionExt {
@@ -99,7 +99,7 @@ impl Drop for VncSessionState {
         // 4. Intentar limpiar en background (puede no completarse si el proceso muere)
         std::thread::spawn(move || {
             if let Ok((_tcp, sess)) =
-                crate::ssh::ssh2_sftp::connect_password(&host, port, &user, &password)
+                crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
             {
                 if is_virtual {
                     let _ = crate::cmd::vnc::server::stop_vnc_server(&sess, display, vnc_port, &home_dir);
@@ -144,7 +144,7 @@ pub fn run_pending_vnc_cleanups(sess: &Ssh2Session) {
              pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
         );
-        let _ = crate::ssh::exec::ssh_exec_session(sess, &cmd);
+        let _ = crate::ssh_core::exec::ssh_exec_session(sess, &cmd);
         let _ = std::fs::remove_file(&path);
     }
 }

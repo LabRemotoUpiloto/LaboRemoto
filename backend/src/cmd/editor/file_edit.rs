@@ -137,7 +137,7 @@ fn unified_diff(old: &str, new: &str) -> String {
 
 // Utilidad SFTP (lectura/escritura) reintroducida
 fn get_sftp_for_session(session_id: &str) -> Result<ssh2::Sftp, String> {
-  use crate::ssh::ssh2_sftp as sftp2; use std::sync::{Arc, Mutex}; use crate::cmd::state::CachedSsh2;
+  use crate::ssh_core::ssh2_sftp as sftp2; use std::sync::{Arc, Mutex}; use crate::cmd::state::CachedSsh2;
   fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
     if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
     let (host, port, user, password) = { let s = map.get(id).ok_or_else(|| "Sesión no encontrada".to_string())?; (s.host.clone(), s.port, s.user.clone(), s.password.clone()) };
@@ -145,7 +145,7 @@ fn get_sftp_for_session(session_id: &str) -> Result<ssh2::Sftp, String> {
     let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess })); if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); } Ok(arc)
   }
   let mut map = SESSIONS.lock().map_err(|_| "Lock sessions".to_string())?; let cached = get_or_connect_cached(&mut map, session_id)?; let guard = cached.lock().map_err(|_| "Lock cached".to_string())?;
-  crate::ssh::ssh2_sftp::open_sftp(&guard.sess).map_err(|e| e.to_string())
+  crate::ssh_core::ssh2_sftp::open_sftp(&guard.sess).map_err(|e| e.to_string())
 }
 
 fn list_backups_internal(path: &Path) -> Vec<PathBuf> {
@@ -174,7 +174,7 @@ fn remote_backup_and_write(sftp: &ssh2::Sftp, path: &str, new_content: &str) -> 
       let file_name = p.file_name().and_then(|s| s.to_str()).ok_or("Nombre inválido")?;
       let backup_name = format!("{}.bak.{}", file_name, ts);
       let backup_abs = parent.join(&backup_name);
-      crate::ssh::ssh2_sftp::rename(sftp, path, backup_abs.to_str().ok_or("Utf8")?).map_err(|e| e.to_string())?;
+      crate::ssh_core::ssh2_sftp::rename(sftp, path, backup_abs.to_str().ok_or("Utf8")?).map_err(|e| e.to_string())?;
       Some(backup_abs.to_string_lossy().to_string())
     } else { None }
   } else { None };
@@ -258,7 +258,7 @@ pub fn analyze_file(path: String) -> Result<AnalyzeFileResponse, String> {
 }
 
 fn sftp_read_file(session_id: &str, remote_path: &str) -> Result<Vec<u8>, String> {
-  use crate::ssh::ssh2_sftp as sftp2;
+  use crate::ssh_core::ssh2_sftp as sftp2;
   use std::sync::{Arc, Mutex};
   use crate::cmd::state::CachedSsh2;
   // Reutilizar lógica de conexión de sftp.rs (simplificada aquí)

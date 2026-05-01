@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 
 use crate::error::AppError;
-use crate::ssh::ssh2_sftp as sftp2;
+use crate::ssh_core::ssh2_sftp as sftp2;
 use crate::cmd::state::{SESSIONS, TRANSFERS, SftpEntry, CachedSsh2};
 use super::get_or_connect_cached;
 
