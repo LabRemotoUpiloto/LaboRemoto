@@ -1,33 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import ConfirmModal from '../../components/modals/ConfirmModal';
 import SnippetsHeader from '../../components/snippets/SnippetsHeader';
 import SnippetForm from '../../components/snippets/SnippetForm';
 import SnippetsList from '../../components/snippets/SnippetsList';
 import { useToasts } from '../../contexts/ToastContext';
-import './SnippetsPage.css';
+import { modals } from '@mantine/modals';
+import { Text } from '@mantine/core';
 
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
 export interface UserSnippet {
   id: string;
   title: string;
   content: string;
   createdAt: number;
-  updatedAt?: number; // timestamp de última modificación
-  category?: string; // categoría del snippet
-  sessionId?: string; // optional association to a session
-  lastFileRef?: string; // path of file it came from (if any)
+  updatedAt?: number;
+  category?: string;
+  sessionId?: string;
+  lastFileRef?: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Constants                                                                  */
-/* -------------------------------------------------------------------------- */
 const STORAGE_KEY = 'user-snippets-v1';
 
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
 function loadStored(): UserSnippet[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -42,13 +33,7 @@ function saveStored(list: UserSnippet[]) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch {}
 }
 
-/* -------------------------------------------------------------------------- */
-/* Component                                                                  */
-/* -------------------------------------------------------------------------- */
-// Props vacíos: ya no dependemos de sesiones ni archivos
-interface SnippetsPageProps {}
-
-const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
+const SnippetsPage: React.FC = () => {
   const { push } = useToasts();
   const [snippets, setSnippets] = useState<UserSnippet[]>(() => loadStored());
   const [title, setTitle] = useState('');
@@ -58,11 +43,6 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'title' | 'updated'>('date');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; title: string }>({
-    open: false,
-    id: '',
-    title: '',
-  });
 
   const addSnippet = useCallback(() => {
     const t = title.trim();
@@ -71,7 +51,6 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
     if (!c) return;
 
     if (editingId) {
-      // Update existing snippet
       setSnippets(prev => {
         const next = prev.map(s => 
           s.id === editingId 
@@ -84,7 +63,6 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
       push({ type: 'success', message: 'Snippet actualizado' });
       setEditingId(null);
     } else {
-      // Create new snippet
       const sn: UserSnippet = {
         id: String(Date.now()) + Math.random().toString(36).slice(2,8),
         title: t || 'Sin título',
@@ -108,18 +86,24 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
   const deleteSnippet = (id: string) => {
     const snippet = snippets.find(s => s.id === id);
     if (!snippet) return;
-    setDeleteConfirm({ open: true, id, title: snippet.title });
-  };
-
-  const confirmDelete = () => {
-    const { id } = deleteConfirm;
-    setSnippets(prev => {
-      const next = prev.filter(s => s.id !== id);
-      saveStored(next);
-      return next;
+    
+    modals.openConfirmModal({
+      title: 'Eliminar snippet',
+      centered: true,
+      children: (
+        <Text size="sm">¿Eliminar el snippet <strong>"{snippet.title}"</strong>? Esta acción no se puede deshacer.</Text>
+      ),
+      labels: { confirm: 'Eliminar', cancel: 'Cancelar' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => {
+        setSnippets(prev => {
+          const next = prev.filter(s => s.id !== id);
+          saveStored(next);
+          return next;
+        });
+        push({ type: 'success', message: 'Snippet eliminado' });
+      }
     });
-    push({ type: 'success', message: 'Snippet eliminado' });
-    setDeleteConfirm({ open: false, id: '', title: '' });
   };
 
   const editSnippet = (snippet: UserSnippet) => {
@@ -148,17 +132,14 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
   const filteredAndSortedSnippets = useMemo(() => {
     const f = filter.trim().toLowerCase();
     
-    // Filter by search term (title AND content)
     let filtered = f 
       ? snippets.filter(s => (s.title.toLowerCase().includes(f) || s.content.toLowerCase().includes(f)))
       : snippets;
     
-    // Filter by category
     if (categoryFilter) {
       filtered = filtered.filter(s => s.category === categoryFilter);
     }
     
-    // Sort
     if (sortBy === 'date') {
       filtered = [...filtered].sort((a, b) => b.createdAt - a.createdAt);
     } else if (sortBy === 'updated') {
@@ -170,7 +151,6 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
     return filtered;
   }, [snippets, filter, categoryFilter, sortBy]);
   
-  // Get all unique categories
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
     snippets.forEach(s => {
@@ -179,14 +159,12 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
     return Array.from(cats).sort();
   }, [snippets]);
 
-  // Persist whenever list changes (already saved on add/delete but safe)
   useEffect(() => { saveStored(snippets); }, [snippets]);
 
   const editingSnippet = editingId ? snippets.find(s => s.id === editingId) : null;
 
   return (
-    <div className="snippets-page">
-      {/* Header fijo - Doble Header Minimalista */}
+    <div className="flex flex-col h-full bg-[#0a0a0a]">
       <SnippetsHeader
         totalCount={snippets.length}
         filteredCount={filteredAndSortedSnippets.length}
@@ -199,48 +177,40 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({}) => {
         onCategoryFilterChange={setCategoryFilter}
       />
 
-      {/* Contenido con scroll */}
-      <div className="snippets-page__scrollable">
-        <SnippetForm
-          title={title}
-          content={text}
-          category={category}
-          onTitleChange={setTitle}
-          onContentChange={setText}
-          onCategoryChange={setCategory}
-          onSave={addSnippet}
-          onClear={clearForm}
-          isEditing={!!editingId}
-          editingTitle={editingSnippet?.title || ''}
-        />
-
-        <div className="snippets-page__list-section">
-          <h2 className="snippets-page__list-title">
-            {(filter || categoryFilter) ? `Resultados (${filteredAndSortedSnippets.length})` : `Guardados (${snippets.length})`}
-          </h2>
-          
-          <SnippetsList
-            snippets={filteredAndSortedSnippets}
-            onCopy={copySnippet}
-            onEdit={editSnippet}
-            onDelete={deleteSnippet}
-            emptyMessage={
-              (filter || categoryFilter)
-                ? 'No se encontraron snippets con ese filtro.' 
-                : 'Aún no tienes snippets guardados. ¡Crea tu primer snippet arriba!'
-            }
+      <div className="flex-1 overflow-y-auto p-6 scroll-smooth custom-scrollbar">
+        <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
+          <SnippetForm
+            title={title}
+            content={text}
+            category={category}
+            onTitleChange={setTitle}
+            onContentChange={setText}
+            onCategoryChange={setCategory}
+            onSave={addSnippet}
+            onClear={clearForm}
+            isEditing={!!editingId}
+            editingTitle={editingSnippet?.title || ''}
           />
+
+          <section>
+            <h2 className="text-lg font-semibold mb-4 text-white/90">
+              {(filter || categoryFilter) ? `Resultados (${filteredAndSortedSnippets.length})` : `Guardados (${snippets.length})`}
+            </h2>
+            
+            <SnippetsList
+              snippets={filteredAndSortedSnippets}
+              onCopy={copySnippet}
+              onEdit={editSnippet}
+              onDelete={deleteSnippet}
+              emptyMessage={
+                (filter || categoryFilter)
+                  ? 'No se encontraron snippets con ese filtro.' 
+                  : 'Aún no tienes snippets guardados. ¡Crea tu primer snippet arriba!'
+              }
+            />
+          </section>
         </div>
       </div>
-
-      <ConfirmModal
-        open={deleteConfirm.open}
-        title="Eliminar snippet"
-        message={`¿Eliminar el snippet "${deleteConfirm.title}"? Esta acción no se puede deshacer.`}
-        onCancel={() => setDeleteConfirm({ open: false, id: '', title: '' })}
-        onConfirm={confirmDelete}
-        confirmLabel="Eliminar"
-      />
     </div>
   );
 };
