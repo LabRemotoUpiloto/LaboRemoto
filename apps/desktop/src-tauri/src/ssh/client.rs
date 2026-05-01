@@ -64,7 +64,12 @@ impl Session {
             .await?
         {
             client::AuthResult::Success => {}
-            other => return Err(anyhow::anyhow!("auth failed: {:?}", other)),
+            client::AuthResult::Failure { remaining_methods } => {
+                return Err(anyhow::anyhow!(
+                    "Autenticación fallida: usuario o contraseña incorrectos. Métodos disponibles: {:?}",
+                    remaining_methods
+                ));
+            }
         }
 
         // Sesión + PTY + shell

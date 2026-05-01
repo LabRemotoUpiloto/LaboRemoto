@@ -2,7 +2,6 @@
 // Analiza el historial de comandos SSH para determinar si se cumplieron los objetivos
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 // ─── Tipos para validación ───
 

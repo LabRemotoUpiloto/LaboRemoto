@@ -1,7 +1,3 @@
 dist-local
-docs
-scripts/
 public/icon.png
-.github/
-.md
-.sql
+*.sql

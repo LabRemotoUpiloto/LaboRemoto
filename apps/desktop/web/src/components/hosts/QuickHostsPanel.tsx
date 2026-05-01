@@ -10,7 +10,7 @@ export interface QuickHost {
 
 interface QuickHostsPanelProps {
   hosts?: QuickHost[];
-  onHostSelect: (host: QuickHost) => void;
+  onHostSelect: (host: QuickHost | null) => void;
   selectedHostId?: string | null;
   'data-tour'?: string;
 }
@@ -51,7 +51,11 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
   }, [hostsToShow]);
 
   const handleHostClick = (host: QuickHost) => {
-    onHostSelect(host);
+    if (selectedHostId === host.id) {
+      onHostSelect(null);
+    } else {
+      onHostSelect(host);
+    }
   };
 
   const scrollLeft = () => {

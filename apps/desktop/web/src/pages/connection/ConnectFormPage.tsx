@@ -28,10 +28,15 @@ const ConnectFormPage: React.FC<ConnectFormPageProps> = ({ onConnected, initialP
   const [activeQuickHost, setActiveQuickHost] = useState<QuickHost | null>(null);
   const [activeRecentConnection, setActiveRecentConnection] = useState<RecentConnection | null>(null);
 
-  const selectQuickHost = useCallback((host: QuickHost) => {
-    setSelectedHostId(host.id);
-    setActiveQuickHost(host);
-    setActiveRecentConnection(null);
+  const selectQuickHost = useCallback((host: QuickHost | null) => {
+    if (host) {
+      setSelectedHostId(host.id);
+      setActiveQuickHost(host);
+      setActiveRecentConnection(null);
+    } else {
+      setSelectedHostId(null);
+      setActiveQuickHost(null);
+    }
   }, []);
 
   const clearQuickHost = useCallback(() => {
