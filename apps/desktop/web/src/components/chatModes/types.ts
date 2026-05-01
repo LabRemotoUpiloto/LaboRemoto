@@ -52,6 +52,8 @@ export interface MessageMeta {
   attachedFileContent?: string;
   imagePreview?: string;
   chat_mode?: string;
+  toolSteps?: AgentStep[];
+  processed?: boolean;
 }
 
 export interface Message {
