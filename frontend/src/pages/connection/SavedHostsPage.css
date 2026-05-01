@@ -1,0 +1,365 @@
+/* ==================== KEYFRAMES ==================== */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ==================== LAYOUT ==================== */
+.saved-hosts-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--background-primary);
+  overflow: hidden;
+}
+
+/* ==================== GRID ==================== */
+.hosts-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  padding: 20px 24px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+/* stagger cards */
+.host-card:nth-child(1) { animation-delay: 0ms; }
+.host-card:nth-child(2) { animation-delay: 50ms; }
+.host-card:nth-child(3) { animation-delay: 100ms; }
+.host-card:nth-child(4) { animation-delay: 150ms; }
+.host-card:nth-child(5) { animation-delay: 200ms; }
+.host-card:nth-child(6) { animation-delay: 250ms; }
+.host-card:nth-child(n+7) { animation-delay: 300ms; }
+
+/* ==================== CARD ==================== */
+.host-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  /* overflow: hidden; remouved to prevent clipping the dropdown */
+  animation: cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.host-card.host-card-active {
+  z-index: 50; /* Ensure active card is above others */
+}
+
+.host-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+.host-card:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: 0.1s;
+}
+
+/* ==================== HEADER ==================== */
+.host-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 15px 15px 11px;
+  position: relative;
+  z-index: 10;
+}
+
+.host-card-left { flex-shrink: 0; }
+
+.host-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--background-tertiary));
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  flex-shrink: 0;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.host-card:hover .host-avatar {
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--background-tertiary));
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);
+}
+
+.host-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.host-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  opacity: 0.85;
+}
+
+.host-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.host-sub {
+  font-size: 10.5px;
+  color: var(--text-tertiary, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  line-height: 1.4;
+}
+
+/* ==================== MENU ==================== */
+.host-card-menu {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+  z-index: 2;
+}
+
+.host-menu-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary, #64748b);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  opacity: 0;
+}
+
+.host-card:hover .host-menu-btn,
+.host-menu-btn:focus-visible {
+  opacity: 1;
+}
+
+.host-menu-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--background-tertiary));
+  color: var(--text-primary);
+}
+
+.host-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 4px;
+  min-width: 140px;
+  z-index: 200;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  animation: fadeIn 0.12s ease-out;
+  backdrop-filter: blur(8px);
+}
+
+.host-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.host-dropdown-item:hover {
+  background: var(--background-tertiary);
+  color: var(--text-primary);
+}
+
+.host-dropdown-item-delete { color: #f87171; }
+
+.host-dropdown-item-delete:hover {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+  color: #fca5a5;
+}
+
+.host-dropdown-icon {
+  display: flex;
+  align-items: center;
+  opacity: 0.75;
+}
+
+/* ==================== DIVIDER ==================== */
+.host-card-divider {
+  height: 1px;
+  margin: 0 15px;
+  background: var(--border-subtle);
+  position: relative;
+  z-index: 1;
+}
+
+/* ==================== ACCIONES ==================== */
+.host-card-actions {
+  padding: 11px 15px 13px;
+  position: relative;
+  z-index: 1;
+}
+
+.btn-connect {
+  width: 100%;
+  padding: 7px 0;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-tertiary, #64748b);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-connect::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  transition: background 0.18s ease, opacity 0.18s ease;
+}
+
+.btn-connect:hover:not(:disabled) {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.btn-connect:hover:not(:disabled)::before {
+  background: #fff;
+  opacity: 1;
+  animation: pulse-dot 1s ease infinite;
+}
+
+.btn-connect:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ==================== EMPTY STATE ==================== */
+.hosts-empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 32px;
+  text-align: center;
+  background: color-mix(in srgb, var(--background-secondary) 40%, transparent);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 16px;
+  max-width: 560px;
+  margin: 40px auto;
+}
+
+.hosts-empty-icon {
+  color: var(--accent-primary);
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.hosts-empty-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.hosts-empty-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 28px 0;
+  max-width: 340px;
+}
+
+.btn-add-first-host {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent-primary);
+  color: #fff;
+  border: none;
+  padding: 9px 20px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent-primary) 35%, transparent);
+}
+
+.btn-add-first-host:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-add-first-host:active { transform: translateY(0); }
+
+.btn-add-first-host svg { transition: transform 0.2s ease; }
+.btn-add-first-host:hover svg { transform: rotate(90deg); }
+
+@media (max-width: 480px) {
+  .hosts-grid { grid-template-columns: 1fr; padding: 14px; }
+  .hosts-empty-state { padding: 40px 20px; margin: 16px; }
+}

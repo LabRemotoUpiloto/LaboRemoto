@@ -1,0 +1,250 @@
+/* ==================== LAYOUT PRINCIPAL ==================== */
+.themes-page {
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.themes-page__scrollable {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  scroll-behavior: smooth;
+}
+
+.themes-page-inner {
+  padding: 24px 28px 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ==================== CATEGORÍAS ==================== */
+.theme-category {
+  margin-bottom: 40px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.category-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.category-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: var(--background-secondary);
+  color: var(--accent-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.category-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.category-count {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  background: var(--background-secondary);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ==================== GRID DE TEMAS ==================== */
+.themes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* ==================== TARJETA DE TEMA ==================== */
+.theme-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.2, 0, 0.2, 1),
+    border-color 0.2s ease;
+}
+
+.theme-card:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.theme-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  border-color: var(--border-strong);
+}
+
+.theme-card.active {
+  border-color: var(--accent-primary);
+  border-width: 2px;
+}
+
+.theme-card.active:hover {
+  border-color: var(--accent-primary);
+}
+
+/* Previsualización del Tema */
+.preview {
+  height: 110px;
+  width: 100%;
+  background: var(--background-tertiary);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,0.18) 100%);
+  pointer-events: none;
+}
+
+/* Indicador Activo */
+.active-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: var(--accent-primary);
+  color: var(--background-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  animation: scaleIn 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  z-index: 5;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* Swatches para temas especiales */
+.swatches {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+}
+
+.sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Metadatos del Tema */
+.meta {
+  padding: 11px 14px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.meta-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta-description {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==================== PREVIEWS ESPECÍFICAS ==================== */
+.preview.default        { background: linear-gradient(135deg, #1e293b, #0f172a); }
+.preview.dracula        { background: linear-gradient(135deg, #44475a, #282a36); }
+.preview.crimson-gold   { background: linear-gradient(135deg, #450a0a, #1a0f0f); }
+.preview.obsidian-rose  { background: linear-gradient(135deg, #1c0a0a, #0a0505); }
+.preview.aurora-coral   { background: linear-gradient(135deg, #2a1f1a, #1a1512); }
+.preview.electric-indigo{ background: linear-gradient(135deg, #1e1b4b, #0f0a1a); }
+.preview.amber-night    { background: linear-gradient(135deg, #2d241d, #120d0a); }
+.preview.oceanic-teal   { background: linear-gradient(135deg, #134e4a, #0a1a1a); }
+.preview.toxic-lime     { background: linear-gradient(135deg, #1a2e05, #0a1205); }
+.preview.violet-ember   { background: linear-gradient(135deg, #2e1065, #120a1a); }
+.preview.metro-gray     { background: linear-gradient(135deg, #334155, #1a1a1a); }
+
+.preview.light          { background: linear-gradient(135deg, #f8fafc, #ffffff); }
+.preview.lavender-dream { background: linear-gradient(135deg, #f5f3ff, #ede9fe); }
+.preview.polar-mint     { background: linear-gradient(135deg, #f0fdf4, #dcfce7); }
+.preview.peachy-sunrise { background: linear-gradient(135deg, #fff7ed, #ffedd5); }
+.preview.sakura-blush   { background: linear-gradient(135deg, #fff1f2, #ffe4e6); }
+.preview.rose-quartz    { background: linear-gradient(135deg, #fff1f2, #fce7f3); }
+.preview.silver-cloud   { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); }
+
+.preview.sunburst-rainbow { background: linear-gradient(45deg, #ff4b6b, #ff8b3b, #ffd56b, #6bff8b, #6bd7ff); }
+.preview.bold-rainbow     { background: linear-gradient(45deg, #ff0080, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff); }
+.preview.pastel-dream     { background: linear-gradient(45deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff); }
+.preview.fc-barcelona     { background: linear-gradient(45deg, #004d98, #a50044, #edbb00); }
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 900px) {
+  .themes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 580px) {
+  .themes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .themes-page-inner { padding: 18px 16px 32px; }
+  .category-header::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-card { transition: none; }
+  .theme-card:hover { transform: none; }
+  .active-indicator { animation: none; }
+}

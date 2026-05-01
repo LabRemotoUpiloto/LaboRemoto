@@ -1,0 +1,187 @@
+/* ==================== SNIPPET CARD ==================== */
+.snippet-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.snippet-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Header */
+.snippet-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.snippet-card__header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.snippet-card__title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-card__category {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  background: var(--accent-primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  width: fit-content;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-card__date {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Body */
+.snippet-card__body {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--background-tertiary);
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  border: 1px solid var(--border-subtle);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.snippet-card__body code {
+  font-family: var(--terminal-font-family, 'Consolas', 'Monaco', monospace);
+  color: var(--text-primary);
+  line-height: 1.5;
+  display: block;
+}
+
+.snippet-card__body code.hljs {
+  background: transparent;
+  padding: 0;
+}
+
+/* Scrollbar */
+.snippet-card__body::-webkit-scrollbar { width: 6px; height: 6px; }
+.snippet-card__body::-webkit-scrollbar-track { background: transparent; }
+.snippet-card__body::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+.snippet-card__body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Actions */
+.snippet-card__actions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.snippet-card__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  font-family: inherit;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.snippet-card__btn:hover {
+  background: var(--interactive-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.snippet-card__btn:active { transform: scale(0.96); }
+
+.snippet-card__btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.snippet-card__btn-icon {
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+.snippet-card__btn-icon svg { display: block; }
+
+/* Button variants */
+.snippet-card__btn--copy:hover {
+  border-color: var(--info-border);
+  color: var(--info-text);
+  background: var(--info-bg);
+}
+
+.snippet-card__btn--edit:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  color: var(--accent-primary);
+  background: var(--accent-primary-subtle);
+}
+
+.snippet-card__btn--delete {
+  background: transparent;
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+.snippet-card__btn--delete:hover {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snippet-card { transition: none; }
+  .snippet-card:hover { transform: none; }
+  .snippet-card__btn { transition: none; }
+}
