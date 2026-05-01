@@ -1,5 +1,12 @@
-// cmd/moodle.rs — Cliente de API de Moodle para integración con el sistema de prácticas
-// Maneja la sincronización de tareas, verificación de entregas y envío de calificaciones
+//! cmd/moodle — Cliente de API de Moodle para integración con el sistema de prácticas
+//!
+//! Este módulo proporciona:
+//! - Cliente de API REST de Moodle (webservice)
+//! - Sincronización de tareas (assignments)
+//! - Verificación de entregas de estudiantes
+//! - Envío de calificaciones (requiere token con permisos de profesor)
+//! - Gestión de usuarios por username
+//! - Manejo de errores y permisos de Moodle
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
