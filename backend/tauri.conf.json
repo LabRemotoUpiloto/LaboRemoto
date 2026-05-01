@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Cliente SSH Unipiloto",
+  "version": "0.1.6",
+  "identifier": "co.unipiloto.sshclient",
+  "build": {
+    "frontendDist": "../frontend/dist",
+    "devUrl": "http://localhost:5174",
+    "beforeDevCommand": "npm run dev --prefix ../frontend",
+    "beforeBuildCommand": "npm run build --prefix ../frontend"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Cliente SSH Unipiloto",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "decorations": true,
+        "maximized": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "active": true,
+    "targets": ["nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Haider2231/Cliente-Rust/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2MzQ0QzE0RTUyQzI4NzIKUldSeUtDemxGRXcwaG1pOXFoQXhMSHRzdUVpazQ2Q0F3bnNpakFLSnRHOG1lNmduZVBnaTMrVzYK"
+    }
+  }
+}
+
+
+
+
+
+
