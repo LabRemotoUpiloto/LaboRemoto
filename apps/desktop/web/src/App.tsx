@@ -1,409 +1,147 @@
-// App raíz: manejo de pestañas (Inicio persistente + sesiones) y navegación lateral.
-import React, { useEffect, useState, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { emit } from '@tauri-apps/api/event'
+// App raíz: providers, layout shell y orquestación de hooks de alto nivel.
+import React, { useEffect, useRef, useState } from 'react'
 import './App.css'
+
+// Layout
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
-import TerminalView from './components/terminal/TerminalView'
-import TerminalOnly from './components/terminal/TerminalOnly'
-import ConnectForm from './components/connect/ConnectForm'
-import SavedHostsPage from './pages/SavedHostsPage'
-import ConnectFormPage from './pages/ConnectFormPage'
-import LandingPage from './pages/LandingPage'
-import LogsPage from './pages/LogsPage'
-import LogDetailPage from './pages/LogDetailPage'
-import { LoadingProvider } from './contexts/LoadingContext'
-import GlobalLoader from './components/modals/GlobalLoader'
-import { ToastProvider } from './contexts/ToastContext'
-import ToastContainer from './components/modals/ToastContainer'
-import { ThemeProvider } from './contexts/ThemeContext'
-import ThemesPage from './pages/ThemesPage'
-import SftpPage from './pages/SftpPage'
-import SnippetsPage from './pages/SnippetsPage'
-import ConfirmModal from './components/modals/ConfirmModal'
-import ChatPane from './components/ChatPane'
-import PinsPanel from './components/raspberry/PinsPanel'
-import DomoticaPanel from './components/arduino/DomoticaPanel'
-import { check } from '@tauri-apps/plugin-updater'
-import { relaunch } from '@tauri-apps/plugin-process'
-import { useAppTabs, HOME_TAB_ID } from './hooks/useAppTabs'
 import HomeContainer from './components/layout/HomeContainer'
 import SessionContainer from './components/layout/SessionContainer'
 import LogTabsContainer from './components/layout/LogTabsContainer'
-// Sin autenticación
 
-function AppContent() { return <AppMain /> }
+// Panels & Modals
+import SidePanel from './components/shared/SidePanel'
+import PinsPanel from './components/raspberry/PinsPanel'
+import DomoticaPanel from './components/arduino/DomoticaPanel'
+import GlobalLoader from './components/modals/GlobalLoader'
+import ToastContainer from './components/modals/ToastContainer'
+import ConfirmModal from './components/modals/ConfirmModal'
 
-type PracticeLaunchStudent = {
-  id: number
-  username: string
-  fullname: string
-  email: string
-}
+// Contexts
+import { LoadingProvider } from './contexts/LoadingContext'
+import { ToastProvider } from './contexts/ToastContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 
-type PracticeLaunchPayload = {
-  practice: any
-  student: PracticeLaunchStudent
-}
+// Hooks de orquestación
+import { useAppTabs, HOME_TAB_ID } from './hooks/useAppTabs'
+import { useUpdateCheck } from './hooks/useUpdateCheck'
+import { useSidePanels } from './hooks/useSidePanels'
+import { useTabLifecycle } from './hooks/useTabLifecycle'
+import { usePracticeSession } from './hooks/usePracticeSession'
 
 const AppMain: React.FC = () => {
   const appContainerRef = useRef<HTMLDivElement>(null)
 
+  // ── Tabs y navegación ────────────────────────────────────────────────────────
   const {
-    tabs,
-    activeTabId,
-    setActiveTabId,
-    isSidebarOpen,
-    setIsSidebarOpen,
-    sessionMeta,
-    setSessionMeta,
-    pendingHost,
-    setPendingHost,
-    selectedPage,
-    activeTab,
-    openSession,
-    closeTab,
-    handleNewSession,
-    openLogTab,
-    // Dual-header panel state
-    openPanels,
-    activePanel,
-    openPanel,
-    closePanel: closePanelTab,
-    activeView,
-    setActiveView,
-    isChatOpen,
-    setIsChatOpen,
-    reorderTabs,
-    reorderPanels,
+    tabs, activeTabId, setActiveTabId,
+    isSidebarOpen, setIsSidebarOpen,
+    sessionMeta, setSessionMeta,
+    pendingHost, setPendingHost,
+    selectedPage, activeTab,
+    openSession, closeTab,
+    handleNewSession, openLogTab,
+    openPanels, activePanel,
+    openPanel, closePanel: closePanelTab,
+    activeView, setActiveView,
+    isChatOpen, setIsChatOpen,
+    reorderTabs, reorderPanels,
   } = useAppTabs()
-  const [updateInfo, setUpdateInfo] = useState<null | { version: string; notes?: string }>(null)
-  const [updating, setUpdating] = useState(false)
-  const [isCameraOpen, setCameraOpen] = useState(false)
-  const [isPinsPanelOpen, setPinsPanelOpen] = useState(false)
-  const [isDomoticaPanelOpen, setDomoticaPanelOpen] = useState(false)
+
+  // ── Actualizaciones ──────────────────────────────────────────────────────────
+  const { updateInfo, updating, confirmInstallUpdate, dismissUpdate } = useUpdateCheck()
+
+  // ── Paneles laterales ────────────────────────────────────────────────────────
+  const {
+    isPinsPanelOpen, isCameraOpen, isDomoticaPanelOpen,
+    togglePinsPanel, closePinsPanel,
+    toggleCameraPanel,
+    toggleDomoticaPanel, closeDomoticaPanel,
+    closeAllPanels,
+  } = useSidePanels()
+
+  // ── Estado local residual ────────────────────────────────────────────────────
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
-  // Estado para preservar paths de SFTP por sesión entre cambios de tab
   const [sftpPaths, setSftpPaths] = useState<Record<string, string>>({})
-  const [practiceMeta, setPracticeMeta] = useState<Record<string, { practiceId: string; assignmentId?: number; student: PracticeLaunchStudent }>>({})
+
+  // ── Prácticas de laboratorio ─────────────────────────────────────────────────
+  const { practiceMeta, handleStartPractice, clearPracticeMeta } = usePracticeSession({
+    onNewSession: handleNewSession,
+    setCameraOpen: (open) => open ? toggleCameraPanel() : undefined,
+    setChatOpen: setIsChatOpen,
+  })
+
+  // ── Ciclo de vida de tabs ────────────────────────────────────────────────────
+  const { handleCloseTab } = useTabLifecycle({ tabs, closeTab, clearPracticeMeta })
+
+  // ── Páginas de contexto ──────────────────────────────────────────────────────
+  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test']
+  const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {
     setActiveTabId(id)
-
-    const clickedTab = tabs.find(t => t.id === id)
-
-    
     // Cerrar paneles laterales al cambiar de tab
-    if (isPinsPanelOpen) closePinsPanel();
-    if (isCameraOpen) setCameraOpen(false);
-    if (isDomoticaPanelOpen) setDomoticaPanelOpen(false);
-    
+    closeAllPanels()
+    const clickedTab = tabs.find(t => t.id === id)
     if (clickedTab?.type === 'home') {
-      // Al hacer clic en la pestaña de inicio, mantenemos la página actual si es una página de home,
-      // de lo contrario (si veníamos de terminal/escritorio) volvemos a landing.
-      if (!HOME_PAGES.includes(activePanel)) {
-        handleOpenPanel('landing')
-      }
+      if (!HOME_PAGES.includes(activePanel)) handleOpenPanel('landing')
     } else if (clickedTab?.type === 'session') {
-      // Al hacer clic en una pestaña de sesión, nos aseguramos de mostrar el panel de terminal.
       handleOpenPanel('terminal')
     }
   }
 
-  // Al cerrar una sesión SSH, pedir al backend que desconecte antes de remover la pestaña
-  const handleCloseTab = async (id: string) => {
-    const tab = tabs.find(t => t.id === id);
-    if (tab?.type === 'log') {
-      closeTab(id);
-      return;
-    }
-    
-    const savePromise = new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        resolve();
-      }, 2000);
-      
-      const handleSaved = (event: CustomEvent) => {
-        if (event.detail.sessionId === id) {
-          clearTimeout(timeout);
-          window.removeEventListener('app:session-saved', handleSaved as EventListener);
-          window.removeEventListener('app:session-save-failed', handleFailed as EventListener);
-          resolve();
-        }
-      };
-      
-      const handleFailed = (event: CustomEvent) => {
-        if (event.detail.sessionId === id) {
-          clearTimeout(timeout);
-          window.removeEventListener('app:session-saved', handleSaved as EventListener);
-          window.removeEventListener('app:session-save-failed', handleFailed as EventListener);
-          resolve();
-        }
-      };
-      
-      window.addEventListener('app:session-saved', handleSaved as EventListener);
-      window.addEventListener('app:session-save-failed', handleFailed as EventListener);
-    });
-    
-    window.dispatchEvent(new CustomEvent('app:save-session-before-close', { detail: { sessionId: id } }));
-    
-    await savePromise;
-    
-    try {
-      // Detener VNC primero si hay sesión gráfica activa
-      try { await invoke('vnc_stop', { sessionId: id }) } catch { /* ignore si no hay VNC */ }
-      await invoke('ssh_disconnect', { id })
-      setPracticeMeta(prev => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
-      closeTab(id)
-    } catch {
-      setPracticeMeta(prev => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
-      closeTab(id);
-    }
-  }
-
-  const emitPinsToggleEvents = (next: boolean) => {
-    const detail = { isOpen: next }
-    try { window.dispatchEvent(new CustomEvent('app:pins-toggled', { detail: { ...detail, phase: 'start' } })) } catch {}
-    try {
-      requestAnimationFrame(() => {
-        try { window.dispatchEvent(new CustomEvent('app:pins-toggled', { detail: { ...detail, phase: 'frame' } })) } catch {}
-      })
-    } catch {}
-    try { window.setTimeout(() => { try { window.dispatchEvent(new CustomEvent('app:pins-toggled', { detail: { ...detail, phase: 'end' } })) } catch {} }, 320) } catch {}
-  }
-
-  const emitBottomBarToggleEvents = (next: boolean) => {
-    const detail = { isOpen: next }
-    try { window.dispatchEvent(new CustomEvent('app:bottombar-toggled', { detail: { ...detail, phase: 'start' } })) } catch {}
-    try {
-      requestAnimationFrame(() => {
-        try { window.dispatchEvent(new CustomEvent('app:bottombar-toggled', { detail: { ...detail, phase: 'frame' } })) } catch {}
-      })
-    } catch {}
-    try { window.setTimeout(() => { try { window.dispatchEvent(new CustomEvent('app:bottombar-toggled', { detail: { ...detail, phase: 'end' } })) } catch {} }, 320) } catch {}
-  }
-
-  const togglePinsPanel = () => {
-    setPinsPanelOpen(prev => {
-      const next = !prev
-      emitPinsToggleEvents(next)
-      return next
-    })
-  }
-
-  const closePinsPanel = () => {
-    setPinsPanelOpen(prev => {
-      if (!prev) return prev
-      emitPinsToggleEvents(false)
-      return false
-    })
-  }
-
-  const toggleCameraPanel = () => {
-    setCameraOpen(prev => {
-      const next = !prev
-      emitBottomBarToggleEvents(next)
-      return next
-    })
-  }
-
-  const toggleDomoticaPanel = () => {
-    setDomoticaPanelOpen(prev => !prev)
-  }
-
-  const closeDomoticaPanel = () => {
-    setDomoticaPanelOpen(false)
-  }
-
-  // Check for updates on startup (once)
-  useEffect(() => {
-    (async () => {
-      try {
-        const upd = await check()
-        if (upd) {
-          setUpdateInfo({ version: upd.version, notes: upd.body })
-        }
-      } catch {
-      }
-    })()
-  }, [])
-
-  const confirmInstallUpdate = async () => {
-    if (!updateInfo) return
-    try {
-      setUpdating(true)
-      const upd = await check()
-      if (upd) {
-        await upd.downloadAndInstall()
-        await relaunch()
-      } else {
-        setUpdateInfo(null)
-      }
-    } catch {
-      setUpdateInfo(null)
-    } finally {
-      setUpdating(false)
-    }
-  }
-
-  const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
-  const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
-
-  // Pages that belong to the HOME tab context
-  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test'];
-
-  // Pages that have per-session context in SessionContainer (sftp, snippets, logs)
-  const SESSION_PAGES = ['sftp', 'snippets', 'logs'];
-
-  // Wrapper: when sidebar opens a panel that's a "home" page, also switch to HOME tab
-  // Exception: session-contextual pages stay on the active session tab so the correct
-  // device's data is shown (e.g. Jetson vs Pi storage).
   const handleOpenPanel = (panelId: string) => {
-    openPanel(panelId);
+    openPanel(panelId)
     if (HOME_PAGES.includes(panelId)) {
       if (activeTab.type !== 'session' || !SESSION_PAGES.includes(panelId)) {
-        setActiveTabId(HOME_TAB_ID);
+        setActiveTabId(HOME_TAB_ID)
       }
     }
   }
-
-  const isH2Visible = activePanel === 'terminal';
-
-  useEffect(() => {
-    const handleOpenPanelEvent = (e: any) => {
-      if (e.detail) {
-        handleOpenPanel(e.detail);
-      }
-    };
-    window.addEventListener('app:open-panel', handleOpenPanelEvent);
-    return () => window.removeEventListener('app:open-panel', handleOpenPanelEvent);
-  }, [handleOpenPanel]);
-
-  // Tour: abrir el chat cuando el tour llega al paso de Chat IA
-  useEffect(() => {
-    const handleTourOpenChat = () => setIsChatOpen(true);
-    window.addEventListener('tour:open-chat', handleTourOpenChat);
-    return () => window.removeEventListener('tour:open-chat', handleTourOpenChat);
-  }, [setIsChatOpen]);
 
   const handleClosePanel = (panelId: string) => {
     if (panelId === 'terminal') {
-      const sessionTabs = tabs.filter(t => t.type === 'session');
-      sessionTabs.forEach(t => handleCloseTab(t.id));
+      const sessionTabs = tabs.filter(t => t.type === 'session')
+      sessionTabs.forEach(t => handleCloseTab(t.id))
     }
-    closePanelTab(panelId);
+    closePanelTab(panelId)
   }
 
-  // ── Lanzar práctica de laboratorio ──
-  // Emite eventos practice:log en cada paso para que el panel de log los muestre.
-  // Si CUALQUIER paso falla, lanza error → PracticesPage lo captura y queda en pantalla.
-  const handleStartPractice = async ({ practice, student }: PracticeLaunchPayload) => {
-    const emitLog = (level: string, message: string) => {
-      emit('practice:log', { practice_id: practice.id, level, message });
-    };
-
-    // 1. Conectar via SSH al workspace
-    emitLog('info', `🔌 Conectando SSH al workspace (${practice.connection.user}@${practice.connection.host}:${practice.connection.port})...`);
-
-    let sessionId: string;
-    try {
-      sessionId = await invoke<string>('ssh_connect', {
-        host: practice.connection.host,
-        port: practice.connection.port,
-        user: practice.connection.user,
-        password: practice.connection.password,
-        cols: 120,
-        rows: 40,
-      });
-      emitLog('success', `✅ Conexión SSH al workspace exitosa (session: ${sessionId.substring(0, 8)}...)`);
-    } catch (err) {
-      emitLog('error', `❌ Error conectando al workspace: ${err}`);
-      throw err;
+  // ── Eventos globales ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail) handleOpenPanel(detail)
     }
+    window.addEventListener('app:open-panel', handler)
+    return () => window.removeEventListener('app:open-panel', handler)
+  }, [handleOpenPanel])
 
-    // 2. Esperar un momento para que la sesión se estabilice
-    emitLog('info', '⏳ Esperando estabilización de la sesión...');
-    await new Promise(r => setTimeout(r, 1200));
+  useEffect(() => {
+    const handler = () => setIsChatOpen(true)
+    window.addEventListener('tour:open-chat', handler)
+    return () => window.removeEventListener('tour:open-chat', handler)
+  }, [setIsChatOpen])
 
-    // 3. Abrir la sesión como nueva pestaña
-    emitLog('info', '📂 Abriendo pestaña de la sesión...');
-    handleNewSession({ id: sessionId, label: `Práctica: ${practice.name}` });
-    setPracticeMeta(prev => ({
-      ...prev,
-      [sessionId]: {
-        practiceId: practice.id,
-        assignmentId: practice.moodle_assignment_id,
-        student,
-      },
-    }));
-    
-    // Inyectar contexto y tutorial de la práctica a la memoria de la sesión
-    if (practice.panels?.chat_context || practice.panels?.chat_tutorial) {
-      try {
-        await invoke('mem_put', {
-          sessionId,
-          patch: {
-            practice_context: practice.panels.chat_context,
-            practice_tutorial: practice.panels.chat_tutorial
-          }
-        });
-      } catch (e) {
-        console.error('Error inyectando contexto de práctica:', e);
-      }
-    }
-
-    emitLog('success', '✅ Pestaña de sesión abierta');
-
-    // 4. Navegar al directorio de trabajo
-    if (practice.terminal?.working_directory) {
-      emitLog('info', `📁 Cambiando al directorio de trabajo: ${practice.terminal.working_directory}`);
-      try {
-        await invoke('ssh_stdin', {
-          id: sessionId,
-          data: `cd ${practice.terminal.working_directory}\n`,
-          encoding: null,
-        });
-        // Pequeño delay para verificar que el cd fue procesado
-        await new Promise(r => setTimeout(r, 500));
-        emitLog('success', `✅ Directorio de trabajo: ${practice.terminal.working_directory}`);
-      } catch (err) {
-        emitLog('error', `❌ Error cambiando de directorio: ${err}`);
-        throw err;
-      }
-    }
-
-    // 5. Abrir cámara si la práctica lo requiere
-    if (practice.panels?.camera) {
-      emitLog('info', '📷 Activando cámara del laboratorio...');
-      setCameraOpen(true);
-      emitLog('success', '✅ Cámara del laboratorio activada');
-    }
-
-    // 6. Abrir chat si la práctica lo requiere
-    if (practice.panels?.chat) {
-      emitLog('info', '💬 Activando chat de asistente IA...');
-      setIsChatOpen(true);
-      emitLog('success', '✅ Chat IA activado con contexto de la práctica');
-    }
-
-    // 7. Todo listo
-    emitLog('success', '🎉 Práctica lista — ¡buena suerte!');
-  };
+  // ── Visibilidad de paneles ───────────────────────────────────────────────────
+  const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
+  const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
+  const isH2Visible = activePanel === 'terminal'
 
   return (
     <LoadingProvider>
       <ToastProvider>
         <ThemeProvider>
-          <div ref={appContainerRef} className={`app-container ${isPinsVisible ? 'pins-open' : ''} ${isDomoticaVisible ? 'domotica-open' : ''} ${isH2Visible ? 'h2-visible' : ''} ${isSidebarExpanded ? 'sidebar-expanded' : ''}`}>
+          <div
+            ref={appContainerRef}
+            className={[
+              'app-container',
+              isPinsVisible ? 'pins-open' : '',
+              isDomoticaVisible ? 'domotica-open' : '',
+              isH2Visible ? 'h2-visible' : '',
+              isSidebarExpanded ? 'sidebar-expanded' : '',
+            ].filter(Boolean).join(' ')}
+          >
             <Header
               openPanels={openPanels}
               activePanel={activePanel}
@@ -413,7 +151,7 @@ const AppMain: React.FC = () => {
               activeTabId={activeTabId}
               onTabClick={handleTabClick}
               onCloseTab={handleCloseTab}
-              onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect'); }}
+              onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
               activeView={activeView}
               onViewChange={setActiveView}
               showViewToggle={activeTab.type === 'session'}
@@ -470,41 +208,20 @@ const AppMain: React.FC = () => {
                 <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />
               </main>
             </div>
+
             {isPinsVisible && (
-              <aside className="pins-panel" aria-label="Panel de pines GPIO">
-                <div className="pins-panel__header">
-                  <span className="pins-panel__title">Control de Pines GPIO</span>
-                  <button 
-                    className="pins-panel__close-button" 
-                    onClick={closePinsPanel}
-                    title="Cerrar panel"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="pins-panel__content">
-                  <PinsPanel sessionId={activeTab.id} />
-                </div>
-              </aside>
+              <SidePanel title="Control de Pines GPIO" ariaLabel="Panel de pines GPIO" onClose={closePinsPanel}>
+                <PinsPanel sessionId={activeTab.id} />
+              </SidePanel>
             )}
+
             {isDomoticaVisible && (
-              <aside className="pins-panel" aria-label="Panel de Domótica">
-                <div className="pins-panel__header">
-                  <span className="pins-panel__title">Domótica (Arduino)</span>
-                  <button
-                    className="pins-panel__close-button"
-                    onClick={closeDomoticaPanel}
-                    title="Cerrar panel"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="pins-panel__content">
-                  <DomoticaPanel sessionId={activeTab.id} />
-                </div>
-              </aside>
+              <SidePanel title="Domótica (Arduino)" ariaLabel="Panel de Domótica" onClose={closeDomoticaPanel}>
+                <DomoticaPanel sessionId={activeTab.id} />
+              </SidePanel>
             )}
           </div>
+
           <GlobalLoader />
           <ToastContainer />
           <ConfirmModal
@@ -512,7 +229,7 @@ const AppMain: React.FC = () => {
             title={updateInfo ? `Nueva versión ${updateInfo.version}` : 'Actualización disponible'}
             message={updateInfo?.notes || 'Hay una actualización disponible. ¿Deseas instalarla ahora?'}
             onConfirm={confirmInstallUpdate}
-            onCancel={() => setUpdateInfo(null)}
+            onCancel={dismissUpdate}
             confirmLabel="Instalar y reiniciar"
             cancelLabel="Ahora no"
             confirmClassName="new"
@@ -524,8 +241,6 @@ const AppMain: React.FC = () => {
   )
 }
 
-const App: React.FC = () => {
-  return <AppContent />;
-};
+const App: React.FC = () => <AppMain />
 
-export default App;
+export default App
