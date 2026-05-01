@@ -12,6 +12,7 @@ set-api-keys.ps1
 .md
 # Logs de sesión SSH capturados
 savedLogs/
-.agents/skills
+**/.agents/
+**/.trae/
 .windsurf
 /docs
