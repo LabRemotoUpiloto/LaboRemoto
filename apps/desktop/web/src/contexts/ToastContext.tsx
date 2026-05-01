@@ -1,31 +1,56 @@
-import React, { createContext, useCallback, useContext, useState } from 'react'
+/**
+ * ToastContext.tsx — bridge hacia @mantine/notifications.
+ *
+ * Mantiene la API pública `push({ type, message })` idéntica para que
+ * NINGÚN componente existente necesite cambiar su código.
+ * Internamente, delega en `notifications.show()` de Mantine.
+ */
+import React, { createContext, useCallback, useContext } from 'react'
+import { notifications } from '@mantine/notifications'
 
-type Toast = { id: string; type: 'info' | 'success' | 'error' | 'warn'; message: string }
+type ToastType = 'info' | 'success' | 'error' | 'warn'
+
+type Toast = { id: string; type: ToastType; message: string }
 
 type ToastContextType = {
-  toasts: Toast[]
+  toasts: Toast[]  // mantenido por compatibilidad (siempre vacío con Mantine)
   push: (t: Omit<Toast, 'id'>, ttl?: number) => void
   remove: (id: string) => void
+}
+
+const TOAST_COLORS: Record<ToastType, string> = {
+  success: 'teal',
+  error: 'red',
+  warn: 'yellow',
+  info: 'blue',
+}
+
+const TOAST_TITLES: Record<ToastType, string> = {
+  success: 'Éxito',
+  error: 'Error',
+  warn: 'Advertencia',
+  info: 'Información',
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
 export const ToastProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<Toast[]>([])
-
   const push = useCallback((t: Omit<Toast, 'id'>, ttl = 4000) => {
-    const id = Math.random().toString(36).slice(2, 9)
-    const toast: Toast = { id, ...t }
-    setToasts(prev => [toast, ...prev])
-    if (ttl > 0) setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), ttl)
+    notifications.show({
+      title: TOAST_TITLES[t.type],
+      message: t.message,
+      color: TOAST_COLORS[t.type],
+      autoClose: ttl,
+      withBorder: true,
+    })
   }, [])
 
   const remove = useCallback((id: string) => {
-    setToasts(prev => prev.filter(x => x.id !== id))
+    notifications.hide(id)
   }, [])
 
   return (
-    <ToastContext.Provider value={{ toasts, push, remove }}>
+    <ToastContext.Provider value={{ toasts: [], push, remove }}>
       {children}
     </ToastContext.Provider>
   )
