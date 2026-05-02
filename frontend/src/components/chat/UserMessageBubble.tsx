@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Message } from '../chatModes/types';
 import { fmtTime } from '../chatPane/chatPane.constants';
+import { ActionIcon, Textarea, Button, Group } from '@mantine/core';
+import { Pencil, Trash2, File as FileIcon } from 'lucide-react';
 
 interface UserMessageBubbleProps {
   msg: Message;
@@ -35,84 +37,88 @@ export default function UserMessageBubble({ msg, isSending, onDelete, onSaveEdit
 
   if (isEditing) {
     return (
-      <div className="user-bubble-group">
-        <div className="user-edit-wrap">
-          <textarea
-            className="user-edit-textarea"
+      <div className="flex flex-col items-end w-full animate-in fade-in">
+        <div className="w-full max-w-[85%] bg-black/20 border border-white/10 rounded-xl p-3 flex flex-col gap-2">
+          <Textarea
             value={draft}
-            autoFocus
-            rows={Math.max(3, draft.split('\n').length)}
-            onChange={e => {
-              setDraft(e.target.value);
-              e.target.style.height = 'auto';
-              e.target.style.height = e.target.scrollHeight + 'px';
-            }}
+            onChange={e => setDraft(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSave();
               }
-              if (e.key === 'Escape') {
-                cancelEdit();
-              }
+              if (e.key === 'Escape') cancelEdit();
             }}
+            autoFocus
+            minRows={2}
+            maxRows={10}
+            autosize
+            variant="unstyled"
+            styles={{ input: { color: 'white', fontSize: 13, lineHeight: 1.5, padding: 0 } }}
+            className="w-full"
           />
-          <div className="user-edit-actions">
-            <button className="user-edit-btn user-edit-btn--cancel" onClick={cancelEdit}>Cancelar</button>
-            <button className="user-edit-btn user-edit-btn--save" disabled={!draft.trim() || isSending} onClick={handleSave}>Enviar</button>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[10px] text-white/30 hidden sm:inline-block">Enter · enviar &nbsp;·&nbsp; Esc · cancelar</span>
+            <Group gap="xs" justify="flex-end" className="ml-auto">
+              <Button size="compact-xs" variant="subtle" color="gray" onClick={cancelEdit} className="text-white/60 hover:text-white">Cancelar</Button>
+              <Button size="compact-xs" color="blue" disabled={!draft.trim() || isSending} onClick={handleSave}>Guardar</Button>
+            </Group>
           </div>
-          <span className="user-edit-hint">Enter · enviar &nbsp;·&nbsp; Esc · cancelar</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="user-bubble-group">
-      <div className="message-text message-card">
-        <div className="message-content">
+    <div className="flex flex-col items-end w-full group/user">
+      <div className="bg-blue-600 text-white rounded-2xl rounded-tr-sm px-3.5 py-2.5 max-w-[85%] shadow-sm relative break-words text-[13px] leading-relaxed">
+        <div className="flex flex-col gap-1.5">
           {msg.meta?.imagePreview && (
             <img src={msg.meta.imagePreview} alt="adjunto"
-              style={{ display: 'block', maxHeight: 160, maxWidth: '100%', borderRadius: 6, marginBottom: msg.text ? 6 : 0, objectFit: 'contain' }}
+              className="block max-h-[160px] max-w-full rounded-md object-contain bg-black/20"
             />
           )}
           {msg.meta?.attachedFileName && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.30)', fontSize: 11, marginBottom: msg.text ? 6 : 0, maxWidth: '100%' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-              </svg>
-              <span style={{ opacity: 0.95, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.meta.attachedFileName}</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/25 border border-white/20 text-[11px] max-w-full self-start">
+              <FileIcon size={12} className="shrink-0 opacity-80" />
+              <span className="opacity-95 overflow-hidden text-ellipsis whitespace-nowrap">{msg.meta.attachedFileName}</span>
             </div>
           )}
-          {msg.text}
+          <span className="whitespace-pre-wrap">{msg.text}</span>
         </div>
         {msg.timestamp && (
-          <span className="msg-timestamp" title={new Date(msg.timestamp).toLocaleString('es')}>{fmtTime(msg.timestamp)}</span>
+          <span 
+            className="block text-[9.5px] opacity-60 mt-1 text-right tabular-nums" 
+            title={new Date(msg.timestamp).toLocaleString('es')}
+          >
+            {fmtTime(msg.timestamp)}
+          </span>
         )}
       </div>
-      <div className="msg-actions msg-actions--user">
-        <button
-          className="msg-action-btn"
+      
+      <div className="flex items-center gap-0.5 mt-1 opacity-0 group-hover/user:opacity-100 transition-opacity">
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="sm"
           title="Editar"
           disabled={isSending}
           onClick={startEdit}
+          className="text-white/40 hover:text-white hover:bg-white/10"
         >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-        </button>
-        <button
-          className="msg-action-btn msg-action-btn--delete"
+          <Pencil size={12} />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          color="red"
+          size="sm"
           title="Borrar mensaje"
           disabled={isSending}
           onClick={() => onDelete(msg.id)}
+          className="text-white/40 hover:text-red-400 hover:bg-red-500/10"
         >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-          </svg>
-        </button>
+          <Trash2 size={12} />
+        </ActionIcon>
       </div>
     </div>
   );

@@ -8,7 +8,8 @@ import typescript from 'highlight.js/lib/languages/typescript';
 import rust from 'highlight.js/lib/languages/rust';
 import yaml from 'highlight.js/lib/languages/yaml';
 import json from 'highlight.js/lib/languages/json';
-import './CodeBlock.css';
+import { Copy, Check, Play, Loader2, XCircle } from 'lucide-react';
+import { ActionIcon, Button, Group } from '@mantine/core';
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('sh', bash);
@@ -106,76 +107,56 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
   };
 
   return (
-    <div className="code-block-wrapper">
+    <div className="relative my-3 rounded-lg overflow-hidden bg-[#0d0e15] border border-white/10 group">
       {!hideActions && (
-        <div className="code-block-header">
-          {language && <span className="code-block-language">{language}</span>}
-          <div className="code-block-actions">
-            <button
-              className={`code-action-btn copy-btn ${copied ? 'copied' : ''}`}
+        <div className="flex items-center justify-between px-3 py-1.5 bg-[#141622] border-b border-white/5 select-none">
+          {language ? (
+            <span className="text-[11px] font-mono font-medium text-white/50 uppercase tracking-wider">{language}</span>
+          ) : <span />}
+          <Group gap={6}>
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              color={copied ? "green" : "gray"}
               onClick={handleCopy}
-              aria-label="Copiar código"
-              title="Copiar"
-              type="button"
+              leftSection={copied ? <Check size={12} /> : <Copy size={12} />}
+              className={`font-medium h-6 px-2.5 ${copied ? 'text-green-400 bg-green-400/10' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
             >
-              {copied ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              )}
-              <span className="code-action-text">{copied ? 'Copiado' : 'Copiar'}</span>
-            </button>
+              {copied ? 'Copiado' : 'Copiar'}
+            </Button>
             
             {sessionId && (
-              <button
-                className={`code-action-btn execute-btn ${executionStatus !== 'idle' ? executionStatus : ''}`}
+              <Button
+                size="compact-xs"
+                variant={executionStatus === 'idle' ? "light" : "filled"}
+                color={executing ? "blue" : executionStatus === 'success' ? "green" : executionStatus === 'error' ? "red" : "accent"}
                 onClick={handleExecute}
                 disabled={executing}
-                aria-label="Ejecutar código"
-                title="Ejecutar"
-                type="button"
+                leftSection={
+                  executing ? <Loader2 size={12} className="animate-spin" /> : 
+                  executionStatus === 'success' ? <Check size={12} /> : 
+                  executionStatus === 'error' ? <XCircle size={12} /> : 
+                  <Play size={12} className="fill-current" />
+                }
+                className="font-medium h-6 px-2.5 transition-colors"
               >
-                {executing ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spinning">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M12 6v6l4 2"></path>
-                  </svg>
-                ) : executionStatus === 'success' ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                ) : executionStatus === 'error' ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                  </svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                  </svg>
-                )}
-                <span className="code-action-text">
-                  {executing ? 'Ejecutando' : executionStatus === 'success' ? 'Ejecutado' : executionStatus === 'error' ? 'Error' : 'Ejecutar'}
-                </span>
-              </button>
+                {executing ? 'Ejecutando' : executionStatus === 'success' ? 'Ejecutado' : executionStatus === 'error' ? 'Error' : 'Ejecutar'}
+              </Button>
             )}
-          </div>
+          </Group>
         </div>
       )}
       {hideActions && language && (
-        <div className="code-block-header-minimal">
-          <span className="code-block-language">{language}</span>
+        <div className="absolute top-0 right-0 px-2 py-1 bg-black/40 text-[10px] font-mono text-white/30 rounded-bl-lg pointer-events-none z-10 select-none uppercase tracking-wider">
+          {language}
         </div>
       )}
-      <pre className="code-block-content hljs"><code
-        {...(highlighted ? { dangerouslySetInnerHTML: { __html: highlighted } } : { children: code })}
-      /></pre>
+      <pre className="m-0 p-3.5 overflow-x-auto text-[13px] font-mono leading-relaxed text-white/90 custom-scrollbar">
+        <code
+          className={`block w-full ${language ? `language-${language}` : ''}`}
+          {...(highlighted ? { dangerouslySetInnerHTML: { __html: highlighted } } : { children: code })}
+        />
+      </pre>
     </div>
   );
 };
