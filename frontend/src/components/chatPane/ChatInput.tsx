@@ -4,6 +4,9 @@ import { MAX_CHAR_WARN, MODE_PLACEHOLDERS, TOKEN_STORAGE_KEY } from './chatPane.
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { ActionIcon, Popover, Progress, Textarea } from '@mantine/core';
+import { Image, FileText, Send, Square, Activity, ChevronUp, ChevronDown } from 'lucide-react';
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface Props {
@@ -147,11 +150,10 @@ const ChatInput: React.FC<Props> = ({
 
   return (
     <div
-      className="chat-input"
+      className={`relative mt-2 mx-auto max-w-[850px] w-full px-2 sm:px-4 shrink-0 transition-all duration-200 ${isDragging ? 'ring-2 ring-blue-400/45 rounded-lg' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      style={isDragging ? { outline: '1.5px dashed rgba(96,165,250,0.45)', borderRadius: 8 } : undefined}
     >
       {/* Hidden file inputs */}
       <input
@@ -169,61 +171,52 @@ const ChatInput: React.FC<Props> = ({
         onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await handleTextFile(f); }}
       />
 
-      <div className="chat-input-wrap" style={(attachedImage || attachedFile) ? { flexDirection: 'column', alignItems: 'stretch', gap: 0 } : undefined}>
+      <div className={`flex bg-tertiary border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-accent/40 focus-within:bg-[#1a1c29] ${(attachedImage || attachedFile) ? 'flex-col items-stretch gap-0' : 'items-center'}`}>
         {/* Image chip */}
         {attachedImage && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px 4px' }}>
-            <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div className="flex items-center gap-2 pt-2 px-2.5 pb-1">
+            <div className="relative shrink-0">
               <img
                 src={attachedImage.preview}
                 alt="adjunto"
-                style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover', border: '1px solid rgba(255,255,255,0.10)', display: 'block' }}
+                className="w-12 h-12 rounded-md object-cover border border-white/10 block"
               />
               <button
                 onClick={() => setAttachedImage(null)}
-                style={{
-                  position: 'absolute', top: -5, right: -5,
-                  width: 16, height: 16, borderRadius: '50%',
-                  background: 'rgba(30,33,48,0.95)', border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'rgba(255,255,255,0.7)', fontSize: 9, lineHeight: 1, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                }}
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#1e2130] border border-white/15 text-white/70 text-[9px] flex items-center justify-center cursor-pointer hover:bg-white/10 hover:text-white"
               >✕</button>
             </div>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>{attachedImage.label ?? 'imagen lista para enviar'}</span>
+            <span className="text-[11px] text-white/35 italic">{attachedImage.label ?? 'imagen lista para enviar'}</span>
           </div>
         )}
         {/* File chip */}
         {attachedFile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px 4px' }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '4px 10px', borderRadius: 6,
-              background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.20)',
-              fontSize: 11.5, flex: 1, minWidth: 0,
-            }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-              </svg>
-              <span style={{ color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachedFile.name}</span>
+          <div className="flex items-center gap-1.5 pt-2 px-2.5 pb-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-400/10 border border-blue-400/20 text-[11.5px] flex-1 min-w-0">
+              <FileText size={12} className="text-blue-400 shrink-0" />
+              <span className="text-white/75 overflow-hidden text-ellipsis whitespace-nowrap">{attachedFile.name}</span>
             </div>
             <button
               onClick={() => setAttachedFile(null)}
-              style={{
-                background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)',
-                cursor: 'pointer', fontSize: 15, padding: '0 2px', flexShrink: 0, lineHeight: 1,
-              }}
+              className="bg-transparent border-none text-white/35 cursor-pointer text-[15px] px-0.5 shrink-0 leading-none hover:text-white"
               title="Quitar archivo"
             >×</button>
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-          <textarea
+        <div className="flex items-end gap-1 flex-1 py-1 pr-1.5 min-h-[44px]">
+          <Textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={MODE_PLACEHOLDERS[mode]}
+            autosize
+            minRows={1}
+            maxRows={8}
+            className="flex-1"
+            classNames={{
+              input: "bg-transparent border-none text-primary text-[13px] leading-relaxed placeholder-white/30 focus:ring-0 px-3 py-2 scrollbar-thin"
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Escape' && isSending) { e.preventDefault(); onCancel(); return; }
               if (e.key === 'ArrowUp' && input === '') {
@@ -255,128 +248,123 @@ const ChatInput: React.FC<Props> = ({
               reader.readAsDataURL(file);
             }}
           />
-          <button
-            className="chat-input-attach-btn"
-            onClick={() => fileInputRef.current?.click()}
-            title="Adjuntar imagen"
-            style={{ opacity: attachedImage ? 1 : 0.5, color: attachedImage ? 'var(--accent-primary)' : undefined }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-          </button>
-          <button
-            className="chat-input-attach-btn"
-            onClick={() => textFileInputRef.current?.click()}
-            title="Adjuntar archivo de texto (.sh, .conf, .log, .py…)"
-            style={{ opacity: attachedFile ? 1 : 0.5, color: attachedFile ? 'var(--accent-primary)' : undefined }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-          </button>
-          <button
-            className={`send-btn send-icon ${isSending ? 'is-cancel' : ''}`}
-            onClick={isSending ? onCancel : onSend}
-            disabled={!isSending && !canSend}
-            aria-label={isSending ? 'Cancelar' : 'Enviar'}
-          >
-            {isSending ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <rect x="6" y="6" width="12" height="12" rx="2"/>
-              </svg>
-            ) : (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="19" x2="12" y2="5"/>
-                <polyline points="5 12 12 5 19 12"/>
-              </svg>
-            )}
-          </button>
+          
+          <div className="flex items-center pb-1 gap-1 shrink-0">
+            <ActionIcon
+              variant="subtle"
+              onClick={() => fileInputRef.current?.click()}
+              title="Adjuntar imagen"
+              className={`hover:bg-white/5 ${attachedImage ? 'text-accent' : 'text-secondary/50 hover:text-primary'}`}
+              size="md"
+            >
+              <Image size={15} />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              onClick={() => textFileInputRef.current?.click()}
+              title="Adjuntar archivo de texto (.sh, .conf, .log, .py…)"
+              className={`hover:bg-white/5 ${attachedFile ? 'text-accent' : 'text-secondary/50 hover:text-primary'}`}
+              size="md"
+            >
+              <FileText size={14} />
+            </ActionIcon>
+            <ActionIcon
+              variant={isSending ? "light" : "filled"}
+              color={isSending ? "red" : "blue"}
+              onClick={isSending ? onCancel : onSend}
+              disabled={!isSending && !canSend}
+              aria-label={isSending ? 'Cancelar' : 'Enviar'}
+              className="ml-1"
+              size="md"
+            >
+              {isSending ? <Square size={14} fill="currentColor" /> : <Send size={15} className="mr-[2px]" />}
+            </ActionIcon>
+          </div>
         </div>
       </div>
 
-      {/* Char counter footer */}
-      <div className="chat-input-footer">
-        {input.length === 0
-          ? <span className="chat-input-hint">Shift+↵ nueva línea · Shift+? atajos</span>
-          : <span className="chat-char-counter" data-warn={input.length > MAX_CHAR_WARN ? true : undefined}>
-              {input.length > MAX_CHAR_WARN
-                ? `⚠ ${input.length.toLocaleString()} car. — mensaje muy largo`
-                : `${input.length} car.`}
-            </span>
-        }
-      </div>
+      {/* Footer */}
+      <div className="flex items-center justify-between mt-2 px-1">
+        <div className="text-[10.5px]">
+          {input.length === 0
+            ? <span className="text-secondary/40 font-medium">Shift+↵ nueva línea · Shift+? atajos</span>
+            : <span className={`${input.length > MAX_CHAR_WARN ? 'text-red-400 font-semibold' : 'text-secondary/50 font-medium'}`}>
+                {input.length > MAX_CHAR_WARN
+                  ? `⚠ ${input.length.toLocaleString()} car. — mensaje muy largo`
+                  : `${input.length} car.`}
+              </span>
+          }
+        </div>
 
-      {/* Token badge */}
-      <div className="session-token-wrap">
-        <button
-          className={`session-token-badge${sessionTokens.input === 0 ? ' is-empty' : ''}`}
-          onClick={() => setShowTokenPopover(v => !v)}
-          title="Ver desglose de tokens de la sesión"
-        >
-          <span className="token-badge-icon">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-          </span>
-          <span className="token-badge-in">{sessionTokens.input.toLocaleString()}</span>
-          <span className="token-badge-sep">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
-            </svg>
-          </span>
-          <span className="token-badge-out">{sessionTokens.output.toLocaleString()}</span>
-          <span className="token-badge-sep">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
-            </svg>
-          </span>
-        </button>
-        {showTokenPopover && (
-          <div className="token-popover">
-            <div className="token-popover-row">
-              <span className="token-pop-label">Entrada</span>
-              <span className="token-pop-val token-badge-in">{sessionTokens.input.toLocaleString()}</span>
-              <span className="token-pop-unit">tok</span>
-            </div>
-            <div className="token-popover-row">
-              <span className="token-pop-label">Salida</span>
-              <span className="token-pop-val token-badge-out">{sessionTokens.output.toLocaleString()}</span>
-              <span className="token-pop-unit">tok</span>
-            </div>
-            <div className="token-popover-divider"/>
-            <div className="token-popover-row">
-              <span className="token-pop-label">Total</span>
-              <span className="token-pop-val" style={{ color: '#e2e8f0' }}>{(sessionTokens.input + sessionTokens.output).toLocaleString()}</span>
-              <span className="token-pop-unit">tok</span>
-            </div>
-            <div className="token-popover-divider"/>
-            <div className="token-ctx-wrap">
-              <div className="token-popover-row">
-                <span className="token-pop-label">Contexto ~</span>
-                <span className="token-pop-val" style={{
-                  fontSize: 10.5,
-                  color: ctxUsagePct > 90 ? '#f87171' : ctxUsagePct > 70 ? '#f59e0b' : 'rgba(167,139,250,0.6)',
-                }}>{sessionTokens.input.toLocaleString()} tok ({ctxUsagePct.toFixed(1)}%)</span>
+        {/* Token badge */}
+        <div className="relative">
+          <Popover opened={showTokenPopover} onChange={setShowTokenPopover} position="top-end" withArrow shadow="md">
+            <Popover.Target>
+              <button
+                className={`flex items-center h-5 px-1.5 rounded bg-black/20 border border-white/5 text-[9px] font-mono tracking-wider cursor-pointer transition-colors duration-200 hover:bg-black/40 hover:border-white/10 text-white/50
+                  ${sessionTokens.input === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}`}
+                onClick={() => setShowTokenPopover(v => !v)}
+                title="Ver desglose de tokens de la sesión"
+              >
+                <Activity size={10} className="mr-1 opacity-70 text-blue-400" />
+                <span className="text-blue-400/80">{sessionTokens.input.toLocaleString()}</span>
+                <span className="mx-1 opacity-30"><ChevronUp size={9} /></span>
+                <span className="text-emerald-400/80">{sessionTokens.output.toLocaleString()}</span>
+                <span className="mx-1 opacity-30"><ChevronDown size={9} /></span>
+              </button>
+            </Popover.Target>
+            <Popover.Dropdown className="bg-[#1a1c29] border border-white/10 p-3 min-w-[220px]">
+              <div className="flex justify-between items-center text-xs mb-2">
+                <span className="text-secondary font-medium">Entrada</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-blue-400 font-mono tracking-wider">{sessionTokens.input.toLocaleString()}</span>
+                  <span className="text-[9px] text-secondary/40 uppercase tracking-widest font-semibold">tok</span>
+                </div>
               </div>
-              <div className="token-context-bar">
-                <div className="token-context-bar__fill" style={{ width: `${ctxUsagePct}%` }}
-                  data-warn={ctxUsagePct > 90 ? 'critical' : ctxUsagePct > 70 ? 'high' : undefined}/>
+              <div className="flex justify-between items-center text-xs mb-2">
+                <span className="text-secondary font-medium">Salida</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-emerald-400 font-mono tracking-wider">{sessionTokens.output.toLocaleString()}</span>
+                  <span className="text-[9px] text-secondary/40 uppercase tracking-widest font-semibold">tok</span>
+                </div>
               </div>
-            </div>
-            <button className="token-pop-reset" onClick={() => {
-              const zeroed = { input: 0, output: 0 };
-              setSessionTokens(zeroed);
-              try { localStorage.setItem(TOKEN_STORAGE_KEY(sessionId ?? null), JSON.stringify(zeroed)); } catch {}
-              setShowTokenPopover(false);
-            }}>
-              Reiniciar contador
-            </button>
-          </div>
-        )}
+              <div className="h-[1px] bg-white/10 my-2" />
+              <div className="flex justify-between items-center text-xs mb-2">
+                <span className="text-secondary font-medium">Total</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-gray-200 font-mono tracking-wider">{(sessionTokens.input + sessionTokens.output).toLocaleString()}</span>
+                  <span className="text-[9px] text-secondary/40 uppercase tracking-widest font-semibold">tok</span>
+                </div>
+              </div>
+              <div className="h-[1px] bg-white/10 my-2" />
+              <div className="bg-black/30 rounded-lg p-2.5 mt-2 border border-white/5">
+                <div className="flex justify-between items-center text-xs mb-1.5">
+                  <span className="text-secondary/70 font-medium">Contexto ~</span>
+                  <span className={`text-[10.5px] font-mono ${ctxUsagePct > 90 ? 'text-red-400' : ctxUsagePct > 70 ? 'text-amber-500' : 'text-purple-400/60'}`}>
+                    {sessionTokens.input.toLocaleString()} tok ({ctxUsagePct.toFixed(1)}%)
+                  </span>
+                </div>
+                <Progress 
+                  value={ctxUsagePct} 
+                  color={ctxUsagePct > 90 ? 'red' : ctxUsagePct > 70 ? 'yellow' : 'violet'} 
+                  size="sm" 
+                  radius="xl" 
+                />
+              </div>
+              <button 
+                className="w-full mt-3 h-7 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 rounded-md text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                onClick={() => {
+                  const zeroed = { input: 0, output: 0 };
+                  setSessionTokens(zeroed);
+                  try { localStorage.setItem(TOKEN_STORAGE_KEY(sessionId ?? null), JSON.stringify(zeroed)); } catch {}
+                  setShowTokenPopover(false);
+                }}
+              >
+                Reiniciar contador
+              </button>
+            </Popover.Dropdown>
+          </Popover>
+        </div>
       </div>
     </div>
   );

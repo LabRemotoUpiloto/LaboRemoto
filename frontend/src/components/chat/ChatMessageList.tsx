@@ -5,6 +5,8 @@ import UserMessageBubble from './UserMessageBubble';
 import AiMessageBubble from './AiMessageBubble';
 import TypingIndicator from './TypingIndicator';
 import { isNearBottom } from './chatUtils';
+import { ActionIcon } from '@mantine/core';
+import { ArrowDown } from 'lucide-react';
 
 interface ChatMessageListProps {
   messages: Message[];
@@ -43,7 +45,7 @@ export default function ChatMessageList({
 
   return (
     <div
-      className={`chat-messages${editingMsgId ? ' chat-messages--editing' : ''}`}
+      className={`flex-1 min-h-0 pt-[10px] pr-[10px] pb-[24px] pl-[34px] overflow-y-auto overflow-x-hidden flex flex-col gap-[10px] relative custom-scrollbar ${editingMsgId ? ' chat-messages--editing' : ''}`}
       ref={messagesRef}
       role="log"
       aria-live={isSending ? 'polite' : undefined}
@@ -51,6 +53,7 @@ export default function ChatMessageList({
       onScroll={(e) => {
         setShowScrollToBottom(!isNearBottom(e.currentTarget as HTMLDivElement));
       }}
+      style={{ scrollbarGutter: 'stable both-edges' }}
     >
       {/* Welcome state */}
       {messages.length === 0 && !isSending && (
@@ -108,9 +111,15 @@ export default function ChatMessageList({
 
       {/* Scroll to bottom */}
       {showScrollToBottom && (
-        <button className="scroll-to-bottom" aria-label="Bajar al último mensaje" title="Bajar" onClick={onScrollToBottom}>
-          ↓
-        </button>
+        <ActionIcon
+          className="absolute bottom-4 right-4 z-50 bg-accent hover:bg-accent/90 text-white rounded-full shadow-lg transition-transform hover:scale-105"
+          onClick={onScrollToBottom}
+          size="lg"
+          title="Bajar al último mensaje"
+          aria-label="Bajar al último mensaje"
+        >
+          <ArrowDown size={18} />
+        </ActionIcon>
       )}
     </div>
   );

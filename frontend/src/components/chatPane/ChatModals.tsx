@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChatMode } from '../chatModes/types';
 import { MODES } from './chatPane.constants';
+import { Modal, Button, Text, Kbd, Group } from '@mantine/core';
 
 interface Props {
   showModeConfirm: ChatMode | null;
@@ -15,39 +16,74 @@ const ChatModals: React.FC<Props> = ({
   showShortcuts, setShowShortcuts,
 }) => (
   <>
-    {showModeConfirm && (
-      <div className="mode-confirm-overlay" onClick={cancelModeSwitch}>
-        <div className="mode-confirm-dialog" onClick={e => e.stopPropagation()}>
-          <p className="mode-confirm-text">
-            Cambiar a <strong>{MODES.find(m => m.value === showModeConfirm)?.label}</strong> borrará los mensajes actuales.
-          </p>
-          <div className="mode-confirm-actions">
-            <button className="mode-confirm-btn mode-confirm-btn--cancel" onClick={cancelModeSwitch}>Cancelar</button>
-            <button className="mode-confirm-btn mode-confirm-btn--confirm" onClick={confirmModeSwitch}>Cambiar</button>
-          </div>
-        </div>
-      </div>
-    )}
+    <Modal
+      opened={!!showModeConfirm}
+      onClose={cancelModeSwitch}
+      title="Cambiar modo"
+      centered
+      size="sm"
+      styles={{
+        header: { backgroundColor: '#1e2130', borderBottom: '1px solid rgba(255,255,255,0.05)' },
+        content: { backgroundColor: '#1e2130' },
+        title: { color: 'white', fontWeight: 600, fontSize: 14 }
+      }}
+    >
+      <Text size="sm" c="dimmed" mb="lg">
+        Cambiar a <strong className="text-white">{MODES.find(m => m.value === showModeConfirm)?.label}</strong> borrará los mensajes actuales.
+      </Text>
+      <Group justify="flex-end">
+        <Button variant="default" onClick={cancelModeSwitch} className="bg-white/5 border-white/10 hover:bg-white/10 text-white/80">
+          Cancelar
+        </Button>
+        <Button onClick={confirmModeSwitch} color="blue">
+          Cambiar
+        </Button>
+      </Group>
+    </Modal>
 
-    {showShortcuts && (
-      <div className="shortcuts-overlay" onClick={() => setShowShortcuts(false)}>
-        <div className="shortcuts-dialog" onClick={e => e.stopPropagation()}>
-          <div className="shortcuts-header">
-            <span>Atajos de teclado</span>
-            <button className="shortcuts-close" onClick={() => setShowShortcuts(false)}>×</button>
-          </div>
-          <ul className="shortcuts-list">
-            <li><kbd>Enter</kbd><span>Enviar mensaje</span></li>
-            <li><kbd>Shift+Enter</kbd><span>Nueva línea</span></li>
-            <li><kbd>Esc</kbd><span>Cancelar respuesta en curso</span></li>
-            <li><kbd>↑</kbd><span>Recuperar último mensaje enviado</span></li>
-            <li><kbd>Ctrl+F</kbd><span>Buscar en mensajes</span></li>
-            <li><kbd>Ctrl+N</kbd><span>Nuevo chat</span></li>
-            <li><kbd>Shift+?</kbd><span>Mostrar / ocultar esta ayuda</span></li>
-          </ul>
+    <Modal
+      opened={showShortcuts}
+      onClose={() => setShowShortcuts(false)}
+      title="Atajos de teclado"
+      centered
+      size="md"
+      styles={{
+        header: { backgroundColor: '#1e2130', borderBottom: '1px solid rgba(255,255,255,0.05)' },
+        content: { backgroundColor: '#1e2130' },
+        title: { color: 'white', fontWeight: 600, fontSize: 14 }
+      }}
+    >
+      <div className="flex flex-col gap-3 py-2">
+        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+          <span className="text-white/70">Enviar mensaje</span>
+          <Kbd>Enter</Kbd>
+        </div>
+        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+          <span className="text-white/70">Nueva línea</span>
+          <Kbd>Shift+Enter</Kbd>
+        </div>
+        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+          <span className="text-white/70">Cancelar respuesta en curso</span>
+          <Kbd>Esc</Kbd>
+        </div>
+        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+          <span className="text-white/70">Recuperar último mensaje enviado</span>
+          <Kbd>↑</Kbd>
+        </div>
+        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+          <span className="text-white/70">Buscar en mensajes</span>
+          <Kbd>Ctrl+F</Kbd>
+        </div>
+        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+          <span className="text-white/70">Nuevo chat</span>
+          <Kbd>Ctrl+N</Kbd>
+        </div>
+        <div className="flex justify-between items-center text-sm pb-1">
+          <span className="text-white/70">Mostrar / ocultar esta ayuda</span>
+          <Kbd>Shift+?</Kbd>
         </div>
       </div>
-    )}
+    </Modal>
   </>
 );
 

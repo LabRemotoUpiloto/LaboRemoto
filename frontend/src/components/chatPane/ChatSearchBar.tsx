@@ -1,4 +1,6 @@
 import React from 'react';
+import { ActionIcon, TextInput } from '@mantine/core';
+import { Search, ChevronUp, ChevronDown, X } from 'lucide-react';
 
 interface Props {
   searchQuery: string;
@@ -13,13 +15,13 @@ const ChatSearchBar: React.FC<Props> = ({
   searchQuery, setSearchQuery, setSearchOpen,
   searchMatchIds, searchMatchIndex, setSearchMatchIndex,
 }) => (
-  <div className="chat-search-bar">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
-      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
-    <input
-      type="text"
-      className="chat-search-input"
+  <div className="flex items-center gap-2 h-9 px-3 bg-secondary/95 backdrop-blur-sm border-b border-white/5 shadow-[0_2px_8px_rgba(0,0,0,0.2)] animate-in slide-in-from-top-2 fade-in duration-200 sticky top-[48px] z-[99]">
+    <Search size={13} className="text-white/40 shrink-0" />
+    <TextInput
+      className="flex-1"
+      classNames={{
+        input: "bg-transparent border-none text-white text-[12.5px] outline-none placeholder-white/30 px-1 h-auto min-h-0 py-0 focus:ring-0"
+      }}
       placeholder="Buscar en mensajes…"
       value={searchQuery}
       onChange={e => setSearchQuery(e.target.value)}
@@ -28,33 +30,60 @@ const ChatSearchBar: React.FC<Props> = ({
         if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery(''); }
         if (e.key === 'Enter') {
           if (searchMatchIds.length === 0) return;
-          setSearchMatchIndex(i => (i + 1) % searchMatchIds.length);
+          if (e.shiftKey) {
+            setSearchMatchIndex(i => (i - 1 + searchMatchIds.length) % searchMatchIds.length);
+          } else {
+            setSearchMatchIndex(i => (i + 1) % searchMatchIds.length);
+          }
         }
       }}
     />
+    
     {searchQuery && (
-      <span className="chat-search-count">
+      <span className="text-[11px] text-white/40 tabular-nums shrink-0 px-1">
         {searchMatchIds.length === 0
           ? 'Sin resultados'
           : `${searchMatchIndex + 1} / ${searchMatchIds.length}`}
       </span>
     )}
+    
     {searchMatchIds.length > 1 && (
-      <>
-        <button className="search-nav-btn" title="Anterior (Shift+Enter)"
-          onClick={() => setSearchMatchIndex(i => (i - 1 + searchMatchIds.length) % searchMatchIds.length)}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-        </button>
-        <button className="search-nav-btn" title="Siguiente (Enter)"
-          onClick={() => setSearchMatchIndex(i => (i + 1) % searchMatchIds.length)}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-      </>
+      <div className="flex items-center">
+        <ActionIcon 
+          variant="subtle" 
+          color="gray" 
+          size="sm" 
+          title="Anterior (Shift+Enter)"
+          onClick={() => setSearchMatchIndex(i => (i - 1 + searchMatchIds.length) % searchMatchIds.length)}
+          className="text-white/50 hover:bg-white/10 hover:text-white rounded"
+        >
+          <ChevronUp size={14} />
+        </ActionIcon>
+        <ActionIcon 
+          variant="subtle" 
+          color="gray" 
+          size="sm" 
+          title="Siguiente (Enter)"
+          onClick={() => setSearchMatchIndex(i => (i + 1) % searchMatchIds.length)}
+          className="text-white/50 hover:bg-white/10 hover:text-white rounded"
+        >
+          <ChevronDown size={14} />
+        </ActionIcon>
+      </div>
     )}
-    <button className="search-nav-btn search-close-btn" title="Cerrar (Esc)"
-      onClick={() => { setSearchOpen(false); setSearchQuery(''); }}>
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-    </button>
+    
+    <div className="w-[1px] h-3.5 bg-white/15 mx-0.5 shrink-0" />
+    
+    <ActionIcon 
+      variant="subtle" 
+      color="red" 
+      size="sm" 
+      title="Cerrar (Esc)"
+      onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+      className="text-white/50 hover:bg-red-500/20 hover:text-red-400 rounded shrink-0"
+    >
+      <X size={14} />
+    </ActionIcon>
   </div>
 );
 
