@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import './PinsPanel.css'
 
 type Line = { gpio: number; level: number | null; func: string; pull: string | null }
 
@@ -65,12 +64,12 @@ const PIN_ROWS = Array.from({ length: 20 }, (_, idx) => ({
 const COLORS = {
   power5: 'var(--danger)',
   power3: 'var(--warning)',
-  ground: 'var(--pinout-ground)',
+  ground: 'color-mix(in srgb, var(--text-primary) 12%, transparent)',
   gpioInput: 'var(--info)',
   gpioOutput: 'var(--success)',
   gpioAlt: 'var(--accent-strong, var(--accent-primary))',
-  other: 'color-mix(in srgb, var(--pinout-muted) 65%, transparent)',
-  idle: 'color-mix(in srgb, var(--pinout-muted) 45%, transparent)',
+  other: 'color-mix(in srgb, var(--text-secondary) 65%, transparent)',
+  idle: 'color-mix(in srgb, var(--text-secondary) 45%, transparent)',
   high: 'var(--success)',
   low: 'color-mix(in srgb, var(--text-primary) 25%, transparent)'
 }
@@ -278,23 +277,31 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     const title = pin.gpio != null
       ? `GPIO ${pin.gpio} · ${line?.func ?? '—'} · ${line?.level == null ? 'sin nivel' : (line.level === 1 ? 'HIGH' : 'LOW')}`
       : pin.label
+      
+    // Clases dinámicas Tailwind
+    const baseClass = "flex flex-col items-center gap-1.5 border-none bg-transparent text-inherit cursor-pointer rounded-xl p-1.5 transition-all duration-150 ease-in-out relative hover:bg-[var(--interactive-hover,rgba(255,255,255,0.06))] hover:-translate-y-[1px]"
+    const selectedClass = isSelected ? " shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent-primary)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)]" : ""
+    const staticClass = pin.gpio == null ? " opacity-85" : ""
+    const occupiedClass = occupied ? " shadow-[0_0_0_2px_color-mix(in_srgb,var(--warning)_50%,transparent)]" : ""
+    
     return (
       <button
         type="button"
         key={pin.physical}
-        className={`pinout-node${isSelected ? ' selected' : ''}${pin.gpio == null ? ' static' : ''}${occupied ? ' occupied' : ''}`}
+        className={`${baseClass}${selectedClass}${staticClass}${occupiedClass} group`}
         onClick={() => handlePinClick(pin)}
         title={title}
       >
-        <span className="pinout-node-number">{pin.physical}</span>
-        <span className="pinout-node-circle" style={{ backgroundColor: color }}>
-          <span className="pinout-node-dot" style={{ backgroundColor: dotColor }} />
-          {occupied && <span className="pinout-node-badge" title="Ocupado (reservado/ALT)" />}
+        <span className="text-[11px] font-semibold text-secondary">{pin.physical}</span>
+        <span className="w-[26px] h-[26px] rounded-full flex items-center justify-center shadow-[inset_0_0_0_1px_rgba(0,0,0,0.45)] relative" style={{ backgroundColor: color }}>
+          <span className="w-2.5 h-2.5 rounded-full bg-[var(--panel,#fff)] shadow-[0_0_0_1px_rgba(0,0,0,0.2)] relative z-[2]" style={{ backgroundColor: dotColor }} />
+          {occupied && <span className="absolute top-1.5 right-2.5 w-2 h-2 rounded-full bg-warning shadow-[0_0_0_1px_rgba(0,0,0,0.3)] z-[3]" title="Ocupado (reservado/ALT)" />}
+          {occupied && <span className="absolute inset-0 rounded-full bg-black opacity-25 z-[1]" />}
         </span>
-        <span className="pinout-node-label">{pin.gpio != null ? `GPIO ${pin.gpio}` : pin.label}</span>
-        {pin.alias && <span className="pinout-node-alias">{pin.alias}</span>}
+        <span className={`text-[10px] font-semibold text-center ${occupied ? 'opacity-80' : ''}`}>{pin.gpio != null ? `GPIO ${pin.gpio}` : pin.label}</span>
+        {pin.alias && <span className={`text-[9px] text-secondary uppercase tracking-[0.04em] ${occupied ? 'opacity-80' : ''}`}>{pin.alias}</span>}
         {pin.gpio != null && line && (
-          <span className="pinout-node-status">
+          <span className="text-[9px] text-secondary text-center leading-[1.3]">
             {line.func}
             {line.level == null ? '' : line.level === 1 ? ' • Nivel alto' : ' • Nivel bajo'}
           </span>
@@ -304,12 +311,12 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   }
 
   const renderGrid = () => (
-    <div className="pinout-grid">
+    <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto py-3 px-3.5 bg-tertiary rounded-xl border border-color shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border-subtle)_40%,transparent)] max-w-[320px] w-full mx-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--text-secondary)_40%,transparent)] [&::-webkit-scrollbar-thumb]:rounded-full">
       {PIN_ROWS.map(row => {
         const leftLine = row.left.gpio != null ? gpioMap.get(row.left.gpio) : undefined
         const rightLine = row.right.gpio != null ? gpioMap.get(row.right.gpio) : undefined
         return (
-          <div className="pinout-row" key={row.left.physical}>
+          <div className="grid grid-cols-2 gap-3" key={row.left.physical}>
             {renderNode(row.left, leftLine, selectedPin === row.left.physical)}
             {renderNode(row.right, rightLine, selectedPin === row.right.physical)}
           </div>
@@ -328,18 +335,18 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       persistDescriptions(next)
     }
     return (
-      <div className="pinout-detail-view">
-        <button type="button" className="pinout-back" onClick={handleBack}>
+      <div className="flex-1 flex flex-col gap-3.5 p-[18px] bg-tertiary rounded-xl border border-color shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border-subtle)_40%,transparent)] overflow-y-auto w-full">
+        <button type="button" className="self-start border-none bg-transparent text-accent text-xs font-semibold cursor-pointer inline-flex items-center gap-1 hover:text-[var(--accent-primary-hover)]" onClick={handleBack}>
           ← Ver todos los pines
         </button>
 
-        <h3 className="pinout-detail-title">Pin físico {selectedDefinition.physical}</h3>
+        <h3 className="m-0 text-base font-bold text-primary">Pin físico {selectedDefinition.physical}</h3>
 
-        <div className="pinout-detail-block">
-          <span className="pinout-detail-label">Propósito (editable)</span>
-          <div className="pinout-desc-row">
+        <div className="flex flex-col gap-1 text-[13px]">
+          <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Propósito (editable)</span>
+          <div className="flex gap-2">
             <input
-              className="pinout-desc-input"
+              className="w-full py-2 px-2.5 rounded-lg border border-color bg-[var(--background-secondary)] text-primary text-xs"
               type="text"
               value={desc}
               onChange={e => setDesc(e.target.value)}
@@ -349,7 +356,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         </div>
 
         {reserved && (
-          <div className="pinout-warning">
+          <div className="rounded-[10px] py-2 px-3 text-xs text-warning bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] border border-[color-mix(in_srgb,var(--warning)_22%,transparent)]">
             ⚠ Este pin está asociado a un periférico del sistema.
             {selectedDefinition.gpio === 2 || selectedDefinition.gpio === 3 ? ' (I2C SDA/SCL)' : ''}
             {selectedDefinition.gpio === 14 || selectedDefinition.gpio === 15 ? ' (UART TX/RX)' : ''}
@@ -359,36 +366,36 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         )}
 
         {selectedDefinition.alias && (
-          <div className="pinout-detail-block">
-            <span className="pinout-detail-label">Alias</span>
+          <div className="flex flex-col gap-1 text-[13px]">
+            <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Alias</span>
             <span>{selectedDefinition.alias}</span>
           </div>
         )}
 
         {selectedDefinition.gpio != null ? (
           <>
-            <div className="pinout-detail-block">
-              <span className="pinout-detail-label">GPIO</span>
+            <div className="flex flex-col gap-1 text-[13px]">
+              <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">GPIO</span>
               <span>GPIO {selectedDefinition.gpio}</span>
             </div>
 
-            <div className="pinout-detail-block">
-              <span className="pinout-detail-label">Función actual</span>
+            <div className="flex flex-col gap-1 text-[13px]">
+              <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Función actual</span>
               <span>{formatFunction(selectedStatus)}</span>
             </div>
-            <div className="pinout-detail-block">
-              <span className="pinout-detail-label">Nivel</span>
+            <div className="flex flex-col gap-1 text-[13px]">
+              <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Nivel</span>
               <span>{describeLevel(selectedStatus)}</span>
             </div>
-            <div className="pinout-detail-block">
-              <span className="pinout-detail-label">Pull</span>
+            <div className="flex flex-col gap-1 text-[13px]">
+              <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Pull</span>
               <span>{describePull(selectedStatus)}</span>
             </div>
 
-            <div className="pinout-actions">
+            <div className="grid gap-2.5">
               <button
                 type="button"
-                className="pinout-action"
+                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
                 onClick={() => setMode('input')}
                 disabled={actionLoading || !!selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
               >
@@ -396,7 +403,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               </button>
               <button
                 type="button"
-                className="pinout-action"
+                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
                 onClick={() => setMode('output')}
                 disabled={actionLoading || !!selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
               >
@@ -405,7 +412,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
               <button
                 type="button"
-                className="pinout-action"
+                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
                 onClick={() => setPull('up')}
                 disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
               >
@@ -413,7 +420,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               </button>
               <button
                 type="button"
-                className="pinout-action"
+                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
                 onClick={() => setPull('down')}
                 disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
               >
@@ -421,7 +428,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               </button>
               <button
                 type="button"
-                className="pinout-action"
+                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
                 onClick={() => setPull('none')}
                 disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
               >
@@ -429,7 +436,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               </button>
               <button
                 type="button"
-                className="pinout-action"
+                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
                 onClick={() => writeLevel(1)}
                 disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
               >
@@ -437,7 +444,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               </button>
               <button
                 type="button"
-                className="pinout-action"
+                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
                 onClick={() => writeLevel(0)}
                 disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
               >
@@ -445,7 +452,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               </button>
               <button
                 type="button"
-                className="pinout-action"
+                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
                 onClick={readNow}
                 disabled={actionLoading}
               >
@@ -454,8 +461,8 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
             </div>
           </>
         ) : (
-          <div className="pinout-detail-block">
-            <span className="pinout-detail-label">Información</span>
+          <div className="flex flex-col gap-1 text-[13px]">
+            <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Información</span>
             <span>Este pin no admite cambio de modo.</span>
           </div>
         )}
@@ -466,15 +473,15 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const isDetail = selectedDefinition != null
 
   return (
-    <div className="pinout-wrapper">
-      <header className="pinout-header">
+    <div className="flex flex-col gap-4 h-full p-4 rounded-2xl bg-[var(--background-secondary)] text-primary border border-color shadow-[0_12px_32px_rgba(0,0,0,0.2)]">
+      <header className="flex justify-between items-center gap-3">
         <div>
-          <h2 className="pinout-title">Pinout Raspberry Pi</h2>
-          <span className="pinout-subtitle">Estado actual según raspi-gpio</span>
+          <h2 className="m-0 text-base font-bold text-primary">Pinout Raspberry Pi</h2>
+          <span className="block text-xs text-secondary">Estado actual según raspi-gpio</span>
         </div>
         <button
           type="button"
-          className="pinout-refresh"
+          className="border-none rounded-full py-1.5 px-4 text-xs font-semibold text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-accent to-[var(--accent-primary-hover)] cursor-pointer transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-primary)_25%,transparent)] disabled:opacity-60 disabled:cursor-default hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_24px_color-mix(in_srgb,var(--accent-primary)_25%,transparent)]"
           onClick={load}
           disabled={loading || actionLoading}
         >
@@ -482,29 +489,29 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         </button>
       </header>
 
-      {error && <div className="pinout-error">{error}</div>}
-      {isDetail && message && !error && <div className="pinout-message">{message}</div>}
+      {error && <div className="rounded-xl py-2 px-3 text-xs leading-[1.4] text-danger bg-[color-mix(in_srgb,var(--danger)_16%,transparent)] border border-[color-mix(in_srgb,var(--danger)_28%,transparent)]">{error}</div>}
+      {isDetail && message && !error && <div className="rounded-xl py-2 px-3 text-xs leading-[1.4] text-accent bg-[color-mix(in_srgb,var(--accent-primary)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent-primary)_24%,transparent)]">{message}</div>}
 
-      <div className="pinout-toolbar">
-        <label className="pinout-checkbox"><input type="checkbox" checked={showSummary} onChange={e => setShowSummary(e.target.checked)} /> Mostrar resumen</label>
+      <div className="flex gap-4 items-center text-secondary">
+        <label className="inline-flex gap-1.5 items-center text-xs cursor-pointer"><input type="checkbox" checked={showSummary} onChange={e => setShowSummary(e.target.checked)} /> Mostrar resumen</label>
       </div>
 
-      <div className="pinout-content">
+      <div className="flex-1 min-h-0 flex">
         {isDetail ? renderDetail() : (
           <>
             {renderGrid()}
             {showSummary && (
-              <div className="pinout-summary">
-                <table className="pinout-table">
+              <div className="flex-1 ml-3 overflow-auto">
+                <table className="w-full border-collapse text-xs text-primary">
                   <thead>
                     <tr>
-                      <th>Físico</th>
-                      <th>GPIO</th>
-                      <th>Modo</th>
-                      <th>Pull</th>
-                      <th>Estado</th>
-                      <th>Propósito</th>
-                      <th>Ocupado</th>
+                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Físico</th>
+                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">GPIO</th>
+                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Modo</th>
+                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Pull</th>
+                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Estado</th>
+                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Propósito</th>
+                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Ocupado</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -517,14 +524,14 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
                       const desc = descriptions[p.gpio!] || ''
                       const ocupado = isReserved(p.gpio) || func.startsWith('ALT')
                       return (
-                        <tr key={p.gpio} onClick={() => handlePinClick(p)} className="pinout-row-clickable">
-                          <td>{p.physical}</td>
-                          <td>{p.gpio}</td>
-                          <td>{modo}</td>
-                          <td>{pull}</td>
-                          <td>{estado}</td>
-                          <td title={desc}>{desc || '—'}</td>
-                          <td>{ocupado ? 'Ocupado' : 'Libre'}</td>
+                        <tr key={p.gpio} onClick={() => handlePinClick(p)} className="cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent-primary)_10%,transparent)]">
+                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{p.physical}</td>
+                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{p.gpio}</td>
+                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{modo}</td>
+                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{pull}</td>
+                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{estado}</td>
+                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary" title={desc}>{desc || '—'}</td>
+                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{ocupado ? 'Ocupado' : 'Libre'}</td>
                         </tr>
                       )
                     })}
@@ -536,33 +543,33 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         )}
       </div>
 
-      <footer className="pinout-legend">
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.gpioInput }} /> Entrada
+      <footer className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5 text-[11px] text-secondary">
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.gpioInput }} /> Entrada
         </div>
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.gpioOutput }} /> Salida
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.gpioOutput }} /> Salida
         </div>
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.gpioAlt }} /> Función alternativa
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.gpioAlt }} /> Función alternativa
         </div>
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.high }} /> HIGH (1)
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.high }} /> HIGH (1)
         </div>
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.low }} /> LOW (0)
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.low }} /> LOW (0)
         </div>
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.power5 }} /> Alimentación 5V
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.power5 }} /> Alimentación 5V
         </div>
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.power3 }} /> Alimentación 3.3V
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.power3 }} /> Alimentación 3.3V
         </div>
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-color" style={{ backgroundColor: COLORS.ground }} /> Suelo
+        <div className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.ground }} /> Suelo
         </div>
-        <div className="pinout-legend-item">
-          <span className="pinout-legend-badge" /> Ocupado (reservado/ALT)
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-warning shadow-[0_0_0_1px_rgba(0,0,0,0.2)]" /> Ocupado (reservado/ALT)
         </div>
       </footer>
     </div>
