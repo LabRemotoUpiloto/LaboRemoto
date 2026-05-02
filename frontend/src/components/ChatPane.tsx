@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import './ChatPane.css';
+
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useSessionMemory } from '../hooks/useSessionMemory';
@@ -336,7 +336,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
 
   // ── Render ──
   return (
-    <div className="chat-pane">
+    <div className="flex flex-col w-full h-full bg-secondary font-sans text-[13.5px] leading-[1.65] overflow-hidden relative">
       <ChatHeader
         mode={mode} onModeSwitch={handleModeSwitch} sessionId={sessionId}
         selectedModel={selectedModel} onModelChange={setSelectedModel}
@@ -366,7 +366,11 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         onRegenerateMsg={handleRegenerate} onRetryMsg={handleRetry} onAnalyzeCandidate={handleAnalyzeCandidate}
         onSetInput={setInput} onCancel={handleCancel} setLastCommand={setLastCommand}
       />
-      {toast && <div className="chat-toast">{toast}</div>}
+      {toast && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[150] px-4 py-2 bg-white/10 backdrop-blur-md text-white text-xs rounded-full shadow-lg border border-white/20 animate-in fade-in slide-in-from-top-4">
+          {toast}
+        </div>
+      )}
       <TerminalBanners
         errorBanner={errorBanner} onDismissError={() => setErrorBanner(null)}
         onAnalyze={() => { archiveCurrentChatRef.current?.(); loadedHistoryIdRef.current = null; messageCountAtLoadRef.current = 0; setAttachedImage(null); setMode('agente'); setErrorBanner(null); setTerminalActivity(false); setInput('hay un error en la terminal, revísalo y corrígelo'); setTimeout(() => inputRef.current?.focus(), 50); }}

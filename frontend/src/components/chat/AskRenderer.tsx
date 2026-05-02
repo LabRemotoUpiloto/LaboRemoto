@@ -171,13 +171,13 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
 
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i}>{part.slice(2, -2)}</strong>;
+        return <strong key={i} className="font-semibold text-white/95">{part.slice(2, -2)}</strong>;
       }
       if (part.startsWith('*') && part.endsWith('*')) {
-        return <em key={i}>{part.slice(1, -1)}</em>;
+        return <em key={i} className="italic text-white/80">{part.slice(1, -1)}</em>;
       }
       if (part.startsWith('`') && part.endsWith('`')) {
-        return <code key={i}>{part.slice(1, -1)}</code>;
+        return <code key={i} className="bg-white/10 px-1.5 py-0.5 rounded font-mono text-[12px] text-accent-light break-words">{part.slice(1, -1)}</code>;
       }
       // return normal text
       return <React.Fragment key={i}>{part}</React.Fragment>;
@@ -193,7 +193,7 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
     
     const flush = () => { 
       if (buf.length) { 
-        nodes.push(<p key={`p-${nodes.length}`}>{parseInlineElements(buf.join(' '))}</p>); 
+        nodes.push(<p className="mb-3 leading-relaxed last:mb-0" key={`p-${nodes.length}`}>{parseInlineElements(buf.join(' '))}</p>); 
         buf = []; 
       } 
     };
@@ -206,7 +206,7 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
       // Horizontal Rules
       if (/^---$/.test(line) || /^\*\*\*$/.test(line)) {
         flush();
-        nodes.push(<hr key={`hr-${nodes.length}`} />);
+        nodes.push(<hr className="my-4 border-t border-white/10" key={`hr-${nodes.length}`} />);
         continue;
       }
 
@@ -226,14 +226,18 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
         const headers = headerLine ? parseCells(headerLine) : [];
         const tableKey = `tbl-${nodes.length}`;
         nodes.push(
-          <div key={tableKey} className="md-table-wrap">
-            <table className="md-table">
+          <div key={tableKey} className="overflow-x-auto w-full mb-3 rounded-lg border border-white/10 bg-black/20">
+            <table className="w-full text-left text-sm border-collapse m-0">
               {headers.length > 0 && (
-                <thead><tr>{headers.map((h, hi) => <th key={hi}>{parseInlineElements(h)}</th>)}</tr></thead>
+                <thead className="bg-white/5 border-b border-white/10">
+                  <tr>{headers.map((h, hi) => <th className="px-3 py-2 font-medium text-white/80" key={hi}>{parseInlineElements(h)}</th>)}</tr>
+                </thead>
               )}
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {dataRows.map((row, ri) => (
-                  <tr key={ri}>{parseCells(row).map((cell, ci) => <td key={ci}>{parseInlineElements(cell)}</td>)}</tr>
+                  <tr key={ri} className="hover:bg-white/5 transition-colors">
+                    {parseCells(row).map((cell, ci) => <td className="px-3 py-2 text-white/70" key={ci}>{parseInlineElements(cell)}</td>)}
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -241,10 +245,6 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
         );
         continue;
       }
-
-      // Table data rows (part of a table that starts with |) — buffer if we haven't seen separator yet
-      // This handles cases where a | line appears outside a table context
-      // Just treat as regular text (falls through to buf.push)
 
       // Headings
       const h = line.match(/^(#{1,4})\s+(.*)$/);
@@ -258,7 +258,13 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
           currentPaso = parseInt(pasoMatch[1], 10); 
           subIndex = 0; 
         } 
-        nodes.push(<Tag key={`h-${nodes.length}`}>{parseInlineElements(text)}</Tag>); 
+        
+        let headingClass = "font-medium text-white/90 mt-4 mb-2 first:mt-0";
+        if (level === 1) headingClass = "text-lg font-semibold text-white mt-5 mb-3 first:mt-0 border-b border-white/10 pb-1";
+        if (level === 2) headingClass = "text-[15px] font-semibold text-white/95 mt-4 mb-2 first:mt-0 border-b border-white/5 pb-1";
+        if (level === 3) headingClass = "text-[14px] font-medium text-white/90 mt-3 mb-1.5 first:mt-0";
+
+        nodes.push(<Tag className={headingClass} key={`h-${nodes.length}`}>{parseInlineElements(text)}</Tag>); 
         continue; 
       }
 
@@ -268,7 +274,7 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
       if (li || oli) {
         const rawText = li ? li[1].replace(/^\s*\d+[\.)]\s+/, '') : String((oli![1] || oli![2] || '')).replace(/^\s*\d+[\.)]\s+/, '');
         const label = (currentPaso != null) ? `${currentPaso}.${(++subIndex)}` : null;
-        const liContent = label ? <>{label} {parseInlineElements(rawText)}</> : parseInlineElements(rawText);
+        const liContent = label ? <><span className="font-mono text-accent-light mr-1.5">{label}</span> {parseInlineElements(rawText)}</> : parseInlineElements(rawText);
         const isList = (n: any) => n && n.__listItems;
         const last = nodes[nodes.length - 1] as any;
         const useNumbered = !li && currentPaso == null;
@@ -304,21 +310,21 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
     const materialize = (n: any, idx: number): React.ReactNode => {
       if (!n || !n.__listItems) return n;
       const items = (n.__listItems as React.ReactNode[]).map((child, ci) =>
-        React.createElement('li', { key: `li-${idx}-${ci}` }, child)
+        React.createElement('li', { className: 'mb-1 last:mb-0 relative pl-1', key: `li-${idx}-${ci}` }, child)
       );
       if (n.__numbered) {
-        return React.createElement('ul', { key: `ul-${idx}`, style: { listStyleType: 'none', paddingLeft: 0 } }, items);
+        return React.createElement('ul', { className: 'mb-3 list-none p-0', key: `ul-${idx}` }, items);
       }
       if (n.__ordered) {
-        return React.createElement('ol', { key: `ol-${idx}` }, items);
+        return React.createElement('ol', { className: 'mb-3 pl-6 list-decimal marker:text-white/40', key: `ol-${idx}` }, items);
       }
-      return React.createElement('ul', { key: `ul-${idx}` }, items);
+      return React.createElement('ul', { className: 'mb-3 pl-6 list-disc marker:text-white/40', key: `ul-${idx}` }, items);
     };
     return nodes.map(materialize);
   };
 
   return (
-    <div>
+    <div className="flex flex-col gap-1 w-full max-w-full overflow-hidden">
       {blocks.map((b, i) => b.type === 'code' ? (
         <CodeBlock
           key={`c-${i}`}
@@ -326,10 +332,10 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
           language={b.lang}
           sessionId={sessionId}
           setLastCommand={setLastCommand}
-al          hideActions={!isExecutableCode(b.body, b.precedingText || '')}
+          hideActions={!isExecutableCode(b.body, b.precedingText || '')}
         />
       ) : (
-        <div key={`p-${i}`}>{renderPara(b.body)}</div>
+        <div className="w-full overflow-hidden text-white/80" key={`p-${i}`}>{renderPara(b.body)}</div>
       ))}
     </div>
   );

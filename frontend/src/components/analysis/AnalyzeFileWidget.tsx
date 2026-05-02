@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { analyzeFile, FileAnalysis } from '../../api/fileAnalysis';
-import './AnalyzeFileWidget.css';
+import { TextInput, Button, Badge, Card, Text, Group, List, Stack } from '@mantine/core';
+import { Search, RotateCcw, AlertTriangle, FileCode2 } from 'lucide-react';
 
 interface Props {
   sessionId?: string | null;
@@ -26,62 +27,117 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
   }
 
   function reset() {
-    setAnalysis(null); setError(null); setSelectedCandidate(null);
+    setAnalysis(null); setError(null); setSelectedCandidate(null); setPathInput('');
   }
 
   const ambiguous = analysis?.disambiguation_required && (analysis?.candidates?.length || 0) > 1;
 
   return (
-    <div className="afw-root">
-      <h3>Analizar archivo</h3>
+    <Card className="bg-black/20 border border-white/10" radius="md" p="md">
+      <Group mb="xs">
+        <FileCode2 size={18} className="text-blue-400" />
+        <Text size="sm" fw={600} className="text-white/90">Analizar archivo</Text>
+      </Group>
+
       {!analysis && (
-        <div className="afw-form">
-          <input
-            className="afw-input"
-            placeholder="ruta o nombre (remoto/local)"
+        <Group align="flex-end" className="mb-2 gap-2">
+          <TextInput
+            placeholder="Ruta o nombre (remoto/local)"
             value={pathInput}
             onChange={e => setPathInput(e.target.value)}
+            className="flex-1"
+            classNames={{ input: 'bg-white/5 border-white/10 text-white placeholder-white/30' }}
+            leftSection={<Search size={14} className="text-white/40" />}
+            onKeyDown={e => e.key === 'Enter' && run()}
           />
-          <button disabled={loading || !pathInput.trim()} onClick={() => run()}>{loading ? '...' : 'Analizar'}</button>
-        </div>
+          <Button 
+            onClick={() => run()} 
+            loading={loading} 
+            disabled={!pathInput.trim()}
+            variant="light"
+          >
+            Analizar
+          </Button>
+        </Group>
       )}
-      {error && <div className="afw-error">{error}</div>}
+
+      {error && (
+        <Text c="red" size="xs" mt="sm" className="bg-red-500/10 p-2 rounded border border-red-500/20">
+          <AlertTriangle size={14} className="inline mr-1" /> {error}
+        </Text>
+      )}
+
       {analysis && !ambiguous && (
-        <div className="afw-result">
-          <div className="afw-meta">
-            <strong>Ruta:</strong> {analysis.path}<br/>
-            {analysis.language && <><strong>Lenguaje:</strong> {analysis.language}<br/></>}
-            {analysis.line_count > 0 && <><strong>Líneas:</strong> {analysis.line_count}<br/></>}
-            {analysis.size_bytes > 0 && <><strong>Tamaño:</strong> {analysis.size_bytes} bytes<br/></>}
-            {analysis.sha256 && analysis.sha256.length > 0 && <><strong>SHA256:</strong> {analysis.sha256.slice(0,16)}…<br/></>}
+        <Stack gap="sm" mt="sm">
+          <div className="grid grid-cols-2 gap-2 text-[12px] bg-white/5 p-3 rounded-md border border-white/5">
+            <div className="col-span-2 break-all"><strong className="text-white/70">Ruta:</strong> <span className="text-blue-300 font-mono">{analysis.path}</span></div>
+            {analysis.language && <div><strong className="text-white/70">Lenguaje:</strong> <Badge size="xs" variant="dot" color="blue">{analysis.language}</Badge></div>}
+            {analysis.line_count > 0 && <div><strong className="text-white/70">Líneas:</strong> {analysis.line_count}</div>}
+            {analysis.size_bytes > 0 && <div><strong className="text-white/70">Tamaño:</strong> {analysis.size_bytes} bytes</div>}
+            {analysis.sha256 && analysis.sha256.length > 0 && <div className="col-span-2"><strong className="text-white/70">SHA256:</strong> <span className="font-mono text-white/50">{analysis.sha256.slice(0, 16)}…</span></div>}
           </div>
-          {analysis.narrative && <p className="afw-narrative">{analysis.narrative}</p>}
-          {analysis.purpose && <p><strong>Propósito:</strong> {analysis.purpose}</p>}
-          {analysis.key_points && analysis.key_points.length > 0 && (
-            <ul className="afw-kps">{analysis.key_points.map((kp,i)=><li key={i}>{kp}</li>)}</ul>
+
+          {analysis.narrative && <Text size="sm" className="text-white/80 leading-relaxed">{analysis.narrative}</Text>}
+          
+          {analysis.purpose && (
+            <Text size="sm" className="bg-blue-500/10 p-2 rounded text-blue-100/90 border border-blue-500/20">
+              <strong className="text-blue-300 block mb-1">Propósito:</strong> {analysis.purpose}
+            </Text>
           )}
-          {(!analysis.key_points || analysis.key_points.length===0) && analysis.ai_only && <em>(Esperando summary IA o modo AI-only sin puntos)</em>}
-          <div className="afw-buttons">
-            <button onClick={reset}>Nuevo análisis</button>
-          </div>
-        </div>
+
+          {analysis.key_points && analysis.key_points.length > 0 && (
+            <List size="sm" spacing="xs" className="text-white/80">
+              {analysis.key_points.map((kp, i) => (
+                <List.Item key={i}>{kp}</List.Item>
+              ))}
+            </List>
+          )}
+
+          {(!analysis.key_points || analysis.key_points.length === 0) && analysis.ai_only && (
+            <Text size="xs" c="dimmed" fs="italic">(Esperando análisis IA o modo AI-only sin puntos)</Text>
+          )}
+
+          <Group mt="md">
+            <Button size="xs" variant="subtle" color="gray" onClick={reset} leftSection={<RotateCcw size={14} />} className="text-white/60 hover:text-white">
+              Nuevo análisis
+            </Button>
+          </Group>
+        </Stack>
       )}
+
       {analysis && ambiguous && (
-        <div className="afw-ambiguo">
-          <p><strong>{analysis.candidates?.length} coincidencias para “{analysis.path}”. Selecciona una ruta:</strong></p>
-          <ul className="afw-candidates">
-            {analysis.candidates!.map(c => (
-              <li key={c} className={selectedCandidate===c ? 'sel' : ''}>
-                <button onClick={() => { setSelectedCandidate(c); run(c); }}>{c}</button>
-              </li>
+        <Stack gap="sm" mt="sm">
+          <Text size="sm" className="text-amber-400 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+            <AlertTriangle size={14} className="inline mr-1" />
+            <strong>{analysis.candidates?.length} coincidencias</strong> encontradas para "{analysis.path}". Selecciona una ruta específica:
+          </Text>
+          
+          <Stack gap="xs">
+            {analysis.candidates!.map((c, idx) => (
+              <Button 
+                key={c}
+                variant="light" 
+                color="gray"
+                className="justify-start text-left bg-white/5 border border-white/10 hover:bg-white/10 text-white/80 h-auto py-2 font-mono text-[11px]"
+                onClick={() => { setSelectedCandidate(c); run(c); }}
+                disabled={loading}
+              >
+                <div className="flex gap-2 items-center w-full">
+                  <Badge size="xs" color="gray" variant="filled" className="bg-black/30 shrink-0">{idx + 1}</Badge>
+                  <span className="truncate">{c}</span>
+                </div>
+              </Button>
             ))}
-          </ul>
-          <div className="afw-buttons">
-            <button onClick={reset}>Cancelar</button>
-          </div>
-        </div>
+          </Stack>
+
+          <Group mt="sm">
+            <Button size="xs" variant="subtle" color="gray" onClick={reset} className="text-white/60 hover:text-white">
+              Cancelar
+            </Button>
+          </Group>
+        </Stack>
       )}
-    </div>
+    </Card>
   );
 };
 

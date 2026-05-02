@@ -1,5 +1,5 @@
 import React from 'react';
-import './RecentConnectionsPanel.css';
+import { UnstyledButton, Collapse, Text, Group } from '@mantine/core';
 
 export interface RecentConnection {
   id: string;
@@ -38,56 +38,65 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   return (
-    <div className={`recent-connections ${isExpanded ? 'is-expanded' : ''}`} title="Historial de tus últimas 8 conexiones SSH. Auto-limpieza cada 30 días">
-      <div className="recent-connections__header" onClick={() => setIsExpanded(!isExpanded)} role="button" tabIndex={0}>
-        <h3 className="recent-connections__title">
-          <svg className={`recent-connections__chevron ${isExpanded ? 'open' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <div 
+      className={`mx-6 mt-4 border rounded-lg bg-secondary overflow-hidden transition-all duration-200 ${isExpanded ? 'border-accent/30 shadow-[0_4px_16px_rgba(0,0,0,0.1)]' : 'border-subtle'}`}
+      title="Historial de tus últimas 8 conexiones SSH. Auto-limpieza cada 30 días"
+    >
+      <UnstyledButton 
+        className="w-full flex items-center justify-between px-3.5 py-2.5 bg-secondary hover:bg-tertiary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent -outline-offset-2"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <Group gap="xs" className="text-[13px] font-semibold text-secondary hover:text-primary transition-colors">
+          <svg 
+            className={`transition-transform duration-200 ${isExpanded ? 'rotate-90 text-accent' : 'text-muted'}`} 
+            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
             <polyline points="9 18 15 12 9 6" />
           </svg>
-          Historial reciente ({connections.length})
-        </h3>
+          <span className={isExpanded ? 'text-primary' : ''}>Historial reciente ({connections.length})</span>
+        </Group>
+        
         {onClear && isExpanded && (
           <button
-            className="recent-connections__clear-btn"
+            className="bg-transparent border border-subtle text-muted px-2.5 py-0.5 text-[11px] rounded transition-all hover:bg-tertiary hover:border-strong hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             onClick={(e) => { e.stopPropagation(); onClear(); }}
             title="Limpiar todo el historial de conexiones recientes"
           >
             Limpiar
           </button>
         )}
-      </div>
+      </UnstyledButton>
       
-      {isExpanded && (
-        <div className="recent-connections__list">
+      <Collapse in={isExpanded}>
+        <div className="flex flex-col gap-2 px-3.5 pb-3.5 pt-3 border-t border-subtle max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-strong">
           {connections.map((conn) => {
-            // Detectar si es Raspberry Pi
             const isRaspberryPi = conn.host === '200.115.181.211' && conn.port === 9000;
             const displayHost = isRaspberryPi ? 'Raspberry Pi 4' : conn.host;
             const showPort = !isRaspberryPi && conn.port !== 22;
             
             return (
-              <button
+              <UnstyledButton
                 key={conn.id}
-                className="recent-connection-item"
+                className="flex items-center justify-between w-full bg-tertiary border border-subtle rounded-md px-3 py-2 text-left font-mono text-[13px] transition-all hover:bg-tertiary hover:border-strong active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent -outline-offset-1"
                 onClick={() => onSelect(conn)}
                 title={`Rellenar formulario con ${conn.user}@${displayHost}${showPort ? ':' + conn.port : ''}. Última conexión: ${formatRelativeTime(conn.lastConnected)}`}
               >
-                <div className="recent-connection-item__main">
-                  <span className="recent-connection-item__user">{conn.user}</span>
-                  <span className="recent-connection-item__separator">@</span>
-                  <span className="recent-connection-item__host">{displayHost}</span>
+                <div className="flex items-center flex-1 min-w-0">
+                  <span className="text-primary font-medium truncate max-w-[100px]">{conn.user}</span>
+                  <span className="text-muted mx-[3px]">@</span>
+                  <span className="text-secondary truncate flex-1 min-w-0">{displayHost}</span>
                   {showPort && (
-                    <span className="recent-connection-item__port">:{conn.port}</span>
+                    <span className="text-info ml-[2px] whitespace-nowrap">:{conn.port}</span>
                   )}
                 </div>
-                <span className="recent-connection-item__time">
+                <Text size="xs" c="dimmed" className="whitespace-nowrap ml-3 tabular-nums font-mono">
                   {formatRelativeTime(conn.lastConnected)}
-                </span>
-              </button>
+                </Text>
+              </UnstyledButton>
             );
           })}
         </div>
-      )}
+      </Collapse>
     </div>
   );
 };

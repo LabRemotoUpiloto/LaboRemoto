@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import './QuickHostsPanel.css';
+import { UnstyledButton, ActionIcon } from '@mantine/core';
 
 export interface QuickHost {
   id: string;
@@ -24,7 +24,6 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const [showDots, setShowDots] = useState(false);
 
   // Hosts por defecto si no se proporcionan
   const defaultHosts: QuickHost[] = [
@@ -33,13 +32,10 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
 
   const hostsToShow = hosts.length > 0 ? hosts : defaultHosts;
 
-  // Verificar si se puede hacer scroll
   const checkScroll = () => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
 
-    const hasOverflow = scroller.scrollWidth > scroller.clientWidth;
-    setShowDots(hasOverflow);
     setCanScrollLeft(scroller.scrollLeft > 0);
     setCanScrollRight(scroller.scrollLeft < scroller.scrollWidth - scroller.clientWidth - 1);
   };
@@ -71,59 +67,71 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
   };
 
   return (
-    <header className="quick-host-header" aria-label="Hosts rápidos" data-tour={dataTour}>
-      <h2>Hosts rápidos</h2>
+    <header 
+      className="w-full bg-secondary border-b border-subtle px-4 flex flex-row items-center gap-3 m-0 h-9 sticky top-0 z-10 overflow-hidden" 
+      aria-label="Hosts rápidos" 
+      data-tour={dataTour}
+    >
+      <h2 className="m-0 text-[11px] font-semibold text-secondary whitespace-nowrap shrink-0 tracking-wider uppercase opacity-80 border-r border-subtle pr-3 leading-4 hidden sm:block">
+        Hosts rápidos
+      </h2>
       
-      <div className="quick-hosts-wrapper">
+      <div className="relative flex items-center flex-1 h-full min-w-0">
         {canScrollLeft && (
-          <button
-            type="button"
-            className="quick-hosts-nav quick-hosts-nav--left"
+          <ActionIcon
+            variant="transparent"
+            className="absolute left-0 top-0 bottom-0 w-6 h-full rounded-none bg-secondary/90 hover:bg-secondary text-secondary hover:text-accent z-[5]"
             onClick={scrollLeft}
             aria-label="Scroll izquierda"
           >
             ‹
-          </button>
+          </ActionIcon>
         )}
 
         <div 
           ref={scrollerRef}
-          className="quick-hosts-scroller"
+          className="flex flex-row overflow-x-auto overflow-y-hidden flex-1 h-full scrollbar-none"
+          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
           onScroll={checkScroll}
         >
-          {hostsToShow.map(host => (
-            <button
-              key={host.id}
-              type="button"
-              className={`quick-host-item ${selectedHostId === host.id ? 'active' : ''}`}
-              onClick={() => handleHostClick(host)}
-              aria-pressed={selectedHostId === host.id}
-              title={`Conectar a ${host.name}`}
-            >
-              <span className="qh-name">{host.name}</span>
-            </button>
-          ))}
+          {hostsToShow.map(host => {
+            const isActive = selectedHostId === host.id;
+            return (
+              <UnstyledButton
+                key={host.id}
+                className={`
+                  relative px-3.5 h-full flex items-center shrink-0 transition-all duration-250 ease-out text-secondary
+                  hover:bg-tertiary/50 hover:text-primary
+                  ${isActive ? 'text-accent bg-accent/5' : ''}
+                `}
+                onClick={() => handleHostClick(host)}
+                aria-pressed={isActive}
+                title={`Conectar a ${host.name}`}
+              >
+                <span className={`text-xs whitespace-nowrap ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                  {host.name}
+                </span>
+                
+                {/* Active indicator bar */}
+                <div 
+                  className={`absolute bottom-0 left-0 right-0 h-[2px] bg-accent transition-transform duration-250 ease-out origin-center ${isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'}`}
+                />
+              </UnstyledButton>
+            );
+          })}
         </div>
 
         {canScrollRight && (
-          <button
-            type="button"
-            className="quick-hosts-nav quick-hosts-nav--right"
+          <ActionIcon
+            variant="transparent"
+            className="absolute right-0 top-0 bottom-0 w-6 h-full rounded-none bg-secondary/90 hover:bg-secondary text-secondary hover:text-accent z-[5]"
             onClick={scrollRight}
             aria-label="Scroll derecha"
           >
             ›
-          </button>
+          </ActionIcon>
         )}
       </div>
-
-      {showDots && (
-        <div className="quick-hosts-dots" aria-hidden="true">
-          {hostsToShow.map((_, index) => (
-            <span key={index} className="quick-hosts-dot"></span>
-          ))}
-        </div>
-      )}
     </header>
   );
 };

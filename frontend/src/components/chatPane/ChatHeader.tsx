@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { ChatMode } from '../chatModes/types';
 import { ModelSelection } from '../chatModes/types';
 import ModeSelect from './ModeSelect';
 import ModelSelect from './ModelSelect';
 import { MODE_DESCRIPTIONS } from './chatPane.constants';
+import { ActionIcon, Menu, Kbd } from '@mantine/core';
+import { History, Search, MoreVertical, Download, Keyboard, SquarePen, X, Terminal } from 'lucide-react';
 
 interface Props {
   mode: ChatMode;
@@ -30,136 +32,121 @@ const ChatHeader: React.FC<Props> = ({
   onExportMd, onExportHtml, messagesEmpty, showShortcuts, onToggleShortcuts,
   onNewChat, onClose,
 }) => {
-  const [overflowOpen, setOverflowOpen] = useState(false);
-  const overflowRef = useRef<HTMLDivElement>(null);
-
-  // Cerrar al hacer click fuera
-  useEffect(() => {
-    if (!overflowOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (overflowRef.current && !overflowRef.current.contains(e.target as Node))
-        setOverflowOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [overflowOpen]);
-
-  const runAndClose = (fn: () => void) => { fn(); setOverflowOpen(false); };
-
   return (
-    <div className="chat-header">
-      <div className="chat-titlebar">
-        <div className="chat-tb-icon">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="var(--accent-primary)" strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="4 17 10 11 4 5"/>
-            <line x1="12" y1="19" x2="20" y2="19"/>
-          </svg>
+    <div className="flex flex-col border-b border-subtle bg-secondary w-full shrink-0 z-10 sticky top-0">
+      {/* Top Title Bar */}
+      <div className="flex items-center justify-between h-10 px-3 bg-[#1e2130]">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex items-center justify-center w-5 h-5 rounded bg-accent/10 text-accent shrink-0">
+            <Terminal size={12} strokeWidth={2.5} />
+          </div>
+          <span className="font-semibold text-[13px] tracking-wide text-primary truncate">Asistente SSH</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0 ml-1" title="Activo"/>
         </div>
-        <span className="chat-tb-title">Asistente SSH</span>
-        <div className="chat-tb-status" title="Activo"/>
-        <div className="chat-tb-actions">
-          {/* Historial */}
-          <button className="chat-tb-btn"
+
+        <div className="flex items-center gap-1 shrink-0">
+          <ActionIcon
+            variant="subtle"
+            className={`hover:bg-white/5 ${showHistory ? 'text-accent' : 'text-white/50 hover:text-white'}`}
             onClick={onToggleHistory}
             title="Historial de chats"
-            style={{ opacity: showHistory ? 1 : undefined, color: showHistory ? 'var(--accent-primary)' : undefined }}
+            size="sm"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </button>
+            <History size={15} />
+          </ActionIcon>
 
-          {/* Buscar */}
-          <button className="chat-tb-btn"
+          <ActionIcon
+            variant="subtle"
+            className={`hover:bg-white/5 ${searchOpen ? 'text-accent' : 'text-white/50 hover:text-white'}`}
             onClick={onToggleSearch}
             title="Buscar en este chat (Ctrl+F)"
-            style={{ opacity: searchOpen ? 1 : undefined, color: searchOpen ? 'var(--accent-primary)' : undefined }}
+            size="sm"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-          </button>
+            <Search size={15} />
+          </ActionIcon>
 
-          {/* Menú ⋮ — acciones secundarias */}
-          <div className="chat-overflow-wrap" ref={overflowRef}>
-            <button
-              className={`chat-tb-btn${overflowOpen ? ' is-active' : ''}`}
-              onClick={() => setOverflowOpen(o => !o)}
-              title="Más acciones"
-              style={{ opacity: overflowOpen ? 1 : undefined, color: overflowOpen ? 'var(--accent-primary)' : undefined }}
+          <Menu shadow="md" width={220} position="bottom-end">
+            <Menu.Target>
+              <ActionIcon
+                variant="subtle"
+                className="text-white/50 hover:bg-white/5 hover:text-white"
+                title="Más acciones"
+                size="sm"
+              >
+                <MoreVertical size={16} />
+              </ActionIcon>
+            </Menu.Target>
+
+            <Menu.Dropdown className="bg-[#1e2130] border-white/10">
+              <Menu.Item 
+                leftSection={<Download size={14} />} 
+                onClick={onExportMd} 
+                disabled={messagesEmpty}
+                className="text-xs py-1.5 hover:bg-white/5 text-white/80"
+              >
+                Exportar como .md
+              </Menu.Item>
+              <Menu.Item 
+                leftSection={<Download size={14} />} 
+                onClick={onExportHtml} 
+                disabled={messagesEmpty}
+                className="text-xs py-1.5 hover:bg-white/5 text-white/80"
+              >
+                Exportar como .html
+              </Menu.Item>
+              <Menu.Divider className="border-white/10" />
+              <Menu.Item 
+                leftSection={<Keyboard size={14} />} 
+                onClick={onToggleShortcuts}
+                rightSection={<Kbd className="text-[10px] py-0 px-1 border-white/20 bg-white/5">Shift+?</Kbd>}
+                className={`text-xs py-1.5 hover:bg-white/5 text-white/80 ${showShortcuts ? 'bg-white/10 text-white' : ''}`}
+              >
+                Atajos de teclado
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+
+          <div className="w-[1px] h-4 bg-white/10 mx-1" />
+
+          <ActionIcon
+            variant="subtle"
+            color="blue"
+            className="hover:bg-blue-500/10 text-blue-400"
+            onClick={onNewChat}
+            title="Nuevo chat"
+            size="sm"
+          >
+            <SquarePen size={15} />
+          </ActionIcon>
+
+          {onClose && (
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              className="hover:bg-red-500/10 text-red-400 ml-0.5"
+              onClick={onClose}
+              title="Cerrar panel"
+              size="sm"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="5" r="1.2" fill="currentColor" stroke="none"/>
-                <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>
-                <circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/>
-              </svg>
-            </button>
-
-            {overflowOpen && (
-              <div className="chat-overflow-menu">
-                <button
-                  className="chat-overflow-item"
-                  onClick={() => runAndClose(onExportMd)}
-                  disabled={messagesEmpty}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  Exportar como .md
-                </button>
-                <button
-                  className="chat-overflow-item"
-                  onClick={() => runAndClose(onExportHtml)}
-                  disabled={messagesEmpty}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-                  </svg>
-                  Exportar como .html
-                </button>
-                <div className="chat-overflow-separator"/>
-                <button
-                  className={`chat-overflow-item${showShortcuts ? ' is-checked' : ''}`}
-                  onClick={() => runAndClose(onToggleShortcuts)}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
-                  Atajos de teclado
-                  <kbd>Shift+?</kbd>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Nuevo chat */}
-          <button className="chat-tb-btn is-new" onClick={onNewChat} title="Nuevo chat">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
-          </button>
-
-          {/* Cerrar */}
-          <button className="chat-tb-btn is-close" onClick={onClose} title="Cerrar panel">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
+              <X size={16} />
+            </ActionIcon>
+          )}
         </div>
       </div>
 
-      <div className="chat-toolbar">
+      {/* Selectors Bar */}
+      <div className="flex items-center gap-2 p-2 bg-secondary border-b border-subtle relative z-[5]">
         <ModeSelect value={mode} onChange={onModeSwitch} sessionId={sessionId} />
         <ModelSelect value={selectedModel} onChange={onModelChange} />
       </div>
-      <div className="chat-mode-desc">
-        <span className="chat-mode-desc__dot" data-mode={mode}/>
-        {MODE_DESCRIPTIONS[mode]}
+
+      {/* Mode Description */}
+      <div className="py-1 px-3 bg-secondary text-[10px] text-white/40 border-b border-subtle flex items-center gap-2 h-[22px]">
+        <div 
+          className="w-1.5 h-1.5 rounded-full shrink-0" 
+          style={{ backgroundColor: mode === 'agente' ? '#f59e0b' : mode === 'plan' ? '#10b981' : '#60a5fa' }} 
+        />
+        <span className="truncate">{MODE_DESCRIPTIONS[mode]}</span>
       </div>
     </div>
   );
