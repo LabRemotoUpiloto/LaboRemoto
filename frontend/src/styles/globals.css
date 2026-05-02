@@ -301,23 +301,23 @@
 
 /* Theme variants applied via data-theme attribute on <html> */
 html[data-theme="default"] {
-  --background-primary: #0B1220;
-  --background-secondary: #0F172A;
-  --background-tertiary: #111827;
-  --text-primary: #E5E7EB;
-  --text-secondary: #9CA3AF;
+  --background-primary: #141517;
+  --background-secondary: #1A1B1E;
+  --background-tertiary: #25262B;
+  --text-primary: #C1C2C5;
+  --text-secondary: #A6A7AB;
     /* Salvaguardas de legibilidad sobre acentos claros (por tema) */
     --accent-guard-shadow: none; /* text-shadow */
     --accent-guard-inset: none;  /* inner border box-shadow */
-  --accent-primary: #10B981;
-  --accent-primary-hover: #059669;
-  --accent-strong: #10b981;
-  --border-color: #1F2937;
-  --ring: #22D3EE;
-  --accent-contrast: #061016;
+  --accent-primary: #228BE6; /* Mantine Blue */
+  --accent-primary-hover: #1C7ED6;
+  --accent-strong: #1971C2;
+  --border-color: #373A40;
+  --ring: #339AF0;
+  --accent-contrast: #FFFFFF;
   --panel: var(--background-secondary);
   --panel-muted: var(--background-tertiary);
-  --shadow: 0 10px 28px rgba(2,6,23,0.28);
+  --shadow: 0 10px 28px rgba(0,0,0,0.28);
 }
 
 html[data-theme="dracula"] {

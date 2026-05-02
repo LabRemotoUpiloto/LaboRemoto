@@ -31,17 +31,11 @@ import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
 
-// ── Mantine theme — mapea accent-primary (teal) al primaryColor ──────────────
+// ── Mantine theme — mapea accent-primary (blue) al primaryColor ──────────────
 const mantineTheme = createTheme({
-  primaryColor: 'teal',
+  primaryColor: 'blue',
   defaultRadius: 'md',
   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-  colors: {
-    teal: [
-      '#f0fdf9', '#ccfbef', '#99f6e4', '#5eead4', '#2dd4bf',
-      '#10B981', '#059669', '#047857', '#065f46', '#064e3b',
-    ],
-  },
 })
 
 // ── GlobalLoader con Mantine LoadingOverlay ───────────────────────────────────
@@ -51,8 +45,8 @@ const GlobalLoader: React.FC = () => {
     <LoadingOverlay
       visible={loading}
       zIndex={9999}
-      overlayProps={{ radius: 'sm', blur: 2 }}
-      loaderProps={{ color: 'teal', type: 'oval', size: 'md' }}
+      overlayProps={{ radius: 'sm', blur: 0 }}
+      loaderProps={{ color: 'blue', type: 'oval', size: 'md' }}
     >
       {loading && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, pointerEvents: 'none' }}>
@@ -87,7 +81,7 @@ const UpdateModal: React.FC<{
     title={`Nueva versión ${version ?? ''}`}
     centered
     size="md"
-    overlayProps={{ blur: 3 }}
+    overlayProps={{ blur: 0 }}
   >
     <Text size="sm" c="dimmed" mb="md">
       {notes || 'Hay una actualización disponible. ¿Deseas instalarla ahora?'}
@@ -96,7 +90,7 @@ const UpdateModal: React.FC<{
       <Button variant="subtle" color="gray" onClick={onCancel} disabled={loading}>
         Ahora no
       </Button>
-      <Button color="teal" onClick={onConfirm} loading={loading}>
+      <Button color="blue" onClick={onConfirm} loading={loading}>
         Instalar y reiniciar
       </Button>
     </Group>
