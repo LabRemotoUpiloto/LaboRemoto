@@ -7,7 +7,6 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
-import './PracticesPage.css';
 
 interface PanelConfig {
     camera: boolean;
@@ -161,9 +160,9 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
 
     if (loading) {
         return (
-            <div className="practices-page">
-                <div className="practices-page__loading">
-                    <div className="practices-page__spinner" />
+            <div className="w-full h-full overflow-y-auto overflow-x-hidden bg-primary pt-3 custom-scrollbar">
+                <div className="flex flex-col items-center justify-center h-[50vh] gap-4 text-secondary text-[15px]">
+                    <div className="w-9 h-9 border-3 border-subtle border-t-accent rounded-full animate-spin" />
                     <p>Cargando prácticas...</p>
                 </div>
             </div>
@@ -171,27 +170,27 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
     }
 
     return (
-        <div className="practices-page">
-            <div className="practices-page__container">
+        <div className="w-full h-full overflow-y-auto overflow-x-hidden bg-primary pt-3 custom-scrollbar">
+            <div className="max-w-[960px] mx-auto px-7 pb-15">
                 {!selectedCategory ? (
                     /* ── Vista de Categorías ── */
                     <>
-                        <header className="practices-page__header">
-                            <div className="practices-page__header-badge">
+                        <header className="py-9 pb-8 animate-in fade-in duration-600">
+                            <div className="inline-flex items-center gap-2 py-1.5 px-4 bg-accent/10 text-accent border border-subtle rounded-full text-[13px] font-semibold mb-5 uppercase tracking-wide">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                                     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                                 </svg>
                                 Laboratorio Remoto
                             </div>
-                            <h1 className="practices-page__title">Prácticas de Laboratorio</h1>
-                            <p className="practices-page__subtitle">
+                            <h1 className="text-[32px] md:text-[42px] font-extrabold text-primary m-0 mb-3.5 leading-[1.1] tracking-tight">Prácticas de Laboratorio</h1>
+                            <p className="text-[17px] text-secondary max-w-[600px] leading-relaxed m-0">
                                 Selecciona una categoría para ver las prácticas disponibles. 
                                 Cada práctica configura automáticamente tu entorno de trabajo.
                             </p>
                         </header>
 
-                        <section className="practices-page__categories">
+                        <section className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5 animate-in slide-in-from-bottom-6 duration-600 delay-150 fill-mode-both">
                             {categories.map(cat => (
                                 <CategoryCard
                                     key={cat.id}
@@ -209,22 +208,23 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                 ) : (
                     /* ── Vista de Prácticas ── */
                     <>
-                        <header className="practices-page__header">
-                            <button className="practices-page__back-btn" onClick={handleBack}>
+                        <header className="py-9 pb-8 animate-in fade-in duration-600">
+                            <button className="inline-flex items-center gap-2 bg-transparent border-none text-secondary text-[14px] font-medium cursor-pointer py-1.5 mb-4 transition-all duration-200 hover:text-accent hover:gap-3 group" onClick={handleBack}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                     <path d="M19 12H5M12 19l-7-7 7-7" />
                                 </svg>
                                 Volver a categorías
                             </button>
-                            <div className="practices-page__header-badge" style={{ color: selectedCategory.color, borderColor: selectedCategory.color }}>
-                                <span className="practices-page__header-dot" style={{ background: selectedCategory.color }} />
+                            <br />
+                            <div className="inline-flex items-center gap-2 py-1.5 px-4 bg-accent/10 border border-subtle rounded-full text-[13px] font-semibold mb-5 uppercase tracking-wide" style={{ color: selectedCategory.color, borderColor: selectedCategory.color }}>
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: selectedCategory.color }} />
                                 {selectedCategory.name}
                             </div>
-                            <h1 className="practices-page__title">{selectedCategory.name}</h1>
-                            <p className="practices-page__subtitle">{selectedCategory.description}</p>
+                            <h1 className="text-[32px] md:text-[42px] font-extrabold text-primary m-0 mb-3.5 leading-[1.1] tracking-tight">{selectedCategory.name}</h1>
+                            <p className="text-[17px] text-secondary max-w-[600px] leading-relaxed m-0">{selectedCategory.description}</p>
                         </header>
 
-                        <section className="practices-page__list">
+                        <section className="grid grid-cols-1 gap-4 animate-in slide-in-from-bottom-6 duration-500">
                             {selectedCategory.practices.map(practice => (
                                 <PracticeCard
                                     key={practice.id}
@@ -242,35 +242,42 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
 
                         {/* ── Terminal de Log ── */}
                         {setupLogs.length > 0 && (
-                            <section className="practices-page__log-terminal">
-                                <div className="practices-page__log-header">
-                                    <div className="practices-page__log-dots">
-                                        <span />
-                                        <span />
-                                        <span />
+                            <section className="mt-6 rounded-[14px] overflow-hidden border border-subtle bg-primary animate-in slide-in-from-bottom-4 duration-400">
+                                <div className="flex items-center gap-3 py-2.5 px-4 bg-tertiary border-b border-subtle">
+                                    <div className="flex gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                                     </div>
-                                    <span className="practices-page__log-title">
+                                    <span className="text-[12px] font-semibold text-secondary tracking-wide flex-1">
                                         📋 Log de Inicialización
                                     </span>
                                     {!startingPractice && (
                                         <button 
-                                            className="practices-page__log-close"
+                                            className="bg-transparent border-none text-tertiary text-[14px] cursor-pointer py-0.5 px-1.5 rounded transition-all duration-200 hover:bg-white/5 hover:text-primary"
                                             onClick={() => setSetupLogs([])}
                                         >
                                             ✕
                                         </button>
                                     )}
                                 </div>
-                                <div className="practices-page__log-body">
-                                    {setupLogs.map((log, i) => (
-                                        <div key={i} className={`practices-page__log-entry practices-page__log-entry--${log.level}`}>
-                                            <span className="practices-page__log-time">{log.timestamp}</span>
-                                            <span className="practices-page__log-msg">{log.message}</span>
-                                        </div>
-                                    ))}
+                                <div className="py-3.5 px-4 max-h-[280px] overflow-y-auto font-mono text-[13px] leading-relaxed custom-scrollbar">
+                                    {setupLogs.map((log, i) => {
+                                        let logColorCls = 'text-secondary';
+                                        if (log.level === 'success') logColorCls = 'text-emerald-400';
+                                        if (log.level === 'warning') logColorCls = 'text-amber-400';
+                                        if (log.level === 'error') logColorCls = 'text-red-400';
+                                        
+                                        return (
+                                            <div key={i} className="flex items-start gap-2.5 py-0.5">
+                                                <span className="text-muted text-[11px] min-w-[65px] shrink-0 opacity-60 pt-[1px]">{log.timestamp}</span>
+                                                <span className={`break-words ${logColorCls}`}>{log.message}</span>
+                                            </div>
+                                        );
+                                    })}
                                     {startingPractice && (
-                                        <div className="practices-page__log-entry practices-page__log-entry--info">
-                                            <span className="practices-page__log-cursor">▌</span>
+                                        <div className="flex items-start gap-2.5 py-0.5">
+                                            <span className="text-accent animate-pulse">▌</span>
                                         </div>
                                     )}
                                     <div ref={logEndRef} />

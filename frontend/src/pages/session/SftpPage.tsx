@@ -13,7 +13,6 @@ import { useSftpTransfers } from '../../hooks/useSftpTransfers'
 import { useToasts } from '../../contexts/ToastContext'
 import { formatDate, formatBytes } from '../../components/shared/fileFormatters'
 import { joinLocalPath, joinRemotePath, getParentLocalPath, getParentRemotePath } from '../../components/shared/pathUtils'
-import './SftpPage.css'
 import type { SftpEntry, LocalEntry } from '../../types'
 
 type Props = {
@@ -148,13 +147,13 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, in
   }
   // UI Layout similar al screenshot: barra superior por pane (back/up, breadcrumbs, filter, actions)
   return (
-    <div className="sftp-page">
+    <div className="grid grid-cols-1 md:grid-cols-2 grid-rows-[1fr_auto] h-full gap-2.5 p-2.5 pb-3.5 bg-primary">
       {/* Local */}
-      <div className={`sftp-panel ${activePane==='local'? 'active':''}`} onClick={()=> setActivePane('local')} data-tour="sftp-panel-local">
-        <div className="sftp-panel__header">
+      <div className={`flex flex-col bg-secondary rounded-[10px] border overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.15)] transition-all duration-150 relative ${activePane==='local'? 'border-accent shadow-[0_0_0_1px_rgba(16,185,129,0.2),0_4px_16px_rgba(0,0,0,0.2)]' : 'border-subtle'}`} onClick={()=> setActivePane('local')} data-tour="sftp-panel-local">
+        <div className="flex items-center gap-[7px] py-[7px] px-3 bg-tertiary border-b border-subtle min-h-[42px]">
           <button 
             title='Atrás' 
-            className="sftp-back-btn" 
+            className="inline-flex items-center justify-center w-[26px] h-[26px] p-0 rounded-[5px] bg-transparent border border-subtle text-secondary text-[14px] leading-none cursor-pointer shrink-0 transition-colors duration-150 hover:not(:disabled):bg-white/5 hover:not(:disabled):border-strong hover:not(:disabled):text-primary disabled:opacity-35 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1" 
             onClick={(e)=>{ 
               e.stopPropagation();
               const p=lpath.replace(/\\/g,'/'); 
@@ -169,20 +168,21 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, in
           
           <FileNavigationBar rootLabel="Local" path={lpath} onNavigate={(p)=>{ setLpath(p); refreshLocal(p); }} />
           
-          <div className="toolbar-spacer">
+          <div className="flex-1 flex items-center gap-[5px] justify-end min-w-0 relative">
             <input
               placeholder='Buscar...'
-              className="sftp-search-input"
+              className="h-[28px] pl-[9px] pr-[32px] rounded-[6px] bg-primary border border-subtle text-primary text-[12px] w-[160px] shrink min-w-[80px] transition-all duration-150 focus:outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(16,185,129,0.2)] disabled:opacity-40 disabled:cursor-not-allowed placeholder:text-muted"
               value={lfilter}
               onChange={e=> setLfilter(e.target.value)}
             />
-            {lfilter && <button className="sftp-clear-btn" title="Limpiar búsqueda" onClick={(e)=>{ e.stopPropagation(); setLfilter(''); }}>×</button>}
+            {lfilter && <button className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[22px] h-[22px] p-0 rounded bg-transparent border-none text-muted text-[16px] leading-none cursor-pointer transition-colors duration-100 hover:bg-white/5 hover:text-primary" title="Limpiar búsqueda" onClick={(e)=>{ e.stopPropagation(); setLfilter(''); }}>×</button>}
           </div>
         </div>
         
-        <div className="sftp-panel__subheader">
+        <div className="flex items-center gap-[5px] py-[5px] px-3 border-b border-subtle min-h-[38px] bg-tertiary/40">
           <select 
-            className="sftp-select" 
+            className="h-[28px] pl-[9px] pr-[26px] rounded-[6px] bg-primary border border-subtle text-secondary text-[12px] min-w-[80px] max-w-[130px] cursor-pointer shrink-0 appearance-none bg-no-repeat bg-[right_7px_center] transition-colors duration-150 hover:not(:disabled):border-strong hover:not(:disabled):text-primary focus:outline-2 focus:outline-accent focus:-outline-offset-1 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' stroke=\'%23888\' stroke-width=\'1.5\' fill=\'none\' stroke-linecap=\'round\'/%3E%3C/svg%3E")' }}
             onChange={e=>{ const next=e.target.value; setLpath(next); refreshLocal(next); }} 
             value={(()=>{ const d=ldrives; if(!d||d.length===0) return ''; const match=d.find(x=> lpath.toUpperCase().startsWith(x.toUpperCase())); return match || ''; })()}
             title="Seleccionar unidad"
@@ -192,31 +192,31 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, in
           </select>
           
           <button 
-            className="sftp-icon-btn" 
+            className="inline-flex items-center gap-[5px] h-[28px] px-[9px] rounded-[6px] bg-transparent border border-subtle text-secondary text-[12px] font-medium cursor-pointer whitespace-nowrap shrink-0 transition-colors duration-150 hover:not(:disabled):bg-white/5 hover:not(:disabled):border-strong hover:not(:disabled):text-primary active:not(:disabled):scale-95 disabled:opacity-40 disabled:cursor-not-allowed" 
             onClick={(e)=>{ e.stopPropagation(); refreshLocal(); }} 
             title="Actualizar lista"
           >
-            <span className="sftp-icon-btn__icon">↻</span>
+            <span className="text-[12px] leading-none opacity-80">↻</span>
             Actualizar
           </button>
           
-          <div className="toolbar-spacer">
+          <div className="flex-1 flex items-center gap-[5px] justify-end min-w-0 relative">
             <button 
-              className="sftp-icon-btn sftp-icon-btn--primary" 
+              className="inline-flex items-center gap-[5px] h-[28px] px-[9px] rounded-[6px] bg-accent border border-accent text-inverse font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors duration-150 hover:not(:disabled):bg-[#0da574] hover:not(:disabled):border-[#0da574] active:not(:disabled):scale-95 disabled:opacity-40 disabled:cursor-not-allowed" 
               onClick={(e)=>{ e.stopPropagation(); doUpload(); }} 
               disabled={!sessionId || !lSelectedPath} 
               title="Subir al servidor remoto"
             >
-              <span className="sftp-icon-btn__icon">↑</span>
+              <span className="text-[12px] leading-none opacity-80">↑</span>
               Subir
             </button>
           </div>
         </div>
-        <div className="sftp-panel__body scroll-accent">
+        <div className="flex-1 overflow-auto relative min-h-0 custom-scrollbar">
           {lload ? (
-            <div className="sftp-panel__loading" aria-busy="true">
-              <div className="sftp-panel__loading-spinner" />
-              <span className="sftp-panel__loading-text">Cargando archivos locales...</span>
+            <div className="flex flex-col items-center justify-center py-[50px] px-5 gap-3 text-tertiary" aria-busy="true">
+              <div className="w-[26px] h-[26px] border-2 border-subtle border-t-accent rounded-full animate-spin" />
+              <span className="text-[12px]">Cargando archivos locales...</span>
             </div>
           ) : (
             <DataTable
@@ -227,9 +227,9 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, in
                 { key: 'type', label: 'Tipo', sortable: true }
               ]}
               data={ldisplay.map(e => ({
-                name: <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span title={e.name}>{e.name}</span></div>,
+                name: <div className="flex items-center gap-[10px] font-medium transition-colors duration-100 group-hover:text-primary"><div className="shrink-0 transition-opacity duration-200 opacity-[0.85] group-hover:opacity-100"><FileIcon name={e.name} kind={e.kind as any} /></div><span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0" title={e.name}>{e.name}</span></div>,
                 modified: formatDate(e.mtime, false),
-                size: <span style={{fontVariantNumeric:'tabular-nums'}}>{formatBytes(e.size)}</span>,
+                size: <span className="font-mono text-[12px] tabular-nums">{formatBytes(e.size)}</span>,
                 type: e.kind === 'dir' ? 'carpeta' : 'archivo',
                 _raw: e
               }))}
@@ -261,11 +261,11 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, in
       </div>
 
       {/* Remote */}
-      <div className={`sftp-panel ${activePane==='remote'? 'active':''}`} onClick={()=> setActivePane('remote')} data-tour="sftp-panel-remote">
-        <div className="sftp-panel__header">
+      <div className={`flex flex-col bg-secondary rounded-[10px] border overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.15)] transition-all duration-150 relative ${activePane==='remote'? 'border-accent shadow-[0_0_0_1px_rgba(16,185,129,0.2),0_4px_16px_rgba(0,0,0,0.2)]' : 'border-subtle'}`} onClick={()=> setActivePane('remote')} data-tour="sftp-panel-remote">
+        <div className="flex items-center gap-[7px] py-[7px] px-3 bg-tertiary border-b border-subtle min-h-[42px]">
           <button 
             title='Atrás' 
-            className="sftp-back-btn" 
+            className="inline-flex items-center justify-center w-[26px] h-[26px] p-0 rounded-[5px] bg-transparent border border-subtle text-secondary text-[14px] leading-none cursor-pointer shrink-0 transition-colors duration-150 hover:not(:disabled):bg-white/5 hover:not(:disabled):border-strong hover:not(:disabled):text-primary disabled:opacity-35 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1" 
             onClick={(e)=>{ 
               e.stopPropagation();
               if(rpath==='/') return; 
@@ -285,24 +285,25 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, in
             prefix="/"
           />
           
-          <div className="toolbar-spacer">
-            <span className={`sftp-status-badge ${canUse? 'sftp-status-badge--connected':'sftp-status-badge--disconnected'}`}>
+          <div className="flex-1 flex items-center gap-[5px] justify-end min-w-0 relative">
+            <span className={`inline-flex items-center gap-1.5 h-[22px] px-2 rounded-full text-[10px] font-bold uppercase tracking-[0.06em] shrink-0 before:content-[''] before:w-[5px] before:h-[5px] before:rounded-full before:inline-block before:shrink-0 ${canUse? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 before:bg-emerald-500 before:animate-pulse':'bg-tertiary text-muted border border-subtle before:bg-muted before:opacity-40'}`}>
               {canUse? 'Conectado':'Desconectado'}
             </span>
             <input
               placeholder='Buscar...'
-              className="sftp-search-input"
+              className="h-[28px] pl-[9px] pr-[32px] rounded-[6px] bg-primary border border-subtle text-primary text-[12px] w-[160px] shrink min-w-[80px] transition-all duration-150 focus:outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(16,185,129,0.2)] disabled:opacity-40 disabled:cursor-not-allowed placeholder:text-muted"
               value={rfilter}
               onChange={e=> setRfilter(e.target.value)}
               disabled={!canUse}
             />
-            {rfilter && <button className="sftp-clear-btn" title="Limpiar búsqueda" onClick={(e)=>{ e.stopPropagation(); setRfilter(''); }}>×</button>}
+            {rfilter && <button className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[22px] h-[22px] p-0 rounded bg-transparent border-none text-muted text-[16px] leading-none cursor-pointer transition-colors duration-100 hover:bg-white/5 hover:text-primary" title="Limpiar búsqueda" onClick={(e)=>{ e.stopPropagation(); setRfilter(''); }}>×</button>}
           </div>
         </div>
         
-        <div className="sftp-panel__subheader">
+        <div className="flex items-center gap-[5px] py-[5px] px-3 border-b border-subtle min-h-[38px] bg-tertiary/40">
           <select 
-            className="sftp-select" 
+            className="h-[28px] pl-[9px] pr-[26px] rounded-[6px] bg-primary border border-subtle text-secondary text-[12px] min-w-[80px] max-w-[130px] cursor-pointer shrink-0 appearance-none bg-no-repeat bg-[right_7px_center] transition-colors duration-150 hover:not(:disabled):border-strong hover:not(:disabled):text-primary focus:outline-2 focus:outline-accent focus:-outline-offset-1 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' stroke=\'%23888\' stroke-width=\'1.5\' fill=\'none\' stroke-linecap=\'round\'/%3E%3C/svg%3E")' }}
             value={sessionId||''} 
             onChange={e=>setSessionId(e.target.value||undefined)} 
             title={sessionId ? `Sesión: ${sessionsMeta?.[sessionId]?.label || sessionId}` : 'Seleccionar sesión'}
@@ -315,44 +316,44 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, in
           </select>
           
           <button 
-            className="sftp-icon-btn" 
+            className="inline-flex items-center gap-[5px] h-[28px] px-[9px] rounded-[6px] bg-transparent border border-subtle text-secondary text-[12px] font-medium cursor-pointer whitespace-nowrap shrink-0 transition-colors duration-150 hover:not(:disabled):bg-white/5 hover:not(:disabled):border-strong hover:not(:disabled):text-primary active:not(:disabled):scale-95 disabled:opacity-40 disabled:cursor-not-allowed" 
             onClick={(e)=>{ e.stopPropagation(); refreshRemote(); }} 
             disabled={!canUse} 
             title="Actualizar lista"
           >
-            <span className="sftp-icon-btn__icon">↻</span>
+            <span className="text-[12px] leading-none opacity-80">↻</span>
             Actualizar
           </button>
           
           <button 
-            className="sftp-icon-btn" 
+            className="inline-flex items-center gap-[5px] h-[28px] px-[9px] rounded-[6px] bg-transparent border border-subtle text-secondary text-[12px] font-medium cursor-pointer whitespace-nowrap shrink-0 transition-colors duration-150 hover:not(:disabled):bg-white/5 hover:not(:disabled):border-strong hover:not(:disabled):text-primary active:not(:disabled):scale-95 disabled:opacity-40 disabled:cursor-not-allowed" 
             onClick={(e)=>{ e.stopPropagation(); doRemoteMkdir(); }} 
             disabled={!canUse} 
             title="Crear nueva carpeta"
           >
-            <span className="sftp-icon-btn__icon">+</span>
+            <span className="text-[12px] leading-none opacity-80">+</span>
             Nueva carpeta
           </button>
           
-          <div className="toolbar-spacer">
+          <div className="flex-1 flex items-center gap-[5px] justify-end min-w-0 relative">
             <button 
-              className="sftp-icon-btn sftp-icon-btn--primary" 
+              className="inline-flex items-center gap-[5px] h-[28px] px-[9px] rounded-[6px] bg-accent border border-accent text-inverse font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors duration-150 hover:not(:disabled):bg-[#0da574] hover:not(:disabled):border-[#0da574] active:not(:disabled):scale-95 disabled:opacity-40 disabled:cursor-not-allowed" 
               onClick={(e)=>{ e.stopPropagation(); doDownload(); }} 
               disabled={!canUse || !rSelectedPath} 
               title="Descargar a local"
             >
-              <span className="sftp-icon-btn__icon">↓</span>
+              <span className="text-[12px] leading-none opacity-80">↓</span>
               Descargar
             </button>
           </div>
         </div>
         
-        <div className="sftp-panel__body scroll-accent">
-          {rerr && <div className="sftp-panel__error">{rerr}</div>}
+        <div className="flex-1 overflow-auto relative min-h-0 custom-scrollbar">
+          {rerr && <div className="flex items-center gap-2.5 py-2.5 px-3.5 text-danger bg-danger/10 border border-danger/20 rounded-md m-2.5 text-[12px] before:content-['⚠'] before:text-[14px] before:shrink-0">{rerr}</div>}
           {rload ? (
-            <div className="sftp-panel__loading" aria-busy="true">
-              <div className="sftp-panel__loading-spinner" />
-              <span className="sftp-panel__loading-text">Cargando archivos remotos...</span>
+            <div className="flex flex-col items-center justify-center py-[50px] px-5 gap-3 text-tertiary" aria-busy="true">
+              <div className="w-[26px] h-[26px] border-2 border-subtle border-t-accent rounded-full animate-spin" />
+              <span className="text-[12px]">Cargando archivos remotos...</span>
             </div>
           ) : (
             <DataTable
@@ -363,9 +364,9 @@ const SftpPage: React.FC<Props> = ({ sessions, activeSessionId, sessionsMeta, in
                 { key: 'type', label: 'Tipo', sortable: true }
               ]}
               data={rdisplay.map(e => ({
-                name: <div className="file-name"><FileIcon name={e.name} kind={e.kind as any} /><span title={e.name}>{e.name}</span></div>,
+                name: <div className="flex items-center gap-[10px] font-medium transition-colors duration-100 group-hover:text-primary"><div className="shrink-0 transition-opacity duration-200 opacity-[0.85] group-hover:opacity-100"><FileIcon name={e.name} kind={e.kind as any} /></div><span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0" title={e.name}>{e.name}</span></div>,
                 modified: formatDate(e.mtime, true),
-                size: <span className="size-cell">{formatBytes(e.size)}</span>,
+                size: <span className="font-mono text-[12px] tabular-nums">{formatBytes(e.size)}</span>,
                 type: e.kind === 'dir' ? 'carpeta' : 'archivo',
                 _raw: e
               }))}
