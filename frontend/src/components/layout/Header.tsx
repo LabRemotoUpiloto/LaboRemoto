@@ -170,7 +170,7 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className="fixed top-0 left-0 right-0 z-[2000] flex flex-col" role="banner" onMouseLeave={handleMouseLeave}>
       {/* ═══ H1: Panel Tabs ═══ */}
-      <div className="flex items-stretch bg-secondary border-b border-subtle h-[34px] shrink-0 w-full pl-[50px] transition-[padding-left] duration-300" style={{ paddingLeft: isSidebarExpanded ? '160px' : '50px' }}>
+      <div className="flex items-stretch bg-secondary border-b border-subtle h-[34px] shrink-0 w-full pl-0">
         {openPanels.map(panelId => {
           const isActive = activePanel === panelId;
           const isDragOver = dragOver === panelId && dragRef.current !== `panel:${panelId}`;
@@ -214,8 +214,7 @@ const Header: React.FC<HeaderProps> = ({
 
       {/* ═══ H2: Session Bar ═══ */}
       <div 
-        className={`flex items-stretch bg-primary border-b border-subtle h-[38px] shrink-0 transition-[padding-left] duration-300 ${activePanel === 'terminal' ? '' : 'hidden'}`}
-        style={{ paddingLeft: isSidebarExpanded ? '160px' : '50px' }}
+        className={`flex items-stretch bg-primary border-b border-subtle h-[38px] shrink-0 ${activePanel === 'terminal' ? '' : 'hidden'}`}
       >
         <div className="flex items-stretch flex-1 overflow-x-auto scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-secondary scrollbar-track-transparent" ref={sessionsRef}>
           {tabs.filter(t => t.type === 'session').map(t => {
