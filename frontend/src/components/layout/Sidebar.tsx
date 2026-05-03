@@ -88,10 +88,23 @@ const Sidebar: React.FC<SidebarProps> = ({
             strokeLinecap="round" 
             strokeLinejoin="round"
             fill="none"
+            className="shrink-0"
           >
-            <path d="M4 6L20 6" className={`origin-center transition-all duration-300 ${isExpanded ? 'translate-y-[6px] rotate-45' : ''}`} />
-            <path d="M4 12L20 12" className={`origin-center transition-all duration-200 ${isExpanded ? 'opacity-0 scale-x-0' : ''}`} />
-            <path d="M4 18L20 18" className={`origin-center transition-all duration-300 ${isExpanded ? '-translate-y-[6px] -rotate-45' : ''}`} />
+            <path 
+              d="M4 6L20 6" 
+              className={`origin-center transition-all duration-300 ${isExpanded ? 'translate-y-[6px] rotate-45' : ''}`}
+              style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+            />
+            <path 
+              d="M4 12L20 12" 
+              className={`origin-center transition-all duration-200 ${isExpanded ? 'opacity-0 scale-x-0' : ''}`}
+              style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+            />
+            <path 
+              d="M4 18L20 18" 
+              className={`origin-center transition-all duration-300 ${isExpanded ? '-translate-y-[6px] -rotate-45' : ''}`}
+              style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+            />
           </svg>
         </UnstyledButton>
       </Box>
