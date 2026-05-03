@@ -46,6 +46,15 @@ const PANEL_ICONS: Record<string, React.ReactNode> = {
   connect: (
     <svg viewBox="0 0 12 12" fill="none" width="20" height="20"><rect x=".5" y="1.5" width="11" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M3 5l2 1.5L3 8M7 8h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
   ),
+  practices: (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+      <path d="M7.5 2.5v6L5 14a1 1 0 0 0 .9 1.5h8.2a1 1 0 0 0 .9-1.5L12.5 8.5v-6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7.5 2.5h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M5.5 11h9" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+      <circle cx="9" cy="13" r=".75" fill="currentColor"/>
+      <circle cx="12" cy="14.2" r=".75" fill="currentColor"/>
+    </svg>
+  ),
   landing: (
     <svg viewBox="0 0 12 12" fill="none" width="20" height="20"><path d="M1.5 4.5L6 1l4.5 3.5v6a1 1 0 01-1 1H2.5a1 1 0 01-1-1z" stroke="currentColor" strokeWidth="1.2" /><path d="M4.5 10.5v-4h3v4" stroke="currentColor" strokeWidth="1.1" /></svg>
   ),
@@ -60,6 +69,7 @@ const PANEL_LABELS: Record<string, string> = {
   terminal: 'Terminal',
   sftp: 'SFTP',
   hosts: 'Hosts',
+  practices: 'Prácticas',
   connect: 'Connect',
   logs: 'Logs',
   themes: 'Temas',
@@ -182,9 +192,13 @@ const Header: React.FC<HeaderProps> = ({
             value={activePanel}
             onChange={(val) => val && onPanelClick(val)}
             variant="outline"
+            classNames={{
+              root: '!border-0',
+              tabsList: '!border-0 !border-b-0',
+            }}
             styles={{
-              root: { border: 0, height: '100%' },
-              tabsList: { border: 0, height: '100%', paddingLeft: rem(12), flexWrap: 'nowrap' },
+              root: { border: 0, borderBottom: 0, height: '100%' },
+              tabsList: { border: 0, borderBottom: 0, height: '100%', paddingLeft: rem(12), flexWrap: 'nowrap' },
               tab: {
                 height: rem(44),
                 fontSize: rem(12),
@@ -230,6 +244,11 @@ const Header: React.FC<HeaderProps> = ({
                         </ActionIcon>
                       )
                     }
+                    style={panelId === activePanel ? {
+                      borderBottom: '2px solid var(--accent-primary)',
+                      backgroundColor: 'var(--interactive-selected)',
+                      color: 'var(--accent-primary)',
+                    } : { borderBottom: '2px solid transparent' }}
                     className={`group capitalize ${isDragOver ? 'border-l-2 border-l-accent bg-accent/10' : ''}`}
                     onMouseDown={(e) => handleMouseDown(e, panelId, 'panel')}
                     onMouseEnter={() => handleMouseEnter(panelId)}
@@ -289,6 +308,11 @@ const Header: React.FC<HeaderProps> = ({
                               <CloseIcon />
                             </ActionIcon>
                           }
+                          style={isActive ? {
+                            backgroundColor: 'var(--interactive-selected)',
+                            border: '1px solid var(--accent-primary)',
+                            color: 'var(--accent-primary)',
+                          } : {}}
                           className={`group ${isDragOver ? 'border-l-2 border-l-accent bg-accent/10' : ''}`}
                           onMouseDown={(e) => handleMouseDown(e, t.id, 'tab')}
                           onMouseEnter={() => handleMouseEnter(t.id)}
