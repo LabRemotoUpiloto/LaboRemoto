@@ -23,7 +23,19 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
     const diff = difficultyConfig[difficulty] || difficultyConfig.beginner;
 
     return (
-        <Card withBorder radius="md" padding="lg">
+        <Card 
+            withBorder 
+            radius="md" 
+            padding="lg" 
+            className="group animate-reveal"
+            sx={{
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                    transform: 'translateY(-4px) scale(1.01)',
+                    boxShadow: '0 12px 24px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 139, 230, 0.1)',
+                }
+            }}
+        >
             <Stack gap="md">
                 <Group justify="space-between" align="center">
                     <Group gap={6} align="center">
@@ -33,12 +45,12 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
                     <Group gap="xs">
                         {hasCamera && (
                             <Tooltip label="Cámara del laboratorio" withArrow>
-                                <Camera size={18} style={{ opacity: 0.6 }} />
+                                <Camera size={18} className="opacity-60 group-hover:opacity-100 group-hover:text-blue-500 transition-all duration-200" />
                             </Tooltip>
                         )}
                         {hasChat && (
                             <Tooltip label="Chat con asistente IA" withArrow>
-                                <MessageSquare size={18} style={{ opacity: 0.6 }} />
+                                <MessageSquare size={18} className="opacity-60 group-hover:opacity-100 group-hover:text-blue-500 transition-all duration-200" />
                             </Tooltip>
                         )}
                     </Group>
@@ -54,7 +66,8 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
                     color="blue"
                     loading={loading}
                     onClick={onStart}
-                    rightSection={<ArrowRight size={16} />}
+                    rightSection={<ArrowRight size={16} className="group-hover:translate-x-1 transition-transform duration-200" />}
+                    className="group-hover:shadow-md transition-all duration-200"
                 >
                     {loading ? 'Preparando...' : 'Iniciar Práctica'}
                 </Button>
