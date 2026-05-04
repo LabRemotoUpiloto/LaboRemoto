@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listHostEntries, deleteHostFile } from '../../api/storage'
+import { listHostEntries, deleteHostFile } from '../../services/storage.service'
 import { useLoading } from '../../contexts/LoadingContext'
 import { useToasts } from '../../contexts/ToastContext'
 import { Card, Text, Badge, ActionIcon, Menu, Button, Box, Container, SimpleGrid, Stack, Title, Loader, Tooltip } from '@mantine/core'
