@@ -57,15 +57,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onOpenPanel 
     ];
 
     return (
-        <Box 
-            className="custom-scrollbar"
+        <div 
+            className="w-full h-full overflow-y-auto overflow-x-hidden pt-3 custom-scrollbar"
             style={{ 
-                width: '100%', 
-                height: '100%', 
-                overflowY: 'auto', 
-                overflowX: 'hidden',
-                backgroundColor: 'var(--mantine-color-body)',
-                paddingTop: rem(12)
+                backgroundColor: 'var(--background-primary)',
+                overscrollBehavior: 'contain'
             }}
         >
             <Container size={1000} pb={60}>
@@ -379,7 +375,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onOpenPanel 
                     </Card>
                 </Stack>
             </Container>
-        </Box>
+        </div>
     );
 };
 
