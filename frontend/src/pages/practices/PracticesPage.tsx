@@ -3,10 +3,16 @@ import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import { ActionIcon, Badge, Button, Container, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, Title, Box } from '@mantine/core';
-import { ArrowLeft, X } from 'lucide-react';
+import { ActionIcon, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
+import { ArrowLeft, Bot, Cpu, Terminal, X } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
+
+const categoryIconMap: Record<string, React.ElementType> = {
+    robot: Bot,
+    terminal: Terminal,
+    circuit: Cpu,
+};
 
 interface PanelConfig {
     camera: boolean;
@@ -206,22 +212,42 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                     </Stack>
                 ) : (
                     <Stack gap="xl">
-                        <Button
-                            variant="subtle"
-                            color="gray"
-                            leftSection={<ArrowLeft size={16} />}
-                            onClick={handleBack}
-                        >
-                            Volver a categorías
-                        </Button>
+                        <Group justify="space-between" align="center">
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                radius="md"
+                                leftSection={<ArrowLeft size={14} />}
+                                onClick={handleBack}
+                            >
+                                Volver a categorías
+                            </Button>
+                            <Text size="xs" c="dimmed" fw={500} tt="uppercase" style={{ letterSpacing: '0.08em' }}>
+                                {selectedCategory.practices.length} práctica{selectedCategory.practices.length !== 1 ? 's' : ''}
+                            </Text>
+                        </Group>
 
-                        <Stack gap="xs">
-                            <Badge variant="light" color="blue">{selectedCategory.name}</Badge>
-                            <Title order={1}>{selectedCategory.name}</Title>
-                            <Text size="md" c="dimmed" maw={580}>{selectedCategory.description}</Text>
-                        </Stack>
+                        <Group gap="md" align="flex-start" wrap="nowrap">
+                            <ThemeIcon size={52} radius="lg" variant="light" color="blue">
+                                {(() => {
+                                    const Icon = categoryIconMap[selectedCategory.icon] || Terminal;
+                                    return <Icon size={26} />;
+                                })()}
+                            </ThemeIcon>
+                            <Stack gap={6}>
+                                <Title order={1} style={{ fontSize: '1.875rem', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+                                    {selectedCategory.name}
+                                </Title>
+                                <Text size="sm" c="dimmed" maw={620} style={{ lineHeight: 1.55 }}>
+                                    {selectedCategory.description}
+                                </Text>
+                            </Stack>
+                        </Group>
 
-                        <Stack gap="md">
+                        <Divider />
+
+                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
                             {selectedCategory.practices.map(practice => (
                                 <PracticeCard
                                     key={practice.id}
@@ -235,7 +261,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                                     loading={startingPractice === practice.id}
                                 />
                             ))}
-                        </Stack>
+                        </SimpleGrid>
 
                         {setupLogs.length > 0 && (
                             <Paper withBorder radius="md">

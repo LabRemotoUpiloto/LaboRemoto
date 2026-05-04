@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { Camera, MessageSquare, ArrowRight } from 'lucide-react';
 
 interface PracticeCardProps {
@@ -23,51 +23,79 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
     const diff = difficultyConfig[difficulty] || difficultyConfig.beginner;
 
     return (
-        <Card 
-            withBorder 
-            radius="md" 
-            padding="lg" 
+        <Card
+            withBorder
+            radius="lg"
+            padding="lg"
+            h="100%"
             className="group animate-reveal"
-            sx={{
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            sx={(theme) => ({
+                display: 'flex',
+                flexDirection: 'column',
+                backgroundColor: 'var(--mantine-color-body)',
+                borderColor: 'var(--mantine-color-default-border)',
+                transition: 'border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease',
                 '&:hover': {
-                    transform: 'translateY(-4px) scale(1.01)',
-                    boxShadow: '0 12px 24px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 139, 230, 0.1)',
-                }
-            }}
+                    borderColor: theme.colors.blue[6],
+                    boxShadow: `0 0 0 1px ${theme.colors.blue[6]}40, 0 8px 24px -12px rgba(0,0,0,0.35)`,
+                    transform: 'translateY(-2px)',
+                },
+            })}
         >
-            <Stack gap="md">
-                <Group justify="space-between" align="center">
-                    <Group gap={6} align="center">
-                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: diff.dot, flexShrink: 0 }} />
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={500} style={{ letterSpacing: '0.04em' }}>{diff.label}</Text>
+            <Stack gap="md" h="100%">
+                <Group justify="space-between" align="center" wrap="nowrap">
+                    <Group gap={8} align="center">
+                        <div style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: diff.dot,
+                            boxShadow: `0 0 0 3px ${diff.dot}25`,
+                            flexShrink: 0,
+                        }} />
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: '0.06em', fontSize: 10.5 }}>
+                            {diff.label}
+                        </Text>
                     </Group>
-                    <Group gap="xs">
+                    <Group gap={4}>
                         {hasCamera && (
-                            <Tooltip label="Cámara del laboratorio" withArrow>
-                                <Camera size={18} className="opacity-60 group-hover:opacity-100 group-hover:text-blue-500 transition-all duration-200" />
+                            <Tooltip label="Cámara del laboratorio" withArrow position="top">
+                                <ActionIcon variant="subtle" color="gray" size="sm" radius="md" aria-label="Cámara del laboratorio">
+                                    <Camera size={14} />
+                                </ActionIcon>
                             </Tooltip>
                         )}
                         {hasChat && (
-                            <Tooltip label="Chat con asistente IA" withArrow>
-                                <MessageSquare size={18} className="opacity-60 group-hover:opacity-100 group-hover:text-blue-500 transition-all duration-200" />
+                            <Tooltip label="Chat con asistente IA" withArrow position="top">
+                                <ActionIcon variant="subtle" color="gray" size="sm" radius="md" aria-label="Chat con asistente IA">
+                                    <MessageSquare size={14} />
+                                </ActionIcon>
                             </Tooltip>
                         )}
                     </Group>
                 </Group>
 
-                <div>
-                    <Text fw={600} size="lg" mb={4}>{name}</Text>
-                    <Text size="sm" c="dimmed">{description}</Text>
+                <div style={{ flex: 1 }}>
+                    <Text fw={600} size="md" mb={6} lineClamp={2} style={{ lineHeight: 1.35, letterSpacing: '-0.01em' }}>
+                        {name}
+                    </Text>
+                    <Text size="sm" c="dimmed" lineClamp={3} style={{ lineHeight: 1.55 }}>
+                        {description}
+                    </Text>
                 </div>
 
                 <Button
-                    variant="light"
+                    variant="filled"
                     color="blue"
+                    size="sm"
+                    radius="md"
+                    fullWidth
                     loading={loading}
                     onClick={onStart}
-                    rightSection={<ArrowRight size={16} className="group-hover:translate-x-1 transition-transform duration-200" />}
-                    className="group-hover:shadow-md transition-all duration-200"
+                    rightSection={
+                        <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
+                    }
+                    mt="auto"
                 >
                     {loading ? 'Preparando...' : 'Iniciar Práctica'}
                 </Button>
