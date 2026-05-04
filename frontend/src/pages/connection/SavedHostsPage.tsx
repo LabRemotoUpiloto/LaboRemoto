@@ -190,14 +190,19 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
                             <IconComponent size={20} />
                           </div>
                           <div className="min-w-0">
-                            <Text size="sm" fw={600} truncate>{displayName}</Text>
-                            <Text size="xs" c="dimmed" truncate>
-                              {it.payload.user && (
-                                <span style={{ color: 'var(--accent-primary)' }}>{it.payload.user}@</span>
-                              )}
-                              {it.payload.host}
-                              {portNum !== 22 && `:${portNum}`}
-                            </Text>
+                            <Text size="sm" fw={600} truncate>{it.payload.name || displayName}</Text>
+                            {it.payload.name && (
+                              <Text size="xs" c="dimmed" fw={500} style={{ marginTop: -2 }}>{displayName}</Text>
+                            )}
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Text size="xs" c="dimmed" truncate>
+                                {it.payload.user && (
+                                  <span style={{ color: 'var(--accent-primary)' }}>{it.payload.user}@</span>
+                                )}
+                                {it.payload.host}
+                                {portNum !== 22 && `:${portNum}`}
+                              </Text>
+                            </div>
                           </div>
                         </div>
 
@@ -228,12 +233,6 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
                           </Menu.Dropdown>
                         </Menu>
                       </div>
-
-                      {(it.payload.name || isKnown) && (
-                        <Badge size="xs" variant="light" radius="sm">
-                          {it.payload.name || 'Raspberry Pi 4'}
-                        </Badge>
-                      )}
 
                       <Button
                         size="xs" variant="light" fullWidth
