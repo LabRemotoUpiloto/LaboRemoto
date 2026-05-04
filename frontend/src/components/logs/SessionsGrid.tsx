@@ -1,4 +1,6 @@
 import React from 'react'
+import { Stack, Text, Box, Loader, Group, SimpleGrid } from '@mantine/core'
+import { FileText } from 'lucide-react'
 import SessionCard, { SessionLog } from './SessionCard'
 
 interface SessionsGridProps {
@@ -13,7 +15,7 @@ interface SessionsGridProps {
 
 function getDayKey(isoDate: string): string {
   const d = new Date(isoDate)
-  return d.toISOString().slice(0, 10) // YYYY-MM-DD
+  return d.toISOString().slice(0, 10)
 }
 
 function formatDayLabel(dayKey: string): string {
@@ -39,26 +41,39 @@ const SessionsGrid: React.FC<SessionsGridProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[280px] gap-3 text-tertiary">
-        <div className="w-7 h-7 border-2 border-subtle border-t-accent rounded-full animate-[spin_0.75s_linear_infinite]"></div>
-        <p className="text-[12px] m-0 text-tertiary">Cargando sesiones...</p>
-      </div>
+      <Box py={80}>
+        <Stack align="center" gap="md">
+          <Loader size="sm" color="var(--accent-primary)" />
+          <Text size="sm" c="dimmed">Cargando sesiones...</Text>
+        </Stack>
+      </Box>
     )
   }
 
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[280px] gap-2.5 text-tertiary text-center">
-        <svg className="text-muted opacity-50" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M9 12h6M9 16h6M9 8h6M6 20h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
-        </svg>
-        <p className="text-base font-semibold text-secondary m-0">No se encontraron sesiones</p>
-        <small className="text-sm text-tertiary leading-relaxed">Intenta ajustar los filtros o conectar a un servidor SSH</small>
-      </div>
+      <Box py={80}>
+        <Stack align="center" gap="md">
+          <Box
+            className="flex items-center justify-center"
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 16,
+              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
+            }}
+          >
+            <FileText size={32} style={{ color: 'var(--accent-primary)', opacity: 0.5 }} />
+          </Box>
+          <Stack align="center" gap={4}>
+            <Text fw={500}>No se encontraron sesiones</Text>
+            <Text c="dimmed" size="sm">Intenta ajustar los filtros o conectar a un servidor SSH</Text>
+          </Stack>
+        </Stack>
+      </Box>
     )
   }
 
-  // Group by day
   const groups: { dayKey: string; sessions: SessionLog[] }[] = []
   const seen = new Map<string, SessionLog[]>()
   for (const s of sessions) {
@@ -68,14 +83,25 @@ const SessionsGrid: React.FC<SessionsGridProps> = ({
   }
 
   return (
-    <div className="flex flex-col gap-7 pb-8 animate-in fade-in duration-200">
+    <Stack gap="xl">
       {groups.map(({ dayKey, sessions: daySessions }) => (
-        <div key={dayKey} className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2 pb-0.5 after:content-[''] after:flex-1 after:h-[1px] after:bg-border-subtle">
-            <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-tertiary whitespace-nowrap">{formatDayLabel(dayKey)}</span>
-            <span className="text-[10px] text-muted bg-tertiary border border-subtle rounded-full px-[7px] py-[1px] font-semibold tabular-nums shrink-0">{daySessions.length} sesión{daySessions.length !== 1 ? 'es' : ''}</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-2">
+        <Box key={dayKey}>
+          <Group gap="sm" mb="sm">
+            <Text
+              size="xs"
+              fw={700}
+              tt="uppercase"
+              c="dimmed"
+              style={{ letterSpacing: '0.1em' }}
+            >
+              {formatDayLabel(dayKey)}
+            </Text>
+            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {daySessions.length} sesión{daySessions.length !== 1 ? 'es' : ''}
+            </Text>
+            <Box style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+          </Group>
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
             {daySessions.map(session => (
               <SessionCard
                 key={session.id}
@@ -87,10 +113,10 @@ const SessionsGrid: React.FC<SessionsGridProps> = ({
                 onSavePdf={onSavePdf ? () => onSavePdf(session) : undefined}
               />
             ))}
-          </div>
-        </div>
+          </SimpleGrid>
+        </Box>
       ))}
-    </div>
+    </Stack>
   )
 }
 
