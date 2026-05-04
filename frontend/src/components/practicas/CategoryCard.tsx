@@ -28,14 +28,15 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, pr
             withBorder
             padding="lg"
             radius="md"
+            className={`animate-reveal ${isAvailable ? 'group' : ''}`}
             style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}
             onClick={isAvailable ? onClick : undefined}
             sx={{
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 ...(isAvailable && {
                     '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: theme.shadows.md,
+                        transform: 'translateY(-4px) scale(1.01)',
+                        boxShadow: '0 12px 24px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 139, 230, 0.1)',
                         borderColor: theme.colors.blue[5],
                     },
                 }),
@@ -52,13 +53,22 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, pr
                 </div>
 
                 <Group justify="space-between" mt="xs" align="center">
-                    <Text size="xs" c={isAvailable ? 'dimmed' : 'dimmed'} tt="uppercase" fw={500} style={{ letterSpacing: '0.04em' }}>
+                    <Text 
+                        size="xs" 
+                        tt="uppercase" 
+                        fw={500} 
+                        className="text-gray-500 group-hover:text-blue-500 transition-colors duration-200"
+                        style={{ letterSpacing: '0.04em' }}
+                    >
                         {isAvailable
                             ? `${practiceCount} práctica${practiceCount !== 1 ? 's' : ''}`
                             : 'Próximamente'}
                     </Text>
                     {isAvailable && (
-                        <ArrowRight size={14} style={{ opacity: 0.4 }} />
+                        <ArrowRight 
+                            size={14} 
+                            className="opacity-40 group-hover:opacity-100 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all duration-200" 
+                        />
                     )}
                 </Group>
             </Stack>
