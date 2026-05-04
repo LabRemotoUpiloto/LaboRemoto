@@ -33,8 +33,6 @@ skills-lock.json
 savedLogs/
 **/savedLogs/
 **/.agents/
-**/.trae/
-.windsurf
 /docs
 
 # ── LaTeX build artifacts ──
