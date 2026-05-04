@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import * as arduinoService from '../../services/hardware/arduino.service'
+import { BridgeStatus } from '../../services/hardware/arduino.service'
 
 /**
  * Panel de control para el tablero de domótica conectado al Arduino DUE de la Pi.
@@ -11,15 +12,6 @@ import { invoke } from '@tauri-apps/api/core'
  * sketch `DomoticaMaster.ino` que debe estar cargado en el Arduino.
  */
 
-type BridgeStatus = {
-  port: string | null
-  open: boolean
-  last_error: string | null
-  rx_lines: number | null
-  reachable: boolean
-}
-
-type CmdResp = { response: string; http_code: number }
 
 type LogEntry = {
   ts: string
@@ -102,7 +94,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
   const refreshStatus = useCallback(async () => {
     try {
-      const s = await invoke<BridgeStatus>('arduino_bridge_status', { id: sessionId })
+      const s = await arduinoService.getBridgeStatus(sessionId)
       setStatus(s)
       if (!s.reachable) {
         pushLog('err', 'Bridge no responde. Revisa arduino-bridge.service en la Pi.')
@@ -127,7 +119,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       setBusy(true)
       pushLog('tx', cmd)
       try {
-        const r = await invoke<CmdResp>('arduino_send_cmd', { id: sessionId, cmd })
+        const r = await arduinoService.sendCmd(sessionId, cmd)
         pushLog('rx', r.response || '(sin respuesta)')
         return r.response
       } catch (e: any) {
