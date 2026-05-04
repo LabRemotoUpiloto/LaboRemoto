@@ -84,12 +84,12 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
                 onClick={() => onSelect(conn)}
                 title={`${conn.user}@${displayHost}${showPort ? ':' + conn.port : ''}`}
               >
-                <div className="flex items-center justify-center w-6 h-6 rounded shrink-0 bg-[var(--mantine-color-default-border)]/30 text-[var(--mantine-color-dimmed)] group-hover/item:text-teal-400 group-hover/item:bg-teal-500/10 transition-colors">
+                <div className="flex items-center justify-center w-6 h-6 rounded shrink-0 transition-colors" style={{ backgroundColor: 'color-mix(in srgb, var(--border-color) 30%, transparent)', color: 'var(--text-secondary)' }}>
                   <Monitor size={12} />
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
                   <span className="text-[12px] font-medium text-[var(--mantine-color-text)] truncate leading-tight">
-                    <span className="text-teal-400">{conn.user}</span>
+                    <span style={{ color: 'var(--accent-primary)' }}>{conn.user}</span>
                     <span className="text-[var(--mantine-color-dimmed)] mx-0.5">@</span>
                     <span>{displayHost}</span>
                     {showPort && <span className="text-[var(--mantine-color-dimmed)]">:{conn.port}</span>}

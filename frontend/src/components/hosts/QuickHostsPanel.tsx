@@ -46,7 +46,7 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
   return (
     <div data-tour={dataTour}>
       <div className="flex items-center gap-2 mb-3">
-        <Zap size={14} className="text-teal-400" />
+        <Zap size={14} style={{ color: 'var(--accent-primary)' }} />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--mantine-color-dimmed)]">
           Hosts rápidos
         </span>
@@ -66,28 +66,25 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
               openDelay={400}
             >
               <UnstyledButton
-                className={`
-                  group relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg
-                  border transition-all duration-200 cursor-pointer
-                  ${isActive 
-                    ? 'border-teal-500/50 bg-teal-500/10 shadow-[0_0_12px_rgba(20,184,166,0.12)]' 
-                    : 'border-[var(--mantine-color-default-border)] bg-[var(--mantine-color-body)] hover:border-teal-500/30 hover:bg-teal-500/5'
-                  }
-                `}
+                className="group relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border transition-all duration-200 cursor-pointer"
+                style={{
+                  borderColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 50%, transparent)' : 'var(--border-color)',
+                  backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' : 'var(--mantine-color-body)',
+                  boxShadow: isActive ? '0 0 12px color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'none',
+                }}
                 onClick={() => handleHostClick(host)}
                 aria-pressed={isActive}
               >
-                <div className={`
-                  flex items-center justify-center w-8 h-8 rounded-md shrink-0 transition-colors duration-200
-                  ${isActive 
-                    ? 'bg-teal-500/20 text-teal-400' 
-                    : 'bg-[var(--mantine-color-default-border)]/50 text-[var(--mantine-color-dimmed)] group-hover:text-teal-400 group-hover:bg-teal-500/10'
-                  }
-                `}>
+                <div
+                  className="flex items-center justify-center w-8 h-8 rounded-md shrink-0 transition-colors duration-200"
+                  style={{
+                    backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 20%, transparent)' : 'color-mix(in srgb, var(--border-color) 50%, transparent)',
+                    color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  }}>
                   <IconComponent size={16} />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className={`text-[13px] font-medium truncate leading-tight ${isActive ? 'text-teal-300' : 'text-[var(--mantine-color-text)]'}`}>
+                  <span className="text-[13px] font-medium truncate leading-tight" style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
                     {host.name}
                   </span>
                   <span className="text-[11px] text-[var(--mantine-color-dimmed)] truncate leading-tight mt-0.5">
@@ -96,7 +93,7 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
                 </div>
 
                 {isActive && (
-                  <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                  <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--accent-primary)' }} />
                 )}
               </UnstyledButton>
             </Tooltip>
