@@ -1,4 +1,6 @@
 import React from 'react'
+import { Card, Group, Stack, Text, Button, ActionIcon, Box, rem } from '@mantine/core'
+import { Clock, Terminal, Calendar, Eye, FileDown, Trash2 } from 'lucide-react'
 
 export interface SessionLog {
   id: string
@@ -49,97 +51,130 @@ const SessionCard: React.FC<SessionCardProps> = ({
   const isActive = !session.endedAt
 
   return (
-    <div
-      className={`relative flex flex-col gap-2.5 p-0 bg-secondary border rounded-lg cursor-pointer touch-manipulation overflow-hidden transition-all duration-200 group hover:shadow-[0_14px_40px_rgba(0,0,0,0.6),0_4px_12px_rgba(0,0,0,0.4)] hover:scale-[1.03] hover:z-10 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 ${isSelected ? 'border-accent bg-accent/5 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)]' : 'border-subtle'}`}
+    <Card
+      withBorder
+      padding="md"
+      radius="md"
+      className="group cursor-pointer"
       onClick={onSelect}
-      role="row"
       tabIndex={0}
-      onKeyDown={e => e.key === 'Enter' && onSelect()}
+      role="row"
       aria-selected={isSelected}
+      onKeyDown={e => e.key === 'Enter' && onSelect()}
+      style={{
+        transition: 'all 0.2s ease',
+        borderColor: isSelected ? 'var(--accent-primary)' : undefined,
+        backgroundColor: isSelected
+          ? 'color-mix(in srgb, var(--accent-primary) 5%, var(--background-secondary))'
+          : undefined,
+      }}
     >
-      {/* Card body */}
-      <div className="p-[10px_14px_12px] flex flex-col gap-2 flex-1">
-        {/* Header row: dot + tag + identity + delete */}
-        <div className="flex items-center gap-[7px] min-w-0">
-          <span
-            className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)] animate-pulse' : 'bg-border-strong'}`}
-            aria-label={isActive ? 'Sesión activa' : 'Sesión cerrada'}
-          />
-          <span className="text-[9px] font-bold tracking-[0.1em] uppercase text-accent bg-accent/10 border border-accent/25 rounded-[3px] px-[5px] py-[1px] shrink-0 font-mono" aria-label="Protocolo SSH">SSH</span>
-          <div className="flex items-baseline gap-0 min-w-0 font-mono" style={{ flex: 1 }}>
-            <span className="text-[12.5px] font-bold text-primary whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]" translate="no">{session.user}</span>
-            <span className="text-[11px] text-muted shrink-0" aria-hidden="true">@</span>
-            <span className="text-[12.5px] text-secondary whitespace-nowrap overflow-hidden text-ellipsis flex-1 min-w-0" translate="no">{session.host}</span>
-            <span className="text-[11px] text-muted shrink-0 font-mono" translate="no">:{session.port}</span>
+      <Stack gap="sm">
+        {/* Header: icon + identity + delete */}
+        <Group gap="sm" wrap="nowrap">
+          <Box
+            className="flex items-center justify-center shrink-0"
+            style={{
+              width: rem(36),
+              height: rem(36),
+              borderRadius: 'var(--mantine-radius-md)',
+              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
+              color: 'var(--accent-primary)',
+            }}
+          >
+            <Terminal size={18} />
+          </Box>
+
+          <div className="flex flex-col min-w-0" style={{ flex: 1 }}>
+            <Group gap={0} wrap="nowrap">
+              <Text size="sm" fw={600} truncate ff="monospace" style={{ color: 'var(--mantine-color-text)' }}>
+                {session.user}
+              </Text>
+              <Text size="xs" c="dimmed" ff="monospace">@</Text>
+              <Text size="sm" c="dimmed" truncate ff="monospace" style={{ flex: 1, minWidth: 0 }}>
+                {session.host}
+              </Text>
+            </Group>
+            <Text size="xs" c="dimmed" ff="monospace">:{session.port}</Text>
           </div>
+
+          {isActive && (
+            <Box
+              className="shrink-0"
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: 'var(--accent-primary)',
+                boxShadow: '0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent)',
+                animation: 'pulse 2s infinite',
+              }}
+              title="Sesión activa"
+            />
+          )}
+
           {onDelete && (
-            <button
-              className={`ml-auto shrink-0 w-[22px] h-[22px] rounded bg-transparent border border-transparent text-muted flex items-center justify-center transition-all duration-150 touch-manipulation group-hover:opacity-100 hover:!bg-danger/10 hover:!border-danger/20 hover:!text-danger focus-visible:outline-2 focus-visible:outline-danger focus-visible:outline-offset-1 focus-visible:opacity-100 ${isSelected ? 'opacity-100' : 'opacity-0'}`}
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              size="sm"
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={e => { e.stopPropagation(); onDelete() }}
               aria-label="Eliminar log"
               title="Eliminar"
             >
-              <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              </svg>
-            </button>
+              <Trash2 size={14} />
+            </ActionIcon>
           )}
-        </div>
+        </Group>
 
-        {/* Stats */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="inline-flex items-center gap-1 text-[11px] text-tertiary tabular-nums whitespace-nowrap" title="Duración de la sesión">
-            <svg className="shrink-0 text-muted" aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            {formatDuration(session.duration)}
-          </span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-secondary font-semibold tabular-nums whitespace-nowrap" title="Comandos ejecutados">
-            <svg className="shrink-0 text-muted" aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
-            </svg>
-            {session.totalCommands} cmds
-          </span>
-          <span className="hidden sm:inline-flex items-center gap-1 text-[10.5px] text-tertiary tabular-nums whitespace-nowrap ml-auto">
-            <svg className="shrink-0 text-muted" aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            {formatTime(session.startedAt)}
-          </span>
-        </div>
-      </div>
+        {/* Stats row */}
+        <Group gap="lg">
+          <Group gap={4}>
+            <Clock size={13} style={{ color: 'var(--text-tertiary)' }} />
+            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatDuration(session.duration)}
+            </Text>
+          </Group>
+          <Group gap={4}>
+            <Terminal size={13} style={{ color: 'var(--text-tertiary)' }} />
+            <Text size="xs" fw={500} style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {session.totalCommands} cmds
+            </Text>
+          </Group>
+          <Group gap={4} ml="auto" visibleFrom="sm">
+            <Calendar size={12} style={{ color: 'var(--text-tertiary)' }} />
+            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatTime(session.startedAt)}
+            </Text>
+          </Group>
+        </Group>
 
-      {/* Footer actions */}
-      <div className="flex items-center gap-[5px] py-[7px] px-[14px] border-t border-subtle bg-tertiary/60" onClick={e => e.stopPropagation()}>
-        <button
-          className="inline-flex items-center gap-[5px] py-1 px-2.5 rounded-[5px] text-[11px] font-semibold cursor-pointer border border-subtle touch-manipulation transition-all duration-150 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1 bg-white/5 text-secondary flex-1 justify-center hover:bg-white/10 hover:border-strong hover:text-primary"
-          onClick={onViewBuffer}
-          aria-label="Ver logs de sesión"
-        >
-          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-          Ver Logs
-        </button>
-        {onSavePdf && (
-          <button
-            className="inline-flex items-center gap-[5px] py-1 px-2 rounded-[5px] text-[11px] font-semibold cursor-pointer border border-subtle touch-manipulation transition-all duration-150 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1 bg-transparent text-tertiary hover:bg-white/5 hover:border-strong hover:text-secondary"
-            onClick={onSavePdf}
-            aria-label="Exportar a PDF"
-            title="Guardar PDF"
+        {/* Actions */}
+        <Group gap="xs" onClick={e => e.stopPropagation()}>
+          <Button
+            variant="light"
+            size="compact-sm"
+            leftSection={<Eye size={14} />}
+            onClick={onViewBuffer}
+            style={{ flex: 1 }}
           >
-            <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="12" y1="18" x2="12" y2="12"/>
-              <line x1="9" y1="15" x2="15" y2="15"/>
-            </svg>
-            PDF
-          </button>
-        )}
-      </div>
-    </div>
+            Ver Logs
+          </Button>
+          {onSavePdf && (
+            <Button
+              variant="default"
+              size="compact-sm"
+              leftSection={<FileDown size={14} />}
+              onClick={onSavePdf}
+              title="Guardar PDF"
+            >
+              PDF
+            </Button>
+          )}
+        </Group>
+      </Stack>
+    </Card>
   )
 }
 

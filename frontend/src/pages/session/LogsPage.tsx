@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { TextInput, Select, ActionIcon, Badge, Tooltip } from '@mantine/core'
+import { Box, Container, Stack, Title, Text, Group, TextInput, Select, ActionIcon, Tooltip } from '@mantine/core'
 import { modals } from '@mantine/modals'
-import { Text } from '@mantine/core'
+import { Search, Monitor, RefreshCw, History } from 'lucide-react'
 import SessionsGrid from '../../components/logs/SessionsGrid'
 import type { SessionLog } from '../../components/logs/SessionCard'
 import { listSessionLogs, deleteSessionLog, getSessionLogContent, type SessionLogMetadata } from '../../api/sessionCapture'
@@ -56,17 +56,12 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   }
 
   const filteredSessions = sessions.filter(session => {
-    if (filterUser && !session.user.toLowerCase().includes(filterUser.toLowerCase())) {
-      return false
-    }
-    if (filterHost && !session.host.toLowerCase().includes(filterHost.toLowerCase())) {
-      return false
-    }
+    if (filterUser && !session.user.toLowerCase().includes(filterUser.toLowerCase())) return false
+    if (filterHost && !session.host.toLowerCase().includes(filterHost.toLowerCase())) return false
     return true
   })
 
-  // Ordenar sesiones según la opción seleccionada
-  const sortedSessions = React.useMemo(() => {
+  const sortedSessions = useMemo(() => {
     const filtered = [...filteredSessions]
     return filtered.sort((a, b) => {
       switch (sortBy) {
@@ -113,8 +108,6 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
     })
   }
 
-
-
   const handleViewBuffer = (session: SessionLog) => {
     onOpenLog?.(session)
   }
@@ -122,7 +115,6 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const handleDownloadReport = async (session: SessionLog) => {
     push({ type: 'info', message: 'Preparando Reporte de Comandos...' })
     try {
-      // 1. Obtener contenido
       const content = await getSessionLogContent(session.id)
       
       const commands = extractValidCommands(content);
@@ -145,10 +137,8 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
       }
 
-      // Convertir a base64
       const base64 = await html2pdf().set(opt).from(container).outputPdf('datauristring')
       
-      // Enviar a Rust para guardar
       const savedPath = await invoke<string>('save_pdf_base64', { 
         sessionLogId: session.id,
         base64Data: base64
@@ -161,70 +151,75 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   }
 
   return (
-    <div className="logs-page">
-      <header className="page-header-integrated">
-        <h2 className="page-header-title">Logs</h2>
-        <div className="page-header-content">
-          <p className="page-header-description">Visualiza y analiza el historial de sesiones SSH</p>
-        </div>
-      </header>
+    <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+      <Container size="lg" py="xl" px="xl">
+        <Stack gap="xl">
+          {/* Page title + description — same pattern as SavedHostsPage */}
+          <Group gap="lg" align="flex-start">
+            <Box
+              className="flex items-center justify-center shrink-0"
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 'var(--mantine-radius-md)',
+                backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
+                color: 'var(--accent-primary)',
+              }}
+            >
+              <History size={24} />
+            </Box>
+            <Stack gap={4} style={{ flex: 1 }}>
+              <Title order={1}>Logs</Title>
+              <Text size="md" c="dimmed" maw={580}>
+                Visualiza y analiza el historial de sesiones SSH.
+              </Text>
+            </Stack>
+          </Group>
 
-      <div className="logs-page__scrollable">
-        <div className="logs-page-inner">
-          {/* ── Toolbar con Mantine + Tailwind ── */}
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
+          {/* Toolbar — filters + sort + refresh */}
+          <Group gap="sm">
             <TextInput
-              placeholder="usuario..."
+              placeholder="Buscar usuario..."
               value={filterUser}
-              size="xs"
               onChange={e => setFilterUser(e.currentTarget.value)}
-              leftSection={
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-              }
-              styles={{ input: { fontSize: 12 } }}
+              leftSection={<Search size={14} style={{ color: 'var(--text-muted)' }} />}
+              size="sm"
+              w={180}
             />
             <TextInput
-              placeholder="host..."
+              placeholder="Buscar host..."
               value={filterHost}
-              size="xs"
               onChange={e => setFilterHost(e.currentTarget.value)}
-              leftSection={
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/>
-                </svg>
-              }
-              styles={{ input: { fontSize: 12 } }}
+              leftSection={<Monitor size={14} style={{ color: 'var(--text-muted)' }} />}
+              size="sm"
+              w={180}
             />
-            <div className="ml-auto flex items-center gap-2">
-              <Select
-                size="xs"
-                value={sortBy}
-                onChange={v => setSortBy((v ?? 'date-desc') as SortOption)}
-                data={[
-                  { value: 'date-desc', label: 'Más recientes' },
-                  { value: 'date-asc',  label: 'Más antiguos' },
-                  { value: 'duration-desc', label: 'Mayor duración' },
-                  { value: 'duration-asc',  label: 'Menor duración' },
-                  { value: 'host-asc',  label: 'Host A→Z' },
-                  { value: 'host-desc', label: 'Host Z→A' },
-                ]}
-                styles={{ input: { fontSize: 12 } }}
-                w={140}
-                allowDeselect={false}
-              />
-              <Badge variant="light" color="teal" size="sm">{sortedSessions.length}</Badge>
-              <Tooltip label="Recargar" withArrow>
-                <ActionIcon variant="subtle" color="gray" size="sm" onClick={loadSessions}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                  </svg>
-                </ActionIcon>
-              </Tooltip>
-            </div>
-          </div>
+            <Select
+              size="sm"
+              value={sortBy}
+              onChange={v => setSortBy((v ?? 'date-desc') as SortOption)}
+              data={[
+                { value: 'date-desc', label: 'Más recientes' },
+                { value: 'date-asc',  label: 'Más antiguos' },
+                { value: 'duration-desc', label: 'Mayor duración' },
+                { value: 'duration-asc',  label: 'Menor duración' },
+                { value: 'host-asc',  label: 'Host A→Z' },
+                { value: 'host-desc', label: 'Host Z→A' },
+              ]}
+              w={160}
+              allowDeselect={false}
+            />
+            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {sortedSessions.length} sesión{sortedSessions.length !== 1 ? 'es' : ''}
+            </Text>
+            <Tooltip label="Recargar" withArrow>
+              <ActionIcon variant="default" size="md" onClick={loadSessions} aria-label="Recargar">
+                <RefreshCw size={15} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
 
+          {/* Sessions grid */}
           <SessionsGrid
             sessions={sortedSessions}
             selectedSessionId={null}
@@ -234,9 +229,9 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
             onDeleteLog={handleDeleteLog}
             loading={loading}
           />
-        </div>
-      </div>
-    </div>
+        </Stack>
+      </Container>
+    </Box>
   )
 }
 
