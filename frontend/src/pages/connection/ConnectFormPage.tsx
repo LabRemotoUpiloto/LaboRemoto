@@ -52,7 +52,7 @@ const ConnectFormPage: React.FC<ConnectFormPageProps> = ({ onConnected, initialP
   }, []);
 
   return (
-    <div className="flex h-full overflow-hidden items-center justify-center bg-[var(--mantine-color-body)]">
+    <div className="flex h-full overflow-hidden items-center justify-center">
       <div className="w-full max-w-lg px-6 py-8 overflow-y-auto max-h-full">
         <Paper
           p="xl"
