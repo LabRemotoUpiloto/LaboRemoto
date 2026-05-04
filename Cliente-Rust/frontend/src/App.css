@@ -1,0 +1,107 @@
+/* ═══ App Layout — Dual Header (68px) + Sidebar (44px) ═══ * Dynamic height variables based on header state */
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  --header-height: 44px; /* single-level unified header */
+  --sidebar-width: 60px; /* Mantine default is slightly wider, let's use 60px closed */
+}
+
+.app-container.sidebar-expanded {
+  --sidebar-width: 180px; /* Slightly wider for better text fit */
+}
+
+.app-container.h2-visible {
+  --header-height: 44px; /* unified header */
+}
+
+.main-content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--header-height);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-left: var(--sidebar-width) !important;
+  transition: margin-left 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.content-area {
+  flex-grow: 1;
+  overflow: hidden;
+  padding: 0;
+  background-color: var(--background-primary);
+  height: calc(100vh - var(--header-height)); /* below headers */
+  min-width: 0;
+}
+
+/* ─── Pins Panel ─── */
+.pins-panel {
+  width: 350px;
+  height: calc(100vh - var(--header-height));
+  position: absolute;
+  right: 0;
+  top: var(--header-height);
+  background: var(--background-secondary);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.2);
+}
+
+.pins-panel__header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--background-tertiary);
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.pins-panel__title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pins-panel__close-button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pins-panel__close-button:hover {
+  color: var(--text-primary);
+  transform: scale(1.1);
+}
+
+.pins-panel__content {
+  flex: 1;
+  overflow: auto;
+  background: var(--background-primary);
+}
+
+/* Adjust main content when pins are open */
+.app-container.pins-open .main-content {
+  right: 350px;
+}
+
+/* Adjust main content when domotica panel is open */
+.app-container.domotica-open .main-content {
+  right: 350px;
+}
