@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react'
 import { listHostEntries, deleteHostFile } from '../../api/storage'
 import { useLoading } from '../../contexts/LoadingContext'
 import { useToasts } from '../../contexts/ToastContext'
-import { Card, Text, Badge, ActionIcon, Menu, Button, Center, Stack } from '@mantine/core'
+import { Card, Text, Badge, ActionIcon, Menu, Button, Box, Container, SimpleGrid, Stack, Title, Loader, Tooltip } from '@mantine/core'
 import { modals } from '@mantine/modals'
-import DotsVerticalIcon from '../../components/icons/DotsVerticalIcon'
+import { Monitor, MoreVertical, Pencil, Trash2, Plus, Server, Cpu, ArrowRight } from 'lucide-react'
 import { sshConnect } from '../../services/ssh.service'
 import { isRaspberryPi4, getDeviceLabel } from '../../constants/devices'
 
@@ -120,116 +120,137 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
     })
   }
 
+  const getHostIcon = (host: string, port: number | string) => {
+    if (isRaspberryPi4(host, Number(port))) return Cpu
+    return Server
+  }
+
   return (
-    <div className="flex flex-col h-full">
-      <header className="page-header-integrated">
-        <h2 className="page-header-title">Hosts Guardados</h2>
-        <div className="page-header-content">
-          <p className="page-header-description">Gestiona y accede rápidamente a tus conexiones SSH guardadas.</p>
-        </div>
-      </header>
+    <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+      <Container size="lg" py="xl" px="xl">
+        <Stack gap="xl">
+          <Stack gap="sm">
+            <Title order={1}>Hosts Guardados</Title>
+            <Text size="md" c="dimmed" maw={580}>
+              Gestiona y accede rápidamente a tus conexiones SSH guardadas.
+            </Text>
+          </Stack>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {entries.length === 0 ? (
-          <Center h={300}>
-            <Stack align="center" gap="md">
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" opacity={0.3}>
-                <rect x="2" y="3" width="20" height="14" rx="2" />
-                <line x1="8" y1="21" x2="16" y2="21" />
-                <line x1="12" y1="17" x2="12" y2="21" />
-              </svg>
-              <Text c="dimmed" size="sm">No hay hosts guardados</Text>
-              <Button
-                size="xs" variant="light" color="teal"
-                onClick={() => window.dispatchEvent(new CustomEvent('app:open-panel', { detail: 'connect' }))}
-              >
-                Añadir primer host
-              </Button>
-            </Stack>
-          </Center>
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-            {entries.map(it => {
-              const displayName = getDeviceLabel(it.payload.host, Number(it.payload.port))
-              const hostLabel = `${it.payload.user ?? ''}@${displayName}`
-              return (
-                <Card
-                  key={it.file}
-                  withBorder
-                  padding="md"
-                  radius="md"
-                  className="cursor-pointer hover:border-teal-500/40 transition-colors"
-                  onClick={() => connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password)}
+          {entries.length === 0 ? (
+            <Box py={80}>
+              <Stack align="center" gap="md">
+                <div
+                  className="flex items-center justify-center w-16 h-16 rounded-2xl"
+                  style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' }}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-teal-400">
-                          <rect x="2" y="3" width="20" height="14" rx="2" />
-                          <line x1="8" y1="21" x2="16" y2="21" />
-                          <line x1="12" y1="17" x2="12" y2="21" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0">
-                        {it.payload.name && (
-                          <Badge size="xs" variant="light" color="teal" mb={4}>{it.payload.name}</Badge>
-                        )}
-                        <Text size="sm" fw={600} truncate>{displayName}</Text>
-                        <Text size="xs" c="dimmed" truncate>{hostLabel}</Text>
-                      </div>
-                    </div>
+                  <Monitor size={32} style={{ color: 'var(--accent-primary)', opacity: 0.5 }} />
+                </div>
+                <Stack align="center" gap={4}>
+                  <Text fw={500}>No hay hosts guardados</Text>
+                  <Text c="dimmed" size="sm">Guarda un host desde la página de conexión para verlo aquí</Text>
+                </Stack>
+                <Button
+                  size="sm" variant="light"
+                  leftSection={<Plus size={16} />}
+                  onClick={() => window.dispatchEvent(new CustomEvent('app:open-panel', { detail: 'connect' }))}
+                >
+                  Añadir primer host
+                </Button>
+              </Stack>
+            </Box>
+          ) : (
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+              {entries.map(it => {
+                const portNum = Number(it.payload.port)
+                const displayName = getDeviceLabel(it.payload.host, portNum)
+                const hostLabel = `${it.payload.user ?? ''}@${displayName}`
+                const isKnown = isRaspberryPi4(it.payload.host, portNum)
+                const IconComponent = getHostIcon(it.payload.host, it.payload.port)
 
-                    <Menu shadow="md" width={160} position="bottom-end" withinPortal>
-                      <Menu.Target>
-                        <ActionIcon
-                          variant="subtle" color="gray" size="sm"
-                          onClick={e => e.stopPropagation()}
-                          aria-label="Más opciones"
-                        >
-                          <DotsVerticalIcon size={16} />
-                        </ActionIcon>
-                      </Menu.Target>
-                      <Menu.Dropdown>
-                        <Menu.Item
-                          leftSection={
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          }
-                          onClick={e => { e.stopPropagation(); onEdit?.(it.payload, it.file) }}
-                        >
-                          Editar
-                        </Menu.Item>
-                        <Menu.Item
-                          color="red"
-                          leftSection={
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          }
-                          onClick={e => { e.stopPropagation(); handleDelete(it.file, hostLabel) }}
-                        >
-                          Eliminar
-                        </Menu.Item>
-                      </Menu.Dropdown>
-                    </Menu>
-                  </div>
-
-                  <Button
-                    mt="md" size="xs" variant="light" color="teal" fullWidth
-                    disabled={loadingLocal}
-                    onClick={e => { e.stopPropagation(); connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password) }}
+                return (
+                  <Card
+                    key={it.file}
+                    withBorder
+                    padding="lg"
+                    radius="md"
+                    className="group cursor-pointer"
+                    style={{ transition: 'all 0.2s ease' }}
+                    onClick={() => connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password)}
                   >
-                    Conectar
-                  </Button>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+                    <Stack gap="md">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className="flex items-center justify-center w-10 h-10 rounded-lg shrink-0"
+                            style={{
+                              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
+                              color: 'var(--accent-primary)',
+                            }}
+                          >
+                            <IconComponent size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <Text size="sm" fw={600} truncate>{displayName}</Text>
+                            <Text size="xs" c="dimmed" truncate>
+                              {it.payload.user && (
+                                <span style={{ color: 'var(--accent-primary)' }}>{it.payload.user}@</span>
+                              )}
+                              {it.payload.host}
+                              {portNum !== 22 && `:${portNum}`}
+                            </Text>
+                          </div>
+                        </div>
+
+                        <Menu shadow="md" width={160} position="bottom-end" withinPortal>
+                          <Menu.Target>
+                            <ActionIcon
+                              variant="subtle" color="gray" size="sm"
+                              onClick={e => e.stopPropagation()}
+                              aria-label="Más opciones"
+                            >
+                              <MoreVertical size={16} />
+                            </ActionIcon>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item
+                              leftSection={<Pencil size={14} />}
+                              onClick={e => { e.stopPropagation(); onEdit?.(it.payload, it.file) }}
+                            >
+                              Editar
+                            </Menu.Item>
+                            <Menu.Item
+                              color="red"
+                              leftSection={<Trash2 size={14} />}
+                              onClick={e => { e.stopPropagation(); handleDelete(it.file, hostLabel) }}
+                            >
+                              Eliminar
+                            </Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
+                      </div>
+
+                      {(it.payload.name || isKnown) && (
+                        <Badge size="xs" variant="light" radius="sm">
+                          {it.payload.name || 'Raspberry Pi 4'}
+                        </Badge>
+                      )}
+
+                      <Button
+                        size="xs" variant="light" fullWidth
+                        disabled={loadingLocal}
+                        rightSection={<ArrowRight size={14} />}
+                        onClick={e => { e.stopPropagation(); connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password) }}
+                      >
+                        Conectar
+                      </Button>
+                    </Stack>
+                  </Card>
+                )
+              })}
+            </SimpleGrid>
+          )}
+        </Stack>
+      </Container>
+    </Box>
   )
 }
