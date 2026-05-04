@@ -1,8 +1,9 @@
 import React from 'react';
 import {
-  TextInput, PasswordInput, Button, Group, Badge, Stack, Paper
+  TextInput, PasswordInput, Button, Group, Badge, Stack, Divider,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
+import { Terminal, Globe, Hash, User, Lock, Save, ArrowRight } from 'lucide-react';
 import { RecentConnection } from './RecentConnectionsPanel';
 import { ConnectionToSave } from '../../hooks/useRecentConnections';
 import { useConnectForm } from '../../hooks/useConnectForm';
@@ -91,53 +92,69 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
     });
   };
 
+  const activeBadge = props.quickHost
+    ? (props.quickHost.name || props.quickHost.host)
+    : (!props.quickHost && props.recentConnection && isRaspberryPi())
+      ? 'Raspberry Pi 4'
+      : null;
+
   return (
-    <Paper
-      className={`w-full max-w-md mx-auto transition-all duration-300 ${isPulsing ? 'ring-2 ring-teal-500/50' : ''}`}
-      p="xl"
-      radius="lg"
-      withBorder
+    <div
+      className={`w-full transition-all duration-300 ${isPulsing ? 'ring-2 ring-teal-500/40 rounded-xl' : ''}`}
     >
-      <form onSubmit={(e) => e.preventDefault()}>
+      <form onSubmit={(e) => { e.preventDefault(); if (isValid) connect(); }}>
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <h1 className="text-xl font-semibold m-0">Conectar</h1>
-          {props.quickHost && (
-            <Badge color="teal" variant="light" size="sm">
-              {props.quickHost.name || props.quickHost.host}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
+            <Terminal size={18} />
+          </div>
+          <div className="flex flex-col">
+            <h2 className="text-lg font-semibold m-0 leading-tight text-[var(--mantine-color-text)]">
+              Conexión SSH
+            </h2>
+            <span className="text-[11px] text-[var(--mantine-color-dimmed)] leading-tight mt-0.5">
+              Introduce las credenciales del servidor
+            </span>
+          </div>
+          {activeBadge && (
+            <Badge color="teal" variant="light" size="sm" className="ml-auto">
+              {activeBadge}
             </Badge>
-          )}
-          {!props.quickHost && props.recentConnection && isRaspberryPi() && (
-            <Badge color="teal" variant="light" size="sm">Raspberry Pi 4</Badge>
           )}
         </div>
 
-        <Stack gap="sm">
-          {/* Host — oculto para Raspberry Pi */}
-          {!isRaspberryPi() && (
-            <TextInput
-              id="field-host"
-              label="Host"
-              placeholder="192.168.1.100 o servidor.ejemplo.com"
-              value={host}
-              onChange={(e) => handleHostChange(e.currentTarget.value)}
-              error={errors.host}
-              title="Dirección IP o nombre de dominio del servidor SSH"
-            />
-          )}
+        <Divider className="mb-5 opacity-50" />
 
-          {/* Puerto — oculto para Raspberry Pi */}
+        <Stack gap="md">
+          {/* Host + Port row — ocultos para Raspberry Pi */}
           {!isRaspberryPi() && (
-            <TextInput
-              id="field-port"
-              label="Puerto"
-              placeholder="22"
-              inputMode="numeric"
-              value={port}
-              onChange={(e) => handlePortChange(e.currentTarget.value)}
-              error={errors.port}
-              title="Puerto SSH del servidor (por defecto: 22). Rango válido: 1-65535"
-            />
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <TextInput
+                  id="field-host"
+                  label="Host"
+                  placeholder="192.168.1.100"
+                  value={host}
+                  onChange={(e) => handleHostChange(e.currentTarget.value)}
+                  error={errors.host}
+                  title="Dirección IP o nombre de dominio del servidor SSH"
+                  leftSection={<Globe size={15} className="text-[var(--mantine-color-dimmed)]" />}
+                />
+              </div>
+              <div className="w-24">
+                <TextInput
+                  id="field-port"
+                  label="Puerto"
+                  placeholder="22"
+                  inputMode="numeric"
+                  value={port}
+                  onChange={(e) => handlePortChange(e.currentTarget.value)}
+                  error={errors.port}
+                  title="Puerto SSH (1-65535)"
+                  leftSection={<Hash size={15} className="text-[var(--mantine-color-dimmed)]" />}
+                />
+              </div>
+            </div>
           )}
 
           {/* Usuario */}
@@ -152,6 +169,7 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             }}
             error={errors.user}
             title="Nombre de usuario para la conexión SSH"
+            leftSection={<User size={15} className="text-[var(--mantine-color-dimmed)]" />}
           />
 
           {/* Password */}
@@ -167,33 +185,36 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             visible={showPassword}
             onVisibilityChange={setShowPassword}
             autoComplete="off"
+            leftSection={<Lock size={15} className="text-[var(--mantine-color-dimmed)]" />}
           />
         </Stack>
 
         {/* Acciones */}
-        <Group mt="xl" gap="sm" justify="flex-end">
+        <Group mt="xl" gap="sm" justify="space-between">
           <Button
             variant="subtle"
             color="gray"
+            size="sm"
             onClick={openSaveModal}
             disabled={isConnecting}
             title="Guardar host (Ctrl+S)"
+            leftSection={<Save size={14} />}
           >
             Guardar host
           </Button>
           <Button
             type="submit"
             color="teal"
-            onClick={connect}
             loading={isConnecting}
             disabled={!isValid}
             title={isValid ? 'Conectar (Enter)' : 'Completa todos los campos correctamente'}
+            rightSection={!isConnecting && <ArrowRight size={16} />}
           >
             Conectar
           </Button>
         </Group>
       </form>
-    </Paper>
+    </div>
   );
 };
 
