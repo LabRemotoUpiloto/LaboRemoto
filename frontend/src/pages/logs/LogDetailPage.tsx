@@ -27,8 +27,17 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session, onBack }) => {
     setLoading(true)
     setError(null)
     try {
-      const content = await getSessionLogContent(session.id)
-      setHtmlContent(content)
+      let content = await getSessionLogContent(session.id)
+
+      // Fix report header: rename title and remove subtitle
+      content = content.replace(/REPORTES INGENIERÍA/g, 'Reportes de Sesión')
+      content = content.replace(/<h2[^>]*>Registro de Auditor[^<]*<\/h2>/gi, '')
+
+      // Inject dark terminal background into the HTML
+      const styledContent = content.includes('<body')
+        ? content.replace(/<body/, '<body style="background-color:#1e1e1e;color:#d4d4d4;margin:0;padding:8px;"')
+        : `<html><body style="background-color:#1e1e1e;color:#d4d4d4;margin:0;padding:8px;">${content}</body></html>`
+      setHtmlContent(styledContent)
     } catch {
       setError('No se pudo cargar el contenido del log')
     } finally {
@@ -90,17 +99,17 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session, onBack }) => {
       {/* Header */}
       <Box
         px="lg"
-        py="sm"
+        py="md"
         style={{
           borderBottom: '1px solid var(--mantine-color-default-border)',
           flexShrink: 0,
         }}
       >
-        <Group gap="md" wrap="nowrap">
+        <Group gap="sm" wrap="nowrap">
           {onBack && (
-            <Tooltip label="Volver a logs" withArrow>
-              <ActionIcon variant="default" size="lg" onClick={onBack} aria-label="Volver">
-                <ChevronLeft size={18} />
+            <Tooltip label="Volver a logs" withArrow position="bottom">
+              <ActionIcon variant="default" size="md" onClick={onBack} aria-label="Volver">
+                <ChevronLeft size={16} />
               </ActionIcon>
             </Tooltip>
           )}
