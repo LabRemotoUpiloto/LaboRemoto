@@ -123,12 +123,11 @@ export function buildCommandsReportHtml(
       <!-- HEADER CON LOGO -->
       <table style="width: 100%; border-bottom: 3px solid ${primaryRed}; padding-bottom: 20px; margin-bottom: 30px;">
         <tr>
-          <td style="width: 140px; vertical-align: middle;">
-            <img src="${unipilotoLogo}" alt="Logo Unipiloto" style="width: 140px; height: auto;" />
+          <td style="width: 100px; vertical-align: middle;">
+            <img src="${unipilotoLogo}" alt="Logo Unipiloto" style="width: 100px; height: auto;" />
           </td>
-          <td style="vertical-align: middle; padding-left: 25px; border-left: 2px solid #E8E8E8;">
-            <h1 style="color: ${darkRed}; margin: 0; font-size: 28px; font-weight: bold; font-family: 'Arial', sans-serif;">REPORTES INGENIERÍA</h1>
-            <h2 style="color: ${darkGray}; margin: 8px 0 0 0; font-size: 16px; font-weight: normal; font-family: 'Arial', sans-serif;">Registro de Auditoría de Comandos SSH</h2>
+          <td style="vertical-align: middle; padding-left: 20px;">
+            <h1 style="color: ${darkRed}; margin: 0; font-size: 24px; font-weight: 700; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.5px;">Reportes de Sesión</h1>
           </td>
         </tr>
       </table>

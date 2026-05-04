@@ -2,7 +2,7 @@ import React from 'react'
 import TerminalView from '../terminal/TerminalView'
 import SftpPage from '../../pages/session/SftpPage'
 import SnippetsPage from '../../pages/session/SnippetsPage'
-import LogsPage from '../../pages/session/LogsPage'
+import LogsPage from '../../pages/logs/LogsPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 

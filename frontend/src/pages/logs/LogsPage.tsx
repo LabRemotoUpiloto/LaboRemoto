@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { Box, Container, Stack, Title, Text, Group, TextInput, Select, ActionIcon, Tooltip } from '@mantine/core'
 import { modals } from '@mantine/modals'
-import { Search, Monitor, RefreshCw, History } from 'lucide-react'
+import { Search, Monitor, RefreshCw } from 'lucide-react'
 import SessionsGrid from '../../components/logs/SessionsGrid'
 import type { SessionLog } from '../../components/logs/SessionCard'
 import { listSessionLogs, deleteSessionLog, getSessionLogContent, type SessionLogMetadata } from '../../api/sessionCapture'
@@ -154,27 +154,13 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
     <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
       <Container size="lg" py="xl" px="xl">
         <Stack gap="xl">
-          {/* Page title + description — same pattern as SavedHostsPage */}
-          <Group gap="lg" align="flex-start">
-            <Box
-              className="flex items-center justify-center shrink-0"
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 'var(--mantine-radius-md)',
-                backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
-                color: 'var(--accent-primary)',
-              }}
-            >
-              <History size={24} />
-            </Box>
-            <Stack gap={4} style={{ flex: 1 }}>
-              <Title order={1}>Logs</Title>
-              <Text size="md" c="dimmed" maw={580}>
-                Visualiza y analiza el historial de sesiones SSH.
-              </Text>
-            </Stack>
-          </Group>
+          {/* Page title + description */}
+          <Stack gap={4}>
+            <Title order={1}>Logs</Title>
+            <Text size="md" c="dimmed" maw={580}>
+              Visualiza y analiza el historial de sesiones SSH.
+            </Text>
+          </Stack>
 
           {/* Toolbar — filters + sort + refresh */}
           <Group gap="sm">
