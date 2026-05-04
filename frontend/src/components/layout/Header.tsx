@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActionIcon, Tooltip, UnstyledButton, Group, Text, Box, Tabs, Avatar, Menu, rem } from '@mantine/core';
+import { gsap } from 'gsap';
 import type { ActiveView } from '../../hooks/useAppTabs';
 
 // SVG icons for panel tabs (H1)
@@ -135,6 +136,24 @@ const Header: React.FC<HeaderProps> = ({
   const dragRef = React.useRef<string | null>(null);
   const [dragOver, setDragOver] = React.useState<string | null>(null);
   const sessionsRef = React.useRef<HTMLDivElement | null>(null);
+  const panelsRef = React.useRef<HTMLDivElement | null>(null);
+
+  const animateClose = (e: React.MouseEvent, callback: () => void) => {
+    e.stopPropagation();
+    const tabEl = (e.currentTarget as HTMLElement).closest('[role="tab"]');
+    if (tabEl) {
+      gsap.to(tabEl, {
+        scale: 0.85,
+        opacity: 0,
+        x: -20,
+        duration: 0.35,
+        ease: "power3.inOut",
+        onComplete: callback
+      });
+    } else {
+      callback();
+    }
+  };
 
   // Scroll horizontal con rueda del ratón
   React.useEffect(() => {
@@ -151,6 +170,30 @@ const Header: React.FC<HeaderProps> = ({
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
+
+  // Animación de entrada para nuevas pestañas
+  React.useLayoutEffect(() => {
+    const panels = panelsRef.current?.querySelectorAll('[role="tab"]');
+    if (panels && panels.length > 0) {
+      const lastPanel = panels[panels.length - 1];
+      // Solo animamos si se acaba de añadir (basado en el length)
+      gsap.fromTo(lastPanel, 
+        { scale: 0.8, opacity: 0, y: 8 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.7)" }
+      );
+    }
+  }, [openPanels.length]);
+
+  React.useLayoutEffect(() => {
+    const sessions = sessionsRef.current?.querySelectorAll('[role="tab"]');
+    if (sessions && sessions.length > 0) {
+      const lastSession = sessions[sessions.length - 1];
+      gsap.fromTo(lastSession,
+        { scale: 0.8, opacity: 0, x: 15 },
+        { scale: 1, opacity: 1, x: 0, duration: 0.4, ease: "back.out(1.5)" }
+      );
+    }
+  }, [tabs.length]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string, type: 'panel' | 'tab') => {
     if ((e.target as HTMLElement).closest('button')) return;
@@ -188,7 +231,8 @@ const Header: React.FC<HeaderProps> = ({
         {/* Unified Navigation Area */}
         <div className="flex-1 flex items-center overflow-hidden h-full">
           {/* Panel Tabs */}
-          <Tabs
+          <div ref={panelsRef} className="h-full">
+            <Tabs
             value={activePanel}
             onChange={(val) => val && onPanelClick(val)}
             variant="outline"
@@ -237,7 +281,7 @@ const Header: React.FC<HeaderProps> = ({
                           variant="subtle"
                           color="gray"
                           size="xs"
-                          onClick={(e) => { e.stopPropagation(); onPanelClose(panelId); }}
+                          onClick={(e) => animateClose(e, () => onPanelClose(panelId))}
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <CloseIcon />
@@ -260,6 +304,7 @@ const Header: React.FC<HeaderProps> = ({
               })}
             </Tabs.List>
           </Tabs>
+        </div>
 
           {/* Terminal Session Tabs - Always visible if sessions exist */}
           {(tabs.some(t => t.type === 'session') || activePanel === 'terminal') && (
@@ -303,7 +348,7 @@ const Header: React.FC<HeaderProps> = ({
                               variant="subtle"
                               color="gray"
                               size={14}
-                              onClick={(e) => { e.stopPropagation(); onCloseTab(t.id); }}
+                              onClick={(e) => animateClose(e, () => onCloseTab(t.id))}
                               className="opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <CloseIcon />
