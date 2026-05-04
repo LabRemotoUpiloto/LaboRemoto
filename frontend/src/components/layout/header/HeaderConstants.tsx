@@ -73,8 +73,10 @@ export const PANEL_LABELS: Record<string, string> = {
   escritorio: 'Escritorio'
 };
 
-export const CloseIcon = () => (
-  <svg viewBox="0 0 7 7" fill="none"><path d="M1 1l5 5M6 1L1 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
+import { X } from 'lucide-react';
+
+export const CloseIcon = ({ size = 12 }: { size?: number }) => (
+  <X size={size} strokeWidth={2.5} />
 );
 
 export type Tab = { id: string; type: 'home' | 'session' | 'log'; label: string };
