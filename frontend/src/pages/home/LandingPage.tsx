@@ -90,10 +90,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onOpenPanel 
                 {/* ── SECCIÓN HERO CTA (NUEVA) ── */}
                 <section className="py-10 pb-8 animate-in fade-in duration-700">
                     <div className="bg-gradient-to-br from-secondary to-tertiary border border-subtle rounded-[24px] p-8 md:p-12 text-center relative overflow-hidden">
-                        <div className="inline-flex items-center gap-2 py-1.5 px-4 bg-accent/10 text-accent rounded-full text-[13px] font-semibold mb-6 border border-emerald-500/20 uppercase tracking-wide">
-                            <span className="w-2 h-2 bg-accent rounded-full animate-pulse"></span>
-                            Comienza aquí
-                        </div>
                         <h1 className="text-[36px] md:text-[48px] font-extrabold text-primary m-0 mb-5 leading-[1.1] tracking-tight">Bienvenido al laboratorio remoto de la Universidad Piloto de Colombia</h1>
                         <p className="text-[18px] md:text-[20px] text-secondary max-w-[640px] mx-auto mb-10 leading-relaxed">
                             Domina Linux y la administración remota con el asistente SSH más inteligente. 
@@ -169,7 +165,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onOpenPanel 
                 </section>
 
                 <section className="mb-10 animate-in slide-in-from-bottom-8 duration-700">
-                    <div className="bg-gradient-to-br from-emerald-500/5 to-transparent border border-emerald-500/15 rounded-2xl p-8">
+                    <div className="bg-secondary border border-subtle rounded-2xl p-8">
                         <div className="w-14 h-14 bg-accent/10 text-accent rounded-xl flex items-center justify-center mb-5">
                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
