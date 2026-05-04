@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-
-type Line = { gpio: number; level: number | null; func: string; pull: string | null }
+import * as gpioService from '../../services/hardware/gpio.service'
+import { GpioLine } from '../../services/hardware/gpio.service'
 
 type PinRole = 'power5' | 'power3' | 'ground' | 'gpio' | 'other'
 
@@ -74,7 +73,7 @@ const COLORS = {
   low: 'color-mix(in srgb, var(--text-primary) 25%, transparent)'
 }
 
-const resolveColor = (pin: PinDefinition, line: Line | undefined) => {
+const resolveColor = (pin: PinDefinition, line: GpioLine | undefined) => {
   if (pin.role === 'power5') return COLORS.power5
   if (pin.role === 'power3') return COLORS.power3
   if (pin.role === 'ground') return COLORS.ground
@@ -88,23 +87,23 @@ const resolveColor = (pin: PinDefinition, line: Line | undefined) => {
   return COLORS.gpioAlt
 }
 
-const describeLevel = (line: Line | undefined) => {
+const describeLevel = (line: GpioLine | undefined) => {
   if (!line || line.level == null) return 'Sin nivel'
   return line.level === 1 ? 'Nivel alto' : 'Nivel bajo'
 }
 
-const describePull = (line: Line | undefined) => {
+const describePull = (line: GpioLine | undefined) => {
   if (!line || !line.pull) return 'Pull: no informado'
   return `Pull: ${line.pull}`
 }
 
-const formatFunction = (line: Line | undefined) => {
+const formatFunction = (line: GpioLine | undefined) => {
   if (!line) return 'Función desconocida'
   return line.func || 'Sin función'
 }
 
 const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
-  const [data, setData] = useState<Line[] | null>(null)
+  const [data, setData] = useState<GpioLine[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedPin, setSelectedPin] = useState<number | null>(null)
@@ -142,16 +141,8 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await invoke<any>('rpi_pins_status', { id: sessionId })
-      const lines: Line[] = Array.isArray(res)
-        ? res.map((r: any) => ({
-            gpio: Number(r.gpio),
-            level: r.level == null ? null : Number(r.level),
-            func: String(r.func || ''),
-            pull: r.pull == null ? null : String(r.pull),
-          }))
-        : []
-      setData(lines)
+      const res = await gpioService.getPinsStatus(sessionId)
+      setData(res)
     } catch (e: any) {
       setError(e?.toString?.() ?? 'No se pudo obtener el estado de GPIO')
     } finally {
@@ -171,7 +162,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   }, [autoRefresh, load])
 
   const gpioMap = useMemo(() => {
-    const map = new Map<number, Line>()
+    const map = new Map<number, GpioLine>()
     if (data) {
       for (const line of data) map.set(line.gpio, line)
     }
@@ -201,11 +192,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     setActionLoading(true)
     setMessage(null)
     try {
-      await invoke('rpi_pin_set_mode', {
-        id: sessionId,
-        gpio: selectedDefinition.gpio,
-        mode,
-      })
+      await gpioService.setPinMode(sessionId, selectedDefinition.gpio, mode)
       await load()
       setMessage(`GPIO ${selectedDefinition.gpio} configurado como ${mode === 'input' ? 'entrada' : 'salida'}.`)
     } catch (e: any) {
@@ -221,7 +208,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     setActionLoading(true)
     setMessage(null)
     try {
-      await invoke('rpi_pin_set_pull', { id: sessionId, gpio: selectedDefinition.gpio, pull })
+      await gpioService.setPinPull(sessionId, selectedDefinition.gpio, pull)
       await load()
       const label = pull === 'up' ? 'Pull-Up' : pull === 'down' ? 'Pull-Down' : 'Sin pull'
       setMessage(`GPIO ${selectedDefinition.gpio}: ${label}.`)
@@ -238,7 +225,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     setActionLoading(true)
     setMessage(null)
     try {
-      await invoke('rpi_pin_write_level', { id: sessionId, gpio: selectedDefinition.gpio, level })
+      await gpioService.writePinLevel(sessionId, selectedDefinition.gpio, level)
       await load()
       setMessage(`GPIO ${selectedDefinition.gpio}: nivel ${level === 1 ? 'alto' : 'bajo'}.`)
     } catch (e: any) {
@@ -251,13 +238,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const readNow = async () => {
     if (!selectedDefinition || selectedDefinition.gpio == null) return
     try {
-      const r: any = await invoke('rpi_pin_read', { id: sessionId, gpio: selectedDefinition.gpio })
-      const updated: Line = {
-        gpio: Number(r.gpio),
-        level: r.level == null ? null : Number(r.level),
-        func: String(r.func || ''),
-        pull: r.pull == null ? null : String(r.pull),
-      }
+      const updated = await gpioService.readPin(sessionId, selectedDefinition.gpio)
       setData(prev => {
         const list = prev ? [...prev] : []
         const idx = list.findIndex(x => x.gpio === updated.gpio)
@@ -269,7 +250,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     }
   }
 
-  const renderNode = (pin: PinDefinition, line: Line | undefined, isSelected: boolean) => {
+  const renderNode = (pin: PinDefinition, line: GpioLine | undefined, isSelected: boolean) => {
     const color = resolveColor(pin, line)
     const level = line?.level
     const dotColor = level == null ? 'transparent' : level === 1 ? COLORS.high : COLORS.low
