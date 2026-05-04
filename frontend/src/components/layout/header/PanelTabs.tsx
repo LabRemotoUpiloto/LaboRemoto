@@ -117,7 +117,7 @@ const PanelTabs: React.FC<PanelTabsProps> = ({
                       onClick={(e) => animateClose(e, () => onPanelClose(panelId))}
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <CloseIcon />
+                      <CloseIcon size={14} />
                     </ActionIcon>
                   )
                 }

@@ -129,7 +129,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                       onClick={(e) => animateClose(e, () => onCloseTab(t.id))}
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <CloseIcon />
+                      <CloseIcon size={10} />
                     </ActionIcon>
                   }
                   style={isActive ? {
