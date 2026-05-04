@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  TextInput, PasswordInput, Button, Group, Badge, Stack, Divider,
+  TextInput, PasswordInput, Button, Group, Stack, Divider,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { Terminal, Globe, Hash, User, Lock, Save, ArrowRight } from 'lucide-react';
@@ -83,7 +83,7 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             <Button variant="subtle" color="gray" onClick={() => modals.closeAll()}>
               Cancelar
             </Button>
-            <Button type="submit" color="teal">
+            <Button type="submit">
               {isEditMode ? 'Guardar cambios' : 'Guardar'}
             </Button>
           </Group>
@@ -92,20 +92,15 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
     });
   };
 
-  const activeBadge = props.quickHost
-    ? (props.quickHost.name || props.quickHost.host)
-    : (!props.quickHost && props.recentConnection && isRaspberryPi())
-      ? 'Raspberry Pi 4'
-      : null;
-
   return (
     <div
-      className={`w-full transition-all duration-300 ${isPulsing ? 'ring-2 ring-teal-500/40 rounded-xl' : ''}`}
+      className="w-full transition-all duration-300 rounded-xl"
+      style={{ boxShadow: isPulsing ? '0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, transparent)' : 'none' }}
     >
       <form onSubmit={(e) => { e.preventDefault(); if (isValid) connect(); }}>
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)', color: 'var(--accent-primary)' }}>
             <Terminal size={18} />
           </div>
           <div className="flex flex-col">
@@ -116,11 +111,6 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
               Introduce las credenciales del servidor
             </span>
           </div>
-          {activeBadge && (
-            <Badge color="teal" variant="light" size="sm" className="ml-auto">
-              {activeBadge}
-            </Badge>
-          )}
         </div>
 
         <Divider className="mb-5 opacity-50" />
@@ -204,7 +194,6 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
           </Button>
           <Button
             type="submit"
-            color="teal"
             loading={isConnecting}
             disabled={!isValid}
             title={isValid ? 'Conectar (Enter)' : 'Completa todos los campos correctamente'}
