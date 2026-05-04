@@ -254,11 +254,17 @@ const Header: React.FC<HeaderProps> = ({
                 '&[data-active]': {
                   borderBottomColor: 'var(--accent-primary)',
                   backgroundColor: 'var(--interactive-selected)',
-                  color: 'var(--text-primary)',
+                  color: 'var(--accent-primary)',
                 },
                 '&:hover': {
                   backgroundColor: 'var(--interactive-hover)',
                   borderBottomColor: 'var(--border-subtle)',
+                },
+                '&.tab-closing': {
+                   pointerEvents: 'none',
+                   opacity: 0,
+                   transform: 'scale(0.9) translateX(-10px)',
+                   transition: 'all 0.3s ease'
                 }
               }
             }}
@@ -326,8 +332,14 @@ const Header: React.FC<HeaderProps> = ({
                       border: '1px solid transparent',
                       '&[data-active]': {
                         backgroundColor: 'var(--interactive-selected)',
-                        borderColor: 'var(--border-subtle)',
+                        borderColor: 'var(--accent-primary)',
                         color: 'var(--accent-primary)',
+                      },
+                      '&.tab-closing': {
+                        pointerEvents: 'none',
+                        opacity: 0,
+                        transform: 'scale(0.8) translateX(-5px)',
+                        transition: 'all 0.3s ease'
                       }
                     }
                   }}
