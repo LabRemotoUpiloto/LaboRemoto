@@ -50,8 +50,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       aria-label="Main navigation"
       className="fixed left-0 z-[2100] border-r overflow-hidden flex flex-col transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
       style={{
-        top: 'var(--header-height)',
-        height: 'calc(100vh - var(--header-height))',
+        top: 0,
+        height: '100vh',
         width: 'var(--sidebar-width)',
         backgroundColor: 'var(--background-secondary)',
         borderColor: 'var(--border-subtle)',
@@ -60,8 +60,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Gradient overlay mimicking the old ::before */}
       <div className="absolute inset-0 pointer-events-none" />
 
-      {/* Header with hamburger */}
-      <Box pt="md" pb="sm" className="relative z-10 shrink-0 flex justify-center px-2">
+      {/* Header with hamburger - Aligned with Header top row (44px) */}
+      <Box className="relative z-10 shrink-0 flex items-center justify-center px-2 border-b border-subtle" style={{ height: '44px' }}>
         <UnstyledButton 
           onClick={onToggleExpand}
           title={isExpanded ? "Colapsar Menú" : "Expandir Menú"}
@@ -88,10 +88,23 @@ const Sidebar: React.FC<SidebarProps> = ({
             strokeLinecap="round" 
             strokeLinejoin="round"
             fill="none"
+            className="shrink-0"
           >
-            <path d="M4 6L20 6" className={`origin-center transition-all duration-300 ${isExpanded ? 'translate-y-[6px] rotate-45' : ''}`} />
-            <path d="M4 12L20 12" className={`origin-center transition-all duration-200 ${isExpanded ? 'opacity-0 scale-x-0' : ''}`} />
-            <path d="M4 18L20 18" className={`origin-center transition-all duration-300 ${isExpanded ? '-translate-y-[6px] -rotate-45' : ''}`} />
+            <path 
+              d="M4 6L20 6" 
+              className={`origin-center transition-all duration-300 ${isExpanded ? 'translate-y-[6px] rotate-45' : ''}`}
+              style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+            />
+            <path 
+              d="M4 12L20 12" 
+              className={`origin-center transition-all duration-200 ${isExpanded ? 'opacity-0 scale-x-0' : ''}`}
+              style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+            />
+            <path 
+              d="M4 18L20 18" 
+              className={`origin-center transition-all duration-300 ${isExpanded ? '-translate-y-[6px] -rotate-45' : ''}`}
+              style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+            />
           </svg>
         </UnstyledButton>
       </Box>

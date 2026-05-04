@@ -8,7 +8,7 @@ import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
 
 // Layout
-import Header from './components/layout/Header'
+import Header from './components/layout/header/Header'
 import Sidebar from './components/layout/Sidebar'
 import HomeContainer from './components/layout/HomeContainer'
 import SessionContainer from './components/layout/SessionContainer'

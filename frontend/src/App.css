@@ -3,7 +3,7 @@
 .app-container {
   display: flex;
   height: 100vh;
-  --header-height: 34px; /* default with only H1 */
+  --header-height: 44px; /* single-level unified header */
   --sidebar-width: 60px; /* Mantine default is slightly wider, let's use 60px closed */
 }
 
@@ -12,7 +12,7 @@
 }
 
 .app-container.h2-visible {
-  --header-height: 74px; /* H1 (34px) + H2 (40px) */
+  --header-height: 44px; /* unified header */
 }
 
 .main-content {

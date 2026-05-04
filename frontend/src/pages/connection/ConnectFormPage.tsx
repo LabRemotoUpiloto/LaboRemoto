@@ -1,5 +1,6 @@
-// Página de conexión SSH — layout con Tailwind, ConnectFormPage.css eliminado
+// Página de conexión SSH — layout unificado centrado
 import React, { useCallback, useState } from 'react';
+import { Paper, Divider } from '@mantine/core';
 import ConnectForm from '../../components/connect/ConnectForm';
 import QuickHostsPanel, { QuickHost } from '../../components/hosts/QuickHostsPanel';
 import RecentConnectionsPanel, { RecentConnection } from '../../components/connect/RecentConnectionsPanel';
@@ -51,36 +52,51 @@ const ConnectFormPage: React.FC<ConnectFormPageProps> = ({ onConnected, initialP
   }, []);
 
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* Paneles laterales */}
-      <div className="flex flex-col gap-0 w-56 flex-shrink-0 border-r border-white/5 overflow-y-auto">
-        <QuickHostsPanel
-          hosts={quickHosts}
-          onHostSelect={selectQuickHost}
-          selectedHostId={selectedHostId}
-          data-tour="quick-hosts-panel"
-        />
-        <RecentConnectionsPanel
-          connections={recentConnections}
-          onSelect={selectRecentConnection}
-          onClear={clearConnections}
-        />
-      </div>
+    <div className="flex h-full overflow-hidden items-center justify-center">
+      <div className="w-full max-w-lg px-6 py-8 overflow-y-auto max-h-full">
+        <Paper
+          p="xl"
+          radius="lg"
+          withBorder
+          className="border-[var(--mantine-color-default-border)] shadow-[0_4px_24px_rgba(0,0,0,0.12)]"
+        >
+          {/* Quick Hosts integrados en la parte superior */}
+          <div className="mb-5" data-tour="quick-hosts-panel">
+            <QuickHostsPanel
+              hosts={quickHosts}
+              onHostSelect={selectQuickHost}
+              selectedHostId={selectedHostId}
+            />
+          </div>
 
-      {/* Formulario centrado */}
-      <div
-        className="flex-1 flex items-center justify-center p-8 overflow-y-auto"
-        data-tour="connect-form"
-      >
-        <ConnectForm
-          onConnected={onConnected}
-          initialPayload={initialPayload}
-          quickHost={activeQuickHost}
-          recentConnection={activeRecentConnection}
-          recentConnections={recentConnections}
-          onQuickHostCleared={clearQuickHost}
-          onConnectionSuccess={saveConnection}
-        />
+          {/* Separador sutil */}
+          <Divider className="opacity-40 mb-5" />
+
+          {/* Formulario principal */}
+          <div data-tour="connect-form">
+            <ConnectForm
+              onConnected={onConnected}
+              initialPayload={initialPayload}
+              quickHost={activeQuickHost}
+              recentConnection={activeRecentConnection}
+              recentConnections={recentConnections}
+              onQuickHostCleared={clearQuickHost}
+              onConnectionSuccess={saveConnection}
+            />
+          </div>
+
+          {/* Conexiones recientes debajo del form */}
+          {recentConnections.length > 0 && (
+            <>
+              <Divider className="opacity-40 mt-6 mb-4" />
+              <RecentConnectionsPanel
+                connections={recentConnections}
+                onSelect={selectRecentConnection}
+                onClear={clearConnections}
+              />
+            </>
+          )}
+        </Paper>
       </div>
     </div>
   );

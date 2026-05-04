@@ -60,13 +60,20 @@ export function useConnectionForm({
   // ── Auto-relleno desde quickHost ──────────────────────────────────────────────
 
   useEffect(() => {
-    if (!quickHost) return;
-    setHost(quickHost.host);
-    setPort(String(quickHost.port));
-    setUser('');
-    setPassword('');
-    setErrors({});
-    triggerPulse();
+    if (quickHost) {
+      setHost(quickHost.host);
+      setPort(String(quickHost.port));
+      setUser('');
+      setPassword('');
+      setErrors({});
+      triggerPulse();
+    } else if (!recentConnection && !initialPayload) {
+      setHost('');
+      setPort('22');
+      setUser('');
+      setPassword('');
+      setErrors({});
+    }
   }, [quickHost, triggerPulse]);
 
   // ── Auto-relleno desde recentConnection ──────────────────────────────────────

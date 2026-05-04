@@ -1,5 +1,5 @@
 import React from 'react'
-import LogDetailPage from '../../pages/session/LogDetailPage'
+import LogDetailPage from '../../pages/logs/LogDetailPage'
 import type { Tab } from '../../hooks/useAppTabs'
 
 type Props = {

@@ -1,5 +1,6 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { UnstyledButton, ActionIcon } from '@mantine/core';
+import React from 'react';
+import { UnstyledButton, Tooltip } from '@mantine/core';
+import { Server, Cpu, Monitor, Zap } from 'lucide-react';
 
 export interface QuickHost {
   id: string;
@@ -15,36 +16,22 @@ interface QuickHostsPanelProps {
   'data-tour'?: string;
 }
 
+const HOST_ICONS: Record<string, React.ElementType> = {
+  pi4: Cpu,
+  default: Server,
+};
+
 const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({ 
   hosts = [], 
   onHostSelect, 
   selectedHostId,
   'data-tour': dataTour
 }) => {
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  // Hosts por defecto si no se proporcionan
   const defaultHosts: QuickHost[] = [
-    { id: 'pi4', name: 'pi4', host: '200.115.181.211', port: 9000 }
+    { id: 'pi4', name: 'Raspberry Pi 4', host: '200.115.181.211', port: 9000 }
   ];
 
   const hostsToShow = hosts.length > 0 ? hosts : defaultHosts;
-
-  const checkScroll = () => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-
-    setCanScrollLeft(scroller.scrollLeft > 0);
-    setCanScrollRight(scroller.scrollLeft < scroller.scrollWidth - scroller.clientWidth - 1);
-  };
-
-  useEffect(() => {
-    checkScroll();
-    window.addEventListener('resize', checkScroll);
-    return () => window.removeEventListener('resize', checkScroll);
-  }, [hostsToShow]);
 
   const handleHostClick = (host: QuickHost) => {
     if (selectedHostId === host.id) {
@@ -54,85 +41,66 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
     }
   };
 
-  const scrollLeft = () => {
-    if (scrollerRef.current) {
-      scrollerRef.current.scrollBy({ left: -200, behavior: 'smooth' });
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollerRef.current) {
-      scrollerRef.current.scrollBy({ left: 200, behavior: 'smooth' });
-    }
-  };
+  if (hostsToShow.length === 0) return null;
 
   return (
-    <header 
-      className="w-full bg-secondary border-b border-subtle px-4 flex flex-row items-center gap-3 m-0 h-9 sticky top-0 z-10 overflow-hidden" 
-      aria-label="Hosts rápidos" 
-      data-tour={dataTour}
-    >
-      <h2 className="m-0 text-[11px] font-semibold text-secondary whitespace-nowrap shrink-0 tracking-wider uppercase opacity-80 border-r border-subtle pr-3 leading-4 hidden sm:block">
-        Hosts rápidos
-      </h2>
-      
-      <div className="relative flex items-center flex-1 h-full min-w-0">
-        {canScrollLeft && (
-          <ActionIcon
-            variant="transparent"
-            className="absolute left-0 top-0 bottom-0 w-6 h-full rounded-none bg-secondary/90 hover:bg-secondary text-secondary hover:text-accent z-[5]"
-            onClick={scrollLeft}
-            aria-label="Scroll izquierda"
-          >
-            ‹
-          </ActionIcon>
-        )}
+    <div data-tour={dataTour}>
+      <div className="flex items-center gap-2 mb-3">
+        <Zap size={14} style={{ color: 'var(--accent-primary)' }} />
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--mantine-color-dimmed)]">
+          Hosts rápidos
+        </span>
+      </div>
 
-        <div 
-          ref={scrollerRef}
-          className="flex flex-row overflow-x-auto overflow-y-hidden flex-1 h-full scrollbar-none"
-          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
-          onScroll={checkScroll}
-        >
-          {hostsToShow.map(host => {
-            const isActive = selectedHostId === host.id;
-            return (
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(hostsToShow.length, 3)}, 1fr)` }}>
+        {hostsToShow.map(host => {
+          const isActive = selectedHostId === host.id;
+          const IconComponent = HOST_ICONS[host.id] ?? HOST_ICONS.default;
+
+          return (
+            <Tooltip
+              key={host.id}
+              label={`${host.host}:${host.port}`}
+              position="bottom"
+              withArrow
+              openDelay={400}
+            >
               <UnstyledButton
-                key={host.id}
-                className={`
-                  relative px-3.5 h-full flex items-center shrink-0 transition-all duration-250 ease-out text-secondary
-                  hover:bg-tertiary/50 hover:text-primary
-                  ${isActive ? 'text-accent bg-accent/5' : ''}
-                `}
+                className="group relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border transition-all duration-200 cursor-pointer"
+                style={{
+                  borderColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 50%, transparent)' : 'var(--border-color)',
+                  backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' : 'var(--mantine-color-body)',
+                  boxShadow: isActive ? '0 0 12px color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'none',
+                }}
                 onClick={() => handleHostClick(host)}
                 aria-pressed={isActive}
-                title={`Conectar a ${host.name}`}
               >
-                <span className={`text-xs whitespace-nowrap ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                  {host.name}
-                </span>
-                
-                {/* Active indicator bar */}
-                <div 
-                  className={`absolute bottom-0 left-0 right-0 h-[2px] bg-accent transition-transform duration-250 ease-out origin-center ${isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'}`}
-                />
-              </UnstyledButton>
-            );
-          })}
-        </div>
+                <div
+                  className="flex items-center justify-center w-8 h-8 rounded-md shrink-0 transition-colors duration-200"
+                  style={{
+                    backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 20%, transparent)' : 'color-mix(in srgb, var(--border-color) 50%, transparent)',
+                    color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  }}>
+                  <IconComponent size={16} />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[13px] font-medium truncate leading-tight" style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                    {host.name}
+                  </span>
+                  <span className="text-[11px] text-[var(--mantine-color-dimmed)] truncate leading-tight mt-0.5">
+                    :{host.port}
+                  </span>
+                </div>
 
-        {canScrollRight && (
-          <ActionIcon
-            variant="transparent"
-            className="absolute right-0 top-0 bottom-0 w-6 h-full rounded-none bg-secondary/90 hover:bg-secondary text-secondary hover:text-accent z-[5]"
-            onClick={scrollRight}
-            aria-label="Scroll derecha"
-          >
-            ›
-          </ActionIcon>
-        )}
+                {isActive && (
+                  <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--accent-primary)' }} />
+                )}
+              </UnstyledButton>
+            </Tooltip>
+          );
+        })}
       </div>
-    </header>
+    </div>
   );
 };
 
