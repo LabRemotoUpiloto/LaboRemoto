@@ -261,7 +261,8 @@ const Header: React.FC<HeaderProps> = ({
             </Tabs.List>
           </Tabs>
 
-          {activePanel === 'terminal' && (
+          {/* Terminal Session Tabs - Always visible if sessions exist */}
+          {(tabs.some(t => t.type === 'session') || activePanel === 'terminal') && (
             <div className="flex items-center h-full px-2 gap-2 border-l border-subtle ml-2 bg-primary/30">
               <div className="flex items-center overflow-x-auto scrollbar-none" ref={sessionsRef}>
                 <Tabs
