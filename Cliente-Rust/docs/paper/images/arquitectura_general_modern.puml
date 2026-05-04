@@ -1,0 +1,95 @@
+@startuml arquitectura_general_modern
+
+' =============== ESTILOS ACADÉMICOS IEEE ===============
+' Esta cabecera garantiza líneas nítidas, tipografía legible y colores sobrios
+skinparam dpi 300
+skinparam BackgroundColor white
+skinparam DefaultFontName "Arial"
+skinparam DefaultFontSize 13
+skinparam DefaultFontColor #1a1a1a
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam padding 8
+skinparam Shadowing false
+skinparam roundcorner 5
+
+skinparam Package {
+    BackgroundColor #F8F9FA
+    BorderColor #495057
+    BorderThickness 1.5
+    FontSize 14
+    FontStyle bold
+}
+
+skinparam Node {
+    BackgroundColor #FFFFFF
+    BorderColor #212529
+    BorderThickness 2
+    FontSize 15
+    FontStyle bold
+}
+
+skinparam Cloud {
+    BackgroundColor #E3F2FD
+    BorderColor #0D47A1
+    BorderThickness 2
+}
+
+skinparam Database {
+    BackgroundColor #FFF3CD
+    BorderColor #856404
+    BorderThickness 1.5
+}
+' ========================================================
+
+node "Estación del Estudiante" as NodoCliente {
+  package "Smart SSH Terminal" {
+    [Subsistema de Presentación\ne Interacción] as SubPresentacion #E1F5FE
+    [Subsistema de Procesamiento\ny Control] as SubCore #E1F5FE
+    [Subsistema de Inteligencia\nContextual] as SubIA #E1F5FE
+    
+    SubPresentacion -down-> SubCore : Eventos (Frontend-Backend)
+    SubCore -down-> SubIA : Peticiones de Contexto IA
+  }
+}
+
+node "Universidad / Sede Institucional" as NodoRemoto {
+  package "Subsistema de Laboratorio Físico" {
+    node "Clúster IoT (Raspberry Pi)" as RaspberryPi {
+      [Sistema Operativo Linux\n(Daemons: SSH, VNC)] as Daemons #E8F5E9
+      card "Actividades Prácticas\n(Módulos Robótica/Linux)" as Practicas #E8F5E9
+      
+      Daemons -down-> Practicas : Ejecución Física de Código
+    }
+  }
+
+  package "Subsistema de Gestión Institucional" {
+    [Plataforma LMS\n(Ej: Moodle)] as LMS #FCE4EC
+    database "Directorio Institucional\n(Servidor LDAP)" as LDAP
+
+    LMS .down.> LDAP : "Autenticación de Estudiantes"
+  }
+
+  ' Orden interno de la institución usando bloques ocultos laterales
+  RaspberryPi -[hidden]right-> LMS
+
+  Practicas .right.> LMS : Registro de\nCalificaciones
+  Daemons .down.> LDAP : "Autenticación"
+}
+
+cloud "Nube de Inteligencia Artificial" as Nube {
+  [Modelos de Inferencia LLM\n(Gemini / OpenAI / Ollama)] as CloudIA
+}
+
+' =================== VECTORES LÓGICOS ===================
+' Posicionamiento en Columnas Izquierda-Derecha y Fondo
+NodoCliente -[hidden]right-> NodoRemoto
+SubIA -[hidden]down-> Nube
+
+' Flujos de Dominio de Red Estrictamente Horizontales
+SubCore -right-> Daemons : " Internet / VPN\n Extracción y Control Remoto "
+SubCore -right-> LMS : " LTI / HTTP\n Reporte de Avances "
+SubIA -down-> CloudIA : " API REST\n Inferencia Semántica "
+
+@enduml

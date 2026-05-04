@@ -1,0 +1,58 @@
+@startuml arquitectura_general
+
+' Opciones estéticas para evitar cruces en desorden
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 60
+skinparam padding 5
+skinparam defaultTextAlignment center
+
+node "Estación del Estudiante" as NodoCliente {
+  package "Smart SSH Terminal (Cliente Local)" {
+    [Subsistema de Presentación\ne Interacción] as SubPresentacion
+    [Subsistema de Procesamiento\ny Control] as SubCore
+    [Subsistema de Inteligencia\nContextual] as SubIA
+    
+    SubPresentacion -down-> SubCore : Eventos (Frontend-Backend)
+    SubCore -down-> SubIA : Peticiones de Contexto IA
+  }
+}
+
+node "Universidad / Sede Institucional" as NodoRemoto {
+  package "Subsistema de Laboratorio Físico" {
+    node "Clúster IoT (Múltiples Raspberry Pi)" as RaspberryPi {
+      [Sistema Operativo\n(Daemons: SSH, VNC)] as Daemons
+      card "Actividades\n(Robótica, Linux)" as Practicas
+      
+      Daemons -down-> Practicas : Ejecución Física de Código
+    }
+  }
+
+  package "Subsistema de Gestión Institucional" {
+    [Plataforma LMS\n(Moodle)] as LMS
+    database "Directorio Institucional\n(LDAP)" as LDAP
+
+    LMS .down.> LDAP : "Autenticación de Estudiantes"
+  }
+
+  ' Acomodar Gestión Institucional al lado del Laboratorio Físico
+  RaspberryPi -[hidden]right-> LMS
+
+  Practicas .right.> LMS : Registro de\nCalificaciones
+  Daemons .down.> LDAP : "Autenticación"
+}
+
+cloud "Internet / Nube Estratégica" as Nube {
+  [Modelos LLM\n(Gemini/OpenAI)] as CloudIA
+}
+
+' Forzar orden Cliente Izquierda, U Derecha, Nube Abajo
+NodoCliente -[hidden]right-> NodoRemoto
+CapaIA -[hidden]down-> Nube
+
+' Conexiones de red usando direccionales explícitos para no romper el grid
+SubCore -right-> Daemons : " VPN / Internet\n Control y Extracción"
+SubCore -right-> LMS : " HTTP (LTI)\n Reporte de Avances"
+SubIA -down-> CloudIA : " Internet\n Inferencia Semántica"
+
+@enduml

@@ -1,0 +1,61 @@
+@startuml subsistema_presentacion
+
+' =============== ESTILOS ACADÉMICOS IEEE ===============
+skinparam dpi 300
+skinparam BackgroundColor white
+skinparam DefaultFontName "Arial"
+skinparam DefaultFontSize 13
+skinparam DefaultFontColor #1a1a1a
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 60
+skinparam padding 8
+skinparam Shadowing false
+skinparam roundcorner 5
+
+skinparam Package {
+    BackgroundColor #F8F9FA
+    BorderColor #495057
+    BorderThickness 1.5
+    FontSize 14
+    FontStyle bold
+}
+
+skinparam Node {
+    BackgroundColor #FFFFFF
+    BorderColor #212529
+    BorderThickness 2
+    FontSize 15
+    FontStyle bold
+}
+
+skinparam Component {
+    BackgroundColor #E1F5FE
+    BorderColor #0288D1
+    BorderThickness 1.5
+}
+' ========================================================
+
+left to right direction
+
+package "Subsistema de Presentación e Interacción" as SubsistemaPresentacion {
+  [Emulador de\nTerminal (Xterm.js)] as Terminal
+  [Interfaz de Asistente\nConversacional] as Chat
+  [Explorador Gráfico\nde Archivos] as FileManager
+  [Visor de Entorno\nGráfico Remoto] as VNCViewer
+  [Panel de Mando\ny Prácticas] as Dashboard
+
+  [Gestor Centralizado\nde Estado] as StateManager #E8F5E9
+
+  Terminal <--> StateManager
+  Chat <--> StateManager
+  FileManager <--> StateManager
+  VNCViewer <--> StateManager
+  Dashboard <--> StateManager
+}
+
+[Subsistema de Procesamiento\ny Control] as SubCore
+
+StateManager <--> SubCore : Sincronización de Eventos\n(IPC Frontend-Backend)
+
+@enduml
