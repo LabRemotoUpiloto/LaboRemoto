@@ -185,9 +185,7 @@ fn remote_backup_and_write(sftp: &ssh2::Sftp, path: &str, new_content: &str) -> 
   Ok(backup_path)
 }
 
-// (Eliminado bloque legacy de búsqueda; ahora solo se usa remote_search_ranked del módulo compartido)
-
-// --- (restaurado) Comando original ai_remote_edit_file ---
+// --- Comando ai_remote_edit_file ---
 #[tauri::command]
 pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEditResponse, String> {
   let _sec = SecurityManager::new();
