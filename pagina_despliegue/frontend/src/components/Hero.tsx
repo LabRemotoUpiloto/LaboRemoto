@@ -1,10 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Download, Terminal, Cpu, Monitor, ArrowRight } from "lucide-react";
+import { Download, Terminal, Cpu, Monitor, Network, FolderOpen, ArrowRight } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
+
+// ── ASCII wordmark ─────────────────────────────────────────────────────────
+const ASCII_LOGO = `
+██╗      █████╗ ██████╗  ██████╗ ██████╗   █████╗ ████████╗ ██████╗ ██████╗ ██╗  ██████╗ 
+██║     ██╔══██╗██╔══██╗██╔═══██╗██╔══██╗ ██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗██║ ██╔═══██╗
+██║     ███████║██████╔╝ ██║   ██║██████╔╝ ███████║   ██║   ██║   ██║██████╔╝██║ ██║   ██║
+██║     ██╔══██║██╔══██╗ ██║   ██║██╔══██╗ ██╔══██║   ██║   ██║   ██║██╔══██╗██║ ██║   ██║
+███████╗██║  ██║██████╔╝ ╚██████╔╝██║  ██║ ██║  ██║   ██║   ╚██████╔╝██║  ██║██║ ╚██████╔╝
+╚══════╝╚═╝  ╚═╝╚═════╝   ╚═════╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═════╝ 
+
+██████╗ ███████╗███╗   ███╗ ██████╗ ████████╗ ██████╗ 
+██╔══██╗██╔════╝████╗ ████║██╔═══██╗╚══██╔══╝██╔═══██╗
+██████╔╝█████╗  ██╔████╔██║██║   ██║   ██║   ██║   ██║
+██╔══██╗██╔══╝  ██║╚██╔╝██║██║   ██║   ██║   ██║   ██║
+██║  ██║███████╗██║ ╚═╝ ██║╚██████╔╝   ██║   ╚██████╔╝
+╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝ ╚═════╝    ╚═╝    ╚═════╝ 
+`.trim();
 
 // ── Terminal animation data ────────────────────────────────────────────────
 const TERMINAL_LINES = [
@@ -35,16 +52,53 @@ const FEATURES = [
   },
 ];
 
-// ── Academic programs ──────────────────────────────────────────────────────
-const PROGRAMS = [
-  "Ingeniería Electrónica",
-  "Sistemas",
-  "Mecatrónica",
-  "Telecomunicaciones",
-  "Física",
-  "Química",
-  "Biomédica",
-  "Industrial",
+// ── Bento grid items ───────────────────────────────────────────────────────
+const BENTO_ITEMS = [
+  {
+    id: "b1",
+    size: "col-span-2 row-span-2",
+    Icon: Cpu,
+    label: "Electrónica",
+    title: "Ingeniería Electrónica",
+    body: "Diseño de circuitos, microcontroladores y sistemas embebidos con acceso a hardware real.",
+    accent: true,
+  },
+  {
+    id: "b2",
+    size: "col-span-1 row-span-1",
+    Icon: Terminal,
+    label: "Sistemas",
+    title: "Ing. de Sistemas",
+    body: "Redes, servidores Linux y bases de datos en entornos controlados.",
+    accent: false,
+  },
+  {
+    id: "b3",
+    size: "col-span-1 row-span-1",
+    Icon: Network,
+    label: "Telecomunicaciones",
+    title: "Telecomunicaciones",
+    body: "Protocolos, antenas y simulación de redes de datos.",
+    accent: false,
+  },
+  {
+    id: "b4",
+    size: "col-span-1 row-span-1",
+    Icon: Monitor,
+    label: "Mecatrónica",
+    title: "Mecatrónica",
+    body: "Control de actuadores, PLC y robótica remota.",
+    accent: false,
+  },
+  {
+    id: "b5",
+    size: "col-span-1 row-span-1",
+    Icon: FolderOpen,
+    label: "Más programas",
+    title: "Física · Química · Biomédica",
+    body: "Plataforma extensible para cualquier disciplina académica.",
+    accent: false,
+  },
 ];
 
 // ── Terminal component ─────────────────────────────────────────────────────
@@ -92,42 +146,30 @@ function TerminalWindow() {
 // ── Main Hero ──────────────────────────────────────────────────────────────
 export default function Hero() {
   const heroRef      = useRef<HTMLDivElement>(null);
-  const eyebrowRef   = useRef<HTMLDivElement>(null);
-  const h1Ref        = useRef<HTMLHeadingElement>(null);
-  const subtitleRef  = useRef<HTMLParagraphElement>(null);
-  const ctaRef       = useRef<HTMLDivElement>(null);
+  const asciiRef     = useRef<HTMLPreElement>(null);
+  const splitRef     = useRef<HTMLDivElement>(null);
   const terminalRef  = useRef<HTMLDivElement>(null);
   const featuresRef  = useRef<HTMLDivElement>(null);
-  const programsRef  = useRef<HTMLDivElement>(null);
+  const bentoRef     = useRef<HTMLDivElement>(null);
 
   // ── Hero entrance (GSAP timeline) ───────────────────────────────────────
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-      tl.fromTo(eyebrowRef.current,
-        { opacity: 0, y: 16 },
-        { opacity: 1, y: 0, duration: 0.6 }
+      tl.fromTo(asciiRef.current,
+        { opacity: 0, y: 20 },
+        { opacity: 0.85, y: 0, duration: 0.8 }
       )
-      .fromTo(h1Ref.current,
-        { opacity: 0, y: 24 },
+      .fromTo(splitRef.current,
+        { opacity: 0, y: 28 },
         { opacity: 1, y: 0, duration: 0.7 },
-        "-=0.3"
-      )
-      .fromTo(subtitleRef.current,
-        { opacity: 0, y: 16 },
-        { opacity: 1, y: 0, duration: 0.6 },
         "-=0.4"
       )
-      .fromTo(ctaRef.current,
-        { opacity: 0, y: 12 },
-        { opacity: 1, y: 0, duration: 0.5 },
-        "-=0.3"
-      )
       .fromTo(terminalRef.current,
-        { opacity: 0, x: 30 },
-        { opacity: 1, x: 0, duration: 0.8, ease: "power2.out" },
-        "-=0.7"
+        { opacity: 0, x: 28 },
+        { opacity: 1, x: 0, duration: 0.75, ease: "power2.out" },
+        "-=0.55"
       );
     }, heroRef);
 
@@ -139,48 +181,36 @@ export default function Hero() {
     const ctx = gsap.context(() => {
       const cards = featuresRef.current?.querySelectorAll(".feature-card");
       if (!cards) return;
-
-      gsap.fromTo(
-        cards,
+      gsap.fromTo(cards,
         { opacity: 0, y: 40 },
         {
           opacity: 1, y: 0,
           duration: 0.65,
           stagger: 0.14,
           ease: "power3.out",
-          scrollTrigger: {
-            trigger: featuresRef.current,
-            start: "top 82%",
-          },
+          scrollTrigger: { trigger: featuresRef.current, start: "top 82%" },
         }
       );
     }, featuresRef);
-
     return () => ctx.revert();
   }, []);
 
-  // ── Programs scroll reveal ───────────────────────────────────────────────
+  // ── Bento scroll reveal ──────────────────────────────────────────────────
   useEffect(() => {
     const ctx = gsap.context(() => {
-      const badges = programsRef.current?.querySelectorAll(".program-badge");
-      if (!badges) return;
-
-      gsap.fromTo(
-        badges,
-        { opacity: 0, scale: 0.88 },
+      const cards = bentoRef.current?.querySelectorAll(".bento-card");
+      if (!cards) return;
+      gsap.fromTo(cards,
+        { opacity: 0, y: 36, scale: 0.96 },
         {
-          opacity: 1, scale: 1,
-          duration: 0.45,
-          stagger: 0.07,
-          ease: "back.out(1.4)",
-          scrollTrigger: {
-            trigger: programsRef.current,
-            start: "top 85%",
-          },
+          opacity: 1, y: 0, scale: 1,
+          duration: 0.6,
+          stagger: 0.1,
+          ease: "power3.out",
+          scrollTrigger: { trigger: bentoRef.current, start: "top 80%" },
         }
       );
-    }, programsRef);
-
+    }, bentoRef);
     return () => ctx.revert();
   }, []);
 
@@ -188,55 +218,55 @@ export default function Hero() {
     <div ref={heroRef}>
       {/* ── HERO SECTION ─────────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col justify-center pt-24 pb-20 overflow-hidden">
-        {/* Background radial glow from top */}
         <div className="absolute inset-0 bg-radial-dark pointer-events-none" />
-        {/* Dot grid */}
         <div className="absolute inset-0 grid-bg pointer-events-none opacity-60" />
 
         <div className="relative max-w-6xl mx-auto px-6 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          {/* ASCII wordmark */}
+          <pre
+            ref={asciiRef}
+            className="font-mono text-[5px] sm:text-[6.5px] md:text-[8px] leading-tight mb-14 select-none overflow-x-auto"
+            style={{ color: "#00d2be", opacity: 0 }}
+            aria-hidden="true"
+          >
+            {ASCII_LOGO}
+          </pre>
 
-            {/* Left — copy */}
+          {/* Split: copy left, terminal right */}
+          <div
+            ref={splitRef}
+            style={{ opacity: 0 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start"
+          >
+            {/* Left */}
             <div className="space-y-8">
-              <div ref={eyebrowRef} style={{ opacity: 0 }}>
-                <span className="inline-flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-cyan border border-cyan/30 px-3 py-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-border-pulse" />
-                  Laboratorio Remoto — v1.0
-                </span>
+              <div className="space-y-5">
+                <p className="text-muted-foreground text-base leading-relaxed max-w-sm">
+                  Plataforma de laboratorio remoto para estudiantes, profesores y
+                  laboratoristas. Conexión real, prácticas reales — desde cualquier lugar.
+                </p>
+                <div className="flex items-center gap-6 text-[11px] font-mono text-muted tracking-widest uppercase">
+                  <span>SSH nativo</span>
+                  <span className="w-px h-3 bg-border" />
+                  <span>SFTP</span>
+                  <span className="w-px h-3 bg-border" />
+                  <span>v1.0.0</span>
+                </div>
               </div>
 
-              <h1
-                ref={h1Ref}
-                style={{ opacity: 0 }}
-                className="text-4xl md:text-5xl lg:text-6xl font-black leading-[1.05] tracking-tight text-foreground"
-              >
-                Tu laboratorio,
-                <br />
-                <span style={{ color: "#00d2be" }}>donde quieras.</span>
-              </h1>
-
-              <p
-                ref={subtitleRef}
-                style={{ opacity: 0 }}
-                className="text-muted-foreground text-base md:text-lg leading-relaxed max-w-md"
-              >
-                Conecta con equipos reales desde cualquier dispositivo. Practica con SSH,
-                terminal nativa y escritorio remoto — sin instalar nada.
-              </p>
-
-              <div ref={ctaRef} style={{ opacity: 0 }} className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <Link
                   to="/descargar"
                   className="inline-flex items-center gap-2.5 px-6 py-3 bg-cyan text-background font-mono text-xs font-bold tracking-widest uppercase hover:bg-cyan-light transition-colors"
                 >
                   <Download size={13} />
-                  Descargar ahora
+                  Descargar
                 </Link>
                 <a
                   href="#caracteristicas"
                   className="inline-flex items-center gap-2 font-mono text-xs text-muted-foreground hover:text-foreground tracking-widest uppercase transition-colors group"
                 >
-                  ver más
+                  Ver más
                   <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
                 </a>
               </div>
@@ -268,10 +298,7 @@ export default function Hero() {
             </h2>
           </div>
 
-          <div
-            ref={featuresRef}
-            className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border"
-          >
+          <div ref={featuresRef} className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
             {FEATURES.map(({ Icon, title, body }) => (
               <div
                 key={title}
@@ -322,7 +349,10 @@ export default function Hero() {
                 body: "Accede al equipo remoto con terminal SSH, SFTP o escritorio gráfico según requiera tu práctica.",
               },
             ].map(({ num, title, body }) => (
-              <div key={num} className="relative pl-8 border-l border-border hover:border-cyan/40 transition-colors duration-300">
+              <div
+                key={num}
+                className="relative pl-8 border-l border-border hover:border-cyan/40 transition-colors duration-300"
+              >
                 <span className="font-mono text-[10px] tracking-widest uppercase text-cyan block mb-3">
                   {num}
                 </span>
@@ -334,10 +364,10 @@ export default function Hero() {
         </div>
       </section>
 
-      {/* ── ACADEMIC PROGRAMS ────────────────────────────────────────────── */}
+      {/* ── BENTO GRID — ACADEMIC PROGRAMS ───────────────────────────────── */}
       <section className="py-24 border-t border-border bg-surface">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="mb-10">
+          <div className="mb-12">
             <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-3">
               Programas académicos
             </p>
@@ -348,14 +378,45 @@ export default function Hero() {
             </h2>
           </div>
 
-          <div ref={programsRef} className="flex flex-wrap gap-3">
-            {PROGRAMS.map((p) => (
-              <span
-                key={p}
-                className="program-badge font-mono text-xs tracking-wide text-muted-foreground border border-border px-4 py-2 hover:border-cyan/40 hover:text-foreground transition-colors duration-200"
+          <div
+            ref={bentoRef}
+            className="grid grid-cols-2 md:grid-cols-3 grid-rows-[auto] gap-px bg-border"
+          >
+            {BENTO_ITEMS.map(({ id, size, Icon, label, title, body, accent }) => (
+              <div
+                key={id}
+                className={`bento-card ${size} bg-surface-2 p-6 md:p-8 flex flex-col justify-between gap-6 hover:bg-surface-3 transition-colors duration-300 group min-h-[180px]`}
               >
-                {p}
-              </span>
+                <div className="flex items-start justify-between">
+                  <div
+                    className={`w-9 h-9 border flex items-center justify-center transition-all duration-300 ${
+                      accent
+                        ? "border-cyan bg-cyan/10 group-hover:bg-cyan/20"
+                        : "border-border group-hover:border-cyan/40"
+                    }`}
+                  >
+                    <Icon
+                      size={16}
+                      strokeWidth={1.5}
+                      className={accent ? "text-cyan" : "text-muted-foreground group-hover:text-cyan transition-colors"}
+                    />
+                  </div>
+                  <span className="font-mono text-[9px] tracking-widest uppercase text-muted">
+                    {label}
+                  </span>
+                </div>
+
+                <div>
+                  <h3
+                    className={`font-mono text-sm font-bold mb-1.5 ${
+                      accent ? "text-cyan" : "text-foreground"
+                    }`}
+                  >
+                    {title}
+                  </h3>
+                  <p className="text-muted-foreground text-xs leading-relaxed">{body}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
