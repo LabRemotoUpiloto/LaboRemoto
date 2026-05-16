@@ -4,20 +4,20 @@ import Footer from "../components/Footer";
 import {
   Download,
   Monitor,
-  Apple,
   Terminal,
   CheckCircle2,
   Clock,
   Copy,
   Check,
   AlertCircle,
+  Cpu,
 } from "lucide-react";
 
 interface Release {
   version: string;
   date: string;
   size: string;
-  platform: "windows" | "linux" | "macos";
+  platform: "windows" | "linux";
   filename: string;
   downloadUrl: string;
   isLatest: boolean;
@@ -30,14 +30,14 @@ const RELEASES: Release[] = [
     date: "2026-05-15",
     size: "24.3 MB",
     platform: "windows",
-    filename: "cliente-rust-1.0.0-setup.exe",
+    filename: "remote-lab-1.0.0-setup.exe",
     downloadUrl: "/api/download/windows/1.0.0",
     isLatest: true,
     notes: [
       "Lanzamiento inicial estable",
-      "Módulo PQR completo",
-      "Integración Free Flow",
-      "Panel de administración",
+      "Cliente SSH y terminal nativa",
+      "Transferencia SFTP integrada",
+      "Escritorio remoto (VNC/RDP)",
     ],
   },
   {
@@ -45,13 +45,13 @@ const RELEASES: Release[] = [
     date: "2026-05-15",
     size: "22.1 MB",
     platform: "linux",
-    filename: "cliente-rust-1.0.0.AppImage",
+    filename: "remote-lab-1.0.0.AppImage",
     downloadUrl: "/api/download/linux/1.0.0",
     isLatest: true,
     notes: [
       "Lanzamiento inicial estable",
-      "Módulo PQR completo",
-      "Integración Free Flow",
+      "Cliente SSH y terminal nativa",
+      "Transferencia SFTP integrada",
     ],
   },
 ];
@@ -62,26 +62,24 @@ const PLATFORM_ICONS: Record<
 > = {
   windows: Monitor,
   linux: Terminal,
-  macos: Apple,
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
   windows: "Windows",
-  linux: "Linux",
-  macos: "macOS",
+  linux: "Linux / AppImage",
 };
 
 const INSTALL_CMDS = [
   {
     platform: "Windows",
     Icon: Monitor,
-    cmd: ".\\cliente-rust-1.0.0-setup.exe",
+    cmd: ".\\remote-lab-1.0.0-setup.exe",
     hint: "Ejecutar como Administrador",
   },
   {
     platform: "Linux",
-    Icon: Terminal,
-    cmd: "chmod +x cliente-rust-1.0.0.AppImage && ./cliente-rust-1.0.0.AppImage",
+    Icon: Cpu,
+    cmd: "chmod +x remote-lab-1.0.0.AppImage && ./remote-lab-1.0.0.AppImage",
     hint: "Requiere FUSE instalado",
   },
 ];
@@ -96,10 +94,10 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={copy}
-      className="shrink-0 p-1 text-muted hover:text-foreground transition-colors"
+      className="shrink-0 p-1 text-muted hover:text-cyan transition-colors"
       aria-label="Copiar"
     >
-      {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+      {copied ? <Check size={12} className="text-cyan" /> : <Copy size={12} />}
     </button>
   );
 }
@@ -108,10 +106,10 @@ function ReleaseCard({ release }: { release: Release }) {
   const PlatformIcon = PLATFORM_ICONS[release.platform];
 
   return (
-    <div className="relative border border-border bg-surface-2 hover:border-border-subtle transition-colors duration-200">
-      {/* latest stripe */}
+    <div className="relative border border-border bg-surface-2 hover:border-cyan/30 hover:shadow-glow-cyan transition-all duration-300">
+      {/* cyan top stripe for latest */}
       {release.isLatest && (
-        <div className="absolute top-0 left-0 right-0 h-px bg-rust-DEFAULT" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-cyan animate-border-pulse" />
       )}
 
       <div className="p-6">
@@ -125,7 +123,7 @@ function ReleaseCard({ release }: { release: Release }) {
                   {PLATFORM_LABELS[release.platform]}
                 </span>
                 {release.isLatest && (
-                  <span className="font-mono text-[9px] tracking-widest uppercase text-green-500 border border-green-500/30 px-1.5 py-0.5">
+                  <span className="font-mono text-[9px] tracking-widest uppercase text-cyan border border-cyan/30 px-1.5 py-0.5">
                     latest
                   </span>
                 )}
@@ -143,7 +141,7 @@ function ReleaseCard({ release }: { release: Release }) {
         <ul className="space-y-1.5 mb-6">
           {release.notes.map((note) => (
             <li key={note} className="flex items-start gap-2">
-              <CheckCircle2 size={11} className="text-green-500 mt-0.5 shrink-0" />
+              <CheckCircle2 size={11} className="text-cyan mt-0.5 shrink-0" />
               <span className="font-mono text-[11px] text-muted-foreground">{note}</span>
             </li>
           ))}
@@ -157,7 +155,7 @@ function ReleaseCard({ release }: { release: Release }) {
           </div>
           <a
             href={release.downloadUrl}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-foreground text-background font-mono text-[11px] font-bold tracking-widest uppercase hover:bg-white transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-cyan text-background font-mono text-[11px] font-bold tracking-widest uppercase hover:bg-cyan-light transition-colors"
           >
             <Download size={11} />
             Descargar
@@ -175,11 +173,11 @@ export default function DownloadPage() {
 
       <main className="flex-1 pt-24">
 
-        {/* Page header — editorial, left-aligned, no badge */}
+        {/* Page header */}
         <section className="max-w-6xl mx-auto px-6 pt-12 pb-16 border-b border-border">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
             <div>
-              <p className="font-mono text-[10px] tracking-widest uppercase text-muted mb-4">
+              <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-4">
                 Releases / Estable
               </p>
               <h1 className="font-mono text-4xl md:text-5xl font-black tracking-tight uppercase text-foreground leading-none">
@@ -187,21 +185,22 @@ export default function DownloadPage() {
               </h1>
             </div>
             <p className="text-muted-foreground text-sm leading-relaxed md:max-w-xs md:ml-auto">
-              Instaladores oficiales firmados digitalmente. Siempre la última versión estable.
+              Cliente oficial de Remote Lab. Instaladores firmados para Windows y Linux.
+              Accede a tus prácticas en segundos.
             </p>
           </div>
         </section>
 
         {/* Quick install */}
         <section className="max-w-6xl mx-auto px-6 py-16 border-b border-border">
-          <h2 className="font-mono text-[10px] tracking-widest uppercase text-muted mb-8">
+          <h2 className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-8">
             Instalación rápida
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {INSTALL_CMDS.map(({ platform, Icon, cmd, hint }) => (
-              <div key={platform} className="border border-border bg-surface-2">
+              <div key={platform} className="border border-border bg-surface-2 hover:border-cyan/25 transition-colors">
                 <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border">
-                  <Icon size={11} strokeWidth={1.5} className="text-muted" />
+                  <Icon size={11} strokeWidth={1.5} className="text-cyan" />
                   <span className="font-mono text-[10px] tracking-widest uppercase text-muted">
                     {platform}
                   </span>
@@ -211,7 +210,7 @@ export default function DownloadPage() {
                   <CopyButton text={cmd} />
                 </div>
                 <div className="px-4 pb-3 flex items-center gap-1.5 font-mono text-[10px] text-muted">
-                  <AlertCircle size={9} />
+                  <AlertCircle size={9} className="text-cyan/60" />
                   {hint}
                 </div>
               </div>
@@ -225,8 +224,8 @@ export default function DownloadPage() {
             <h2 className="font-mono text-[10px] tracking-widest uppercase text-muted">
               Versiones disponibles — {RELEASES.length} plataformas
             </h2>
-            <div className="flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-green-500">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <div className="flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-cyan">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-border-pulse" />
               Estable
             </div>
           </div>
@@ -237,11 +236,11 @@ export default function DownloadPage() {
             ))}
           </div>
 
-          <div className="mt-8 flex items-start gap-3 p-4 border border-border">
-            <AlertCircle size={12} className="text-muted mt-0.5 shrink-0" />
+          <div className="mt-8 flex items-start gap-3 p-4 border border-border/60">
+            <AlertCircle size={12} className="text-cyan/60 mt-0.5 shrink-0" />
             <p className="font-mono text-[11px] text-muted leading-relaxed">
-              Los binarios Rust pueden generar falsos positivos en antivirus.
-              Están firmados digitalmente — verifica la firma antes de ejecutar.
+              Los binarios pueden generar alertas en algunos antivirus.
+              Verifica la firma digital antes de ejecutar el instalador.
             </p>
           </div>
         </section>
