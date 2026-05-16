@@ -12,11 +12,14 @@ export default function Header() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
-      <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-        {/* Logo — wordmark only, no icon */}
-        <Link to="/" className="font-mono text-sm font-bold tracking-[0.2em] uppercase text-foreground hover:text-white transition-colors">
-          cliente<span style={{ color: "#ce422b" }}>-rust</span>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/60">
+      <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        {/* Logo */}
+        <Link
+          to="/"
+          className="font-mono text-sm font-bold tracking-[0.2em] uppercase text-foreground hover:text-cyan transition-colors"
+        >
+          remote<span style={{ color: "#00d2be" }}>-lab</span>
         </Link>
 
         {/* Desktop Nav */}
@@ -27,7 +30,7 @@ export default function Header() {
               to={link.href}
               className={`font-mono text-xs tracking-widest transition-colors ${
                 location.pathname === link.href
-                  ? "text-foreground"
+                  ? "text-cyan"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -35,6 +38,14 @@ export default function Header() {
             </Link>
           ))}
         </nav>
+
+        {/* Desktop CTA */}
+        <Link
+          to="/descargar"
+          className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 border border-cyan/40 text-cyan font-mono text-xs tracking-widest uppercase hover:bg-cyan/10 transition-colors"
+        >
+          descargar
+        </Link>
 
         {/* Mobile toggle */}
         <button
@@ -57,7 +68,7 @@ export default function Header() {
                 onClick={() => setMobileOpen(false)}
                 className={`px-0 py-3 font-mono text-xs tracking-widest border-b border-border/40 transition-colors ${
                   location.pathname === link.href
-                    ? "text-foreground"
+                    ? "text-cyan"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >

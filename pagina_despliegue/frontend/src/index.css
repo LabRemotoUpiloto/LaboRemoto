@@ -19,33 +19,53 @@
   }
 
   body {
-    background-color: #000000;
-    color: #e8e8e8;
+    background-color: #050508;
+    color: #e2e2e2;
     font-family: "Geist Variable", system-ui, sans-serif;
     line-height: 1.6;
     overflow-x: hidden;
   }
 
   ::selection {
-    background: rgba(206, 66, 43, 0.3);
+    background: rgba(0, 210, 190, 0.25);
     color: #ffffff;
   }
 
   ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: #000; }
-  ::-webkit-scrollbar-thumb { background: #222; }
-  ::-webkit-scrollbar-thumb:hover { background: #333; }
+  ::-webkit-scrollbar-track { background: #050508; }
+  ::-webkit-scrollbar-thumb { background: #1a1a2e; }
+  ::-webkit-scrollbar-thumb:hover { background: #00d2be; }
 }
 
 @layer utilities {
-  /* Subtle dot grid — almost invisible, only for texture */
+  /* Dot grid texture */
   .grid-bg {
     background-image: radial-gradient(
       circle,
-      rgba(255, 255, 255, 0.08) 1px,
+      rgba(0, 210, 190, 0.06) 1px,
       transparent 1px
     );
-    background-size: 24px 24px;
+    background-size: 28px 28px;
+  }
+
+  /* Scan line overlay */
+  .scanlines {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.08) 2px,
+      rgba(0, 0, 0, 0.08) 4px
+    );
+  }
+
+  /* Glow on cyan */
+  .glow-cyan {
+    text-shadow: 0 0 20px rgba(0, 210, 190, 0.5), 0 0 60px rgba(0, 210, 190, 0.2);
+  }
+
+  .glow-box-cyan {
+    box-shadow: 0 0 0 1px rgba(0, 210, 190, 0.3), 0 0 30px rgba(0, 210, 190, 0.1);
   }
 
   /* Blink cursor */
@@ -54,6 +74,35 @@
     50%       { opacity: 0; }
   }
   .animate-blink {
-    animation: blink 1s step-end infinite;
+    animation: blink 1.1s step-end infinite;
+  }
+
+  /* Fade-in for terminal lines */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.35s ease-out forwards;
+  }
+
+  /* Subtle horizontal shimmer for border */
+  @keyframes borderPulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1; }
+  }
+  .animate-border-pulse {
+    animation: borderPulse 2.5s ease-in-out infinite;
+  }
+
+  /* GSAP targets — hidden by default for reveal */
+  .gsap-hidden {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+
+  .gsap-hidden-left {
+    opacity: 0;
+    transform: translateX(-32px);
   }
 }
