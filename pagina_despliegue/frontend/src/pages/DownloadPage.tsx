@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Navbar from "../components/layout/Navbar";
+import Footer from "../components/layout/Footer";
 import {
   Download,
   Monitor,
@@ -169,7 +169,7 @@ function ReleaseCard({ release }: { release: Release }) {
 export default function DownloadPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+      <Navbar />
 
       <main className="flex-1 pt-24">
 
