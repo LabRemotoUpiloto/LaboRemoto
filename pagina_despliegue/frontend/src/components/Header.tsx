@@ -19,7 +19,7 @@ export default function Header() {
           to="/"
           className="font-mono text-sm font-bold tracking-[0.2em] uppercase text-foreground hover:text-cyan transition-colors"
         >
-          remote<span style={{ color: "#00d2be" }}>-lab</span>
+          remote-lab
         </Link>
 
         {/* Desktop Nav */}
@@ -38,14 +38,6 @@ export default function Header() {
             </Link>
           ))}
         </nav>
-
-        {/* Desktop CTA */}
-        <Link
-          to="/descargar"
-          className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 border border-cyan/40 text-cyan font-mono text-xs tracking-widest uppercase hover:bg-cyan/10 transition-colors"
-        >
-          descargar
-        </Link>
 
         {/* Mobile toggle */}
         <button
