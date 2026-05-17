@@ -1,15 +1,24 @@
-export interface Release {
-  version: string;
-  date: string;
-  size: string;
-  platform: "windows" | "linux";
+export type Platform = "windows" | "linux" | "macos";
+
+export interface ReleaseVariant {
+  label: string;
   filename: string;
+  size: string;
   downloadUrl: string;
-  isLatest: boolean;
-  notes: string[];
+  notes?: string;
 }
 
-export const PLATFORM_LABELS: Record<string, string> = {
+export interface PlatformRelease {
+  platform: Platform;
+  version: string;
+  date: string;
+  available: boolean;
+  comingSoonMessage?: string;
+  variants: ReleaseVariant[];
+}
+
+export const PLATFORM_LABELS: Record<Platform, string> = {
   windows: "Windows",
   linux: "Linux",
+  macos: "macOS",
 };
