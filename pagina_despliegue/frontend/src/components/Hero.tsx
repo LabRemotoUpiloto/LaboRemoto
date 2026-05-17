@@ -56,7 +56,7 @@ const FEATURES = [
 const BENTO_ITEMS = [
   {
     id: "b1",
-    size: "col-span-2 row-span-2",
+    size: "md:col-span-2 md:row-span-2",
     Icon: Cpu,
     label: "Electrónica",
     title: "Ingeniería Electrónica",
@@ -92,7 +92,7 @@ const BENTO_ITEMS = [
   },
   {
     id: "b5",
-    size: "col-span-1 row-span-1",
+    size: "col-span-1 md:col-span-2 lg:col-span-1 row-span-1",
     Icon: FolderOpen,
     label: "Más programas",
     title: "Física · Química · Biomédica",
@@ -201,13 +201,13 @@ export default function Hero() {
       const cards = bentoRef.current?.querySelectorAll(".bento-card");
       if (!cards) return;
       gsap.fromTo(cards,
-        { opacity: 0, y: 36, scale: 0.96 },
+        { opacity: 0, y: 80, scale: 0.9, rotateX: -10 },
         {
-          opacity: 1, y: 0, scale: 1,
-          duration: 0.6,
-          stagger: 0.1,
-          ease: "power3.out",
-          scrollTrigger: { trigger: bentoRef.current, start: "top 80%" },
+          opacity: 1, y: 0, scale: 1, rotateX: 0,
+          duration: 1.2,
+          stagger: 0.15,
+          ease: "elastic.out(1, 0.8)",
+          scrollTrigger: { trigger: bentoRef.current, start: "top 85%" },
         }
       );
     }, bentoRef);
@@ -380,25 +380,25 @@ export default function Hero() {
 
           <div
             ref={bentoRef}
-            className="grid grid-cols-2 md:grid-cols-3 grid-rows-[auto] gap-px bg-border"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid-rows-[auto] gap-5 md:gap-6 [perspective:1000px]"
           >
             {BENTO_ITEMS.map(({ id, size, Icon, label, title, body, accent }) => (
               <div
                 key={id}
-                className={`bento-card ${size} bg-surface-2 p-6 md:p-8 flex flex-col justify-between gap-6 hover:bg-surface-3 transition-colors duration-300 group min-h-[180px]`}
+                className={`bento-card ${size} bg-surface-2 p-6 md:p-8 flex flex-col justify-between gap-6 min-h-[220px] rounded-3xl border border-border shadow-sm`}
               >
                 <div className="flex items-start justify-between">
                   <div
-                    className={`w-9 h-9 border flex items-center justify-center transition-all duration-300 ${
+                    className={`w-10 h-10 rounded-2xl border flex items-center justify-center ${
                       accent
-                        ? "border-cyan bg-cyan/10 group-hover:bg-cyan/20"
-                        : "border-border group-hover:border-cyan/40"
+                        ? "border-cyan bg-cyan/10"
+                        : "border-border bg-surface-3"
                     }`}
                   >
                     <Icon
-                      size={16}
+                      size={18}
                       strokeWidth={1.5}
-                      className={accent ? "text-cyan" : "text-muted-foreground group-hover:text-cyan transition-colors"}
+                      className={accent ? "text-cyan" : "text-muted-foreground"}
                     />
                   </div>
                   <span className="font-mono text-[9px] tracking-widest uppercase text-muted">
