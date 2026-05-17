@@ -1,10 +1,10 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
-import HeroSection from "../components/sections/HeroSection";
-import Features from "../components/sections/Features";
-import HowItWorks from "../components/sections/HowItWorks";
-import BentoGrid from "../components/sections/BentoGrid";
-import CtaSection from "../components/sections/CtaSection";
+import HeroSection from "../components/sections/home/HeroSection";
+import Features from "../components/sections/home/Features";
+import HowItWorks from "../components/sections/home/HowItWorks";
+import BentoGrid from "../components/sections/home/BentoGrid";
+import CtaSection from "../components/sections/home/CtaSection";
 
 export default function HomePage() {
   return (

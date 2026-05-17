@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Download, ArrowRight } from "lucide-react";
 import gsap from "gsap";
-import TerminalWindow from "../ui/terminal";
+import TerminalWindow from "../../ui/terminal";
 
 const ASCII_LOGO = `
 ██╗       █████╗  ██████╗   ██████╗  ██████╗   █████╗  ████████╗  ██████╗  ██████╗  ██╗  ██████╗ 
