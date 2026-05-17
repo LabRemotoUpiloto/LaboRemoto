@@ -1,33 +1,50 @@
 import { useEffect, useState } from "react";
-import type { Release } from "./types";
+import type { PlatformRelease } from "./types";
 
-const DEFAULT_WINDOWS: Release = {
-  version: "0.1.6",
-  date: "2026-05-17",
-  size: "Auto",
-  platform: "windows",
-  filename: "Cliente SSH Unipiloto_x64-setup.exe",
-  downloadUrl:
-    "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente%20SSH%20Unipiloto_0.1.6_x64-setup.exe",
-  isLatest: true,
-  notes: ["Lanzamiento oficial", "Instalación desatendida"],
-};
-
-const DEFAULT_LINUX: Release = {
-  version: "0.1.6",
-  date: "2026-05-17",
-  size: "Auto",
-  platform: "linux",
-  filename: "ClienteSSH-Unipiloto-Linux",
-  downloadUrl:
-    "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/ClienteSSH-Unipiloto-Linux",
-  isLatest: true,
-  notes: ["Lanzamiento oficial", "Binario ejecutable"],
-};
+const DEFAULTS: PlatformRelease[] = [
+  {
+    platform: "windows",
+    version: "0.1.6",
+    date: "2026-05-17",
+    available: true,
+    variants: [
+      {
+        label: "Instalador x64",
+        filename: "Cliente SSH Unipiloto_x64-setup.exe",
+        size: "Auto",
+        downloadUrl:
+          "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente%20SSH%20Unipiloto_0.1.6_x64-setup.exe",
+      },
+    ],
+  },
+  {
+    platform: "linux",
+    version: "0.1.6",
+    date: "2026-05-17",
+    available: true,
+    variants: [
+      {
+        label: "Binario x64 (glibc ≥ 2.35)",
+        filename: "ClienteSSH-Unipiloto-Linux",
+        size: "Auto",
+        downloadUrl:
+          "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/ClienteSSH-Unipiloto-Linux",
+        notes: "Compatible con Ubuntu 22.04+, Debian 12+, Fedora 36+",
+      },
+    ],
+  },
+  {
+    platform: "macos",
+    version: "—",
+    date: "—",
+    available: false,
+    comingSoonMessage: "Próximamente. Build para macOS en preparación.",
+    variants: [],
+  },
+];
 
 export function useReleases() {
-  const [windowsRelease, setWindowsRelease] = useState<Release>(DEFAULT_WINDOWS);
-  const [linuxRelease, setLinuxRelease] = useState<Release>(DEFAULT_LINUX);
+  const [releases, setReleases] = useState<PlatformRelease[]>(DEFAULTS);
 
   useEffect(() => {
     async function cargarEnlacesDescarga() {
@@ -41,26 +58,41 @@ export function useReleases() {
         const winAsset = release.assets?.find((a: any) => a.name.includes("setup.exe"));
         const linuxAsset = release.assets?.find((a: any) => a.name.includes("Linux"));
 
-        if (winAsset) {
-          setWindowsRelease((prev) => ({
-            ...prev,
-            version,
-            date,
-            size: (winAsset.size / (1024 * 1024)).toFixed(1) + " MB",
-            filename: winAsset.name,
-            downloadUrl: winAsset.browser_download_url,
-          }));
-        }
-        if (linuxAsset) {
-          setLinuxRelease((prev) => ({
-            ...prev,
-            version,
-            date,
-            size: (linuxAsset.size / (1024 * 1024)).toFixed(1) + " MB",
-            filename: linuxAsset.name,
-            downloadUrl: linuxAsset.browser_download_url,
-          }));
-        }
+        setReleases((prev) =>
+          prev.map((p) => {
+            if (p.platform === "windows" && winAsset) {
+              return {
+                ...p,
+                version,
+                date,
+                variants: [
+                  {
+                    ...p.variants[0],
+                    filename: winAsset.name,
+                    size: (winAsset.size / (1024 * 1024)).toFixed(1) + " MB",
+                    downloadUrl: winAsset.browser_download_url,
+                  },
+                ],
+              };
+            }
+            if (p.platform === "linux" && linuxAsset) {
+              return {
+                ...p,
+                version,
+                date,
+                variants: [
+                  {
+                    ...p.variants[0],
+                    filename: linuxAsset.name,
+                    size: (linuxAsset.size / (1024 * 1024)).toFixed(1) + " MB",
+                    downloadUrl: linuxAsset.browser_download_url,
+                  },
+                ],
+              };
+            }
+            return p;
+          })
+        );
       } catch (e) {
         console.error("Error al cargar dinámicamente desde GitHub:", e);
       }
@@ -68,5 +100,5 @@ export function useReleases() {
     cargarEnlacesDescarga();
   }, []);
 
-  return [windowsRelease, linuxRelease];
+  return releases;
 }

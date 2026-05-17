@@ -12,7 +12,7 @@ const BENTO_ITEMS = [
     Icon: Wifi,
     label: "Internet de las Cosas",
     title: "IoT",
-    body: "Desarrollo y pruebas de dispositivos conectados, sensores y telemetría.",
+    body: "Desarrollo y pruebas de dispositivos conectados, sensores y domótica.",
   },
   {
     id: "b2",
