@@ -1,0 +1,20 @@
+{
+  "name": "cliente-ssh-Unipiloto",
+  "version": "0.1.6",
+  "private": true,
+  "description": "Cliente SSH Unipiloto - Laboratorio remoto",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix frontend && npm install --prefix backend",
+    "dev": "cd backend && cargo tauri dev",
+    "build": "cd backend && cargo tauri build",
+    "build:linux": "cd backend && cargo tauri build --target x86_64-unknown-linux-gnu",
+    "build:bake": "export $(grep -v '^#' .env | xargs) && npm run build",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:backend": "cd backend && cargo tauri build",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "cd backend && cargo tauri dev",
+    "install:frontend": "npm install --prefix frontend",
+    "install:backend": "npm install --prefix backend"
+
+  }
+}
