@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Download, ArrowRight } from "lucide-react";
 import gsap from "gsap";
-import TerminalWindow from "../ui/TerminalWindow";
+import TerminalWindow from "../ui/terminal";
 
 const ASCII_LOGO = `
 ██╗       █████╗  ██████╗   ██████╗  ██████╗   █████╗  ████████╗  ██████╗  ██████╗  ██╗  ██████╗ 
@@ -58,8 +58,8 @@ export default function HeroSection() {
         {/* ASCII wordmark */}
         <pre
           ref={asciiRef}
-          className="font-mono text-[5px] sm:text-[6.5px] md:text-[8px] leading-tight mb-14 select-none overflow-x-auto"
-          style={{ opacity: 0 }}
+          className="text-[5px] sm:text-[6.5px] md:text-[8px] leading-tight mb-14 select-none overflow-x-auto"
+          style={{ opacity: 0, fontFamily: '"Courier New", Courier, monospace' }}
           aria-hidden="true"
         >
           {ASCII_LOGO}
@@ -69,7 +69,7 @@ export default function HeroSection() {
         <div
           ref={splitRef}
           style={{ opacity: 0 }}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center"
         >
           {/* Left */}
           <div className="space-y-8">

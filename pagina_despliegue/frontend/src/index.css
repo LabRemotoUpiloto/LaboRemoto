@@ -35,6 +35,12 @@
   ::-webkit-scrollbar-track { background: #050508; }
   ::-webkit-scrollbar-thumb { background: #1a1a2e; }
   ::-webkit-scrollbar-thumb:hover { background: #00d2be; }
+
+  .terminal-body::-webkit-scrollbar { width: 6px; }
+  .terminal-body::-webkit-scrollbar-track { background: #0a0a12; }
+  .terminal-body::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+  .terminal-body::-webkit-scrollbar-thumb:hover { background: #00d2be; }
+  .terminal-body { scrollbar-color: #2a2a4a #0a0a12; scrollbar-width: thin; }
 }
 
 @layer utilities {
