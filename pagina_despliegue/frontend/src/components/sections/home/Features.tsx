@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Terminal, Cpu, Monitor, FolderSync, Sparkles, Layout } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import FeatureCard from "../ui/FeatureCard";
+import FeatureCard from "../../ui/FeatureCard";
 
 gsap.registerPlugin(ScrollTrigger);
 
