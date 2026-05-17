@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Download, Terminal, Cpu, Monitor, Network, FolderOpen, ArrowRight } from "lucide-react";
+import { Download, Terminal, Cpu, Monitor, Network, FolderOpen, ArrowRight, Wifi, Building2 } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -56,48 +56,59 @@ const FEATURES = [
 const BENTO_ITEMS = [
   {
     id: "b1",
-    size: "md:col-span-2 md:row-span-2",
-    Icon: Cpu,
-    label: "Electrónica",
-    title: "Ingeniería Electrónica",
-    body: "Diseño de circuitos, microcontroladores y sistemas embebidos con acceso a hardware real.",
-    accent: true,
+    size: "md:col-span-2",
+    Icon: Wifi,
+    label: "Internet de las Cosas",
+    title: "IoT",
+    body: "Desarrollo y pruebas de dispositivos conectados, sensores y telemetría.",
   },
   {
     id: "b2",
-    size: "col-span-1 row-span-1",
+    size: "md:col-span-1",
     Icon: Terminal,
     label: "Sistemas",
     title: "Ing. de Sistemas",
     body: "Redes, servidores Linux y bases de datos en entornos controlados.",
-    accent: false,
   },
   {
     id: "b3",
-    size: "col-span-1 row-span-1",
+    size: "md:col-span-1",
     Icon: Network,
     label: "Telecomunicaciones",
-    title: "Telecomunicaciones",
+    title: "Ingeniería en Telecomunicaciones",
     body: "Protocolos, antenas y simulación de redes de datos.",
-    accent: false,
   },
   {
     id: "b4",
-    size: "col-span-1 row-span-1",
+    size: "md:col-span-1",
     Icon: Monitor,
     label: "Mecatrónica",
-    title: "Mecatrónica",
+    title: "Ingeniería Mecatrónica",
     body: "Control de actuadores, PLC y robótica remota.",
-    accent: false,
   },
   {
     id: "b5",
-    size: "col-span-1 md:col-span-2 lg:col-span-1 row-span-1",
+    size: "md:col-span-1",
     Icon: FolderOpen,
-    label: "Más programas",
-    title: "Física · Química · Biomédica",
-    body: "Plataforma extensible para cualquier disciplina académica.",
-    accent: false,
+    label: "Ciencias Básicas",
+    title: "Física",
+    body: "Plataforma extensible para realizar prácticas con simuladores y hardware.",
+  },
+  {
+    id: "b6",
+    size: "md:col-span-1",
+    Icon: Cpu,
+    label: "Electrónica",
+    title: "Ingeniería Electrónica",
+    body: "Diseño de circuitos, microcontroladores y sistemas embebidos con acceso a hardware real.",
+  },
+  {
+    id: "b7",
+    size: "md:col-span-2",
+    Icon: Building2,
+    label: "Estructural",
+    title: "Ingeniería Civil",
+    body: "Software de diseño estructural, análisis de materiales y modelado remoto.",
   },
 ];
 
@@ -188,7 +199,11 @@ export default function Hero() {
           duration: 0.65,
           stagger: 0.14,
           ease: "power3.out",
-          scrollTrigger: { trigger: featuresRef.current, start: "top 82%" },
+          scrollTrigger: { 
+            trigger: featuresRef.current, 
+            start: "top 82%",
+            toggleActions: "play none none reverse"
+          },
         }
       );
     }, featuresRef);
@@ -207,7 +222,11 @@ export default function Hero() {
           duration: 1.2,
           stagger: 0.15,
           ease: "elastic.out(1, 0.8)",
-          scrollTrigger: { trigger: bentoRef.current, start: "top 85%" },
+          scrollTrigger: { 
+            trigger: bentoRef.current, 
+            start: "top 85%",
+            toggleActions: "play none none reverse"
+          },
         }
       );
     }, bentoRef);
@@ -365,10 +384,10 @@ export default function Hero() {
       </section>
 
       {/* ── BENTO GRID — ACADEMIC PROGRAMS ───────────────────────────────── */}
-      <section className="py-24 border-t border-border bg-surface">
+      <section className="py-16 border-t border-border bg-surface">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="mb-12">
-            <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-3">
+          <div className="mb-8">
+            <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-2">
               Programas académicos
             </p>
             <h2 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">
@@ -380,25 +399,21 @@ export default function Hero() {
 
           <div
             ref={bentoRef}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid-rows-[auto] gap-5 md:gap-6 [perspective:1000px]"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid-rows-[auto] gap-3 md:gap-4 [perspective:1000px]"
           >
-            {BENTO_ITEMS.map(({ id, size, Icon, label, title, body, accent }) => (
+            {BENTO_ITEMS.map(({ id, size, Icon, label, title, body }) => (
               <div
                 key={id}
-                className={`bento-card ${size} bg-surface-2 p-6 md:p-8 flex flex-col justify-between gap-6 min-h-[220px] rounded-3xl border border-border shadow-sm`}
+                className={`bento-card ${size} bg-surface-2 p-5 md:p-6 flex flex-col justify-between gap-4 min-h-[160px] rounded-3xl border border-border shadow-sm`}
               >
                 <div className="flex items-start justify-between">
                   <div
-                    className={`w-10 h-10 rounded-2xl border flex items-center justify-center ${
-                      accent
-                        ? "border-cyan bg-cyan/10"
-                        : "border-border bg-surface-3"
-                    }`}
+                    className="w-9 h-9 rounded-xl border flex items-center justify-center border-border bg-surface-3"
                   >
                     <Icon
-                      size={18}
+                      size={16}
                       strokeWidth={1.5}
-                      className={accent ? "text-cyan" : "text-muted-foreground"}
+                      className="text-muted-foreground"
                     />
                   </div>
                   <span className="font-mono text-[9px] tracking-widest uppercase text-muted">
@@ -408,9 +423,7 @@ export default function Hero() {
 
                 <div>
                   <h3
-                    className={`font-mono text-sm font-bold mb-1.5 ${
-                      accent ? "text-cyan" : "text-foreground"
-                    }`}
+                    className="font-mono text-sm font-bold mb-1.5 text-foreground"
                   >
                     {title}
                   </h3>
