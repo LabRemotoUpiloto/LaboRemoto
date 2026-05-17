@@ -234,18 +234,15 @@ export default function Hero() {
   }, []);
 
   return (
-    <div ref={heroRef}>
+    <div ref={heroRef} className="bg-black">
       {/* ── HERO SECTION ─────────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col justify-center pt-24 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-radial-dark pointer-events-none" />
-        <div className="absolute inset-0 grid-bg pointer-events-none opacity-60" />
-
         <div className="relative max-w-6xl mx-auto px-6 w-full">
           {/* ASCII wordmark */}
           <pre
             ref={asciiRef}
             className="font-mono text-[5px] sm:text-[6.5px] md:text-[8px] leading-tight mb-14 select-none overflow-x-auto"
-            style={{ color: "#00d2be", opacity: 0 }}
+            style={{ opacity: 0 }}
             aria-hidden="true"
           >
             {ASCII_LOGO}
@@ -302,9 +299,8 @@ export default function Hero() {
       {/* ── FEATURES SECTION ─────────────────────────────────────────────── */}
       <section
         id="caracteristicas"
-        className="relative py-24 border-t border-border overflow-hidden"
+        className="relative py-24 overflow-hidden"
       >
-        <div className="absolute inset-0 bg-radial-bottom pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-6">
           <div className="mb-14">
             <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-3">
@@ -323,8 +319,8 @@ export default function Hero() {
                 key={title}
                 className="feature-card bg-surface p-8 flex flex-col gap-5 hover:bg-surface-2 transition-colors duration-300 group"
               >
-                <div className="w-10 h-10 border border-cyan/30 flex items-center justify-center group-hover:border-cyan/60 group-hover:shadow-glow-cyan transition-all duration-300">
-                  <Icon size={18} className="text-cyan" strokeWidth={1.5} />
+                <div className="w-10 h-10 border border-border flex items-center justify-center transition-all duration-300">
+                  <Icon size={18} className="text-muted-foreground" strokeWidth={1.5} />
                 </div>
                 <div>
                   <h3 className="font-mono text-sm font-bold text-foreground mb-2">{title}</h3>
@@ -337,7 +333,7 @@ export default function Hero() {
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <section className="py-24 border-t border-border">
+      <section className="py-24">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-14">
             <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-3">
@@ -372,7 +368,7 @@ export default function Hero() {
                 key={num}
                 className="relative pl-8 border-l border-border hover:border-cyan/40 transition-colors duration-300"
               >
-                <span className="font-mono text-[10px] tracking-widest uppercase text-cyan block mb-3">
+                <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground block mb-3">
                   {num}
                 </span>
                 <h3 className="font-mono text-sm font-bold text-foreground mb-2">{title}</h3>
@@ -384,7 +380,7 @@ export default function Hero() {
       </section>
 
       {/* ── BENTO GRID — ACADEMIC PROGRAMS ───────────────────────────────── */}
-      <section className="py-16 border-t border-border bg-surface">
+      <section className="py-16">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-8">
             <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-2">
@@ -436,8 +432,7 @@ export default function Hero() {
       </section>
 
       {/* ── BOTTOM CTA ───────────────────────────────────────────────────── */}
-      <section className="py-28 border-t border-border relative overflow-hidden">
-        <div className="absolute inset-0 bg-radial-dark pointer-events-none opacity-50" />
+      <section className="py-28 relative overflow-hidden">
         <div className="relative max-w-6xl mx-auto px-6 text-center">
           <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-5">
             Empieza hoy
@@ -445,7 +440,7 @@ export default function Hero() {
           <h2 className="text-3xl md:text-5xl font-black text-foreground tracking-tight mb-6">
             El laboratorio que
             <br />
-            <span style={{ color: "#00d2be" }}>no cierra nunca.</span>
+            no cierra nunca.
           </h2>
           <p className="text-muted-foreground text-base max-w-md mx-auto mb-10">
             Disponible las 24 horas para estudiantes, profesores y laboratoristas.
@@ -455,8 +450,7 @@ export default function Hero() {
             to="/descargar"
             className="inline-flex items-center gap-3 px-8 py-3.5 bg-cyan text-background font-mono text-sm font-bold tracking-widest uppercase hover:bg-cyan-light transition-colors shadow-glow-cyan"
           >
-            <Download size={15} />
-            Descargar cliente
+            Descargar
           </Link>
         </div>
       </section>
