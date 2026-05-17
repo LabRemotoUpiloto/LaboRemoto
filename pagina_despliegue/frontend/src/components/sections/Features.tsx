@@ -40,22 +40,48 @@ const FEATURES = [
 ];
 
 export default function Features() {
+  const sectionRef = useRef<HTMLDivElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
 
+  /* heading fade-in */
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const heading = sectionRef.current?.querySelector(".features-heading");
+      if (!heading) return;
+      gsap.fromTo(heading,
+        { opacity: 0, y: 24 },
+        {
+          opacity: 1, y: 0,
+          duration: 0.7,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: heading,
+            start: "top 90%",
+          },
+        }
+      );
+    }, sectionRef);
+    return () => ctx.revert();
+  }, []);
+
+  /* cards — same trigger pattern as BentoGrid, smooth blur-fade entrance */
   useEffect(() => {
     const ctx = gsap.context(() => {
       const cards = featuresRef.current?.querySelectorAll(".feature-card");
-      if (!cards) return;
+      if (!cards || cards.length === 0) return;
+
       gsap.fromTo(cards,
-        { opacity: 0, y: 40 },
+        { opacity: 0, y: 32, filter: "blur(8px)" },
         {
-          opacity: 1, y: 0,
-          duration: 0.65,
-          stagger: 0.14,
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.9,
+          stagger: 0.1,
           ease: "power3.out",
           scrollTrigger: {
             trigger: featuresRef.current,
-            start: "top 82%",
+            start: "top 85%",
             toggleActions: "play none none reverse",
           },
         }
@@ -65,9 +91,9 @@ export default function Features() {
   }, []);
 
   return (
-    <section id="caracteristicas" className="relative py-24 overflow-hidden">
+    <section ref={sectionRef} id="caracteristicas" className="relative py-24 overflow-hidden">
       <div className="relative max-w-6xl mx-auto px-6">
-        <div className="mb-14">
+        <div className="features-heading mb-14">
           <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-3">
             Capacidades
           </p>
@@ -78,7 +104,7 @@ export default function Features() {
           </h2>
         </div>
 
-        <div ref={featuresRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
+        <div ref={featuresRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {FEATURES.map(({ Icon, title, body }) => (
             <FeatureCard key={title} Icon={Icon} title={title} body={body} />
           ))}

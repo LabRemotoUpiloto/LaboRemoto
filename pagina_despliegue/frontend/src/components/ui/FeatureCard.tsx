@@ -8,13 +8,13 @@ interface FeatureCardProps {
 
 export default function FeatureCard({ Icon, title, body }: FeatureCardProps) {
   return (
-    <div className="feature-card bg-surface p-8 flex flex-col gap-5 hover:bg-surface-2 transition-colors duration-300 group">
-      <div className="w-10 h-10 border border-border flex items-center justify-center transition-all duration-300">
-        <Icon size={18} className="text-muted-foreground" strokeWidth={1.5} />
+    <div className="feature-card relative bg-surface border border-border p-5 flex flex-col gap-3">
+      <div className="w-8 h-8 border border-border flex items-center justify-center">
+        <Icon size={14} className="text-muted-foreground" strokeWidth={1.5} />
       </div>
       <div>
-        <h3 className="font-mono text-sm font-bold text-foreground mb-2">{title}</h3>
-        <p className="text-muted-foreground text-sm leading-relaxed">{body}</p>
+        <h3 className="font-mono text-[13px] font-bold text-foreground mb-1.5">{title}</h3>
+        <p className="text-muted-foreground text-xs leading-relaxed">{body}</p>
       </div>
     </div>
   );
