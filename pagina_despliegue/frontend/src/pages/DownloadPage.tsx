@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import {
@@ -23,66 +23,6 @@ interface Release {
   isLatest: boolean;
   notes: string[];
 }
-
-const RELEASES: Release[] = [
-  {
-    version: "1.0.0",
-    date: "2026-05-15",
-    size: "24.3 MB",
-    platform: "windows",
-    filename: "remote-lab-1.0.0-setup.exe",
-    downloadUrl: "/api/download/windows/1.0.0",
-    isLatest: true,
-    notes: [
-      "Lanzamiento inicial estable",
-      "Cliente SSH y terminal nativa",
-      "Transferencia SFTP integrada",
-      "Escritorio remoto (VNC/RDP)",
-    ],
-  },
-  {
-    version: "1.0.0",
-    date: "2026-05-15",
-    size: "22.1 MB",
-    platform: "linux",
-    filename: "remote-lab-1.0.0.AppImage",
-    downloadUrl: "/api/download/linux/1.0.0",
-    isLatest: true,
-    notes: [
-      "Lanzamiento inicial estable",
-      "Cliente SSH y terminal nativa",
-      "Transferencia SFTP integrada",
-    ],
-  },
-];
-
-const PLATFORM_ICONS: Record<
-  string,
-  React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
-> = {
-  windows: Monitor,
-  linux: Terminal,
-};
-
-const PLATFORM_LABELS: Record<string, string> = {
-  windows: "Windows",
-  linux: "Linux / AppImage",
-};
-
-const INSTALL_CMDS = [
-  {
-    platform: "Windows",
-    Icon: Monitor,
-    cmd: ".\\remote-lab-1.0.0-setup.exe",
-    hint: "Ejecutar como Administrador",
-  },
-  {
-    platform: "Linux",
-    Icon: Cpu,
-    cmd: "chmod +x remote-lab-1.0.0.AppImage && ./remote-lab-1.0.0.AppImage",
-    hint: "Requiere FUSE instalado",
-  },
-];
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -166,7 +106,104 @@ function ReleaseCard({ release }: { release: Release }) {
   );
 }
 
+const PLATFORM_ICONS: Record<
+  string,
+  React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
+> = {
+  windows: Monitor,
+  linux: Terminal,
+};
+
+const PLATFORM_LABELS: Record<string, string> = {
+  windows: "Windows",
+  linux: "Linux",
+};
+
 export default function DownloadPage() {
+  const [windowsRelease, setWindowsRelease] = useState<Release>({
+    version: "0.1.6",
+    date: "2026-05-17",
+    size: "Auto",
+    platform: "windows",
+    filename: "Cliente SSH Unipiloto_x64-setup.exe",
+    downloadUrl: "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente%20SSH%20Unipiloto_0.1.6_x64-setup.exe",
+    isLatest: true,
+    notes: [
+      "Lanzamiento oficial",
+      "Instalación desatendida"
+    ],
+  });
+
+  const [linuxRelease, setLinuxRelease] = useState<Release>({
+    version: "0.1.6",
+    date: "2026-05-17",
+    size: "Auto",
+    platform: "linux",
+    filename: "ClienteSSH-Unipiloto-Linux",
+    downloadUrl: "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/ClienteSSH-Unipiloto-Linux",
+    isLatest: true,
+    notes: [
+      "Lanzamiento oficial",
+      "Binario ejecutable"
+    ],
+  });
+
+  useEffect(() => {
+    async function cargarEnlacesDescarga() {
+      const repo = "Haider2231/Releases-Cliente-SSH-Unipiloto";
+      try {
+        const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
+        const release = await res.json();
+        const version = release.tag_name || "latest";
+        const date = release.published_at ? release.published_at.split("T")[0] : "Reciente";
+        
+        const winAsset = release.assets?.find((a: any) => a.name.includes("setup.exe"));
+        const linuxAsset = release.assets?.find((a: any) => a.name.includes("Linux"));
+
+        if (winAsset) {
+          setWindowsRelease(prev => ({
+            ...prev,
+            version,
+            date,
+            size: (winAsset.size / (1024 * 1024)).toFixed(1) + " MB",
+            filename: winAsset.name,
+            downloadUrl: winAsset.browser_download_url
+          }));
+        }
+        if (linuxAsset) {
+          setLinuxRelease(prev => ({
+            ...prev,
+            version,
+            date,
+            size: (linuxAsset.size / (1024 * 1024)).toFixed(1) + " MB",
+            filename: linuxAsset.name,
+            downloadUrl: linuxAsset.browser_download_url
+          }));
+        }
+      } catch (e) {
+        console.error("Error al cargar dinámicamente desde GitHub:", e);
+      }
+    }
+    cargarEnlacesDescarga();
+  }, []);
+
+  const RELEASES: Release[] = [windowsRelease, linuxRelease];
+
+  const INSTALL_CMDS = [
+    {
+      platform: "Windows",
+      Icon: Monitor,
+      cmd: "irm https://raw.githubusercontent.com/Haider2231/Releases-Cliente-SSH-Unipiloto/main/download-release.ps1 | iex",
+      hint: "Ejecutar en PowerShell",
+    },
+    {
+      platform: "Linux",
+      Icon: Terminal,
+      cmd: "curl -sSL https://raw.githubusercontent.com/Haider2231/Releases-Cliente-SSH-Unipiloto/main/download-release.sh | bash",
+      hint: "Ejecutar en la Terminal",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
@@ -185,8 +222,8 @@ export default function DownloadPage() {
               </h1>
             </div>
             <p className="text-muted-foreground text-sm leading-relaxed md:max-w-xs md:ml-auto">
-              Cliente oficial de Remote Lab. Instaladores firmados para Windows y Linux.
-              Accede a tus prácticas en segundos.
+              Cliente oficial de SSH Unipiloto. Instaladores para Windows y Linux.
+              Accede a tus servidores en segundos.
             </p>
           </div>
         </section>
