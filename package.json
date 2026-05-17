@@ -1,5 +1,5 @@
 {
-  "name": "cliente-ssh-unipiloto",
+  "name": "cliente-ssh-Unipiloto",
   "version": "0.1.6",
   "private": true,
   "description": "Cliente SSH Unipiloto - Laboratorio remoto",
@@ -15,5 +15,6 @@
     "dev:backend": "cd backend && cargo tauri dev",
     "install:frontend": "npm install --prefix frontend",
     "install:backend": "npm install --prefix backend"
+
   }
 }
