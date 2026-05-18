@@ -124,8 +124,8 @@ export default function HeroSection() {
         {/* Title Wrapper (fades in via GSAP) */}
         <pre
           ref={asciiRef}
-          className="text-[5px] sm:text-[6.5px] md:text-[8px] leading-tight mb-10 select-none overflow-x-auto scrollbar-hide"
-          style={{ opacity: 0, fontFamily: '"Courier New", Courier, monospace' }}
+          className="font-mono text-[4.8px] sm:text-[6.5px] md:text-[8px] leading-tight tracking-normal mb-10 select-none overflow-x-auto scrollbar-hide"
+          style={{ opacity: 0, fontFamily: '"Geist Mono Variable", Menlo, Monaco, monospace' }}
           aria-hidden="true"
         >
           {ASCII_LOGO}
