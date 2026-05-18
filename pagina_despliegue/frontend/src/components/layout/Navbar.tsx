@@ -17,7 +17,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link
           to="/"
-          className="font-mono text-sm font-bold tracking-[0.2em] uppercase text-foreground hover:text-cyan transition-colors"
+          className="font-mono text-sm font-bold tracking-[0.2em] uppercase text-foreground hover:text-white transition-colors"
         >
           remote-lab
         </Link>
@@ -30,7 +30,7 @@ export default function Navbar() {
               to={link.href}
               className={`font-mono text-xs tracking-widest transition-colors ${
                 location.pathname === link.href
-                  ? "text-cyan"
+                  ? "text-white"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -58,11 +58,11 @@ export default function Navbar() {
                 key={link.href}
                 to={link.href}
                 onClick={() => setMobileOpen(false)}
-                className={`px-0 py-3 font-mono text-xs tracking-widest border-b border-border/40 transition-colors ${
-                  location.pathname === link.href
-                    ? "text-cyan"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+className={`px-0 py-3 font-mono text-xs tracking-widest border-b border-border/40 transition-colors ${
+                    location.pathname === link.href
+                      ? "text-white"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 {link.label}
               </Link>

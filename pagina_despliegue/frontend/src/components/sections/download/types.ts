@@ -8,6 +8,11 @@ export interface ReleaseVariant {
   notes?: string;
 }
 
+export interface VersionInfo {
+  version: string;
+  date: string;
+}
+
 export interface PlatformRelease {
   platform: Platform;
   version: string;
@@ -15,6 +20,7 @@ export interface PlatformRelease {
   available: boolean;
   comingSoonMessage?: string;
   variants: ReleaseVariant[];
+  allVersions: VersionInfo[];
 }
 
 export const PLATFORM_LABELS: Record<Platform, string> = {

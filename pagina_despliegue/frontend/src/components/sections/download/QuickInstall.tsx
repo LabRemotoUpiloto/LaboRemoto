@@ -1,27 +1,128 @@
+import { useState } from "react";
 import CopyButton from "../../ui/CopyButton";
 import { TuxIcon, WindowsIcon } from "./PlatformIcons";
+import type { Platform, PlatformRelease } from "./types";
 
-const INSTALL_CMDS = [
-  {
-    platform: "Windows",
-    Icon: WindowsIcon,
-    cmd: "irm https://raw.githubusercontent.com/Haider2231/Releases-Cliente-SSH-Unipiloto/main/download-release.ps1 | iex",
-    hint: "Ejecutar en PowerShell",
-  },
-  {
-    platform: "Linux",
-    Icon: TuxIcon,
-    cmd: "curl -sSL https://raw.githubusercontent.com/Haider2231/Releases-Cliente-SSH-Unipiloto/main/download-release.sh | bash",
-    hint: "Ejecutar en la Terminal",
-  },
-];
+interface QuickInstallProps {
+  releases: PlatformRelease[];
+}
 
-export default function QuickInstall() {
+const ICONS = {
+  windows: WindowsIcon,
+  linux: TuxIcon,
+};
+
+const HINTS = {
+  windows: "Ejecutar en PowerShell",
+  linux: "Ejecutar en la Terminal",
+};
+
+function QuickInstallItem({
+  release,
+}: {
+  release: PlatformRelease;
+}) {
+  const Icon = ICONS[release.platform as keyof typeof ICONS];
+  const hint = HINTS[release.platform as keyof typeof HINTS];
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
+
+  if (!Icon) return null;
+
+  const variant = release.variants[selectedVariantIdx] || release.variants[0];
+  const hasVariants = release.variants.length > 1;
+
+  let cmd = "";
+  if (release.platform === "windows") {
+    cmd = `irm https://raw.githubusercontent.com/Haider2231/Releases-Cliente-SSH-Unipiloto/main/download-release.ps1 | iex`;
+  } else {
+    // Descarga directa del binario seleccionado para Linux
+    cmd = `curl -LO ${variant.downloadUrl} && chmod +x ${variant.filename} && ./${variant.filename}`;
+  }
+
+  return (
+    <div className="border-l border-border pl-6 flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <Icon size={20} />
+            <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+              {release.platform}
+            </span>
+          </div>
+
+          {hasVariants && (
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen((o) => !o)}
+                className="flex items-center gap-2 px-2 py-1 bg-surface border border-border text-muted-foreground font-mono text-[10px] tracking-wider uppercase hover:border-white/20 hover:text-foreground transition-colors"
+              >
+                <span className="whitespace-nowrap">{variant.label}</span>
+                <svg
+                  className={`w-3 h-3 transition-transform shrink-0 ${dropdownOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+
+              {dropdownOpen && (
+                <ul className="absolute right-0 top-full mt-1 bg-surface border border-border overflow-hidden z-20 w-48 shadow-lg">
+                  {release.variants.map((v, idx) => {
+                    const isActive = idx === selectedVariantIdx;
+                    return (
+                      <li key={v.filename}>
+                        <button
+                          onClick={() => {
+                            setSelectedVariantIdx(idx);
+                            setDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 font-mono text-[10px] tracking-wider transition-colors ${
+                            isActive
+                              ? "bg-white/10 text-white"
+                              : "text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                          }`}
+                        >
+                          {v.label}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <code className="font-mono text-xs text-foreground truncate block w-full overflow-hidden whitespace-nowrap bg-surface-2 px-3 py-2 rounded-sm border border-border" title={cmd}>
+            {cmd}
+          </code>
+          <CopyButton text={cmd} />
+        </div>
+      </div>
+      <div className="flex items-center justify-between mt-1">
+        <p className="font-mono text-[11px] text-muted">{hint}</p>
+        {release.platform === "linux" && (
+          <p className="font-mono text-[9.5px] text-muted-foreground">
+            Ver versión: <code className="text-white bg-white/10 px-1 py-0.5 rounded">ldd --version</code>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function QuickInstall({ releases }: QuickInstallProps) {
+  const availableReleases = releases.filter((r) => r.available);
+
   return (
     <section className="py-16">
       <div className="max-w-6xl mx-auto px-6">
         <div className="mb-10">
-          <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-3">
+          <p className="font-mono text-[10px] tracking-widest uppercase text-white/60 mb-3">
             Instalación rápida
           </p>
           <h2 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">
@@ -32,22 +133,11 @@ export default function QuickInstall() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {INSTALL_CMDS.map(({ platform, Icon, cmd, hint }) => (
-            <div key={platform} className="border-l border-border pl-6">
-              <div className="flex items-center gap-3 mb-3">
-                <Icon size={20} />
-                <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
-                  {platform}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <code className="font-mono text-xs text-foreground truncate">
-                  {cmd}
-                </code>
-                <CopyButton text={cmd} />
-              </div>
-              <p className="font-mono text-[11px] text-muted">{hint}</p>
-            </div>
+          {availableReleases.map((release) => (
+            <QuickInstallItem
+              key={release.platform}
+              release={release}
+            />
           ))}
         </div>
       </div>
