@@ -28,18 +28,29 @@ function MailIcon({ size = 16 }: { size?: number }) {
 
 function ObfuscatedEmail() {
   const [revealed, setRevealed] = useState(false);
-  const emailBase64 = "Z29uemFsZXpnYXJ6b24xNEBob3RtYWlsLmNvbQ==";
-  const email = atob(emailBase64);
+  const emails = [
+    { name: "Felipe González", base64: "Z29uemFsZXpnYXJ6b24xNEBob3RtYWlsLmNvbQ==" },
+    { name: "Haider Cañón", base64: "aGFpZGVyYW5kcmVzMTM2OUBnbWFpbC5jb20=" }
+  ];
 
   if (revealed) {
     return (
-      <a
-        href={`mailto:${email}`}
-        className="inline-flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <MailIcon size={14} />
-        {email}
-      </a>
+      <div className="flex flex-col gap-2">
+        {emails.map((e) => {
+          const email = atob(e.base64);
+          return (
+            <a
+              key={email}
+              href={`mailto:${email}`}
+              className="inline-flex items-center gap-2 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+              title={`Escribir a ${e.name}`}
+            >
+              <MailIcon size={13} />
+              <span className="truncate">{email}</span>
+            </a>
+          );
+        })}
+      </div>
     );
   }
 
@@ -49,7 +60,7 @@ function ObfuscatedEmail() {
       className="inline-flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
     >
       <MailIcon size={14} />
-      Mostrar email
+      Mostrar correos
     </button>
   );
 }
@@ -63,6 +74,7 @@ const TEAM = [
   {
     name: "Haider Cañón",
     github: "https://github.com/Haider2231",
+    linkedin: "https://www.linkedin.com/in/haider-ca%C3%B1on-095a361a7",
   },
 ];
 
@@ -90,7 +102,7 @@ export default function Footer() {
                 <img
                   src="/abeja.jpeg"
                   alt="Semillero IoT"
-                  className="h-8 w-auto object-contain rounded-[4px] opacity-90 group-hover:opacity-100 transition-opacity"
+                  className="h-8 w-auto object-contain mix-blend-screen opacity-90 group-hover:opacity-100 transition-opacity"
                 />
               </div>
               <span className="font-mono text-sm font-bold tracking-[0.15em] uppercase text-foreground group-hover:text-white transition-colors">
@@ -182,7 +194,7 @@ export default function Footer() {
         <div className="border-t border-border pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <img src="/logo.jpeg" alt="" className="h-5 w-auto object-contain rounded-sm opacity-40" />
-            <img src="/abeja.jpeg" alt="" className="h-5 w-auto object-contain rounded-sm opacity-40" />
+            <img src="/abeja.jpeg" alt="" className="h-5 w-auto object-contain mix-blend-screen opacity-40" />
             <p className="font-mono text-[11px] text-muted">
               © {year} Remote Lab · Universidad Piloto de Colombia
             </p>
