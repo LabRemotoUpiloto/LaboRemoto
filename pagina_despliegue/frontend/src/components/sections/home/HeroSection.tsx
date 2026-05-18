@@ -117,14 +117,14 @@ export default function HeroSection() {
   return (
     <section
       ref={heroRef}
-      className="relative min-h-screen flex flex-col justify-center pt-20 pb-16 overflow-hidden"
+      className="relative min-h-screen flex flex-col justify-start lg:justify-center pt-28 lg:pt-20 pb-16 overflow-hidden"
     >
       <div className="relative max-w-6xl mx-auto px-6 w-full">
 
-        {/* ASCII wordmark */}
+        {/* Title Wrapper (fades in via GSAP) */}
         <pre
           ref={asciiRef}
-          className="text-[5px] sm:text-[6.5px] md:text-[8px] leading-tight mb-10 select-none overflow-x-auto scrollbar-hide"
+          className="text-[1.15vw] sm:text-[6.5px] md:text-[8px] leading-tight mb-10 select-none overflow-x-auto scrollbar-hide"
           style={{ opacity: 0, fontFamily: '"Courier New", Courier, monospace' }}
           aria-hidden="true"
         >
@@ -168,7 +168,7 @@ export default function HeroSection() {
           </div>
 
           {/* ── RIGHT — Terminal (main visual) with peeking abeja ── */}
-          <div className="flex justify-center lg:justify-end relative">
+          <div className="flex justify-center lg:justify-end relative w-full mt-20 sm:mt-28 lg:mt-0">
 
             {/* Terminal Container */}
             <div
@@ -181,14 +181,14 @@ export default function HeroSection() {
               <div
                 ref={abejaRef}
                 onClick={handleAbejaClick}
-                className="absolute -top-52 sm:-top-60 right-24 sm:right-48 z-0 pointer-events-auto cursor-pointer select-none group"
+                className="absolute -top-36 sm:-top-44 md:-top-52 lg:-top-60 right-32 sm:right-40 md:right-48 lg:right-64 xl:right-72 z-0 pointer-events-auto cursor-pointer select-none group"
                 style={{ opacity: 0 }}
                 title="¡Haz clic en la abeja!"
               >
                 <img
                   src="/abeja.jpeg"
                   alt="Mascota Semillero IoT"
-                  className="w-40 h-40 sm:w-56 sm:h-56 object-contain mix-blend-screen drop-shadow-2xl transition-transform group-hover:scale-105"
+                  className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 object-contain mix-blend-screen drop-shadow-2xl transition-transform group-hover:scale-105"
                 />
               </div>
 
