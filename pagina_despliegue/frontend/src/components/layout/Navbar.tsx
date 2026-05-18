@@ -29,7 +29,7 @@ export default function Navbar() {
             <img
               src="/abeja.jpeg"
               alt="Semillero IoT"
-              className="h-7 w-auto object-contain rounded-[4px] opacity-90 group-hover:opacity-100 transition-opacity"
+              className="h-7 w-auto object-contain mix-blend-screen opacity-90 group-hover:opacity-100 transition-opacity"
             />
           </div>
           <span className="font-mono text-sm font-bold tracking-[0.15em] uppercase text-foreground group-hover:text-white transition-colors">

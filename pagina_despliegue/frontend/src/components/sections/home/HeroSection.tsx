@@ -27,6 +27,7 @@ export default function HeroSection() {
   const rightRef  = useRef<HTMLDivElement>(null);
   const abejaRef  = useRef<HTMLImageElement>(null);
   const termRef   = useRef<HTMLDivElement>(null);
+  const isAnimatingRef = useRef(false);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -59,6 +60,59 @@ export default function HeroSection() {
 
     return () => ctx.revert();
   }, []);
+
+  const handleAbejaClick = () => {
+    if (!abejaRef.current || isAnimatingRef.current) return;
+    isAnimatingRef.current = true;
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        isAnimatingRef.current = false;
+      }
+    });
+    // 1. Squash down (pre-jump preparation)
+    tl.to(abejaRef.current, {
+      scaleY: 0.75,
+      scaleX: 1.15,
+      duration: 0.15,
+      ease: "power1.inOut"
+    })
+    // 2. Launch up with stretch + slight rotation
+    .to(abejaRef.current, {
+      y: -60,
+      scaleY: 1.2,
+      scaleX: 0.85,
+      rotationY: 180, // Spin around 3D!
+      duration: 0.35,
+      ease: "power2.out"
+    })
+    // 3. Shake/Flutter at the peak of the jump (wing buzz)
+    .to(abejaRef.current, {
+      rotation: 12,
+      x: 10,
+      duration: 0.08,
+      yoyo: true,
+      repeat: 3,
+      ease: "sine.inOut"
+    })
+    // 4. Spin back and plunge down
+    .to(abejaRef.current, {
+      rotationY: 360,
+      rotation: 0,
+      x: 0,
+      duration: 0.3,
+      ease: "power1.in"
+    })
+    // 5. Land with a satisfying bounce
+    .to(abejaRef.current, {
+      y: 0,
+      scaleY: 1,
+      scaleX: 1,
+      rotationY: 0,
+      duration: 0.6,
+      ease: "bounce.out"
+    });
+  };
 
   return (
     <section
@@ -126,13 +180,15 @@ export default function HeroSection() {
                   mix-blend-screen removes the black background from the JPEG! */}
               <div
                 ref={abejaRef}
-                className="absolute -top-52 sm:-top-60 right-24 sm:right-48 z-0 pointer-events-none"
+                onClick={handleAbejaClick}
+                className="absolute -top-52 sm:-top-60 right-24 sm:right-48 z-0 pointer-events-auto cursor-pointer select-none group"
                 style={{ opacity: 0 }}
+                title="¡Haz clic en la abeja!"
               >
                 <img
                   src="/abeja.jpeg"
                   alt="Mascota Semillero IoT"
-                  className="w-40 h-40 sm:w-56 sm:h-56 object-contain mix-blend-screen drop-shadow-2xl"
+                  className="w-40 h-40 sm:w-56 sm:h-56 object-contain mix-blend-screen drop-shadow-2xl transition-transform group-hover:scale-105"
                 />
               </div>
 
