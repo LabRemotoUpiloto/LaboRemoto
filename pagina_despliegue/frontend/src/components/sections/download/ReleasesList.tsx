@@ -1,5 +1,10 @@
+import { useEffect, useRef } from "react";
 import PlatformReleaseItem from "./PlatformReleaseItem";
 import type { Platform, PlatformRelease } from "./types";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 interface ReleasesListProps {
   releases: PlatformRelease[];
@@ -7,10 +12,36 @@ interface ReleasesListProps {
 }
 
 export default function ReleasesList({ releases, switchVersion }: ReleasesListProps) {
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        defaults: { ease: "power3.out" },
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: "top 85%",
+          toggleActions: "play none none reverse",
+        }
+      });
+
+      tl.fromTo(".rl-heading",
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 0.8 }
+      )
+      .fromTo(".rl-card",
+        { opacity: 0, y: 32, filter: "blur(4px)" },
+        { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.8, stagger: 0.15 },
+        "-=0.5"
+      );
+    }, sectionRef);
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <section className="py-24">
+    <section ref={sectionRef} className="py-24">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="mb-14 text-center">
+        <div className="rl-heading mb-14 text-center" style={{ opacity: 0 }}>
           <p className="font-mono text-[10px] tracking-widest uppercase text-white/60 mb-3">
             Versiones disponibles
           </p>
@@ -23,11 +54,12 @@ export default function ReleasesList({ releases, switchVersion }: ReleasesListPr
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {releases.map((release) => (
-            <PlatformReleaseItem
-              key={release.platform}
-              release={release}
-              onVersionChange={(v) => switchVersion(release.platform, v)}
-            />
+            <div key={release.platform} className="rl-card" style={{ opacity: 0 }}>
+              <PlatformReleaseItem
+                release={release}
+                onVersionChange={(v) => switchVersion(release.platform, v)}
+              />
+            </div>
           ))}
         </div>
 
