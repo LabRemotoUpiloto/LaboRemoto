@@ -57,6 +57,8 @@ export default function Features() {
           scrollTrigger: {
             trigger: heading,
             start: "top 90%",
+            end: "bottom 10%",
+            toggleActions: "play reverse play reverse",
           },
         }
       );
@@ -82,7 +84,8 @@ export default function Features() {
           scrollTrigger: {
             trigger: featuresRef.current,
             start: "top 85%",
-            toggleActions: "play none none reverse",
+            end: "bottom 15%",
+            toggleActions: "play reverse play reverse",
           },
         }
       );

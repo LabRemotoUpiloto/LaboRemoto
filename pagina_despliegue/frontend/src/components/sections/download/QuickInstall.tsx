@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CopyButton from "../../ui/CopyButton";
 import { TuxIcon, WindowsIcon } from "./PlatformIcons";
 import type { Platform, PlatformRelease } from "./types";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 interface QuickInstallProps {
   releases: PlatformRelease[];
@@ -41,7 +45,7 @@ function QuickInstallItem({
   }
 
   return (
-    <div className="border-l border-border pl-6 flex flex-col justify-between">
+    <div className="qi-card border-l border-border pl-6 flex flex-col justify-between" style={{ opacity: 0 }}>
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -119,11 +123,36 @@ function QuickInstallItem({
 
 export default function QuickInstall({ releases }: QuickInstallProps) {
   const availableReleases = releases.filter((r) => r.available);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        defaults: { ease: "power3.out" },
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: "top 85%",
+          toggleActions: "play none none reverse",
+        }
+      });
+      
+      tl.fromTo(".qi-heading",
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 0.8 }
+      )
+      .fromTo(".qi-card",
+        { opacity: 0, x: -16 },
+        { opacity: 1, x: 0, duration: 0.8, stagger: 0.15 },
+        "-=0.5"
+      );
+    }, sectionRef);
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <section className="py-16">
+    <section ref={sectionRef} className="py-16">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="mb-10">
+        <div className="qi-heading mb-10" style={{ opacity: 0 }}>
           <p className="font-mono text-[10px] tracking-widest uppercase text-white/60 mb-3">
             Instalación rápida
           </p>

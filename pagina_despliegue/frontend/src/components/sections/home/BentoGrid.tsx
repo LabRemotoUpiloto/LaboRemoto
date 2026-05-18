@@ -81,7 +81,8 @@ export default function BentoGrid() {
           scrollTrigger: {
             trigger: bentoRef.current,
             start: "top 85%",
-            toggleActions: "play none none reverse",
+            end: "bottom 15%",
+            toggleActions: "play reverse play reverse",
           },
         }
       );
