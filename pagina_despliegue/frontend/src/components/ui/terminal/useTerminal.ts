@@ -4,9 +4,9 @@ import { handleCommand } from "./commands";
 
 const GITHUB_REPO = "Haider2231/Releases-Cliente-SSH-Unipiloto";
 const WIN_FALLBACK =
-  "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente%20SSH%20Unipiloto_0.1.6_x64-setup.exe";
+  "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente.SSH.Unipiloto_0.1.6_x64-setup.exe";
 const LINUX_FALLBACK =
-  "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/ClienteSSH-Unipiloto-Linux";
+  "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente.SSH-Unipiloto.Glib2.39";
 
 const INTRO: Line[] = [
   { text: "$ remote-lab connect --session physics-lab-01", type: "cmd" },
@@ -43,6 +43,8 @@ export function useTerminal() {
           a.name.includes("setup.exe")
         );
         const linuxAsset = data.assets?.find((a: any) =>
+          a.name.toLowerCase().includes("glib2.39") || a.name.toLowerCase().includes("glibc239")
+        ) || data.assets?.find((a: any) =>
           a.name.includes("Linux")
         );
         if (winAsset) downloadUrls.current.win = winAsset.browser_download_url;
