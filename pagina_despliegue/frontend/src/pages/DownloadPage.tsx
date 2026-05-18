@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import DownloadHero from "../components/sections/download/DownloadHero";
@@ -7,6 +8,10 @@ import { useReleases } from "../components/sections/download/useReleases";
 
 export default function DownloadPage() {
   const { releases, switchVersion } = useReleases();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
