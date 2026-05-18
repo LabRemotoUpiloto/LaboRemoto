@@ -17,7 +17,7 @@ export default function TerminalWindow() {
 
   return (
     <div
-      className="w-full max-w-lg border border-border bg-surface font-mono text-xs select-none"
+      className="w-full border border-border bg-surface font-mono text-xs select-none shadow-2xl shadow-black/50"
       onClick={focusInput}
     >
       <TerminalTitleBar />

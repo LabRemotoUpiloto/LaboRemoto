@@ -35,7 +35,7 @@ function ObfuscatedEmail() {
     return (
       <a
         href={`mailto:${email}`}
-        className="inline-flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+        className="inline-flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <MailIcon size={14} />
         {email}
@@ -46,7 +46,7 @@ function ObfuscatedEmail() {
   return (
     <button
       onClick={() => setRevealed(true)}
-      className="inline-flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+      className="inline-flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
     >
       <MailIcon size={14} />
       Mostrar email
@@ -71,29 +71,46 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-border bg-surface">
-      <div className="max-w-6xl mx-auto px-6 pt-16 pb-10">
-        {/* Top grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-14">
-          {/* Brand + origin */}
-          <div>
+      <div className="max-w-6xl mx-auto px-6 pt-14 pb-8">
+        {/* Main content */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-12">
+          {/* Brand + logos — spans 5 cols */}
+          <div className="md:col-span-5">
             <Link
               to="/"
-              className="font-mono text-sm font-bold tracking-[0.2em] uppercase text-foreground"
+              className="inline-flex items-center gap-2.5 group mb-5"
             >
-              remote<span className="text-cyan">-lab</span>
+              <div className="flex items-center gap-1.5">
+                <img
+                  src="/logo.jpeg"
+                  alt="Universidad Piloto"
+                  className="h-8 w-auto object-contain rounded-[4px] opacity-90 group-hover:opacity-100 transition-opacity"
+                />
+                <div className="w-px h-6 bg-white/15" />
+                <img
+                  src="/abeja.jpeg"
+                  alt="Semillero IoT"
+                  className="h-8 w-auto object-contain rounded-[4px] opacity-90 group-hover:opacity-100 transition-opacity"
+                />
+              </div>
+              <span className="font-mono text-sm font-bold tracking-[0.15em] uppercase text-foreground group-hover:text-white transition-colors">
+                remote<span className="text-cyan">-lab</span>
+              </span>
             </Link>
-            <p className="mt-4 text-muted-foreground text-sm leading-relaxed max-w-xs">
-              Proyecto desarrollado en el Semillero de IoT de la{" "}
+
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
+              Proyecto desarrollado en el{" "}
+              <span className="text-foreground font-medium">Semillero de IoT</span> de la{" "}
               <span className="text-foreground font-medium">Universidad Piloto de Colombia</span>.
             </p>
-            <p className="mt-2 text-muted text-xs leading-relaxed">
+            <p className="mt-3 text-muted text-xs leading-relaxed max-w-sm">
               Laboratorios remotos para que el aprendizaje
               no dependa de un horario ni de un lugar.
             </p>
           </div>
 
-          {/* Navigation */}
-          <div>
+          {/* Navigation — spans 3 cols */}
+          <div className="md:col-span-3">
             <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-4">
               Navegación
             </p>
@@ -117,14 +134,14 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
-          <div>
+          {/* Contact + Team — spans 4 cols */}
+          <div className="md:col-span-4">
             <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-4">
               Contacto
             </p>
             <ObfuscatedEmail />
 
-            <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-4 mt-2">
+            <p className="font-mono text-[10px] tracking-widest uppercase text-cyan mb-4 mt-6">
               Equipo
             </p>
             <ul className="space-y-3">
@@ -163,9 +180,13 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="border-t border-border pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="font-mono text-[11px] text-muted">
-            © {year} Remote Lab · Universidad Piloto de Colombia
-          </p>
+          <div className="flex items-center gap-4">
+            <img src="/logo.jpeg" alt="" className="h-5 w-auto object-contain rounded-sm opacity-40" />
+            <img src="/abeja.jpeg" alt="" className="h-5 w-auto object-contain rounded-sm opacity-40" />
+            <p className="font-mono text-[11px] text-muted">
+              © {year} Remote Lab · Universidad Piloto de Colombia
+            </p>
+          </div>
           <p className="font-mono text-[11px] text-muted">
             Hecho con <span className="text-red-500">♥</span> en Bogotá
           </p>
