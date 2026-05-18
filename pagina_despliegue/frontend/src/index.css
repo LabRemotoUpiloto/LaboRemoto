@@ -43,6 +43,19 @@
   .terminal-body { scrollbar-color: #2a2a4a #0a0a12; scrollbar-width: thin; }
 }
 
+@keyframes heart-beat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.25); }
+  28%       { transform: scale(1);   }
+  42%       { transform: scale(1.20); }
+  56%       { transform: scale(1);   }
+}
+
+.heart-beat {
+  animation: heart-beat 1.4s infinite ease-in-out;
+  transform-origin: center;
+}
+
 @layer utilities {
   /* Dot grid texture */
   .grid-bg {
