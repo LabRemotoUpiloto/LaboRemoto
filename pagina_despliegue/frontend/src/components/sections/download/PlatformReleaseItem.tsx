@@ -16,6 +16,7 @@ function VariantDownloadButton({
   variant: any;
 }) {
   const [status, setStatus] = useState<"idle" | "pre" | "hash" | "init">("idle");
+  const [changing, setChanging] = useState(false);
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -23,53 +24,70 @@ function VariantDownloadButton({
 
     setStatus("pre");
     setTimeout(() => {
-      setStatus("hash");
+      setChanging(true);
       setTimeout(() => {
-        setStatus("init");
+        setStatus("hash");
+        setChanging(false);
         setTimeout(() => {
-          // Trigger file download programmatically
-          const link = document.createElement("a");
-          link.href = variant.downloadUrl;
-          link.download = variant.filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setStatus("idle");
-        }, 700);
-      }, 700);
-    }, 700);
+          setChanging(true);
+          setTimeout(() => {
+            setStatus("init");
+            setChanging(false);
+            setTimeout(() => {
+              // Trigger file download programmatically
+              const link = document.createElement("a");
+              link.href = variant.downloadUrl;
+              link.download = variant.filename;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              setStatus("idle");
+            }, 800);
+          }, 150);
+        }, 800);
+      }, 150);
+    }, 800);
   };
 
   const getLabel = () => {
     switch (status) {
-      case "pre": return "Preparando...";
-      case "hash": return "Verificando...";
-      case "init": return "Iniciando...";
-      default: return variant.label;
+      case "pre": return "PREPARANDO ENTORNO...";
+      case "hash": return "VERIFICANDO INTEGRIDAD...";
+      case "init": return "INICIANDO DESCARGA...";
+      default: return variant.label.toUpperCase();
     }
   };
+
+  const isLoading = status !== "idle";
 
   return (
     <button
       onClick={handleClick}
-      className={`flex items-center justify-center gap-2.5 w-full px-4 py-3 border font-mono text-[11px] font-bold tracking-widest uppercase transition-all duration-300 ${
-        status !== "idle"
-          ? "bg-cyan-subtle border-cyan text-cyan animate-pulse cursor-wait pointer-events-none"
-          : "bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 hover:scale-[1.01]"
+      className={`relative w-full px-4 py-3.5 border font-mono text-[10.5px] font-bold tracking-widest uppercase transition-all duration-500 overflow-hidden flex items-center justify-center gap-3 ${
+        isLoading
+          ? "bg-cyan/10 border-cyan text-cyan shadow-[0_0_15px_rgba(6,182,212,0.15)] cursor-wait pointer-events-none scale-[0.99]"
+          : "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 hover:scale-[1.01]"
       }`}
     >
-      {status !== "idle" ? (
-        <svg className="animate-spin h-3.5 w-3.5 text-cyan shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+      {isLoading ? (
+        <div className="relative w-4 h-4 shrink-0 flex items-center justify-center">
+          {/* Outer Clockwise Spin */}
+          <div className="absolute inset-0 rounded-full border border-t-cyan border-r-transparent border-b-transparent border-l-transparent animate-spin duration-700" />
+          {/* Inner Counter-Clockwise Spin */}
+          <div className="absolute inset-[3px] rounded-full border border-b-cyan border-t-transparent border-r-transparent border-l-transparent animate-[spin_0.4s_linear_infinite_reverse]" />
+        </div>
       ) : (
         <Download
-          size={13}
-          className="shrink-0"
+          size={12}
+          className="shrink-0 group-hover:translate-y-px transition-transform"
         />
       )}
-      <span className="truncate">{getLabel()}</span>
+
+      <span className={`transition-all duration-300 transform ${
+        changing ? "opacity-0 -translate-y-1 blur-[3px]" : "opacity-100 translate-y-0 blur-0"
+      }`}>
+        {getLabel()}
+      </span>
     </button>
   );
 }
