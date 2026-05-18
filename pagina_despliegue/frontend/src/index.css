@@ -111,4 +111,13 @@
     opacity: 0;
     transform: translateX(-32px);
   }
+
+  /* Hide scrollbar for clean UI but keep scroll functionality */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

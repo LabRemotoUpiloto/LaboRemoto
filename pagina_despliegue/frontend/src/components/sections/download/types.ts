@@ -24,7 +24,7 @@ export interface PlatformRelease {
 }
 
 export const PLATFORM_LABELS: Record<Platform, string> = {
-  windows: "Windows",
+  windows: "Windows 11",
   linux: "Linux",
   macos: "macOS",
 };

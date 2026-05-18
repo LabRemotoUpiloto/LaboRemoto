@@ -47,7 +47,7 @@ function QuickInstallItem({
           <div className="flex items-center gap-3">
             <Icon size={20} />
             <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
-              {release.platform}
+              {release.platform === "windows" ? "WINDOWS 11" : release.platform}
             </span>
           </div>
 
@@ -96,11 +96,13 @@ function QuickInstallItem({
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <code className="font-mono text-xs text-foreground truncate block w-full overflow-hidden whitespace-nowrap bg-surface-2 px-3 py-2 rounded-sm border border-border" title={cmd}>
+        <div className="flex items-center gap-3 mb-2 w-full">
+          <code className="flex-1 min-w-0 font-mono text-xs text-foreground overflow-x-auto scrollbar-hide whitespace-nowrap bg-surface-2 px-3 py-2.5 rounded-sm border border-border" title={cmd}>
             {cmd}
           </code>
-          <CopyButton text={cmd} />
+          <div className="shrink-0">
+            <CopyButton text={cmd} />
+          </div>
         </div>
       </div>
       <div className="flex items-center justify-between mt-1">
