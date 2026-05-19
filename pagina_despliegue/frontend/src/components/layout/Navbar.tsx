@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
-export default function Header() {
+export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
@@ -13,24 +13,39 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/60">
-      <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
+      <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+        {/* Logo cluster */}
         <Link
           to="/"
-          className="font-mono text-sm font-bold tracking-[0.2em] uppercase text-foreground hover:text-cyan transition-colors"
+          className="flex items-center gap-2.5 group"
         >
-          remote<span style={{ color: "#00d2be" }}>-lab</span>
+          <div className="flex items-center gap-1.5">
+            <img
+              src="/logo.jpeg"
+              alt="Universidad Piloto"
+              className="h-7 w-auto object-contain rounded-[4px] opacity-90 group-hover:opacity-100 transition-opacity"
+            />
+            <div className="w-px h-5 bg-white/15" />
+            <img
+              src="/abeja.jpeg"
+              alt="Semillero IoT"
+              className="h-7 w-auto object-contain mix-blend-screen opacity-90 group-hover:opacity-100 transition-opacity"
+            />
+          </div>
+          <span className="font-mono text-sm font-bold tracking-[0.15em] uppercase text-foreground group-hover:text-white transition-colors">
+            remote<span className="text-cyan">-lab</span>
+          </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+        <nav className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               to={link.href}
               className={`font-mono text-xs tracking-widest transition-colors ${
                 location.pathname === link.href
-                  ? "text-cyan"
+                  ? "text-white"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -38,14 +53,6 @@ export default function Header() {
             </Link>
           ))}
         </nav>
-
-        {/* Desktop CTA */}
-        <Link
-          to="/descargar"
-          className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 border border-cyan/40 text-cyan font-mono text-xs tracking-widest uppercase hover:bg-cyan/10 transition-colors"
-        >
-          descargar
-        </Link>
 
         {/* Mobile toggle */}
         <button
@@ -68,7 +75,7 @@ export default function Header() {
                 onClick={() => setMobileOpen(false)}
                 className={`px-0 py-3 font-mono text-xs tracking-widest border-b border-border/40 transition-colors ${
                   location.pathname === link.href
-                    ? "text-cyan"
+                    ? "text-white"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >

@@ -35,6 +35,25 @@
   ::-webkit-scrollbar-track { background: #050508; }
   ::-webkit-scrollbar-thumb { background: #1a1a2e; }
   ::-webkit-scrollbar-thumb:hover { background: #00d2be; }
+
+  .terminal-body::-webkit-scrollbar { width: 6px; }
+  .terminal-body::-webkit-scrollbar-track { background: #0a0a12; }
+  .terminal-body::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+  .terminal-body::-webkit-scrollbar-thumb:hover { background: #00d2be; }
+  .terminal-body { scrollbar-color: #2a2a4a #0a0a12; scrollbar-width: thin; }
+}
+
+@keyframes heart-beat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.25); }
+  28%       { transform: scale(1);   }
+  42%       { transform: scale(1.20); }
+  56%       { transform: scale(1);   }
+}
+
+.heart-beat {
+  animation: heart-beat 1.4s infinite ease-in-out;
+  transform-origin: center;
 }
 
 @layer utilities {
@@ -104,5 +123,14 @@
   .gsap-hidden-left {
     opacity: 0;
     transform: translateX(-32px);
+  }
+
+  /* Hide scrollbar for clean UI but keep scroll functionality */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
