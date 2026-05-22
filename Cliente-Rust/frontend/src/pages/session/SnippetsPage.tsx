@@ -164,7 +164,7 @@ const SnippetsPage: React.FC = () => {
   const editingSnippet = editingId ? snippets.find(s => s.id === editingId) : null;
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0a]">
+    <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--background-primary)' }}>
       <SnippetsHeader
         totalCount={snippets.length}
         filteredCount={filteredAndSortedSnippets.length}
@@ -193,7 +193,7 @@ const SnippetsPage: React.FC = () => {
           />
 
           <section>
-            <h2 className="text-lg font-semibold mb-4 text-white/90">
+            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
               {(filter || categoryFilter) ? `Resultados (${filteredAndSortedSnippets.length})` : `Guardados (${snippets.length})`}
             </h2>
             

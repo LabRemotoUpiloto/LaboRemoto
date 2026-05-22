@@ -171,7 +171,7 @@ const ChatInput: React.FC<Props> = ({
         onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await handleTextFile(f); }}
       />
 
-      <div className={`flex bg-tertiary border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-accent/40 focus-within:bg-[#1a1c29] ${(attachedImage || attachedFile) ? 'flex-col items-stretch gap-0' : 'items-center'}`}>
+      <div className={`flex border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-accent/40 ${(attachedImage || attachedFile) ? 'flex-col items-stretch gap-0' : 'items-center'}`} style={{ backgroundColor: 'var(--background-tertiary)' }}>
         {/* Image chip */}
         {attachedImage && (
           <div className="flex items-center gap-2 pt-2 px-2.5 pb-1">
@@ -183,7 +183,7 @@ const ChatInput: React.FC<Props> = ({
               />
               <button
                 onClick={() => setAttachedImage(null)}
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#1e2130] border border-white/15 text-white/70 text-[9px] flex items-center justify-center cursor-pointer hover:bg-white/10 hover:text-white"
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] flex items-center justify-center cursor-pointer transition-colors" style={{ backgroundColor: 'var(--background-tertiary)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
               >✕</button>
             </div>
             <span className="text-[11px] text-white/35 italic">{attachedImage.label ?? 'imagen lista para enviar'}</span>

@@ -31,12 +31,21 @@ import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
 
-// ── Mantine theme — mapea accent-primary (blue) al primaryColor ──────────────
-const mantineTheme = createTheme({
-  primaryColor: 'blue',
-  defaultRadius: 'md',
-  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-})
+// ── Mantine theme — color primario reactivo al tema CSS activo ───────────────
+function buildMantineTheme(primaryColor: string) {
+  return createTheme({
+    primaryColor,
+    defaultRadius: 'md',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+    colors: {
+      // Escala roja institucional Unipiloto (10 pasos requeridos por Mantine)
+      'unipiloto-red': [
+        '#fff0f0', '#ffd6d6', '#ffadad', '#ff8080', '#f26b69',
+        '#e8403d', '#d51f22', '#b81a1d', '#a81010', '#930000',
+      ],
+    },
+  })
+}
 
 // ── GlobalLoader con Mantine LoadingOverlay ───────────────────────────────────
 const GlobalLoader: React.FC = () => {
@@ -100,7 +109,9 @@ const UpdateModal: React.FC<{
 // ── AppMain — lógica principal ───────────────────────────────────────────────
 const AppMain: React.FC = () => {
   const appContainerRef = useRef<HTMLDivElement>(null)
-  const { mantineColorScheme } = useTheme()
+  const { mantineColorScheme, theme } = useTheme()
+
+  const mantineTheme = buildMantineTheme(theme === 'unipiloto' ? 'unipiloto-red' : 'blue')
 
   // ── Tabs y navegación ────────────────────────────────────────────────────────
   const {
@@ -131,7 +142,6 @@ const AppMain: React.FC = () => {
   } = useSidePanels()
 
   // ── Estado local residual ────────────────────────────────────────────────────
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
   const [sftpPaths, setSftpPaths] = useState<Record<string, string>>({})
 
   // ── Prácticas de laboratorio ─────────────────────────────────────────────────
@@ -197,6 +207,10 @@ const AppMain: React.FC = () => {
   const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
   const isH2Visible = activePanel === 'terminal'
 
+  // El header solo se muestra cuando hay sesiones activas (tabs de terminal).
+  // En home sin sesiones el layout es sidebar + contenido directo, como Claude.
+  const showHeader = tabs.some(t => t.type === 'session')
+
   return (
     <MantineProvider theme={mantineTheme} defaultColorScheme={mantineColorScheme}>
       <ModalsProvider>
@@ -210,41 +224,52 @@ const AppMain: React.FC = () => {
             isPinsVisible ? 'pins-open' : '',
             isDomoticaVisible ? 'domotica-open' : '',
             isH2Visible ? 'h2-visible' : '',
-            isSidebarExpanded ? 'sidebar-expanded' : '',
           ].filter(Boolean).join(' ')}
+          style={{ '--header-height': showHeader ? '46px' : '0px' } as React.CSSProperties}
         >
-          <Header
-            openPanels={openPanels}
-            activePanel={activePanel}
-            onPanelClick={handleOpenPanel}
-            onPanelClose={handleClosePanel}
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onTabClick={handleTabClick}
-            onCloseTab={handleCloseTab}
-            onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
-            activeView={activeView}
-            onViewChange={setActiveView}
-            showViewToggle={activeTab.type === 'session'}
-            isChatOpen={isChatOpen}
-            onToggleChat={() => setIsChatOpen(!isChatOpen)}
-            onReorderTabs={reorderTabs}
-            onReorderPanels={reorderPanels}
-            onToggleCamera={toggleCameraPanel}
-            onTogglePins={togglePinsPanel}
-            onToggleDomotica={toggleDomoticaPanel}
-            isCameraActive={isCameraOpen}
-            isPinsActive={isPinsPanelOpen}
-            isDomoticaActive={isDomoticaPanelOpen}
-            isSidebarExpanded={isSidebarExpanded}
+          {/* Franja drag global — toda la parte superior de la ventana arrastra
+              z-index 100: encima del main-content (default) pero debajo de sidebar (2100),
+              header (2000) y modales/dropdowns Mantine (200-300) */}
+          <div
+            data-tauri-drag-region
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '60px',
+              zIndex: 100,
+              cursor: 'grab',
+              userSelect: 'none',
+            }}
           />
+
+          {showHeader && (
+            <Header
+              activePanel={activePanel}
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onTabClick={handleTabClick}
+              onCloseTab={handleCloseTab}
+              onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              showViewToggle={activeTab.type === 'session'}
+              isChatOpen={isChatOpen}
+              onToggleChat={() => setIsChatOpen(!isChatOpen)}
+              onReorderTabs={reorderTabs}
+              onReorderPanels={reorderPanels}
+              onToggleCamera={toggleCameraPanel}
+              onTogglePins={togglePinsPanel}
+              onToggleDomotica={toggleDomoticaPanel}
+              isCameraActive={isCameraOpen}
+              isPinsActive={isPinsPanelOpen}
+              isDomoticaActive={isDomoticaPanelOpen}
+            />
+          )}
           <Sidebar
             activePanel={activePanel}
             onOpenPanel={handleOpenPanel}
-            activeSessionId={activeTab.type === 'session' ? activeTab.label : null}
-            selectedPage={selectedPage}
-            isExpanded={isSidebarExpanded}
-            onToggleExpand={() => setIsSidebarExpanded(prev => !prev)}
           />
           <div className="main-content">
             <main className="content-area">

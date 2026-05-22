@@ -32,7 +32,7 @@ const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId }) => {
         </Button>
       </Menu.Target>
 
-      <Menu.Dropdown className="bg-[#1e2130] border-white/10 p-1">
+      <Menu.Dropdown className="p-1">
         {MODES.map(m => {
           const locked = !sessionId && (m.value === 'agente' || m.value === 'plan');
           const isSelected = m.value === value;
@@ -42,11 +42,8 @@ const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId }) => {
               key={m.value}
               onClick={() => { if (!locked) onChange(m.value); }}
               disabled={locked}
-              className={`
-                text-[12.5px] py-1.5 px-2 rounded-md
-                ${isSelected ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5'}
-                ${locked ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
+              fz="xs"
+              bg={isSelected ? 'var(--interactive-selected)' : undefined}
               leftSection={
                 <span style={{ color: m.color }} className="flex items-center">
                   {ModeIcons[m.value]}

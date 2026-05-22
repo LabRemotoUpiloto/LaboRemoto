@@ -14,6 +14,8 @@ export type Theme =
   // Claros
   | 'light' | 'lavender-dream' | 'polar-mint' | 'peachy-sunrise'
   | 'sakura-blush' | 'rose-quartz' | 'silver-cloud'
+  // Institucional
+  | 'unipiloto'
   // Especiales
   | 'sunburst-rainbow' | 'bold-rainbow' | 'pastel-dream' | 'fc-barcelona'
   // Legacy (compatibilidad)
@@ -25,7 +27,7 @@ export type Theme =
 const LIGHT_THEMES = new Set<Theme>([
   'light', 'lavender-dream', 'polar-mint', 'peachy-sunrise',
   'sakura-blush', 'rose-quartz', 'silver-cloud', 'paper-sand',
-  'mist-harbor',
+  'mist-harbor', 'unipiloto',
 ])
 
 export function getMantineScheme(theme: Theme): MantineColorScheme {
@@ -46,7 +48,7 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
       const v = localStorage.getItem('theme')
       // migrate legacy ids
       if (v === 'fgonzalez') { localStorage.setItem('theme', 'granite-fog'); return 'granite-fog' }
-      return (v as Theme) || 'default'
+      return (v as Theme) || 'unipiloto'
     } catch { return 'default' }
   })
 

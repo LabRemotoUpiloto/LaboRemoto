@@ -27,7 +27,7 @@ const ModelSelect: React.FC<Props> = ({ value, onChange }) => {
           </Button>
         </Menu.Target>
 
-        <Menu.Dropdown className="bg-[#1e2130] border-white/10 p-1">
+        <Menu.Dropdown className="p-1">
           {AVAILABLE_MODELS.map(m => {
             const isSelected = m.value === value;
 
@@ -35,13 +35,11 @@ const ModelSelect: React.FC<Props> = ({ value, onChange }) => {
               <Menu.Item
                 key={m.value}
                 onClick={() => onChange(m.value)}
-                className={`
-                  text-[12.5px] py-1.5 px-2 rounded-md
-                  ${isSelected ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5'}
-                `}
+                fz="xs"
+                bg={isSelected ? 'var(--interactive-selected)' : undefined}
                 rightSection={
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-white/35">{m.provider}</span>
+                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{m.provider}</span>
                     {isSelected && (
                       <Box w={6} h={6} className="rounded-full bg-blue-400 shrink-0 ml-1" />
                     )}

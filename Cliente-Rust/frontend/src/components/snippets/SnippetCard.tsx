@@ -74,7 +74,7 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
   };
 
   return (
-    <Card withBorder padding="md" radius="md" className="flex flex-col h-full bg-[#1e1e1e] border-white/5 hover:border-teal-500/30 transition-colors">
+    <Card withBorder padding="md" radius="md" className="flex flex-col h-full transition-colors" style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border-subtle)' }}>
       <Group justify="space-between" align="flex-start" mb="sm" wrap="nowrap">
         <div className="flex-1 min-w-0">
           <Text size="sm" fw={600} truncate>{title}</Text>
@@ -119,8 +119,8 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
       </Group>
 
       <Box
-        className="flex-1 bg-[#121212] rounded overflow-hidden"
-        style={{ margin: '-4px -8px' }}
+        className="flex-1 rounded overflow-hidden"
+        style={{ margin: '-4px -8px', backgroundColor: 'var(--background-primary)' }}
       >
         <pre className="m-0 p-3 overflow-x-auto text-xs font-mono h-full max-h-[250px] custom-scrollbar">
           <code ref={codeRef} className="block">{content}</code>

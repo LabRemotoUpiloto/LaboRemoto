@@ -7,6 +7,7 @@ import LogsPage from '../../pages/logs/LogsPage'
 import SftpPage from '../../pages/session/SftpPage'
 import SnippetsPage from '../../pages/session/SnippetsPage'
 import PracticesPage from '../../pages/practices/PracticesPage'
+import ReservasPage from '../../pages/reservas/ReservasPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 
@@ -73,6 +74,8 @@ const HomeContainer: React.FC<Props> = ({
         <SnippetsPage />
       ) : selectedPage === 'practices' ? (
         <PracticesPage onStartPractice={onStartPractice} />
+      ) : selectedPage === 'reservas' ? (
+        <ReservasPage />
       ) : (
         <LandingPage
           onStartTutorial={() => onOpenPanel('landing')}
