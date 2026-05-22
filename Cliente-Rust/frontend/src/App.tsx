@@ -10,6 +10,7 @@ import { Notifications } from '@mantine/notifications'
 // Layout
 import Header from './components/layout/header/Header'
 import Sidebar from './components/layout/Sidebar'
+import { isMacOS } from './utils/platform'
 import HomeContainer from './components/layout/HomeContainer'
 import SessionContainer from './components/layout/SessionContainer'
 import LogTabsContainer from './components/layout/LogTabsContainer'
@@ -227,22 +228,22 @@ const AppMain: React.FC = () => {
           ].filter(Boolean).join(' ')}
           style={{ '--header-height': showHeader ? '46px' : '0px' } as React.CSSProperties}
         >
-          {/* Franja drag global — toda la parte superior de la ventana arrastra
-              z-index 100: encima del main-content (default) pero debajo de sidebar (2100),
-              header (2000) y modales/dropdowns Mantine (200-300) */}
-          <div
-            data-tauri-drag-region
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '60px',
-              zIndex: 100,
-              cursor: 'grab',
-              userSelect: 'none',
-            }}
-          />
+          {/* macOS (titleBar overlay): franja drag sobre el contenido; Win/Linux usan barra nativa */}
+          {isMacOS() && (
+            <div
+              data-tauri-drag-region
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '60px',
+                zIndex: 100,
+                cursor: 'grab',
+                userSelect: 'none',
+              }}
+            />
+          )}
 
           {showHeader && (
             <Header

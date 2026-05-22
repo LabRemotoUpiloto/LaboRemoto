@@ -10,6 +10,7 @@
     "build": "cd backend && cargo tauri build",
     "build:frontend": "npm run build --prefix frontend",
     "build:backend": "cd backend && cargo tauri build",
+    "build:windows": "bash scripts/build-windows-cross.sh",
     "install:frontend": "npm install --prefix frontend"
   }
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
+import { isMacOS } from '../../utils/platform';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import {
   MonitorIcon,
@@ -49,6 +50,7 @@ const sections = [
 
 const Sidebar: React.FC<SidebarProps> = ({ activePanel, onOpenPanel }) => {
   const [appVersion, setAppVersion] = useState<string>('');
+  const showMacTitleBarZone = isMacOS();
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => setAppVersion(''));
@@ -71,18 +73,20 @@ const Sidebar: React.FC<SidebarProps> = ({ activePanel, onOpenPanel }) => {
         boxShadow: 'var(--shadow-sm)',
       }}
     >
-      {/* Zona drag — área natural superior para mover la ventana (contiene traffic lights macOS) */}
-      <Box
-        data-tauri-drag-region
-        className="shrink-0"
-        style={{
-          height: '48px',
-          cursor: 'grab',
-          userSelect: 'none',
-        }}
-      />
+      {/* macOS: espacio para traffic lights + arrastre; Win/Linux usan barra nativa */}
+      {showMacTitleBarZone && (
+        <Box
+          data-tauri-drag-region
+          className="shrink-0"
+          style={{
+            height: '48px',
+            cursor: 'grab',
+            userSelect: 'none',
+          }}
+        />
+      )}
 
-      {/* App identity — branding LaboRemoto debajo de la zona drag */}
+      {/* App identity */}
       <Box
         className="shrink-0 flex items-center px-4 border-b"
         style={{
