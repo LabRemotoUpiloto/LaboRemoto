@@ -3,14 +3,40 @@
 .app-container {
   display: flex;
   height: 100vh;
-  --header-height: 44px;
+  --header-height: 0px;
   --sidebar-width: 200px;
   background-color: var(--background-primary);
 }
 
 .app-container.h2-visible {
-  --header-height: 44px; /* unified header */
+  --header-height: 0px;
 }
+
+/* Franja invisible de arrastre de ventana (macOS, titleBar overlay) */
+.mac-window-drag-strip {
+  position: fixed;
+  top: 0;
+  left: calc(var(--sidebar-width) + 36px);
+  right: 0;
+  height: 44px;
+  z-index: 5;
+}
+
+.mac-window-drag-strip--local {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  z-index: 1;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.chat-messages-area--inset-top {
+  padding-top: 44px !important;
+}
+
 
 .app-header {
   position: fixed;

@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 import { isMacOS } from '../../utils/platform';
+import { WindowDragZone } from '../window/WindowDragZone';
+import SidebarSessions from './SidebarSessions';
+import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
+import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import {
   MonitorIcon,
   CompassIcon,
@@ -17,8 +21,21 @@ import {
 interface SidebarProps {
   activePanel: string | null;
   onOpenPanel: (id: string) => void;
-  activeSessionId?: string | null;
-  selectedPage?: string | null;
+  tabs?: Tab[];
+  activeTabId?: string;
+  onTabClick?: (id: string) => void;
+  onCloseTab?: (id: string) => void;
+  onNewSession?: () => void;
+  hasSessions?: boolean;
+  showSessionActions?: boolean;
+  activeView?: ActiveView;
+  onViewChange?: (view: ActiveView) => void;
+  isChatOpen?: boolean;
+  onToggleChat?: () => void;
+  onToggleCamera?: () => void;
+  onTogglePins?: () => void;
+  isCameraActive?: boolean;
+  isPinsActive?: boolean;
 }
 
 const sections = [
@@ -48,7 +65,25 @@ const sections = [
   },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ activePanel, onOpenPanel }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  activePanel,
+  onOpenPanel,
+  tabs = [],
+  activeTabId = '',
+  onTabClick,
+  onCloseTab,
+  onNewSession,
+  hasSessions = false,
+  showSessionActions = false,
+  activeView = 'terminal',
+  onViewChange,
+  isChatOpen = false,
+  onToggleChat,
+  onToggleCamera,
+  onTogglePins,
+  isCameraActive = false,
+  isPinsActive = false,
+}) => {
   const [appVersion, setAppVersion] = useState<string>('');
   const showMacTitleBarZone = isMacOS();
 
@@ -75,14 +110,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activePanel, onOpenPanel }) => {
     >
       {/* macOS: espacio para traffic lights + arrastre; Win/Linux usan barra nativa */}
       {showMacTitleBarZone && (
-        <Box
-          data-tauri-drag-region
+        <WindowDragZone
           className="shrink-0"
-          style={{
-            height: '48px',
-            cursor: 'grab',
-            userSelect: 'none',
-          }}
+          style={{ height: '48px' }}
         />
       )}
 
@@ -102,6 +132,29 @@ const Sidebar: React.FC<SidebarProps> = ({ activePanel, onOpenPanel }) => {
           LaboRemoto
         </Text>
       </Box>
+
+      {hasSessions && onTabClick && onCloseTab && onNewSession && (
+        <SidebarSessions
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onTabClick={onTabClick}
+          onCloseTab={onCloseTab}
+          onNewSession={onNewSession}
+        />
+      )}
+
+      {showSessionActions && onViewChange && onToggleChat && (
+        <SidebarSessionActions
+          activeView={activeView}
+          onViewChange={onViewChange}
+          isChatOpen={isChatOpen}
+          onToggleChat={onToggleChat}
+          onToggleCamera={onToggleCamera}
+          onTogglePins={onTogglePins}
+          isCameraActive={isCameraActive}
+          isPinsActive={isPinsActive}
+        />
+      )}
 
       {/* Navigation sections */}
       <Stack

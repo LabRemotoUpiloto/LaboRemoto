@@ -15,7 +15,10 @@ const ChatSearchBar: React.FC<Props> = ({
   searchQuery, setSearchQuery, setSearchOpen,
   searchMatchIds, searchMatchIndex, setSearchMatchIndex,
 }) => (
-  <div className="flex items-center gap-2 h-9 px-3 bg-secondary/95 backdrop-blur-sm border-b border-white/5 shadow-[0_2px_8px_rgba(0,0,0,0.2)] animate-in slide-in-from-top-2 fade-in duration-200 sticky top-[48px] z-[99]">
+  <div
+    className="flex items-center gap-2 h-9 px-3 bg-secondary/95 backdrop-blur-sm border-b border-white/5 shadow-[0_2px_8px_rgba(0,0,0,0.2)] animate-in slide-in-from-top-2 fade-in duration-200 sticky top-0 z-[151]"
+    data-no-window-drag
+  >
     <Search size={13} className="text-white/40 shrink-0" />
     <TextInput
       className="flex-1"

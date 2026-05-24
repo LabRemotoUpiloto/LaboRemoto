@@ -8,7 +8,12 @@ import { isNearBottom } from './chatUtils';
 import { ActionIcon } from '@mantine/core';
 import { ArrowDown } from 'lucide-react';
 
+export type ChatAppearance = 'landing' | 'session';
+
 interface ChatMessageListProps {
+  className?: string;
+  hideWelcome?: boolean;
+  appearance?: ChatAppearance;
   messages: Message[];
   mode: ChatMode;
   isSending: boolean;
@@ -34,6 +39,9 @@ interface ChatMessageListProps {
 }
 
 export default function ChatMessageList({
+  className,
+  hideWelcome = false,
+  appearance = 'session',
   messages, mode, isSending, searchMatchIds, searchMatchIndex, streamingMsgId, streamedText,
   sessionId, showScrollToBottom, messagesRef, setShowScrollToBottom, onScrollToBottom,
   handleSuggestionClick, onDeleteMsg, onSaveEditMsg, onCopyMsg, onRegenerateMsg, onRetryMsg,
@@ -45,7 +53,7 @@ export default function ChatMessageList({
 
   return (
     <div
-      className={`flex-1 min-h-0 pt-[10px] pr-[10px] pb-[24px] pl-[34px] overflow-y-auto overflow-x-hidden flex flex-col gap-[10px] relative custom-scrollbar ${editingMsgId ? ' chat-messages--editing' : ''}`}
+      className={`flex-1 min-h-0 pt-[10px] pr-[10px] pb-[24px] pl-[34px] overflow-y-auto overflow-x-hidden flex flex-col gap-[10px] relative custom-scrollbar ${editingMsgId ? ' chat-messages--editing' : ''} ${className ?? ''}`}
       ref={messagesRef}
       role="log"
       aria-live={isSending ? 'polite' : undefined}
@@ -56,7 +64,7 @@ export default function ChatMessageList({
       style={{ scrollbarGutter: 'stable both-edges' }}
     >
       {/* Welcome state */}
-      {messages.length === 0 && !isSending && (
+      {messages.length === 0 && !isSending && !hideWelcome && (
         <WelcomeMessage mode={mode} handleSuggestionClick={handleSuggestionClick} />
       )}
 
@@ -84,6 +92,7 @@ export default function ChatMessageList({
                 />
               ) : (
                 <AiMessageBubble
+                  appearance={appearance}
                   msg={msg}
                   mode={mode}
                   isSending={isSending}
@@ -106,7 +115,7 @@ export default function ChatMessageList({
 
       {/* Typing indicator */}
       {isSending && (
-        <TypingIndicator streamingMsgId={streamingMsgId} onCancel={onCancel} />
+        <TypingIndicator appearance={appearance} streamingMsgId={streamingMsgId} onCancel={onCancel} />
       )}
 
       {/* Scroll to bottom */}

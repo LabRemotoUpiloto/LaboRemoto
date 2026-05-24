@@ -1,4 +1,5 @@
 import React from 'react';
+import { WindowDragZone } from '../window/WindowDragZone';
 import { ChatMode } from '../chatModes/types';
 import { ModelSelection } from '../chatModes/types';
 import ModeSelect from './ModeSelect';
@@ -35,7 +36,10 @@ const ChatHeader: React.FC<Props> = ({
   return (
     <div className="flex flex-col border-b border-subtle bg-secondary w-full shrink-0 z-10 sticky top-0">
       {/* Top Title Bar */}
-      <div className="flex items-center justify-between h-10 px-3" style={{ backgroundColor: 'var(--background-tertiary)' }}>
+      <WindowDragZone
+        className="flex items-center justify-between h-10 px-3"
+        style={{ backgroundColor: 'var(--background-tertiary)' }}
+      >
         <div className="flex items-center gap-2 overflow-hidden">
           <div className="flex items-center justify-center w-5 h-5 rounded bg-accent/10 text-accent shrink-0">
             <Terminal size={12} strokeWidth={2.5} />
@@ -132,7 +136,7 @@ const ChatHeader: React.FC<Props> = ({
             </ActionIcon>
           )}
         </div>
-      </div>
+      </WindowDragZone>
 
       {/* Selectors Bar */}
       <div className="flex items-center gap-2 p-2 bg-secondary border-b border-subtle relative z-[5]">

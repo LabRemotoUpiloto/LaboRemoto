@@ -8,9 +8,8 @@ import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
 
 // Layout
-import Header from './components/layout/header/Header'
 import Sidebar from './components/layout/Sidebar'
-import { isMacOS } from './utils/platform'
+import { MacWindowDragStrip } from './components/window/MacWindowDragStrip'
 import HomeContainer from './components/layout/HomeContainer'
 import SessionContainer from './components/layout/SessionContainer'
 import LogTabsContainer from './components/layout/LogTabsContainer'
@@ -127,7 +126,6 @@ const AppMain: React.FC = () => {
     openPanel, closePanel: closePanelTab,
     activeView, setActiveView,
     isChatOpen, setIsChatOpen,
-    reorderTabs, reorderPanels,
   } = useAppTabs()
 
   // ── Actualizaciones ──────────────────────────────────────────────────────────
@@ -207,10 +205,8 @@ const AppMain: React.FC = () => {
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
   const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
   const isH2Visible = activePanel === 'terminal'
-
-  // El header solo se muestra cuando hay sesiones activas (tabs de terminal).
-  // En home sin sesiones el layout es sidebar + contenido directo, como Claude.
-  const showHeader = tabs.some(t => t.type === 'session')
+  const hasSessionTabs = tabs.some(t => t.type === 'session')
+  const isSessionActive = activeTab.type === 'session'
 
   return (
     <MantineProvider theme={mantineTheme} defaultColorScheme={mantineColorScheme}>
@@ -226,53 +222,28 @@ const AppMain: React.FC = () => {
             isDomoticaVisible ? 'domotica-open' : '',
             isH2Visible ? 'h2-visible' : '',
           ].filter(Boolean).join(' ')}
-          style={{ '--header-height': showHeader ? '46px' : '0px' } as React.CSSProperties}
         >
-          {/* macOS (titleBar overlay): franja drag sobre el contenido; Win/Linux usan barra nativa */}
-          {isMacOS() && (
-            <div
-              data-tauri-drag-region
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '60px',
-                zIndex: 100,
-                cursor: 'grab',
-                userSelect: 'none',
-              }}
-            />
-          )}
-
-          {showHeader && (
-            <Header
-              activePanel={activePanel}
-              tabs={tabs}
-              activeTabId={activeTabId}
-              onTabClick={handleTabClick}
-              onCloseTab={handleCloseTab}
-              onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
-              activeView={activeView}
-              onViewChange={setActiveView}
-              showViewToggle={activeTab.type === 'session'}
-              isChatOpen={isChatOpen}
-              onToggleChat={() => setIsChatOpen(!isChatOpen)}
-              onReorderTabs={reorderTabs}
-              onReorderPanels={reorderPanels}
-              onToggleCamera={toggleCameraPanel}
-              onTogglePins={togglePinsPanel}
-              onToggleDomotica={toggleDomoticaPanel}
-              isCameraActive={isCameraOpen}
-              isPinsActive={isPinsPanelOpen}
-              isDomoticaActive={isDomoticaPanelOpen}
-            />
-          )}
           <Sidebar
             activePanel={activePanel}
             onOpenPanel={handleOpenPanel}
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onTabClick={handleTabClick}
+            onCloseTab={handleCloseTab}
+            onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
+            showSessionActions={isSessionActive}
+            activeView={activeView}
+            onViewChange={setActiveView}
+            isChatOpen={isChatOpen}
+            onToggleChat={() => setIsChatOpen(!isChatOpen)}
+            onToggleCamera={toggleCameraPanel}
+            onTogglePins={togglePinsPanel}
+            isCameraActive={isCameraOpen}
+            isPinsActive={isPinsPanelOpen}
+            hasSessions={hasSessionTabs}
           />
           <div className="main-content">
+            <MacWindowDragStrip />
             <main className="content-area">
               <div style={{ display: activeTab.type === 'home' ? 'block' : 'none', height: '100%' }}>
                 <HomeContainer

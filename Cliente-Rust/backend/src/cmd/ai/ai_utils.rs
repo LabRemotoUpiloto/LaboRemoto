@@ -39,7 +39,7 @@ pub fn get_claude_api_key() -> Option<String> {
     if let Ok(mut g) = DID_DOTENV.lock() { if !*g { let _ = dotenvy::dotenv(); *g = true; } }
     
     // Intentar múltiples nombres de variables para la API key de Claude
-    let possible_keys = ["CLAUDE_API_KEY", "CLAUDE_CODE_API_KEY"];
+    let possible_keys = ["CLAUDE_API_KEY", "ANTHROPIC_API_KEY", "CLAUDE_CODE_API_KEY"];
     
     for key_name in possible_keys.iter() {
         if let Ok(raw) = std::env::var(key_name) {

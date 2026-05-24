@@ -4,6 +4,7 @@ import { Tab } from './HeaderConstants';
 
 import SessionTabs from './SessionTabs';
 import HeaderActions from './HeaderActions';
+import { WindowDragZone } from '../../window/WindowDragZone';
 
 interface HeaderProps {
   activePanel: string;
@@ -76,8 +77,8 @@ const Header: React.FC<HeaderProps> = ({
 
   const sharedDragProps = { dragOver, dragRef, handleMouseDown, handleMouseEnter, handleMouseUp };
   return (
-    <header
-      data-tauri-drag-region
+    <WindowDragZone
+      as="header"
       className="app-header fixed z-[2000] flex items-center bg-primary transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
       role="banner"
       onMouseUp={handleMouseUpGlobal}
@@ -111,7 +112,7 @@ const Header: React.FC<HeaderProps> = ({
           />
         </div>
       )}
-    </header>
+    </WindowDragZone>
   );
 };
 

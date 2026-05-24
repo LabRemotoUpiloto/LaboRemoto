@@ -11,7 +11,6 @@ import { PlanModeHandler } from './chatModes/classes/PlanModeHandler';
 import { cleanText, isNearBottom } from './chat/chatUtils';
 import ChatMessageList from './chat/ChatMessageList';
 
-import ChatHeader from './chatPane/ChatHeader';
 import ChatSearchBar from './chatPane/ChatSearchBar';
 import ChatInput from './chatPane/ChatInput';
 import ChatHistoryPanel from './chatPane/ChatHistoryPanel';
@@ -26,12 +25,26 @@ import { useChatStorage } from './chatPane/hooks/useChatStorage';
 import { useChatHistoryManager } from './chatPane/hooks/useChatHistoryManager';
 import { useChatModeSwitch } from './chatPane/hooks/useChatModeSwitch';
 
+import AgentHomeHero from '../pages/home/AgentHomeHero';
+import { useDisplayName } from '../pages/home/useDisplayName';
+import ChatFloatingActions from './chatPane/ChatFloatingActions';
+
 type Props = {
   sessionId?: string | null;
   onClose?: () => void;
+  layout?: 'default' | 'home';
+  onOpenPanel?: (panelId: string) => void;
+  onStartTutorial?: () => void;
 };
 
-const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
+const ChatPane: React.FC<Props> = ({
+  sessionId = null,
+  onClose,
+  layout = 'default',
+  onOpenPanel,
+}) => {
+  const isHome = layout === 'home';
+  const displayName = useDisplayName();
   // ── Core State ──
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -334,38 +347,85 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
     }
   };
 
+  const isHomeEmpty = isHome && messages.length === 0 && !isSending;
+
+  const chatInputEl = (
+    <ChatInput
+      input={input} setInput={setInput} mode={mode} isSending={isSending}
+      onSend={handleSend} onCancel={handleCancel} canSend={modeHandlers[mode]?.canSend() ?? false}
+      attachedImage={attachedImage} setAttachedImage={setAttachedImage}
+      attachedFile={attachedFile} setAttachedFile={setAttachedFile}
+      inputRef={inputRef} isComposingRef={isComposingRef} messages={messages}
+      sessionTokens={sessionTokens} setSessionTokens={setSessionTokens} sessionId={sessionId}
+      ctxUsagePct={Math.min(100, (sessionTokens.input / (MODEL_CONTEXT_WINDOW[selectedModel] || 200000)) * 100)}
+      setToast={setToast} showTokenPopover={showTokenPopover} setShowTokenPopover={setShowTokenPopover}
+      variant={isHomeEmpty ? 'pill' : 'default'}
+      selectedModel={selectedModel}
+      onModelChange={setSelectedModel}
+      footerMinimal={isHome}
+      onModeSwitch={handleModeSwitch}
+      showHistory={showHistory}
+      onToggleHistory={() => setShowHistory(o => !o)}
+      onClose={onClose}
+      onNewChat={handleNewChat}
+    />
+  );
+
   // ── Render ──
   return (
-    <div className="flex flex-col w-full h-full bg-secondary font-sans text-[13.5px] leading-[1.65] overflow-hidden relative">
-      <ChatHeader
-        mode={mode} onModeSwitch={handleModeSwitch} sessionId={sessionId}
-        selectedModel={selectedModel} onModelChange={setSelectedModel}
-        showHistory={showHistory} onToggleHistory={() => setShowHistory(o => !o)}
-        searchOpen={searchOpen} onToggleSearch={() => { setSearchOpen(o => !o); if (searchOpen) setSearchQuery(''); }}
-        onExportMd={handleExportMd} onExportHtml={handleExportHtml}
-        messagesEmpty={messages.length === 0}
-        showShortcuts={showShortcuts} onToggleShortcuts={() => setShowShortcuts(s => !s)}
-        onNewChat={handleNewChat} onClose={onClose}
-      />
+    <div
+      className={[
+        isHome ? 'agent-landing-chat' : 'chat-pane-root flex flex-col w-full h-full bg-secondary font-sans text-[13.5px] leading-[1.65] overflow-hidden relative',
+        isHomeEmpty ? 'agent-landing-chat--empty' : isHome ? 'agent-landing-chat--has-messages' : '',
+      ].filter(Boolean).join(' ')}
+    >
+      {isHome && (
+        <ChatFloatingActions
+          hasMessages={messages.length > 0}
+          showHistory={showHistory}
+          searchOpen={searchOpen}
+          onNewChat={handleNewChat}
+          onToggleHistory={() => setShowHistory(o => !o)}
+          onToggleSearch={() => {
+            setSearchOpen(o => !o);
+            if (searchOpen) setSearchQuery('');
+          }}
+        />
+      )}
       {searchOpen && (
         <ChatSearchBar
           searchQuery={searchQuery} setSearchQuery={setSearchQuery} setSearchOpen={setSearchOpen}
           searchMatchIds={searchMatchIds} searchMatchIndex={searchMatchIndex} setSearchMatchIndex={setSearchMatchIndex}
         />
       )}
-      <ChatMessageList
-        messages={messages} mode={mode} isSending={isSending}
-        searchMatchIds={searchMatchIds} searchMatchIndex={searchMatchIndex}
-        streamingMsgId={streamingMsgId} streamedText={streamedText}
-        sessionId={sessionId} showScrollToBottom={showScrollToBottom}
-        messagesRef={messagesRef} setShowScrollToBottom={setShowScrollToBottom}
-        onScrollToBottom={() => { const el = messagesRef.current; if (el) { el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); setShowScrollToBottom(false); } }}
-        handleSuggestionClick={text => handleSendRef.current?.(text)}
-        onDeleteMsg={handleDeleteMsg} onSaveEditMsg={handleSaveEditMsg}
-        onCopyMsg={async text => { try { await navigator.clipboard.writeText(text); setToast('Copiado al portapapeles'); setTimeout(() => setToast(null), 2000); } catch {} }}
-        onRegenerateMsg={handleRegenerate} onRetryMsg={handleRetry} onAnalyzeCandidate={handleAnalyzeCandidate}
-        onSetInput={setInput} onCancel={handleCancel} setLastCommand={setLastCommand}
-      />
+      {isHomeEmpty ? (
+        <div className="agent-landing-empty">
+          <AgentHomeHero
+            displayName={displayName}
+            mode={mode}
+            onSuggestionClick={text => handleSendRef.current?.(text)}
+            onOpenPanel={onOpenPanel}
+          />
+          {chatInputEl}
+        </div>
+      ) : (
+        <ChatMessageList
+          className={isHome ? 'chat-messages-area flex-1 min-h-0' : 'flex-1 min-h-0 chat-messages-area--inset-top'}
+          messages={messages} mode={mode} isSending={isSending}
+          hideWelcome={isHome}
+          appearance={isHome ? 'landing' : 'session'}
+          searchMatchIds={searchMatchIds} searchMatchIndex={searchMatchIndex}
+          streamingMsgId={streamingMsgId} streamedText={streamedText}
+          sessionId={sessionId} showScrollToBottom={showScrollToBottom}
+          messagesRef={messagesRef} setShowScrollToBottom={setShowScrollToBottom}
+          onScrollToBottom={() => { const el = messagesRef.current; if (el) { el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); setShowScrollToBottom(false); } }}
+          handleSuggestionClick={text => handleSendRef.current?.(text)}
+          onDeleteMsg={handleDeleteMsg} onSaveEditMsg={handleSaveEditMsg}
+          onCopyMsg={async text => { try { await navigator.clipboard.writeText(text); setToast('Copiado al portapapeles'); setTimeout(() => setToast(null), 2000); } catch {} }}
+          onRegenerateMsg={handleRegenerate} onRetryMsg={handleRetry} onAnalyzeCandidate={handleAnalyzeCandidate}
+          onSetInput={setInput} onCancel={handleCancel} setLastCommand={setLastCommand}
+        />
+      )}
       {toast && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[150] px-4 py-2 bg-white/10 backdrop-blur-md text-white text-xs rounded-full shadow-lg border border-white/20 animate-in fade-in slide-in-from-top-4">
           {toast}
@@ -376,16 +436,7 @@ const ChatPane: React.FC<Props> = ({ sessionId = null, onClose }) => {
         onAnalyze={() => { archiveCurrentChatRef.current?.(); loadedHistoryIdRef.current = null; messageCountAtLoadRef.current = 0; setAttachedImage(null); setMode('agente'); setErrorBanner(null); setTerminalActivity(false); setInput('hay un error en la terminal, revísalo y corrígelo'); setTimeout(() => inputRef.current?.focus(), 50); }}
         terminalActivity={terminalActivity} onDismissActivity={() => setTerminalActivity(false)}
       />
-      <ChatInput
-        input={input} setInput={setInput} mode={mode} isSending={isSending}
-        onSend={handleSend} onCancel={handleCancel} canSend={modeHandlers[mode]?.canSend() ?? false}
-        attachedImage={attachedImage} setAttachedImage={setAttachedImage}
-        attachedFile={attachedFile} setAttachedFile={setAttachedFile}
-        inputRef={inputRef} isComposingRef={isComposingRef} messages={messages}
-        sessionTokens={sessionTokens} setSessionTokens={setSessionTokens} sessionId={sessionId}
-        ctxUsagePct={Math.min(100, (sessionTokens.input / (MODEL_CONTEXT_WINDOW[selectedModel] || 200000)) * 100)}
-        setToast={setToast} showTokenPopover={showTokenPopover} setShowTokenPopover={setShowTokenPopover}
-      />
+      {!isHomeEmpty && chatInputEl}
       <ChatHistoryPanel
         showHistory={showHistory} setShowHistory={setShowHistory} historySearch={historySearch} setHistorySearch={setHistorySearch}
         historyEntries={historyEntries} pendingDeleteId={pendingDeleteId} hostKey={hostKey}

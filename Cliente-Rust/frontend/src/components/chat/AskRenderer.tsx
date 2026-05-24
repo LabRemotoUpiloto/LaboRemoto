@@ -3,12 +3,14 @@ import { invoke } from '@tauri-apps/api/core';
 import { cleanText } from './chatUtils';
 import { Message } from '../chatModes/types';
 import CodeBlock from './CodeBlock';
+import type { ChatAppearance } from './ChatMessageList';
 
 interface AskRendererProps {
   content: string;
   sessionId?: string | null;
   setLastCommand?: (cmd: string) => Promise<void> | void;
   mode?: string;
+  appearance?: ChatAppearance;
 }
 
 // Detecta si un bloque de código es ejecutable (script completo) o informativo (ejemplo)
@@ -59,7 +61,8 @@ const isExecutableCode = (code: string, precedingText: string): boolean => {
 };
 
 // Renderizador del modo ASK (reutilizable para respuestas AI)
-export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, setLastCommand, mode }) => {
+export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, setLastCommand, mode, appearance = 'session' }) => {
+  const isLanding = appearance === 'landing';
   const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string; precedingText?: string }> = [];
   const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
 
@@ -171,13 +174,32 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
 
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i} className="font-semibold text-white/95">{part.slice(2, -2)}</strong>;
+        return (
+          <strong key={i} className={isLanding ? 'font-semibold text-[var(--text-primary)]' : 'font-semibold text-white/95'}>
+            {part.slice(2, -2)}
+          </strong>
+        );
       }
       if (part.startsWith('*') && part.endsWith('*')) {
-        return <em key={i} className="italic text-white/80">{part.slice(1, -1)}</em>;
+        return (
+          <em key={i} className={isLanding ? 'italic text-[var(--text-secondary)]' : 'italic text-white/80'}>
+            {part.slice(1, -1)}
+          </em>
+        );
       }
       if (part.startsWith('`') && part.endsWith('`')) {
-        return <code key={i} className="bg-white/10 px-1.5 py-0.5 rounded font-mono text-[12px] text-accent-light break-words">{part.slice(1, -1)}</code>;
+        return (
+          <code
+            key={i}
+            className={
+              isLanding
+                ? 'bg-[var(--background-tertiary)] px-1.5 py-0.5 rounded font-mono text-[12px] text-[var(--accent-primary)] break-words'
+                : 'bg-white/10 px-1.5 py-0.5 rounded font-mono text-[12px] text-accent-light break-words'
+            }
+          >
+            {part.slice(1, -1)}
+          </code>
+        );
       }
       // return normal text
       return <React.Fragment key={i}>{part}</React.Fragment>;
@@ -206,7 +228,12 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
       // Horizontal Rules
       if (/^---$/.test(line) || /^\*\*\*$/.test(line)) {
         flush();
-        nodes.push(<hr className="my-4 border-t border-white/10" key={`hr-${nodes.length}`} />);
+        nodes.push(
+          <hr
+            className={isLanding ? 'my-4 border-t border-[var(--border-subtle)]' : 'my-4 border-t border-white/10'}
+            key={`hr-${nodes.length}`}
+          />,
+        );
         continue;
       }
 
@@ -226,17 +253,32 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
         const headers = headerLine ? parseCells(headerLine) : [];
         const tableKey = `tbl-${nodes.length}`;
         nodes.push(
-          <div key={tableKey} className="overflow-x-auto w-full mb-3 rounded-lg border border-white/10 bg-black/20">
+          <div
+            key={tableKey}
+            className={
+              isLanding
+                ? 'overflow-x-auto w-full mb-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--background-tertiary)]'
+                : 'overflow-x-auto w-full mb-3 rounded-lg border border-white/10 bg-black/20'
+            }
+          >
             <table className="w-full text-left text-sm border-collapse m-0">
               {headers.length > 0 && (
-                <thead className="bg-white/5 border-b border-white/10">
-                  <tr>{headers.map((h, hi) => <th className="px-3 py-2 font-medium text-white/80" key={hi}>{parseInlineElements(h)}</th>)}</tr>
+                <thead className={isLanding ? 'bg-[var(--background-primary)] border-b border-[var(--border-subtle)]' : 'bg-white/5 border-b border-white/10'}>
+                  <tr>{headers.map((h, hi) => (
+                    <th className={`px-3 py-2 font-medium ${isLanding ? 'text-[var(--text-primary)]' : 'text-white/80'}`} key={hi}>
+                      {parseInlineElements(h)}
+                    </th>
+                  ))}</tr>
                 </thead>
               )}
-              <tbody className="divide-y divide-white/5">
+              <tbody className={isLanding ? 'divide-y divide-[var(--border-subtle)]' : 'divide-y divide-white/5'}>
                 {dataRows.map((row, ri) => (
-                  <tr key={ri} className="hover:bg-white/5 transition-colors">
-                    {parseCells(row).map((cell, ci) => <td className="px-3 py-2 text-white/70" key={ci}>{parseInlineElements(cell)}</td>)}
+                  <tr key={ri} className={isLanding ? 'hover:bg-[var(--interactive-hover)] transition-colors' : 'hover:bg-white/5 transition-colors'}>
+                    {parseCells(row).map((cell, ci) => (
+                      <td className={`px-3 py-2 ${isLanding ? 'text-[var(--text-secondary)]' : 'text-white/70'}`} key={ci}>
+                        {parseInlineElements(cell)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
@@ -259,10 +301,24 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
           subIndex = 0; 
         } 
         
-        let headingClass = "font-medium text-white/90 mt-4 mb-2 first:mt-0";
-        if (level === 1) headingClass = "text-lg font-semibold text-white mt-5 mb-3 first:mt-0 border-b border-white/10 pb-1";
-        if (level === 2) headingClass = "text-[15px] font-semibold text-white/95 mt-4 mb-2 first:mt-0 border-b border-white/5 pb-1";
-        if (level === 3) headingClass = "text-[14px] font-medium text-white/90 mt-3 mb-1.5 first:mt-0";
+        let headingClass = isLanding
+          ? 'font-medium text-[var(--text-primary)] mt-4 mb-2 first:mt-0'
+          : 'font-medium text-white/90 mt-4 mb-2 first:mt-0';
+        if (level === 1) {
+          headingClass = isLanding
+            ? 'text-lg font-semibold text-[var(--text-primary)] mt-5 mb-3 first:mt-0 border-b border-[var(--border-subtle)] pb-1.5'
+            : 'text-lg font-semibold text-white mt-5 mb-3 first:mt-0 border-b border-white/10 pb-1';
+        }
+        if (level === 2) {
+          headingClass = isLanding
+            ? 'text-[15px] font-semibold text-[var(--text-primary)] mt-4 mb-2 first:mt-0'
+            : 'text-[15px] font-semibold text-white/95 mt-4 mb-2 first:mt-0 border-b border-white/5 pb-1';
+        }
+        if (level === 3) {
+          headingClass = isLanding
+            ? 'text-[14px] font-medium text-[var(--text-secondary)] mt-3 mb-1.5 first:mt-0 uppercase tracking-wide'
+            : 'text-[14px] font-medium text-white/90 mt-3 mb-1.5 first:mt-0';
+        }
 
         nodes.push(<Tag className={headingClass} key={`h-${nodes.length}`}>{parseInlineElements(text)}</Tag>); 
         continue; 
@@ -335,7 +391,12 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
           hideActions={!isExecutableCode(b.body, b.precedingText || '')}
         />
       ) : (
-        <div className="w-full overflow-hidden text-white/80" key={`p-${i}`}>{renderPara(b.body)}</div>
+        <div
+          className={`w-full overflow-hidden ${isLanding ? 'text-[var(--text-secondary)]' : 'text-white/80'}`}
+          key={`p-${i}`}
+        >
+          {renderPara(b.body)}
+        </div>
       ))}
     </div>
   );
