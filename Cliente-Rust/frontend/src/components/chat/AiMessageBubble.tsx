@@ -1,5 +1,5 @@
 import React from 'react';
-import AgentStepsRenderer from './AgentStepsRenderer';
+import AssistantActivityTimeline, { buildAssistantTimeline } from './AssistantActivityTimeline';
 import AskRenderer from './AskRenderer';
 import ToolResultRenderer from './ToolResultRenderer';
 import DiffView from '../analysis/DiffView';
@@ -34,13 +34,22 @@ export default function AiMessageBubble({
   const isStreaming = streamingMsgId === msg.id;
   const isError = msg.text.startsWith('Error');
   const isLanding = appearance === 'landing';
+  const answerText = isStreaming ? streamedText : msg.text;
+  const hasAnswerContent = answerText.trim().length > 0;
+  const showActivityTimeline = !isError;
+  const timelineEntries = buildAssistantTimeline({
+    mode,
+    isActive: isStreaming,
+    hasStreamedText: hasAnswerContent,
+    toolSteps: msg.meta?.toolSteps,
+  });
 
   const actionBtnClass = isLanding
     ? 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]'
     : 'text-white/40 hover:text-white hover:bg-white/10';
 
   return (
-    <div className={`relative flex flex-col group/ai items-start w-full ${isStreaming ? 'animate-pulse' : ''}`}>
+    <div className={`relative flex flex-col group/ai items-start w-full`}>
       <div
         className={
           isLanding
@@ -59,26 +68,13 @@ export default function AiMessageBubble({
           </div>
         )}
 
-        {isLanding && (
-          <div
-            className="flex items-center gap-2 mb-3 pb-2 border-b"
-            style={{ borderColor: 'var(--border-subtle)' }}
+        {isLanding && msg.timestamp && (
+          <span
+            className="block text-[10px] mb-2 tabular-nums text-right"
+            style={{ color: 'var(--text-muted)' }}
           >
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-              style={{ backgroundColor: 'var(--accent-primary-subtle)' }}
-            >
-              <Terminal size={13} style={{ color: 'var(--accent-primary)' }} strokeWidth={2.5} />
-            </div>
-            <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              Asistente
-            </span>
-            {msg.timestamp && (
-              <span className="text-[10px] ml-auto tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                {fmtTime(msg.timestamp)}
-              </span>
-            )}
-          </div>
+            {fmtTime(msg.timestamp)}
+          </span>
         )}
 
         {!isLanding && msg.timestamp && (
@@ -88,17 +84,42 @@ export default function AiMessageBubble({
         )}
 
         <div className="flex flex-col gap-2 overflow-hidden max-w-full">
-          {msg.meta?.toolSteps && msg.meta.toolSteps.length > 0 && (
-            <AgentStepsRenderer steps={msg.meta.toolSteps} />
-          )}
-          {!msg.meta?.fileAnalysisDisambiguation && (
-            <AskRenderer
-              content={isStreaming ? streamedText : msg.text}
-              sessionId={sessionId || undefined}
-              setLastCommand={setLastCommand}
-              mode={mode}
+          {showActivityTimeline && (
+            <AssistantActivityTimeline
               appearance={appearance}
+              entries={timelineEntries}
             />
+          )}
+
+          {!msg.meta?.fileAnalysisDisambiguation && (hasAnswerContent || !showActivityTimeline) && (
+            <div className={showActivityTimeline ? 'assistant-answer-block' : undefined}>
+              {showActivityTimeline && (
+                <div
+                  className={
+                    isLanding
+                      ? 'assistant-answer-block__heading assistant-answer-block__heading--landing'
+                      : 'text-[11px] font-semibold uppercase tracking-wide text-white/40 mt-2 mb-2 pt-2 border-t border-white/10'
+                  }
+                >
+                  Respuesta
+                </div>
+              )}
+              {hasAnswerContent ? (
+                <AskRenderer
+                  content={answerText}
+                  sessionId={sessionId || undefined}
+                  setLastCommand={setLastCommand}
+                  mode={mode}
+                  appearance={appearance}
+                />
+              ) : showActivityTimeline ? (
+                <p
+                  className={`assistant-answer-block__placeholder m-0 text-[12px] ${isLanding ? 'assistant-answer-block__placeholder--landing' : 'text-white/35'}`}
+                >
+                  La respuesta aparecerá aquí cuando esté lista.
+                </p>
+              ) : null}
+            </div>
           )}
           {msg.meta?.toolAction && (
             <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />

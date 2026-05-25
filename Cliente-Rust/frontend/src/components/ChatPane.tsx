@@ -20,14 +20,18 @@ import { MODEL_CONTEXT_WINDOW } from './chatPane/chatPane.constants';
 
 // Hooks extraídos
 import { useTerminalMonitor } from './chatPane/hooks/useTerminalMonitor';
+import { usePi4ChatSession } from './chatPane/hooks/usePi4ChatSession';
 import { useChatExport } from './chatPane/hooks/useChatExport';
 import { useChatStorage } from './chatPane/hooks/useChatStorage';
 import { useChatHistoryManager } from './chatPane/hooks/useChatHistoryManager';
 import { useChatModeSwitch } from './chatPane/hooks/useChatModeSwitch';
 
 import AgentHomeHero from '../pages/home/AgentHomeHero';
+import ChatToast from './chat/ChatToast';
 import { useDisplayName } from '../pages/home/useDisplayName';
 import ChatFloatingActions from './chatPane/ChatFloatingActions';
+import { pi4AgentReady as fetchPi4AgentReady } from '../services/ai.service';
+import { vncStop } from '../services/ssh.service';
 
 type Props = {
   sessionId?: string | null;
@@ -81,6 +85,11 @@ const ChatPane: React.FC<Props> = ({
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTokenPopover, setShowTokenPopover] = useState(false);
   const [hostKey, setHostKey] = useState<string>(sessionId ?? 'default');
+  const [pi4Ready, setPi4Ready] = useState(false);
+
+  useEffect(() => {
+    fetchPi4AgentReady().then(setPi4Ready).catch(() => setPi4Ready(false));
+  }, []);
 
   // Refs
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -109,8 +118,129 @@ const ChatPane: React.FC<Props> = ({
     plan: new PlanModeHandler(),
   }), []);
 
+  const {
+    pi4ChatSessionId,
+    pi4SshCommandLine,
+    pi4ChatConnecting,
+    pi4ChatError,
+    pi4ChatLabel,
+    ensurePi4Session,
+    disconnectPi4Session,
+  } = usePi4ChatSession();
+
+  const [showPi4TerminalInChat, setShowPi4TerminalInChat] = useState(false);
+  const [showPi4CamerasInChat, setShowPi4CamerasInChat] = useState(false);
+  const [showPi4DesktopInChat, setShowPi4DesktopInChat] = useState(false);
+
+  const pi4TerminalEmbedActive = useMemo(
+    () => showPi4TerminalInChat || messages.some(m => m.meta?.embeddedPi4Terminal),
+    [showPi4TerminalInChat, messages],
+  );
+  const pi4CamerasEmbedActive = useMemo(
+    () => showPi4CamerasInChat || messages.some(m => m.meta?.embeddedPi4Cameras),
+    [showPi4CamerasInChat, messages],
+  );
+  const pi4DesktopEmbedActive = useMemo(
+    () => showPi4DesktopInChat || messages.some(m => m.meta?.embeddedPi4Desktop),
+    [showPi4DesktopInChat, messages],
+  );
+
+  const terminalMonitorSessionId =
+    sessionId ??
+    ((pi4TerminalEmbedActive || pi4CamerasEmbedActive || pi4DesktopEmbedActive) ? pi4ChatSessionId : null);
+
+  const scrollChatToBottom = useCallback(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      setShowScrollToBottom(false);
+    });
+  }, []);
+
+  const openPi4TerminalInChat = useCallback(async (): Promise<string | null> => {
+    setShowPi4TerminalInChat(true);
+    scrollChatToBottom();
+    const id = await ensurePi4Session();
+    if (!id) setShowPi4TerminalInChat(false);
+    else scrollChatToBottom();
+    return id;
+  }, [ensurePi4Session, scrollChatToBottom]);
+
+  const openPi4CamerasInChat = useCallback(async (): Promise<string | null> => {
+    setShowPi4CamerasInChat(true);
+    scrollChatToBottom();
+    const id = await ensurePi4Session();
+    if (!id) setShowPi4CamerasInChat(false);
+    else scrollChatToBottom();
+    return id;
+  }, [ensurePi4Session, scrollChatToBottom]);
+
+  const openPi4DesktopInChat = useCallback(async (): Promise<string | null> => {
+    setShowPi4DesktopInChat(true);
+    scrollChatToBottom();
+    if (sessionId) {
+      scrollChatToBottom();
+      return sessionId;
+    }
+    const id = await ensurePi4Session();
+    if (!id) setShowPi4DesktopInChat(false);
+    else scrollChatToBottom();
+    return id;
+  }, [sessionId, ensurePi4Session, scrollChatToBottom]);
+
+  const pi4EmbedStillNeeded = useCallback(
+    (opts?: { exceptTerminal?: boolean; exceptCameras?: boolean; exceptDesktop?: boolean }) => {
+      const term =
+        (opts?.exceptTerminal ? false : showPi4TerminalInChat) ||
+        messages.some(m => m.meta?.embeddedPi4Terminal);
+      const cam =
+        (opts?.exceptCameras ? false : showPi4CamerasInChat) ||
+        messages.some(m => m.meta?.embeddedPi4Cameras);
+      const desk =
+        (opts?.exceptDesktop ? false : showPi4DesktopInChat) ||
+        messages.some(m => m.meta?.embeddedPi4Desktop);
+      return term || cam || desk;
+    },
+    [showPi4TerminalInChat, showPi4CamerasInChat, showPi4DesktopInChat, messages],
+  );
+
+  const closePi4TerminalInChat = useCallback(() => {
+    setShowPi4TerminalInChat(false);
+    setMessages(prev => prev.map(m =>
+      m.meta?.embeddedPi4Terminal
+        ? { ...m, meta: { ...m.meta, embeddedPi4Terminal: false } }
+        : m,
+    ));
+    if (!pi4EmbedStillNeeded({ exceptTerminal: true })) void disconnectPi4Session();
+  }, [pi4EmbedStillNeeded, disconnectPi4Session, setMessages]);
+
+  const closePi4CamerasInChat = useCallback(() => {
+    setShowPi4CamerasInChat(false);
+    setMessages(prev => prev.map(m =>
+      m.meta?.embeddedPi4Cameras
+        ? { ...m, meta: { ...m.meta, embeddedPi4Cameras: false } }
+        : m,
+    ));
+    if (!pi4EmbedStillNeeded({ exceptCameras: true })) void disconnectPi4Session();
+  }, [pi4EmbedStillNeeded, disconnectPi4Session, setMessages]);
+
+  const closePi4DesktopInChat = useCallback(() => {
+    setShowPi4DesktopInChat(false);
+    setMessages(prev => prev.map(m =>
+      m.meta?.embeddedPi4Desktop
+        ? { ...m, meta: { ...m.meta, embeddedPi4Desktop: false } }
+        : m,
+    ));
+    const vncSession = sessionId ?? pi4ChatSessionId;
+    if (vncSession) {
+      void vncStop(vncSession).catch(() => {});
+    }
+    if (!sessionId && !pi4EmbedStillNeeded({ exceptDesktop: true })) void disconnectPi4Session();
+  }, [sessionId, pi4ChatSessionId, pi4EmbedStillNeeded, disconnectPi4Session, setMessages]);
+
   // ── Custom Hooks ──
-  const { errorBanner, setErrorBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(sessionId);
+  const { errorBanner, setErrorBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(terminalMonitorSessionId);
   const { handleExportMd, handleExportHtml } = useChatExport(messages, setToast);
   const { sessionTokens, setSessionTokens } = useChatStorage(sessionId, mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
   
@@ -125,7 +255,7 @@ const ChatPane: React.FC<Props> = ({
   );
 
   const { showModeConfirm, handleModeSwitch, confirmModeSwitch, cancelModeSwitch } = useChatModeSwitch(
-    mode, setMode, messages, setMessages, sessionId, attachedImage, setAttachedImage, attachedFile, setAttachedFile,
+    mode, setMode, messages, setMessages, sessionId, pi4Ready, attachedImage, setAttachedImage, attachedFile, setAttachedFile,
     archiveCurrentChatRef, clearMemory, loadedHistoryIdRef, messageCountAtLoadRef, skipRestoreRef, setToast
   );
 
@@ -139,6 +269,11 @@ const ChatPane: React.FC<Props> = ({
       setShowScrollToBottom(false);
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!pi4TerminalEmbedActive && !pi4CamerasEmbedActive && !pi4DesktopEmbedActive) return;
+    scrollChatToBottom();
+  }, [pi4TerminalEmbedActive, pi4CamerasEmbedActive, pi4DesktopEmbedActive, pi4ChatSessionId, pi4ChatConnecting, scrollChatToBottom]);
 
   useEffect(() => {
     if (!streamedText || !streamingMsgId) return;
@@ -255,7 +390,20 @@ const ChatPane: React.FC<Props> = ({
   };
 
   const buildModeContext = (): ModeHandlerContext => ({
-    sessionId, agentState, setAgentState: s => setAgentState({ ...s }), messages, setMessages, setIsSending, cleanText, invokeAsk, setStreamingMsgId, setStreamedText,
+    sessionId,
+    pi4TerminalSessionId: pi4ChatSessionId,
+    openPi4TerminalInChat,
+    openPi4CamerasInChat,
+    openPi4DesktopInChat,
+    agentState,
+    setAgentState: s => setAgentState({ ...s }),
+    messages,
+    setMessages,
+    setIsSending,
+    cleanText,
+    invokeAsk,
+    setStreamingMsgId,
+    setStreamedText,
   });
 
   const handleSend = async (overrideText?: string) => {
@@ -364,6 +512,7 @@ const ChatPane: React.FC<Props> = ({
       onModelChange={setSelectedModel}
       footerMinimal={isHome}
       onModeSwitch={handleModeSwitch}
+      pi4AgentReady={pi4Ready}
       showHistory={showHistory}
       onToggleHistory={() => setShowHistory(o => !o)}
       onClose={onClose}
@@ -423,20 +572,77 @@ const ChatPane: React.FC<Props> = ({
           onDeleteMsg={handleDeleteMsg} onSaveEditMsg={handleSaveEditMsg}
           onCopyMsg={async text => { try { await navigator.clipboard.writeText(text); setToast('Copiado al portapapeles'); setTimeout(() => setToast(null), 2000); } catch {} }}
           onRegenerateMsg={handleRegenerate} onRetryMsg={handleRetry} onAnalyzeCandidate={handleAnalyzeCandidate}
-          onSetInput={setInput} onCancel={handleCancel} setLastCommand={setLastCommand}
+          onSetInput={setInput} setLastCommand={setLastCommand}
+          embeddedTerminal={pi4TerminalEmbedActive ? {
+            sessionId: pi4ChatSessionId,
+            sshCommandLine: pi4SshCommandLine,
+            connecting: pi4ChatConnecting,
+            error: pi4ChatError,
+            label: pi4ChatLabel,
+            onClose: closePi4TerminalInChat,
+          } : null}
+          embeddedCameras={pi4CamerasEmbedActive ? {
+            sessionId: pi4ChatSessionId,
+            connecting: pi4ChatConnecting,
+            error: pi4ChatError,
+            label: `Cámaras · ${pi4ChatLabel}`,
+            onClose: closePi4CamerasInChat,
+          } : null}
+          embeddedDesktop={pi4DesktopEmbedActive ? {
+            sessionId: sessionId ?? pi4ChatSessionId,
+            connecting: sessionId ? false : pi4ChatConnecting,
+            error: sessionId ? null : pi4ChatError,
+            label: sessionId ? 'Escritorio remoto' : `Escritorio · ${pi4ChatLabel}`,
+            onClose: closePi4DesktopInChat,
+          } : null}
         />
       )}
-      {toast && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[150] px-4 py-2 bg-white/10 backdrop-blur-md text-white text-xs rounded-full shadow-lg border border-white/20 animate-in fade-in slide-in-from-top-4">
-          {toast}
+      {toast && <ChatToast message={toast} />}
+      {isHome && !isHomeEmpty ? (
+        <div className="agent-landing-chat__footer">
+          <TerminalBanners
+            appearance="landing"
+            errorBanner={errorBanner}
+            onDismissError={() => setErrorBanner(null)}
+            onAnalyze={() => {
+              archiveCurrentChatRef.current?.();
+              loadedHistoryIdRef.current = null;
+              messageCountAtLoadRef.current = 0;
+              setAttachedImage(null);
+              setMode('agente');
+              setErrorBanner(null);
+              setTerminalActivity(false);
+              setInput('hay un error en la terminal, revísalo y corrígelo');
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+            terminalActivity={terminalActivity}
+            onDismissActivity={() => setTerminalActivity(false)}
+          />
+          {chatInputEl}
         </div>
+      ) : (
+        <>
+          <TerminalBanners
+            appearance={isHome ? 'landing' : 'session'}
+            errorBanner={errorBanner}
+            onDismissError={() => setErrorBanner(null)}
+            onAnalyze={() => {
+              archiveCurrentChatRef.current?.();
+              loadedHistoryIdRef.current = null;
+              messageCountAtLoadRef.current = 0;
+              setAttachedImage(null);
+              setMode('agente');
+              setErrorBanner(null);
+              setTerminalActivity(false);
+              setInput('hay un error en la terminal, revísalo y corrígelo');
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+            terminalActivity={terminalActivity}
+            onDismissActivity={() => setTerminalActivity(false)}
+          />
+          {!isHomeEmpty && chatInputEl}
+        </>
       )}
-      <TerminalBanners
-        errorBanner={errorBanner} onDismissError={() => setErrorBanner(null)}
-        onAnalyze={() => { archiveCurrentChatRef.current?.(); loadedHistoryIdRef.current = null; messageCountAtLoadRef.current = 0; setAttachedImage(null); setMode('agente'); setErrorBanner(null); setTerminalActivity(false); setInput('hay un error en la terminal, revísalo y corrígelo'); setTimeout(() => inputRef.current?.focus(), 50); }}
-        terminalActivity={terminalActivity} onDismissActivity={() => setTerminalActivity(false)}
-      />
-      {!isHomeEmpty && chatInputEl}
       <ChatHistoryPanel
         showHistory={showHistory} setShowHistory={setShowHistory} historySearch={historySearch} setHistorySearch={setHistorySearch}
         historyEntries={historyEntries} pendingDeleteId={pendingDeleteId} hostKey={hostKey}

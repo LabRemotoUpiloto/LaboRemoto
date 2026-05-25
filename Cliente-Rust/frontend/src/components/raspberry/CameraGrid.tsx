@@ -1,11 +1,13 @@
 // components/raspberry/CameraGrid.tsx
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useCameraGrid, CameraInfo } from '../../hooks/useCameraGrid'
 import CameraPane from './CameraPane'
 
 interface Props {
   sessionId: string | null
   isActive?: boolean
+  /** Inicia port-forward y polling al montar (p. ej. cámaras embebidas en el chat). */
+  autoStart?: boolean
 }
 
 const CameraIcon = () => (
@@ -31,9 +33,21 @@ function getGridCols(count: number): number {
   return Math.ceil(Math.sqrt(count))
 }
 
-const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true }) => {
+const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = false }) => {
   const { cameras, localPort, piHost, status, error, start, stop } = useCameraGrid(sessionId)
   const [expandedCam, setExpandedCam] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!autoStart || !sessionId || !isActive) return
+    if (status === 'idle') {
+      void start()
+    }
+  }, [autoStart, sessionId, isActive, status, start])
+
+  useEffect(() => {
+    if (!autoStart) return
+    return () => { void stop() }
+  }, [autoStart, stop])
 
   const activeCameras = cameras.filter(c => c.status === 'active')
   const allCameras = cameras

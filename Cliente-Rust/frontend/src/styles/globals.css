@@ -1782,3 +1782,30 @@ html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-html-contai
   border: 1px solid var(--accent-primary);
   color: var(--accent-primary);
 }
+
+/* Toast flotante del chat (historial, copiar, exportar…) */
+.chat-toast {
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, var(--border-color, rgba(128, 128, 128, 0.35)));
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.22),
+    0 0 0 1px color-mix(in srgb, var(--text-primary) 6%, transparent);
+  max-width: min(90vw, 360px);
+}
+
+.chat-toast__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  color: var(--accent-primary);
+}
+
+.chat-toast__message {
+  line-height: 1.35;
+}

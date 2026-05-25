@@ -41,6 +41,7 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       // SSH
       cmd::ssh::terminal::ssh_connect,
+      cmd::ssh::terminal::pi4_ssh_connect,
       cmd::ssh::terminal::ssh_stdin,
       cmd::ssh::terminal::ssh_resize,
       cmd::ssh::terminal::ssh_disconnect,
@@ -121,6 +122,7 @@ pub fn run() {
       cmd::streaming::stream::whep_exchange,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
+      cmd::tools::pi4_config::pi4_agent_ready,
       cmd::tools::tools::agent_chat,
       cmd::tools::tools::plan_chat,
       // MCP (Model Context Protocol) – servidores externos de tools

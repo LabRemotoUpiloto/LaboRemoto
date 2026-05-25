@@ -39,6 +39,7 @@ interface Props {
   onModelChange?: (m: ModelSelection) => void;
   footerMinimal?: boolean;
   onModeSwitch?: (m: ChatMode) => void;
+  pi4AgentReady?: boolean;
   showHistory?: boolean;
   onToggleHistory?: () => void;
   onClose?: () => void;
@@ -58,13 +59,14 @@ const ChatInput: React.FC<Props> = ({
   onModelChange,
   footerMinimal = false,
   onModeSwitch,
+  pi4AgentReady = false,
   showHistory = false,
   onToggleHistory,
   onClose,
   onNewChat,
 }) => {
   const isPill = variant === 'pill';
-  const pillPlaceholder = 'Pregunta al asistente del laboratorio…';
+  const pillPlaceholder = MODE_PLACEHOLDERS[mode];
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textFileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -200,7 +202,7 @@ const ChatInput: React.FC<Props> = ({
   return (
     <div
       className={[
-        'relative shrink-0 transition-all duration-200',
+        'chat-input relative shrink-0 transition-all duration-200',
         isPill ? 'chat-input--pill' : 'mt-2 mx-auto max-w-[850px] w-full px-2 sm:px-4',
         isDragging ? 'ring-2 ring-blue-400/45 rounded-lg' : '',
       ].join(' ')}
@@ -210,7 +212,7 @@ const ChatInput: React.FC<Props> = ({
     >
       {showModeRow && (
         <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <ModeSelect value={mode} onChange={onModeSwitch} sessionId={sessionId} />
+          <ModeSelect value={mode} onChange={onModeSwitch} sessionId={sessionId} pi4AgentReady={pi4AgentReady} />
           <ModelSelect value={selectedModel} onChange={onModelChange} />
           <div className="flex items-center gap-0.5 ml-auto">
             {onToggleHistory && (
@@ -386,6 +388,17 @@ const ChatInput: React.FC<Props> = ({
                 </ActionIcon>
               </>
             )}
+            {isPill && onModeSwitch && (
+              <div className="chat-input-pill__mode shrink-0">
+                <ModeSelect
+                  value={mode}
+                  onChange={onModeSwitch}
+                  sessionId={sessionId}
+                  pi4AgentReady={pi4AgentReady}
+                  compact
+                />
+              </div>
+            )}
             {isPill && selectedModel && onModelChange && (
               <div className="chat-input-pill__model hidden sm:flex">
                 <ModelSelect value={selectedModel} onChange={onModelChange} compact />
@@ -410,7 +423,19 @@ const ChatInput: React.FC<Props> = ({
       <div className={`flex items-center justify-between mt-2 px-1 ${footerMinimal ? 'chat-input-footer--minimal' : ''}`}>
         <div className="text-[10.5px]">
           {footerMinimal && input.length === 0 ? (
-            <span>Modo consulta · conecta SSH para usar el agente ejecutor</span>
+            <span>
+              {mode === 'agente'
+                ? (pi4AgentReady || sessionId
+                  ? 'Modo agente · ejecuta comandos en la Raspberry (PI4 en .env o sesión SSH)'
+                  : 'Modo agente · configura PI4_USER y PI4_PASSWORD en .env o conecta SSH')
+                : mode === 'plan'
+                  ? (pi4AgentReady || sessionId
+                    ? 'Modo plan · inspecciona el servidor y genera pasos'
+                    : 'Modo plan · requiere PI4 en .env o sesión SSH')
+                  : (pi4AgentReady
+                    ? 'Modo consulta · cambia a Agente en el selector junto al enviar'
+                    : 'Modo consulta · conecta SSH o configura PI4 en .env para Agente')}
+            </span>
           ) : input.length === 0 ? (
             <span className="text-secondary/40 font-medium">Shift+↵ nueva línea · Shift+? atajos</span>
           ) : (

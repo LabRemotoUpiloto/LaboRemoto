@@ -15,6 +15,8 @@ export function useTerminal(
   theme: string,
   onTerminalOutput?: (data: string) => void,
   onTerminalInput?: (data: string) => void,
+  /** Comando ssh local equivalente (se muestra typeado al abrir la sesión embebida). */
+  localSshCommand?: string | null,
 ) {
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -587,6 +589,19 @@ export function useTerminal(
       setIsLoading(true);
       setWaitingForPrompt(false);
 
+      if (localSshCommand?.trim()) {
+        const cmd = localSshCommand.trim();
+        try {
+          term.writeln('');
+          term.write('\x1b[90m# Conexión equivalente en tu máquina:\x1b[0m\r\n');
+          term.write(`\x1b[32m$\x1b[0m \x1b[1;36m${cmd}\x1b[0m`);
+          term.write('\x1b[90m  \x1b[0m');
+          term.write('\r\n\x1b[90m# ↓ sesión interactiva (LaboRemoto)\x1b[0m\r\n\r\n');
+        } catch {
+          /* xterm no listo */
+        }
+      }
+
       let bytesReceived = 0;
       let contentCheckInterval: number | null = null;
       let contentCheckTimeout: number | null = null;
@@ -704,7 +719,7 @@ export function useTerminal(
         window.removeEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
       };
     }
-  }, [sessionId]);
+  }, [sessionId, localSshCommand]);
 
   useEffect(() => {
     if (!sessionId || !termRef.current) return;

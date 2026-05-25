@@ -7,6 +7,7 @@ export function useChatModeSwitch(
   messages: Message[],
   setMessages: (m: Message[]) => void,
   sessionId: string | null | undefined,
+  pi4AgentReady: boolean,
   attachedImage: any | null,
   setAttachedImage: (v: any | null) => void,
   attachedFile: any | null,
@@ -24,8 +25,10 @@ export function useChatModeSwitch(
 
   const handleModeSwitch = useCallback((newMode: ChatMode) => {
     if (newMode === mode) return;
-    if (!sessionId && (newMode === 'agente' || newMode === 'plan')) {
-      setToasts('Requiere una sesión SSH activa'); setTimeout(() => setToasts(null), 2000); return;
+    if (!sessionId && !pi4AgentReady && (newMode === 'agente' || newMode === 'plan')) {
+      setToasts('Requiere sesión SSH o PI4_USER/PI4_PASSWORD en .env');
+      setTimeout(() => setToasts(null), 2500);
+      return;
     }
     if (messages.some(m => m.sender === 'user')) {
       pendingAttachedImageRef.current = attachedImage;
@@ -34,7 +37,7 @@ export function useChatModeSwitch(
     } else {
       setAttachedImage(null); setAttachedFile(null); setMode(newMode); clearMemory();
     }
-  }, [mode, messages, sessionId, attachedImage, attachedFile, clearMemory, setMode, setAttachedImage, setAttachedFile, setToasts]);
+  }, [mode, messages, sessionId, pi4AgentReady, attachedImage, attachedFile, clearMemory, setMode, setAttachedImage, setAttachedFile, setToasts]);
 
   const confirmModeSwitch = useCallback(async () => {
     if (!showModeConfirm) return;

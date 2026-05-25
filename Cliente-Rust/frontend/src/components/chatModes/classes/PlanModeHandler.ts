@@ -1,6 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { BaseModeHandler } from './BaseModeHandler';
-import { ModeHandlerContext, Message, AgentChatResponse } from '../types';
+import { ModeHandlerContext, Message, AgentChatResponse, AgentStep } from '../types';
+import { PI4_AGENT_SESSION_ID } from '../../../constants/devices';
+import { pi4AgentReady } from '../../../services/ai.service';
 
 async function fakeStream(text: string, ctx: ModeHandlerContext): Promise<void> {
   const CHUNK = 20;
@@ -15,13 +18,18 @@ export class PlanModeHandler extends BaseModeHandler {
   help = 'Plan: inspecciona el servidor y genera un plan estructurado en fases con comandos reales.';
 
   async send(finalInput: string, userMsg: Message, ctx: ModeHandlerContext) {
-    if (!ctx.sessionId) {
-      ctx.setMessages(prev => [...prev, {
-        id: String(Date.now()),
-        sender: 'system',
-        text: '⚠️ El modo Plan requiere una sesión SSH activa para inspeccionar el servidor.',
-      }]);
-      return;
+    let effectiveSessionId = ctx.sessionId ?? null;
+    if (!effectiveSessionId) {
+      const ready = await pi4AgentReady();
+      if (!ready) {
+        ctx.setMessages(prev => [...prev, {
+          id: String(Date.now()),
+          sender: 'system',
+          text: '⚠️ Sin sesión SSH. Configura PI4_USER y PI4_PASSWORD en .env o conéctate por terminal.',
+        }]);
+        return;
+      }
+      effectiveSessionId = PI4_AGENT_SESSION_ID;
     }
 
     ctx.setIsSending(true);
@@ -33,16 +41,33 @@ export class PlanModeHandler extends BaseModeHandler {
       sender: 'ai' as const,
       text: '',
       timestamp: Date.now(),
-      meta: { chat_mode: 'plan' } as any,
+      meta: { chat_mode: 'plan', toolSteps: [] } as any,
     }]);
 
+    let unlistenStep: (() => void) | null = null;
     try {
+      unlistenStep = await listen<{ request_id: string; step: AgentStep }>('agent:step', ev => {
+        if (ev.payload.request_id !== streamId) return;
+        const step = ev.payload.step;
+        ctx.setMessages(prev => prev.map(m => {
+          if (m.id !== streamId) return m;
+          const prevSteps = (m.meta?.toolSteps ?? []) as AgentStep[];
+          return {
+            ...m,
+            meta: { ...m.meta, chat_mode: 'plan', toolSteps: [...prevSteps, step] } as any,
+          };
+        }));
+      });
+
       const resp = await invoke<AgentChatResponse>('plan_chat', {
         req: {
-          session_id: ctx.sessionId,
+          session_id: effectiveSessionId,
           message: finalInput,
+          request_id: streamId,
         },
       });
+      unlistenStep?.();
+      unlistenStep = null;
 
       await fakeStream(resp.answer, ctx);
 
@@ -54,6 +79,7 @@ export class PlanModeHandler extends BaseModeHandler {
           : m
       ));
     } catch (e: any) {
+      unlistenStep?.();
       ctx.setStreamedText('');
       ctx.setStreamingMsgId(null);
       ctx.setMessages(prev => [

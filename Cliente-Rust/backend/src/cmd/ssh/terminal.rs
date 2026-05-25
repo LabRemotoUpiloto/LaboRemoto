@@ -21,7 +21,9 @@ pub async fn ssh_connect(
   password: String,
   cols: u32,
   rows: u32,
+  embedded_in_chat: Option<bool>,
 ) -> Result<String, String> {
+  let embedded_in_chat = embedded_in_chat.unwrap_or(false);
   let id = Uuid::new_v4().to_string();
   state.clear(&id);
   
@@ -30,6 +32,7 @@ pub async fn ssh_connect(
   let host_clone = host.clone();
   let user_clone = user.clone();
   let password_clone = password.clone();
+  let embedded_flag = embedded_in_chat;
   
   let _ = app.emit("ssh_connecting", serde_json::json!({
     "id": id,
@@ -65,16 +68,23 @@ pub async fn ssh_connect(
             Err(e) => {
               let _ = app_clone.emit("ssh_connect_error", serde_json::json!({
                 "id": id_clone,
-                "error": format!("Session lock error: {}", e)
+                "error": format!("Session lock error: {}", e),
+                "embedded_in_chat": embedded_flag
               }));
               return;
             }
           }
         }
         
+        let ssh_command = format!(
+          "ssh {}@{} -p {}",
+          user_clone, host_clone, port
+        );
         let _ = app_clone.emit("ssh_connected", serde_json::json!({
           "id": id_clone,
-          "success": true
+          "success": true,
+          "embedded_in_chat": embedded_flag,
+          "ssh_command": ssh_command
         }));
         
         let app2 = app_clone.clone();
@@ -112,13 +122,39 @@ pub async fn ssh_connect(
       Err(e) => {
         let _ = app_clone.emit("ssh_connect_error", serde_json::json!({
           "id": id_clone,
-          "error": e.to_string()
+          "error": e.to_string(),
+          "embedded_in_chat": embedded_flag
         }));
       }
     }
   });
   
   Ok(id)
+}
+
+/// Abre una sesión SSH interactiva (PTY) a la Raspberry Pi usando PI4_* del .env.
+#[tauri::command]
+pub async fn pi4_ssh_connect(
+  app: AppHandle,
+  state: tauri::State<'_, AppState>,
+  cols: u32,
+  rows: u32,
+) -> Result<String, String> {
+  let creds = crate::cmd::tools::pi4_config::load_pi4_creds().ok_or_else(|| {
+    "Configura PI4_USER y PI4_PASSWORD en Cliente-Rust/.env para abrir la terminal.".to_string()
+  })?;
+  ssh_connect(
+    app,
+    state,
+    creds.host,
+    creds.port,
+    creds.user,
+    creds.password,
+    cols,
+    rows,
+    Some(true),
+  )
+  .await
 }
 
 #[tauri::command]

@@ -16,6 +16,9 @@ export const KNOWN_DEVICES = {
   },
 } as const;
 
+/** Sesión sintética: el backend usa PI4_USER / PI4_PASSWORD del .env */
+export const PI4_AGENT_SESSION_ID = '__pi4_env__';
+
 /**
  * Determina si unas credenciales de conexión corresponden a una Raspberry Pi 4
  * del laboratorio (basado en IP y puerto conocidos).
