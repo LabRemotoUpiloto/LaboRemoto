@@ -45,85 +45,88 @@ const ChatHistoryPanel: React.FC<Props> = ({
       />
       
       {/* Panel */}
-      <div 
-        className="relative w-[320px] max-w-full h-full bg-[#1e2130] border-l border-white/5 flex flex-col shadow-2xl animate-in slide-in-from-right-8 duration-300"
+      <div
+        className="relative w-[320px] max-w-full h-full flex flex-col shadow-2xl animate-in slide-in-from-right-8 duration-300"
+        style={{ backgroundColor: 'var(--background-secondary)', borderLeft: '1px solid var(--border-subtle)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0 bg-black/10">
+        <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--background-tertiary)' }}>
           <div className="flex flex-col gap-0.5">
-            <span className="text-white font-medium text-sm">Historial de chats</span>
+            <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Historial de chats</span>
             {hostKey !== 'default' && (
               <span className="text-accent text-[10px] font-mono tracking-wide uppercase opacity-80">{hostKey}</span>
             )}
           </div>
-          <ActionIcon variant="subtle" color="gray" onClick={close} className="text-white/50 hover:bg-white/10 hover:text-white">
+          <ActionIcon variant="subtle" color="gray" onClick={close}>
             <X size={16} />
           </ActionIcon>
         </div>
 
-        <div className="p-3 border-b border-white/5 shrink-0 bg-black/5">
+        <div className="p-3 shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--background-primary)' }}>
           <TextInput
             placeholder="Filtrar conversaciones…"
             value={historySearch}
             onChange={e => setHistorySearch(e.target.value)}
-            leftSection={<Search size={14} className="text-white/40" />}
+            leftSection={<Search size={14} />}
             rightSection={historySearch ? (
-              <ActionIcon size="sm" variant="transparent" onClick={() => setHistorySearch('')} className="text-white/40 hover:text-white/80">
+              <ActionIcon size="sm" variant="transparent" color="gray" onClick={() => setHistorySearch('')}>
                 <X size={12} />
               </ActionIcon>
             ) : null}
             size="xs"
             variant="filled"
-            styles={{ input: { backgroundColor: 'rgba(255,255,255,0.05)', color: 'white', border: 'none' } }}
           />
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
           {historyEntries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-white/30 gap-3 p-6 text-center">
+            <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center" style={{ color: 'var(--text-muted)' }}>
               <Clock size={32} strokeWidth={1.5} className="opacity-50" />
               <p className="text-sm font-medium">Sin conversaciones guardadas</p>
               <span className="text-xs opacity-70">Se guardan al hacer "Nuevo chat"</span>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-white/40 text-xs">
+            <div className="flex items-center justify-center h-32 text-xs" style={{ color: 'var(--text-muted)' }}>
               Sin resultados para "{historySearch}"
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
               {filtered.map(entry => (
-                <div 
-                  key={entry.id} 
-                  className="group relative flex flex-col gap-1.5 p-3 rounded-md cursor-pointer bg-white/[0.02] hover:bg-white/[0.06] border border-transparent hover:border-white/5 transition-colors"
+                <div
+                  key={entry.id}
+                  className="group relative flex flex-col gap-1.5 p-3 rounded-md cursor-pointer transition-colors"
+                  style={{ backgroundColor: 'var(--interactive-bg)', border: '1px solid var(--border-subtle)' }}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--interactive-hover)' }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--interactive-bg)' }}
                   onClick={() => handleLoadHistory(entry)}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-white/40 font-medium tabular-nums">{fmtTime(entry.date)}</span>
+                    <span className="text-[11px] font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtTime(entry.date)}</span>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-white/30">{entry.messageCount} msgs</span>
+                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{entry.messageCount} msgs</span>
                       {entry.mode && (
-                        <Badge 
-                          size="xs" 
-                          variant="dot" 
+                        <Badge
+                          size="xs"
+                          variant="light"
                           color={entry.mode === 'agente' ? 'yellow' : entry.mode === 'plan' ? 'green' : 'blue'}
-                          styles={{ root: { backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.1)' } }}
                         >
                           {entry.mode}
                         </Badge>
                       )}
                     </div>
                   </div>
-                  
-                  <p className="text-xs text-white/70 line-clamp-2 leading-relaxed">
+
+                  <p className="text-xs line-clamp-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                     {entry.preview || 'Sin mensajes'}
                   </p>
 
                   {pendingDeleteId === entry.id ? (
-                    <div 
-                      className="absolute inset-0 bg-[#1e2130]/95 backdrop-blur-sm rounded-md flex items-center justify-center gap-3 border border-red-500/20"
+                    <div
+                      className="absolute inset-0 backdrop-blur-sm rounded-md flex items-center justify-center gap-3"
+                      style={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--danger-border)' }}
                       onClick={ev => ev.stopPropagation()}
                     >
-                      <span className="text-xs text-red-400 font-medium">¿Eliminar?</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--danger-text)' }}>¿Eliminar?</span>
                       <div className="flex items-center gap-1">
                         <Button size="compact-xs" color="red" variant="light" onClick={ev => confirmDeleteHistoryEntry(entry.id, ev)}>Sí</Button>
                         <Button size="compact-xs" color="gray" variant="subtle" onClick={cancelDeleteHistoryEntry}>No</Button>
@@ -133,7 +136,7 @@ const ChatHistoryPanel: React.FC<Props> = ({
                     <ActionIcon
                       variant="subtle"
                       color="red"
-                      className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 hover:bg-red-500/20 hover:text-red-400 backdrop-blur-sm"
+                      className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={ev => handleDeleteHistoryEntry(entry.id, ev)}
                       title="Eliminar"
                       size="sm"

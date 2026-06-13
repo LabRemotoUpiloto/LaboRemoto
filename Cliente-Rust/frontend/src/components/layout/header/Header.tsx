@@ -1,19 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { Group } from '@mantine/core';
 import type { ActiveView } from '../../../hooks/useAppTabs';
 import { Tab } from './HeaderConstants';
 
-// Sub-components
-import PanelTabs from './PanelTabs';
 import SessionTabs from './SessionTabs';
 import HeaderActions from './HeaderActions';
-import UserMenu from './UserMenu';
+import { WindowDragZone } from '../../window/WindowDragZone';
 
 interface HeaderProps {
-  openPanels: string[];
   activePanel: string;
-  onPanelClick: (panelId: string) => void;
-  onPanelClose: (panelId: string) => void;
   tabs: Tab[];
   activeTabId: string;
   onTabClick: (id: string) => void;
@@ -32,14 +26,10 @@ interface HeaderProps {
   isCameraActive?: boolean;
   isPinsActive?: boolean;
   isDomoticaActive?: boolean;
-  isSidebarExpanded?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
-  openPanels,
   activePanel,
-  onPanelClick,
-  onPanelClose,
   tabs,
   activeTabId,
   onTabClick,
@@ -85,44 +75,31 @@ const Header: React.FC<HeaderProps> = ({
     setDragOver(null);
   };
 
-  const sharedDragProps = {
-    dragOver,
-    dragRef,
-    handleMouseDown,
-    handleMouseEnter,
-    handleMouseUp,
-  };
-
+  const sharedDragProps = { dragOver, dragRef, handleMouseDown, handleMouseEnter, handleMouseUp };
   return (
-    <header
-      className="fixed top-0 right-0 z-[2000] flex items-center bg-secondary border-b border-subtle transition-[left] duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
-      style={{ left: 'var(--sidebar-width)', height: '44px' }}
+    <WindowDragZone
+      as="header"
+      className="app-header fixed z-[2000] flex items-center bg-primary transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
       role="banner"
       onMouseUp={handleMouseUpGlobal}
     >
-      <Group h={44} px={0} justify="space-between" className="w-full" wrap="nowrap" gap="xs">
-        <div className="flex-1 flex items-center overflow-hidden h-full">
-          <PanelTabs 
-            openPanels={openPanels}
-            activePanel={activePanel}
-            onPanelClick={onPanelClick}
-            onPanelClose={onPanelClose}
-            {...sharedDragProps}
-          />
+      {/* Session tabs */}
+      <div className="flex-1 overflow-hidden h-full flex items-center">
+        <SessionTabs
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onTabClick={onTabClick}
+          onCloseTab={onCloseTab}
+          onNewSession={onNewSession}
+          activePanel={activePanel}
+          {...sharedDragProps}
+        />
+      </div>
 
-          <SessionTabs 
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onTabClick={onTabClick}
-            onCloseTab={onCloseTab}
-            onNewSession={onNewSession}
-            activePanel={activePanel}
-            {...sharedDragProps}
-          />
-        </div>
-
-        <Group gap={4} wrap="nowrap" shrink={0} pr="md">
-          <HeaderActions 
+      {/* Right actions — only visible when a session is open */}
+      {showViewToggle && (
+        <div className="h-full flex items-center gap-0.5 pr-3 pl-2 border-l border-subtle shrink-0">
+          <HeaderActions
             showViewToggle={showViewToggle}
             activeView={activeView}
             onViewChange={onViewChange}
@@ -133,13 +110,9 @@ const Header: React.FC<HeaderProps> = ({
             isCameraActive={isCameraActive}
             isPinsActive={isPinsActive}
           />
-
-          <div className="w-[1px] h-4 bg-border-subtle mx-1" />
-
-          <UserMenu />
-        </Group>
-      </Group>
-    </header>
+        </div>
+      )}
+    </WindowDragZone>
   );
 };
 

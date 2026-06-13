@@ -80,7 +80,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
   if (sessionTabsList.length === 0 && activePanel !== 'terminal') return null;
 
   return (
-    <div className="flex items-center h-full px-2 gap-2 border-l border-subtle ml-2 bg-primary/30">
+    <div className="flex items-center h-full px-2 gap-2">
       <div className="flex items-center overflow-x-auto scrollbar-none" ref={sessionsRef}>
         <Tabs
           value={activeTabId}
@@ -119,7 +119,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                   key={t.id}
                   value={t.id}
                   leftSection={
-                    <div className={`w-[6px] h-[6px] rounded-full shrink-0 ${isActive ? 'bg-[#4ade80]' : 'bg-secondary opacity-50'}`} />
+                    <div className="w-[6px] h-[6px] rounded-full shrink-0" style={{ backgroundColor: isActive ? 'var(--success)' : 'var(--text-muted)' }} />
                   }
                   rightSection={
                     <span

@@ -4,11 +4,20 @@ import WelcomeMessage from './WelcomeMessage';
 import UserMessageBubble from './UserMessageBubble';
 import AiMessageBubble from './AiMessageBubble';
 import TypingIndicator from './TypingIndicator';
+import ChatEmbeddedTerminal from './ChatEmbeddedTerminal';
+import ChatEmbeddedCameras from './ChatEmbeddedCameras';
+import ChatEmbeddedDesktop from './ChatEmbeddedDesktop';
+import SystemMessageBanner from './SystemMessageBanner';
 import { isNearBottom } from './chatUtils';
 import { ActionIcon } from '@mantine/core';
 import { ArrowDown } from 'lucide-react';
 
+export type ChatAppearance = 'landing' | 'session';
+
 interface ChatMessageListProps {
+  className?: string;
+  hideWelcome?: boolean;
+  appearance?: ChatAppearance;
   messages: Message[];
   mode: ChatMode;
   isSending: boolean;
@@ -29,23 +38,55 @@ interface ChatMessageListProps {
   onRetryMsg: (id: string) => void;
   onAnalyzeCandidate: (base: string, candidate: string, action: string, index?: number) => void;
   onSetInput: (text: string) => void;
-  onCancel: () => void;
   setLastCommand: any;
+  /** Terminal Pi4 embebida en el hilo del chat (no panel aparte). */
+  embeddedTerminal?: {
+    sessionId: string | null;
+    sshCommandLine?: string | null;
+    connecting?: boolean;
+    error?: string | null;
+    label?: string;
+    onClose?: () => void;
+  } | null;
+  embeddedCameras?: {
+    sessionId: string | null;
+    connecting?: boolean;
+    error?: string | null;
+    label?: string;
+    onClose?: () => void;
+  } | null;
+  embeddedDesktop?: {
+    sessionId: string | null;
+    connecting?: boolean;
+    error?: string | null;
+    label?: string;
+    onClose?: () => void;
+  } | null;
 }
 
 export default function ChatMessageList({
+  className,
+  hideWelcome = false,
+  appearance = 'session',
   messages, mode, isSending, searchMatchIds, searchMatchIndex, streamingMsgId, streamedText,
   sessionId, showScrollToBottom, messagesRef, setShowScrollToBottom, onScrollToBottom,
   handleSuggestionClick, onDeleteMsg, onSaveEditMsg, onCopyMsg, onRegenerateMsg, onRetryMsg,
-  onAnalyzeCandidate, onSetInput, onCancel, setLastCommand
+  onAnalyzeCandidate, onSetInput, setLastCommand,
+  embeddedTerminal = null,
+  embeddedCameras = null,
+  embeddedDesktop = null,
 }: ChatMessageListProps) {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
 
   const countWords = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
+  const isLanding = appearance === 'landing';
+  const scrollPadding = isLanding
+    ? ''
+    : 'pt-[10px] pr-[10px] pb-[24px] pl-[34px]';
 
   return (
     <div
-      className={`flex-1 min-h-0 pt-[10px] pr-[10px] pb-[24px] pl-[34px] overflow-y-auto overflow-x-hidden flex flex-col gap-[10px] relative custom-scrollbar ${editingMsgId ? ' chat-messages--editing' : ''}`}
+      className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-[10px] relative custom-scrollbar ${scrollPadding} ${editingMsgId ? ' chat-messages--editing' : ''} ${className ?? ''}`}
       ref={messagesRef}
       role="log"
       aria-live={isSending ? 'polite' : undefined}
@@ -53,10 +94,10 @@ export default function ChatMessageList({
       onScroll={(e) => {
         setShowScrollToBottom(!isNearBottom(e.currentTarget as HTMLDivElement));
       }}
-      style={{ scrollbarGutter: 'stable both-edges' }}
+      style={{ scrollbarGutter: isLanding ? 'stable' : 'stable both-edges' }}
     >
       {/* Welcome state */}
-      {messages.length === 0 && !isSending && (
+      {messages.length === 0 && !isSending && !hideWelcome && (
         <WelcomeMessage mode={mode} handleSuggestionClick={handleSuggestionClick} />
       )}
 
@@ -73,40 +114,94 @@ export default function ChatMessageList({
             id={`msg-${msg.id}`}
             className={`message message-animate ${msg.sender} ${msg.sender === 'user' ? 'message--user' : 'message--assistant'} ${mode}${isActiveMatch ? ' search-active-match' : isSearchMatch ? ' search-match' : ''}${isEditing ? ' editing-active' : ''}`}
           >
-            {!(msg.sender === 'system' && msg.meta?.pendingCommand && !msg.meta?.processed) && (
-              msg.sender === 'user' ? (
-                <UserMessageBubble
-                  msg={msg}
-                  isSending={isSending}
-                  onDelete={onDeleteMsg}
-                  onSaveEdit={onSaveEditMsg}
-                  onEditStateChange={(id, active) => setEditingMsgId(active ? id : null)}
+            {msg.sender === 'system' && !(msg.meta?.pendingCommand && !msg.meta?.processed) ? (
+              <SystemMessageBanner text={msg.text} appearance={appearance} />
+            ) : msg.sender === 'user' ? (
+              <UserMessageBubble
+                msg={msg}
+                isSending={isSending}
+                onDelete={onDeleteMsg}
+                onSaveEdit={onSaveEditMsg}
+                onEditStateChange={(id, active) => setEditingMsgId(active ? id : null)}
+              />
+            ) : (
+              <AiMessageBubble
+                appearance={appearance}
+                msg={msg}
+                mode={mode}
+                isSending={isSending}
+                sessionId={sessionId}
+                streamingMsgId={streamingMsgId}
+                streamedText={streamedText}
+                setLastCommand={setLastCommand}
+                onCopy={onCopyMsg}
+                onRegenerate={onRegenerateMsg}
+                onRetry={onRetryMsg}
+                onAnalyzeCandidate={onAnalyzeCandidate}
+                onSetInput={onSetInput}
+                wordCount={msgWordCount}
+              />
+            )}
+
+            {msg.meta?.embeddedPi4Terminal && embeddedTerminal && (
+              <div
+                className={`message message--assistant message--chat-terminal ${mode} mt-1`}
+                id={`msg-terminal-${msg.id}`}
+                role="article"
+                aria-label="Terminal Raspberry Pi en el chat"
+              >
+                <ChatEmbeddedTerminal
+                  sessionId={embeddedTerminal.sessionId}
+                  sshCommandLine={embeddedTerminal.sshCommandLine}
+                  connecting={embeddedTerminal.connecting}
+                  error={embeddedTerminal.error}
+                  label={embeddedTerminal.label}
+                  onClose={embeddedTerminal.onClose}
+                  variant="inline"
                 />
-              ) : (
-                <AiMessageBubble
-                  msg={msg}
-                  mode={mode}
-                  isSending={isSending}
-                  sessionId={sessionId}
-                  streamingMsgId={streamingMsgId}
-                  streamedText={streamedText}
-                  setLastCommand={setLastCommand}
-                  onCopy={onCopyMsg}
-                  onRegenerate={onRegenerateMsg}
-                  onRetry={onRetryMsg}
-                  onAnalyzeCandidate={onAnalyzeCandidate}
-                  onSetInput={onSetInput}
-                  wordCount={msgWordCount}
+              </div>
+            )}
+
+            {msg.meta?.embeddedPi4Cameras && embeddedCameras && (
+              <div
+                className={`message message--assistant message--chat-cameras ${mode} mt-1`}
+                id={`msg-cameras-${msg.id}`}
+                role="article"
+                aria-label="Cámaras Raspberry Pi en el chat"
+              >
+                <ChatEmbeddedCameras
+                  sessionId={embeddedCameras.sessionId}
+                  sessionConnecting={embeddedCameras.connecting}
+                  sessionError={embeddedCameras.error}
+                  label={embeddedCameras.label}
+                  onClose={embeddedCameras.onClose}
                 />
-              )
+              </div>
+            )}
+
+            {msg.meta?.embeddedPi4Desktop && embeddedDesktop && (
+              <div
+                className={`message message--assistant message--chat-desktop ${mode} mt-1`}
+                id={`msg-desktop-${msg.id}`}
+                role="article"
+                aria-label="Escritorio remoto Raspberry Pi en el chat"
+              >
+                <ChatEmbeddedDesktop
+                  sessionId={embeddedDesktop.sessionId}
+                  sessionConnecting={embeddedDesktop.connecting}
+                  sessionError={embeddedDesktop.error}
+                  label={embeddedDesktop.label}
+                  onClose={embeddedDesktop.onClose}
+                />
+              </div>
             )}
           </div>
         );
       })}
 
-      {/* Typing indicator */}
-      {isSending && (
-        <TypingIndicator streamingMsgId={streamingMsgId} onCancel={onCancel} />
+      {/* Indicador solo si aún no hay mensaje de IA en curso */}
+      {isSending && !streamingMsgId && (
+        <TypingIndicator appearance={appearance} streamingMsgId={streamingMsgId} />
       )}
 
       {/* Scroll to bottom */}

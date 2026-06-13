@@ -24,11 +24,20 @@ const HlsPlayer: React.FC<Props> = ({ src, label }) => {
     if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null }
 
     if (Hls.isSupported()) {
+      // Túnel SSH + streams RTSP de cámaras Reolink: el modo low-latency es
+      // demasiado estricto con timestamps de audio y dispara audioTrackLoadError
+      // fatales. Buffer un poco más generoso + auto-recovery de errores no fatales.
       const hls = new Hls({
-        lowLatencyMode: true,
-        liveSyncDurationCount: 1,
-        liveMaxLatencyDurationCount: 3,
+        lowLatencyMode: false,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 10,
         enableWorker: true,
+        manifestLoadingMaxRetry: 6,
+        manifestLoadingRetryDelay: 500,
+        levelLoadingMaxRetry: 6,
+        levelLoadingRetryDelay: 500,
+        fragLoadingMaxRetry: 6,
+        fragLoadingRetryDelay: 500,
         xhrSetup: (xhr) => { xhr.withCredentials = false },
       })
       hlsRef.current = hls
@@ -38,13 +47,39 @@ const HlsPlayer: React.FC<Props> = ({ src, label }) => {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {})
       })
+
+      let recoverAttempts = 0
       hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (data.fatal) {
-          setState('error')
-          setErrMsg(data.details ?? 'Error HLS')
+        // El video va muted: errores de la pista de audio se ignoran para
+        // que el video siga reproduciéndose. La cam03 (Reolink) tiene audio
+        // AAC con timestamps inestables que rompen al reproductor.
+        const audioOnly =
+          data.details === Hls.ErrorDetails.AUDIO_TRACK_LOAD_ERROR ||
+          data.details === Hls.ErrorDetails.AUDIO_TRACK_LOAD_TIMEOUT ||
+          (typeof data.details === 'string' && data.details.toLowerCase().includes('audio'))
+
+        if (audioOnly) {
+          // No-op: hls.js seguirá reproduciendo solo el video.
+          return
         }
+
+        if (!data.fatal) return
+
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && recoverAttempts < 3) {
+          recoverAttempts++
+          try { hls.startLoad() } catch { /* noop */ }
+          return
+        }
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR && recoverAttempts < 3) {
+          recoverAttempts++
+          try { hls.recoverMediaError() } catch { /* noop */ }
+          return
+        }
+
+        setState('error')
+        setErrMsg(data.details ?? 'Error HLS')
       })
-      video.onplaying = () => setState('playing')
+      video.onplaying = () => { setState('playing'); recoverAttempts = 0 }
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src
       video.play().catch(() => {})

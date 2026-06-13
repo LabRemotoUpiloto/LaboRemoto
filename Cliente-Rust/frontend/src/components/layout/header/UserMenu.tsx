@@ -1,26 +1,18 @@
 import React from 'react';
-import { Menu, Tooltip, UnstyledButton, Group, Avatar, Text } from '@mantine/core';
+import { Menu, Tooltip, UnstyledButton, Text } from '@mantine/core';
 
 const UserMenu: React.FC = () => {
   return (
     <Menu shadow="md" width={200} position="bottom-end">
       <Menu.Target>
         <Tooltip label="Pendiente de implementar" withArrow position="bottom-end">
-          <UnstyledButton className="hover:bg-secondary/50 p-1 rounded-md transition-colors">
-            <Group gap={6} wrap="nowrap">
-              <Avatar
-                size={24}
-                radius="xl"
-                color="blue"
-              >
-                AI
-              </Avatar>
-              <div className="hidden xl:block">
-                <Text size="xs" fw={500} c="dimmed">
-                  Invitado
-                </Text>
-              </div>
-            </Group>
+          <UnstyledButton className="flex items-center gap-2 h-7 px-2.5 rounded-md hover:bg-secondary transition-colors">
+            <span className="w-5 h-5 rounded-full bg-accent-primary/20 border border-accent-primary/30 flex items-center justify-center text-[9px] font-bold text-accent-primary shrink-0 select-none">
+              AI
+            </span>
+            <Text size="xs" fw={500} className="hidden xl:block text-secondary">
+              Invitado
+            </Text>
           </UnstyledButton>
         </Tooltip>
       </Menu.Target>

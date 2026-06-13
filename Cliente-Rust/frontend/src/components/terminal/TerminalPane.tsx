@@ -8,12 +8,15 @@ type Props = {
   sessionId: string | null;
   onTerminalOutput?: (data: string) => void;
   onTerminalInput?: (data: string) => void;
+  localSshCommand?: string | null;
 };
 
-const TerminalPane: React.FC<Props> = ({ sessionId, onTerminalOutput, onTerminalInput }) => {
+const TerminalPane: React.FC<Props> = ({ sessionId, onTerminalOutput, onTerminalInput, localSshCommand }) => {
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { isLoading, isFadingOut, waitingForPrompt } = useTerminal(sessionId, containerRef, theme, onTerminalOutput, onTerminalInput);
+  const { isLoading, isFadingOut, waitingForPrompt } = useTerminal(
+    sessionId, containerRef, theme, onTerminalOutput, onTerminalInput, localSshCommand,
+  );
 
   return (
     <div className="terminal-pane" ref={containerRef}>

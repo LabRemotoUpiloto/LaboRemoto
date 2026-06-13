@@ -46,6 +46,10 @@ export interface SshConnectResult {
 export const sshConnect = (params: SshConnectParams): Promise<string> =>
   invoke<string>('ssh_connect', { ...params });
 
+/** Sesión SSH interactiva a la Raspberry Pi (credenciales PI4_* del .env). */
+export const pi4SshConnect = (cols: number, rows: number): Promise<string> =>
+  invoke<string>('pi4_ssh_connect', { cols, rows });
+
 /**
  * Escucha los eventos `ssh_connected` y `ssh_connect_error` y resuelve/rechaza
  * cuando llega el resultado de la conexión. Devuelve la función de cleanup.

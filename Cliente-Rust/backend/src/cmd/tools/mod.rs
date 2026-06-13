@@ -6,5 +6,7 @@
 
 pub mod tools;
 pub mod search_shared;
+pub mod pi4_config;
 
 pub use tools::{get_terminal_context, agent_chat, plan_chat};
+pub use pi4_config::pi4_agent_ready;

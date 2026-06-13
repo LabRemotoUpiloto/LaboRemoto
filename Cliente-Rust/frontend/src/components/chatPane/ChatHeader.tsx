@@ -1,4 +1,5 @@
 import React from 'react';
+import { WindowDragZone } from '../window/WindowDragZone';
 import { ChatMode } from '../chatModes/types';
 import { ModelSelection } from '../chatModes/types';
 import ModeSelect from './ModeSelect';
@@ -35,7 +36,10 @@ const ChatHeader: React.FC<Props> = ({
   return (
     <div className="flex flex-col border-b border-subtle bg-secondary w-full shrink-0 z-10 sticky top-0">
       {/* Top Title Bar */}
-      <div className="flex items-center justify-between h-10 px-3 bg-[#1e2130]">
+      <WindowDragZone
+        className="flex items-center justify-between h-10 px-3"
+        style={{ backgroundColor: 'var(--background-tertiary)' }}
+      >
         <div className="flex items-center gap-2 overflow-hidden">
           <div className="flex items-center justify-center w-5 h-5 rounded bg-accent/10 text-accent shrink-0">
             <Terminal size={12} strokeWidth={2.5} />
@@ -47,7 +51,7 @@ const ChatHeader: React.FC<Props> = ({
         <div className="flex items-center gap-1 shrink-0">
           <ActionIcon
             variant="subtle"
-            className={`hover:bg-white/5 ${showHistory ? 'text-accent' : 'text-white/50 hover:text-white'}`}
+            color={showHistory ? 'teal' : 'gray'}
             onClick={onToggleHistory}
             title="Historial de chats"
             size="sm"
@@ -57,7 +61,7 @@ const ChatHeader: React.FC<Props> = ({
 
           <ActionIcon
             variant="subtle"
-            className={`hover:bg-white/5 ${searchOpen ? 'text-accent' : 'text-white/50 hover:text-white'}`}
+            color={searchOpen ? 'teal' : 'gray'}
             onClick={onToggleSearch}
             title="Buscar en este chat (Ctrl+F)"
             size="sm"
@@ -69,7 +73,7 @@ const ChatHeader: React.FC<Props> = ({
             <Menu.Target>
               <ActionIcon
                 variant="subtle"
-                className="text-white/50 hover:bg-white/5 hover:text-white"
+                color="gray"
                 title="Más acciones"
                 size="sm"
               >
@@ -77,29 +81,29 @@ const ChatHeader: React.FC<Props> = ({
               </ActionIcon>
             </Menu.Target>
 
-            <Menu.Dropdown className="bg-[#1e2130] border-white/10">
-              <Menu.Item 
-                leftSection={<Download size={14} />} 
-                onClick={onExportMd} 
+            <Menu.Dropdown>
+              <Menu.Item
+                leftSection={<Download size={14} />}
+                onClick={onExportMd}
                 disabled={messagesEmpty}
-                className="text-xs py-1.5 hover:bg-white/5 text-white/80"
+                fz="xs"
               >
                 Exportar como .md
               </Menu.Item>
-              <Menu.Item 
-                leftSection={<Download size={14} />} 
-                onClick={onExportHtml} 
+              <Menu.Item
+                leftSection={<Download size={14} />}
+                onClick={onExportHtml}
                 disabled={messagesEmpty}
-                className="text-xs py-1.5 hover:bg-white/5 text-white/80"
+                fz="xs"
               >
                 Exportar como .html
               </Menu.Item>
-              <Menu.Divider className="border-white/10" />
-              <Menu.Item 
-                leftSection={<Keyboard size={14} />} 
+              <Menu.Divider />
+              <Menu.Item
+                leftSection={<Keyboard size={14} />}
                 onClick={onToggleShortcuts}
-                rightSection={<Kbd className="text-[10px] py-0 px-1 border-white/20 bg-white/5">Shift+?</Kbd>}
-                className={`text-xs py-1.5 hover:bg-white/5 text-white/80 ${showShortcuts ? 'bg-white/10 text-white' : ''}`}
+                rightSection={<Kbd>Shift+?</Kbd>}
+                fz="xs"
               >
                 Atajos de teclado
               </Menu.Item>
@@ -132,7 +136,7 @@ const ChatHeader: React.FC<Props> = ({
             </ActionIcon>
           )}
         </div>
-      </div>
+      </WindowDragZone>
 
       {/* Selectors Bar */}
       <div className="flex items-center gap-2 p-2 bg-secondary border-b border-subtle relative z-[5]">

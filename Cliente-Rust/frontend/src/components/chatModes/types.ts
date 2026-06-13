@@ -54,6 +54,10 @@ export interface MessageMeta {
   chat_mode?: string;
   toolSteps?: AgentStep[];
   processed?: boolean;
+  /** Terminal Pi4 embebida justo debajo de este mensaje del asistente */
+  embeddedPi4Terminal?: boolean;
+  embeddedPi4Cameras?: boolean;
+  embeddedPi4Desktop?: boolean;
 }
 
 export interface Message {
@@ -78,6 +82,11 @@ export interface AiResponseRaw {
 
 export interface ModeHandlerContext {
   sessionId: string | null | undefined;
+  /** Sesión SSH interactiva abierta en el chat (Pi4 desde .env). */
+  pi4TerminalSessionId?: string | null;
+  openPi4TerminalInChat?: () => Promise<string | null>;
+  openPi4CamerasInChat?: () => Promise<string | null>;
+  openPi4DesktopInChat?: () => Promise<string | null>;
   agentState: AgentState;
   setAgentState: (s: AgentState) => void;
   messages: Message[];
