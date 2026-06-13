@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect } from 'react';
-import { Tabs, ActionIcon, UnstyledButton, rem } from '@mantine/core';
+import { Tabs, UnstyledButton, rem } from '@mantine/core';
 import { gsap } from 'gsap';
 import { CloseIcon, Tab } from './HeaderConstants';
 
@@ -122,15 +122,16 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                     <div className={`w-[6px] h-[6px] rounded-full shrink-0 ${isActive ? 'bg-[#4ade80]' : 'bg-secondary opacity-50'}`} />
                   }
                   rightSection={
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      size={14}
-                      onClick={(e) => animateClose(e, () => onCloseTab(t.id))}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    <span
+                      role="button"
+                      tabIndex={-1}
+                      aria-label={`Cerrar sesión ${t.label}`}
+                      onClick={(e) => animateClose(e as any, () => onCloseTab(t.id))}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: 3, flexShrink: 0 }}
                     >
-                      <CloseIcon size={10} />
-                    </ActionIcon>
+                      <CloseIcon size={9} />
+                    </span>
                   }
                   style={isActive ? {
                     backgroundColor: 'var(--interactive-selected)',

@@ -17,7 +17,6 @@ export const LoadingProvider: React.FC<{ children?: React.ReactNode }> = ({ chil
   const setLoading = useCallback((v: boolean, l: string | null = null, cancel: (() => void) | null = null) => {
     setLoadingState(v)
     setLabel(l)
-    // Guardar correctamente la función de cancelar
     setOnCancel(cancel ? () => cancel : null)
   }, [])
 
