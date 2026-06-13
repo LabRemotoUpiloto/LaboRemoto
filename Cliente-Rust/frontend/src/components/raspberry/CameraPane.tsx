@@ -19,9 +19,9 @@ const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true,
   const [retryKey, setRetryKey] = useState(0)
 
   const borderClass = isSwapSource
-    ? 'ring-2 ring-[#f59e0b] ring-offset-2 ring-offset-[var(--background-primary,#111116)]'
+    ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--background-primary,#111116)]'
     : swapMode
-      ? 'ring-1 ring-[color-mix(in_srgb,var(--accent-primary)_30%,transparent)]'
+      ? 'ring-1 ring-[color-mix(in_srgb,var(--accent-primary)_25%,transparent)]'
       : ''
 
   if (!streamUrl || !isActive) {
@@ -47,7 +47,7 @@ const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true,
       />
       {isSwapSource && (
         <div className="absolute inset-0 z-[5] flex items-center justify-center bg-black/40 pointer-events-none">
-          <span className="text-[#f59e0b] text-xs font-semibold bg-black/70 px-3 py-1.5 rounded-lg">
+          <span className="text-xs font-semibold bg-black/70 px-3 py-1.5 rounded-lg text-[var(--accent-primary)]">
             Selecciona otra cámara para intercambiar
           </span>
         </div>

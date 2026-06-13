@@ -170,7 +170,7 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = f
         <div className="flex gap-1.5">
           {swapSource && (
             <button
-              className="text-[10px] text-[var(--warning,#f59e0b)] bg-[color-mix(in_srgb,#f59e0b_12%,transparent)] border border-[color-mix(in_srgb,#f59e0b_40%,transparent)] rounded-md py-1 px-3 cursor-pointer transition-all duration-150"
+              className="text-[10px] text-[var(--accent-primary)] bg-[color-mix(in_srgb,var(--accent-primary)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent-primary)_40%,transparent)] rounded-md py-1 px-3 cursor-pointer transition-all duration-150 hover:bg-[color-mix(in_srgb,var(--accent-primary)_22%,transparent)]"
               onClick={() => setSwapSource(null)}
             >
               Cancelar swap
