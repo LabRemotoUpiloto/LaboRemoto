@@ -15,6 +15,7 @@ export interface Transfer {
   session_id?: string
 }
 
+// Props del panel de transferencias 
 export interface TransfersPanelProps {
   transfers: Transfer[]
   onCancel: (transferId: string) => void
