@@ -1112,7 +1112,7 @@ fn force_load_single_env() {
               if ["OPENAI_API_KEY", "OPENAI_API_KEY1", "OPENAI_API_KEY2", "OPENAI_API_KEY3P"].contains(&key) {
                 std::env::set_var("OPENAI_API_KEY", val);
                 if debug { let _ = (key, p.display()); }
-              } else if key == "CLAUDE_CODE_API_KEY" || key == "CLAUDE_API_KEY" {
+              } else if ["CLAUDE_API_KEY", "CLAUDE_CODE_API_KEY", "ANTHROPIC_API_KEY"].contains(&key) {
                 std::env::set_var("CLAUDE_API_KEY", val);
                 if debug { let _ = (key, p.display()); }
               }

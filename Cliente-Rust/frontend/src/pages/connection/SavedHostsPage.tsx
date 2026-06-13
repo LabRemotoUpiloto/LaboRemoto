@@ -20,7 +20,6 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
   const [loadingLocal, setLoadingLocal] = useState(false)
   const { setLoading } = useLoading()
   const { push } = useToasts()
-  const [connectionAbortController, setConnectionAbortController] = useState<AbortController | null>(null)
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -45,51 +44,72 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
     const loadingMessage = `Conectando a ${displayName}...`
 
     const { listen } = await import('@tauri-apps/api/event')
-    let unlistenSuccess: any = null
-    let unlistenError: any = null
+
+    const unlistenRef = { success: null as (() => void) | null, error: null as (() => void) | null }
     const abortController = new AbortController()
-    setConnectionAbortController(abortController)
+
+    const cleanup = () => {
+      unlistenRef.success?.()
+      unlistenRef.error?.()
+      unlistenRef.success = null
+      unlistenRef.error = null
+    }
+
+    const cancelConnection = () => {
+      abortController.abort()
+      cleanup()
+      setLoading(false, null, null)
+      setLoadingLocal(false)
+      push({ type: 'info', message: 'Conexión cancelada' })
+    }
 
     const connectionPromise = new Promise<string>((resolve, reject) => {
       listen<any>('ssh_connected', (event) => {
         if (event.payload?.id && !abortController.signal.aborted) resolve(event.payload.id)
-      }).then(u => { unlistenSuccess = u }).catch(reject)
+      }).then(u => { unlistenRef.success = u }).catch(reject)
       listen<any>('ssh_connect_error', (event) => {
-        if (event.payload?.id && !abortController.signal.aborted) reject(new Error(event.payload.error || 'Error conectando'))
-      }).then(u => { unlistenError = u }).catch(reject)
+        if (!abortController.signal.aborted) reject(new Error(event.payload?.error || 'Error conectando'))
+      }).then(u => { unlistenRef.error = u }).catch(reject)
     })
 
-    const cancelConnection = () => {
-      abortController.abort()
-      unlistenSuccess?.(); unlistenError?.()
-      setLoading(false, null, null)
-      setLoadingLocal(false)
-      setConnectionAbortController(null)
-      push({ type: 'info', message: 'Conexión cancelada' })
-    }
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
 
     try {
       setLoading(true, loadingMessage, cancelConnection)
       setLoadingLocal(true)
-      const timeoutId = setTimeout(() => {
-        if (!abortController.signal.aborted) { cancelConnection(); push({ type: 'error', message: 'Tiempo de espera agotado (30s)' }) }
+
+      timeoutId = setTimeout(() => {
+        if (!abortController.signal.aborted) {
+          cancelConnection()
+          push({ type: 'error', message: 'Tiempo de espera agotado (30s)' })
+        }
       }, 30000)
+
       await new Promise(r => setTimeout(r, 100))
       await sshConnect({ host, port: portNum, user: userName, password: pwd, cols: 80, rows: 24 })
-      if (abortController.signal.aborted) { clearTimeout(timeoutId); unlistenSuccess?.(); unlistenError?.(); return }
+
+      if (abortController.signal.aborted) {
+        if (timeoutId) clearTimeout(timeoutId)
+        cleanup()
+        return
+      }
+
       const sessionId = await connectionPromise
-      clearTimeout(timeoutId); unlistenSuccess?.(); unlistenError?.()
+      if (timeoutId) clearTimeout(timeoutId)
+      cleanup()
       const label = `${userName}@${displayName}`
       onConnected?.(sessionId, label)
       push({ type: 'success', message: `Conectado a ${displayName}` })
       setLoading(false, null, null)
       setLoadingLocal(false)
-      setConnectionAbortController(null)
     } catch (e: any) {
-      push({ type: 'error', message: e?.message || 'Error conectando' })
-      setLoading(false, null, null)
-      setLoadingLocal(false)
-      setConnectionAbortController(null)
+      if (timeoutId) clearTimeout(timeoutId)
+      cleanup()
+      if (!abortController.signal.aborted) {
+        push({ type: 'error', message: e?.message || 'Error conectando' })
+        setLoading(false, null, null)
+        setLoadingLocal(false)
+      }
     }
   }
 
