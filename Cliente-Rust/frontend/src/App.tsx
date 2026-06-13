@@ -8,8 +8,8 @@ import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
 
 // Layout
-import Header from './components/layout/header/Header'
 import Sidebar from './components/layout/Sidebar'
+import { MacWindowDragStrip } from './components/window/MacWindowDragStrip'
 import HomeContainer from './components/layout/HomeContainer'
 import SessionContainer from './components/layout/SessionContainer'
 import LogTabsContainer from './components/layout/LogTabsContainer'
@@ -32,12 +32,21 @@ import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
 
-// ── Mantine theme — mapea accent-primary (blue) al primaryColor ──────────────
-const mantineTheme = createTheme({
-  primaryColor: 'blue',
-  defaultRadius: 'md',
-  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-})
+// ── Mantine theme — color primario reactivo al tema CSS activo ───────────────
+function buildMantineTheme(primaryColor: string) {
+  return createTheme({
+    primaryColor,
+    defaultRadius: 'md',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+    colors: {
+      // Escala roja institucional Unipiloto (10 pasos requeridos por Mantine)
+      'unipiloto-red': [
+        '#fff0f0', '#ffd6d6', '#ffadad', '#ff8080', '#f26b69',
+        '#e8403d', '#d51f22', '#b81a1d', '#a81010', '#930000',
+      ],
+    },
+  })
+}
 
 // ── Modal de actualización con Mantine ────────────────────────────────────────
 const UpdateModal: React.FC<{
@@ -73,7 +82,9 @@ const UpdateModal: React.FC<{
 // ── AppMain — lógica principal ───────────────────────────────────────────────
 const AppMain: React.FC = () => {
   const appContainerRef = useRef<HTMLDivElement>(null)
-  const { mantineColorScheme } = useTheme()
+  const { mantineColorScheme, theme } = useTheme()
+
+  const mantineTheme = buildMantineTheme(theme === 'unipiloto' ? 'unipiloto-red' : 'blue')
 
   // ── Tabs y navegación ────────────────────────────────────────────────────────
   const {
@@ -88,7 +99,6 @@ const AppMain: React.FC = () => {
     openPanel, closePanel: closePanelTab,
     activeView, setActiveView,
     isChatOpen, setIsChatOpen,
-    reorderTabs, reorderPanels,
   } = useAppTabs()
 
   // ── Actualizaciones ──────────────────────────────────────────────────────────
@@ -104,7 +114,6 @@ const AppMain: React.FC = () => {
   } = useSidePanels()
 
   // ── Estado local residual ────────────────────────────────────────────────────
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
   const [sftpPaths, setSftpPaths] = useState<Record<string, string>>({})
 
   // ── Prácticas de laboratorio ─────────────────────────────────────────────────
@@ -169,6 +178,8 @@ const AppMain: React.FC = () => {
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
   const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
   const isH2Visible = activePanel === 'terminal'
+  const hasSessionTabs = tabs.some(t => t.type === 'session')
+  const isSessionActive = activeTab.type === 'session'
 
   return (
     <MantineProvider theme={mantineTheme} defaultColorScheme={mantineColorScheme}>
@@ -183,43 +194,29 @@ const AppMain: React.FC = () => {
             isPinsVisible ? 'pins-open' : '',
             isDomoticaVisible ? 'domotica-open' : '',
             isH2Visible ? 'h2-visible' : '',
-            isSidebarExpanded ? 'sidebar-expanded' : '',
           ].filter(Boolean).join(' ')}
         >
-          <Header
-            openPanels={openPanels}
+          <Sidebar
             activePanel={activePanel}
-            onPanelClick={handleOpenPanel}
-            onPanelClose={handleClosePanel}
+            onOpenPanel={handleOpenPanel}
             tabs={tabs}
             activeTabId={activeTabId}
             onTabClick={handleTabClick}
             onCloseTab={handleCloseTab}
             onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
+            showSessionActions={isSessionActive}
             activeView={activeView}
             onViewChange={setActiveView}
-            showViewToggle={activeTab.type === 'session'}
             isChatOpen={isChatOpen}
             onToggleChat={() => setIsChatOpen(!isChatOpen)}
-            onReorderTabs={reorderTabs}
-            onReorderPanels={reorderPanels}
             onToggleCamera={toggleCameraPanel}
             onTogglePins={togglePinsPanel}
-            onToggleDomotica={toggleDomoticaPanel}
             isCameraActive={isCameraOpen}
             isPinsActive={isPinsPanelOpen}
-            isDomoticaActive={isDomoticaPanelOpen}
-            isSidebarExpanded={isSidebarExpanded}
-          />
-          <Sidebar
-            activePanel={activePanel}
-            onOpenPanel={handleOpenPanel}
-            activeSessionId={activeTab.type === 'session' ? activeTab.label : null}
-            selectedPage={selectedPage}
-            isExpanded={isSidebarExpanded}
-            onToggleExpand={() => setIsSidebarExpanded(prev => !prev)}
+            hasSessions={hasSessionTabs}
           />
           <div className="main-content">
+            <MacWindowDragStrip />
             <main className="content-area">
               {activeTab.type === 'home' && (
                 <div style={{ height: '100%' }}>

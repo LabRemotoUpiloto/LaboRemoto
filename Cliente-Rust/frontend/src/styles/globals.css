@@ -1637,3 +1637,175 @@ a:hover { text-decoration-thickness: 2px; }
   animation: reveal 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
   opacity: 0; /* Start hidden */
 }
+
+/* ═══════════════════════════════════════════════════════
+   Universidad Piloto de Colombia — Tema Institucional
+   Colores scrapeados de unipiloto.edu.co:
+     Rojo institucional : #d51f22
+     Verde institucional: #007a33
+     Azul agua          : #00b5e2
+     Fondos claros      : #f4f4f4 / #ffffff / #f9f9f9
+     Texto oscuro       : #1c1c1c / #353535
+     Tipografía         : Open Sans, Nunito Sans
+   ═══════════════════════════════════════════════════════ */
+html[data-theme="unipiloto"] {
+  /* ── Fondos: blancos institucionales ── */
+  --background-primary:    #f4f4f4;
+  --background-secondary:  #ffffff;
+  --background-tertiary:   #eeeeee;
+
+  /* ── Texto oscuro sobre fondo claro ── */
+  --text-primary:          #1c1c1c;
+  --text-secondary:        #494949;
+  --text-tertiary:         #7c7c7c;
+  --text-muted:            #9b9b9b;
+  --text-disabled:         #b5b5b5;
+  --text-inverse:          #ffffff;
+
+  /* ── Acento principal: rojo institucional ── */
+  --accent-primary:        #d51f22;
+  --accent-primary-hover:  #b81a1d;        /* más oscuro al hover (light bg) */
+  --accent-primary-light:  #e8403d;
+  --accent-primary-dark:   #a81010;
+  --accent-primary-subtle: rgba(213, 31, 34, 0.08);
+
+  /* ── Acento secundario: azul agua ── */
+  --accent-secondary:      #00a0d2;
+  --accent-strong:         #a81010;        /* rojo más intenso para énfasis */
+  --accent-tertiary:       #007a33;        /* verde institucional */
+  --accent-warm:           #007a33;
+
+  /* ── Bordes: sutiles sobre fondo claro ── */
+  --border-color:          #d8d8d8;
+  --border-subtle:         rgba(0, 0, 0, 0.10);
+  --border-strong:         rgba(0, 0, 0, 0.22);
+
+  /* ── Superficies ── */
+  --panel:                 #ffffff;
+  --panel-muted:           #f4f4f4;
+  --surface-0:             #f4f4f4;
+  --surface-1:             #ffffff;
+  --surface-2:             #eeeeee;
+  --surface-3:             #e5e5e5;
+  --surface-overlay:       rgba(0, 0, 0, 0.4);
+
+  /* ── Sombras más suaves en fondos claros ── */
+  --shadow:                0 4px 16px rgba(0, 0, 0, 0.10);
+
+  /* ── Ring / focus: azul agua institucional ── */
+  --ring:                  #00a0d2;
+  --focus-inner:           #00a0d2;
+  --focus-outer:           #ffffff;
+
+  /* ── Interacciones sobre fondo claro ── */
+  --interactive-hover:     rgba(0, 0, 0, 0.05);
+  --interactive-active:    rgba(213, 31, 34, 0.08);
+  --interactive-selected:  rgba(213, 31, 34, 0.12);
+  --table-row-selected:    rgba(213, 31, 34, 0.08);
+  --table-row-hover:       rgba(0, 0, 0, 0.04);
+
+  /* ── Terminal: texto oscuro en fondo claro ── */
+  --terminal-foreground:   #1c1c1c;
+
+  /* ── Selección de texto ── */
+  --selection-bg:          rgba(213, 31, 34, 0.18);
+  --selection-fg:          #1c1c1c;
+
+  /* ── Estados semánticos en contexto claro ── */
+  --success:               #007a33;
+  --success-bg:            rgba(0, 122, 51, 0.10);
+  --success-border:        rgba(0, 122, 51, 0.25);
+  --success-text:          #036b38;
+  --danger:                #d51f22;
+  --danger-bg:             rgba(213, 31, 34, 0.08);
+  --danger-border:         rgba(213, 31, 34, 0.25);
+  --danger-text:           #a81010;
+  --warning:               #f59e0b;
+  --warning-bg:            rgba(245, 158, 11, 0.10);
+  --warning-border:        rgba(245, 158, 11, 0.25);
+  --warning-text:          #b45309;
+  --info:                  #00a0d2;
+  --info-bg:               rgba(0, 160, 210, 0.10);
+  --info-border:           rgba(0, 160, 210, 0.25);
+  --info-text:             #0077a8;
+
+  /* ── Inputs ── */
+  --input-bg:              #ffffff;
+  --input-border:          #d8d8d8;
+  --input-focus-border:    #d51f22;
+  --placeholder-fg:        #9b9b9b;
+
+  /* ── Tipografía institucional ── */
+  font-family: 'Open Sans', 'Nunito Sans', system-ui, sans-serif;
+}
+
+/* Header limpio sin borde visible — la diferencia de fondo #fff vs #f4f4f4 separa visualmente */
+html[data-theme="unipiloto"] .app-header {
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.07);
+}
+
+/* Sidebar limpio con separador */
+html[data-theme="unipiloto"] .sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e0e0e0;
+}
+
+/* Ítem activo con indicador rojo */
+html[data-theme="unipiloto"] .nav-item.active {
+  background: rgba(213, 31, 34, 0.08);
+  border-left: 3px solid #d51f22;
+}
+
+html[data-theme="unipiloto"] .nav-item.active::before {
+  background: #d51f22;
+}
+
+/* SweetAlert en tema claro */
+html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-popup {
+  background: #ffffff !important;
+  border: 1px solid #e0e0e0 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+}
+
+html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-title {
+  color: #1c1c1c !important;
+}
+
+html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-html-container {
+  color: #494949 !important;
+}
+
+
+.sidebar-user-avatar {
+  background-color: var(--accent-primary-subtle);
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* Toast flotante del chat (historial, copiar, exportar…) */
+.chat-toast {
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, var(--border-color, rgba(128, 128, 128, 0.35)));
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.22),
+    0 0 0 1px color-mix(in srgb, var(--text-primary) 6%, transparent);
+  max-width: min(90vw, 360px);
+}
+
+.chat-toast__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  color: var(--accent-primary);
+}
+
+.chat-toast__message {
+  line-height: 1.35;
+}

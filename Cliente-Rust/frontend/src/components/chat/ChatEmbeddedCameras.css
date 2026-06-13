@@ -1,0 +1,68 @@
+.chat-embedded-cameras {
+  width: 100%;
+  margin: 0;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--background-secondary, #1a1d28);
+}
+
+.chat-embedded-cameras__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  font-size: 11px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.45));
+}
+
+.chat-embedded-cameras__icon {
+  color: var(--accent-primary, #5b8def);
+  flex-shrink: 0;
+}
+
+.chat-embedded-cameras__title {
+  font-weight: 600;
+  color: var(--text-primary, rgba(255, 255, 255, 0.9));
+}
+
+.chat-embedded-cameras__hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-embedded-cameras__close {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.chat-embedded-cameras__error {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #f87171;
+}
+
+.chat-embedded-cameras__body {
+  position: relative;
+  height: 280px;
+  min-height: 200px;
+  max-height: 45vh;
+}
+
+.chat-embedded-cameras__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #0a0a0c;
+  font-size: 12px;
+  color: var(--text-muted, #888);
+}

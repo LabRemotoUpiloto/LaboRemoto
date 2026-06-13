@@ -3,29 +3,66 @@
 .app-container {
   display: flex;
   height: 100vh;
-  --header-height: 44px; /* single-level unified header */
-  --sidebar-width: 60px; /* Mantine default is slightly wider, let's use 60px closed */
-}
-
-.app-container.sidebar-expanded {
-  --sidebar-width: 180px; /* Slightly wider for better text fit */
+  --header-height: 0px;
+  --sidebar-width: 200px;
+  background-color: var(--background-primary);
 }
 
 .app-container.h2-visible {
-  --header-height: 44px; /* unified header */
+  --header-height: 0px;
+}
+
+/* Franja invisible de arrastre de ventana (macOS, titleBar overlay) */
+.mac-window-drag-strip {
+  position: fixed;
+  top: 0;
+  left: calc(var(--sidebar-width) + 36px);
+  right: 0;
+  height: 44px;
+  z-index: 5;
+}
+
+.mac-window-drag-strip--local {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  z-index: 1;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.chat-messages-area--inset-top {
+  padding-top: 44px !important;
+}
+
+
+.app-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: calc(var(--sidebar-width) + 24px) !important;
+  height: 46px;
+  background-color: var(--background-primary) !important;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .main-content {
   position: absolute;
   left: 0;
   right: 0;
-  top: var(--header-height);
+  top: var(--header-height) !important;
   bottom: 0;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  margin-left: var(--sidebar-width) !important;
-  transition: margin-left 0.3s cubic-bezier(0.2, 0, 0, 1);
+  margin-left: calc(var(--sidebar-width) + 24px) !important;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  background-color: var(--background-primary);
+  overflow: hidden;
 }
 
 .content-area {
@@ -33,23 +70,27 @@
   overflow: hidden;
   padding: 0;
   background-color: var(--background-primary);
-  height: calc(100vh - var(--header-height)); /* below headers */
+  height: 100%;
   min-width: 0;
 }
 
 /* ─── Pins Panel ─── */
 .pins-panel {
   width: 350px;
-  height: calc(100vh - var(--header-height));
+  height: calc(100vh - 24px) !important;
   position: absolute;
-  right: 0;
-  top: var(--header-height);
+  right: 12px;
+  top: 12px !important;
+  bottom: 12px;
   background: var(--background-secondary);
-  border-left: 1px solid var(--border-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   z-index: 100;
-  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .pins-panel__header {
@@ -96,12 +137,13 @@
   background: var(--background-primary);
 }
 
-/* Adjust main content when pins are open */
-.app-container.pins-open .main-content {
-  right: 350px;
+/* Adjust main content and header when panels are open */
+.app-container.pins-open .main-content,
+.app-container.domotica-open .main-content {
+  right: calc(350px + 24px) !important;
 }
 
-/* Adjust main content when domotica panel is open */
-.app-container.domotica-open .main-content {
-  right: 350px;
+.app-container.pins-open .app-header,
+.app-container.domotica-open .app-header {
+  right: calc(350px + 24px) !important;
 }

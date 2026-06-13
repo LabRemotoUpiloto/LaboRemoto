@@ -9,6 +9,7 @@ pub mod gpio;
 
 pub use terminal::{
   ssh_connect,
+  pi4_ssh_connect,
   ssh_ui_ready,
   ssh_stdin,
   ssh_resize,

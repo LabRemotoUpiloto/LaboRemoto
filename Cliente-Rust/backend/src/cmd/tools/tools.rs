@@ -1,6 +1,8 @@
 // cmd/tools.rs — Herramientas del agente AI + loop Claude tool_use
 // ─────────────────────────────────────────────────────────────────
 // Tools disponibles:
+//   conectar_raspberry — verifica SSH a la Pi (credenciales .env o sesión activa)
+//   estado_raspberry   — host/puerto/usuario configurados (sin contraseña)
 //   ejecutar_comando   — SSH exec, captura stdout/stderr
 //   leer_archivo       — SFTP read
 //   escribir_archivo   — SFTP write
@@ -14,8 +16,67 @@
 
 use serde::{Deserialize, Serialize};
 use std::io::Read;
+use tauri::{AppHandle, Emitter};
 use crate::cmd::state::SESSIONS;
 use crate::cmd::ai::ai_utils::get_claude_api_key;
+
+fn emit_agent_step(app: &AppHandle, request_id: Option<&str>, step: &AgentStep) {
+    let Some(rid) = request_id.filter(|s| !s.is_empty()) else {
+        return;
+    };
+    let _ = app.emit(
+        "agent:step",
+        serde_json::json!({
+            "request_id": rid,
+            "step": step,
+        }),
+    );
+}
+
+/// Comando shell que ejecuta cada tool (para la línea de tiempo del chat).
+fn shell_command_for_tool(tool_name: &str, input: &serde_json::Value) -> Option<String> {
+    match tool_name {
+        "conectar_raspberry" => Some(
+            "echo '=== CONEXION OK ===' && hostname && whoami && uname -a".into(),
+        ),
+        "ejecutar_comando" => input
+            .get("comando")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        "listar_directorio" => {
+            let path = input.get("ruta").and_then(|v| v.as_str()).unwrap_or("~");
+            Some(format!("ls -la {path}"))
+        }
+        "info_sistema" => Some(
+            "echo '=== CPU ===' && top -bn1 | head -5 && echo '=== MEMORIA ===' && free -h && echo '=== DISCO ===' && df -h / && echo '=== UPTIME ===' && uptime".into(),
+        ),
+        "reiniciar_servicio" => {
+            let svc = input
+                .get("servicio")
+                .and_then(|v| v.as_str())
+                .unwrap_or("<servicio>");
+            Some(format!(
+                "sudo systemctl restart {svc} && sudo systemctl status {svc} --no-pager -l | head -20"
+            ))
+        }
+        _ => None,
+    }
+}
+
+/// Enriquece el input del tool_call con `comando` para la UI.
+fn tool_call_input_for_timeline(tool_name: &str, input: &serde_json::Value) -> String {
+    let mut map = match input {
+        serde_json::Value::Object(m) => m.clone(),
+        _ => serde_json::Map::new(),
+    };
+    if !map.contains_key("comando") {
+        if let Some(cmd) = shell_command_for_tool(tool_name, input) {
+            map.insert("comando".to_string(), serde_json::Value::String(cmd));
+        }
+    }
+    serde_json::to_string(&serde_json::Value::Object(map))
+        .unwrap_or_else(|_| input.to_string())
+}
 
 // ─── Resultado de una tool ────────────────────────────────────────────────────
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -60,6 +121,8 @@ pub fn get_terminal_context(session_id: String, lines: Option<usize>) -> Result<
 
 fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> ToolResult {
     match tool_name {
+        "conectar_raspberry"   => tool_conectar_raspberry(session_id),
+        "estado_raspberry"     => tool_estado_raspberry(),
         "ejecutar_comando"     => tool_ejecutar_comando(session_id, input),
         "leer_archivo"         => tool_leer_archivo(session_id, input),
         "escribir_archivo"     => tool_escribir_archivo(session_id, input),
@@ -75,6 +138,31 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
                 ToolResult { tool: other.to_string(), output: format!("Tool desconocida: {other}"), ok: false }
             }
         }
+    }
+}
+
+// ── conectar_raspberry / estado_raspberry ─────────────────────────────────────
+fn tool_estado_raspberry() -> ToolResult {
+    ToolResult {
+        tool: "estado_raspberry".into(),
+        output: crate::cmd::tools::pi4_config::pi4_status_summary(),
+        ok: crate::cmd::tools::pi4_config::pi4_configured(),
+    }
+}
+
+fn tool_conectar_raspberry(session_id: &str) -> ToolResult {
+    let (host, port, user, password) = match get_creds(session_id) {
+        Ok(c) => c,
+        Err(e) => return ToolResult { tool: "conectar_raspberry".into(), output: e, ok: false },
+    };
+    let cmd = "echo '=== CONEXION OK ===' && hostname && whoami && uname -a";
+    match run_ssh_exec(&host, port, &user, &password, cmd) {
+        Ok(out) => ToolResult {
+            tool: "conectar_raspberry".into(),
+            output: format!("Conectado a {user}@{host}:{port}\n{out}"),
+            ok: true,
+        },
+        Err(e) => ToolResult { tool: "conectar_raspberry".into(), output: e, ok: false },
     }
 }
 
@@ -192,9 +280,18 @@ fn tool_reiniciar_servicio(session_id: &str, input: &serde_json::Value) -> ToolR
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn get_creds(session_id: &str) -> Result<(String, u16, String, String), String> {
-    let map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let s = map.get(session_id).ok_or("Sesión no encontrada")?;
-    Ok((s.host.clone(), s.port, s.user.clone(), s.password.clone()))
+    if session_id == crate::cmd::tools::pi4_config::PI4_ENV_SESSION_ID {
+        crate::cmd::tools::pi4_config::load_pi4_creds()
+            .map(|c| (c.host, c.port, c.user, c.password))
+            .ok_or_else(|| {
+                "Raspberry Pi no configurada. Define PI4_USER y PI4_PASSWORD en Cliente-Rust/.env."
+                    .to_string()
+            })
+    } else {
+        let map = SESSIONS.lock().map_err(|e| e.to_string())?;
+        let s = map.get(session_id).ok_or("Sesión no encontrada")?;
+        Ok((s.host.clone(), s.port, s.user.clone(), s.password.clone()))
+    }
 }
 
 fn run_ssh_exec(host: &str, port: u16, user: &str, password: &str, cmd: &str) -> Result<String, String> {
@@ -246,6 +343,16 @@ fn sftp_write(host: &str, port: u16, user: &str, password: &str, path: &str, dat
 
 fn tool_definitions() -> serde_json::Value {
     serde_json::json!([
+        {
+            "name": "conectar_raspberry",
+            "description": "Verifica la conexión SSH a la Raspberry Pi (credenciales .env). Úsala antes de comandos o VNC. Si el usuario pide ESCRITORIO REMOTO, VNC o interfaz gráfica: NO es terminal — la app abrirá el escritorio LXDE embebido (como el botón Escritorio). Si pide entrar/conectar/terminal/SSH: la app abrirá terminal en el chat. Si pide cámaras, confirma que puede verlas en el chat.",
+            "input_schema": { "type": "object", "properties": {}, "required": [] }
+        },
+        {
+            "name": "estado_raspberry",
+            "description": "Muestra host, puerto y usuario configurados para la Raspberry Pi (sin revelar la contraseña).",
+            "input_schema": { "type": "object", "properties": {}, "required": [] }
+        },
         {
             "name": "ejecutar_comando",
             "description": "Ejecuta un comando de shell en el servidor remoto vía SSH y devuelve stdout/stderr. Úsalo para diagnóstico, instalar paquetes, ver logs, etc.",
@@ -331,10 +438,13 @@ pub struct AgentChatRequest {
     pub message: String,
     pub include_terminal_context: Option<bool>,
     pub terminal_lines: Option<usize>,
+    /// ID del mensaje en el chat; habilita eventos `agent:step` en vivo.
+    pub request_id: Option<String>,
 }
 
 #[tauri::command]
-pub async fn agent_chat(req: AgentChatRequest) -> Result<AgentChatResponse, String> {
+pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentChatResponse, String> {
+    let request_id = req.request_id.as_deref();
     let api_key = get_claude_api_key().ok_or("No hay Claude API key configurada")?;
 
     // El contexto de terminal ya NO se inyecta en el system prompt.
@@ -413,12 +523,14 @@ pub async fn agent_chat(req: AgentChatRequest) -> Result<AgentChatResponse, Stri
                 let tool_id   = block["id"].as_str().unwrap_or("").to_string();
                 let input     = block["input"].clone();
 
-                steps.push(AgentStep {
+                let call_step = AgentStep {
                     kind: "tool_call".into(),
                     name: Some(tool_name.clone()),
-                    input: Some(input.to_string()),
+                    input: Some(tool_call_input_for_timeline(&tool_name, &input)),
                     output: None,
-                });
+                };
+                steps.push(call_step.clone());
+                emit_agent_step(&app, request_id, &call_step);
 
                 // Ejecutar en hilo bloqueante (run_ssh_exec usa ssh2 sync)
                 let sid = req.session_id.clone();
@@ -428,12 +540,14 @@ pub async fn agent_chat(req: AgentChatRequest) -> Result<AgentChatResponse, Stri
                     .await
                     .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false });
 
-                steps.push(AgentStep {
+                let result_step = AgentStep {
                     kind: "tool_result".into(),
                     name: Some(tool_name.clone()),
                     input: None,
                     output: Some(result.output.clone()),
-                });
+                };
+                steps.push(result_step.clone());
+                emit_agent_step(&app, request_id, &result_step);
 
                 tool_results.push(serde_json::json!({
                     "type": "tool_result",
@@ -550,10 +664,12 @@ fn build_plan_system_prompt() -> String {
 pub struct PlanChatRequest {
     pub session_id: String,
     pub message: String,
+    pub request_id: Option<String>,
 }
 
 #[tauri::command]
-pub async fn plan_chat(req: PlanChatRequest) -> Result<AgentChatResponse, String> {
+pub async fn plan_chat(app: AppHandle, req: PlanChatRequest) -> Result<AgentChatResponse, String> {
+    let request_id = req.request_id.as_deref();
     let api_key = get_claude_api_key().ok_or("No hay Claude API key configurada")?;
     let system_prompt = build_plan_system_prompt();
 
@@ -618,12 +734,14 @@ pub async fn plan_chat(req: PlanChatRequest) -> Result<AgentChatResponse, String
                 let tool_id   = block["id"].as_str().unwrap_or("").to_string();
                 let input     = block["input"].clone();
 
-                steps.push(AgentStep {
+                let call_step = AgentStep {
                     kind: "tool_call".into(),
                     name: Some(tool_name.clone()),
-                    input: Some(input.to_string()),
+                    input: Some(tool_call_input_for_timeline(&tool_name, &input)),
                     output: None,
-                });
+                };
+                steps.push(call_step.clone());
+                emit_agent_step(&app, request_id, &call_step);
 
                 let sid = req.session_id.clone();
                 let tn  = tool_name.clone();
@@ -632,12 +750,14 @@ pub async fn plan_chat(req: PlanChatRequest) -> Result<AgentChatResponse, String
                     .await
                     .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false });
 
-                steps.push(AgentStep {
+                let result_step = AgentStep {
                     kind: "tool_result".into(),
                     name: Some(tool_name.clone()),
                     input: None,
                     output: Some(result.output.clone()),
-                });
+                };
+                steps.push(result_step.clone());
+                emit_agent_step(&app, request_id, &result_step);
 
                 tool_results.push(serde_json::json!({
                     "type": "tool_result",
@@ -660,6 +780,17 @@ pub async fn plan_chat(req: PlanChatRequest) -> Result<AgentChatResponse, String
 }
 
 fn build_system_prompt(terminal_ctx: Option<&str>) -> String {
+    let pi4_hint = if crate::cmd::tools::pi4_config::pi4_configured() {
+        "\n\
+        RASPBERRY PI: Las credenciales del laboratorio están en .env (PI4_USER, PI4_PASSWORD). \
+        Si el usuario pide conectarse a la Raspberry sin terminal abierta, usa primero \
+        `estado_raspberry` y luego `conectar_raspberry`; después ejecuta_comando, leer_archivo, etc. \
+        Si pide ver las cámaras o streams de video, usa `conectar_raspberry` y confirma que puede verlas en el chat. \
+        Si pide ESCRITORIO REMOTO o VNC: usa `conectar_raspberry` y di que abrirá el escritorio gráfico (NO la terminal). \
+        Si pide terminal, SSH o shell: entonces sí terminal en el chat."
+    } else {
+        ""
+    };
     let mut s = String::from(
         "Eres 'Kernel', un asistente experto en Linux y sistemas embebidos con acceso a herramientas reales del servidor remoto.\n\
         Puedes ejecutar comandos, leer y editar archivos, ver el estado del sistema y reiniciar servicios.\n\
@@ -667,6 +798,7 @@ fn build_system_prompt(terminal_ctx: Option<&str>) -> String {
         Basa tus respuestas SOLO en los resultados reales de las herramientas.\n\
         Responde siempre en el idioma del usuario (español si habla español)."
     );
+    s.push_str(pi4_hint);
     if let Some(ctx) = terminal_ctx {
         s.push_str("\n\n=== CONTEXTO DEL TERMINAL (últimas salidas) ===\n");
         s.push_str(ctx);

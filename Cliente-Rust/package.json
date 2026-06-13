@@ -11,10 +11,10 @@
     "build:bake": "export $(grep -v '^#' .env | xargs) && npm run build",
     "build:frontend": "npm run build --prefix frontend",
     "build:backend": "cd backend && cargo tauri build",
+    "build:windows": "bash scripts/build-windows-cross.sh",
     "dev:frontend": "npm run dev --prefix frontend",
     "dev:backend": "cd backend && cargo tauri dev",
     "install:frontend": "npm install --prefix frontend",
     "install:backend": "npm install --prefix backend"
-
   }
 }

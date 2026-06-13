@@ -1,11 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { ChatMode, Message } from '../chatModes/types';
+import ModeSelect from './ModeSelect';
 import { MAX_CHAR_WARN, MODE_PLACEHOLDERS, TOKEN_STORAGE_KEY } from './chatPane.constants';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { ActionIcon, Popover, Progress, Textarea } from '@mantine/core';
-import { Image, FileText, Send, Square, Activity, ChevronUp, ChevronDown } from 'lucide-react';
+import { ActionIcon, Menu, Popover, Progress, Textarea } from '@mantine/core';
+import { Image, FileText, Send, Square, Activity, ChevronUp, ChevronDown, Plus, Paperclip, History, X, SquarePen } from 'lucide-react';
+import ModelSelect from './ModelSelect';
+import { ModelSelection } from '../chatModes/types';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -31,6 +34,16 @@ interface Props {
   setToast: (v: string | null) => void;
   showTokenPopover: boolean;
   setShowTokenPopover: React.Dispatch<React.SetStateAction<boolean>>;
+  variant?: 'default' | 'pill';
+  selectedModel?: ModelSelection;
+  onModelChange?: (m: ModelSelection) => void;
+  footerMinimal?: boolean;
+  onModeSwitch?: (m: ChatMode) => void;
+  pi4AgentReady?: boolean;
+  showHistory?: boolean;
+  onToggleHistory?: () => void;
+  onClose?: () => void;
+  onNewChat?: () => void;
 }
 
 const ChatInput: React.FC<Props> = ({
@@ -41,7 +54,19 @@ const ChatInput: React.FC<Props> = ({
   messages, sessionTokens, setSessionTokens, sessionId,
   ctxUsagePct, setToast,
   showTokenPopover, setShowTokenPopover,
+  variant = 'default',
+  selectedModel,
+  onModelChange,
+  footerMinimal = false,
+  onModeSwitch,
+  pi4AgentReady = false,
+  showHistory = false,
+  onToggleHistory,
+  onClose,
+  onNewChat,
 }) => {
+  const isPill = variant === 'pill';
+  const pillPlaceholder = MODE_PLACEHOLDERS[mode];
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textFileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -148,13 +173,88 @@ const ChatInput: React.FC<Props> = ({
     if (file.type.startsWith('image/')) handleImageFile(file); else await handleTextFile(file);
   };
 
+  const attachMenu = (
+    <Menu position="top-start" offset={8} withinPortal>
+      <Menu.Target>
+        <ActionIcon
+          variant="subtle"
+          className={isPill ? 'chat-input-pill__attach' : ''}
+          title="Adjuntar"
+          size={isPill ? 'lg' : 'md'}
+          style={isPill ? undefined : undefined}
+        >
+          {isPill ? <Plus size={20} strokeWidth={2} /> : <Image size={15} />}
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Item leftSection={<Image size={14} />} onClick={() => fileInputRef.current?.click()}>
+          Imagen
+        </Menu.Item>
+        <Menu.Item leftSection={<Paperclip size={14} />} onClick={() => textFileInputRef.current?.click()}>
+          Archivo de texto
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
+  );
+
+  const showModeRow = !footerMinimal && onModeSwitch && selectedModel && onModelChange;
+
   return (
     <div
-      className={`relative mt-2 mx-auto max-w-[850px] w-full px-2 sm:px-4 shrink-0 transition-all duration-200 ${isDragging ? 'ring-2 ring-blue-400/45 rounded-lg' : ''}`}
+      className={[
+        'chat-input relative shrink-0 transition-all duration-200',
+        isPill ? 'chat-input--pill' : 'mt-2 mx-auto max-w-[850px] w-full px-2 sm:px-4',
+        isDragging ? 'ring-2 ring-blue-400/45 rounded-lg' : '',
+      ].join(' ')}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {showModeRow && (
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <ModeSelect value={mode} onChange={onModeSwitch} sessionId={sessionId} pi4AgentReady={pi4AgentReady} />
+          <ModelSelect value={selectedModel} onChange={onModelChange} />
+          <div className="flex items-center gap-0.5 ml-auto">
+            {onToggleHistory && (
+              <ActionIcon
+                data-no-window-drag
+                variant="subtle"
+                color={showHistory ? 'teal' : 'gray'}
+                size="sm"
+                onClick={onToggleHistory}
+                title="Historial"
+              >
+                <History size={15} />
+              </ActionIcon>
+            )}
+            {onNewChat && (
+              <ActionIcon
+                data-no-window-drag
+                variant="subtle"
+                color="gray"
+                size="sm"
+                onClick={onNewChat}
+                title="Nuevo chat (Ctrl+N)"
+              >
+                <SquarePen size={15} />
+              </ActionIcon>
+            )}
+            {onClose && (
+              <ActionIcon
+                data-no-window-drag
+                variant="subtle"
+                color="red"
+                size="sm"
+                onClick={onClose}
+                title="Cerrar panel"
+              >
+                <X size={16} />
+              </ActionIcon>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
@@ -171,7 +271,15 @@ const ChatInput: React.FC<Props> = ({
         onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await handleTextFile(f); }}
       />
 
-      <div className={`flex bg-tertiary border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-accent/40 focus-within:bg-[#1a1c29] ${(attachedImage || attachedFile) ? 'flex-col items-stretch gap-0' : 'items-center'}`}>
+      <div
+        className={
+          isPill
+            ? `chat-input-pill ${(attachedImage || attachedFile) ? 'flex-col items-stretch !rounded-3xl' : ''}`
+            : `flex border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-accent/40 ${(attachedImage || attachedFile) ? 'flex-col items-stretch gap-0' : 'items-center'}`
+        }
+        style={isPill ? undefined : { backgroundColor: 'var(--background-tertiary)' }}
+      >
+        {isPill && !attachedImage && !attachedFile && attachMenu}
         {/* Image chip */}
         {attachedImage && (
           <div className="flex items-center gap-2 pt-2 px-2.5 pb-1">
@@ -183,7 +291,7 @@ const ChatInput: React.FC<Props> = ({
               />
               <button
                 onClick={() => setAttachedImage(null)}
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#1e2130] border border-white/15 text-white/70 text-[9px] flex items-center justify-center cursor-pointer hover:bg-white/10 hover:text-white"
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] flex items-center justify-center cursor-pointer transition-colors" style={{ backgroundColor: 'var(--background-tertiary)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
               >✕</button>
             </div>
             <span className="text-[11px] text-white/35 italic">{attachedImage.label ?? 'imagen lista para enviar'}</span>
@@ -204,18 +312,26 @@ const ChatInput: React.FC<Props> = ({
           </div>
         )}
 
-        <div className="flex items-end gap-1 flex-1 py-1 pr-1.5 min-h-[44px]">
+        <div
+          className={
+            isPill
+              ? 'chat-input-pill__row flex items-center gap-1 flex-1 min-w-0'
+              : 'flex items-end gap-1 flex-1 py-1 pr-1.5 min-h-[44px]'
+          }
+        >
           <Textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={MODE_PLACEHOLDERS[mode]}
+            placeholder={isPill ? pillPlaceholder : MODE_PLACEHOLDERS[mode]}
             autosize
             minRows={1}
             maxRows={8}
             className="flex-1"
             classNames={{
-              input: "bg-transparent border-none text-primary text-[13px] leading-relaxed placeholder-white/30 focus:ring-0 px-3 py-2 scrollbar-thin"
+              input: isPill
+                ? 'bg-transparent border-none text-[var(--text-primary)] text-[14px] leading-snug focus:ring-0 px-2 py-2.5 scrollbar-thin placeholder:text-[var(--text-muted)]'
+                : 'bg-transparent border-none text-primary text-[13px] leading-relaxed placeholder-white/30 focus:ring-0 px-3 py-2 scrollbar-thin',
             }}
             onKeyDown={(e) => {
               if (e.key === 'Escape' && isSending) { e.preventDefault(); onCancel(); return; }
@@ -249,54 +365,90 @@ const ChatInput: React.FC<Props> = ({
             }}
           />
           
-          <div className="flex items-center pb-1 gap-1 shrink-0">
+          <div className={isPill ? 'chat-input-pill__actions' : 'flex items-center gap-1 shrink-0 pb-1'}>
+            {!isPill && (
+              <>
+                <ActionIcon
+                  variant="subtle"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Adjuntar imagen"
+                  className={`hover:bg-white/5 ${attachedImage ? 'text-accent' : 'text-secondary/50 hover:text-primary'}`}
+                  size="md"
+                >
+                  <Image size={15} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="subtle"
+                  onClick={() => textFileInputRef.current?.click()}
+                  title="Adjuntar archivo de texto (.sh, .conf, .log, .py…)"
+                  className={`hover:bg-white/5 ${attachedFile ? 'text-accent' : 'text-secondary/50 hover:text-primary'}`}
+                  size="md"
+                >
+                  <FileText size={14} />
+                </ActionIcon>
+              </>
+            )}
+            {isPill && onModeSwitch && (
+              <div className="chat-input-pill__mode shrink-0">
+                <ModeSelect
+                  value={mode}
+                  onChange={onModeSwitch}
+                  sessionId={sessionId}
+                  pi4AgentReady={pi4AgentReady}
+                  compact
+                />
+              </div>
+            )}
+            {isPill && selectedModel && onModelChange && (
+              <div className="chat-input-pill__model hidden sm:flex">
+                <ModelSelect value={selectedModel} onChange={onModelChange} compact />
+              </div>
+            )}
             <ActionIcon
-              variant="subtle"
-              onClick={() => fileInputRef.current?.click()}
-              title="Adjuntar imagen"
-              className={`hover:bg-white/5 ${attachedImage ? 'text-accent' : 'text-secondary/50 hover:text-primary'}`}
-              size="md"
-            >
-              <Image size={15} />
-            </ActionIcon>
-            <ActionIcon
-              variant="subtle"
-              onClick={() => textFileInputRef.current?.click()}
-              title="Adjuntar archivo de texto (.sh, .conf, .log, .py…)"
-              className={`hover:bg-white/5 ${attachedFile ? 'text-accent' : 'text-secondary/50 hover:text-primary'}`}
-              size="md"
-            >
-              <FileText size={14} />
-            </ActionIcon>
-            <ActionIcon
-              variant={isSending ? "light" : "filled"}
-              color={isSending ? "red" : "blue"}
+              variant={isSending ? 'light' : 'filled'}
+              color={isSending ? 'red' : isPill ? undefined : 'blue'}
               onClick={isSending ? onCancel : onSend}
               disabled={!isSending && !canSend}
               aria-label={isSending ? 'Cancelar' : 'Enviar'}
-              className="ml-1"
-              size="md"
+              className={isPill ? 'chat-input-pill__send' : 'ml-1'}
+              size={isPill ? 'md' : 'md'}
             >
-              {isSending ? <Square size={14} fill="currentColor" /> : <Send size={15} className="mr-[2px]" />}
+              {isSending ? <Square size={14} fill="currentColor" /> : <Send size={15} className={isPill ? '' : 'mr-[2px]'} />}
             </ActionIcon>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-2 px-1">
+      <div className={`flex items-center justify-between mt-2 px-1 ${footerMinimal ? 'chat-input-footer--minimal' : ''}`}>
         <div className="text-[10.5px]">
-          {input.length === 0
-            ? <span className="text-secondary/40 font-medium">Shift+↵ nueva línea · Shift+? atajos</span>
-            : <span className={`${input.length > MAX_CHAR_WARN ? 'text-red-400 font-semibold' : 'text-secondary/50 font-medium'}`}>
-                {input.length > MAX_CHAR_WARN
-                  ? `⚠ ${input.length.toLocaleString()} car. — mensaje muy largo`
-                  : `${input.length} car.`}
-              </span>
-          }
+          {footerMinimal && input.length === 0 ? (
+            <span>
+              {mode === 'agente'
+                ? (pi4AgentReady || sessionId
+                  ? 'Modo agente · ejecuta comandos en la Raspberry (PI4 en .env o sesión SSH)'
+                  : 'Modo agente · configura PI4_USER y PI4_PASSWORD en .env o conecta SSH')
+                : mode === 'plan'
+                  ? (pi4AgentReady || sessionId
+                    ? 'Modo plan · inspecciona el servidor y genera pasos'
+                    : 'Modo plan · requiere PI4 en .env o sesión SSH')
+                  : (pi4AgentReady
+                    ? 'Modo consulta · cambia a Agente en el selector junto al enviar'
+                    : 'Modo consulta · conecta SSH o configura PI4 en .env para Agente')}
+            </span>
+          ) : input.length === 0 ? (
+            <span className="text-secondary/40 font-medium">Shift+↵ nueva línea · Shift+? atajos</span>
+          ) : (
+            <span className={`${input.length > MAX_CHAR_WARN ? 'text-red-400 font-semibold' : 'text-secondary/50 font-medium'}`}>
+              {input.length > MAX_CHAR_WARN
+                ? `⚠ ${input.length.toLocaleString()} car. — mensaje muy largo`
+                : `${input.length} car.`}
+            </span>
+          )}
         </div>
 
         {/* Token badge */}
+        {!footerMinimal && (
         <div className="relative">
           <Popover opened={showTokenPopover} onChange={setShowTokenPopover} position="top-end" withArrow shadow="md">
             <Popover.Target>
@@ -365,6 +517,7 @@ const ChatInput: React.FC<Props> = ({
             </Popover.Dropdown>
           </Popover>
         </div>
+        )}
       </div>
     </div>
   );

@@ -36,6 +36,9 @@ const THEMES: ThemeInfo[] = [
   { id: 'rose-quartz', label: 'Rose Quartz', gradient: 'linear-gradient(135deg, #fff1f2, #fce7f3)', category: 'light', description: 'Rosa cuarzo con detalles fucsia' },
   { id: 'silver-cloud', label: 'Silver Cloud', gradient: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)', category: 'light', description: 'Plateado brillante con azul cielo' },
   
+  // Institucional
+  { id: 'unipiloto', label: 'Universidad Piloto', gradient: 'linear-gradient(135deg, #f4f4f4 0%, #ffffff 55%, #d51f22 100%)', category: 'light', description: 'Identidad oficial — blanco institucional con rojo Unipiloto' },
+
   // Temas Especiales
   { id: 'sunburst-rainbow', label: 'Sunburst Rainbow', gradient: 'linear-gradient(45deg, #ff4b6b, #ff8b3b, #ffd56b, #6bff8b, #6bd7ff)', category: 'special', description: 'Arcoíris cálido con efectos RGB animados', swatches: 5 },
   { id: 'bold-rainbow', label: 'Bold Rainbow', gradient: 'linear-gradient(45deg, #ff0080, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff)', category: 'special', description: 'RGB intenso con neón y resplandor', swatches: 7 },
@@ -61,7 +64,8 @@ export default function ThemesPage() {
         padding={0}
         radius="md"
         withBorder
-        className={`cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${isActive ? 'border-teal-500 border-2' : 'border-white/10 hover:border-white/20'}`}
+        className={`cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${isActive ? 'border-teal-500 border-2' : ''}`}
+        style={!isActive ? { borderColor: 'var(--border-subtle)' } : {}}
         role="radio"
         aria-checked={isActive}
         tabIndex={0}
@@ -85,7 +89,7 @@ export default function ThemesPage() {
         {t.swatches && (
           <Group gap={4} px="sm" pt="sm">
             {Array.from({ length: t.swatches }).map((_, i) => (
-              <div key={i} className="w-2.5 h-2.5 rounded-full border border-white/20" />
+              <div key={i} className="w-2.5 h-2.5 rounded-full" style={{ border: '1px solid var(--border-strong)' }} />
             ))}
           </Group>
         )}
@@ -99,8 +103,8 @@ export default function ThemesPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0a] overflow-hidden">
-      <header className="page-header-integrated border-b border-white/5 pb-4">
+    <div className="flex flex-col h-full overflow-hidden" style={{ backgroundColor: 'var(--background-primary)' }}>
+      <header className="page-header-integrated border-b pb-4" style={{ borderColor: 'var(--border-subtle)' }}>
         <h2 className="page-header-title">Temas</h2>
         <div className="page-header-content">
           <p className="page-header-description">
@@ -114,8 +118,8 @@ export default function ThemesPage() {
           
           {/* Dark Themes */}
           <Box mb={40}>
-            <Group gap="sm" mb="md" className="border-b border-white/5 pb-2">
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 text-teal-400 border border-white/10 shrink-0">
+            <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
+              <Box className="flex items-center justify-center w-8 h-8 rounded-lg text-teal-400 shrink-0" style={{ backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
@@ -130,8 +134,8 @@ export default function ThemesPage() {
 
           {/* Light Themes */}
           <Box mb={40}>
-            <Group gap="sm" mb="md" className="border-b border-white/5 pb-2">
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 text-teal-400 border border-white/10 shrink-0">
+            <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
+              <Box className="flex items-center justify-center w-8 h-8 rounded-lg text-teal-400 shrink-0" style={{ backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="5" />
                   <line x1="12" y1="1" x2="12" y2="3" />
@@ -154,8 +158,8 @@ export default function ThemesPage() {
 
           {/* Special Themes */}
           <Box mb={40}>
-            <Group gap="sm" mb="md" className="border-b border-white/5 pb-2">
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 text-teal-400 border border-white/10 shrink-0">
+            <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
+              <Box className="flex items-center justify-center w-8 h-8 rounded-lg text-teal-400 shrink-0" style={{ backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>

@@ -8,9 +8,12 @@ interface Props {
   value: ChatMode;
   onChange: (m: ChatMode) => void;
   sessionId?: string | null;
+  pi4AgentReady?: boolean;
+  /** Selector compacto para la barra pill del inicio */
+  compact?: boolean;
 }
 
-const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId }) => {
+const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId, pi4AgentReady = false, compact = false }) => {
   const current = MODES.find(m => m.value === value) ?? MODES[0];
 
   return (
@@ -18,23 +21,28 @@ const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId }) => {
       <Menu.Target>
         <Button
           variant="default"
-          size="xs"
-          radius="md"
-          className="bg-white/5 border-white/10 text-primary hover:bg-white/10 h-[26px] px-2.5 font-normal"
-          rightSection={<ChevronDown size={14} className="opacity-50" />}
+          size={compact ? 'sm' : 'xs'}
+          radius={compact ? 'xl' : 'md'}
+          className={
+            compact
+              ? 'chat-input-pill__mode-btn h-9 px-2.5 font-medium border border-[var(--border-subtle)] bg-[var(--background-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)]'
+              : 'bg-white/5 border-white/10 text-primary hover:bg-white/10 h-[26px] px-2.5 font-normal'
+          }
+          rightSection={<ChevronDown size={compact ? 13 : 14} className="opacity-50 shrink-0" />}
           leftSection={
             <span style={{ color: current.color }} className="flex items-center">
               {ModeIcons[current.value]}
             </span>
           }
+          styles={{ label: { fontSize: compact ? 11 : undefined } }}
         >
           {current.label}
         </Button>
       </Menu.Target>
 
-      <Menu.Dropdown className="bg-[#1e2130] border-white/10 p-1">
+      <Menu.Dropdown className="p-1">
         {MODES.map(m => {
-          const locked = !sessionId && (m.value === 'agente' || m.value === 'plan');
+          const locked = !sessionId && !pi4AgentReady && (m.value === 'agente' || m.value === 'plan');
           const isSelected = m.value === value;
 
           return (
@@ -42,11 +50,8 @@ const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId }) => {
               key={m.value}
               onClick={() => { if (!locked) onChange(m.value); }}
               disabled={locked}
-              className={`
-                text-[12.5px] py-1.5 px-2 rounded-md
-                ${isSelected ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5'}
-                ${locked ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
+              fz="xs"
+              bg={isSelected ? 'var(--interactive-selected)' : undefined}
               leftSection={
                 <span style={{ color: m.color }} className="flex items-center">
                   {ModeIcons[m.value]}

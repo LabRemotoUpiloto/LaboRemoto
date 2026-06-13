@@ -23,16 +23,16 @@ const ChatModals: React.FC<Props> = ({
       centered
       size="sm"
       styles={{
-        header: { backgroundColor: '#1e2130', borderBottom: '1px solid rgba(255,255,255,0.05)' },
-        content: { backgroundColor: '#1e2130' },
-        title: { color: 'white', fontWeight: 600, fontSize: 14 }
+        header: { backgroundColor: 'var(--background-secondary)', borderBottom: '1px solid var(--border-subtle)' },
+        content: { backgroundColor: 'var(--background-secondary)' },
+        title: { color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }
       }}
     >
       <Text size="sm" c="dimmed" mb="lg">
-        Cambiar a <strong className="text-white">{MODES.find(m => m.value === showModeConfirm)?.label}</strong> borrará los mensajes actuales.
+        Cambiar a <strong style={{ color: 'var(--text-primary)' }}>{MODES.find(m => m.value === showModeConfirm)?.label}</strong> borrará los mensajes actuales.
       </Text>
       <Group justify="flex-end">
-        <Button variant="default" onClick={cancelModeSwitch} className="bg-white/5 border-white/10 hover:bg-white/10 text-white/80">
+        <Button variant="default" onClick={cancelModeSwitch}>
           Cancelar
         </Button>
         <Button onClick={confirmModeSwitch} color="blue">
@@ -48,38 +48,27 @@ const ChatModals: React.FC<Props> = ({
       centered
       size="md"
       styles={{
-        header: { backgroundColor: '#1e2130', borderBottom: '1px solid rgba(255,255,255,0.05)' },
-        content: { backgroundColor: '#1e2130' },
-        title: { color: 'white', fontWeight: 600, fontSize: 14 }
+        header: { backgroundColor: 'var(--background-secondary)', borderBottom: '1px solid var(--border-subtle)' },
+        content: { backgroundColor: 'var(--background-secondary)' },
+        title: { color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }
       }}
     >
       <div className="flex flex-col gap-3 py-2">
-        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-          <span className="text-white/70">Enviar mensaje</span>
-          <Kbd>Enter</Kbd>
-        </div>
-        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-          <span className="text-white/70">Nueva línea</span>
-          <Kbd>Shift+Enter</Kbd>
-        </div>
-        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-          <span className="text-white/70">Cancelar respuesta en curso</span>
-          <Kbd>Esc</Kbd>
-        </div>
-        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-          <span className="text-white/70">Recuperar último mensaje enviado</span>
-          <Kbd>↑</Kbd>
-        </div>
-        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-          <span className="text-white/70">Buscar en mensajes</span>
-          <Kbd>Ctrl+F</Kbd>
-        </div>
-        <div className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-          <span className="text-white/70">Nuevo chat</span>
-          <Kbd>Ctrl+N</Kbd>
-        </div>
-        <div className="flex justify-between items-center text-sm pb-1">
-          <span className="text-white/70">Mostrar / ocultar esta ayuda</span>
+        {[
+          ['Enviar mensaje', 'Enter'],
+          ['Nueva línea', 'Shift+Enter'],
+          ['Cancelar respuesta en curso', 'Esc'],
+          ['Recuperar último mensaje enviado', '↑'],
+          ['Buscar en mensajes', 'Ctrl+F'],
+          ['Nuevo chat', 'Ctrl+N'],
+        ].map(([label, key]) => (
+          <div key={key} className="flex justify-between items-center text-sm pb-2" style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+            <span>{label}</span>
+            <Kbd>{key}</Kbd>
+          </div>
+        ))}
+        <div className="flex justify-between items-center text-sm pb-1" style={{ color: 'var(--text-secondary)' }}>
+          <span>Mostrar / ocultar esta ayuda</span>
           <Kbd>Shift+?</Kbd>
         </div>
       </div>

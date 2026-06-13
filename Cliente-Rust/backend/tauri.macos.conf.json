@@ -1,0 +1,18 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "Cliente SSH Unipiloto",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "decorations": true,
+        "maximized": true,
+        "fullscreen": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 26, "y": 30 }
+      }
+    ]
+  }
+}
