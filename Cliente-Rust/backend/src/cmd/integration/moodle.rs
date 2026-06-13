@@ -104,6 +104,18 @@ fn load_env_vars() -> HashMap<String, String> {
         }
     }
      
+    // --- Fallback a variables embebidas en tiempo de compilación ---
+    if !map.contains_key("MOODLE_URL") {
+        if let Some(baked) = option_env!("COMPILED_MOODLE_URL") {
+            map.insert("MOODLE_URL".to_string(), baked.to_string());
+        }
+    }
+    if !map.contains_key("MOODLE_TOKEN") {
+        if let Some(baked) = option_env!("COMPILED_MOODLE_TOKEN") {
+            map.insert("MOODLE_TOKEN".to_string(), baked.to_string());
+        }
+    }
+
     // Buscar .env desde CARGO_MANIFEST_DIR hacia arriba
     let mut dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     loop {

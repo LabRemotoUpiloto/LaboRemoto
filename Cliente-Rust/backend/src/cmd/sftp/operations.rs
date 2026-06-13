@@ -16,12 +16,12 @@ pub async fn sftp_open(id: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn sftp_home(id: String) -> Result<String, String> {
   let home = tokio::task::spawn_blocking(move || {
-    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let user = {
-      let sref = map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
-      sref.user.clone()
+    let (cached, user) = {
+      let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
+      let user = map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?.user.clone();
+      let cached = get_or_connect_cached(&mut map, &id)?;
+      (cached, user)
     };
-    let cached = get_or_connect_cached(&mut map, &id)?;
     let guard = cached.lock().map_err(|e| e.to_string())?;
     let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
     use std::path::Path;
@@ -42,8 +42,10 @@ pub async fn sftp_home(id: String) -> Result<String, String> {
 #[tauri::command]
 pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, String> {
   let list = tokio::task::spawn_blocking(move || {
-    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let cached = get_or_connect_cached(&mut map, &id)?;
+    let cached = {
+      let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
+      get_or_connect_cached(&mut map, &id)?
+    };
     let out_res: Result<_, String> = (||{
       let guard = cached.lock().map_err(|e| e.to_string())?;
       let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
@@ -53,12 +55,16 @@ pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, Strin
       Ok(v) => Ok(v),
       Err(_) => {
         let (host, port, user, password) = {
+          let map = SESSIONS.lock().map_err(|e| e.to_string())?;
           let s = map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
           (s.host.clone(), s.port, s.user.clone(), s.password.clone())
         };
         let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-        if let Some(s) = map.get_mut(&id) { s.sftp_cached = Some(Arc::new(Mutex::new(CachedSsh2 { tcp, sess }))); }
-        let cached2 = map.get(&id).ok_or("Session lost")?.sftp_cached.as_ref().ok_or("SFTP not cached")?.clone();
+        let cached2 = {
+          let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
+          if let Some(s) = map.get_mut(&id) { s.sftp_cached = Some(Arc::new(Mutex::new(CachedSsh2 { tcp, sess }))); }
+          map.get(&id).ok_or("Session lost")?.sftp_cached.as_ref().ok_or("SFTP not cached")?.clone()
+        };
         let guard = cached2.lock().map_err(|e| e.to_string())?;
         let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
         sftp2::list_dir(&sftp, &path).map_err(|e| e.to_string())
@@ -72,8 +78,10 @@ pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, Strin
 #[tauri::command]
 pub async fn sftp_mkdir(id: String, path: String) -> Result<(), String> {
   tokio::task::spawn_blocking(move || {
-    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let cached = get_or_connect_cached(&mut map, &id)?;
+    let cached = {
+      let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
+      get_or_connect_cached(&mut map, &id)?
+    };
     let guard = cached.lock().map_err(|e| e.to_string())?;
     let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
     sftp2::mkdir(&sftp, &path).map_err(|e| e.to_string())
@@ -85,8 +93,10 @@ pub async fn sftp_mkdir(id: String, path: String) -> Result<(), String> {
 pub async fn sftp_remove(id: String, path: String, recursive: Option<bool>) -> Result<(), String> {
   let rec = recursive.unwrap_or(false);
   tokio::task::spawn_blocking(move || {
-    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let cached = get_or_connect_cached(&mut map, &id)?;
+    let cached = {
+      let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
+      get_or_connect_cached(&mut map, &id)?
+    };
     let guard = cached.lock().map_err(|e| e.to_string())?;
     let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
     if !rec {

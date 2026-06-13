@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 // ── Mantine ──────────────────────────────────────────────────────────────────
-import { MantineProvider, createTheme, LoadingOverlay, Modal, Button, Text, Group } from '@mantine/core'
+import { MantineProvider, createTheme, Modal, Button, Text, Group } from '@mantine/core'
 import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
 
@@ -20,7 +20,8 @@ import PinsPanel from './components/raspberry/PinsPanel'
 import DomoticaPanel from './components/arduino/DomoticaPanel'
 
 // Contexts
-import { LoadingProvider, useLoading } from './contexts/LoadingContext'
+import { LoadingProvider } from './contexts/LoadingContext'
+import GlobalLoader from './components/modals/GlobalLoader'
 import { ToastProvider } from './contexts/ToastContext'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 
@@ -37,34 +38,6 @@ const mantineTheme = createTheme({
   defaultRadius: 'md',
   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
 })
-
-// ── GlobalLoader con Mantine LoadingOverlay ───────────────────────────────────
-const GlobalLoader: React.FC = () => {
-  const { loading, label, onCancel } = useLoading()
-  return (
-    <LoadingOverlay
-      visible={loading}
-      zIndex={9999}
-      overlayProps={{ radius: 'sm', blur: 0 }}
-      loaderProps={{ color: 'blue', type: 'oval', size: 'md' }}
-    >
-      {loading && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, pointerEvents: 'none' }}>
-          {label && <Text c="dimmed" size="sm" mt={60}>{label}</Text>}
-          {onCancel && (
-            <Button
-              variant="subtle" color="red" size="xs"
-              style={{ pointerEvents: 'all' }}
-              onClick={onCancel}
-            >
-              Cancelar
-            </Button>
-          )}
-        </div>
-      )}
-    </LoadingOverlay>
-  )
-}
 
 // ── Modal de actualización con Mantine ────────────────────────────────────────
 const UpdateModal: React.FC<{
@@ -248,20 +221,22 @@ const AppMain: React.FC = () => {
           />
           <div className="main-content">
             <main className="content-area">
-              <div style={{ display: activeTab.type === 'home' ? 'block' : 'none', height: '100%' }}>
-                <HomeContainer
-                  tabs={tabs}
-                  sessionMeta={sessionMeta}
-                  setSessionMeta={setSessionMeta}
-                  selectedPage={selectedPage}
-                  onOpenPanel={handleOpenPanel}
-                  pendingHost={pendingHost}
-                  setPendingHost={setPendingHost}
-                  onConnectedFromConnect={handleNewSession}
-                  onOpenLog={openLogTab}
-                  onStartPractice={handleStartPractice}
-                />
-              </div>
+              {activeTab.type === 'home' && (
+                <div style={{ height: '100%' }}>
+                  <HomeContainer
+                    tabs={tabs}
+                    sessionMeta={sessionMeta}
+                    setSessionMeta={setSessionMeta}
+                    selectedPage={selectedPage}
+                    onOpenPanel={handleOpenPanel}
+                    pendingHost={pendingHost}
+                    setPendingHost={setPendingHost}
+                    onConnectedFromConnect={handleNewSession}
+                    onOpenLog={openLogTab}
+                    onStartPractice={handleStartPractice}
+                  />
+                </div>
+              )}
               <SessionContainer
                 tabs={tabs}
                 activeTabId={activeTabId}
