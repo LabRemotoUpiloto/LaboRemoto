@@ -8,7 +8,7 @@ const DEFAULTS: PlatformRelease[] = [
   {
     platform: "windows",
     version: "0.1.6",
-    date: "2026-05-17",
+    date: "2026-06-13",
     available: true,
     variants: [
       {
@@ -26,28 +26,28 @@ const DEFAULTS: PlatformRelease[] = [
   {
     platform: "linux",
     version: "0.1.6",
-    date: "2026-05-17",
+    date: "2026-06-13",
     available: true,
     variants: [
       {
-        label: "Binario x64 (glibc ≥ 2.39)",
-        filename: "Cliente.SSH-Unipiloto.Glib2.39",
+        label: "Debian 13 / glibc ≥ 2.39",
+        filename: "Cliente.SSH-Unipiloto.Debian.13",
         size: "Auto",
         downloadUrl:
-          "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente.SSH-Unipiloto.Glib2.39",
-        notes: "Ubuntu 24.04+, Fedora 40+, Debian 13+",
+          "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente.SSH-Unipiloto.Debian.13",
+        notes: "Debian 13, Ubuntu 24.04+, Fedora 40+",
       },
       {
-        label: "Binario x64 (glibc ≥ 2.35)",
-        filename: "ClienteSSH-Unipiloto-Linux",
+        label: "Debian 12 / glibc ≥ 2.36",
+        filename: "Cliente.SSh-Unipiloto.Debian.12",
         size: "Auto",
         downloadUrl:
-          "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/ClienteSSH-Unipiloto-Linux",
-        notes: "Ubuntu 22.04+, Debian 12+, Fedora 36+",
+          "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v0.1.6/Cliente.SSh-Unipiloto.Debian.12",
+        notes: "Debian 12, Ubuntu 22.04+, Fedora 36+",
       },
     ],
     allVersions: [
-      { version: "0.1.6", date: "2026-05-17" },
+      { version: "0.1.6", date: "2026-06-13" },
     ],
   },
   {
@@ -129,15 +129,15 @@ export function useReleases() {
               }
             }
             if (p.platform === "linux") {
-              const asset239 = assets.find((a: any) => a.name.toLowerCase().includes("linux_2"));
-              const asset235 = assets.find(
+              const assetDeb13 = assets.find((a: any) => a.name.toLowerCase().includes("debian.13"));
+              const assetDeb12 = assets.find(
                 (a: any) => {
                   const name = a.name.toLowerCase();
-                  return name.includes("linux") && !name.includes("linux_2");
+                  return name.includes("debian.12") || (name.includes("debian") && !name.includes("debian.13"));
                 }
               );
               updatedVariants = p.variants.map((v, i) => {
-                const asset = i === 0 ? asset239 : asset235;
+                const asset = i === 0 ? assetDeb13 : assetDeb12;
                 if (asset) {
                   return {
                     ...v,
@@ -199,15 +199,15 @@ export function useReleases() {
             }
           }
           if (p.platform === "linux") {
-            const asset239 = assets.find((a: any) => a.name.toLowerCase().includes("linux_2"));
-            const asset235 = assets.find(
+            const assetDeb13 = assets.find((a: any) => a.name.toLowerCase().includes("debian.13"));
+            const assetDeb12 = assets.find(
               (a: any) => {
                 const name = a.name.toLowerCase();
-                return name.includes("linux") && !name.includes("linux_2");
+                return name.includes("debian.12") || (name.includes("debian") && !name.includes("debian.13"));
               }
             );
             updatedVariants = p.variants.map((v, i) => {
-              const asset = i === 0 ? asset239 : asset235;
+              const asset = i === 0 ? assetDeb13 : assetDeb12;
               if (asset) {
                 return {
                   ...v,
