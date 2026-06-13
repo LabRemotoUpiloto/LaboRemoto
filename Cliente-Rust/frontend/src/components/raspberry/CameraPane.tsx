@@ -17,7 +17,7 @@ const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true,
 
   if (!streamUrl || !isActive) {
     return (
-      <div className={`flex flex-col w-full h-full bg-[var(--background-primary,#111116)] relative overflow-hidden items-center justify-center ${isExpanded ? 'camera-pane--expanded' : ''}`}>
+      <div className={`camera-pane flex flex-col w-full h-full bg-[var(--background-primary,#111116)] relative overflow-hidden items-center justify-center ${isExpanded ? 'camera-pane--expanded' : ''}`} onDoubleClick={onToggleExpand}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 6, color: '#64748b', fontSize: 11, textAlign: 'center', padding: '0 16px' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="7" width="15" height="10" rx="2"/><path d="M17 9l5-2v10l-5-2V9z"/>
@@ -30,7 +30,7 @@ const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true,
   }
 
   return (
-    <div className={`flex flex-col w-full h-full bg-[var(--background-primary,#111116)] relative overflow-hidden items-center justify-center [&>video]:absolute [&>video]:inset-0 [&>video]:w-full [&>video]:h-full [&>video]:object-contain [&>video]:z-0 ${isExpanded ? 'camera-pane--expanded' : ''}`} onDoubleClick={onToggleExpand}>
+    <div className={`camera-pane flex flex-col w-full h-full bg-[var(--background-primary,#111116)] relative overflow-hidden items-center justify-center [&>video]:absolute [&>video]:inset-0 [&>video]:w-full [&>video]:h-full [&>video]:object-contain [&>video]:z-0 ${isExpanded ? 'camera-pane--expanded' : ''}`} onDoubleClick={onToggleExpand}>
       <HlsPlayer
         key={retryKey}
         src={streamUrl}
