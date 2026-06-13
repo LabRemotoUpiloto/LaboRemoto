@@ -42,8 +42,8 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
   return (
     <div>
       {/* Header */}
-      <UnstyledButton
-        className="w-full flex items-center justify-between py-1 group"
+      <div
+        className="w-full flex items-center justify-between py-1 group cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2">
@@ -68,7 +68,7 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
             className={`text-[var(--mantine-color-dimmed)] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
           />
         </div>
-      </UnstyledButton>
+      </div>
 
       <Collapse in={isExpanded}>
         <div className="flex flex-col gap-1.5 mt-2 max-h-[200px] overflow-y-auto pr-1">

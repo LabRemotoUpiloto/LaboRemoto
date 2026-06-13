@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Tabs, ActionIcon, rem } from '@mantine/core';
+import { Tabs, rem } from '@mantine/core';
 import { gsap } from 'gsap';
 import { PANEL_ICONS, PANEL_LABELS, CloseIcon } from './HeaderConstants';
 
@@ -110,15 +110,16 @@ const PanelTabs: React.FC<PanelTabsProps> = ({
                 }
                 rightSection={
                   panelId !== 'landing' && (
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      size="xs"
-                      onClick={(e) => animateClose(e, () => onPanelClose(panelId))}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    <span
+                      role="button"
+                      tabIndex={-1}
+                      aria-label="Cerrar panel"
+                      onClick={(e) => animateClose(e as any, () => onPanelClose(panelId))}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center w-4 h-4 rounded hover:bg-red-500/20 hover:text-red-400 cursor-pointer"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 4, flexShrink: 0 }}
                     >
-                      <CloseIcon size={14} />
-                    </ActionIcon>
+                      <CloseIcon size={10} />
+                    </span>
                   )
                 }
                 style={panelId === activePanel ? {
