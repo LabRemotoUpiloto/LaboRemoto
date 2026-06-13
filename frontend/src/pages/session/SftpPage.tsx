@@ -82,13 +82,20 @@ const SftpPage: React.FC<Props> = ({
   } = useSftpTransfers(sessionId)
 
   // ── Sync remote path to parent ─────────────────────────────────────────────
+  const onPathChangeRef = React.useRef(onPathChange)
   useEffect(() => {
-    if (onPathChange && rpath) onPathChange(rpath)
-  }, [rpath, onPathChange])
+    onPathChangeRef.current = onPathChange
+  }, [onPathChange])
 
   useEffect(() => {
-    if (rerr && onPathChange && rerr.includes('no such file')) onPathChange('/')
-  }, [rerr, onPathChange])
+    if (onPathChangeRef.current && rpath) onPathChangeRef.current(rpath)
+  }, [rpath])
+
+  useEffect(() => {
+    if (rerr && onPathChangeRef.current && rerr.includes('no such file')) {
+      onPathChangeRef.current('/')
+    }
+  }, [rerr])
 
   // ── Context menu state ─────────────────────────────────────────────────────
   const [ctx, setCtx] = useState<{
