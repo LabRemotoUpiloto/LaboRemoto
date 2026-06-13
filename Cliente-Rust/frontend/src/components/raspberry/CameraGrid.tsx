@@ -36,6 +36,8 @@ function getGridCols(count: number): number {
 const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = false }) => {
   const { cameras, localPort, piHost, status, error, start, stop } = useCameraGrid(sessionId)
   const [expandedCam, setExpandedCam] = useState<string | null>(null)
+  const [swapSource, setSwapSource] = useState<string | null>(null)
+  const [cameraOrder, setCameraOrder] = useState<string[]>([])
 
   useEffect(() => {
     if (!autoStart || !sessionId || !isActive) return
@@ -49,12 +51,33 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = f
     return () => { void stop() }
   }, [autoStart, stop])
 
-  const activeCameras = cameras.filter(c => c.status === 'active')
   const allCameras = cameras
+  let activeCameras = cameras.filter(c => c.status === 'active')
+
+  if (cameraOrder.length > 0) {
+    const ordered = cameraOrder.filter(id => activeCameras.some(c => c.id === id))
+    const unordered = activeCameras.filter(c => !cameraOrder.includes(c.id))
+    activeCameras = [...ordered.map(id => activeCameras.find(c => c.id === id)!).filter(Boolean), ...unordered]
+  }
+
   const cols = getGridCols(activeCameras.length)
 
   const toggleExpand = (camId: string) => {
     setExpandedCam(prev => prev === camId ? null : camId)
+  }
+
+  const handleSwap = (from: string, to: string) => {
+    if (from === to) { setSwapSource(null); return }
+    setCameraOrder(prev => {
+      const ids = prev.length > 0 ? [...prev] : activeCameras.map(c => c.id)
+      const fromIdx = ids.indexOf(from)
+      const toIdx = ids.indexOf(to)
+      if (fromIdx === -1 || toIdx === -1) return prev
+      ids[fromIdx] = to
+      ids[toIdx] = from
+      return ids
+    })
+    setSwapSource(null)
   }
 
   // Dynamic grid classes based on cols
@@ -145,6 +168,14 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = f
           )}
         </div>
         <div className="flex gap-1.5">
+          {swapSource && (
+            <button
+              className="text-[10px] text-[var(--warning,#f59e0b)] bg-[color-mix(in_srgb,#f59e0b_12%,transparent)] border border-[color-mix(in_srgb,#f59e0b_40%,transparent)] rounded-md py-1 px-3 cursor-pointer transition-all duration-150"
+              onClick={() => setSwapSource(null)}
+            >
+              Cancelar swap
+            </button>
+          )}
           {expandedCam && (
             <button 
               className="text-[10px] text-[var(--text-secondary,#aaa)] bg-[color-mix(in_srgb,var(--text-secondary)_8%,transparent)] border border-[var(--border-subtle,#333)] rounded-md py-1 px-3 cursor-pointer transition-all duration-150 hover:bg-[color-mix(in_srgb,var(--accent-primary)_15%,transparent)] hover:text-[var(--text-primary,#ddd)] hover:border-[var(--accent-primary)]" 
@@ -173,7 +204,16 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = f
             camId={cam.id}
             isActive={isActive}
             isExpanded={expandedCam === cam.id}
-            onToggleExpand={() => toggleExpand(cam.id)}
+            isSwapSource={swapSource === cam.id}
+            swapMode={swapSource !== null}
+            onClick={() => {
+              if (swapSource) return handleSwap(swapSource, cam.id)
+              toggleExpand(cam.id)
+            }}
+            onDoubleClick={() => {
+              if (swapSource) return
+              setSwapSource(cam.id)
+            }}
           />
         ))}
       </div>
