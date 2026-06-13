@@ -280,21 +280,18 @@ fn tool_reiniciar_servicio(session_id: &str, input: &serde_json::Value) -> ToolR
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn get_creds(session_id: &str) -> Result<(String, u16, String, String), String> {
-    let use_pi4_only = session_id == crate::cmd::tools::pi4_config::PI4_ENV_SESSION_ID;
-    if !use_pi4_only {
-        if let Ok(map) = SESSIONS.lock() {
-            if let Some(s) = map.get(session_id) {
-                return Ok((s.host.clone(), s.port, s.user.clone(), s.password.clone()));
-            }
-        }
+    if session_id == crate::cmd::tools::pi4_config::PI4_ENV_SESSION_ID {
+        crate::cmd::tools::pi4_config::load_pi4_creds()
+            .map(|c| (c.host, c.port, c.user, c.password))
+            .ok_or_else(|| {
+                "Raspberry Pi no configurada. Define PI4_USER y PI4_PASSWORD en Cliente-Rust/.env."
+                    .to_string()
+            })
+    } else {
+        let map = SESSIONS.lock().map_err(|e| e.to_string())?;
+        let s = map.get(session_id).ok_or("Sesión no encontrada")?;
+        Ok((s.host.clone(), s.port, s.user.clone(), s.password.clone()))
     }
-    crate::cmd::tools::pi4_config::load_pi4_creds()
-        .map(|c| (c.host, c.port, c.user, c.password))
-        .ok_or_else(|| {
-            "No hay sesión SSH activa. Configura PI4_USER y PI4_PASSWORD en Cliente-Rust/.env \
-             o conéctate primero por SSH."
-                .to_string()
-        })
 }
 
 fn run_ssh_exec(host: &str, port: u16, user: &str, password: &str, cmd: &str) -> Result<String, String> {

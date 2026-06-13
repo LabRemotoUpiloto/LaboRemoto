@@ -26,34 +26,38 @@ export function usePi4ChatSession() {
     let pendingId: string | null = null;
 
     try {
+      let resolveConnected: ((id: string) => void) | null = null;
+      let rejectConnected: ((err: Error) => void) | null = null;
       const connected = new Promise<string>((resolve, reject) => {
-        const timeout = window.setTimeout(() => {
-          reject(new Error('Tiempo de espera al conectar con la Raspberry (30s)'));
-        }, 30_000);
+        resolveConnected = resolve;
+        rejectConnected = reject;
+      });
 
-        const finish = (fn: () => void) => {
-          window.clearTimeout(timeout);
-          fn();
-        };
+      const timeout = window.setTimeout(() => {
+        rejectConnected?.(new Error('Tiempo de espera al conectar con la Raspberry (30s)'));
+      }, 30_000);
+      const finish = (fn: () => void) => {
+        window.clearTimeout(timeout);
+        fn();
+      };
 
+      [unlistenOk, unlistenErr] = await Promise.all([
         listen<{ id: string; embedded_in_chat?: boolean; ssh_command?: string }>('ssh_connected', ev => {
           if (ev.payload?.embedded_in_chat !== true) return;
           const id = ev.payload?.id;
           if (!id || (pendingId && id !== pendingId)) return;
           if (ev.payload.ssh_command) setSshCommandLine(ev.payload.ssh_command);
-          finish(() => resolve(id));
-        }).then(fn => { unlistenOk = fn; });
-
+          finish(() => resolveConnected?.(id));
+        }),
         listen<{ id: string; error: string; embedded_in_chat?: boolean }>('ssh_connect_error', ev => {
           if (ev.payload?.embedded_in_chat === true) {
             const id = ev.payload?.id;
             if (!id || (pendingId && id !== pendingId)) return;
-            finish(() => reject(new Error(ev.payload.error || 'Error de conexión SSH')));
+            finish(() => rejectConnected?.(new Error(ev.payload.error || 'Error de conexión SSH')));
           }
-        }).then(fn => { unlistenErr = fn; });
-      });
+        }),
+      ]);
 
-      await new Promise(r => setTimeout(r, 100));
       pendingId = await pi4SshConnect(EMBEDDED_COLS, EMBEDDED_ROWS);
       const id = await connected;
       setSessionId(id);
