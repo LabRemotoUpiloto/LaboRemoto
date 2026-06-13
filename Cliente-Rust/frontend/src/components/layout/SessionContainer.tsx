@@ -46,11 +46,11 @@ const SessionContainer: React.FC<Props> = ({
       {tabs.filter(t => t.type === 'session').map(t => (
         <div key={t.id} style={{ display: activeTabId === t.id ? 'block' : 'none', height: '100%', width: '100%' }}>
           <div
-            style={{
-              display: selectedPage === 'sftp' || selectedPage === 'snippets' || selectedPage === 'logs' ? 'none' : 'block',
-              height: '100%',
-              width: '100%'
-            }}
+            style={
+              selectedPage === 'sftp' || selectedPage === 'snippets' || selectedPage === 'logs'
+                ? { position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -10, width: '100%', height: '100%', overflow: 'hidden' }
+                : { height: '100%', width: '100%' }
+            }
           >
             <TerminalView
               sessionId={t.id}
@@ -64,7 +64,7 @@ const SessionContainer: React.FC<Props> = ({
               student={practiceMeta?.[t.id]?.student ?? null}
             />
           </div>
-          {selectedPage === 'sftp' && (
+          {selectedPage === 'sftp' && activeTabId === t.id && (
             <SftpPage
               sessions={tabs.filter(tt => tt.type === 'session').map(tt => tt.id)}
               sessionsMeta={sessionMeta}
@@ -73,8 +73,8 @@ const SessionContainer: React.FC<Props> = ({
               onPathChange={(path) => setSftpPaths(prev => ({ ...prev, [t.id]: path }))}
             />
           )}
-          {selectedPage === 'snippets' && <SnippetsPage />}
-          {selectedPage === 'logs' && <LogsPage onOpenLog={onOpenLog} />}
+          {selectedPage === 'snippets' && activeTabId === t.id && <SnippetsPage />}
+          {selectedPage === 'logs' && activeTabId === t.id && <LogsPage onOpenLog={onOpenLog} />}
         </div>
       ))}
     </>

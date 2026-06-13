@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ActionIcon, Group, Progress, ScrollArea, Text, Tooltip, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Group, Progress, ScrollArea, Text, Tooltip } from '@mantine/core'
 import { Upload, Download, X, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatBytes } from '../shared/fileFormatters'
 
@@ -45,7 +45,7 @@ const TransfersPanel: React.FC<TransfersPanelProps> = ({ transfers, onCancel, on
       }}
     >
       {/* Header */}
-      <UnstyledButton
+      <div
         onClick={() => setCollapsed(!collapsed)}
         style={{
           display: 'flex',
@@ -56,6 +56,7 @@ const TransfersPanel: React.FC<TransfersPanelProps> = ({ transfers, onCancel, on
           background: 'var(--surface-2)',
           minHeight: 36,
           flexShrink: 0,
+          cursor: 'pointer',
         }}
       >
         <Text size="xs" fw={600} c="dimmed">
@@ -96,7 +97,7 @@ const TransfersPanel: React.FC<TransfersPanelProps> = ({ transfers, onCancel, on
         )}
 
         {collapsed ? <ChevronUp size={14} style={{ opacity: 0.5 }} /> : <ChevronDown size={14} style={{ opacity: 0.5 }} />}
-      </UnstyledButton>
+      </div>
 
       {/* Content */}
       {!collapsed && (
