@@ -297,8 +297,15 @@
   color: var(--text-primary);
 }
 
-.agent-home-hero__title span {
+.agent-home-hero__title > span:not(.agent-home-hero__title-row) {
   display: block;
+  color: #d51f22;
+}
+
+.agent-home-hero__title-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2.4vw, 28px);
   color: #d51f22;
 }
 
@@ -311,12 +318,12 @@
 }
 
 .agent-home-hero__mascot {
-  display: inline-flex;
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  margin-top: 20px;
-  width: 74px;
-  height: 74px;
+  width: clamp(66px, 8.2vw, 104px);
+  height: clamp(66px, 8.2vw, 104px);
   border-radius: 999px;
   background:
     radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.2), transparent 42%),
@@ -327,8 +334,8 @@
 }
 
 .agent-home-hero__mascot img {
-  width: 86px;
-  height: 86px;
+  width: 118%;
+  height: 118%;
   object-fit: cover;
   object-position: center;
   transform: translateY(3px) scale(1.05);
@@ -719,6 +726,15 @@
 
   .agent-home-hero__title {
     font-size: clamp(2.55rem, 14vw, 4.1rem);
+  }
+
+  .agent-home-hero__title-row {
+    gap: 12px;
+  }
+
+  .agent-home-hero__mascot {
+    width: 62px;
+    height: 62px;
   }
 
   .agent-home-hero__subtitle {

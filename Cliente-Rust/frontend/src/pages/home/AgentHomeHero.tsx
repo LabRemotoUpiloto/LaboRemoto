@@ -46,16 +46,18 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
         </div>
 
         <h1 id="landing-title" className="agent-home-hero__title">
-          Laboratorio <span>remoto</span>
+          Laboratorio
+          <span className="agent-home-hero__title-row">
+            <span>remoto</span>
+            <span className="agent-home-hero__mascot" aria-hidden="true">
+              <img src="/abeja1.jpeg" alt="" />
+            </span>
+          </span>
         </h1>
 
         <p className="agent-home-hero__subtitle">
           {displayName ? `${displayName}, ` : ''}conecta, practica y administra tus accesos desde un solo entorno académico.
         </p>
-
-        <div className="agent-home-hero__mascot" aria-hidden="true">
-          <img src="/abeja1.jpeg" alt="" />
-        </div>
 
         {onOpenPanel && (
           <div className="agent-home-hero__actions">
