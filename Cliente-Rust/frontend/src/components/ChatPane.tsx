@@ -32,6 +32,7 @@ import { useDisplayName } from '../pages/home/useDisplayName';
 import ChatFloatingActions from './chatPane/ChatFloatingActions';
 import { pi4AgentReady as fetchPi4AgentReady } from '../services/ai.service';
 import { vncStop } from '../services/ssh.service';
+import { useTour } from '../tour/useTour';
 
 type Props = {
   sessionId?: string | null;
@@ -49,6 +50,7 @@ const ChatPane: React.FC<Props> = ({
 }) => {
   const isHome = layout === 'home';
   const displayName = useDisplayName();
+  const { startTour } = useTour();
   // ── Core State ──
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -551,11 +553,9 @@ const ChatPane: React.FC<Props> = ({
         <div className="agent-landing-empty">
           <AgentHomeHero
             displayName={displayName}
-            mode={mode}
-            onSuggestionClick={text => handleSendRef.current?.(text)}
             onOpenPanel={onOpenPanel}
+            onStartTutorial={startTour}
           />
-          {chatInputEl}
         </div>
       ) : (
         <ChatMessageList

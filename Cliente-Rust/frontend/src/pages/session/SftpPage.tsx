@@ -377,7 +377,6 @@ const SftpPage: React.FC<Props> = ({
         height: '100%',
         gap: 8,
         padding: 8,
-        background: 'var(--background-primary)',
       }}
     >
       {/* Local Panel */}

@@ -103,7 +103,7 @@ export default function ThemesPage() {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ backgroundColor: 'var(--background-primary)' }}>
+    <div className="flex flex-col h-full overflow-hidden">
       <header className="page-header-integrated border-b pb-4" style={{ borderColor: 'var(--border-subtle)' }}>
         <h2 className="page-header-title">Temas</h2>
         <div className="page-header-content">

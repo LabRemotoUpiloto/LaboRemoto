@@ -26,6 +26,7 @@ export default function HeroSection() {
   const leftRef   = useRef<HTMLDivElement>(null);
   const rightRef  = useRef<HTMLDivElement>(null);
   const abejaRef  = useRef<HTMLImageElement>(null);
+  const abeja1Ref = useRef<HTMLImageElement>(null);
   const termRef   = useRef<HTMLDivElement>(null);
   const isAnimatingRef = useRef(false);
 
@@ -51,10 +52,16 @@ export default function HeroSection() {
         "-=0.5"
       )
       // 4. Abeja peeks out from behind the terminal
-      .fromTo(abejaRef.current,
+      tl.fromTo(abejaRef.current,
         { opacity: 0, y: 40, x: -20, scale: 0.8 },
         { opacity: 1, y: 0, x: 0, scale: 1, duration: 1, ease: "back.out(1.5)" },
         "-=0.4"
+      )
+      // 5. Abeja1 slides in from the right
+      .fromTo(abeja1Ref.current,
+        { opacity: 0, x: 60, scale: 0.6 },
+        { opacity: 1, x: 0, scale: 1, duration: 0.9, ease: "back.out(1.7)" },
+        "-=0.3"
       );
     }, heroRef);
 
@@ -189,6 +196,19 @@ export default function HeroSection() {
                   src="/abeja.jpeg"
                   alt="Mascota Semillero IoT"
                   className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 object-contain mix-blend-screen drop-shadow-2xl transition-transform group-hover:scale-105"
+                />
+              </div>
+
+              {/* Abeja1 peeking from the right side */}
+              <div
+                ref={abeja1Ref}
+                className="absolute -bottom-16 sm:-bottom-20 md:-bottom-24 lg:-bottom-28 -right-8 sm:-right-6 md:-right-4 z-0 pointer-events-none select-none"
+                style={{ opacity: 0 }}
+              >
+                <img
+                  src="/abeja1.jpeg"
+                  alt="Mascota Semillero IoT"
+                  className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 object-contain mix-blend-screen drop-shadow-2xl"
                 />
               </div>
 

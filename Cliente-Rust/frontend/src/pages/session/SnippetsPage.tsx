@@ -164,7 +164,7 @@ const SnippetsPage: React.FC = () => {
   const editingSnippet = editingId ? snippets.find(s => s.id === editingId) : null;
 
   return (
-    <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--background-primary)' }}>
+    <div className="flex flex-col h-full">
       <SnippetsHeader
         totalCount={snippets.length}
         filteredCount={filteredAndSortedSnippets.length}

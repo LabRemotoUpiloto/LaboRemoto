@@ -389,7 +389,7 @@ const ReservasPage: React.FC = () => {
   // ── Renderizado ────────────────────────────────────────────────────────────
 
   return (
-    <Box w="100%" h="100%" style={{ overflow: 'auto', backgroundColor: 'var(--background-primary)' }}>
+    <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
       <Container size="xl" pt={28} pb={60} px="xl">
         <Stack gap="xl">
 
