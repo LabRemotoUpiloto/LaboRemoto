@@ -1,0 +1,89 @@
+.terminal-with-vnc-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* VNC Pill inside TerminalStack limits (so it doesn't overlap chat) */
+.terminal-stack {
+  position: relative;
+}
+
+.vnc-floating-pill {
+  position: absolute;
+  bottom: calc(24px + var(--bb-offset, 0px));
+  /* 'right' is injected dynamically via inline styles depending on chat state */
+  transition: right 0.35s cubic-bezier(0.2, 0, 0, 1), transform 0.2s ease, background 0.2s ease;
+  background: var(--accent-primary, #007bff);
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 50; /* Above terminal but below chat toggle */
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.vnc-floating-pill:hover {
+  transform: translateY(-2px);
+  background: var(--accent-primary-hover, #0056b3);
+}
+
+/* Pulsing ring animation for the inactive state */
+.vnc-pill-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 24px;
+  border: 2px solid var(--accent-primary, #007bff);
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+/* Active state (return to terminal button) */
+.vnc-floating-pill-active {
+  background: var(--bg-tertiary, #1e1e2e);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-primary, #fff);
+  /* Hereda bottom y right de .vnc-floating-pill para que no se mueva de lugar al hacer clic */
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  padding: 8px 16px;
+}
+
+.vnc-floating-pill-active:hover {
+  background: var(--accent-primary, #007bff);
+  border-color: var(--accent-primary, #007bff);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.vnc-floating-pill svg {
+  flex-shrink: 0;
+}
