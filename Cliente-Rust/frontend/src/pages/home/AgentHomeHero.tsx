@@ -49,45 +49,44 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
           Laboratorio <span>remoto</span>
         </h1>
 
-        <img
-          src="/abeja1.jpeg"
-          alt="Mascota del laboratorio remoto"
-          className="agent-home-hero__bee"
-        />
-
         <p className="agent-home-hero__subtitle">
           {displayName ? `${displayName}, ` : ''}conecta, practica y administra tus accesos desde un solo entorno académico.
         </p>
 
+        <div className="agent-home-hero__mascot" aria-hidden="true">
+          <img src="/abeja1.jpeg" alt="" />
+        </div>
+
         {onOpenPanel && (
           <div className="agent-home-hero__actions">
             {QUICK_LINKS.map(({ id, label, detail, icon: Icon, primary }, i) => (
-              <button
-                key={id}
-                type="button"
-                className={primary ? 'agent-home-hero__action agent-home-hero__action--primary' : 'agent-home-hero__action'}
-                onClick={() => onOpenPanel(id)}
-              >
-                <em>0{i + 1}</em>
-                <Icon size={18} strokeWidth={2} />
-                <span>
-                  <strong>{label}</strong>
-                  <small>{detail}</small>
-                </span>
-              </button>
+              <div key={id} className="agent-home-hero__action-slot">
+                <button
+                  type="button"
+                  className={primary ? 'agent-home-hero__action agent-home-hero__action--primary' : 'agent-home-hero__action'}
+                  onClick={() => onOpenPanel(id)}
+                >
+                  <em>0{i + 1}</em>
+                  <Icon size={18} strokeWidth={2} />
+                  <span>
+                    <strong>{label}</strong>
+                    <small>{detail}</small>
+                  </span>
+                </button>
+
+                {id === 'practices' && onStartTutorial && (
+                  <button
+                    type="button"
+                    className="agent-home-hero__tutorial"
+                    onClick={onStartTutorial}
+                  >
+                    <GraduationCap size={14} strokeWidth={2} />
+                    <span>Ver Tutorial</span>
+                  </button>
+                )}
+              </div>
             ))}
           </div>
-        )}
-
-        {onStartTutorial && (
-          <button
-            type="button"
-            className="agent-home-hero__tutorial"
-            onClick={onStartTutorial}
-          >
-            <GraduationCap size={18} strokeWidth={2} />
-            <span>Ver Tutorial</span>
-          </button>
         )}
       </section>
 
