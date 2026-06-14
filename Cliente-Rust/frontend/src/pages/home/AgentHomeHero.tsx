@@ -49,6 +49,12 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
           Laboratorio <span>remoto</span>
         </h1>
 
+        <img
+          src="/abeja1.jpeg"
+          alt="Mascota del laboratorio remoto"
+          className="agent-home-hero__bee"
+        />
+
         <p className="agent-home-hero__subtitle">
           {displayName ? `${displayName}, ` : ''}conecta, practica y administra tus accesos desde un solo entorno académico.
         </p>
@@ -80,10 +86,7 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
             onClick={onStartTutorial}
           >
             <GraduationCap size={18} strokeWidth={2} />
-            <span>
-              <strong>Ver Tutorial</strong>
-              <small>Recorrido guiado por la app</small>
-            </span>
+            <span>Ver Tutorial</span>
           </button>
         )}
       </section>
