@@ -11,6 +11,7 @@ gen/
 .env
 .env.local
 .env.practicas
+.tauri/keys.key
 **/.env
 **/.env.local
 **/.env.practicas
