@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session {session_id}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1e1e1e;
+      color: #E8E8E8;
+      font-family: 'Cascadia Code','Fira Code','Consolas','Monaco',monospace;
+      font-size: 14px; line-height: 1.5;
+    }
+    .session-header {
+      background: #ffffff; border-bottom: 4px solid #8B1B13;
+      padding: 1.5rem 2rem; position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      display: flex; gap: 25px; align-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .session-header img.logo { height: 60px; width: auto; }
+    .header-content { flex: 1; border-left: 2px solid #E8E8E8; padding-left: 25px; }
+    .session-header h1 { color: #8B1B13; font-size: 28px; margin-bottom: .2rem; font-weight: bold; font-family: 'Arial', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
+    .session-header h2 { color: #3D3D3D; font-size: 16px; margin-top: 0; margin-bottom: 1.2rem; font-weight: normal; font-family: 'Arial', sans-serif; }
+    .session-info {
+      display: flex; flex-wrap: wrap;
+      gap: 1.5rem; color: #111111; font-size: .95rem;
+    }
+    .info-item { display: flex; align-items: center; gap: .5rem; }
+    .info-label { color: #8B1B13; font-weight: bold; font-size: 0.85rem; text-transform: uppercase; }
+    .info-value { color: #3D3D3D; font-family: monospace; font-size: 1.05rem; font-weight: 600; }
+    .terminal-content { padding: 2rem; white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; font-size: 14px; line-height: 1.4; }
+    ::-webkit-scrollbar { width: 12px; height: 12px; }
+    ::-webkit-scrollbar-track { background: #111111; }
+    ::-webkit-scrollbar-thumb { background: #3D3D3D; border-radius: 6px; border: 2px solid #111111; }
+    ::-webkit-scrollbar-thumb:hover { background: #C0281D; }
+    ::selection { background: #C0281D; color: #ffffff; }
+  </style>
+</head>
+<body>
+  <div class="session-header">
+    <img class="logo" src="data:image/png;base64,__LOGO_BASE64__">
+    <div class="header-content">
+      <h1>REPORTES INGENIERÍA</h1>
+      <h2>Registro de Auditoría de Comandos SSH</h2>
+      <div class="session-info">
+        <div class="info-item"><span class="info-label">Destino:</span><span class="info-value">{user}@{host}:{port}</span></div>
+        <div class="info-item"><span class="info-label">ID:</span><span class="info-value">{short_id}...</span></div>
+        <div class="info-item"><span class="info-label">Inicio:</span><span class="info-value">{start}</span></div>
+        <div class="info-item"><span class="info-label">Fin:</span><span class="info-value">{end}</span></div>
+        <div class="info-item"><span class="info-label">Duración:</span><span class="info-value">{duration}</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="terminal-content">{terminal}</div>
+</body>
+</html>

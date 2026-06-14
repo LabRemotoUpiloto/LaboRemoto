@@ -1,0 +1,43 @@
+# ── Dependencias ──
+node_modules/
+**/node_modules/
+
+# ── Build output ──
+dist/
+target/
+gen/
+
+# ── Environment (secrets) ──
+.env
+.env.local
+.env.practicas
+**/.env
+**/.env.local
+**/.env.practicas
+set-api-keys.ps1
+**/set-api-keys.ps1
+
+# ── IDE / Tooling ──
+.vscode/
+.windsurf/
+.agents/
+skills-lock.json
+
+# ── GitHub Actions (keep config, ignore workflows) ──
+.github/workflows/
+
+# ── SQL ──
+*.sql
+
+# ── Runtime logs ──
+savedLogs/
+**/savedLogs/
+**/.agents/
+/docs
+
+# ── LaTeX build artifacts ──
+Paper/build/
+
+# ── OS ──
+.DS_Store
+Thumbs.db
