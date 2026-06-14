@@ -25,8 +25,8 @@ export default function HeroSection() {
   const asciiRef  = useRef<HTMLPreElement>(null);
   const leftRef   = useRef<HTMLDivElement>(null);
   const rightRef  = useRef<HTMLDivElement>(null);
-  const abejaRef  = useRef<HTMLImageElement>(null);
-  const abeja1Ref = useRef<HTMLImageElement>(null);
+  const abejaRef  = useRef<HTMLDivElement>(null);
+  const abeja1Ref = useRef<HTMLDivElement>(null);
   const termRef   = useRef<HTMLDivElement>(null);
   const isAnimatingRef = useRef(false);
 
@@ -202,13 +202,13 @@ export default function HeroSection() {
               {/* Abeja1 peeking from the right side */}
               <div
                 ref={abeja1Ref}
-                className="absolute -bottom-16 sm:-bottom-20 md:-bottom-24 lg:-bottom-28 -right-8 sm:-right-6 md:-right-4 z-0 pointer-events-none select-none"
+                className="absolute -bottom-8 sm:-bottom-10 md:-bottom-12 right-0 sm:-right-4 md:-right-6 z-20 pointer-events-none select-none"
                 style={{ opacity: 0 }}
               >
                 <img
                   src="/abeja1.jpeg"
                   alt="Mascota Semillero IoT"
-                  className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 object-contain mix-blend-screen drop-shadow-2xl"
+                  className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 object-contain rounded-2xl border border-white/10 shadow-2xl"
                 />
               </div>
 

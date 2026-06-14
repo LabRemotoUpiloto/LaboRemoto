@@ -428,6 +428,46 @@
   color: color-mix(in srgb, currentColor 70%, transparent);
 }
 
+.agent-home-hero__tutorial {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, var(--border-subtle));
+  background: color-mix(in srgb, var(--background-secondary) 72%, transparent);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.agent-home-hero__tutorial:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--background-secondary) 82%, var(--accent-primary) 8%);
+}
+
+.agent-home-hero__tutorial svg {
+  color: var(--accent-primary);
+}
+
+.agent-home-hero__tutorial span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-home-hero__tutorial strong {
+  font-size: 13px;
+}
+
+.agent-home-hero__tutorial small {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 .agent-home-hero__panel {
   position: relative;
   padding: 30px 0 30px 34px;

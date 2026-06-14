@@ -10,8 +10,8 @@ interface AgentHomeHeroProps {
 
 const QUICK_LINKS = [
   { id: 'connect', label: 'Conectar ahora', detail: 'Abrir una sesión remota', icon: Plus, primary: true },
-  { id: 'practices', label: 'Prácticas', detail: 'Ver actividades disponibles', icon: FlaskConical },
-  { id: 'hosts', label: 'Mis hosts', detail: 'Gestionar accesos guardados', icon: Server },
+  { id: 'practices', label: 'Prácticas', detail: 'Ver actividades disponibles', icon: FlaskConical, primary: false },
+  { id: 'hosts', label: 'Mis hosts', detail: 'Gestionar accesos guardados', icon: Server, primary: false },
 ] as const;
 
 const CAPABILITIES = [
@@ -70,21 +70,21 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
                 </span>
               </button>
             ))}
-            {onStartTutorial && (
-              <button
-                type="button"
-                className="agent-home-hero__action"
-                onClick={onStartTutorial}
-              >
-                <em>04</em>
-                <GraduationCap size={18} strokeWidth={2} />
-                <span>
-                  <strong>Ver Tutorial</strong>
-                  <small>Recorrido guiado por la app</small>
-                </span>
-              </button>
-            )}
           </div>
+        )}
+
+        {onStartTutorial && (
+          <button
+            type="button"
+            className="agent-home-hero__tutorial"
+            onClick={onStartTutorial}
+          >
+            <GraduationCap size={18} strokeWidth={2} />
+            <span>
+              <strong>Ver Tutorial</strong>
+              <small>Recorrido guiado por la app</small>
+            </span>
+          </button>
         )}
       </section>
 
