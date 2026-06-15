@@ -2,3 +2,8 @@ pub mod health;
 pub mod hosts;
 pub mod ssh;
 pub mod sftp;
+pub mod ai;
+pub mod sessions;
+pub mod practices;
+pub mod moodle;
+pub mod hardware;
