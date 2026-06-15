@@ -1,5 +1,6 @@
 pub mod core;
 pub mod http;
+pub mod docs;
 pub mod modules;
 pub mod routes;
 

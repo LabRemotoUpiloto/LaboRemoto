@@ -1,12 +1,15 @@
 use axum::{middleware, routing::{delete, get, post}, Router};
 
 use crate::api::auth;
+use crate::api::docs::openapi;
 use crate::api::modules::health;
 use crate::api::modules::{ai, hardware, hosts, moodle, practices, sessions, sftp, ssh};
 
 pub fn public_router() -> Router {
     Router::new()
         .route("/api/v1/health", get(health::health_handler))
+        .route("/api/v1/openapi.json", get(openapi::openapi_json))
+        .route("/api/v1/docs", get(openapi::swagger_ui))
 }
 
 pub fn protected_router() -> Router {
