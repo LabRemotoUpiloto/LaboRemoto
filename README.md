@@ -21,19 +21,19 @@ La aplicación principal es [Cliente-Rust](./Cliente-Rust), un cliente de escrit
 
 ### Inicio
 
-![Inicio](./.github/pr-screenshots/feat-cliente-ui-reservas/01-home-agent-landing.png)
-
-### Vista general
-
-![Vista general](./.github/pr-screenshots/feat-cliente-ui-reservas/02-home-full.png)
-
-### Reservas
-
-![Reservas](./.github/pr-screenshots/feat-cliente-ui-reservas/03-reservas.png)
+![Inicio](./.github/pr-screenshots/imagenes-repo/01-home-landig.jpg)
 
 ### Prácticas
 
-![Prácticas](./.github/pr-screenshots/feat-cliente-ui-reservas/04-practicas.png)
+![Prácticas](./.github/pr-screenshots/imagenes-repo/04-pamel-Practicas.jpg)
+
+### SFTP
+
+![SFTP](./.github/pr-screenshots/imagenes-repo/03-SFTP.jpg)
+
+### Conexión SSH
+
+![Conexión SSH](./.github/pr-screenshots/imagenes-repo/02-Panel-Conexion.jpg)
 
 ## Requisitos
 
