@@ -7,6 +7,7 @@ pub mod cmd;     // Comandos invocables desde el frontend (Tauri commands)
 pub mod storage; // Utilidades de almacenamiento cifrado de hosts
 pub mod state_core; // Memoria efímera por sesión (AppState)
 pub mod security; // Validaciones de seguridad y backups
+pub mod api;      // REST API
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 fn load_dotenv() {
@@ -31,6 +32,21 @@ fn load_dotenv() {
 pub fn run() {
   // Cargar variables de entorno desde .env
   load_dotenv();
+
+  // Arrancar servidor REST API si está habilitado
+  let api_config = crate::api::config::ApiConfig::from_env();
+  if api_config.enabled {
+    if api_config.token.is_empty() {
+      eprintln!("[API] ADVERTENCIA: REST_API_TOKEN no configurado. La API se iniciará sin autenticación.");
+    }
+    let cfg = api_config.clone();
+    tauri::async_runtime::spawn(async move {
+      crate::api::server::start(cfg).await;
+    });
+    println!("[API] REST API habilitada en {}:{}", api_config.host, api_config.port);
+  } else {
+    println!("[API] REST API deshabilitada (REST_API_ENABLED=false o ausente)");
+  }
   
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
