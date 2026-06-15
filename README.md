@@ -17,6 +17,24 @@ La aplicación principal es [Cliente-Rust](./Cliente-Rust), un cliente de escrit
 
 > La especificación técnica detallada se encuentra en [Cliente-Rust/README.md](./Cliente-Rust/README.md).
 
+## Capturas de referencia
+
+### Inicio
+
+![Inicio](./.github/pr-screenshots/feat-cliente-ui-reservas/01-home-agent-landing.png)
+
+### Vista general
+
+![Vista general](./.github/pr-screenshots/feat-cliente-ui-reservas/02-home-full.png)
+
+### Reservas
+
+![Reservas](./.github/pr-screenshots/feat-cliente-ui-reservas/03-reservas.png)
+
+### Prácticas
+
+![Prácticas](./.github/pr-screenshots/feat-cliente-ui-reservas/04-practicas.png)
+
 ## Requisitos
 
 - Rust (latest stable)
