@@ -1,0 +1,1815 @@
+@layer theme, base, mantine, components, utilities;
+
+@import "tailwindcss";
+@import "@mantine/core/styles.layer.css";
+@import "@mantine/notifications/styles.layer.css";
+
+/* ============================================
+   🎨 GLOBALS.CSS - Sistema de Temas
+   ============================================
+   
+   ⚠️ REGLAS IMPORTANTES PARA TEMAS:
+   
+   1. NO usar animaciones con `animation` que se ejecuten continuamente
+      en componentes principales (.app-header, .app-sidebar, .nav-item)
+      
+   2. NO usar `transform: translate/scale/rotate` en estados por defecto
+      de componentes principales - solo en hover/active si es necesario
+      
+   3. NO usar `filter: brightness/blur/saturate` en animaciones continuas
+      
+   4. SÍ puedes usar:
+      - Colores estáticos y gradientes
+      - Transiciones cortas en hover/active
+      - Sombras y bordes
+      - Animaciones solo en elementos decorativos pequeños
+      
+   5. Si un tema mueve componentes de sitio, ES UN BUG que debe
+      ser corregido inmediatamente
+      
+   ============================================ */
+
+/* SweetAlert2 — estilos globales */
+.swal-fullscreen.swal2-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-popup {
+  background: var(--background-secondary, #0F172A) !important;
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-title {
+  color: var(--text-primary, #E5E7EB) !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-html-container {
+  color: var(--text-secondary, #9CA3AF) !important;
+  font-size: 13px !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-icon {
+  border-color: var(--border-subtle) !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-icon.swal2-success {
+  border-color: var(--accent-primary, #10B981) !important;
+  color: var(--accent-primary, #10B981) !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-icon.swal2-success .swal2-success-ring {
+  border-color: rgba(16,185,129,0.25) !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-icon.swal2-success [class^='swal2-success-line'] {
+  background-color: var(--accent-primary, #10B981) !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-icon.swal2-warning {
+  border-color: var(--accent-warm, #F59E0B) !important;
+  color: var(--accent-warm, #F59E0B) !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-icon.swal2-error {
+  border-color: var(--danger, #EF4444) !important;
+  color: var(--danger, #EF4444) !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+  background-color: var(--danger, #EF4444) !important;
+}
+
+.swal-moodle-input.swal2-input {
+  background: var(--background-tertiary, #111827) !important;
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)) !important;
+  color: var(--text-primary, #E5E7EB) !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  padding: 10px 14px !important;
+  box-shadow: none !important;
+}
+
+.swal-moodle-input.swal2-input:focus {
+  border-color: var(--accent-secondary, #3B82F6) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.18) !important;
+  outline: none !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-validation-message {
+  background: var(--danger-bg, rgba(239,68,68,0.12)) !important;
+  color: var(--danger-text, #F87171) !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-confirm,
+.swal2-container.swal-fullscreen .swal2-cancel {
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 9px 20px !important;
+}
+
+.swal2-container.swal-fullscreen .swal2-cancel {
+  background: var(--surface-3, #1A202E) !important;
+  color: var(--text-secondary, #9CA3AF) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+:root {
+  --background-primary: #0B1220;
+  --background-secondary: #0F172A;
+  --background-tertiary: #111827; 
+  --text-primary: #E5E7EB;
+  --text-secondary: #9CA3AF;
+  --text-tertiary: #6B7280;         /* Nuevo: texto de apoyo */
+  --text-muted: #4B5563;            /* Mejorado: placeholders */
+  --text-disabled: #374151;         /* Nuevo: elementos deshabilitados */
+  --text-inverse: #0B1220;          /* Nuevo: texto sobre fondos claros/acentos */
+  --accent-primary: #10B981;        
+  --accent-primary-hover: #059669;
+  --accent-primary-light: #34D399;  /* Nuevo: versión suave del acento */
+  --accent-primary-dark: #047857;   /* Nuevo: versión intensa del acento */
+  --accent-primary-subtle: rgba(16, 185, 129, 0.12); /* Nuevo: fondos sutiles con acento */
+  --accent-secondary: #3B82F6;      /* Nuevo: azul complementario */
+  --accent-tertiary: #8B5CF6;       /* Nuevo: morado de apoyo */
+  --accent-warm: #F59E0B;           /* Nuevo: acento cálido */
+  --border-color: #1F2937;          
+  /* terminal-specific defaults: prefer theme text color but allow per-theme overrides */
+  --terminal-foreground: var(--text-primary);
+  --terminal-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', 'Liberation Mono', monospace;
+  --terminal-font-size: 13;
+
+  /* ESTÁNDAR DE ALINEACIÓN: Todas las páginas deben tener padding-top: 12px
+     para alinear sus headers con la línea divisoria del botón hamburguesa de la sidebar
+     (padding 2px + 4px + margin 6px = 12px) */
+  --page-header-alignment: 12px;
+
+  --border: var(--border-subtle);
+  --ring: #22D3EE;
+  --accent-contrast: #061016;
+  --success: #22C55E;
+  --success-bg: rgba(34, 197, 94, 0.12);    /* Nuevo: fondo de éxito */
+  --success-border: rgba(34, 197, 94, 0.3); /* Nuevo: borde de éxito */
+  --success-text: #4ADE80;                  /* Nuevo: texto de éxito */
+  --warning: #F59E0B;
+  --warning-bg: rgba(245, 158, 11, 0.12);   /* Nuevo: fondo de advertencia */
+  --warning-border: rgba(245, 158, 11, 0.3); /* Nuevo: borde de advertencia */
+  --warning-text: #FBBF24;                  /* Nuevo: texto de advertencia */
+  --danger: #EF4444;
+  --danger-bg: rgba(239, 68, 68, 0.12);     /* Nuevo: fondo de peligro */
+  --danger-border: rgba(239, 68, 68, 0.3);  /* Nuevo: borde de peligro */
+  --danger-text: #F87171;                   /* Nuevo: texto de peligro */
+  --info: #22D3EE;
+  --info-bg: rgba(34, 211, 238, 0.12);      /* Nuevo: fondo de información */
+  --info-border: rgba(34, 211, 238, 0.3);   /* Nuevo: borde de información */
+  --info-text: #67E8F9;                     /* Nuevo: texto de información */
+  /* surfaces */
+  --panel: var(--background-secondary);
+  --panel-muted: var(--background-tertiary);
+  --surface-0: var(--background-primary);   /* Nuevo: nivel base */
+  --surface-1: var(--background-secondary); /* Nuevo: elevado 1 */
+  --surface-2: var(--background-tertiary);  /* Nuevo: elevado 2 */
+  --surface-3: #1A202E;                     /* Nuevo: elevado 3 */
+  --surface-overlay: rgba(0, 0, 0, 0.5);    /* Nuevo: modales/overlays */
+  --shadow: 0 8px 30px rgba(0,0,0,0.25);
+  /* Accessible borders */
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.18);
+  /* Focus (double-ring capable) */
+  --focus-inner: var(--ring);
+  --focus-outer: rgba(2,6,23,0.5);
+  /* Interaction states */
+  --interactive-bg: transparent;
+  --interactive-hover: rgba(255,255,255,0.06);
+  --interactive-active: rgba(255,255,255,0.09);
+  --interactive-selected: rgba(255,255,255,0.10);
+  /* Inputs */
+  --input-bg: var(--background-tertiary);
+  --input-border: var(--border-subtle);
+  --input-focus-border: var(--border-strong);
+  --placeholder-fg: var(--text-secondary);
+  /* Tables */
+  --table-header-bg: var(--panel);
+  --table-row-hover: var(--interactive-hover);
+  --table-row-active: var(--interactive-active);
+  --table-row-selected: rgba(16,185,129,0.16);
+  /* Elevation */
+  --surface-1-border: var(--border-subtle);
+  --surface-2-overlay: rgba(255,255,255,0.02);
+  --surface-3-border: var(--border-strong);
+  /* Overlay */
+  --overlay-scrim: rgba(0,0,0,0.5);
+  /* Text selection */
+  --selection-bg: rgba(34,211,238,0.28);
+  --selection-fg: var(--text-primary);
+  /* Terminal ANSI ramp */
+  --ansi-black: #111827;    --ansi-red: #ef4444;   --ansi-green: #22c55e;  --ansi-yellow: #eab308;  --ansi-blue: #3b82f6;  --ansi-magenta: #d946ef;  --ansi-cyan: #22d3ee;  --ansi-white: #e5e7eb;
+  --ansi-bright-black: #374151; --ansi-bright-red: #f87171; --ansi-bright-green: #4ade80; --ansi-bright-yellow: #facc15; --ansi-bright-blue: #60a5fa; --ansi-bright-magenta: #e879f9; --ansi-bright-cyan: #67e8f9; --ansi-bright-white: #ffffff;
+
+  /* ═══ Patrón de Doble Header Minimalista ═══ */
+  --page-header-height: 36px;
+  --page-header-bg: var(--background-secondary);
+  --page-header-border: var(--border-subtle);
+  --page-header-shadow: none;
+}
+
+/* Clases de utilidad para el Doble Header Minimalista */
+.page-header-integrated {
+  width: 100%;
+  background: var(--page-header-bg);
+  border-bottom: 1px solid var(--page-header-border);
+  padding: 0 16px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  height: var(--page-header-height);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: none;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.page-header-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  border-right: 1px solid var(--page-header-border);
+  padding-right: 12px;
+  height: 16px;
+  line-height: 16px;
+}
+
+.page-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.page-header-description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (max-width: 600px) {
+  .page-header-title {
+    display: none;
+  }
+  .page-header-integrated {
+    padding: 0 8px;
+  }
+}
+
+
+/* Theme variants applied via data-theme attribute on <html> */
+html[data-theme="default"] {
+  --background-primary: #141517;
+  --background-secondary: #1A1B1E;
+  --background-tertiary: #25262B;
+  --text-primary: #C1C2C5;
+  --text-secondary: #A6A7AB;
+    /* Salvaguardas de legibilidad sobre acentos claros (por tema) */
+    --accent-guard-shadow: none; /* text-shadow */
+    --accent-guard-inset: none;  /* inner border box-shadow */
+  --accent-primary: #228BE6; /* Mantine Blue */
+  --accent-primary-hover: #1C7ED6;
+  --accent-strong: #1971C2;
+  --border-color: #373A40;
+  --ring: #339AF0;
+  --accent-contrast: #FFFFFF;
+  --panel: var(--background-secondary);
+  --panel-muted: var(--background-tertiary);
+  --shadow: 0 10px 28px rgba(0,0,0,0.28);
+}
+
+html[data-theme="dracula"] {
+  --background-primary: #282a36;
+  --background-secondary: #1e1f2b;
+  --background-tertiary: #222235;
+  --text-primary: #f8f8f2;
+  --text-secondary: #bfb8d3;
+  --accent-primary: #ff79c6;
+  --accent-primary-hover: #ff92d0;
+  --accent-strong: #bd93f9;
+  --border-color: #44475a;
+}
+
+html[data-theme="light"] {
+  --background-primary: #f6f7fb;
+  --background-secondary: #eef2f7;
+  --background-tertiary: #e6ebf5;
+  --text-primary: #0b1220;
+  --text-secondary: #4b5563;
+  --accent-primary: #06b6d4;
+  --accent-primary-hover: #34d7e8;
+  --accent-strong: #0891b2;
+  --border-color: #d1d5db;
+  --border-subtle: #c8d1db;
+  --border-strong: #94a3b8;
+  /* ensure terminal text is dark on light themes */
+  --terminal-foreground: #0b1220;
+  --panel: #ffffff;
+  --panel-muted: var(--background-secondary);
+  --shadow: 0 8px 24px rgba(0,0,0,0.08);
+  /* Improve focus visibility on light */
+  --focus-inner: #0e7490;
+  --focus-outer: #ffffff;
+  /* Interaction tonal deltas on light */
+  --interactive-hover: rgba(2,6,23,0.06);
+  --interactive-active: rgba(2,6,23,0.09);
+  --interactive-selected: rgba(2,6,23,0.12);
+  --table-row-selected: rgba(8,145,178,0.15);
+}
+
+/* Midnight Muse: dark, modern, subtle green accent */
+/* 🔥 Crimson Gold - Rojo intenso con detalles dorados */
+html[data-theme="crimson-gold"] {
+  --background-primary: #1a0505;
+  --background-secondary: #2a0a0a;
+  --background-tertiary: #3d1010;
+  --text-primary: #ffe6e6;
+  --text-secondary: #ffcccc;
+  --accent-primary: #dc143c;
+  --accent-primary-hover: #ff6b6b;
+  --accent-strong: #b8860b;
+  --border-color: rgba(220, 20, 60, 0.15);
+}
+
+/* Obsidian Rose (dark, pink accent) */
+html[data-theme="obsidian-rose"]{
+  --background-primary: #0a0608;
+  --background-secondary: #141012;
+  --background-tertiary: #1e1619;
+  --text-primary: #F3E9EB;
+  --text-secondary: #C2AEB3;
+  --accent-primary: #ff6b9a;
+  --accent-primary-hover: #ff8eb1;
+  --accent-strong: #ff3868;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Mist Harbor (light, soft) */
+html[data-theme="mist-harbor"]{
+  --background-primary: #f3f8fa;
+  --background-secondary: #e9eff3;
+  --background-tertiary: #e0e9ee;
+  --text-primary: #0f2026;
+  --text-secondary: #52666e;
+  --accent-primary: #1f8fa0;
+  --accent-primary-hover: #58b9c6;
+  --accent-strong: #0b6f78;
+  --border-color: #d3dde0;
+  --terminal-foreground: #0f2026;
+  --interactive-hover: rgba(0,0,0,0.06);
+  --interactive-active: rgba(0,0,0,0.09);
+  --interactive-selected: rgba(0,0,0,0.10);
+}
+
+/* Paper Sand (light, warm) */
+/* 💜 Lavender Dream - Lavanda suave con toques violeta */
+html[data-theme="lavender-dream"]{
+  --background-primary: #f5f3ff;
+  --background-secondary: #ede9fe;
+  --background-tertiary: #ddd6fe;
+  --text-primary: #4c1d95;
+  --text-secondary: #6d28d9;
+  --accent-primary: #8b5cf6;
+  --accent-primary-hover: #a78bfa;
+  --accent-strong: #7c3aed;
+  --border-color: #c4b5fd;
+  --terminal-foreground: #4c1d95;
+  --interactive-hover: rgba(76,29,149,0.06);
+  --interactive-active: rgba(76,29,149,0.09);
+  --interactive-selected: rgba(76,29,149,0.12);
+}
+
+/* Aurora Coral (dark, warm colorfulness) */
+html[data-theme="aurora-coral"]{
+  --background-primary: #061025;
+  --background-secondary: #0f1724;
+  --background-tertiary: #173044;
+  --text-primary: #eaf6f4;
+  --text-secondary: #b9e6df;
+  --accent-primary: #ffb86b;
+  --accent-primary-hover: #ffc89a;
+  --accent-strong: #ff6b6b;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 🌙 Amber Night - Ámbar profundo con toques bronce */
+html[data-theme="amber-night"]{
+  --background-primary: #1a1003;
+  --background-secondary: #2a1a08;
+  --background-tertiary: #3d2710;
+  --text-primary: #fff4e0;
+  --text-secondary: #ffd699;
+  --accent-primary: #f59e0b;
+  --accent-primary-hover: #fbbf24;
+  --accent-strong: #b45309;
+  --border-color: rgba(245, 158, 11, 0.15);
+}
+
+/* Verdant Neon (dark, neon green) */
+html[data-theme="verdant-neon"]{
+  --background-primary: #03120a;
+  --background-secondary: #062016;
+  --background-tertiary: #0a2a1f;
+  --text-primary: #e6fff4;
+  --text-secondary: #9fe9c7;
+  --accent-primary: #34d399; /* softened emerald */
+  --accent-primary-hover: #6ee7b7;
+  --accent-strong: #10b981;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+/* Additional batch 1 */
+html[data-theme="sunset-blush"]{
+  --background-primary: #1b0a0f;
+  --background-secondary: #2a0f14;
+  --background-tertiary: #3a141a;
+  --text-primary: #ffeef0;
+  --text-secondary: #f7c7cc;
+  --accent-primary: #ff7a88;
+  --accent-primary-hover: #ff9aa6;
+  --accent-strong: #ff4568;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* emerald-dusk eliminado por consolidación */
+
+/* ⚡ Electric Indigo - Índigo eléctrico con chispas cyan */
+html[data-theme="electric-indigo"]{
+  --background-primary: #0a0520;
+  --background-secondary: #150a35;
+  --background-tertiary: #200f4a;
+  --text-primary: #e8e0ff;
+  --text-secondary: #b8a8ff;
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #818cf8;
+  --accent-strong: #06b6d4;
+  --border-color: rgba(99, 102, 241, 0.2);
+}
+
+html[data-theme="oceanic-teal"]{
+  --background-primary: #021922;
+  --background-secondary: #062b31;
+  --background-tertiary: #0b3f45;
+  --text-primary: #e9f8f7;
+  --text-secondary: #a7d7d2;
+  --accent-primary: #2bd6c8;
+  --accent-primary-hover: #6fe8dc;
+  --accent-strong: #1fb7a8;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+html[data-theme="ruby-night"]{
+  --background-primary: #16080a;
+  --background-secondary: #2a0f11;
+  --background-tertiary: #3d1416;
+  --text-primary: #ffeaea;
+  --text-secondary: #f1b6b8;
+  --accent-primary: #ff3b55;
+  --accent-primary-hover: #ff6b7f;
+  --accent-strong: #e03147;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* ☢️ Toxic Lime - Lima radioactivo con neón ácido */
+html[data-theme="toxic-lime"]{
+  --background-primary: #0a1505;
+  --background-secondary: #15250a;
+  --background-tertiary: #203510;
+  --text-primary: #e8ffe0;
+  --text-secondary: #c0ffa8;
+  --accent-primary: #84cc16;
+  --accent-primary-hover: #bef264;
+  --accent-strong: #4ade80;
+  --border-color: rgba(132, 204, 22, 0.2);
+}
+
+/* 🌈 SUNBURST RAINBOW - Tema cálido con efectos RGB animados */
+html[data-theme="sunburst-rainbow"]{
+  --background-primary: #0a0a0a;
+  --background-secondary: #0f0f0f;
+  --background-tertiary: #141414;
+  --text-primary: #ffffff;
+  --text-secondary: #f0f0f0;
+  --accent-primary: #ff4b6b;
+  --accent-1: #ffb26b;
+  --accent-2: #ffd56b;
+  --accent-3: #6bff8b;
+  --accent-4: #6bd7ff; 
+  --accent-5: #6b8bff;
+  --accent-primary-hover: #ff8fb0;
+  --accent-strong: #ffd56b;
+  --border-color: rgba(255,255,255,0.08);
+  --accent-guard-shadow: 0 1px 0 rgba(0,0,0,0.35);
+  --accent-guard-inset: inset 0 0 0 1px rgba(0,0,0,0.28);
+}
+
+/* Header con gradiente arcoíris animado */
+html[data-theme="sunburst-rainbow"] .app-header {
+  background: linear-gradient(90deg, #ff4b6b 0%, #ff8b3b 20%, #ffd56b 40%, #6bff8b 60%, #6bd7ff 80%, #ff6b8b 100%);
+  background-size: 200% 100%;
+  animation: sunburstRgbFlow 8s ease-in-out infinite;
+  box-shadow: none;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Sidebar con borde RGB animado */
+html[data-theme="sunburst-rainbow"] .sidebar {
+  border-right: 2px solid transparent;
+  background: linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+              linear-gradient(180deg, #ff4b6b, #ffb26b, #ffd56b, #6bff8b, #6bd7ff) border-box;
+  animation: sunburstBorderShift 6s linear infinite;
+  box-shadow: none;
+}
+
+/* Botones con gradiente animado */
+html[data-theme="sunburst-rainbow"] .btn,
+html[data-theme="sunburst-rainbow"] .btn-connect {
+  background: linear-gradient(135deg, #ff4b6b 0%, #ff8b3b 50%, #ffe33b 100%);
+  background-size: 200% 200%;
+  color: #0b0b0b;
+  border: none;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+  animation: sunburstButtonGlow 3s ease-in-out infinite;
+  transition: all 0.3s ease;
+}
+
+html[data-theme="sunburst-rainbow"] .btn:hover,
+html[data-theme="sunburst-rainbow"] .btn-connect:hover {
+  background-position: 100% 100%;
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+html[data-theme="sunburst-rainbow"] .btn-delete {
+  background: linear-gradient(135deg, #6bff8b 0%, #39d6ff 50%, #6b7bff 100%);
+  background-size: 200% 200%;
+  color: #0b0b0b;
+  border: none;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+  animation: sunburstButtonGlow 3s ease-in-out infinite reverse;
+}
+
+html[data-theme="sunburst-rainbow"] .btn-delete:hover {
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+/* Elementos activos */
+html[data-theme="sunburst-rainbow"] .host-badge,
+html[data-theme="sunburst-rainbow"] .nav-item.active::before {
+  background: linear-gradient(90deg, #ff4b6b, #ffb26b, #ffd56b);
+  box-shadow: none;
+}
+
+html[data-theme="sunburst-rainbow"] .nav-item.active {
+  background: rgba(255, 75, 107, 0.15);
+  border-left: 3px solid #ff4b6b;
+  box-shadow: none;
+}
+
+/* Tabs */
+html[data-theme="sunburst-rainbow"] .tab.active {
+  background: linear-gradient(135deg, rgba(255, 75, 107, 0.2), rgba(255, 178, 107, 0.2));
+  border-bottom: 2px solid #ff4b6b;
+  box-shadow: none;
+}
+
+/* UI adjustments for Bold Rainbow: saturated, cooler multi-accent and animated button */
+/* bold-rainbow UI overrides removed — only topbar animation kept */
+
+
+/* lime-electric eliminado por consolidación */
+
+html[data-theme="berry-soda"]{
+  --background-primary: #08121a;
+  --background-secondary: #0f2130;
+  --background-tertiary: #17283b;
+  --text-primary: #f5f6ff;
+  --text-secondary: #c9d1ff;
+  --accent-primary: #ec4899; /* muted pink */
+  --accent-primary-hover: #f9a8d4;
+  --accent-strong: #db2777;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+/* citrus-pop eliminado por consolidación */
+
+html[data-theme="violet-ember"]{
+  --background-primary: #0b0610;
+  --background-secondary: #140b19;
+  --background-tertiary: #1d0f23;
+  --text-primary: #fff5ff;
+  --text-secondary: #e0cfe6;
+  --accent-primary: #8b5cf6; /* softer violet */
+  --accent-primary-hover: #c4b5fd;
+  --accent-strong: #7c3aed;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 🎨 BOLD RAINBOW - Tema RGB intenso con efectos neón y animaciones espectaculares */
+html[data-theme="bold-rainbow"]{
+  --background-primary: #000000;
+  --background-secondary: #0a0a0a;
+  --background-tertiary: #121212;
+  --text-primary: #ffffff;
+  --text-secondary: #e6e6e6;
+  --accent-primary: #ff3b7a; 
+  --accent-1: #ff8b3b;
+  --accent-2: #ffe33b;
+  --accent-3: #4bff7a;
+  --accent-4: #39d6ff;
+  --accent-5: #6b7bff;
+  --accent-primary-hover: #ffb86b;
+  --accent-strong: #ffd56b;
+  --border-color: rgba(255,255,255,0.1);
+  --accent-guard-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  --accent-guard-inset: inset 0 0 0 1px rgba(0,0,0,0.35);
+}
+
+/* Header con animación RGB continua */
+html[data-theme="bold-rainbow"] .app-header {
+  background: linear-gradient(90deg, 
+    #ff0080 0%, #ff0080 10%,
+    #ff8000 10%, #ff8000 20%,
+    #ffff00 20%, #ffff00 30%,
+    #00ff00 30%, #00ff00 40%,
+    #00ffff 40%, #00ffff 50%,
+    #0080ff 50%, #0080ff 60%,
+    #8000ff 60%, #8000ff 70%,
+    #ff0080 70%, #ff0080 80%,
+    #ff8000 80%, #ff8000 90%,
+    #ffff00 90%, #ffff00 100%
+  );
+  background-size: 300% 100%;
+  animation: boldRgbWave 15s linear infinite;
+  box-shadow: none;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Sidebar con borde RGB animado */
+html[data-theme="bold-rainbow"] .sidebar {
+  border-right: 3px solid transparent;
+  background: linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+              linear-gradient(180deg, #ff0080, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff, #ff0080) border-box;
+  background-size: 100% 200%;
+  animation: boldRgbBorderFlow 8s linear infinite;
+  box-shadow: none;
+}
+
+/* Botones con gradiente RGB completo */
+html[data-theme="bold-rainbow"] .btn,
+html[data-theme="bold-rainbow"] .btn-connect,
+html[data-theme="bold-rainbow"] .btn-primary {
+  background: linear-gradient(135deg, 
+    #ff0080 0%, #ff8000 25%, #ffff00 50%, #00ff00 75%, #00ffff 100%
+  );
+  background-size: 300% 300%;
+  color: #000000;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+  animation: boldRgbButtonPulse 4s ease-in-out infinite;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+html[data-theme="bold-rainbow"] .btn:hover,
+html[data-theme="bold-rainbow"] .btn-connect:hover,
+html[data-theme="bold-rainbow"] .btn-primary:hover {
+  background-position: 100% 100%;
+  box-shadow: none;
+  transform: translateY(-4px) scale(1.05);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Elementos activos */
+html[data-theme="bold-rainbow"] .nav-item.active {
+  background: linear-gradient(90deg, 
+    rgba(255, 0, 128, 0.2), 
+    rgba(0, 255, 255, 0.2)
+  );
+  border-left: 4px solid #ff0080;
+  box-shadow: none;
+  animation: boldRgbPulseGlow 2s ease-in-out infinite;
+}
+
+html[data-theme="bold-rainbow"] .nav-item.active::before {
+  background: linear-gradient(180deg, #ff0080, #00ffff, #ffff00);
+  box-shadow: none;
+  animation: boldRgbSpinGlow 3s linear infinite;
+}
+
+/* Tabs */
+html[data-theme="bold-rainbow"] .tab.active {
+  background: linear-gradient(135deg, 
+    rgba(255, 0, 128, 0.25), 
+    rgba(0, 255, 255, 0.25)
+  );
+  border-bottom: 3px solid transparent;
+  border-image: linear-gradient(90deg, #ff0080, #00ffff, #ffff00) 1;
+  box-shadow: none;
+  animation: boldRgbTabGlow 3s ease-in-out infinite;
+}
+
+/* Badges y elementos destacados */
+html[data-theme="bold-rainbow"] .host-badge {
+  background: linear-gradient(90deg, #ff0080, #00ffff);
+  background-size: 200% 100%;
+  animation: boldRgbSlide 3s linear infinite;
+  box-shadow: none;
+  color: #000000;
+  font-weight: 700;
+}
+
+/* Scrollbar */
+html[data-theme="bold-rainbow"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff0080, #00ffff, #ffff00);
+  box-shadow: none;
+}
+
+/* Accesibilidad: reducir animaciones si el usuario lo prefiere */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="bold-rainbow"] .app-header,
+  html[data-theme="bold-rainbow"] .sidebar,
+  html[data-theme="bold-rainbow"] .btn,
+  html[data-theme="bold-rainbow"] .nav-item.active,
+  html[data-theme="sunburst-rainbow"] .app-header,
+  html[data-theme="sunburst-rainbow"] .btn,
+  html[data-theme="pastel-dream"] .app-header,
+  html[data-theme="pastel-dream"] .sidebar,
+  html[data-theme="pastel-dream"] .btn,
+  html[data-theme="fc-barcelona"] .app-header,
+  html[data-theme="fc-barcelona"] .sidebar,
+  html[data-theme="fc-barcelona"] .btn,
+  html[data-theme="fc-barcelona"] .host-badge,
+  /* Desactivar animaciones de iconos temáticos */
+  .nav-item .icon svg {
+    animation: none !important;
+  }
+}
+
+/* 🍭 PASTEL DREAM - Tema multi-color pastel suave con transiciones */
+html[data-theme="pastel-dream"]{
+  --background-primary: #fef8ff;
+  --background-secondary: #fef3f7;
+  --background-tertiary: #feeef3;
+  --text-primary: #3d1a2f;
+  --text-secondary: #6d3b5a;
+  --accent-primary: #e879f9;
+  --accent-primary-hover: #f0abfc;
+  --accent-strong: #d946ef;
+  --border-color: rgba(232, 121, 249, 0.2);
+  --interactive-hover: rgba(61,26,47,0.06);
+  --interactive-active: rgba(61,26,47,0.09);
+  --interactive-selected: rgba(61,26,47,0.12);
+}
+
+/* Header con gradiente pastel animado */
+html[data-theme="pastel-dream"] .app-header {
+  background: linear-gradient(90deg, 
+    #ffc9e5 0%,   /* Rosa pastel */
+    #ffd9a3 20%,  /* Durazno pastel */
+    #fff4b3 40%,  /* Amarillo pastel */
+    #c9f5d9 60%,  /* Verde menta pastel */
+    #c9e5ff 80%,  /* Azul pastel */
+    #e5c9ff 100%  /* Lavanda pastel */
+  );
+  background-size: 200% 100%;
+  animation: pastelFlow 12s ease-in-out infinite;
+  box-shadow: none;
+  border-bottom: 2px solid rgba(232, 121, 249, 0.15);
+}
+
+/* Sidebar con borde pastel suave */
+html[data-theme="pastel-dream"] .sidebar {
+  border-right: 2px solid transparent;
+  background: linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+              linear-gradient(180deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff) border-box;
+  background-size: 100% 200%;
+  animation: pastelBorderFlow 10s linear infinite;
+  box-shadow: none;
+}
+
+/* Botones con gradiente pastel suave */
+html[data-theme="pastel-dream"] .btn,
+html[data-theme="pastel-dream"] .btn-connect {
+  background: linear-gradient(135deg, #ffc9e5 0%, #ffd9a3 50%, #c9f5d9 100%);
+  background-size: 200% 200%;
+  color: #3d1a2f;
+  border: 1px solid rgba(232, 121, 249, 0.3);
+  font-weight: 600;
+  box-shadow: none;
+  animation: pastelButtonGlow 4s ease-in-out infinite;
+  transition: all 0.3s ease;
+}
+
+html[data-theme="pastel-dream"] .btn:hover,
+html[data-theme="pastel-dream"] .btn-connect:hover {
+  background-position: 100% 100%;
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+/* Nav items activos con color pastel */
+html[data-theme="pastel-dream"] .nav-item.active {
+  background: linear-gradient(90deg, 
+    rgba(255, 201, 229, 0.3), 
+    rgba(255, 217, 163, 0.3)
+  );
+  border-left: 3px solid #e879f9;
+  box-shadow: none;
+}
+
+html[data-theme="pastel-dream"] .nav-item.active::before {
+  background: linear-gradient(180deg, #ffc9e5, #c9f5d9, #e5c9ff);
+  box-shadow: none;
+}
+
+/* Tabs con efecto pastel */
+html[data-theme="pastel-dream"] .tab.active {
+  background: linear-gradient(135deg, 
+    rgba(255, 201, 229, 0.2), 
+    rgba(201, 229, 255, 0.2)
+  );
+  border-bottom: 2px solid #e879f9;
+  box-shadow: none;
+}
+
+/* Badges con colores pastel */
+html[data-theme="pastel-dream"] .host-badge {
+  background: linear-gradient(90deg, #ffc9e5, #c9e5ff);
+  background-size: 200% 100%;
+  animation: pastelSlide 4s linear infinite;
+  box-shadow: none;
+  color: #3d1a2f;
+  font-weight: 600;
+}
+
+/* ============================================
+   ⚽ FC BARCELONA - MÉS QUE UN CLUB
+   Colores oficiales: Azulgrana (#004D98, #A50044)
+   Detalles: Dorado (#EDBB00), Bandera catalana
+   ============================================ */
+html[data-theme="fc-barcelona"] {
+  /* Fondos - Azul Barcelona profundo */
+  --background-primary: #001a3d;
+  --background-secondary: #002654;
+  --background-tertiary: #00326b;
+  
+  /* Textos - Blanco y dorado */
+  --text-primary: #ffffff;
+  --text-secondary: #e0e7ff;
+  --text-muted: #94a3b8;
+  
+  /* Acentos - Granate Barcelona */
+  --accent-primary: #a50044;
+  --accent-primary-hover: #8a0038;
+  --accent-strong: #c7154a;
+  
+  /* Secundarios - Azul Barcelona */
+  --accent-secondary: #004d98;
+  --accent-secondary-hover: #003d7a;
+  
+  /* Dorado Barça */
+  --accent-gold: #edbb00;
+  --accent-gold-hover: #d4a600;
+  
+  /* Bordes - Azulgrana */
+  --border-color: #004d98;
+  --border-subtle: #003366;
+  --border-strong: #a50044;
+  
+  /* Estados */
+  --success: #10b981;
+  --warning: #edbb00;
+  --danger: #ef4444;
+  --info: #004d98;
+  
+  /* Interacción - Barça colors */
+  --interactive-bg: rgba(165, 0, 68, 0.1);
+  --interactive-hover: rgba(165, 0, 68, 0.2);
+  --interactive-active: rgba(165, 0, 68, 0.3);
+  --interactive-selected: rgba(0, 77, 152, 0.25);
+}
+
+/* Header con gradiente azulgrana (sin animaciones) */
+html[data-theme="fc-barcelona"] .app-header {
+  background: linear-gradient(90deg, #004d98 0%, #a50044 100%);
+  border-bottom: 3px solid #edbb00;
+  box-shadow: none;
+}
+
+/* Sidebar con borde azulgrana (sin animaciones) */
+html[data-theme="fc-barcelona"] .app-sidebar {
+  background: var(--background-secondary);
+  border-right: 2px solid #004d98;
+}
+
+/* Botones con colores Barça (sin animaciones ni transforms) */
+html[data-theme="fc-barcelona"] button,
+html[data-theme="fc-barcelona"] .btn {
+  background: linear-gradient(135deg, #a50044 0%, #004d98 100%);
+  color: #ffffff;
+  border: 1px solid #edbb00;
+  box-shadow: none;
+  font-weight: 600;
+}
+
+html[data-theme="fc-barcelona"] button:hover,
+html[data-theme="fc-barcelona"] .btn:hover {
+  background: linear-gradient(135deg, #c7154a 0%, #005bb5 100%);
+  border-color: #d4a600;
+  box-shadow: none;
+}
+
+html[data-theme="fc-barcelona"] button:active,
+html[data-theme="fc-barcelona"] .btn:active {
+  background: linear-gradient(135deg, #8a0038 0%, #003d7a 100%);
+  box-shadow: none;
+}
+
+/* Nav items con efecto azulgrana (sin animaciones) */
+html[data-theme="fc-barcelona"] .nav-item {
+  border-left: 3px solid transparent;
+}
+
+html[data-theme="fc-barcelona"] .nav-item:hover {
+  background: rgba(165, 0, 68, 0.15);
+  border-left-color: #a50044;
+}
+
+html[data-theme="fc-barcelona"] .nav-item.active {
+  background: rgba(165, 0, 68, 0.2);
+  border-left: 4px solid #edbb00;
+  box-shadow: none;
+}
+
+/* Tabs con colores del Barça (sin animaciones) */
+html[data-theme="fc-barcelona"] .tab {
+  border-bottom: 3px solid transparent;
+}
+
+html[data-theme="fc-barcelona"] .tab:hover {
+  background: rgba(0, 77, 152, 0.15);
+  border-bottom-color: #004d98;
+}
+
+html[data-theme="fc-barcelona"] .tab.active {
+  background: rgba(165, 0, 68, 0.2);
+  border-bottom: 3px solid #edbb00;
+  font-weight: 700;
+}
+
+/* Badges con colores Barça (sin animaciones) */
+html[data-theme="fc-barcelona"] .host-badge {
+  background: linear-gradient(135deg, #a50044, #004d98);
+  box-shadow: none;
+  color: #ffffff;
+  font-weight: 700;
+  border: 1px solid rgba(237, 187, 0, 0.4);
+}
+
+/* Terminal con toque azulgrana (sin animaciones) */
+html[data-theme="fc-barcelona"] .terminal {
+  border: 2px solid #004d98;
+  box-shadow: none;
+}
+
+/* Scrollbar Barcelona (sin animaciones) */
+html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #a50044 0%, #004d98 100%);
+  border: 1px solid rgba(237, 187, 0, 0.3);
+}
+
+html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #c7154a 0%, #005bb5 100%);
+}
+
+/* File table UX improvements */
+.file-row:hover { background: var(--table-row-hover); }
+.file-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.file-name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+/* Right-aligned monospace-ish numeric cell for sizes (reduced min-width to fit) */
+.size-cell { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; display: inline-block; min-width: 54px; }
+
+/* Right-aligned monospace-ish numeric cell for sizes */
+/* (moved above with adjusted width) */
+
+/* Context menu */
+.ctx-menu { background: var(--background-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; box-shadow: none; min-width: 180px; }
+.ctx-list { list-style: none; margin: 4px; padding: 4px; }
+.ctx-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--text-primary); }
+.ctx-item:hover { background: rgba(255,255,255,0.06); }
+.ctx-item.disabled { opacity: .5; pointer-events: none; }
+.ctx-item.danger { color: var(--danger); }
+
+
+/* ============================================
+   🌈 ANIMACIONES RGB PARA TEMAS RAINBOW
+   ============================================ */
+
+/* Sunburst Rainbow - Flujo suave y cálido */
+@keyframes sunburstRgbFlow {
+  0%, 100% { 
+    background-position: 0% 50%;
+  }
+  50% { 
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes sunburstBorderShift {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes sunburstButtonGlow {
+  0%, 100% { 
+    background-position: 0% 0%;
+  }
+  50% { 
+    background-position: 100% 100%;
+  }
+}
+
+/* Pastel Dream - Animaciones suaves y delicadas */
+@keyframes pastelFlow {
+  0%, 100% { 
+    background-position: 0% 50%;
+  }
+  50% { 
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes pastelBorderFlow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes pastelButtonGlow {
+  0%, 100% { 
+    background-position: 0% 50%;
+  }
+  50% { 
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes pastelSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* ============================================
+   🎨 ANIMACIONES PARA ICONOS TEMÁTICOS
+   ============================================ */
+
+/* FC Barcelona - Pulso azulgrana */
+@keyframes barcaIconPulse {
+  0%, 100% { 
+    transform: scale(1);
+  }
+  50% { 
+    transform: scale(1.1);
+  }
+}
+
+/* Crimson Gold - Resplandor rojo-dorado */
+@keyframes crimsonGoldGlow {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  50% { 
+    opacity: 1;
+  }
+}
+
+/* Electric Indigo - Chispas eléctricas */
+@keyframes electricSpark {
+  0%, 100% { 
+    transform: scale(1);
+  }
+  25% { 
+    transform: scale(1.05);
+  }
+  50% { 
+    transform: scale(1);
+  }
+  75% { 
+    transform: scale(1.03);
+  }
+}
+
+/* Toxic Lime - Radiación verde */
+@keyframes toxicRadiation {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  33% { 
+    opacity: 1;
+  }
+  66% { 
+    opacity: 0.9;
+  }
+}
+
+/* Lavender Dream - Respiración lavanda */
+@keyframes lavenderBreath {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  50% { 
+    opacity: 1;
+  }
+}
+
+/* Peachy Sunrise - Brillo durazno */
+@keyframes peachyGlow {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  50% { 
+    opacity: 1;
+  }
+}
+
+/* Rose Quartz - Destello rosa-dorado */
+@keyframes roseQuartzShimmer {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  50% { 
+    opacity: 1;
+  }
+}
+
+/* Sunburst Rainbow - Arcoíris cálido giratorio */
+@keyframes sunburstIconRainbow {
+  0% { 
+    transform: rotate(0deg);
+  }
+  100% { 
+    transform: rotate(360deg);
+  }
+}
+
+/* Bold Rainbow - Ciclo RGB */
+@keyframes boldRgbIconCycle {
+  0% { 
+    filter: hue-rotate(0deg);
+  }
+  100% { 
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Pastel Dream - Flujo pastel multicolor */
+@keyframes pastelDreamFlow {
+  0% { 
+    background-position: 0% 50%;
+  }
+  100% { 
+    background-position: 200% 50%;
+  }
+}
+
+/* Bold Rainbow - Ondas RGB intensas */
+@keyframes boldRgbWave {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+@keyframes boldRgbScan {
+  0% { 
+    opacity: 0;
+    left: -100%;
+  }
+  50% { 
+    opacity: 1;
+    left: 100%;
+  }
+  100% { 
+    opacity: 0;
+    left: 100%;
+  }
+}
+
+@keyframes boldRgbBorderFlow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes boldRgbButtonPulse {
+  0%, 100% { 
+    background-position: 0% 50%;
+    transform: scale(1);
+  }
+  25% { 
+    background-position: 50% 50%;
+    transform: scale(1.02);
+  }
+  50% { 
+    background-position: 100% 50%;
+    transform: scale(1);
+  }
+  75% { 
+    background-position: 150% 50%;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes boldRgbPulseGlow {
+  0%, 100% { 
+    background: rgba(255, 0, 128, 0.2);
+  }
+  50% { 
+    background: rgba(0, 255, 255, 0.2);
+  }
+}
+
+@keyframes boldRgbSpinGlow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes boldRgbTabGlow {
+  0%, 100% { 
+    background: rgba(255, 0, 128, 0.25);
+  }
+  50% { 
+    background: rgba(0, 255, 255, 0.25);
+  }
+}
+
+@keyframes boldRgbSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Animación legacy para compatibilidad */
+@keyframes headerRgbShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ===============================
+   Scrollbar redesign (visible change)
+   Applies globally; uses theme colors
+   =============================== */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-primary) var(--background-secondary);
+}
+/* Chromium/WebKit */
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--background-secondary);
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--accent-primary);
+  border-radius: 8px;
+  border: 3px solid var(--background-secondary);
+  box-shadow: none;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent-primary-hover);
+}
+
+/* Make code/terminal panes a bit more contrasted when scrolling */
+pre, code, .terminal, .xterm-viewport, .content-area {
+  scrollbar-color: var(--accent-primary) var(--panel);
+}
+
+/* Restored themes (9) to reach 30 total */
+
+/* Polar Mint (light-fresh) */
+html[data-theme="polar-mint"]{
+  --background-primary: #fbffff;
+  --background-secondary: #f3fbfa;
+  --background-tertiary: #e9f7f5;
+  --text-primary: #072022;
+  --text-secondary: #4b6a67;
+  --accent-primary: #4dd0c8;
+  --accent-primary-hover: #83e9dd;
+  --accent-strong: #2bbab0;
+  --border-color: #dfeff0;
+  /* terminal overrides for legibility on very light backgrounds */
+  --terminal-foreground: #072022;
+  --interactive-hover: rgba(7,32,34,0.06);
+  --interactive-active: rgba(7,32,34,0.09);
+  --interactive-selected: rgba(7,32,34,0.12);
+}
+
+/* 🍑 Peachy Sunrise - Durazno vibrante con amanecer coral */
+html[data-theme="peachy-sunrise"]{
+  --background-primary: #fff7ed;
+  --background-secondary: #ffedd5;
+  --background-tertiary: #fed7aa;
+  --text-primary: #7c2d12;
+  --text-secondary: #c2410c;
+  --accent-primary: #fb923c;
+  --accent-primary-hover: #fdba74;
+  --accent-strong: #f97316;
+  --border-color: #fcd34d;
+  --terminal-foreground: #7c2d12;
+  --interactive-hover: rgba(124,45,18,0.06);
+  --interactive-active: rgba(124,45,18,0.09);
+  --interactive-selected: rgba(124,45,18,0.12);
+}
+
+/* Sakura Blush (soft pink, light) */
+html[data-theme="sakura-blush"]{
+  --background-primary: #fff7f9;
+  --background-secondary: #fff0f4;
+  --background-tertiary: #fdeef2;
+  --text-primary: #2b1220;
+  --text-secondary: #6f4756;
+  --accent-primary: #ff7aa6;
+  --accent-primary-hover: #ff9fbe;
+  --accent-strong: #ff4f85;
+  --border-color: #fae6eb;
+  --terminal-foreground: #2b1220;
+  --interactive-hover: rgba(43,18,32,0.06);
+  --interactive-active: rgba(43,18,32,0.09);
+  --interactive-selected: rgba(43,18,32,0.12);
+}
+
+/* 🌹 Rose Quartz - Rosa cuarzo con detalles fucsia */
+html[data-theme="rose-quartz"]{
+  --background-primary: #fff5f7;
+  --background-secondary: #ffe4e9;
+  --background-tertiary: #ffd1dc;
+  --text-primary: #831843;
+  --text-secondary: #be185d;
+  --accent-primary: #ec4899;
+  --accent-primary-hover: #f472b6;
+  --accent-strong: #db2777;
+  --border-color: #fbbf24;
+  --terminal-foreground: #831843;
+  --interactive-hover: rgba(131,24,67,0.06);
+  --interactive-active: rgba(131,24,67,0.09);
+  --interactive-selected: rgba(131,24,67,0.12);
+}
+
+/* Glass Water (muted, cool) */
+html[data-theme="glass-water"]{
+  --background-primary: #061015;
+  --background-secondary: #0b1b24;
+  --background-tertiary: #12303b;
+  --text-primary: #dff6fb;
+  --text-secondary: #9fd8e3;
+  --accent-primary: #66e0ff;
+  --accent-primary-hover: #9ff4ff;
+  --accent-strong: #2ac6e6;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Metro Gray (neutral, medium contrast) */
+html[data-theme="metro-gray"]{
+  --background-primary: #0f1316;
+  --background-secondary: #15181b;
+  --background-tertiary: #1c1f22;
+  --text-primary: #e6e9eb;
+  --text-secondary: #b7bfc4;
+  --accent-primary: #9aa0ff;
+  --accent-primary-hover: #c7cbff;
+  --accent-strong: #747bff;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Cosmic Latte (warm, creamy) */
+html[data-theme="cosmic-latte"]{
+  --background-primary: #fffaf2;
+  --background-secondary: #fff4e6;
+  --background-tertiary: #fff0dc;
+  --text-primary: #2b2a22;
+  --text-secondary: #7a6f61;
+  --accent-primary: #f4b942;
+  --accent-primary-hover: #f7d280;
+  --accent-strong: #e09b2f;
+  --border-color: #efe7da;
+  --terminal-foreground: #2b2a22;
+}
+
+/* Ember Dawn (warm, dark accent) */
+html[data-theme="ember-dawn"]{
+  --background-primary: #0b0807;
+  --background-secondary: #14100f;
+  --background-tertiary: #221a19;
+  --text-primary: #fff3eb;
+  --text-secondary: #d9bfb3;
+  --accent-primary: #ff8b5a;
+  --accent-primary-hover: #ffb393;
+  --accent-strong: #ff6b35;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Nebula Ink (deep space purple) */
+html[data-theme="nebula-ink"]{
+  --background-primary: #05030a;
+  --background-secondary: #0a0713;
+  --background-tertiary: #151026;
+  --text-primary: #f7f3ff;
+  --text-secondary: #d8ccf8;
+  --accent-primary: #9b8cff;
+  --accent-primary-hover: #cdbaff;
+  --accent-strong: #7b5bff;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* Sepia Paper (vintage warm) */
+html[data-theme="sepia-paper"]{
+  --background-primary: #fbf5ef;
+  --background-secondary: #f3e9de;
+  --background-tertiary: #eadfcf;
+  --text-primary: #2c231a;
+  --text-secondary: #6c5b4a;
+  --accent-primary: #b87333;
+  --accent-primary-hover: #d79a63;
+  --accent-strong: #974e1a;
+  --border-color: #eadfcf;
+  --terminal-foreground: #2c231a;
+}
+
+/* ☁️ Silver Cloud - Plateado brillante con azul cielo */
+html[data-theme="silver-cloud"]{
+  --background-primary: #f1f5f9;
+  --background-secondary: #e2e8f0;
+  --background-tertiary: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #475569;
+  --text-muted: #64748b;
+  --accent-primary: #0ea5e9;
+  --accent-primary-hover: #38bdf8;
+  --accent-primary-light: #7dd3fc;
+  --accent-primary-dark: #0284c7;
+  --accent-strong: #0284c7;
+  --border-color: #94a3b8;
+  --border-subtle: #cbd5e1;
+  --border-strong: #64748b;
+  --terminal-foreground: #0f172a;
+  --interactive-hover: rgba(15,23,42,0.06);
+  --interactive-active: rgba(15,23,42,0.09);
+  --interactive-selected: rgba(15,23,42,0.12);
+}
+
+/* Ensure header controls remain legible (keep this so header text contrasts) */
+html[data-theme="bold-rainbow"] .app-header, html[data-theme="bold-rainbow"] .app-header .tab, html[data-theme="bold-rainbow"] .app-header .tabs .tab.active {
+  color: #070707;
+}
+
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 46px, color-mix(in srgb, var(--text-primary) 1.1%, transparent) 46px 47px),
+    linear-gradient(135deg, transparent 0 63%, color-mix(in srgb, var(--background-tertiary) 24.2%, transparent) 63% 100%),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 28%, transparent) 0 1px, transparent 1px) 12% 0 / 1px 100% no-repeat,
+    linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 42%, var(--background-primary)) 0 46%, var(--background-primary) 46% 100%);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+/* Smooth transitions when switching themes */
+body, .theme-card, .theme-card .meta, .theme-card .preview {
+  transition: background-color 260ms ease, color 260ms ease, border-color 260ms ease, box-shadow 260ms ease, transform 200ms ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Base controls - professional, consistent look */
+.btn { 
+  appearance: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-subtle);
+  background: var(--panel-muted); color: var(--text-primary);
+  cursor: pointer; font-weight: 600; line-height: 1; 
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, color .16s ease, transform .06s ease;
+}
+.btn:hover { background: var(--interactive-hover); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .6; cursor: not-allowed; background: color-mix(in oklab, var(--panel-muted), #808080 10%); color: color-mix(in oklab, var(--text-secondary), #808080 20%); border-color: var(--border-subtle); }
+.btn-primary { background: var(--accent-primary); color: var(--accent-contrast); border-color: transparent; box-shadow: var(--accent-guard-inset), 0 0 0 rgba(0,0,0,0); text-shadow: var(--accent-guard-shadow); }
+.btn-primary:hover { background: var(--accent-primary-hover); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-primary) }
+.btn-ghost:hover { background: var(--interactive-hover); }
+.btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: rgba(239,68,68,0.12); }
+.btn-sm { padding: 6px 10px; border-radius: 8px; font-size: 12px; }
+
+.btn:focus-visible { outline: none; border-color: var(--input-focus-border); box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer); }
+
+.input, .select {
+  appearance: none; border: 1px solid var(--input-border); border-radius: 10px; 
+  background: var(--input-bg); color: var(--text-primary); padding: 8px 10px; 
+  outline: none; transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+.input::placeholder { color: var(--placeholder-fg); opacity: 1; }
+.input:focus, .select:focus { border-color: var(--input-focus-border); box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer); }
+.input:disabled, .select:disabled { background: color-mix(in oklab, var(--input-bg), #808080 10%); color: color-mix(in oklab, var(--text-secondary), #808080 25%); border-color: var(--border-subtle); }
+.select { padding-right: 26px; }
+
+/* Toolbars and panes */
+.pane { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--surface-1-border); border-radius: 12px; overflow: hidden; background: var(--panel); box-shadow: var(--shadow); }
+.pane-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); min-height: 44px; white-space: nowrap; }
+.pane-subheader { display: flex; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); align-items: center; min-height: 44px; white-space: nowrap; }
+.pane-body { flex: 1; min-height: 0; overflow: auto; overflow-x: hidden; }
+/* Elevation modifiers */
+.pane.elev-2 { box-shadow: 0 10px 36px rgba(0,0,0,0.28); background-image: linear-gradient(var(--surface-2-overlay), var(--surface-2-overlay)); }
+.pane.elev-3 { box-shadow: 0 14px 48px rgba(0,0,0,0.35); border-color: var(--surface-3-border); }
+
+.toolbar-spacer { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+
+/* Table styling */
+.table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.table thead th { position: sticky; top: 0; background: var(--table-header-bg); z-index: 1; text-align: left; border-bottom: 1px solid var(--border-subtle); padding: 8px 6px; font-weight: 700; color: var(--text-secondary); overflow:hidden; text-overflow:ellipsis; }
+.table tbody td { padding: 8px 6px; border-bottom: 1px solid var(--border-subtle); overflow:hidden; text-overflow:ellipsis; }
+.table tbody tr.selected { background: var(--interactive-selected); box-shadow: inset 0 0 0 2px var(--border-strong); }
+.table thead th button { all: unset; cursor: pointer; color: inherit; }
+
+/* Distribución de columnas de archivos: primera mucho más amplia */
+.file-table thead th:nth-child(1),
+.file-table tbody td:nth-child(1) { width: 56%; }
+.file-table thead th:nth-child(2),
+.file-table tbody td:nth-child(2) { width: 18%; }
+.file-table thead th:nth-child(3),
+.file-table tbody td:nth-child(3) { width: 14%; }
+.file-table thead th:nth-child(4),
+.file-table tbody td:nth-child(4) { width: 12%; }
+
+/* Breadcrumbs */
+.crumbs { display:flex; align-items:center; gap:6px; min-width:0; overflow:hidden; white-space:nowrap; }
+.crumb-sep { opacity:.35; }
+.crumb-btn { padding: 4px 8px; max-width: 160px; text-overflow: ellipsis; overflow: hidden; }
+
+/* Reusable scrollbar accent (same visual as ChatPane) */
+.scroll-accent { scrollbar-width: thin; scrollbar-color: var(--accent-primary) rgba(255,255,255,0.04); }
+.scroll-accent::-webkit-scrollbar { width: 10px; height: 10px; }
+.scroll-accent::-webkit-scrollbar-track { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015)); border-radius: 20px; margin: 4px 0; }
+.scroll-accent::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--background-tertiary), var(--background-secondary)); border-radius: 20px; border: 2px solid transparent; background-clip: padding-box; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 2px 4px rgba(0,0,0,0.35); }
+.scroll-accent::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--accent-primary), var(--accent-primary-hover)); box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 4px 10px -2px rgba(0,0,0,0.55); }
+
+/* Active pane accent and status badge */
+.pane.active .pane-header { box-shadow: inset 0 3px 0 var(--accent-primary); }
+.status-badge { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; margin-left:8px; box-shadow: var(--accent-guard-inset); text-shadow: var(--accent-guard-shadow); }
+.status-ok { background: rgba(22,163,74,0.12); color:#16A34A; border:1px solid rgba(22,163,74,0.22); }
+.status-off { background: rgba(239,68,68,0.12); color:#EF4444; border:1px solid rgba(239,68,68,0.22); }
+/* Links with non-color cue */
+a { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+/* Text selection tokens */
+::selection { background: var(--selection-bg); color: var(--selection-fg); }
+
+/* --- Reveal Animations --- */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-reveal {
+  animation: reveal 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  opacity: 0; /* Start hidden */
+}
+
+/* ═══════════════════════════════════════════════════════
+   Universidad Piloto de Colombia — Tema Institucional
+   Colores scrapeados de unipiloto.edu.co:
+     Rojo institucional : #d51f22
+     Verde institucional: #007a33
+     Azul agua          : #00b5e2
+     Fondos claros      : #f4f4f4 / #ffffff / #f9f9f9
+     Texto oscuro       : #1c1c1c / #353535
+     Tipografía         : Open Sans, Nunito Sans
+   ═══════════════════════════════════════════════════════ */
+html[data-theme="unipiloto"] {
+  /* ── Fondos: blancos institucionales ── */
+  --background-primary:    #f4f4f4;
+  --background-secondary:  #ffffff;
+  --background-tertiary:   #eeeeee;
+
+  /* ── Texto oscuro sobre fondo claro ── */
+  --text-primary:          #1c1c1c;
+  --text-secondary:        #494949;
+  --text-tertiary:         #7c7c7c;
+  --text-muted:            #9b9b9b;
+  --text-disabled:         #b5b5b5;
+  --text-inverse:          #ffffff;
+
+  /* ── Acento principal: rojo institucional ── */
+  --accent-primary:        #d51f22;
+  --accent-primary-hover:  #b81a1d;        /* más oscuro al hover (light bg) */
+  --accent-primary-light:  #e8403d;
+  --accent-primary-dark:   #a81010;
+  --accent-primary-subtle: rgba(213, 31, 34, 0.08);
+
+  /* ── Acento secundario: azul agua ── */
+  --accent-secondary:      #00a0d2;
+  --accent-strong:         #a81010;        /* rojo más intenso para énfasis */
+  --accent-tertiary:       #007a33;        /* verde institucional */
+  --accent-warm:           #007a33;
+
+  /* ── Bordes: sutiles sobre fondo claro ── */
+  --border-color:          #d8d8d8;
+  --border-subtle:         rgba(0, 0, 0, 0.10);
+  --border-strong:         rgba(0, 0, 0, 0.22);
+
+  /* ── Superficies ── */
+  --panel:                 #ffffff;
+  --panel-muted:           #f4f4f4;
+  --surface-0:             #f4f4f4;
+  --surface-1:             #ffffff;
+  --surface-2:             #eeeeee;
+  --surface-3:             #e5e5e5;
+  --surface-overlay:       rgba(0, 0, 0, 0.4);
+
+  /* ── Sombras más suaves en fondos claros ── */
+  --shadow:                0 4px 16px rgba(0, 0, 0, 0.10);
+
+  /* ── Ring / focus: azul agua institucional ── */
+  --ring:                  #00a0d2;
+  --focus-inner:           #00a0d2;
+  --focus-outer:           #ffffff;
+
+  /* ── Interacciones sobre fondo claro ── */
+  --interactive-hover:     rgba(0, 0, 0, 0.05);
+  --interactive-active:    rgba(213, 31, 34, 0.08);
+  --interactive-selected:  rgba(213, 31, 34, 0.12);
+  --table-row-selected:    rgba(213, 31, 34, 0.08);
+  --table-row-hover:       rgba(0, 0, 0, 0.04);
+
+  /* ── Terminal: texto oscuro en fondo claro ── */
+  --terminal-foreground:   #1c1c1c;
+
+  /* ── Selección de texto ── */
+  --selection-bg:          rgba(213, 31, 34, 0.18);
+  --selection-fg:          #1c1c1c;
+
+  /* ── Estados semánticos en contexto claro ── */
+  --success:               #007a33;
+  --success-bg:            rgba(0, 122, 51, 0.10);
+  --success-border:        rgba(0, 122, 51, 0.25);
+  --success-text:          #036b38;
+  --danger:                #d51f22;
+  --danger-bg:             rgba(213, 31, 34, 0.08);
+  --danger-border:         rgba(213, 31, 34, 0.25);
+  --danger-text:           #a81010;
+  --warning:               #f59e0b;
+  --warning-bg:            rgba(245, 158, 11, 0.10);
+  --warning-border:        rgba(245, 158, 11, 0.25);
+  --warning-text:          #b45309;
+  --info:                  #00a0d2;
+  --info-bg:               rgba(0, 160, 210, 0.10);
+  --info-border:           rgba(0, 160, 210, 0.25);
+  --info-text:             #0077a8;
+
+  /* ── Inputs ── */
+  --input-bg:              #ffffff;
+  --input-border:          #d8d8d8;
+  --input-focus-border:    #d51f22;
+  --placeholder-fg:        #9b9b9b;
+
+  /* ── Tipografía institucional ── */
+  font-family: 'Open Sans', 'Nunito Sans', system-ui, sans-serif;
+}
+
+/* Header limpio sin borde visible — la diferencia de fondo #fff vs #f4f4f4 separa visualmente */
+html[data-theme="unipiloto"] .app-header {
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.07);
+}
+
+/* Sidebar limpio con separador */
+html[data-theme="unipiloto"] .sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e0e0e0;
+}
+
+/* Ítem activo con indicador rojo */
+html[data-theme="unipiloto"] .nav-item.active {
+  background: rgba(213, 31, 34, 0.08);
+  border-left: 3px solid #d51f22;
+}
+
+html[data-theme="unipiloto"] .nav-item.active::before {
+  background: #d51f22;
+}
+
+/* SweetAlert en tema claro */
+html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-popup {
+  background: #ffffff !important;
+  border: 1px solid #e0e0e0 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+}
+
+html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-title {
+  color: #1c1c1c !important;
+}
+
+html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-html-container {
+  color: #494949 !important;
+}
+
+
+.sidebar-user-avatar {
+  background-color: var(--accent-primary-subtle);
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* Toast flotante del chat (historial, copiar, exportar…) */
+.chat-toast {
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, var(--border-color, rgba(128, 128, 128, 0.35)));
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.22),
+    0 0 0 1px color-mix(in srgb, var(--text-primary) 6%, transparent);
+  max-width: min(90vw, 360px);
+}
+
+.chat-toast__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  color: var(--accent-primary);
+}
+
+.chat-toast__message {
+  line-height: 1.35;
+}
