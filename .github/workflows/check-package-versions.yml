@@ -1,0 +1,63 @@
+name: Check Exact Dependencies
+
+on:
+  pull_request:
+    branches: [ "Desarrollo", "Produccion", "main" ]
+  push:
+    branches: [ "Desarrollo", "Produccion", "main" ]
+
+jobs:
+  check-versions:
+    name: Validate package.json versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check for ^ or ~ in package.json
+        run: |
+          # Buscar todos los package.json excluyendo node_modules
+          PACKAGE_FILES=$(find . -name "package.json" -not -path "*/node_modules/*")
+          
+          HAS_ERROR=0
+          
+          for file in $PACKAGE_FILES; do
+            echo "Revisando $file..."
+            # Usamos un pequeño script de Node para parsear el JSON de forma segura
+            # y evitar falsos positivos (por ejemplo, si usas el símbolo ^ en un script o descripción)
+            node -e "
+              const fs = require('fs');
+              const file = '$file';
+              const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+              let errorFound = false;
+              
+              const checkDeps = (deps, type) => {
+                if (!deps) return;
+                for (const [name, version] of Object.entries(deps)) {
+                  if (version.startsWith('^') || version.startsWith('~')) {
+                    console.error('\x1b[31m❌ Error en ' + file + ':\x1b[0m La dependencia \'' + name + '\' usa la versión \'' + version + '\'. ¡Debes usar versiones exactas!');
+                    errorFound = true;
+                  }
+                }
+              };
+              
+              checkDeps(pkg.dependencies, 'dependencies');
+              checkDeps(pkg.devDependencies, 'devDependencies');
+              
+              if (errorFound) {
+                process.exit(1);
+              }
+            " || HAS_ERROR=1
+          done
+          
+          if [ $HAS_ERROR -eq 1 ]; then
+            echo -e "\n\x1b[31mFalló la validación:\x1b[0m Se encontraron versiones variables (^ o ~). Por favor actualízalas a versiones fijas (ejemplo: '18.2.0' en lugar de '^18.2.0')."
+            exit 1
+          fi
+          
+          echo -e "\n\x1b[32m✅ Todo perfecto. Todos los package.json usan versiones exactas.\x1b[0m"
