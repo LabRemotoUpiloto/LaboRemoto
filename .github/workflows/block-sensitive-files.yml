@@ -53,7 +53,7 @@ jobs:
           echo "$CHANGED_FILES"
 
           # Filtrar archivos para omitir configuraciones de Github, carpetas de builds, dependencias y lockfiles
-          FILTERED_FILES=$(echo "$CHANGED_FILES" | grep -v -E "(\.github/|node_modules/|target/|dist/|\.lock$|\.json$|\.toml$|\.md$)")
+          FILTERED_FILES=$(echo "$CHANGED_FILES" | grep -v -E "(\.github/|node_modules/|target/|dist/|\.lock$|\.json$|\.toml$|\.md$)" || true)
 
           IP_FOUND=0
           for file in $FILTERED_FILES; do
@@ -61,7 +61,7 @@ jobs:
               # Buscar líneas añadidas (que inician con '+' pero no '+++') 
               # que coincidan con un patrón de IP IPv4
               # Excluimos 127.0.0.1 y 0.0.0.0 (IPs de loopback/bind)
-              IPS=$(git diff -U0 "$file" | grep '^[+][^+]' | grep -E -o "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | grep -v -E "(127\.0\.0\.1|0\.0\.0\.0)")
+              IPS=$(git diff -U0 "$file" | grep '^[+][^+]' | grep -E -o "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | grep -v -E "(127\.0\.0\.1|0\.0\.0\.0)" || true)
               
               if [ -n "$IPS" ]; then
                 echo "::error file=$file::🚨 Se detectaron direcciones IP en las líneas agregadas del archivo: $file"
