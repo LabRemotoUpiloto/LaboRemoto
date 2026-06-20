@@ -1,0 +1,29 @@
+name: Block Sensitive Files
+
+on:
+  pull_request:
+    branches: [ "**" ]
+  push:
+    branches: [ "**" ]
+
+jobs:
+  check-sensitive-files:
+    name: Detect .env and sensitive files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Search for sensitive files
+        run: |
+          # Buscar archivos que terminen en .env, .pem, .key, etc. (excluyendo .env.example)
+          SENSITIVE_FILES=$(find . -type f \( -name ".env" -o -name "*.env.*" -o -name "*.pem" -o -name "*.key" \) -not -name "*.env.example" -not -name "*.env.template" -not -path "*/node_modules/*" -not -path "*/target/*")
+          
+          if [ -n "$SENSITIVE_FILES" ]; then
+            echo "::error::🚨 ¡ALERTA DE SEGURIDAD! Se han detectado archivos sensibles en este commit:"
+            echo "$SENSITIVE_FILES"
+            echo "::error::Por favor, elimina estos archivos de Git usando 'git rm --cached <archivo>' y asegúrate de añadirlos a tu .gitignore."
+            exit 1
+          else
+            echo "✅ No se encontraron archivos sensibles."
+          fi
