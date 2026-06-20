@@ -107,12 +107,18 @@ export default function ChatMessageList({
         const isActiveMatch = searchMatchIds[searchMatchIndex] === msg.id;
         const msgWordCount = msg.sender === 'ai' ? countWords(msg.text) : 0;
         const isEditing = editingMsgId === msg.id;
+        const isUser = msg.sender === 'user';
+        const landingAlignmentClass = isLanding
+          ? (isUser
+              ? 'self-end max-w-[min(520px,88%)] mt-0.5'
+              : 'self-center w-full max-w-[min(720px,100%)]')
+          : '';
 
         return (
           <div
             key={msg.id}
             id={`msg-${msg.id}`}
-            className={`message message-animate ${msg.sender} ${msg.sender === 'user' ? 'message--user' : 'message--assistant'} ${mode}${isActiveMatch ? ' search-active-match' : isSearchMatch ? ' search-match' : ''}${isEditing ? ' editing-active' : ''}`}
+            className={`message message-animate ${msg.sender} ${isUser ? 'message--user' : 'message--assistant'} ${mode}${isActiveMatch ? ' search-active-match' : isSearchMatch ? ' search-match' : ''}${isEditing ? ' editing-active' : ''} ${landingAlignmentClass}`}
           >
             {msg.sender === 'system' && !(msg.meta?.pendingCommand && !msg.meta?.processed) ? (
               <SystemMessageBanner text={msg.text} appearance={appearance} />
@@ -145,7 +151,7 @@ export default function ChatMessageList({
 
             {msg.meta?.embeddedPi4Terminal && embeddedTerminal && (
               <div
-                className={`message message--assistant message--chat-terminal ${mode} mt-1`}
+                className={`message message--assistant message--chat-terminal ${mode} mt-1 ${isLanding ? 'self-center w-full max-w-[min(720px,100%)]' : ''}`}
                 id={`msg-terminal-${msg.id}`}
                 role="article"
                 aria-label="Terminal Raspberry Pi en el chat"
@@ -164,7 +170,7 @@ export default function ChatMessageList({
 
             {msg.meta?.embeddedPi4Cameras && embeddedCameras && (
               <div
-                className={`message message--assistant message--chat-cameras ${mode} mt-1`}
+                className={`message message--assistant message--chat-cameras ${mode} mt-1 ${isLanding ? 'self-center w-full max-w-[min(720px,100%)]' : ''}`}
                 id={`msg-cameras-${msg.id}`}
                 role="article"
                 aria-label="Cámaras Raspberry Pi en el chat"
@@ -181,7 +187,7 @@ export default function ChatMessageList({
 
             {msg.meta?.embeddedPi4Desktop && embeddedDesktop && (
               <div
-                className={`message message--assistant message--chat-desktop ${mode} mt-1`}
+                className={`message message--assistant message--chat-desktop ${mode} mt-1 ${isLanding ? 'self-center w-full max-w-[min(720px,100%)]' : ''}`}
                 id={`msg-desktop-${msg.id}`}
                 role="article"
                 aria-label="Escritorio remoto Raspberry Pi en el chat"

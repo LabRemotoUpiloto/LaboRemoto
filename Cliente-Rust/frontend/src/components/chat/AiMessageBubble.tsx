@@ -97,7 +97,7 @@ export default function AiMessageBubble({
                 <div
                   className={
                     isLanding
-                      ? 'assistant-answer-block__heading assistant-answer-block__heading--landing'
+                      ? 'text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mt-2.5 mb-1.5 pt-2.5 border-t border-[var(--border-subtle)]'
                       : 'text-[11px] font-semibold uppercase tracking-wide text-white/40 mt-2 mb-2 pt-2 border-t border-white/10'
                   }
                 >
@@ -114,7 +114,7 @@ export default function AiMessageBubble({
                 />
               ) : showActivityTimeline ? (
                 <p
-                  className={`assistant-answer-block__placeholder m-0 text-[12px] ${isLanding ? 'assistant-answer-block__placeholder--landing' : 'text-white/35'}`}
+                  className={`m-0 text-[12px] ${isLanding ? 'text-[var(--text-muted)] italic' : 'text-white/35'}`}
                 >
                   La respuesta aparecerá aquí cuando esté lista.
                 </p>

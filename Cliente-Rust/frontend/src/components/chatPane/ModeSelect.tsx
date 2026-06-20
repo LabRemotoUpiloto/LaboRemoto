@@ -25,7 +25,7 @@ const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId, pi4AgentReady
           radius={compact ? 'xl' : 'md'}
           className={
             compact
-              ? 'chat-input-pill__mode-btn h-9 px-2.5 font-medium border border-[var(--border-subtle)] bg-[var(--background-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)]'
+              ? 'h-9 px-2.5 font-medium border border-[var(--border-subtle)] bg-[var(--background-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)]'
               : 'bg-white/5 border-white/10 text-primary hover:bg-white/10 h-[26px] px-2.5 font-normal'
           }
           rightSection={<ChevronDown size={compact ? 13 : 14} className="opacity-50 shrink-0" />}

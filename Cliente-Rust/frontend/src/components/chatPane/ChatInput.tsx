@@ -178,7 +178,7 @@ const ChatInput: React.FC<Props> = ({
       <Menu.Target>
         <ActionIcon
           variant="subtle"
-          className={isPill ? 'chat-input-pill__attach' : ''}
+          className={isPill ? 'shrink-0 w-9 h-9 min-w-[36px] min-h-[36px] rounded-[10px] text-[var(--text-secondary)] self-center hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover,var(--background-tertiary))]' : ''}
           title="Adjuntar"
           size={isPill ? 'lg' : 'md'}
           style={isPill ? undefined : undefined}
@@ -203,7 +203,7 @@ const ChatInput: React.FC<Props> = ({
     <div
       className={[
         'chat-input relative shrink-0 transition-all duration-200',
-        isPill ? 'chat-input--pill' : 'mt-2 mx-auto max-w-[850px] w-full px-2 sm:px-4',
+        isPill ? 'mt-0 max-w-[860px] w-full p-0' : 'mt-2 mx-auto max-w-[850px] w-full px-2 sm:px-4',
         isDragging ? 'ring-2 ring-blue-400/45 rounded-lg' : '',
       ].join(' ')}
       onDragOver={handleDragOver}
@@ -274,11 +274,16 @@ const ChatInput: React.FC<Props> = ({
       <div
         className={
           isPill
-            ? `chat-input-pill ${(attachedImage || attachedFile) ? 'flex-col items-stretch !rounded-3xl' : ''}`
+            ? `flex items-center gap-1.5 min-h-[62px] py-2.5 pr-2.5 pl-3.5 rounded-r-[18px] rounded-l-none max-[760px]:rounded-r-[14px] border-none border-l-[5px] border-l-[var(--accent-primary)] bg-[color-mix(in_srgb,var(--background-secondary)_96%,var(--accent-primary)_4%)] shadow-[0_20px_44px_rgba(0,0,0,0.16)] transition-all duration-200 overflow-hidden focus-within:bg-[color-mix(in_srgb,var(--background-secondary)_90%,var(--accent-secondary)_10%)] focus-within:shadow-[0_24px_52px_rgba(0,0,0,0.24)] ${(attachedImage || attachedFile) ? 'flex-col items-stretch !rounded-3xl' : ''}`
             : `flex border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-accent/40 ${(attachedImage || attachedFile) ? 'flex-col items-stretch gap-0' : 'items-center'}`
         }
         style={isPill ? undefined : { backgroundColor: 'var(--background-tertiary)' }}
       >
+        {isPill && (
+          <span className="shrink-0 ml-0.5 mr-1 font-mono text-[18px] font-extrabold text-[var(--accent-secondary)] select-none">
+            $
+          </span>
+        )}
         {isPill && !attachedImage && !attachedFile && attachMenu}
         {/* Image chip */}
         {attachedImage && (
@@ -315,7 +320,7 @@ const ChatInput: React.FC<Props> = ({
         <div
           className={
             isPill
-              ? 'chat-input-pill__row flex items-center gap-1 flex-1 min-w-0'
+              ? 'flex items-center gap-1 flex-1 min-w-0'
               : 'flex items-end gap-1 flex-1 py-1 pr-1.5 min-h-[44px]'
           }
         >
@@ -327,10 +332,11 @@ const ChatInput: React.FC<Props> = ({
             autosize
             minRows={1}
             maxRows={8}
-            className="flex-1"
+            className={isPill ? 'flex-1 min-w-0 flex items-center' : 'flex-1'}
             classNames={{
+              wrapper: isPill ? 'w-full' : undefined,
               input: isPill
-                ? 'bg-transparent border-none text-[var(--text-primary)] text-[14px] leading-snug focus:ring-0 px-2 py-2.5 scrollbar-thin placeholder:text-[var(--text-muted)]'
+                ? '!p-[10px_4px] !text-[14px] !leading-[1.4] !text-[var(--text-primary)] !min-h-[24px] bg-transparent border-none focus:ring-0 scrollbar-thin placeholder:!text-[var(--text-muted)]'
                 : 'bg-transparent border-none text-primary text-[13px] leading-relaxed placeholder-white/30 focus:ring-0 px-3 py-2 scrollbar-thin',
             }}
             onKeyDown={(e) => {
@@ -365,7 +371,7 @@ const ChatInput: React.FC<Props> = ({
             }}
           />
           
-          <div className={isPill ? 'chat-input-pill__actions' : 'flex items-center gap-1 shrink-0 pb-1'}>
+          <div className={isPill ? 'flex items-center justify-center gap-2 shrink-0 pr-[2px]' : 'flex items-center gap-1 shrink-0 pb-1'}>
             {!isPill && (
               <>
                 <ActionIcon
@@ -389,7 +395,7 @@ const ChatInput: React.FC<Props> = ({
               </>
             )}
             {isPill && onModeSwitch && (
-              <div className="chat-input-pill__mode shrink-0">
+              <div className="flex items-center shrink-0">
                 <ModeSelect
                   value={mode}
                   onChange={onModeSwitch}
@@ -400,7 +406,7 @@ const ChatInput: React.FC<Props> = ({
               </div>
             )}
             {isPill && selectedModel && onModelChange && (
-              <div className="chat-input-pill__model hidden sm:flex">
+              <div className="hidden sm:flex items-center">
                 <ModelSelect value={selectedModel} onChange={onModelChange} compact />
               </div>
             )}
@@ -410,7 +416,7 @@ const ChatInput: React.FC<Props> = ({
               onClick={isSending ? onCancel : onSend}
               disabled={!isSending && !canSend}
               aria-label={isSending ? 'Cancelar' : 'Enviar'}
-              className={isPill ? 'chat-input-pill__send' : 'ml-1'}
+              className={isPill ? '!shrink-0 !w-9 !h-9 !min-w-[36px] !min-h-[36px] !rounded-xl !bg-[var(--accent-primary)] !text-[var(--text-inverse,#fff)] !self-center !m-0 hover:not(:disabled):!bg-[var(--accent-primary-hover)] disabled:!opacity-45' : 'ml-1'}
               size={isPill ? 'md' : 'md'}
             >
               {isSending ? <Square size={14} fill="currentColor" /> : <Send size={15} className={isPill ? '' : 'mr-[2px]'} />}
@@ -420,17 +426,23 @@ const ChatInput: React.FC<Props> = ({
       </div>
 
       {/* Footer */}
-      <div className={`flex items-center justify-between mt-2 px-1 ${footerMinimal ? 'chat-input-footer--minimal' : ''}`}>
-        <div className="text-[10.5px]">
+      <div
+        className={
+          isPill
+            ? 'flex items-center justify-center mt-2.5 px-1'
+            : `flex items-center justify-between mt-2 px-1 ${footerMinimal ? 'justify-center mt-2.5' : ''}`
+        }
+      >
+        <div className={isPill ? 'text-[11px] text-[var(--text-muted)] font-medium' : 'text-[10.5px]'}>
           {footerMinimal && input.length === 0 ? (
-            <span>
+            <span className={isPill ? 'text-[var(--text-muted)]' : undefined}>
               {mode === 'agente'
                 ? (pi4AgentReady || sessionId
                   ? 'Modo agente · ejecuta comandos en la Raspberry (PI4 en .env o sesión SSH)'
                   : 'Modo agente · configura PI4_USER y PI4_PASSWORD en .env o conecta SSH')
                 : mode === 'plan'
                   ? (pi4AgentReady || sessionId
-                    ? 'Modo plan · inspecciona el servidor y genera pasos'
+                    ? 'Modo plan · requiere PI4 en .env o sesión SSH'
                     : 'Modo plan · requiere PI4 en .env o sesión SSH')
                   : (pi4AgentReady
                     ? 'Modo consulta · cambia a Agente en el selector junto al enviar'
