@@ -2,9 +2,9 @@ name: Check Exact Dependencies
 
 on:
   pull_request:
-    branches: [ "Desarrollo", "Produccion", "main" ]
+    branches: [ "Desarrollo", "Produccion", "Pruebas(QA)" ]
   push:
-    branches: [ "Desarrollo", "Produccion", "main" ]
+    branches: [ "Desarrollo", "Produccion", "Pruebas(QA)" ]
 
 jobs:
   check-versions:
