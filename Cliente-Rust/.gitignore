@@ -24,8 +24,7 @@ set-api-keys.ps1
 .agents/
 skills-lock.json
 
-# ── GitHub Actions (keep config, ignore workflows) ──
-.github/workflows/
+
 
 # ── SQL ──
 *.sql
