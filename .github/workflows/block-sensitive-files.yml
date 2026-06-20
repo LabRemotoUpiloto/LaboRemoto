@@ -16,8 +16,8 @@ jobs:
       
       - name: Search for sensitive files
         run: |
-          # Buscar archivos que terminen en .env, .pem, .key, etc.
-          SENSITIVE_FILES=$(find . -type f \( -name ".env" -o -name "*.env.*" -o -name "*.pem" -o -name "*.key" \) -not -path "*/node_modules/*" -not -path "*/target/*")
+          # Buscar archivos que terminen en .env, .pem, .key, etc. (excluyendo .env.example)
+          SENSITIVE_FILES=$(find . -type f \( -name ".env" -o -name "*.env.*" -o -name "*.pem" -o -name "*.key" \) -not -name "*.env.example" -not -name "*.env.template" -not -path "*/node_modules/*" -not -path "*/target/*")
           
           if [ -n "$SENSITIVE_FILES" ]; then
             echo "::error::🚨 ¡ALERTA DE SEGURIDAD! Se han detectado archivos sensibles en este commit:"
