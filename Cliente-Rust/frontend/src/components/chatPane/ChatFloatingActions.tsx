@@ -23,7 +23,10 @@ const ChatFloatingActions: React.FC<Props> = ({
   if (!hasMessages) return null;
 
   return (
-    <div className="chat-floating-actions" data-no-window-drag>
+    <div 
+      className="fixed top-5 right-5 z-[150] max-w-[calc(100vw-var(--sidebar-width)-80px)] flex items-center gap-1 p-[4px_6px] rounded-lg bg-[color-mix(in_srgb,var(--background-secondary)_92%,transparent)] border border-[var(--border-subtle)] backdrop-blur-[10px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] pointer-events-auto"
+      data-no-window-drag
+    >
       <ActionIcon
         variant="subtle"
         color={searchOpen ? 'teal' : 'gray'}
@@ -46,7 +49,7 @@ const ChatFloatingActions: React.FC<Props> = ({
       </ActionIcon>
       <button
         type="button"
-        className="chat-floating-actions__new"
+        className="inline-flex items-center gap-1.5 ml-0.5 px-2.5 py-1.25 border-none rounded bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] text-xs font-medium cursor-pointer transition-colors duration-150"
         onClick={(e) => { e.stopPropagation(); onNewChat(); }}
         title="Nuevo chat (Ctrl+N)"
       >

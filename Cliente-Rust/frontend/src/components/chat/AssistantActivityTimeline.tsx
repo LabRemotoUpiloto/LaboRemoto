@@ -117,11 +117,11 @@ function StatusIcon({
   isLanding: boolean;
 }) {
   const base =
-    'assistant-timeline__icon flex items-center justify-center w-[18px] h-[18px] rounded-full shrink-0';
+    'flex items-center justify-center w-[18px] h-[18px] rounded-full shrink-0';
   if (status === 'done') {
     return (
       <span
-        className={`${base} ${isLanding ? 'assistant-timeline__icon--landing assistant-timeline__icon--done' : 'bg-accent/20 text-accent'}`}
+        className={`${base} ${isLanding ? 'bg-[color-mix(in_srgb,var(--accent-primary)_18%,transparent)] text-[var(--accent-primary)]' : 'bg-accent/20 text-accent'}`}
         aria-hidden
       >
         <Check size={12} strokeWidth={2.5} />
@@ -131,7 +131,7 @@ function StatusIcon({
   if (status === 'active') {
     return (
       <span
-        className={`${base} ${isLanding ? 'assistant-timeline__icon--landing assistant-timeline__icon--active' : 'bg-accent/15 text-accent'}`}
+        className={`${base} ${isLanding ? 'bg-[color-mix(in_srgb,var(--accent-primary)_12%,transparent)] text-[var(--accent-primary)]' : 'bg-accent/15 text-accent'}`}
         aria-hidden
       >
         <Loader2 size={12} className="animate-spin" />
@@ -140,7 +140,7 @@ function StatusIcon({
   }
   return (
     <span
-      className={`${base} ${isLanding ? 'assistant-timeline__icon--landing assistant-timeline__icon--pending' : 'bg-white/5 text-white/30'}`}
+      className={`${base} ${isLanding ? 'bg-[var(--background-tertiary)] text-[var(--text-muted)]' : 'bg-white/5 text-white/30'}`}
       aria-hidden
     >
       <Circle size={10} />
@@ -156,7 +156,10 @@ export default function AssistantActivityTimeline({
   if (entries.length === 0) return null;
 
   const labelClass = (status: TimelineEntryStatus) => {
-    if (isLanding) return `assistant-timeline__label assistant-timeline__label--${status}`;
+    if (isLanding) {
+      const baseColor = status === 'pending' ? 'text-[var(--text-muted)]' : 'text-[var(--text-primary)]';
+      return `text-[12px] font-medium ${baseColor}`;
+    }
     if (status === 'active') return 'text-[12px] font-medium text-white/90';
     if (status === 'done') return 'text-[12px] font-medium text-white/70';
     return 'text-[12px] font-medium text-white/40';
@@ -164,26 +167,26 @@ export default function AssistantActivityTimeline({
 
   return (
     <div
-      className={isLanding ? 'assistant-timeline assistant-timeline--landing' : 'mb-2'}
+      className={isLanding ? 'py-[2px] pb-1' : 'mb-2'}
       role="status"
       aria-live="polite"
       aria-label="Actividad del asistente"
     >
-      <ol className={isLanding ? 'assistant-timeline__list' : 'm-0 p-0 list-none flex flex-col'}>
+      <ol className={isLanding ? 'm-0 p-0 list-none flex flex-col' : 'm-0 p-0 list-none flex flex-col'}>
         {entries.map((entry, index) => {
           const isLast = index === entries.length - 1;
           return (
             <li
               key={entry.id}
-              className={
-                isLanding
-                  ? `assistant-timeline__item assistant-timeline__item--${entry.status}${isLast ? ' assistant-timeline__item--last' : ''}`
-                  : `relative flex gap-2.5 py-1.5 ${!isLast ? 'pb-2' : ''}`
-              }
+              className={`relative flex gap-2.5 py-1.5 ${!isLanding && !isLast ? 'pb-2' : ''}`}
             >
-              {!isLanding && !isLast && (
+              {!isLast && (
                 <span
-                  className="absolute left-[8px] top-[22px] bottom-0 w-px bg-white/10"
+                  className={
+                    isLanding
+                      ? 'absolute left-[9px] top-[26px] bottom-[-2px] w-px bg-[var(--border-subtle)]'
+                      : 'absolute left-[8px] top-[22px] bottom-0 w-px bg-white/10'
+                  }
                   aria-hidden
                 />
               )}
@@ -194,7 +197,7 @@ export default function AssistantActivityTimeline({
                   <span
                     className={
                       isLanding
-                        ? 'assistant-timeline__detail'
+                        ? 'block text-[10px] text-[var(--text-muted)] mt-0.5 font-mono break-words whitespace-pre-wrap leading-[1.35]'
                         : 'block text-[10px] text-white/40 mt-0.5 font-mono break-all whitespace-pre-wrap'
                     }
                     title={entry.detail}

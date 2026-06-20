@@ -526,8 +526,12 @@ const ChatPane: React.FC<Props> = ({
   return (
     <div
       className={[
-        isHome ? 'agent-landing-chat' : 'chat-pane-root flex flex-col w-full h-full bg-secondary font-sans text-[13.5px] leading-[1.65] overflow-hidden relative',
-        isHomeEmpty ? 'agent-landing-chat--empty' : isHome ? 'agent-landing-chat--has-messages' : '',
+        isHome
+          ? 'relative flex flex-col w-full h-full min-h-0 text-[13.5px] leading-[1.65] text-[var(--text-primary)]'
+          : 'chat-pane-root flex flex-col w-full h-full bg-secondary font-sans text-[13.5px] leading-[1.65] overflow-hidden relative',
+        isHomeEmpty
+          ? 'justify-center items-center p-[40px_32px] max-[760px]:p-[20px_16px_24px] max-[760px]:justify-start max-[760px]:overflow-y-auto'
+          : '',
       ].filter(Boolean).join(' ')}
     >
       {isHome && (
@@ -550,7 +554,7 @@ const ChatPane: React.FC<Props> = ({
         />
       )}
       {isHomeEmpty ? (
-        <div className="agent-landing-empty">
+        <div className="flex flex-col items-stretch justify-center w-full max-w-[1060px] flex-1 min-h-0 gap-0">
           <AgentHomeHero
             displayName={displayName}
             onOpenPanel={onOpenPanel}
@@ -559,7 +563,7 @@ const ChatPane: React.FC<Props> = ({
         </div>
       ) : (
         <ChatMessageList
-          className={isHome ? 'chat-messages-area flex-1 min-h-0' : 'flex-1 min-h-0 chat-messages-area--inset-top'}
+          className={isHome ? 'flex-1 min-h-0 pt-[68px] px-5 pb-7 scroll-pt-[68px] !gap-3.5' : 'flex-1 min-h-0 chat-messages-area--inset-top'}
           messages={messages} mode={mode} isSending={isSending}
           hideWelcome={isHome}
           appearance={isHome ? 'landing' : 'session'}
@@ -599,7 +603,7 @@ const ChatPane: React.FC<Props> = ({
       )}
       {toast && <ChatToast message={toast} />}
       {isHome && !isHomeEmpty ? (
-        <div className="agent-landing-chat__footer">
+        <div className="shrink-0 flex flex-col items-center w-full px-5 pb-5 gap-2 box-border">
           <TerminalBanners
             appearance="landing"
             errorBanner={errorBanner}

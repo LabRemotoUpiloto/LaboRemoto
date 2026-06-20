@@ -6,13 +6,13 @@
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:5174",
-    "beforeDevCommand": "npm run dev:frontend --prefix ..",
-    "beforeBuildCommand": "npm run build:frontend --prefix .."
+    "beforeDevCommand": "npm run dev:frontend",
+    "beforeBuildCommand": "npm run build:frontend"
   },
   "app": {
     "windows": [
       {
-        "title": "Cliente SSH Unipiloto",
+        "title": "Laboratorio remoto Unipiloto",
         "width": 800,
         "height": 600,
         "resizable": true,
