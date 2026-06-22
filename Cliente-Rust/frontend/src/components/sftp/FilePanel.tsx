@@ -55,7 +55,6 @@ export interface FilePanelProps {
   sessionId?: string
   sessionsMeta?: Record<string, { label: string }>
   onSessionChange?: (id: string | undefined) => void
-  isConnected?: boolean
   onNewFolder?: () => void
   onDelete?: () => void
   canDelete?: boolean
@@ -100,7 +99,6 @@ const FilePanel: React.FC<FilePanelProps> = ({
   sessionId,
   sessionsMeta,
   onSessionChange,
-  isConnected,
   onNewFolder,
   onDelete,
   canDelete,
@@ -174,7 +172,6 @@ const FilePanel: React.FC<FilePanelProps> = ({
         sessionId={sessionId}
         sessionsMeta={sessionsMeta}
         onSessionChange={onSessionChange}
-        isConnected={isConnected}
         onRefresh={onRefresh}
         onNewFolder={onNewFolder}
         onUpload={onUpload}

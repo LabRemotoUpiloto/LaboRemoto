@@ -47,8 +47,8 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2">
-          <Clock size={14} className="text-[var(--mantine-color-dimmed)]" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--mantine-color-dimmed)]">
+          <Clock size={14} style={{ color: 'var(--text-secondary)' }} />
+          <span className="text-xs font-semibold uppercase tracking-wider style={{ color: 'var(--text-secondary)' }}">
             Recientes ({connections.length})
           </span>
         </div>
@@ -56,7 +56,7 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
           {onClear && isExpanded && (
             <Tooltip label="Limpiar historial" position="left" withArrow openDelay={300}>
               <button
-                className="p-1 rounded text-[var(--mantine-color-dimmed)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                className="p-1 rounded transition-colors text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger-bg)] cursor-pointer"
                 onClick={(e) => { e.stopPropagation(); onClear(); }}
               >
                 <Trash2 size={12} />
@@ -65,7 +65,8 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
           )}
           <ChevronRight
             size={14}
-            className={`text-[var(--mantine-color-dimmed)] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+            style={{ color: 'var(--text-secondary)' }}
+            className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
           />
         </div>
       </div>
@@ -80,22 +81,23 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
             return (
               <UnstyledButton
                 key={conn.id}
-                className="group/item flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 transition-all duration-150 hover:bg-[var(--mantine-color-default-hover)] active:scale-[0.99]"
+                className="group/item flex items-center gap-2.5 w-full px-2.5 py-2 transition-all duration-150 hover:bg-[var(--interactive-hover)] active:scale-[0.99] cursor-pointer"
+                style={{ borderRadius: 'var(--radius-md)' }}
                 onClick={() => onSelect(conn)}
                 title={`${conn.user}@${displayHost}${showPort ? ':' + conn.port : ''}`}
               >
-                <div className="flex items-center justify-center w-6 h-6 rounded shrink-0 transition-colors" style={{ backgroundColor: 'color-mix(in srgb, var(--border-color) 30%, transparent)', color: 'var(--text-secondary)' }}>
+                <div className="flex items-center justify-center w-6 h-6 shrink-0 transition-colors" style={{ backgroundColor: 'color-mix(in srgb, var(--border-subtle) 40%, transparent)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)' }}>
                   <Monitor size={12} />
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
-                  <span className="text-[12px] font-medium text-[var(--mantine-color-text)] truncate leading-tight">
+                  <span className="text-[12px] font-medium text-[var(--text-primary)] truncate leading-tight">
                     <span style={{ color: 'var(--accent-primary)' }}>{conn.user}</span>
-                    <span className="text-[var(--mantine-color-dimmed)] mx-0.5">@</span>
+                    <span style={{ color: 'var(--text-secondary)' }} className="mx-0.5">@</span>
                     <span>{displayHost}</span>
-                    {showPort && <span className="text-[var(--mantine-color-dimmed)]">:{conn.port}</span>}
+                    {showPort && <span style={{ color: 'var(--text-secondary)' }}>:{conn.port}</span>}
                   </span>
                 </div>
-                <span className="text-[10px] text-[var(--mantine-color-dimmed)] tabular-nums whitespace-nowrap shrink-0">
+                <span className="text-[10px] text-[var(--text-secondary)] tabular-nums whitespace-nowrap shrink-0">
                   {formatRelativeTime(conn.lastConnected)}
                 </span>
               </UnstyledButton>

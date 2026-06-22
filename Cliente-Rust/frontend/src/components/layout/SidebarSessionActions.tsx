@@ -43,21 +43,29 @@ const SidebarSessionActions: React.FC<Props> = ({
     <Group gap={4} px={4} wrap="nowrap">
       <ActionIcon
         data-no-window-drag
-        variant={activeView === 'escritorio' ? 'light' : 'subtle'}
-        color={activeView === 'escritorio' ? 'teal' : 'gray'}
         size="md"
         onClick={() => onViewChange(activeView === 'terminal' ? 'escritorio' : 'terminal')}
         title={activeView === 'escritorio' ? 'Volver a terminal' : 'Escritorio remoto'}
+        style={{
+          backgroundColor: activeView === 'escritorio' ? 'var(--interactive-selected)' : 'transparent',
+          color: activeView === 'escritorio' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+          border: activeView === 'escritorio' ? '1px solid var(--accent-primary)' : '1px solid transparent',
+        }}
+        className="hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)] transition-colors duration-150"
       >
         <div className="w-4 h-4">{activeView === 'escritorio' ? PANEL_ICONS['terminal'] : PANEL_ICONS['escritorio']}</div>
       </ActionIcon>
       <ActionIcon
         data-no-window-drag
-        variant={isChatOpen ? 'light' : 'subtle'}
-        color={isChatOpen ? 'teal' : 'gray'}
         size="md"
         onClick={onToggleChat}
         title="Chat de IA"
+        style={{
+          backgroundColor: isChatOpen ? 'var(--interactive-selected)' : 'transparent',
+          color: isChatOpen ? 'var(--accent-primary)' : 'var(--text-secondary)',
+          border: isChatOpen ? '1px solid var(--accent-primary)' : '1px solid transparent',
+        }}
+        className="hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)] transition-colors duration-150"
       >
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 10.5a1.5 1.5 0 0 1-1.5 1.5H5L2 15V3a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 14 3z" />
@@ -65,21 +73,29 @@ const SidebarSessionActions: React.FC<Props> = ({
       </ActionIcon>
       <ActionIcon
         data-no-window-drag
-        variant={isCameraActive ? 'light' : 'subtle'}
-        color={isCameraActive ? 'teal' : 'gray'}
         size="md"
         onClick={onToggleCamera}
         title="Cámara"
+        style={{
+          backgroundColor: isCameraActive ? 'var(--interactive-selected)' : 'transparent',
+          color: isCameraActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+          border: isCameraActive ? '1px solid var(--accent-primary)' : '1px solid transparent',
+        }}
+        className="hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)] transition-colors duration-150"
       >
         <div className="w-4 h-4">{PANEL_ICONS['camara']}</div>
       </ActionIcon>
       <ActionIcon
         data-no-window-drag
-        variant={isPinsActive ? 'light' : 'subtle'}
-        color={isPinsActive ? 'teal' : 'gray'}
         size="md"
         onClick={onTogglePins}
         title="GPIO / Pines"
+        style={{
+          backgroundColor: isPinsActive ? 'var(--interactive-selected)' : 'transparent',
+          color: isPinsActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+          border: isPinsActive ? '1px solid var(--accent-primary)' : '1px solid transparent',
+        }}
+        className="hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)] transition-colors duration-150"
       >
         <div className="w-4 h-4">{PANEL_ICONS['pines']}</div>
       </ActionIcon>

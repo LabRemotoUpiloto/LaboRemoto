@@ -5,6 +5,7 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
+import { User } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import {
   MonitorIcon,
@@ -102,10 +103,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         bottom: '12px',
         height: 'calc(100vh - 24px)',
         width: 'var(--sidebar-width)',
-        backgroundColor: 'var(--background-secondary)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: '16px',
+        backgroundColor: 'var(--sidebar-bg, var(--background-secondary))',
+        border: 'var(--sidebar-border, 1px solid var(--border-subtle))',
+        borderRadius: 'var(--sidebar-radius, 16px)',
         boxShadow: 'var(--shadow-sm)',
+        backdropFilter: 'var(--sidebar-blur, none)',
+        WebkitBackdropFilter: 'var(--sidebar-blur, none)',
       }}
     >
       {/* macOS: espacio para traffic lights + arrastre; Win/Linux usan barra nativa */}
@@ -256,8 +259,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--interactive-hover)'; }}
                 onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               >
-                <div className="sidebar-user-avatar w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 select-none">
-                  AI
+                <div className="sidebar-user-avatar w-7 h-7 rounded-full flex items-center justify-center shrink-0 select-none">
+                  <User size={14} strokeWidth={2.5} />
                 </div>
                 <div className="flex flex-col min-w-0">
                   <Text size="xs" fw={600} style={{ color: 'var(--text-primary)', lineHeight: 1.3 }}>

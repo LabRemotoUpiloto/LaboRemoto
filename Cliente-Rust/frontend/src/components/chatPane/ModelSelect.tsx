@@ -24,7 +24,7 @@ const ModelSelect: React.FC<Props> = ({ value, onChange, compact = false }) => {
             className={
               compact
                 ? 'h-9 px-2.5 font-medium border border-[var(--border-subtle)] bg-[var(--background-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)] max-w-[152px]'
-                : 'bg-white/5 border-white/10 text-primary hover:bg-white/10 h-[26px] px-2.5 font-normal w-full flex-1'
+                : 'bg-[var(--background-tertiary)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] h-[26px] px-2.5 font-normal w-full flex-1'
             }
             rightSection={<ChevronDown size={compact ? 13 : 14} className="opacity-50 shrink-0" />}
             styles={{ label: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: compact ? 11 : undefined } }}
@@ -44,12 +44,7 @@ const ModelSelect: React.FC<Props> = ({ value, onChange, compact = false }) => {
                 fz="xs"
                 bg={isSelected ? 'var(--interactive-selected)' : undefined}
                 rightSection={
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{m.provider}</span>
-                    {isSelected && (
-                      <Box w={6} h={6} className="rounded-full bg-blue-400 shrink-0 ml-1" />
-                    )}
-                  </div>
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{m.provider}</span>
                 }
               >
                 {m.label}

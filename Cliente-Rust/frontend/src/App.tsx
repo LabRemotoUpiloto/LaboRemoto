@@ -182,7 +182,7 @@ const AppMain: React.FC = () => {
   const isSessionActive = activeTab.type === 'session'
 
   return (
-    <MantineProvider theme={mantineTheme} defaultColorScheme={mantineColorScheme}>
+    <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
       <ModalsProvider>
         <Notifications position="bottom-right" zIndex={9998} />
         <GlobalLoader />

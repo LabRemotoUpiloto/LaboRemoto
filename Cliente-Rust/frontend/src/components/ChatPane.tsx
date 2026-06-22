@@ -528,7 +528,7 @@ const ChatPane: React.FC<Props> = ({
       className={[
         isHome
           ? 'relative flex flex-col w-full h-full min-h-0 text-[13.5px] leading-[1.65] text-[var(--text-primary)]'
-          : 'chat-pane-root flex flex-col w-full h-full bg-secondary font-sans text-[13.5px] leading-[1.65] overflow-hidden relative',
+          : 'chat-pane-root flex flex-col w-full h-full bg-[var(--background-secondary)] font-sans text-[13.5px] leading-[1.65] overflow-hidden relative',
         isHomeEmpty
           ? 'justify-center items-center p-[40px_32px] max-[760px]:p-[20px_16px_24px] max-[760px]:justify-start max-[760px]:overflow-y-auto'
           : '',
