@@ -48,8 +48,8 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
                             </Tooltip>
                         )}
                         {hasChat && (
-                            <Tooltip label="Chat con asistente IA" withArrow position="top">
-                                <ActionIcon variant="subtle" style={{ color: 'var(--text-secondary)' }} size="sm" radius="md" aria-label="Chat con asistente IA">
+                            <Tooltip label="Chat del asistente" withArrow position="top">
+                                <ActionIcon variant="subtle" style={{ color: 'var(--text-secondary)' }} size="sm" radius="md" aria-label="Chat del asistente">
                                     <MessageSquare size={14} />
                                 </ActionIcon>
                             </Tooltip>

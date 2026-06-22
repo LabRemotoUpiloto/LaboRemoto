@@ -44,7 +44,7 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
         color={isChatOpen ? 'teal' : 'gray'}
         size="md"
         onClick={onToggleChat}
-        title="Chat de IA"
+        title="Asistente SSH"
       >
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 10.5a1.5 1.5 0 0 1-1.5 1.5H5L2 15V3a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 14 3z" />
