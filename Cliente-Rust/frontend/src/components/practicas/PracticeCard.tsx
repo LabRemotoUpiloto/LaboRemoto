@@ -13,10 +13,10 @@ interface PracticeCardProps {
     loading?: boolean;
 }
 
-const difficultyConfig: Record<string, { label: string; dot: string }> = {
-    beginner: { label: 'Principiante', dot: 'var(--mantine-color-green-5)' },
-    intermediate: { label: 'Intermedio', dot: 'var(--mantine-color-yellow-5)' },
-    advanced: { label: 'Avanzado', dot: 'var(--mantine-color-red-5)' },
+const difficultyConfig: Record<string, { label: string; dot: string; className: string }> = {
+    beginner: { label: 'Principiante', dot: 'var(--success, #10B981)', className: 'beginner' },
+    intermediate: { label: 'Intermedio', dot: 'var(--warning, #F59E0B)', className: 'intermediate' },
+    advanced: { label: 'Avanzado', dot: 'var(--danger, #EF4444)', className: 'advanced' },
 };
 
 const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficulty, hasCamera, hasChat, onStart, loading = false }) => {
@@ -24,50 +24,32 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
 
     return (
         <Card
-            withBorder
-            radius="lg"
             padding="lg"
-            h="100%"
-            className="group animate-reveal"
-            sx={(theme) => ({
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: 'var(--mantine-color-body)',
-                borderColor: 'var(--mantine-color-default-border)',
-                transition: 'border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease',
-                '&:hover': {
-                    borderColor: theme.colors.blue[6],
-                    boxShadow: `0 0 0 1px ${theme.colors.blue[6]}40, 0 8px 24px -12px rgba(0,0,0,0.35)`,
-                    transform: 'translateY(-2px)',
-                },
-            })}
+            className="animate-reveal dribbble-card dribbble-card-interactive group flex flex-col justify-between"
+            style={{ minHeight: '100%' }}
         >
-            <Stack gap="md" h="100%">
+            <Stack gap="md" h="100%" style={{ flex: 1, justifyContent: 'space-between' }}>
                 <Group justify="space-between" align="center" wrap="nowrap">
                     <Group gap={8} align="center">
-                        <div style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            background: diff.dot,
-                            boxShadow: `0 0 0 3px ${diff.dot}25`,
-                            flexShrink: 0,
-                        }} />
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: '0.06em', fontSize: 10.5 }}>
+                        <div 
+                            className={`dribbble-difficulty-dot ${diff.className}`}
+                            style={{ flexShrink: 0 }} 
+                        />
+                        <Text size="xs" style={{ color: 'var(--text-secondary)', letterSpacing: '0.06em', fontSize: 10.5 }} tt="uppercase" fw={600}>
                             {diff.label}
                         </Text>
                     </Group>
                     <Group gap={4}>
                         {hasCamera && (
                             <Tooltip label="Cámara del laboratorio" withArrow position="top">
-                                <ActionIcon variant="subtle" color="gray" size="sm" radius="md" aria-label="Cámara del laboratorio">
+                                <ActionIcon variant="subtle" style={{ color: 'var(--text-secondary)' }} size="sm" radius="md" aria-label="Cámara del laboratorio">
                                     <Camera size={14} />
                                 </ActionIcon>
                             </Tooltip>
                         )}
                         {hasChat && (
                             <Tooltip label="Chat con asistente IA" withArrow position="top">
-                                <ActionIcon variant="subtle" color="gray" size="sm" radius="md" aria-label="Chat con asistente IA">
+                                <ActionIcon variant="subtle" style={{ color: 'var(--text-secondary)' }} size="sm" radius="md" aria-label="Chat con asistente IA">
                                     <MessageSquare size={14} />
                                 </ActionIcon>
                             </Tooltip>
@@ -75,23 +57,19 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
                     </Group>
                 </Group>
 
-                <div style={{ flex: 1 }}>
-                    <Text fw={600} size="md" mb={6} lineClamp={2} style={{ lineHeight: 1.35, letterSpacing: '-0.01em' }}>
+                <div style={{ flex: 1, marginTop: 4 }}>
+                    <Text fw={600} size="md" mb={6} lineClamp={2} style={{ lineHeight: 1.35, letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
                         {name}
                     </Text>
-                    <Text size="sm" c="dimmed" lineClamp={3} style={{ lineHeight: 1.55 }}>
+                    <Text size="sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }} lineClamp={3}>
                         {description}
                     </Text>
                 </div>
 
                 <Button
-                    variant="filled"
-                    color="blue"
-                    size="sm"
-                    radius="md"
-                    fullWidth
                     loading={loading}
                     onClick={onStart}
+                    className="dribbble-btn-primary h-9 text-xs w-full"
                     rightSection={
                         <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
                     }

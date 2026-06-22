@@ -1,5 +1,6 @@
 import React from 'react';
 import { Menu, Tooltip, UnstyledButton, Text } from '@mantine/core';
+import { User } from 'lucide-react';
 
 const UserMenu: React.FC = () => {
   return (
@@ -7,8 +8,15 @@ const UserMenu: React.FC = () => {
       <Menu.Target>
         <Tooltip label="Pendiente de implementar" withArrow position="bottom-end">
           <UnstyledButton className="flex items-center gap-2 h-7 px-2.5 rounded-md hover:bg-secondary transition-colors">
-            <span className="w-5 h-5 rounded-full bg-accent-primary/20 border border-accent-primary/30 flex items-center justify-center text-[9px] font-bold text-accent-primary shrink-0 select-none">
-              AI
+            <span
+              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 select-none"
+              style={{
+                backgroundColor: 'var(--accent-primary-subtle)',
+                border: '1px solid var(--accent-primary)',
+                color: 'var(--accent-primary)',
+              }}
+            >
+              <User size={11} strokeWidth={2.5} />
             </span>
             <Text size="xs" fw={500} className="hidden xl:block text-secondary">
               Invitado

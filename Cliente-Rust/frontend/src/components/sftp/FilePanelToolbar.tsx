@@ -23,7 +23,6 @@ export interface FilePanelToolbarProps {
   sessionId?: string
   sessionsMeta?: Record<string, { label: string }>
   onSessionChange?: (id: string | undefined) => void
-  isConnected?: boolean
 
   // Actions
   onRefresh: () => void
@@ -50,7 +49,6 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
   sessionId,
   sessionsMeta,
   onSessionChange,
-  isConnected,
   onRefresh,
   onNewFolder,
   onUpload,
@@ -113,36 +111,7 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
         />
       )}
 
-      {/* Connection indicator (remote only) */}
-      {side === 'remote' && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '2px 8px',
-            borderRadius: 'var(--mantine-radius-xl)',
-            fontSize: 10,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: isConnected ? 'var(--success)' : 'var(--text-muted)',
-            background: isConnected ? 'var(--success-bg)' : 'var(--interactive-hover)',
-            border: `1px solid ${isConnected ? 'var(--success-border)' : 'var(--border-subtle)'}`,
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: '50%',
-              background: isConnected ? 'var(--success)' : 'var(--text-muted)',
-            }}
-          />
-          {isConnected ? 'Conectado' : 'Desconectado'}
-        </div>
-      )}
+
 
       {/* Separator */}
       <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', flexShrink: 0 }} />

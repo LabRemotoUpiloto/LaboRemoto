@@ -52,10 +52,8 @@ const SessionCard: React.FC<SessionCardProps> = ({
 
   return (
     <Card
-      withBorder
       padding="md"
-      radius="md"
-      className="group cursor-pointer"
+      className="dribbble-card dribbble-card-interactive group"
       onClick={onSelect}
       tabIndex={0}
       role="row"
@@ -87,15 +85,15 @@ const SessionCard: React.FC<SessionCardProps> = ({
 
           <div className="flex flex-col min-w-0" style={{ flex: 1 }}>
             <Group gap={0} wrap="nowrap">
-              <Text size="sm" fw={600} truncate ff="monospace" style={{ color: 'var(--mantine-color-text)' }}>
+              <Text size="sm" fw={600} truncate ff="monospace" style={{ color: 'var(--text-primary)' }}>
                 {session.user}
               </Text>
-              <Text size="xs" c="dimmed" ff="monospace">@</Text>
-              <Text size="sm" c="dimmed" truncate ff="monospace" style={{ flex: 1, minWidth: 0 }}>
+              <Text size="xs" style={{ color: 'var(--text-secondary)' }} ff="monospace">@</Text>
+              <Text size="sm" style={{ color: 'var(--text-secondary)', flex: 1, minWidth: 0 }} truncate ff="monospace">
                 {session.host}
               </Text>
             </Group>
-            <Text size="xs" c="dimmed" ff="monospace">:{session.port}</Text>
+            <Text size="xs" style={{ color: 'var(--text-secondary)' }} ff="monospace">:{session.port}</Text>
           </div>
 
           {isActive && (
@@ -132,19 +130,19 @@ const SessionCard: React.FC<SessionCardProps> = ({
         <Group gap="lg">
           <Group gap={4}>
             <Clock size={13} style={{ color: 'var(--text-tertiary)' }} />
-            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <Text size="xs" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
               {formatDuration(session.duration)}
             </Text>
           </Group>
           <Group gap={4}>
             <Terminal size={13} style={{ color: 'var(--text-tertiary)' }} />
-            <Text size="xs" fw={500} style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <Text size="xs" fw={500} style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
               {session.totalCommands} cmds
             </Text>
           </Group>
           <Group gap={4} ml="auto" visibleFrom="sm">
             <Calendar size={12} style={{ color: 'var(--text-tertiary)' }} />
-            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <Text size="xs" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
               {formatTime(session.startedAt)}
             </Text>
           </Group>
@@ -153,21 +151,21 @@ const SessionCard: React.FC<SessionCardProps> = ({
         {/* Actions */}
         <Group gap="xs" onClick={e => e.stopPropagation()}>
           <Button
-            variant="light"
             size="compact-sm"
             leftSection={<Eye size={14} />}
             onClick={onViewBuffer}
             style={{ flex: 1 }}
+            className="dribbble-btn-primary h-8 text-xs"
           >
             Ver Logs
           </Button>
           {onSavePdf && (
             <Button
-              variant="default"
               size="compact-sm"
               leftSection={<FileDown size={14} />}
               onClick={onSavePdf}
               title="Guardar PDF"
+              className="dribbble-btn-secondary h-8 text-xs"
             >
               PDF
             </Button>

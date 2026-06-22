@@ -275,7 +275,7 @@ const ChatInput: React.FC<Props> = ({
         className={
           isPill
             ? `flex items-center gap-1.5 min-h-[62px] py-2.5 pr-2.5 pl-3.5 rounded-r-[18px] rounded-l-none max-[760px]:rounded-r-[14px] border-none border-l-[5px] border-l-[var(--accent-primary)] bg-[color-mix(in_srgb,var(--background-secondary)_96%,var(--accent-primary)_4%)] shadow-[0_20px_44px_rgba(0,0,0,0.16)] transition-all duration-200 overflow-hidden focus-within:bg-[color-mix(in_srgb,var(--background-secondary)_90%,var(--accent-secondary)_10%)] focus-within:shadow-[0_24px_52px_rgba(0,0,0,0.24)] ${(attachedImage || attachedFile) ? 'flex-col items-stretch !rounded-3xl' : ''}`
-            : `flex border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-accent/40 ${(attachedImage || attachedFile) ? 'flex-col items-stretch gap-0' : 'items-center'}`
+            : `flex flex-col items-stretch border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-[var(--accent-primary)]/40 p-2 gap-1`
         }
         style={isPill ? undefined : { backgroundColor: 'var(--background-tertiary)' }}
       >
@@ -292,137 +292,207 @@ const ChatInput: React.FC<Props> = ({
               <img
                 src={attachedImage.preview}
                 alt="adjunto"
-                className="w-12 h-12 rounded-md object-cover border border-white/10 block"
+                className="w-12 h-12 rounded-md object-cover border border-[var(--border-subtle)] block"
               />
               <button
                 onClick={() => setAttachedImage(null)}
                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] flex items-center justify-center cursor-pointer transition-colors" style={{ backgroundColor: 'var(--background-tertiary)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
               >✕</button>
             </div>
-            <span className="text-[11px] text-white/35 italic">{attachedImage.label ?? 'imagen lista para enviar'}</span>
+            <span className="text-[11px] text-[var(--text-muted)] italic">{attachedImage.label ?? 'imagen lista para enviar'}</span>
           </div>
         )}
         {/* File chip */}
         {attachedFile && (
           <div className="flex items-center gap-1.5 pt-2 px-2.5 pb-1">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-400/10 border border-blue-400/20 text-[11.5px] flex-1 min-w-0">
-              <FileText size={12} className="text-blue-400 shrink-0" />
-              <span className="text-white/75 overflow-hidden text-ellipsis whitespace-nowrap">{attachedFile.name}</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--accent-primary-subtle)] border border-[var(--border-subtle)] text-[11.5px] flex-1 min-w-0">
+              <FileText size={12} className="text-[var(--accent-primary)] shrink-0" />
+              <span className="text-[var(--text-primary)] overflow-hidden text-ellipsis whitespace-nowrap">{attachedFile.name}</span>
             </div>
             <button
               onClick={() => setAttachedFile(null)}
-              className="bg-transparent border-none text-white/35 cursor-pointer text-[15px] px-0.5 shrink-0 leading-none hover:text-white"
+              className="bg-transparent border-none text-[var(--text-muted)] cursor-pointer text-[15px] px-0.5 shrink-0 leading-none hover:text-[var(--text-primary)]"
               title="Quitar archivo"
             >×</button>
           </div>
         )}
 
-        <div
-          className={
-            isPill
-              ? 'flex items-center gap-1 flex-1 min-w-0'
-              : 'flex items-end gap-1 flex-1 py-1 pr-1.5 min-h-[44px]'
-          }
-        >
-          <Textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={isPill ? pillPlaceholder : MODE_PLACEHOLDERS[mode]}
-            autosize
-            minRows={1}
-            maxRows={8}
-            className={isPill ? 'flex-1 min-w-0 flex items-center' : 'flex-1'}
-            classNames={{
-              wrapper: isPill ? 'w-full' : undefined,
-              input: isPill
-                ? '!p-[10px_4px] !text-[14px] !leading-[1.4] !text-[var(--text-primary)] !min-h-[24px] bg-transparent border-none focus:ring-0 scrollbar-thin placeholder:!text-[var(--text-muted)]'
-                : 'bg-transparent border-none text-primary text-[13px] leading-relaxed placeholder-white/30 focus:ring-0 px-3 py-2 scrollbar-thin',
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape' && isSending) { e.preventDefault(); onCancel(); return; }
-              if (e.key === 'ArrowUp' && input === '') {
-                e.preventDefault();
-                const lastUser = [...messages].reverse().find(m => m.sender === 'user');
-                if (lastUser) { setInput(lastUser.text); return; }
-              }
-              if (e.key === 'Enter' && !e.shiftKey && !isComposingRef.current) {
-                e.preventDefault();
-                if (!isSending && canSend) onSend();
-              }
-            }}
-            onCompositionStart={() => { isComposingRef.current = true; }}
-            onCompositionEnd={() => { isComposingRef.current = false; }}
-            onPaste={(e) => {
-              const items = Array.from(e.clipboardData?.items ?? [] as any) as DataTransferItem[];
-              const imgItem = items.find(it => it.type.startsWith('image/'));
-              if (!imgItem) return;
-              e.preventDefault();
-              const file = imgItem.getAsFile();
-              if (!file) return;
-              const mediaType = file.type || 'image/png';
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                const dataUrl = ev.target?.result as string;
-                const base64 = dataUrl.split(',')[1];
-                setAttachedImage({ base64, mediaType, preview: dataUrl });
-              };
-              reader.readAsDataURL(file);
-            }}
-          />
-          
-          <div className={isPill ? 'flex items-center justify-center gap-2 shrink-0 pr-[2px]' : 'flex items-center gap-1 shrink-0 pb-1'}>
-            {!isPill && (
-              <>
+        {!isPill ? (
+          // STACKED LAYOUT (for active chat pane)
+          <div className="flex flex-col w-full">
+            {/* Top row: full-width Textarea */}
+            <div className="w-full">
+              <Textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={MODE_PLACEHOLDERS[mode]}
+                variant="unstyled"
+                autosize
+                minRows={2}
+                maxRows={10}
+                className="w-full"
+                classNames={{
+                  wrapper: 'w-full',
+                  input: 'bg-transparent border-none text-[var(--text-primary)] text-[13.5px] leading-relaxed placeholder-[var(--placeholder-fg)] focus:ring-0 px-2 py-1.5 scrollbar-thin w-full min-h-[40px]',
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape' && isSending) { e.preventDefault(); onCancel(); return; }
+                  if (e.key === 'ArrowUp' && input === '') {
+                    e.preventDefault();
+                    const lastUser = [...messages].reverse().find(m => m.sender === 'user');
+                    if (lastUser) { setInput(lastUser.text); return; }
+                  }
+                  if (e.key === 'Enter' && !e.shiftKey && !isComposingRef.current) {
+                    e.preventDefault();
+                    if (!isSending && canSend && input.trim().length > 0) onSend();
+                  }
+                }}
+                onCompositionStart={() => { isComposingRef.current = true; }}
+                onCompositionEnd={() => { isComposingRef.current = false; }}
+                onPaste={(e) => {
+                  const items = Array.from(e.clipboardData?.items ?? [] as any) as DataTransferItem[];
+                  const imgItem = items.find(it => it.type.startsWith('image/'));
+                  if (!imgItem) return;
+                  e.preventDefault();
+                  const file = imgItem.getAsFile();
+                  if (!file) return;
+                  const mediaType = file.type || 'image/png';
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const dataUrl = ev.target?.result as string;
+                    const base64 = dataUrl.split(',')[1];
+                    setAttachedImage({ base64, mediaType, preview: dataUrl });
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </div>
+            
+            {/* Bottom row: actions on left, send on right */}
+            <div className="flex items-center justify-between w-full pt-1.5 px-2 border-t border-[var(--border-subtle)]/30 mt-1 min-h-[32px]">
+              {/* Left actions */}
+              <div className="flex items-center gap-1.5">
                 <ActionIcon
                   variant="subtle"
                   onClick={() => fileInputRef.current?.click()}
                   title="Adjuntar imagen"
-                  className={`hover:bg-white/5 ${attachedImage ? 'text-accent' : 'text-secondary/50 hover:text-primary'}`}
-                  size="md"
+                  className={`hover:bg-[var(--interactive-hover)] ${attachedImage ? 'text-[var(--accent-primary)]' : 'text-[var(--text-secondary)]/50 hover:text-[var(--text-primary)]'}`}
+                  size="sm"
                 >
-                  <Image size={15} />
+                  <Image size={14} />
                 </ActionIcon>
                 <ActionIcon
                   variant="subtle"
                   onClick={() => textFileInputRef.current?.click()}
                   title="Adjuntar archivo de texto (.sh, .conf, .log, .py…)"
-                  className={`hover:bg-white/5 ${attachedFile ? 'text-accent' : 'text-secondary/50 hover:text-primary'}`}
+                  className={`hover:bg-[var(--interactive-hover)] ${attachedFile ? 'text-[var(--accent-primary)]' : 'text-[var(--text-secondary)]/50 hover:text-[var(--text-primary)]'}`}
+                  size="sm"
+                >
+                  <FileText size={13} />
+                </ActionIcon>
+              </div>
+
+              {/* Right actions (Send button) */}
+              <div className="flex items-center gap-1.5">
+                {(input.trim().length > 0 || isSending) && (
+                  <ActionIcon
+                    variant={isSending ? 'light' : 'filled'}
+                    color={isSending ? 'red' : undefined}
+                    onClick={isSending ? onCancel : onSend}
+                    disabled={!isSending && !canSend}
+                    aria-label={isSending ? 'Cancelar' : 'Enviar'}
+                    className="!shrink-0 !w-7 !h-7 !min-w-[28px] !min-h-[28px] !rounded-lg !bg-[var(--accent-primary)] !text-[var(--accent-contrast,#fff)] hover:not(:disabled):!bg-[var(--accent-primary-hover)] disabled:!opacity-45 disabled:!bg-[var(--border-subtle)] animate-[scaleIn_0.15s_ease-out]"
+                    size="sm"
+                  >
+                    {isSending ? <Square size={12} fill="currentColor" /> : <Send size={13} className="mr-[1px]" />}
+                  </ActionIcon>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          // ROW LAYOUT (for empty search-bar home-page pill)
+          <div className="flex items-center gap-1 flex-1 min-w-0">
+            <Textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={pillPlaceholder}
+              variant="unstyled"
+              autosize
+              minRows={1}
+              maxRows={8}
+              className="flex-1 min-w-0 flex items-center"
+              classNames={{
+                wrapper: 'w-full',
+                input: '!p-[10px_4px] !text-[14px] !leading-[1.4] !text-[var(--text-primary)] !min-h-[24px] bg-transparent border-none focus:ring-0 scrollbar-thin placeholder:!text-[var(--text-muted)]',
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && isSending) { e.preventDefault(); onCancel(); return; }
+                if (e.key === 'ArrowUp' && input === '') {
+                  e.preventDefault();
+                  const lastUser = [...messages].reverse().find(m => m.sender === 'user');
+                  if (lastUser) { setInput(lastUser.text); return; }
+                }
+                if (e.key === 'Enter' && !e.shiftKey && !isComposingRef.current) {
+                  e.preventDefault();
+                  if (!isSending && canSend && input.trim().length > 0) onSend();
+                }
+              }}
+              onCompositionStart={() => { isComposingRef.current = true; }}
+              onCompositionEnd={() => { isComposingRef.current = false; }}
+              onPaste={(e) => {
+                const items = Array.from(e.clipboardData?.items ?? [] as any) as DataTransferItem[];
+                const imgItem = items.find(it => it.type.startsWith('image/'));
+                if (!imgItem) return;
+                e.preventDefault();
+                const file = imgItem.getAsFile();
+                if (!file) return;
+                const mediaType = file.type || 'image/png';
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                  const dataUrl = ev.target?.result as string;
+                  const base64 = dataUrl.split(',')[1];
+                  setAttachedImage({ base64, mediaType, preview: dataUrl });
+                };
+                reader.readAsDataURL(file);
+              }}
+            />
+            
+            <div className="flex items-center justify-center gap-2 shrink-0 pr-[2px]">
+              {onModeSwitch && (
+                <div className="flex items-center shrink-0">
+                  <ModeSelect
+                    value={mode}
+                    onChange={onModeSwitch}
+                    sessionId={sessionId}
+                    pi4AgentReady={pi4AgentReady}
+                    compact
+                  />
+                </div>
+              )}
+              {selectedModel && onModelChange && (
+                <div className="hidden sm:flex items-center">
+                  <ModelSelect value={selectedModel} onChange={onModelChange} compact />
+                </div>
+              )}
+              {(input.trim().length > 0 || isSending) && (
+                <ActionIcon
+                  variant={isSending ? 'light' : 'filled'}
+                  color={isSending ? 'red' : undefined}
+                  onClick={isSending ? onCancel : onSend}
+                  disabled={!isSending && !canSend}
+                  aria-label={isSending ? 'Cancelar' : 'Enviar'}
+                  className="!shrink-0 !w-8 !h-8 !min-w-[32px] !min-h-[32px] !rounded-xl !bg-[var(--accent-primary)] !text-[var(--text-inverse,#fff)] !self-center !m-0 hover:not(:disabled):!bg-[var(--accent-primary-hover)] disabled:!opacity-45 animate-[scaleIn_0.15s_ease-out]"
                   size="md"
                 >
-                  <FileText size={14} />
+                  {isSending ? <Square size={14} fill="currentColor" /> : <Send size={15} />}
                 </ActionIcon>
-              </>
-            )}
-            {isPill && onModeSwitch && (
-              <div className="flex items-center shrink-0">
-                <ModeSelect
-                  value={mode}
-                  onChange={onModeSwitch}
-                  sessionId={sessionId}
-                  pi4AgentReady={pi4AgentReady}
-                  compact
-                />
-              </div>
-            )}
-            {isPill && selectedModel && onModelChange && (
-              <div className="hidden sm:flex items-center">
-                <ModelSelect value={selectedModel} onChange={onModelChange} compact />
-              </div>
-            )}
-            <ActionIcon
-              variant={isSending ? 'light' : 'filled'}
-              color={isSending ? 'red' : isPill ? undefined : 'blue'}
-              onClick={isSending ? onCancel : onSend}
-              disabled={!isSending && !canSend}
-              aria-label={isSending ? 'Cancelar' : 'Enviar'}
-              className={isPill ? '!shrink-0 !w-9 !h-9 !min-w-[36px] !min-h-[36px] !rounded-xl !bg-[var(--accent-primary)] !text-[var(--text-inverse,#fff)] !self-center !m-0 hover:not(:disabled):!bg-[var(--accent-primary-hover)] disabled:!opacity-45' : 'ml-1'}
-              size={isPill ? 'md' : 'md'}
-            >
-              {isSending ? <Square size={14} fill="currentColor" /> : <Send size={15} className={isPill ? '' : 'mr-[2px]'} />}
-            </ActionIcon>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -465,46 +535,46 @@ const ChatInput: React.FC<Props> = ({
           <Popover opened={showTokenPopover} onChange={setShowTokenPopover} position="top-end" withArrow shadow="md">
             <Popover.Target>
               <button
-                className={`flex items-center h-5 px-1.5 rounded bg-black/20 border border-white/5 text-[9px] font-mono tracking-wider cursor-pointer transition-colors duration-200 hover:bg-black/40 hover:border-white/10 text-white/50
+                className={`flex items-center h-5 px-1.5 rounded bg-[var(--background-primary)] border border-[var(--border-subtle)] text-[9px] font-mono tracking-wider cursor-pointer transition-colors duration-200 hover:bg-[var(--interactive-hover)] hover:border-[var(--border-strong)] text-[var(--text-secondary)]
                   ${sessionTokens.input === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}`}
                 onClick={() => setShowTokenPopover(v => !v)}
                 title="Ver desglose de tokens de la sesión"
               >
-                <Activity size={10} className="mr-1 opacity-70 text-blue-400" />
-                <span className="text-blue-400/80">{sessionTokens.input.toLocaleString()}</span>
+                <Activity size={10} className="mr-1 opacity-70 text-[var(--accent-primary)]" />
+                <span className="text-[var(--accent-primary)]">{sessionTokens.input.toLocaleString()}</span>
                 <span className="mx-1 opacity-30"><ChevronUp size={9} /></span>
-                <span className="text-emerald-400/80">{sessionTokens.output.toLocaleString()}</span>
+                <span className="text-[var(--success)]">{sessionTokens.output.toLocaleString()}</span>
                 <span className="mx-1 opacity-30"><ChevronDown size={9} /></span>
               </button>
             </Popover.Target>
-            <Popover.Dropdown className="bg-[#1a1c29] border border-white/10 p-3 min-w-[220px]">
+            <Popover.Dropdown className="bg-[var(--background-secondary)] border border-[var(--border-subtle)] p-3 min-w-[220px]">
               <div className="flex justify-between items-center text-xs mb-2">
-                <span className="text-secondary font-medium">Entrada</span>
+                <span className="text-[var(--text-secondary)] font-medium">Entrada</span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-blue-400 font-mono tracking-wider">{sessionTokens.input.toLocaleString()}</span>
-                  <span className="text-[9px] text-secondary/40 uppercase tracking-widest font-semibold">tok</span>
+                  <span className="text-[var(--accent-primary)] font-mono tracking-wider">{sessionTokens.input.toLocaleString()}</span>
+                  <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-semibold">tok</span>
                 </div>
               </div>
               <div className="flex justify-between items-center text-xs mb-2">
-                <span className="text-secondary font-medium">Salida</span>
+                <span className="text-[var(--text-secondary)] font-medium">Salida</span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-emerald-400 font-mono tracking-wider">{sessionTokens.output.toLocaleString()}</span>
-                  <span className="text-[9px] text-secondary/40 uppercase tracking-widest font-semibold">tok</span>
+                  <span className="text-[var(--success)] font-mono tracking-wider">{sessionTokens.output.toLocaleString()}</span>
+                  <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-semibold">tok</span>
                 </div>
               </div>
-              <div className="h-[1px] bg-white/10 my-2" />
+              <div className="h-[1px] bg-[var(--border-subtle)] my-2" />
               <div className="flex justify-between items-center text-xs mb-2">
-                <span className="text-secondary font-medium">Total</span>
+                <span className="text-[var(--text-secondary)] font-medium">Total</span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-gray-200 font-mono tracking-wider">{(sessionTokens.input + sessionTokens.output).toLocaleString()}</span>
-                  <span className="text-[9px] text-secondary/40 uppercase tracking-widest font-semibold">tok</span>
+                  <span className="text-[var(--text-primary)] font-mono tracking-wider">{(sessionTokens.input + sessionTokens.output).toLocaleString()}</span>
+                  <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-semibold">tok</span>
                 </div>
               </div>
-              <div className="h-[1px] bg-white/10 my-2" />
-              <div className="bg-black/30 rounded-lg p-2.5 mt-2 border border-white/5">
+              <div className="h-[1px] bg-[var(--border-subtle)] my-2" />
+              <div className="bg-[var(--background-tertiary)] rounded-lg p-2.5 mt-2 border border-[var(--border-subtle)]">
                 <div className="flex justify-between items-center text-xs mb-1.5">
-                  <span className="text-secondary/70 font-medium">Contexto ~</span>
-                  <span className={`text-[10.5px] font-mono ${ctxUsagePct > 90 ? 'text-red-400' : ctxUsagePct > 70 ? 'text-amber-500' : 'text-purple-400/60'}`}>
+                  <span className="text-[var(--text-secondary)]/70 font-medium">Contexto ~</span>
+                  <span className={`text-[10.5px] font-mono ${ctxUsagePct > 90 ? 'text-[var(--danger-text)]' : ctxUsagePct > 70 ? 'text-[var(--warning-text)]' : 'text-[var(--text-secondary)]/60'}`}>
                     {sessionTokens.input.toLocaleString()} tok ({ctxUsagePct.toFixed(1)}%)
                   </span>
                 </div>

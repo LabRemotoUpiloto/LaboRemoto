@@ -14,36 +14,25 @@ interface ThemeInfo {
 }
 
 const THEMES: ThemeInfo[] = [
-  // Temas Oscuros
-  { id: 'default', label: 'Predeterminado', gradient: 'linear-gradient(135deg, #1e293b, #0f172a)', category: 'dark', description: 'Tema oscuro profesional' },
-  { id: 'dracula', label: 'Dracula', gradient: 'linear-gradient(135deg, #44475a, #282a36)', category: 'dark', description: 'Retro y vibrante' },
-  { id: 'crimson-gold', label: 'Crimson Gold', gradient: 'linear-gradient(135deg, #450a0a, #1a0f0f)', category: 'dark', description: 'Rojo intenso con detalles dorados' },
-  { id: 'obsidian-rose', label: 'Obsidian Rose', gradient: 'linear-gradient(135deg, #1c0a0a, #0a0505)', category: 'dark', description: 'Dramático e intenso' },
-  { id: 'aurora-coral', label: 'Aurora Coral', gradient: 'linear-gradient(135deg, #2a1f1a, #1a1512)', category: 'dark', description: 'Cálido y acogedor' },
-  { id: 'electric-indigo', label: 'Electric Indigo', gradient: 'linear-gradient(135deg, #1e1b4b, #0f0a1a)', category: 'dark', description: 'Índigo eléctrico con chispas cyan' },
-  { id: 'amber-night', label: 'Amber Night', gradient: 'linear-gradient(135deg, #2d241d, #120d0a)', category: 'dark', description: 'Ámbar profundo con toques bronce' },
-  { id: 'oceanic-teal', label: 'Oceanic Teal', gradient: 'linear-gradient(135deg, #134e4a, #0a1a1a)', category: 'dark', description: 'Fresco y tranquilo' },
-  { id: 'toxic-lime', label: 'Toxic Lime', gradient: 'linear-gradient(135deg, #1a2e05, #0a1205)', category: 'dark', description: 'Lima radioactivo con neón ácido' },
-  { id: 'violet-ember', label: 'Violet Ember', gradient: 'linear-gradient(135deg, #2e1065, #120a1a)', category: 'dark', description: 'Místico y elegante' },
-  { id: 'metro-gray', label: 'Metro Gray', gradient: 'linear-gradient(135deg, #334155, #1a1a1a)', category: 'dark', description: 'Neutro e industrial' },
-  
-  // Temas Claros
-  { id: 'light', label: 'Light', gradient: 'linear-gradient(135deg, #f8fafc, #ffffff)', category: 'light', description: 'Limpio y profesional' },
-  { id: 'lavender-dream', label: 'Lavender Dream', gradient: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', category: 'light', description: 'Lavanda suave con toques violeta' },
-  { id: 'polar-mint', label: 'Polar Mint', gradient: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', category: 'light', description: 'Fresco y energizante' },
-  { id: 'peachy-sunrise', label: 'Peachy Sunrise', gradient: 'linear-gradient(135deg, #fff7ed, #ffedd5)', category: 'light', description: 'Durazno vibrante con amanecer coral' },
-  { id: 'sakura-blush', label: 'Sakura Blush', gradient: 'linear-gradient(135deg, #fff1f2, #ffe4e6)', category: 'light', description: 'Delicado y suave' },
-  { id: 'rose-quartz', label: 'Rose Quartz', gradient: 'linear-gradient(135deg, #fff1f2, #fce7f3)', category: 'light', description: 'Rosa cuarzo con detalles fucsia' },
-  { id: 'silver-cloud', label: 'Silver Cloud', gradient: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)', category: 'light', description: 'Plateado brillante con azul cielo' },
-  
   // Institucional
   { id: 'unipiloto', label: 'Universidad Piloto', gradient: 'linear-gradient(135deg, #f4f4f4 0%, #ffffff 55%, #d51f22 100%)', category: 'light', description: 'Identidad oficial — blanco institucional con rojo Unipiloto' },
 
+  // Temas Claros
+  { id: 'lavender-dream', label: 'Lavender Dream', gradient: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', category: 'light', description: 'Lavanda suave con toques violeta y vidrio translúcido' },
+  { id: 'polar-mint', label: 'Polar Mint', gradient: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', category: 'light', description: 'Fresco, limpio y minimalista' },
+  { id: 'sepia-paper', label: 'Sepia Paper', gradient: 'linear-gradient(135deg, #fbf5ef, #f3e9de)', category: 'light', description: 'Papel cálido vintage estilo libro clásico' },
+  
+  // Temas Oscuros
+  { id: 'dracula', label: 'Dracula Console', gradient: 'linear-gradient(135deg, #44475a, #282a36)', category: 'dark', description: 'Retro terminal cyberpunk' },
+  { id: 'neo-brutalist', label: 'Brutalist Lime', gradient: 'linear-gradient(135deg, #121212, #84cc16)', category: 'dark', description: 'Neo-Brutalismo con bordes gruesos y lima neón' },
+  { id: 'amber-night', label: 'Amber Night', gradient: 'linear-gradient(135deg, #2d241d, #120d0a)', category: 'dark', description: 'Ámbar de lujo profundo con toques bronce' },
+  { id: 'oceanic-teal', label: 'Oceanic Teal', gradient: 'linear-gradient(135deg, #134e4a, #0a1a1a)', category: 'dark', description: 'Vidrio marino fresco y tranquilo' },
+  { id: 'crimson-gold', label: 'Crimson Gold', gradient: 'linear-gradient(135deg, #450a0a, #1a0f0f)', category: 'dark', description: 'Rojo imperial intenso con detalles dorados' },
+  { id: 'obsidian-rose', label: 'Obsidian Rose', gradient: 'linear-gradient(135deg, #1c0a0a, #0a0505)', category: 'dark', description: 'Synthwave fucsia sobre obsidiana' },
+  
   // Temas Especiales
+  { id: 'pastel-dream', label: 'Pastel Dream', gradient: 'linear-gradient(45deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff)', category: 'special', description: 'Colores pastel suaves multi-color y divertidos' },
   { id: 'sunburst-rainbow', label: 'Sunburst Rainbow', gradient: 'linear-gradient(45deg, #ff4b6b, #ff8b3b, #ffd56b, #6bff8b, #6bd7ff)', category: 'special', description: 'Arcoíris cálido con efectos RGB animados', swatches: 5 },
-  { id: 'bold-rainbow', label: 'Bold Rainbow', gradient: 'linear-gradient(45deg, #ff0080, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff)', category: 'special', description: 'RGB intenso con neón y resplandor', swatches: 7 },
-  { id: 'pastel-dream', label: 'Pastel Dream', gradient: 'linear-gradient(45deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff)', category: 'special', description: 'Colores pastel suaves multi-color' },
-  { id: 'fc-barcelona', label: 'FC Barcelona', gradient: 'linear-gradient(45deg, #004d98, #a50044, #edbb00)', category: 'special', description: 'Azulgrana del Barça con detalles dorados' },
 ];
 
 const THEME_CATEGORIES = {
@@ -64,8 +53,11 @@ export default function ThemesPage() {
         padding={0}
         radius="md"
         withBorder
-        className={`cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${isActive ? 'border-teal-500 border-2' : ''}`}
-        style={!isActive ? { borderColor: 'var(--border-subtle)' } : {}}
+        className="cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+        style={{
+          borderColor: isActive ? 'var(--accent-primary)' : 'var(--border-subtle)',
+          borderWidth: isActive ? '2px' : '1px',
+        }}
         role="radio"
         aria-checked={isActive}
         tabIndex={0}
@@ -78,7 +70,13 @@ export default function ThemesPage() {
           
           {/* Active indicator */}
           {isActive && (
-            <div className="absolute top-2 right-2 w-7 h-7 bg-teal-500 text-white rounded-full flex items-center justify-center shadow-md animate-[scaleIn_0.25s_ease-out]">
+            <div
+              className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow-md animate-[scaleIn_0.25s_ease-out]"
+              style={{
+                backgroundColor: 'var(--accent-primary)',
+                color: 'var(--accent-contrast, #ffffff)',
+              }}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -119,7 +117,7 @@ export default function ThemesPage() {
           {/* Dark Themes */}
           <Box mb={40}>
             <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg text-teal-400 shrink-0" style={{ backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
+              <Box className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{ color: 'var(--accent-primary)', backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
@@ -135,7 +133,7 @@ export default function ThemesPage() {
           {/* Light Themes */}
           <Box mb={40}>
             <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg text-teal-400 shrink-0" style={{ backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
+              <Box className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{ color: 'var(--accent-primary)', backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="5" />
                   <line x1="12" y1="1" x2="12" y2="3" />
@@ -159,7 +157,7 @@ export default function ThemesPage() {
           {/* Special Themes */}
           <Box mb={40}>
             <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg text-teal-400 shrink-0" style={{ backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
+              <Box className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{ color: 'var(--accent-primary)', backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>

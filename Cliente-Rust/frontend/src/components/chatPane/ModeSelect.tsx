@@ -26,11 +26,11 @@ const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId, pi4AgentReady
           className={
             compact
               ? 'h-9 px-2.5 font-medium border border-[var(--border-subtle)] bg-[var(--background-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)]'
-              : 'bg-white/5 border-white/10 text-primary hover:bg-white/10 h-[26px] px-2.5 font-normal'
+              : 'bg-[var(--background-tertiary)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] h-[26px] px-2.5 font-normal'
           }
           rightSection={<ChevronDown size={compact ? 13 : 14} className="opacity-50 shrink-0" />}
           leftSection={
-            <span style={{ color: current.color }} className="flex items-center">
+            <span className="flex items-center">
               {ModeIcons[current.value]}
             </span>
           }
@@ -53,15 +53,13 @@ const ModeSelect: React.FC<Props> = ({ value, onChange, sessionId, pi4AgentReady
               fz="xs"
               bg={isSelected ? 'var(--interactive-selected)' : undefined}
               leftSection={
-                <span style={{ color: m.color }} className="flex items-center">
+                <span className="flex items-center">
                   {ModeIcons[m.value]}
                 </span>
               }
               rightSection={
                 locked ? (
                   <Lock size={12} className="opacity-40" />
-                ) : isSelected ? (
-                  <Box w={6} h={6} style={{ borderRadius: '50%', backgroundColor: m.color }} />
                 ) : null
               }
             >

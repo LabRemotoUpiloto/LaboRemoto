@@ -225,6 +225,41 @@
   --page-header-bg: var(--background-secondary);
   --page-header-border: var(--border-subtle);
   --page-header-shadow: none;
+
+  /* ═══ Capa 2: Forma, textura y tipografía ═══ */
+  /* Temas "recolor" heredan estos defaults.
+     Temas "personality" los sobreescriben para cambiar la forma visual. */
+
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 12px 30px -4px rgba(0, 0, 0, 0.25);
+
+  /* Card surface tokens */
+  --card-bg: var(--background-secondary);
+  --card-bg-hover: var(--background-tertiary);
+  --card-border-width: 1px;
+  --card-border-color: var(--border-subtle);
+
+  /* Glassmorphism (off by default) */
+  --glass-bg: var(--card-bg);
+  --glass-blur: 0px;
+  --glass-border-color: var(--card-border-color);
+
+  /* Typography */
+  --font-heading: inherit;
+  --font-body: inherit;
+
+  /* Transitions */
+  --transition-speed: 200ms;
+  --transition-curve: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --hover-lift: translateY(-3px);
 }
 
 /* Clases de utilidad para el Doble Header Minimalista */
@@ -296,6 +331,11 @@
   .page-header-integrated {
     padding: 0 8px;
   }
+}
+
+/* Global headings font family based on theme */
+h1, h2, h3, h4, h5, h6, .page-header-title {
+  font-family: var(--font-heading, inherit);
 }
 
 
@@ -373,7 +413,7 @@ html[data-theme="crimson-gold"] {
   --border-color: rgba(220, 20, 60, 0.15);
 }
 
-/* Obsidian Rose (dark, pink accent) */
+/* Obsidian Rose (dark, pink accent) — personality */
 html[data-theme="obsidian-rose"]{
   --background-primary: #0a0608;
   --background-secondary: #141012;
@@ -384,6 +424,18 @@ html[data-theme="obsidian-rose"]{
   --accent-primary-hover: #ff8eb1;
   --accent-strong: #ff3868;
   --border-color: rgba(255,255,255,0.03);
+  /* Capa 2 */
+  --radius-lg: 18px;
+  --shadow-card: 0 6px 24px rgba(255, 107, 154, 0.08);
+  --shadow-card-hover: 0 14px 36px rgba(255, 107, 154, 0.18);
+  --hover-lift: translateY(-4px);
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(20, 16, 18, 0.85);
+  --sidebar-border: 1px solid rgba(255, 107, 154, 0.15);
+  --sidebar-radius: 18px;
+  --header-bg: rgba(10, 6, 8, 0.85);
+  --header-border: 1px solid rgba(255, 107, 154, 0.1);
 }
 
 /* Mist Harbor (light, soft) */
@@ -419,6 +471,94 @@ html[data-theme="lavender-dream"]{
   --interactive-hover: rgba(76,29,149,0.06);
   --interactive-active: rgba(76,29,149,0.09);
   --interactive-selected: rgba(76,29,149,0.12);
+  /* Capa 2: glassmorphism + serif */
+  --glass-bg: rgba(255, 255, 255, 0.42);
+  --glass-blur: 16px;
+  --glass-border-color: rgba(196, 181, 253, 0.25);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --shadow-card: 0 8px 32px rgba(139, 92, 246, 0.08);
+  --shadow-card-hover: 0 16px 48px rgba(139, 92, 246, 0.18);
+  --font-heading: 'Cormorant Garamond', serif;
+
+  /* Sidebar & Header glass overrides */
+  --sidebar-bg: rgba(237, 233, 254, 0.45);
+  --sidebar-border: 1px solid rgba(139, 92, 246, 0.2);
+  --sidebar-radius: 18px;
+  --sidebar-blur: blur(16px);
+  --header-bg: rgba(245, 243, 255, 0.45);
+  --header-border: 1px solid rgba(139, 92, 246, 0.15);
+  --header-blur: blur(16px);
+}
+
+/* 🎀 Pastel Dream - Estilo playful pastel ultra-redondeado */
+html[data-theme="pastel-dream"]{
+  --background-primary: #fdf8f5;
+  --background-secondary: #faebf0;
+  --background-tertiary: #f0ebfa;
+  --text-primary: #503040;
+  --text-secondary: #8a6575;
+  --accent-primary: #ff8da1;
+  --accent-primary-hover: #ffadc0;
+  --accent-strong: #ff4b6b;
+  --border-color: #f3e4e9;
+  --terminal-foreground: #503040;
+  --interactive-hover: rgba(80,48,64,0.06);
+  --interactive-active: rgba(80,48,64,0.09);
+  --interactive-selected: rgba(80,48,64,0.12);
+  /* Capa 2: super rounded glass */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-blur: 20px;
+  --glass-border-color: rgba(255, 141, 161, 0.25);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --shadow-card: 0 10px 30px rgba(255, 141, 161, 0.08);
+  --shadow-card-hover: 0 20px 48px rgba(255, 141, 161, 0.18);
+  --font-heading: 'Nunito', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(250, 235, 240, 0.5);
+  --sidebar-border: 1px solid rgba(255, 141, 161, 0.2);
+  --sidebar-radius: 24px;
+  --sidebar-blur: blur(20px);
+  --header-bg: rgba(253, 248, 245, 0.5);
+  --header-border: 1px solid rgba(255, 141, 161, 0.15);
+  --header-blur: blur(20px);
+}
+
+/* 🌸 Sakura Blush - Flor de cerezo delicado */
+html[data-theme="sakura-blush"]{
+  --background-primary: #fff5f7;
+  --background-secondary: #ffe3e8;
+  --background-tertiary: #ffd1dc;
+  --text-primary: #5c0d24;
+  --text-secondary: #8f3d54;
+  --accent-primary: #ff758f;
+  --accent-primary-hover: #ff8fa3;
+  --accent-strong: #c9184a;
+  --border-color: #ffccd5;
+  --terminal-foreground: #5c0d24;
+  --interactive-hover: rgba(92,13,36,0.06);
+  --interactive-active: rgba(92,13,36,0.09);
+  --interactive-selected: rgba(92,13,36,0.12);
+  /* Capa 2: cherry glass */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-blur: 16px;
+  --glass-border-color: rgba(255, 117, 143, 0.3);
+  --radius-lg: 16px;
+  --radius-md: 10px;
+  --shadow-card: 0 8px 24px rgba(255, 117, 143, 0.08);
+  --shadow-card-hover: 0 16px 40px rgba(255, 117, 143, 0.16);
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(255, 227, 232, 0.45);
+  --sidebar-border: 1px solid rgba(255, 117, 143, 0.25);
+  --sidebar-radius: 16px;
+  --sidebar-blur: blur(16px);
+  --header-bg: rgba(255, 245, 247, 0.45);
+  --header-border: 1px solid rgba(255, 117, 143, 0.2);
+  --header-blur: blur(16px);
 }
 
 /* Aurora Coral (dark, warm colorfulness) */
@@ -445,6 +585,19 @@ html[data-theme="amber-night"]{
   --accent-primary-hover: #fbbf24;
   --accent-strong: #b45309;
   --border-color: rgba(245, 158, 11, 0.15);
+  /* Capa 2: warm glow + display font */
+  --radius-lg: 16px;
+  --shadow-card: 0 4px 20px rgba(245, 158, 11, 0.1);
+  --shadow-card-hover: 0 12px 36px rgba(245, 158, 11, 0.2);
+  --card-border-color: rgba(245, 158, 11, 0.18);
+  --font-heading: 'Playfair Display', serif;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(42, 26, 8, 0.85);
+  --sidebar-border: 1px solid rgba(245, 158, 11, 0.18);
+  --sidebar-radius: 16px;
+  --header-bg: rgba(26, 16, 3, 0.85);
+  --header-border: 1px solid rgba(245, 158, 11, 0.15);
 }
 
 /* Verdant Neon (dark, neon green) */
@@ -498,6 +651,59 @@ html[data-theme="oceanic-teal"]{
   --accent-primary-hover: #6fe8dc;
   --accent-strong: #1fb7a8;
   --border-color: rgba(255,255,255,0.02);
+  /* Capa 2: cool glassmorphism */
+  --glass-bg: rgba(6, 43, 49, 0.45);
+  --glass-blur: 12px;
+  --glass-border-color: rgba(43, 214, 200, 0.25);
+  --shadow-card: 0 4px 24px rgba(43, 214, 200, 0.05);
+  --shadow-card-hover: 0 12px 40px rgba(43, 214, 200, 0.15);
+  --radius-lg: 16px;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(6, 43, 49, 0.45);
+  --sidebar-border: 1px solid rgba(43, 214, 200, 0.18);
+  --sidebar-radius: 16px;
+  --sidebar-blur: blur(12px);
+  --header-bg: rgba(2, 25, 34, 0.45);
+  --header-border: 1px solid rgba(43, 214, 200, 0.12);
+  --header-blur: blur(12px);
+}
+
+/* 📜 Sepia Paper - Estilo vintage tipo libro */
+html[data-theme="sepia-paper"]{
+  --background-primary: #f4ecd8;
+  --background-secondary: #ebdcb9;
+  --background-tertiary: #dfcc9b;
+  --text-primary: #433422;
+  --text-secondary: #6e5b44;
+  --accent-primary: #8c6239;
+  --accent-primary-hover: #a1764e;
+  --accent-strong: #5c3a21;
+  --border-color: #d4c5a9;
+  --terminal-foreground: #433422;
+  --interactive-hover: rgba(67,52,34,0.06);
+  --interactive-active: rgba(67,52,34,0.09);
+  --interactive-selected: rgba(67,52,34,0.12);
+  /* Capa 2: paper cards (no glass, no blur) */
+  --glass-bg: #faf6eb;
+  --glass-blur: 0px;
+  --glass-border-color: #d4c5a9;
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --shadow-card: 0 2px 8px rgba(67, 52, 34, 0.08);
+  --shadow-card-hover: 0 4px 16px rgba(67, 52, 34, 0.12);
+  --hover-lift: translateY(-2px);
+  --font-heading: 'Lora', serif;
+  --font-body: 'Lora', serif;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: #ebdcb9;
+  --sidebar-border: 1px solid #d4c5a9;
+  --sidebar-radius: 8px;
+  --sidebar-blur: none;
+  --header-bg: #f4ecd8;
+  --header-border: 1px solid #d4c5a9;
+  --header-blur: none;
 }
 
 html[data-theme="ruby-night"]{
@@ -805,6 +1011,15 @@ html[data-theme="pastel-dream"]{
   --interactive-hover: rgba(61,26,47,0.06);
   --interactive-active: rgba(61,26,47,0.09);
   --interactive-selected: rgba(61,26,47,0.12);
+  /* Capa 2: round + playful */
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --shadow-card: 0 6px 28px rgba(232, 121, 249, 0.08);
+  --shadow-card-hover: 0 14px 44px rgba(232, 121, 249, 0.16);
+  --glass-bg: rgba(254, 243, 247, 0.7);
+  --glass-blur: 14px;
+  --glass-border-color: rgba(232, 121, 249, 0.25);
+  --font-heading: 'Nunito', sans-serif;
 }
 
 /* Header con gradiente pastel animado */
@@ -1387,6 +1602,13 @@ html[data-theme="sakura-blush"]{
   --interactive-hover: rgba(43,18,32,0.06);
   --interactive-active: rgba(43,18,32,0.09);
   --interactive-selected: rgba(43,18,32,0.12);
+  /* Capa 2: soft glassmorphism */
+  --glass-bg: rgba(255, 240, 244, 0.6);
+  --glass-blur: 12px;
+  --glass-border-color: rgba(255, 122, 166, 0.2);
+  --radius-lg: 18px;
+  --shadow-card: 0 6px 24px rgba(255, 122, 166, 0.08);
+  --shadow-card-hover: 0 14px 40px rgba(255, 122, 166, 0.16);
 }
 
 /* 🌹 Rose Quartz - Rosa cuarzo con detalles fucsia */
@@ -1484,6 +1706,14 @@ html[data-theme="sepia-paper"]{
   --accent-strong: #974e1a;
   --border-color: #eadfcf;
   --terminal-foreground: #2c231a;
+  /* Capa 2: vintage serif */
+  --radius-lg: 10px;
+  --radius-md: 6px;
+  --shadow-card: 0 3px 16px rgba(184, 115, 51, 0.08);
+  --shadow-card-hover: 0 8px 28px rgba(184, 115, 51, 0.14);
+  --card-border-color: rgba(184, 115, 51, 0.15);
+  --font-heading: 'Lora', serif;
+  --hover-lift: translateY(-2px);
 }
 
 /* ☁️ Silver Cloud - Plateado brillante con azul cielo */
@@ -1529,8 +1759,71 @@ body {
     linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 28%, transparent) 0 1px, transparent 1px) 12% 0 / 1px 100% no-repeat,
     linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 42%, var(--background-primary)) 0 46%, var(--background-primary) 46% 100%);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
   font-size: 14px;
+}
+
+/* ─── Sobrescrituras de fondo del body por tema (Personalidades) ─── */
+
+/* Lavender Dream — orbes suaves de colores */
+html[data-theme="lavender-dream"] body {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(167, 139, 250, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 90% 10%, rgba(244, 63, 94, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(56, 189, 248, 0.15) 0%, transparent 50%),
+    #f5f3ff !important;
+}
+
+/* Pastel Dream — orbes pastel difuminados */
+html[data-theme="pastel-dream"] body {
+  background:
+    radial-gradient(circle at 10% 30%, #faebf0 0%, transparent 50%),
+    radial-gradient(circle at 90% 70%, #f0ebfa 0%, transparent 50%),
+    radial-gradient(circle at 50% 20%, #e8f4fd 0%, transparent 45%),
+    #fdf8f5 !important;
+}
+
+/* Sakura Blush — orbes de flor de cerezo */
+html[data-theme="sakura-blush"] body {
+  background:
+    radial-gradient(circle at 20% 20%, #ffe3e8 0%, transparent 45%),
+    radial-gradient(circle at 80% 80%, #ffd1dc 0%, transparent 50%),
+    #fff5f7 !important;
+}
+
+/* Oceanic Teal — orbes de neón en océano profundo */
+html[data-theme="oceanic-teal"] body {
+  background:
+    radial-gradient(circle at 15% 15%, rgba(43, 214, 200, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 75% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 40%),
+    #021922 !important;
+}
+
+/* Sepia Paper — fondo de papel sólido y cálido */
+html[data-theme="sepia-paper"] body {
+  background: #f4ecd8 !important;
+}
+
+/* Universidad Piloto — fondo institucional claro */
+html[data-theme="unipiloto"] body {
+  background: #f4f4f4 !important;
+}
+
+/* Amber Night — brillo ámbar sobre fondo carbón */
+html[data-theme="amber-night"] body {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(180, 83, 9, 0.05) 0%, transparent 50%),
+    #1a1003 !important;
+}
+
+/* Obsidian Rose — resplandor rosa sutil */
+html[data-theme="obsidian-rose"] body {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 107, 154, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(255, 56, 104, 0.08) 0%, transparent 45%),
+    #0a0608 !important;
 }
 
 /* Smooth transitions when switching themes */
@@ -1740,7 +2033,10 @@ html[data-theme="unipiloto"] {
   --placeholder-fg:        #9b9b9b;
 
   /* ── Tipografía institucional ── */
-  font-family: 'Open Sans', 'Nunito Sans', system-ui, sans-serif;
+  --font-heading:          'Montserrat', sans-serif;
+  --font-body:             'Open Sans', sans-serif;
+  --accent-contrast:       #ffffff;
+  font-family:             var(--font-body);
 }
 
 /* Header limpio sin borde visible — la diferencia de fondo #fff vs #f4f4f4 separa visualmente */
@@ -1813,3 +2109,496 @@ html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-html-contai
 .chat-toast__message {
   line-height: 1.35;
 }
+
+/* ============================================
+   🎨 DRIBBBLE-INSPIRED PREMIUM THEME OVERRIDES
+   ============================================ */
+
+/* 1. Tarjetas Generales (Cards) */
+.dribbble-card {
+  background-color: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+  border: var(--card-border-width) solid var(--glass-border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  transition: transform var(--transition-speed) var(--transition-curve), 
+              box-shadow var(--transition-speed) var(--transition-curve), 
+              border-color var(--transition-speed) var(--transition-curve),
+              background-color var(--transition-speed) ease !important;
+  box-shadow: var(--shadow-card) !important;
+  font-family: var(--font-body);
+}
+
+.dribbble-card h1,
+.dribbble-card h2,
+.dribbble-card h3 {
+  font-family: var(--font-heading);
+}
+
+.dribbble-card-interactive {
+  cursor: pointer !important;
+}
+
+.dribbble-card-interactive:hover {
+  transform: var(--hover-lift) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: var(--shadow-card-hover), 
+              0 0 0 1px color-mix(in srgb, var(--accent-primary) 20%, transparent) !important;
+}
+
+/* 2. Botones Premium */
+.dribbble-btn-primary {
+  background-color: var(--accent-primary) !important;
+  color: var(--accent-contrast, #ffffff) !important;
+  border: none !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+  font-family: var(--font-body);
+  transition: all var(--transition-speed) var(--transition-curve) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dribbble-btn-primary:not(:disabled):hover {
+  background-color: var(--accent-primary-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent) !important;
+}
+.dribbble-btn-primary:not(:disabled):active {
+  transform: translateY(1px) !important;
+}
+
+.dribbble-btn-secondary {
+  background-color: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+  font-family: var(--font-body);
+  transition: all var(--transition-speed) ease !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dribbble-btn-secondary:not(:disabled):hover {
+  background-color: var(--interactive-hover) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 3. Inputs Integrados */
+.dribbble-input-container,
+.dribbble-toolbar-input {
+  --mantine-input-bg: var(--input-bg) !important;
+  --mantine-input-bd: var(--input-border) !important;
+  --mantine-input-color: var(--text-primary) !important;
+  --mantine-input-placeholder-color: var(--placeholder-fg) !important;
+  --mantine-input-bd-focus: var(--accent-primary) !important;
+}
+
+.dribbble-input-container .mantine-Input-input,
+.dribbble-input-container .mantine-Select-input,
+.dribbble-input-container .mantine-PasswordInput-input,
+.dribbble-input-container .mantine-PasswordInput-innerInput,
+.dribbble-input-container input,
+.dribbble-input-container select,
+.dribbble-input-container textarea {
+  background-color: var(--input-bg) !important;
+  border: 1px solid var(--input-border) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease !important;
+}
+.dribbble-input-container .mantine-Input-input:focus,
+.dribbble-input-container .mantine-Input-input:focus-within,
+.dribbble-input-container .mantine-Select-input:focus,
+.dribbble-input-container .mantine-Select-input:focus-within,
+.dribbble-input-container .mantine-PasswordInput-input:focus,
+.dribbble-input-container .mantine-PasswordInput-input:focus-within,
+.dribbble-input-container .mantine-PasswordInput-innerInput:focus,
+.dribbble-input-container .mantine-PasswordInput-innerInput:focus-within,
+.dribbble-input-container input:focus,
+.dribbble-input-container select:focus {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 1px var(--accent-primary) !important;
+}
+.dribbble-input-container .mantine-Input-wrapper,
+.dribbble-input-container .mantine-Select-wrapper,
+.dribbble-input-container .mantine-PasswordInput-wrapper {
+  border-radius: var(--radius-md) !important;
+}
+.dribbble-input-container .mantine-InputWrapper-label {
+  color: var(--text-secondary) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  margin-bottom: 6px !important;
+}
+
+/* 4. Estilos específicos para Quick Hosts */
+.dribbble-quick-host {
+  border: 1px solid var(--border-subtle) !important;
+  background-color: var(--background-tertiary) !important;
+  border-radius: var(--radius-md) !important;
+  transition: all var(--transition-speed) var(--transition-curve) !important;
+}
+.dribbble-quick-host:hover {
+  border-color: var(--border-strong) !important;
+  background-color: var(--interactive-hover) !important;
+}
+.dribbble-quick-host.active {
+  border-color: var(--accent-primary) !important;
+  background-color: var(--accent-primary-subtle) !important;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
+}
+
+/* 5. Dificultades integradas sin badges ruidosos */
+.dribbble-difficulty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dribbble-difficulty-dot.beginner {
+  background-color: var(--success, #10B981);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #10B981) 20%, transparent);
+}
+.dribbble-difficulty-dot.intermediate {
+  background-color: var(--warning, #F59E0B);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning, #F59E0B) 20%, transparent);
+}
+.dribbble-difficulty-dot.advanced {
+  background-color: var(--danger, #EF4444);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger, #EF4444) 20%, transparent);
+}
+
+/* 6. Estilos de toolbar/filtros para Logs */
+.dribbble-toolbar-input .mantine-Input-input,
+.dribbble-toolbar-input .mantine-Select-input,
+.dribbble-toolbar-input input,
+.dribbble-toolbar-input select {
+  background-color: var(--input-bg) !important;
+  border: 1px solid var(--input-border) !important;
+  color: var(--text-primary) !important;
+  border-radius: 10px !important;
+  transition: border-color 0.15s ease !important;
+}
+.dribbble-toolbar-input .mantine-Input-input:focus,
+.dribbble-toolbar-input .mantine-Select-input:focus,
+.dribbble-toolbar-input input:focus,
+.dribbble-toolbar-input select:focus {
+  border-color: var(--accent-primary) !important;
+}
+
+
+/* ==========================================================================
+   🟩 BRUTALIST LIME - Tema de Personalidad Neo-Brutalista (Estilo Figma/Gumroad)
+   ========================================================================== */
+html[data-theme="neo-brutalist"] {
+  /* ── Fondos: de alto contraste ── */
+  --background-primary:    #121212;
+  --background-secondary:  #1c1c1e;
+  --background-tertiary:   #2c2c2e;
+
+  /* ── Textos ── */
+  --text-primary:          #ffffff;
+  --text-secondary:        #d1d1d6;
+  --text-tertiary:         #aeaeB2;
+  --text-muted:            #8e8e93;
+  --text-disabled:         #48484a;
+  --text-inverse:          #000000;
+
+  /* ── Acentos brutalistas: lima neón de alto impacto ── */
+  --accent-primary:        #84cc16;
+  --accent-primary-hover:  #a3e635;
+  --accent-primary-light:  #bef264;
+  --accent-primary-dark:   #65a30d;
+  --accent-primary-subtle: rgba(132, 204, 22, 0.12);
+
+  --accent-secondary:      #22d3ee;
+  --accent-strong:         #a3e635;
+  --accent-contrast:       #000000;
+
+  /* ── Bordes negros gruesos característicos del neo-brutalismo ── */
+  --border-color:          #000000;
+  --border-subtle:         #000000;
+  --border-strong:         #000000;
+
+  /* ── Superficies ── */
+  --panel:                 #1c1c1e;
+  --panel-muted:           #2c2c2e;
+  --surface-0:             #121212;
+  --surface-1:             #1c1c1e;
+  --surface-2:             #2c2c2e;
+  --surface-3:             #3a3a3c;
+  --surface-overlay:       rgba(0, 0, 0, 0.7);
+
+  /* ── Sombras de desplazamiento sólido ── */
+  --shadow:                4px 4px 0px #000000;
+
+  --ring:                  #84cc16;
+  --focus-inner:           #84cc16;
+  --focus-outer:           #000000;
+
+  /* ── Interacciones ── */
+  --interactive-hover:     rgba(132, 204, 22, 0.15);
+  --interactive-active:    rgba(132, 204, 22, 0.25);
+  --interactive-selected:  rgba(132, 204, 22, 0.3);
+  --table-row-selected:    rgba(132, 204, 22, 0.2);
+  --table-row-hover:       rgba(255, 255, 255, 0.05);
+
+  --terminal-foreground:   #84cc16;
+
+  /* ── Inputs ── */
+  --input-bg:              #2c2c2e;
+  --input-border:          #000000;
+  --input-focus-border:    #84cc16;
+  --placeholder-fg:        #8e8e93;
+
+  /* ── Capa 2: Sin esquinas redondeadas y bordes ultra marcados ── */
+  --radius-lg:             0px;
+  --radius-md:             0px;
+  --radius-sm:             0px;
+  --card-border-width:     3px;
+  --card-border-color:     #000000;
+  --shadow-card:           4px 4px 0px #000000;
+  --shadow-card-hover:     8px 8px 0px #000000;
+  --hover-lift:            translate(-4px, -4px);
+
+  /* ── Tipografía brutalista ── */
+  --font-heading:          'Outfit', sans-serif;
+  --font-body:             'Outfit', sans-serif;
+}
+
+html[data-theme="neo-brutalist"] body {
+  background: #121212 !important;
+}
+
+/* Header, sidebar e items brutalistas */
+html[data-theme="neo-brutalist"] .app-header {
+  background: #1c1c1e;
+  border-bottom: 3px solid #000000;
+}
+html[data-theme="neo-brutalist"] .sidebar {
+  background: #1c1c1e;
+  border-right: 3px solid #000000;
+}
+html[data-theme="neo-brutalist"] .nav-item.active {
+  background: #84cc16;
+  color: #000000 !important;
+  border: 3px solid #000000;
+  box-shadow: 2px 2px 0px #000000;
+}
+html[data-theme="neo-brutalist"] .nav-item.active::before {
+  background: #000000;
+}
+
+
+/* ==========================================================================
+   💬 SISTEMA SEMÁNTICO DE BURBUJAS DE CHAT TEMATIZADAS
+   ========================================================================== */
+
+.chat-bubble {
+  border-radius: var(--radius-lg, 14px);
+  font-family: var(--font-body, inherit);
+  transition: all var(--transition-speed, 150ms) ease;
+}
+
+.chat-bubble-user {
+  background-color: var(--accent-primary) !important;
+  color: var(--accent-contrast, #ffffff) !important;
+  border: var(--card-border-width, 1px) solid var(--card-border-color, transparent) !important;
+  box-shadow: var(--shadow-card, none) !important;
+}
+
+.chat-bubble-ai {
+  background-color: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+  border: var(--card-border-width, 1px) solid var(--card-border-color, var(--border-subtle)) !important;
+  box-shadow: var(--shadow-card, none) !important;
+}
+
+/* 🟩 Personalización Brutalista del Chat */
+html[data-theme="neo-brutalist"] .chat-bubble-user {
+  background-color: var(--accent-primary) !important;
+  color: #000000 !important;
+  border: 3px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+}
+html[data-theme="neo-brutalist"] .chat-bubble-ai {
+  background-color: var(--background-secondary) !important;
+  border: 3px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+}
+
+/* 📜 Personalización Vintage (Sepia Paper) del Chat */
+html[data-theme="sepia-paper"] .chat-bubble-user {
+  background-color: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 2px 2px 0px var(--border-color) !important;
+  border-radius: 4px !important;
+}
+html[data-theme="sepia-paper"] .chat-bubble-ai {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 2px 2px 0px var(--border-color) !important;
+  border-radius: 4px !important;
+}
+
+/* 💜 / 🌊 Personalización Glassmorphic (Lavender Dream / Oceanic Teal) del Chat */
+html[data-theme="lavender-dream"] .chat-bubble-user,
+html[data-theme="lavender-dream"] .chat-bubble-ai,
+html[data-theme="oceanic-teal"] .chat-bubble-user,
+html[data-theme="oceanic-teal"] .chat-bubble-ai {
+  background-color: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+  border: 1px solid var(--glass-border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 🍬 Personalización Pastel Dream del Chat */
+html[data-theme="pastel-dream"] .chat-bubble-user {
+  border-radius: 20px 20px 4px 20px !important;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #ffc9e5 100%) !important;
+  color: #3d1a2f !important;
+  border: 2px solid rgba(232, 121, 249, 0.2) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+html[data-theme="pastel-dream"] .chat-bubble-ai {
+  border-radius: 20px 20px 20px 4px !important;
+  background-color: var(--background-secondary) !important;
+  border: 2px solid rgba(232, 121, 249, 0.15) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+/* 🎓 Personalización UniPiloto del Chat */
+html[data-theme="unipiloto"] .chat-bubble-user {
+  background-color: var(--accent-primary) !important;
+  color: #ffffff !important;
+  border: 1px solid #c91b1d !important;
+  box-shadow: 0 2px 6px rgba(213, 31, 34, 0.12) !important;
+}
+html[data-theme="unipiloto"] .chat-bubble-ai {
+  background-color: #ffffff !important;
+  color: #1c1c1c !important;
+  border: 1px solid #e0e0e0 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ============================================
+   🛠️ GLOBAL MANTINE THEME OVERRIDES
+   ============================================ */
+
+/* Inputs & Form Controls */
+.mantine-Input-input:not([data-variant="unstyled"]),
+.mantine-TextInput-input:not([data-variant="unstyled"]),
+.mantine-Select-input:not([data-variant="unstyled"]),
+.mantine-PasswordInput-input:not([data-variant="unstyled"]),
+.mantine-PasswordInput-innerInput:not([data-variant="unstyled"]),
+.mantine-Textarea-input:not([data-variant="unstyled"]),
+.mantine-Input-wrapper input:not([data-variant="unstyled"]),
+.mantine-Input-wrapper select:not([data-variant="unstyled"]),
+.mantine-Input-wrapper textarea:not([data-variant="unstyled"]) {
+  background-color: var(--input-bg, var(--background-secondary)) !important;
+  border: 1px solid var(--input-border, var(--border-subtle)) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md, 10px) !important;
+}
+
+.mantine-Input-input:not([data-variant="unstyled"]):focus,
+.mantine-Input-input:not([data-variant="unstyled"]):focus-within,
+.mantine-TextInput-input:not([data-variant="unstyled"]):focus,
+.mantine-PasswordInput-input:not([data-variant="unstyled"]):focus,
+.mantine-PasswordInput-input:not([data-variant="unstyled"]):focus-within,
+.mantine-PasswordInput-innerInput:not([data-variant="unstyled"]):focus {
+  border-color: var(--input-focus-border, var(--accent-primary)) !important;
+  box-shadow: 0 0 0 1px var(--input-focus-border, var(--accent-primary)) !important;
+}
+
+.mantine-InputWrapper-label {
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  margin-bottom: 6px !important;
+}
+
+/* Menu Dropdowns */
+.mantine-Menu-dropdown {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow) !important;
+  border-radius: var(--radius-md, 10px) !important;
+}
+
+.mantine-Menu-item {
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm, 6px) !important;
+}
+
+.mantine-Menu-item:hover,
+.mantine-Menu-item[data-hovered] {
+  background-color: var(--interactive-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.mantine-Menu-item[disabled] {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  background-color: transparent !important;
+}
+
+.mantine-Menu-label {
+  color: var(--text-muted) !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Popover Dropdowns */
+.mantine-Popover-dropdown {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow) !important;
+  border-radius: var(--radius-md, 10px) !important;
+}
+
+/* Tooltips */
+.mantine-Tooltip-tooltip {
+  background-color: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  font-size: 11px !important;
+}
+
+/* Modals */
+.mantine-Modal-content {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow) !important;
+  border-radius: var(--radius-lg, 14px) !important;
+}
+
+.mantine-Modal-header {
+  background-color: var(--background-secondary) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+}
+
+.mantine-Modal-title {
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+}
+
+.mantine-Modal-close {
+  color: var(--text-secondary) !important;
+}
+.mantine-Modal-close:hover {
+  background-color: var(--interactive-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+
+

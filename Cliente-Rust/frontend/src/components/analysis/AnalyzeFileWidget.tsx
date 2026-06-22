@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { analyzeFile, FileAnalysis } from '../../api/fileAnalysis';
+import { analyzeFile, FileAnalysis } from '../../services/analysis.service';
 import { TextInput, Button, Badge, Card, Text, Group, List, Stack } from '@mantine/core';
 import { Search, RotateCcw, AlertTriangle, FileCode2 } from 'lucide-react';
 
@@ -33,10 +33,10 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
   const ambiguous = analysis?.disambiguation_required && (analysis?.candidates?.length || 0) > 1;
 
   return (
-    <Card className="bg-black/20 border border-white/10" radius="md" p="md">
+    <Card className="bg-[var(--background-secondary)] border border-[var(--border-subtle)]" radius="md" p="md">
       <Group mb="xs">
         <FileCode2 size={18} className="text-blue-400" />
-        <Text size="sm" fw={600} className="text-white/90">Analizar archivo</Text>
+        <Text size="sm" fw={600} className="text-[var(--text-primary)]">Analizar archivo</Text>
       </Group>
 
       {!analysis && (
@@ -46,8 +46,8 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
             value={pathInput}
             onChange={e => setPathInput(e.target.value)}
             className="flex-1"
-            classNames={{ input: 'bg-white/5 border-white/10 text-white placeholder-white/30' }}
-            leftSection={<Search size={14} className="text-white/40" />}
+            classNames={{ input: 'bg-[var(--input-bg)] border-[var(--input-border)] text-[var(--text-primary)] placeholder-[var(--placeholder-fg)]' }}
+            leftSection={<Search size={14} className="text-[var(--text-muted)]" />}
             onKeyDown={e => e.key === 'Enter' && run()}
           />
           <Button 
@@ -62,31 +62,31 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
       )}
 
       {error && (
-        <Text c="red" size="xs" mt="sm" className="bg-red-500/10 p-2 rounded border border-red-500/20">
+        <Text c="red" size="xs" mt="sm" className="bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] p-2 rounded">
           <AlertTriangle size={14} className="inline mr-1" /> {error}
         </Text>
       )}
 
       {analysis && !ambiguous && (
         <Stack gap="sm" mt="sm">
-          <div className="grid grid-cols-2 gap-2 text-[12px] bg-white/5 p-3 rounded-md border border-white/5">
-            <div className="col-span-2 break-all"><strong className="text-white/70">Ruta:</strong> <span className="text-blue-300 font-mono">{analysis.path}</span></div>
-            {analysis.language && <div><strong className="text-white/70">Lenguaje:</strong> <Badge size="xs" variant="dot" color="blue">{analysis.language}</Badge></div>}
-            {analysis.line_count > 0 && <div><strong className="text-white/70">Líneas:</strong> {analysis.line_count}</div>}
-            {analysis.size_bytes > 0 && <div><strong className="text-white/70">Tamaño:</strong> {analysis.size_bytes} bytes</div>}
-            {analysis.sha256 && analysis.sha256.length > 0 && <div className="col-span-2"><strong className="text-white/70">SHA256:</strong> <span className="font-mono text-white/50">{analysis.sha256.slice(0, 16)}…</span></div>}
+          <div className="grid grid-cols-2 gap-2 text-[12px] bg-[var(--background-primary)] p-3 rounded-md border border-[var(--border-subtle)]">
+            <div className="col-span-2 break-all"><strong className="text-[var(--text-secondary)]">Ruta:</strong> <span className="text-[var(--accent-secondary)] font-mono">{analysis.path}</span></div>
+            {analysis.language && <div><strong className="text-[var(--text-secondary)]">Lenguaje:</strong> <Badge size="xs" variant="dot" color="blue">{analysis.language}</Badge></div>}
+            {analysis.line_count > 0 && <div><strong className="text-[var(--text-secondary)]">Líneas:</strong> {analysis.line_count}</div>}
+            {analysis.size_bytes > 0 && <div><strong className="text-[var(--text-secondary)]">Tamaño:</strong> {analysis.size_bytes} bytes</div>}
+            {analysis.sha256 && analysis.sha256.length > 0 && <div className="col-span-2"><strong className="text-[var(--text-secondary)]">SHA256:</strong> <span className="font-mono text-[var(--text-muted)]">{analysis.sha256.slice(0, 16)}…</span></div>}
           </div>
 
-          {analysis.narrative && <Text size="sm" className="text-white/80 leading-relaxed">{analysis.narrative}</Text>}
+          {analysis.narrative && <Text size="sm" className="text-[var(--text-primary)] leading-relaxed">{analysis.narrative}</Text>}
           
           {analysis.purpose && (
-            <Text size="sm" className="bg-blue-500/10 p-2 rounded text-blue-100/90 border border-blue-500/20">
-              <strong className="text-blue-300 block mb-1">Propósito:</strong> {analysis.purpose}
+            <Text size="sm" className="bg-[var(--info-bg)] text-[var(--info-text)] border border-[var(--info-border)] p-2 rounded">
+              <strong className="text-[var(--info-text)] block mb-1">Propósito:</strong> {analysis.purpose}
             </Text>
           )}
 
           {analysis.key_points && analysis.key_points.length > 0 && (
-            <List size="sm" spacing="xs" className="text-white/80">
+            <List size="sm" spacing="xs" className="text-[var(--text-primary)]">
               {analysis.key_points.map((kp, i) => (
                 <List.Item key={i}>{kp}</List.Item>
               ))}
@@ -98,7 +98,7 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
           )}
 
           <Group mt="md">
-            <Button size="xs" variant="subtle" color="gray" onClick={reset} leftSection={<RotateCcw size={14} />} className="text-white/60 hover:text-white">
+            <Button size="xs" variant="subtle" color="gray" onClick={reset} leftSection={<RotateCcw size={14} />} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
               Nuevo análisis
             </Button>
           </Group>
@@ -107,7 +107,7 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
 
       {analysis && ambiguous && (
         <Stack gap="sm" mt="sm">
-          <Text size="sm" className="text-amber-400 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+          <Text size="sm" className="bg-[var(--warning-bg)] text-[var(--warning-text)] border border-[var(--warning-border)] p-2 rounded">
             <AlertTriangle size={14} className="inline mr-1" />
             <strong>{analysis.candidates?.length} coincidencias</strong> encontradas para "{analysis.path}". Selecciona una ruta específica:
           </Text>
@@ -118,7 +118,7 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
                 key={c}
                 variant="light" 
                 color="gray"
-                className="justify-start text-left bg-white/5 border border-white/10 hover:bg-white/10 text-white/80 h-auto py-2 font-mono text-[11px]"
+                className="justify-start text-left bg-[var(--background-tertiary)] border border-[var(--border-subtle)] hover:bg-[var(--interactive-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] h-auto py-2 font-mono text-[11px]"
                 onClick={() => { setSelectedCandidate(c); run(c); }}
                 disabled={loading}
               >
@@ -131,7 +131,7 @@ const AnalyzeFileWidget: React.FC<Props> = ({ sessionId }) => {
           </Stack>
 
           <Group mt="sm">
-            <Button size="xs" variant="subtle" color="gray" onClick={reset} className="text-white/60 hover:text-white">
+            <Button size="xs" variant="subtle" color="gray" onClick={reset} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
               Cancelar
             </Button>
           </Group>

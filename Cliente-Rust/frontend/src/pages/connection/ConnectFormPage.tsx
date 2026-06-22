@@ -56,9 +56,7 @@ const ConnectFormPage: React.FC<ConnectFormPageProps> = ({ onConnected, initialP
       <div className="w-full max-w-lg px-6 py-8 overflow-y-auto max-h-full">
         <Paper
           p="xl"
-          radius="lg"
-          withBorder
-          className="border-[var(--mantine-color-default-border)] shadow-[0_4px_24px_rgba(0,0,0,0.12)]"
+          className="dribbble-card"
         >
           {/* Quick Hosts integrados en la parte superior */}
           <div className="mb-5" data-tour="quick-hosts-panel">

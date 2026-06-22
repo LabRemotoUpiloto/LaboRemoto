@@ -17,15 +17,15 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
   const Header = ({ title, count, onClick, icon: Icon }: any) => (
     <header 
       onClick={onClick} 
-      className="flex items-center justify-between px-3 py-2 bg-black/20 hover:bg-black/30 border-b border-white/5 cursor-pointer select-none transition-colors"
+      className="flex items-center justify-between px-3 py-2 bg-[var(--background-tertiary)] hover:bg-[var(--interactive-hover)] border-b border-[var(--border-subtle)] cursor-pointer select-none transition-colors"
     >
       <div className="flex items-center gap-2">
         <Icon size={14} className="text-accent" />
-        <h4 className="m-0 text-[12.5px] font-medium text-white/90">{title}</h4>
+        <h4 className="m-0 text-[12.5px] font-medium text-[var(--text-primary)]">{title}</h4>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-mono text-white/50 px-2 py-0.5 bg-white/5 rounded-full">{count}</span>
-        {collapsed ? <ChevronRight size={14} className="text-white/40" /> : <ChevronDown size={14} className="text-white/40" />}
+        <span className="text-[11px] font-mono text-[var(--text-muted)] px-2 py-0.5 bg-[var(--background-primary)] rounded-full border border-[var(--border-subtle)]">{count}</span>
+        {collapsed ? <ChevronRight size={14} className="text-[var(--text-muted)]" /> : <ChevronDown size={14} className="text-[var(--text-muted)]" />}
       </div>
     </header>
   );
@@ -45,7 +45,7 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
       }, []);
     };
     return (
-      <div className="mt-2 border border-white/10 rounded-lg bg-black/20 overflow-hidden flex flex-col w-full">
+      <div className="mt-2 border border-[var(--border-subtle)] rounded-lg bg-[var(--background-secondary)] overflow-hidden flex flex-col w-full">
         <Header 
           title={`Resultados ${remote ? 'remotos' : 'locales'}`} 
           count={matches.length} 
@@ -79,18 +79,18 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
                 return (
                   <li 
                     key={i} 
-                    className="flex flex-col py-2 px-3 border-b border-white/5 last:border-b-0 hover:bg-white/5 cursor-pointer transition-colors" 
+                    className="flex flex-col py-2 px-3 border-b border-[var(--border-subtle)] last:border-b-0 hover:bg-[var(--interactive-hover)] cursor-pointer transition-colors" 
                     title={m.path + (remote ? ' (doble click para ' + (isDir ? 'entrar' : 'abrir') + ')' : '')} 
                     onDoubleClick={handleDoubleClick}
                   >
                     <div className="flex items-center gap-2 overflow-hidden text-[12.5px]">
                       {isDir ? <Folder size={14} className="text-blue-400 shrink-0" /> : <File size={14} className="text-gray-400 shrink-0" />}
-                      <span className={`font-mono truncate ${isDir ? 'text-blue-300 font-medium' : 'text-white/80'}`}>
+                      <span className={`font-mono truncate ${isDir ? 'text-[var(--accent-secondary)] font-medium' : 'text-[var(--text-primary)]'}`}>
                         {highlight(m.file_name)}{isDir ? '/' : ''}
                       </span>
-                      <span className="text-[11px] text-white/30 truncate ml-auto">{m.path}</span>
+                      <span className="text-[11px] text-[var(--text-muted)] truncate ml-auto">{m.path}</span>
                     </div>
-                    {m.snippet && <div className="mt-1 pl-6 text-[11px] text-white/50 font-mono overflow-hidden text-ellipsis whitespace-nowrap opacity-80" title={m.snippet}>{highlight(m.snippet)}</div>}
+                    {m.snippet && <div className="mt-1 pl-6 text-[11px] text-[var(--text-secondary)] font-mono overflow-hidden text-ellipsis whitespace-nowrap opacity-85" title={m.snippet}>{highlight(m.snippet)}</div>}
                   </li>
                 );
               })}
@@ -104,7 +104,7 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
     const path = action.path as string;
     const content = action.content as string;
     return (
-      <div className="mt-2 border border-white/10 rounded-lg bg-black/20 overflow-hidden flex flex-col w-full">
+      <div className="mt-2 border border-[var(--border-subtle)] rounded-lg bg-[var(--background-secondary)] overflow-hidden flex flex-col w-full">
         <Header 
           title={`Lectura ${remote ? 'remota' : 'local'}: ${path.split(/[/\\]/).pop()}`} 
           count={`${content.length} bytes`} 
@@ -112,7 +112,7 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
           icon={FileText} 
         />
         {!collapsed && (
-          <div className="overflow-auto max-h-[300px] custom-scrollbar bg-[#0f111a] p-3 text-[12px] font-mono text-white/80 whitespace-pre">
+          <div className="overflow-auto max-h-[300px] custom-scrollbar bg-[var(--background-tertiary)] p-3 text-[12px] font-mono text-[var(--text-primary)] border-t border-[var(--border-subtle)] whitespace-pre">
             {content}
           </div>
         )}
@@ -123,7 +123,7 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
     const matches = action.matches as any[];
     if (!matches || matches.length === 0) return null;
     return (
-      <div className="mt-2 border border-white/10 rounded-lg bg-black/20 overflow-hidden flex flex-col w-full">
+      <div className="mt-2 border border-[var(--border-subtle)] rounded-lg bg-[var(--background-secondary)] overflow-hidden flex flex-col w-full">
         <Header 
           title={`Grep ${remote ? 'remoto' : 'local'}`} 
           count={`${matches.length} coincidencias`} 
@@ -133,19 +133,19 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
         {!collapsed && (
           <div className="overflow-auto max-h-[300px] custom-scrollbar">
             <table className="w-full text-[12px] text-left border-collapse m-0">
-              <thead className="bg-white/5 sticky top-0 backdrop-blur-md">
+              <thead className="bg-[var(--background-tertiary)] sticky top-0 backdrop-blur-md">
                 <tr>
-                  <th className="px-3 py-2 font-medium text-white/70 border-b border-white/10 whitespace-nowrap">Archivo</th>
-                  <th className="px-3 py-2 font-medium text-white/70 border-b border-white/10 w-16 text-right">Línea</th>
-                  <th className="px-3 py-2 font-medium text-white/70 border-b border-white/10 w-full">Fragmento</th>
+                  <th className="px-3 py-2 font-medium text-[var(--text-secondary)] border-b border-[var(--border-subtle)] whitespace-nowrap">Archivo</th>
+                  <th className="px-3 py-2 font-medium text-[var(--text-secondary)] border-b border-[var(--border-subtle)] w-16 text-right">Línea</th>
+                  <th className="px-3 py-2 font-medium text-[var(--text-secondary)] border-b border-[var(--border-subtle)] w-full">Fragmento</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-[var(--border-subtle)]">
                 {matches.slice(0, 300).map((m,i) => (
-                  <tr key={i} className="hover:bg-white/5">
-                    <td className="px-3 py-1.5 font-mono text-white/60 truncate max-w-[150px]" title={m.path}>{m.path.split(/[/\\]/).pop()}</td>
+                  <tr key={i} className="hover:bg-[var(--interactive-hover)]">
+                    <td className="px-3 py-1.5 font-mono text-[var(--text-secondary)] truncate max-w-[150px]" title={m.path}>{m.path.split(/[/\\]/).pop()}</td>
                     <td className="px-3 py-1.5 font-mono text-accent text-right">{m.line}</td>
-                    <td className="px-3 py-1.5 font-mono text-white/80 break-all">{m.snippet}</td>
+                    <td className="px-3 py-1.5 font-mono text-[var(--text-primary)] break-all">{m.snippet}</td>
                   </tr>
                 ))}
               </tbody>

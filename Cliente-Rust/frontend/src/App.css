@@ -43,8 +43,10 @@
   right: 0;
   left: calc(var(--sidebar-width) + 24px) !important;
   height: 46px;
-  background-color: var(--background-primary) !important;
-  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--header-bg, var(--background-primary)) !important;
+  border-bottom: var(--header-border, 1px solid var(--border-subtle)) !important;
+  backdrop-filter: var(--header-blur, none) !important;
+  -webkit-backdrop-filter: var(--header-blur, none) !important;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
 }

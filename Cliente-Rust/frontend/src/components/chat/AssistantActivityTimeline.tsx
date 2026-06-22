@@ -121,7 +121,7 @@ function StatusIcon({
   if (status === 'done') {
     return (
       <span
-        className={`${base} ${isLanding ? 'bg-[color-mix(in_srgb,var(--accent-primary)_18%,transparent)] text-[var(--accent-primary)]' : 'bg-accent/20 text-accent'}`}
+        className={`${base} bg-[color-mix(in_srgb,var(--accent-primary)_18%,transparent)] text-[var(--accent-primary)]`}
         aria-hidden
       >
         <Check size={12} strokeWidth={2.5} />
@@ -131,7 +131,7 @@ function StatusIcon({
   if (status === 'active') {
     return (
       <span
-        className={`${base} ${isLanding ? 'bg-[color-mix(in_srgb,var(--accent-primary)_12%,transparent)] text-[var(--accent-primary)]' : 'bg-accent/15 text-accent'}`}
+        className={`${base} bg-[color-mix(in_srgb,var(--accent-primary)_12%,transparent)] text-[var(--accent-primary)]`}
         aria-hidden
       >
         <Loader2 size={12} className="animate-spin" />
@@ -140,7 +140,7 @@ function StatusIcon({
   }
   return (
     <span
-      className={`${base} ${isLanding ? 'bg-[var(--background-tertiary)] text-[var(--text-muted)]' : 'bg-white/5 text-white/30'}`}
+      className={`${base} bg-[var(--background-tertiary)] text-[var(--text-muted)]`}
       aria-hidden
     >
       <Circle size={10} />
@@ -156,13 +156,8 @@ export default function AssistantActivityTimeline({
   if (entries.length === 0) return null;
 
   const labelClass = (status: TimelineEntryStatus) => {
-    if (isLanding) {
-      const baseColor = status === 'pending' ? 'text-[var(--text-muted)]' : 'text-[var(--text-primary)]';
-      return `text-[12px] font-medium ${baseColor}`;
-    }
-    if (status === 'active') return 'text-[12px] font-medium text-white/90';
-    if (status === 'done') return 'text-[12px] font-medium text-white/70';
-    return 'text-[12px] font-medium text-white/40';
+    const baseColor = status === 'pending' ? 'text-[var(--text-muted)] font-normal' : 'text-[var(--text-primary)] font-medium';
+    return `text-[12px] ${baseColor}`;
   };
 
   return (
@@ -172,7 +167,7 @@ export default function AssistantActivityTimeline({
       aria-live="polite"
       aria-label="Actividad del asistente"
     >
-      <ol className={isLanding ? 'm-0 p-0 list-none flex flex-col' : 'm-0 p-0 list-none flex flex-col'}>
+      <ol className="m-0 p-0 list-none flex flex-col">
         {entries.map((entry, index) => {
           const isLast = index === entries.length - 1;
           return (
@@ -182,11 +177,7 @@ export default function AssistantActivityTimeline({
             >
               {!isLast && (
                 <span
-                  className={
-                    isLanding
-                      ? 'absolute left-[9px] top-[26px] bottom-[-2px] w-px bg-[var(--border-subtle)]'
-                      : 'absolute left-[8px] top-[22px] bottom-0 w-px bg-white/10'
-                  }
+                  className="absolute left-[9px] top-[26px] bottom-[-2px] w-px bg-[var(--border-subtle)]"
                   aria-hidden
                 />
               )}
@@ -195,11 +186,7 @@ export default function AssistantActivityTimeline({
                 <span className={labelClass(entry.status)}>{entry.label}</span>
                 {entry.detail && (
                   <span
-                    className={
-                      isLanding
-                        ? 'block text-[10px] text-[var(--text-muted)] mt-0.5 font-mono break-words whitespace-pre-wrap leading-[1.35]'
-                        : 'block text-[10px] text-white/40 mt-0.5 font-mono break-all whitespace-pre-wrap'
-                    }
+                    className="block text-[10px] text-[var(--text-muted)] mt-0.5 font-mono break-words whitespace-pre-wrap leading-[1.35]"
                     title={entry.detail}
                   >
                     {entry.detail}
