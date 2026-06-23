@@ -33,6 +33,7 @@ const THEMES: ThemeInfo[] = [
   // Temas Especiales
   { id: 'pastel-dream', label: 'Pastel Dream', gradient: 'linear-gradient(45deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff)', category: 'special', description: 'Colores pastel suaves multi-color y divertidos' },
   { id: 'sunburst-rainbow', label: 'Sunburst Rainbow', gradient: 'linear-gradient(45deg, #ff4b6b, #ff8b3b, #ffd56b, #6bff8b, #6bd7ff)', category: 'special', description: 'Arcoíris cálido con efectos RGB animados', swatches: 5 },
+  { id: 'glass-water', label: 'Liquid Glass', gradient: 'linear-gradient(135deg, #ff007f 0%, #00f0ff 100%)', category: 'special', description: 'Vidrio líquido refractivo sobre orbes de neón vibrantes' },
 ];
 
 const THEME_CATEGORIES = {
@@ -53,7 +54,7 @@ export default function ThemesPage() {
         padding={0}
         radius="md"
         withBorder
-        className="cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+        className="dribbble-card dribbble-card-interactive cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
         style={{
           borderColor: isActive ? 'var(--accent-primary)' : 'var(--border-subtle)',
           borderWidth: isActive ? '2px' : '1px',

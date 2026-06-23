@@ -12,6 +12,7 @@
     "@mantine/hooks": "9.1.1",
     "@mantine/modals": "9.1.1",
     "@mantine/notifications": "9.1.1",
+    "@mawtech/glass-ui": "^1.0.0",
     "@novnc/novnc": "1.4.0",
     "@tauri-apps/api": "2.8.0",
     "@tauri-apps/plugin-process": "2.3.0",
