@@ -120,6 +120,40 @@ impl KeycloakClient {
         self.parse_token_response(response).await
     }
 
+    /// Revoca la sesión en el servidor Keycloak (logout remoto).
+    ///
+    /// Llama al OIDC End-Session Endpoint con el `refresh_token` activo.
+    /// Keycloak 16.x invalida la sesión SSO completa, desconectando al usuario
+    /// de todas las aplicaciones del realm (logout federado).
+    ///
+    /// Keycloak responde `204 No Content` en éxito. También se acepta `200`
+    /// por compatibilidad con versiones antiguas.
+    pub async fn revoke_session(&self, refresh_token: &str) -> Result<(), AppError> {
+        let response = self.http
+            .post(self.config.logout_endpoint())
+            .form(&[
+                ("client_id",     self.config.client_id.as_str()),
+                ("refresh_token", refresh_token),
+            ])
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!(
+                "[revoke_session] POST /logout falló: {}", e
+            )))?;
+
+        let status = response.status();
+        // Keycloak 16.x: 204 No Content en éxito; algunas versiones retornan 200
+        if status.is_success() || status.as_u16() == 204 {
+            return Ok(());
+        }
+
+        let body = response.text().await.unwrap_or_default();
+        Err(AppError::Api(format!(
+            "Error al revocar sesión en Keycloak ({}) — {}",
+            status, body
+        )))
+    }
+
     // ── Helpers privados ──────────────────────────────────────────────────────
 
     /// Parsea la respuesta del Token Endpoint y construye un `TokenBundle`.
@@ -150,8 +184,12 @@ impl KeycloakClient {
                 format!("Error parseando respuesta del Token Endpoint: {}", e)
             ))?;
 
-        // Extraer claims del access_token (sin verificar firma — Fase 3 añadirá RS256)
-        let claims = jwt::decode_claims_unverified(&token_resp.access_token)?;
+        // Validar firma RS256 con JWKS antes de almacenar el token (Fase 3)
+        let claims = jwt::verify_and_decode(
+            &token_resp.access_token,
+            &self.config,
+            &self.http,
+        ).await?;
 
         let now = Instant::now();
         Ok(TokenBundle {

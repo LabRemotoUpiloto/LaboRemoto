@@ -74,6 +74,16 @@ impl KeycloakConfig {
         )
     }
 
+    /// `POST` — Cierre de sesión OIDC (revocación en Keycloak).
+    /// Body: `client_id=...&refresh_token=...`
+    /// Keycloak 16.x responde 204 No Content en éxito.
+    pub fn logout_endpoint(&self) -> String {
+        format!(
+            "{}/realms/{}/protocol/openid-connect/logout",
+            self.base_url, self.realm
+        )
+    }
+
     /// Construye la URL de autorización completa con parámetros PKCE (S256).
     ///
     /// Usa `reqwest::Url` (re-export de `url::Url`) para encoding correcto
