@@ -31,6 +31,8 @@ import { useUpdateCheck } from './hooks/useUpdateCheck'
 import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import LoginPage from './pages/auth/LoginPage'
 
 // ── Mantine theme — color primario reactivo al tema CSS activo ───────────────
 function buildMantineTheme(primaryColor: string) {
@@ -123,6 +125,9 @@ const AppMain: React.FC = () => {
     setChatOpen: setIsChatOpen,
   })
 
+  // ── Sesión y Autenticación ───────────────────────────────────────────────────
+  const { isAuthenticated, isLoading } = useAuth()
+
   // ── Ciclo de vida de tabs ────────────────────────────────────────────────────
   const { handleCloseTab } = useTabLifecycle({ tabs, closeTab, clearPracticeMeta })
 
@@ -180,6 +185,24 @@ const AppMain: React.FC = () => {
   const isH2Visible = activePanel === 'terminal'
   const hasSessionTabs = tabs.some(t => t.type === 'session')
   const isSessionActive = activeTab.type === 'session'
+
+  if (isLoading) {
+    return (
+      <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
+        <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          Cargando sesión...
+        </div>
+      </MantineProvider>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
+        <LoginPage />
+      </MantineProvider>
+    )
+  }
 
   return (
     <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
@@ -283,7 +306,9 @@ const App: React.FC = () => (
   <LoadingProvider>
     <ToastProvider>
       <ThemeProvider>
-        <AppMain />
+        <AuthProvider>
+          <AppMain />
+        </AuthProvider>
       </ThemeProvider>
     </ToastProvider>
   </LoadingProvider>

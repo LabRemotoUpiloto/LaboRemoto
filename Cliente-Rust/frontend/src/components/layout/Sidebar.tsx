@@ -7,6 +7,7 @@ import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import { User } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   MonitorIcon,
   CompassIcon,
@@ -87,6 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [appVersion, setAppVersion] = useState<string>('');
   const showMacTitleBarZone = isMacOS();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => setAppVersion(''));
@@ -252,7 +254,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         <Menu shadow="md" width={200} position="top-start">
           <Menu.Target>
-            <Tooltip label="Pendiente de implementar" withArrow position="right">
+            <Tooltip label="Opciones de sesión" withArrow position="right">
               <UnstyledButton
                 className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors"
                 style={{ color: 'var(--text-secondary)' }}
@@ -264,13 +266,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="flex flex-col min-w-0">
                   <Text size="xs" fw={600} style={{ color: 'var(--text-primary)', lineHeight: 1.3 }}>
-                    Invitado
+                    {user?.preferred_username || 'Usuario'}
                   </Text>
-                  {appVersion && (
-                    <Text size="xs" style={{ color: 'var(--text-muted)', lineHeight: 1.2, fontSize: 10 }}>
-                      v{appVersion}
-                    </Text>
-                  )}
+                  <Text size="xs" style={{ color: 'var(--text-muted)', lineHeight: 1.2, fontSize: 10 }}>
+                    {user?.user_type ? `${user.user_type} ` : ''}{appVersion ? `v${appVersion}` : ''}
+                  </Text>
                 </div>
               </UnstyledButton>
             </Tooltip>
@@ -280,7 +280,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Menu.Item disabled>Perfil (Próximamente)</Menu.Item>
             <Menu.Item disabled>Ajustes (Próximamente)</Menu.Item>
             <Menu.Divider />
-            <Menu.Item color="red" disabled>Cerrar Sesión</Menu.Item>
+            <Menu.Item color="red" onClick={logout}>Cerrar Sesión</Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Box>
