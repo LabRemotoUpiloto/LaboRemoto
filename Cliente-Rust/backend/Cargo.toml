@@ -53,6 +53,7 @@ walkdir = "2"
 regex = "1"
 rfd = "0.14"
 tungstenite = "0.21"
+open = "5"          # Abre el navegador del sistema (OAuth loopback flow)
 
 # LDAP authentication
 ldap3 = "0.11"

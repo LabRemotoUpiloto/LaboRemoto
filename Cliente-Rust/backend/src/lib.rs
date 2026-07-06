@@ -163,6 +163,11 @@ pub fn run() {
       cmd::hardware::arduino::arduino_bridge_status,
       cmd::hardware::arduino::arduino_send_cmd,
       cmd::hardware::arduino::arduino_read_buffer,
+      // Autenticación OAuth 2.1 con Keycloak
+      crate::auth::commands::auth_login_url,
+      crate::auth::commands::auth_status,
+      crate::auth::commands::auth_logout,
+      crate::auth::commands::auth_refresh,
     ])
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {
