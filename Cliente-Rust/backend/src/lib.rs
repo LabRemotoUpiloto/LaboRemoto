@@ -1,13 +1,14 @@
 // src/lib.rs
 
 // Módulos públicos expuestos al resto de la app.
-pub mod error;   // Tipos de error compartidos
-pub mod ssh_core; // Cliente SSH basado en russh (para terminal) + ssh2_sftp
-pub mod cmd;     // Comandos invocables desde el frontend (Tauri commands)
-pub mod storage; // Utilidades de almacenamiento cifrado de hosts
-pub mod state_core; // Memoria efímera por sesión (AppState)
-pub mod security; // Validaciones de seguridad y backups
-pub mod api;      // REST API
+pub mod error;      // Tipos de error compartidos
+pub mod ssh_core;   // Cliente SSH basado en russh (para terminal) + ssh2_sftp
+pub mod cmd;        // Comandos invocables desde el frontend (Tauri commands)
+pub mod storage;    // Utilidades de almacenamiento cifrado de hosts
+pub mod state_core; // Memoria efímera por sesión (AppState) + AuthState JWT
+pub mod security;   // Validaciones de seguridad y backups
+pub mod api;        // REST API
+pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 fn load_dotenv() {
@@ -52,6 +53,7 @@ pub fn run() {
   tauri::Builder::default()
     .manage(crate::state_core::AppState::new())
     .manage(crate::state_core::AiCancelRegistry::new())
+    .manage(crate::state_core::AuthState::new())  // OAuth 2.1: custodio del JWT en memoria
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .invoke_handler(tauri::generate_handler![
