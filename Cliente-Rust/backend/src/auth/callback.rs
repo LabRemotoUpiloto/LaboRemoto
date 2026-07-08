@@ -104,26 +104,10 @@ impl CallbackServer {
             };
 
             tokio::select! {
-                result = serve => {
-                    if let Err(e) = result {
-                        eprintln!("[AUTH] Error en servidor loopback OAuth: {}", e);
-                    }
-                }
-                _ = tokio::time::sleep(Duration::from_secs(300)) => {
-                    eprintln!(
-                        "[AUTH] Timeout del servidor loopback OAuth \
-                         (5 min sin login). Puerto {} cerrado.", port
-                    );
-                }
+                _ = serve => {}
+                _ = tokio::time::sleep(Duration::from_secs(300)) => {}
             }
-
-            println!("[AUTH] Servidor loopback cerrado (puerto {}).", port);
         });
-
-        println!(
-            "[AUTH] Servidor loopback OAuth escuchando en http://127.0.0.1:{}/callback",
-            port
-        );
 
         Ok((redirect_uri, code_rx))
     }
@@ -146,11 +130,6 @@ async fn callback_handler(
     // ── 1. Validación CSRF ────────────────────────────────────────────────────
     let received_state = params.get("state").map(|s| s.as_str()).unwrap_or("");
     if received_state != state.csrf_state {
-        eprintln!(
-            "[AUTH] ¡Validación CSRF fallida! \
-             state recibido='{}', esperado='{}'. Posible ataque CSRF o petición obsoleta.",
-            received_state, state.csrf_state
-        );
         return Html(build_error_html(
             "invalid_state",
             "La solicitud de login no es válida o ya expiró. \
@@ -178,10 +157,6 @@ async fn callback_handler(
         // Error reportado por Keycloak (ej. usuario canceló el login)
         let error       = params.get("error").map(|s| s.as_str()).unwrap_or("desconocido");
         let description = params.get("error_description").map(|s| s.as_str()).unwrap_or("");
-        eprintln!(
-            "[AUTH] Keycloak retornó error en callback: {} — {}",
-            error, description
-        );
         Html(build_error_html(error, description))
     }
 }

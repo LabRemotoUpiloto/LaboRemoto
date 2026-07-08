@@ -307,7 +307,6 @@ async fn fetch_jwks(http: &reqwest::Client, url: &str) -> Result<Vec<JwkEntry>, 
         ));
     }
 
-    println!("[AUTH] JWKS cacheadas: {} llave(s) obtenida(s) de '{}'", jwks.keys.len(), url);
     Ok(jwks.keys)
 }
 

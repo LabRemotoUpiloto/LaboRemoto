@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { authService, AuthSessionInfo } from '../services/auth.service';
 import { useToasts } from './ToastContext';
@@ -17,6 +17,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthSessionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { push } = useToasts();
+  
+  // Ref para tener acceso al estado actual dentro del callback del listener
+  const userRef = useRef<AuthSessionInfo | null>(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const checkStatus = async () => {
     try {
@@ -33,30 +39,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     checkStatus();
 
-    let unlistenReady: UnlistenFn;
-    let unlistenLogout: UnlistenFn;
-
-    const setupListeners = async () => {
-      // Evento emitido por el backend de Rust cuando el loopback server captura
-      // el code de OAuth y Keycloak devuelve exitosamente el JWT validado.
-      unlistenReady = await listen<AuthSessionInfo>('auth://session-ready', (event) => {
-        console.log('Session ready event received', event.payload.preferred_username);
-        setUser(event.payload);
+    const unlistenReadyPromise = listen<AuthSessionInfo>('auth://session-ready', (event) => {
+      console.log('Session ready event received', event.payload.preferred_username);
+      
+      // Evaluamos el estado previo para no disparar la notificación en cada refresco silencioso
+      if (!userRef.current) {
         push({ type: 'success', message: `Sesión iniciada correctamente` });
-      });
+      }
+      
+      setUser(event.payload);
+    });
 
-      // Evento emitido cuando se revoca la sesión.
-      unlistenLogout = await listen('auth://logged-out', () => {
-        console.log('Logged out event received');
-        setUser(null);
-      });
-    };
+    const unlistenLogoutPromise = listen('auth://logged-out', () => {
+      console.log('Logged out event received');
+      setUser(null);
+    });
 
-    setupListeners();
-
+    // Cleanup: manejamos las promesas para evitar que se acumulen listeners en el Strict Mode
     return () => {
-      if (unlistenReady) unlistenReady();
-      if (unlistenLogout) unlistenLogout();
+      unlistenReadyPromise.then(unlisten => unlisten());
+      unlistenLogoutPromise.then(unlisten => unlisten());
     };
   }, []);
 
