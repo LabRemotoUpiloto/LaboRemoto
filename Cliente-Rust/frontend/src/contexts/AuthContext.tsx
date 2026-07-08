@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { authService, AuthSessionInfo } from '../services/auth.service';
+import { useToasts } from './ToastContext';
 
 interface AuthContextType {
   user: AuthSessionInfo | null;
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthSessionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { push } = useToasts();
 
   const checkStatus = async () => {
     try {
@@ -40,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unlistenReady = await listen<AuthSessionInfo>('auth://session-ready', (event) => {
         console.log('Session ready event received', event.payload.preferred_username);
         setUser(event.payload);
+        push({ type: 'success', message: `Sesión iniciada correctamente` });
       });
 
       // Evento emitido cuando se revoca la sesión.
@@ -64,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Cuando se complete, 'auth://session-ready' será emitido.
     } catch (error) {
       console.error('Failed to initialize login flow:', error);
+      push({ type: 'error', message: 'Error al iniciar sesión' });
     }
   };
 

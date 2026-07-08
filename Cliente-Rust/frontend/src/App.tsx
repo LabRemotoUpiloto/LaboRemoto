@@ -32,7 +32,6 @@ import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import LoginPage from './pages/auth/LoginPage'
 
 // ── Mantine theme — color primario reactivo al tema CSS activo ───────────────
 function buildMantineTheme(primaryColor: string) {
@@ -196,13 +195,7 @@ const AppMain: React.FC = () => {
     )
   }
 
-  if (!isAuthenticated) {
-    return (
-      <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
-        <LoginPage />
-      </MantineProvider>
-    )
-  }
+  // Removed AuthGuard to allow public access to the Landing Page
 
   return (
     <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
@@ -217,27 +210,30 @@ const AppMain: React.FC = () => {
             isPinsVisible ? 'pins-open' : '',
             isDomoticaVisible ? 'domotica-open' : '',
             isH2Visible ? 'h2-visible' : '',
+            !isAuthenticated ? 'no-sidebar' : '',
           ].filter(Boolean).join(' ')}
         >
-          <Sidebar
-            activePanel={activePanel}
-            onOpenPanel={handleOpenPanel}
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onTabClick={handleTabClick}
-            onCloseTab={handleCloseTab}
-            onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
-            showSessionActions={isSessionActive}
-            activeView={activeView}
-            onViewChange={setActiveView}
-            isChatOpen={isChatOpen}
-            onToggleChat={() => setIsChatOpen(!isChatOpen)}
-            onToggleCamera={toggleCameraPanel}
-            onTogglePins={togglePinsPanel}
-            isCameraActive={isCameraOpen}
-            isPinsActive={isPinsPanelOpen}
-            hasSessions={hasSessionTabs}
-          />
+          {isAuthenticated && (
+            <Sidebar
+              activePanel={activePanel}
+              onOpenPanel={handleOpenPanel}
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onTabClick={handleTabClick}
+              onCloseTab={handleCloseTab}
+              onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
+              showSessionActions={isSessionActive}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              isChatOpen={isChatOpen}
+              onToggleChat={() => setIsChatOpen(!isChatOpen)}
+              onToggleCamera={toggleCameraPanel}
+              onTogglePins={togglePinsPanel}
+              isCameraActive={isCameraOpen}
+              isPinsActive={isPinsPanelOpen}
+              hasSessions={hasSessionTabs}
+            />
+          )}
           <div className="main-content">
             <MacWindowDragStrip />
             <main className="content-area">
