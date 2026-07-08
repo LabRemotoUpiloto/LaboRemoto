@@ -15,7 +15,6 @@
 //! | `auth_login_url`| Inicia el flujo OAuth: PKCE + CSRF UUID + loopback       |
 //! | `auth_status`   | Retorna `AuthSessionInfo` (username, rol, exp) o `None`  |
 //! | `auth_logout`   | Revocación remota + limpieza local de `AuthState`        |
-//! | `auth_refresh`  | Renueva el access_token con el refresh_token almacenado  |
 //!
 //! ## Eventos emitidos al frontend
 //! | Evento                | Payload           | Cuándo                        |
@@ -24,7 +23,7 @@
 //! | `auth://error`        | `String`          | Error en cualquier paso OAuth |
 
 use std::time::Duration;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use uuid::Uuid;
 
 use crate::state_core::{AuthSessionInfo, AuthState};
@@ -174,46 +173,6 @@ pub async fn auth_logout(
     Ok(())
 }
 
-/// Renueva el access_token usando el refresh_token almacenado en `AuthState`.
-///
-/// El frontend puede llamar este comando proactivamente cuando
-/// `exp` del `auth_status` está próximo a vencer (menos de 60 s).
-///
-/// Si el refresh falla (refresh_token expirado o revocado),
-/// limpia la sesión y retorna error para que el frontend redirija al login.
-#[tauri::command]
-pub async fn auth_refresh(
-    app:        tauri::AppHandle,
-    auth_state: tauri::State<'_, AuthState>,
-) -> Result<(), String> {
-    let refresh_token = auth_state
-        .get_refresh_token()
-        .ok_or_else(|| "No hay sesión activa o el refresh_token ha expirado".to_string())?;
-
-    let config = KeycloakConfig::from_env();
-    drop(auth_state); // Liberar State<'_> antes del await
-
-    let client = KeycloakClient::new(config);
-    match client.refresh_token(&refresh_token).await {
-        Ok(bundle) => {
-            let session_info = bundle_to_session_info(&bundle);
-            let auth_state = app.state::<AuthState>();
-            auth_state.store(bundle);
-            let _ = app.emit(EVENT_SESSION_READY, &session_info);
-            println!(
-                "[AUTH] ✓ Token renovado: {} ({})",
-                session_info.preferred_username, session_info.user_type
-            );
-            Ok(())
-        }
-        Err(e) => {
-            eprintln!("[AUTH] Error al renovar token: {}. Forzando re-login.", e);
-            app.state::<AuthState>().clear();
-            Err(e.to_string())
-        }
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers privados
 // ─────────────────────────────────────────────────────────────────────────────
@@ -244,7 +203,7 @@ async fn exchange_code_background(
 
     // Recuperar y consumir el verifier PKCE (semántica de un solo uso)
     let auth_state = app.state::<AuthState>();
-    let verifier = match auth_state.take_pending_verifier() {
+    let verifier: String = match auth_state.take_pending_verifier() {
         Some(v) => v,
         None => {
             eprintln!("[AUTH] No hay verifier PKCE pendiente. Posible ataque de replay.");
@@ -254,7 +213,7 @@ async fn exchange_code_background(
     };
 
     // Intercambiar código por tokens (incluye validación RS256 con JWKS)
-    let client = KeycloakClient::new(config);
+    let client = KeycloakClient::new(config.clone());
     match client.exchange_code(&code, &verifier, &redirect_uri).await {
         Ok(bundle) => {
             let session_info = bundle_to_session_info(&bundle);
@@ -264,6 +223,9 @@ async fn exchange_code_background(
             );
             auth_state.store(bundle);
             let _ = app.emit(EVENT_SESSION_READY, &session_info);
+
+            // Lanzar el daemon de renovación en background
+            tauri::async_runtime::spawn(token_refresh_daemon(app.clone(), config));
         }
         Err(e) => {
             eprintln!("[AUTH] Error al intercambiar código: {}", e);
@@ -280,5 +242,63 @@ fn bundle_to_session_info(bundle: &crate::state_core::TokenBundle) -> AuthSessio
         email:              bundle.claims.email.clone(),
         user_type:          bundle.claims.user_type.clone(),
         exp:                bundle.claims.exp,
+    }
+}
+
+/// Daemon asíncrono que se ejecuta en segundo plano para renovar el token
+/// silenciosamente antes de que expire.
+async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
+    let client = KeycloakClient::new(config);
+    
+    loop {
+        let auth_state = app.state::<AuthState>();
+        
+        let (refresh_token, access_expires_at) = match auth_state.get_refresh_info() {
+            Some(info) => info,
+            None => {
+                println!("[AUTH] Daemon: No hay sesión activa. Saliendo del ciclo.");
+                break;
+            }
+        };
+
+        let now = std::time::Instant::now();
+        // Despertar 45 segundos antes de que expire el access token
+        let margin = std::time::Duration::from_secs(45);
+        
+        if access_expires_at > now + margin {
+            let sleep_duration = access_expires_at - now - margin;
+            println!("[AUTH] Daemon: Durmiendo por {} s hasta el próximo refresh.", sleep_duration.as_secs());
+            tokio::time::sleep(sleep_duration).await;
+        } else {
+            // Si ya está muy cerca de expirar, esperar solo un momento para evitar saturar en caso de fallo continuo
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
+
+        // Al despertar, verificamos si hay sesión (puede haber hecho logout manualmente)
+        let current_refresh_token = match auth_state.get_refresh_token() {
+            Some(rt) => rt,
+            None => {
+                println!("[AUTH] Daemon: La sesión fue cerrada o el refresh token expiró. Saliendo.");
+                break;
+            }
+        };
+
+        match client.refresh_access_token(&current_refresh_token).await {
+            Ok(bundle) => {
+                let session_info = bundle_to_session_info(&bundle);
+                auth_state.store(bundle);
+                let _ = app.emit(EVENT_SESSION_READY, &session_info);
+                println!(
+                    "[AUTH] ✓ Daemon: Token renovado silenciosamente: {} ({})",
+                    session_info.preferred_username, session_info.user_type
+                );
+            }
+            Err(e) => {
+                eprintln!("[AUTH] Daemon: Error al renovar token: {}. Limpiando sesión y saliendo.", e);
+                auth_state.clear();
+                let _ = app.emit("auth://logged-out", ());
+                break;
+            }
+        }
     }
 }

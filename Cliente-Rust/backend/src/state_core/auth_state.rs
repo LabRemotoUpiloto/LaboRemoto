@@ -231,6 +231,13 @@ impl AuthState {
         })
     }
 
+    /// Retorna el refresh_token y el instante de expiración del access_token.
+    /// Utilizado por el daemon de renovación en background.
+    pub fn get_refresh_info(&self) -> Option<(String, Instant)> {
+        let r = self.inner.read();
+        r.as_ref().map(|b| (b.refresh_token.clone(), b.access_expires_at))
+    }
+
     /// `true` si hay un access_token válido y no expirado (con margen de 30s).
     pub fn is_authenticated(&self) -> bool {
         self.get_access_token().is_some()

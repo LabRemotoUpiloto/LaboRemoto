@@ -167,7 +167,6 @@ pub fn run() {
       crate::auth::commands::auth_login_url,
       crate::auth::commands::auth_status,
       crate::auth::commands::auth_logout,
-      crate::auth::commands::auth_refresh,
     ])
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {

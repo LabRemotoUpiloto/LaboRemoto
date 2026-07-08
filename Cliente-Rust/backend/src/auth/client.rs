@@ -105,7 +105,7 @@ impl KeycloakClient {
     ///
     /// Se llama cuando `AuthState::needs_refresh()` retorna `true`
     /// (access_token con menos de 60 s de vida pero refresh_token aún válido).
-    pub async fn refresh_token(&self, refresh_token: &str) -> Result<TokenBundle, AppError> {
+    pub async fn refresh_access_token(&self, refresh_token: &str) -> Result<TokenBundle, AppError> {
         let response = self.http
             .post(self.config.token_endpoint())
             .form(&[
