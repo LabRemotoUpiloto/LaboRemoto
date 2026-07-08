@@ -1,5 +1,6 @@
 import React from 'react';
 import { GraduationCap } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { unipilotoLogo } from '../../assets/logoBase64';
 
 interface AgentHomeHeroProps {
@@ -12,6 +13,8 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
   displayName,
   onStartTutorial,
 }) => {
+  const { isAuthenticated, login, isLoading } = useAuth();
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-[1.15fr_0.85fr] gap-8 md:gap-16 items-center w-full h-full max-w-[1120px] mx-auto px-4 py-6 md:p-10 box-border animate-[agent-home-in_0.55s_ease-out_both]">
       {/* Columna Izquierda: Contenido e información */}
@@ -32,17 +35,30 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
           {displayName ? `${displayName}, bienvenido` : 'Bienvenido'} a tu espacio de prácticas. Aquí podrás interactuar de forma real y segura con equipos de laboratorio para complementar tu formación académica.
         </p>
 
-        {onStartTutorial && (
+        {!isAuthenticated ? (
           <div className="flex justify-center md:justify-start w-full">
             <button
               type="button"
-              className="group inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:translate-y-0 active:shadow-[0_4px_10px_-2px_rgba(213,31,34,0.3)] text-white border-none rounded-full text-[13.5px] font-bold cursor-pointer shadow-[0_6px_16px_-4px_rgba(213,31,34,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_rgba(213,31,34,0.45)]"
-              onClick={onStartTutorial}
+              className="group inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:translate-y-0 active:shadow-[0_4px_10px_-2px_var(--accent-guard-shadow,rgba(0,0,0,0.3))] text-white border-none rounded-full text-[13.5px] font-bold cursor-pointer shadow-[0_6px_16px_-4px_var(--accent-guard-shadow,rgba(0,0,0,0.3))] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_var(--accent-guard-shadow,rgba(0,0,0,0.45))] disabled:opacity-70 disabled:cursor-not-allowed"
+              onClick={login}
+              disabled={isLoading}
             >
-              <GraduationCap size={18} strokeWidth={2} className="text-white transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
-              <span>Iniciar recorrido</span>
+              <span>{isLoading ? 'Iniciando...' : 'Iniciar sesión'}</span>
             </button>
           </div>
+        ) : (
+          onStartTutorial && (
+            <div className="flex justify-center md:justify-start w-full">
+              <button
+                type="button"
+                className="group inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:translate-y-0 active:shadow-[0_4px_10px_-2px_rgba(213,31,34,0.3)] text-white border-none rounded-full text-[13.5px] font-bold cursor-pointer shadow-[0_6px_16px_-4px_rgba(213,31,34,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_rgba(213,31,34,0.45)]"
+                onClick={onStartTutorial}
+              >
+                <GraduationCap size={18} strokeWidth={2} className="text-white transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
+                <span>Iniciar recorrido</span>
+              </button>
+            </div>
+          )
         )}
       </div>
 
