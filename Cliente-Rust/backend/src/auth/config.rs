@@ -31,17 +31,15 @@ pub struct KeycloakConfig {
 
 impl KeycloakConfig {
     /// Construye la configuración desde variables de entorno.
-    ///
-    /// Usa los valores del AUTH_SPEC §1 como fallback para evitar
-    /// errores en entornos de desarrollo sin archivo `.env`.
+    /// Exige obligatoriamente que las variables estén definidas en el `.env`.
     pub fn from_env() -> Self {
         Self {
             base_url: env::var("KEYCLOAK_BASE_URL")
-                .unwrap_or_else(|_| "http://52.14.162.232/auth".to_string()),
+                .expect("Falta la variable de entorno KEYCLOAK_BASE_URL. Define esta variable en tu archivo .env global"),
             realm: env::var("KEYCLOAK_REALM")
-                .unwrap_or_else(|_| "laboratorio-semillero".to_string()),
+                .expect("Falta la variable de entorno KEYCLOAK_REALM. Define esta variable en tu archivo .env global"),
             client_id: env::var("KEYCLOAK_CLIENT_ID")
-                .unwrap_or_else(|_| "semillero-app".to_string()),
+                .expect("Falta la variable de entorno KEYCLOAK_CLIENT_ID. Define esta variable en tu archivo .env global"),
         }
     }
 

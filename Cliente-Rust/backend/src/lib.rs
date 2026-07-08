@@ -13,7 +13,7 @@ pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 fn load_dotenv() {
   // 1. Intento estándar: caminar desde el CWD hacia arriba
-  if dotenvy::dotenv().is_ok() { /* ok */ }
+  dotenvy::dotenv().ok();
   // 2. Fallback: usar la ruta del manifest (conocida en tiempo de compilación)
   //    y subir hasta encontrar un .env. Garantiza encontrar apps/.env en dev y release.
   let mut dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
