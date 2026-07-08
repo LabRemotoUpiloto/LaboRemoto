@@ -7,6 +7,7 @@ import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import { User } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   MonitorIcon,
   CompassIcon,
@@ -87,6 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [appVersion, setAppVersion] = useState<string>('');
   const showMacTitleBarZone = isMacOS();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => setAppVersion(''));
@@ -245,42 +247,37 @@ const Sidebar: React.FC<SidebarProps> = ({
         ))}
       </Stack>
 
-      {/* Footer — user profile + version */}
       <Box
         className="shrink-0 border-t"
-        style={{ borderColor: 'var(--border-subtle)' }}
+        style={{ borderColor: 'var(--mantine-color-default-border)' }}
       >
-        <Menu shadow="md" width={200} position="top-start">
+        <Menu shadow="md" width={200} position="top-start" withinPortal zIndex={2200}>
           <Menu.Target>
-            <Tooltip label="Pendiente de implementar" withArrow position="right">
-              <UnstyledButton
-                className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--interactive-hover)'; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-              >
-                <div className="sidebar-user-avatar w-7 h-7 rounded-full flex items-center justify-center shrink-0 select-none">
-                  <User size={14} strokeWidth={2.5} />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <Text size="xs" fw={600} style={{ color: 'var(--text-primary)', lineHeight: 1.3 }}>
-                    Invitado
-                  </Text>
-                  {appVersion && (
-                    <Text size="xs" style={{ color: 'var(--text-muted)', lineHeight: 1.2, fontSize: 10 }}>
-                      v{appVersion}
-                    </Text>
-                  )}
-                </div>
-              </UnstyledButton>
-            </Tooltip>
+            <div
+              className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors"
+              style={{ color: 'var(--mantine-color-text)', cursor: 'pointer' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--mantine-color-default-hover)'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              <div className="sidebar-user-avatar w-7 h-7 rounded-full flex items-center justify-center shrink-0 select-none">
+                <User size={14} strokeWidth={2.5} />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <Text size="xs" fw={600} c="var(--mantine-color-text)" style={{ lineHeight: 1.3 }}>
+                  {user?.preferred_username || 'Usuario'}
+                </Text>
+                <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>
+                  {user?.user_type ? `${user.user_type} ` : ''}{appVersion ? `v${appVersion}` : ''}
+                </Text>
+              </div>
+            </div>
           </Menu.Target>
-          <Menu.Dropdown>
+          <Menu.Dropdown bg="var(--mantine-color-body)">
             <Menu.Label>Usuario</Menu.Label>
-            <Menu.Item disabled>Perfil (Próximamente)</Menu.Item>
-            <Menu.Item disabled>Ajustes (Próximamente)</Menu.Item>
+            <Menu.Item disabled c="var(--mantine-color-text)">Perfil (Próximamente)</Menu.Item>
+            <Menu.Item disabled c="var(--mantine-color-text)">Ajustes (Próximamente)</Menu.Item>
             <Menu.Divider />
-            <Menu.Item color="red" disabled>Cerrar Sesión</Menu.Item>
+            <Menu.Item color="red" onClick={logout}>Cerrar Sesión</Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Box>

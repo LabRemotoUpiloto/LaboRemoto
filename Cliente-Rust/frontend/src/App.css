@@ -146,3 +146,11 @@
 .app-container.domotica-open .app-header {
   right: calc(350px + 24px) !important;
 }
+
+.app-container.no-sidebar .main-content {
+  margin-left: 0 !important;
+}
+
+.app-container.no-sidebar .app-header {
+  left: 0 !important;
+}
