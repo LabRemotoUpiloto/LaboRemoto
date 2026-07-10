@@ -5,7 +5,7 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
-import { User } from 'lucide-react';
+import { User, Shield } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -185,8 +185,18 @@ const Sidebar: React.FC<SidebarProps> = ({
         role="navigation"
         aria-label="Sidebar navigation"
       >
-        {sections.map((section, si) => (
-          <Box key={section.label} mb={si < sections.length - 1 ? 8 : 0}>
+        {[
+          ...sections,
+          ...(user?.roles?.includes('admin_lab') 
+            ? [{
+                label: 'Administración',
+                items: [
+                  { id: 'admin-users', label: 'Usuarios', icon: Shield },
+                ]
+              }]
+            : [])
+        ].map((section, si, arr) => (
+          <Box key={section.label} mb={si < arr.length - 1 ? 8 : 0}>
             {/* Section label */}
             <Text
               size="xs"

@@ -29,7 +29,7 @@ use uuid::Uuid;
 use crate::state_core::{AuthSessionInfo, AuthState};
 use super::{
     callback::CallbackServer,
-    client::KeycloakClient,
+    client::{KeycloakClient, KeycloakRole, KeycloakUser},
     config::KeycloakConfig,
     pkce::PkceVerifier,
 };
@@ -272,5 +272,61 @@ async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
                 break;
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin REST API Commands
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn check_admin_lab(auth_state: &tauri::State<'_, AuthState>) -> Result<String, String> {
+    let session = auth_state.session_info().ok_or("No hay sesión activa")?;
+    if !session.roles.contains(&"admin_lab".to_string()) {
+        return Err("Permisos insuficientes: se requiere rol admin_lab".to_string());
+    }
+    auth_state.get_access_token().ok_or("Token de acceso expirado o inválido".to_string())
+}
+
+#[tauri::command]
+pub async fn admin_search_users(
+    query: String,
+    auth_state: tauri::State<'_, AuthState>,
+) -> Result<Vec<KeycloakUser>, String> {
+    let token = check_admin_lab(&auth_state)?;
+    let config = KeycloakConfig::from_env();
+    let client = KeycloakClient::new(config);
+    client.admin_search_users(&token, &query).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn admin_get_user_roles(
+    user_id: String,
+    auth_state: tauri::State<'_, AuthState>,
+) -> Result<Vec<KeycloakRole>, String> {
+    let token = check_admin_lab(&auth_state)?;
+    let config = KeycloakConfig::from_env();
+    let client = KeycloakClient::new(config);
+    client.admin_get_user_roles(&token, &user_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn admin_toggle_user_role(
+    user_id: String,
+    role_name: String,
+    assign: bool,
+    auth_state: tauri::State<'_, AuthState>,
+) -> Result<(), String> {
+    let token = check_admin_lab(&auth_state)?;
+    let config = KeycloakConfig::from_env();
+    let client = KeycloakClient::new(config);
+    
+    let role = client.admin_get_role_by_name(&token, &role_name)
+        .await
+        .map_err(|e| format!("Error obteniendo rol {}: {}", role_name, e))?;
+
+    if assign {
+        client.admin_assign_role(&token, &user_id, &role).await.map_err(|e| e.to_string())
+    } else {
+        client.admin_remove_role(&token, &user_id, &role).await.map_err(|e| e.to_string())
     }
 }
