@@ -94,6 +94,21 @@ const Sidebar: React.FC<SidebarProps> = ({
     getVersion().then(setAppVersion).catch(() => setAppVersion(''));
   }, []);
 
+  const formatRoles = () => {
+    if (!user?.roles || user.roles.length === 0) {
+      return user?.user_type ? `${user.user_type} ` : '';
+    }
+    const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, ' ');
+    const primaryRole = user.user_type?.toLowerCase();
+    const otherRoles = user.roles.filter(r => r.toLowerCase() !== primaryRole);
+    const displayRoles = [];
+    if (primaryRole && user.roles.includes(primaryRole)) {
+      displayRoles.push(capitalize(primaryRole));
+    }
+    displayRoles.push(...otherRoles.map(capitalize));
+    return displayRoles.join(' - ') + ' ';
+  };
+
   return (
     <Box
       component="aside"
@@ -267,8 +282,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                   {user?.preferred_username || 'Usuario'}
                 </Text>
                 <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>
-                  {user?.user_type ? `${user.user_type} ` : ''}{appVersion ? `v${appVersion}` : ''}
+                  {formatRoles()}
                 </Text>
+                {appVersion && (
+                  <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>
+                    v{appVersion}
+                  </Text>
+                )}
               </div>
             </div>
           </Menu.Target>

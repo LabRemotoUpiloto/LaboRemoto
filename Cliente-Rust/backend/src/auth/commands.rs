@@ -220,6 +220,7 @@ fn bundle_to_session_info(bundle: &crate::state_core::TokenBundle) -> AuthSessio
         name:               bundle.claims.name.clone(),
         email:              bundle.claims.email.clone(),
         user_type:          bundle.claims.user_type.clone(),
+        roles:              bundle.claims.roles.clone(),
         exp:                bundle.claims.exp,
     }
 }
