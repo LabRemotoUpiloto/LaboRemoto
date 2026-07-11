@@ -224,6 +224,17 @@ pub struct KeycloakRole {
 }
 
 impl KeycloakClient {
+    fn keycloak_admin_error(operation: &str, status: reqwest::StatusCode, body: String) -> AppError {
+        if status.as_u16() == 403 {
+            return AppError::Api(format!(
+                "Keycloak Admin API rechazó {} (403). El token requiere permisos del cliente realm-management, por ejemplo view-users/manage-users/view-realm. {}",
+                operation, body
+            ));
+        }
+
+        AppError::Api(format!("Keycloak Admin API error en {} ({}): {}", operation, status, body))
+    }
+
     /// GET /admin/realms/{realm}/users?search={query}
     pub async fn admin_search_users(&self, token: &str, query: &str) -> Result<Vec<KeycloakUser>, AppError> {
         let url = format!("{}/admin/realms/{}/users", self.config.base_url, self.config.realm);
@@ -238,7 +249,7 @@ impl KeycloakClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Api(format!("Keycloak Admin API error ({}): {}", status, body)));
+            return Err(Self::keycloak_admin_error("buscar usuarios", status, body));
         }
 
         let users = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
@@ -258,7 +269,7 @@ impl KeycloakClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Api(format!("Keycloak Admin API error ({}): {}", status, body)));
+            return Err(Self::keycloak_admin_error("consultar roles de usuario", status, body));
         }
 
         let roles = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
@@ -278,7 +289,7 @@ impl KeycloakClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Api(format!("Keycloak Admin API error ({}): {}", status, body)));
+            return Err(Self::keycloak_admin_error("consultar rol", status, body));
         }
 
         let role = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
@@ -299,7 +310,7 @@ impl KeycloakClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Api(format!("Keycloak Admin API error ({}): {}", status, body)));
+            return Err(Self::keycloak_admin_error("asignar rol", status, body));
         }
         Ok(())
     }
@@ -318,7 +329,7 @@ impl KeycloakClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Api(format!("Keycloak Admin API error ({}): {}", status, body)));
+            return Err(Self::keycloak_admin_error("remover rol", status, body));
         }
         Ok(())
     }

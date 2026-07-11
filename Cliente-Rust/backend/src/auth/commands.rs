@@ -292,6 +292,11 @@ pub async fn admin_search_users(
     query: String,
     auth_state: tauri::State<'_, AuthState>,
 ) -> Result<Vec<KeycloakUser>, String> {
+    let query = query.trim().to_string();
+    if query.len() < 2 {
+        return Err("La búsqueda debe tener al menos 2 caracteres".to_string());
+    }
+
     let token = check_admin_lab(&auth_state)?;
     let config = KeycloakConfig::from_env();
     let client = KeycloakClient::new(config);

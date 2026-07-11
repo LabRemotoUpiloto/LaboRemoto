@@ -10,18 +10,20 @@ export default function UserManagementPage() {
     const [userRoles, setUserRoles] = useState<Record<string, KeycloakRole[]>>({});
     const handleSearch = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!query.trim()) return;
+        const searchQuery = query.trim();
+        if (searchQuery.length < 2) {
+            notifications.show({ title: 'Búsqueda muy corta', message: 'Ingresa al menos 2 caracteres.', color: 'yellow' });
+            return;
+        }
         setLoading(true);
         try {
-            const results = await adminService.searchUsers(query);
+            const results = await adminService.searchUsers(searchQuery);
             setUsers(results);
             
-            // Fetch roles for all returned users
-            const rolesMap: Record<string, KeycloakRole[]> = {};
-            for (const user of results) {
-                const roles = await adminService.getUserRoles(user.id);
-                rolesMap[user.id] = roles;
-            }
+            const rolesEntries = await Promise.all(
+                results.map(async (user) => [user.id, await adminService.getUserRoles(user.id)] as const)
+            );
+            const rolesMap = Object.fromEntries(rolesEntries);
             setUserRoles(rolesMap);
             
         } catch (err: any) {
@@ -34,6 +36,11 @@ export default function UserManagementPage() {
     const toggleRole = async (userId: string, roleName: string) => {
         const hasRole = userRoles[userId]?.some(r => r.name === roleName);
         const assign = !hasRole;
+        const user = users.find(u => u.id === userId);
+        const userLabel = user?.username || user?.email || 'este usuario';
+        const action = assign ? 'asignar' : 'remover';
+        const confirmed = window.confirm(`¿Seguro que deseas ${action} el rol ${roleName} a ${userLabel}?`);
+        if (!confirmed) return;
         
         try {
             await adminService.toggleUserRole(userId, roleName, assign);
