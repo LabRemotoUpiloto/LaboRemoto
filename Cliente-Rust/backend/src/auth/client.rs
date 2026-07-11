@@ -201,3 +201,136 @@ impl KeycloakClient {
         })
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Keycloak Admin REST API (Delegación de Token)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+pub struct KeycloakUser {
+    pub id: String,
+    pub username: String,
+    pub email: Option<String>,
+    #[serde(rename = "firstName")]
+    pub first_name: Option<String>,
+    #[serde(rename = "lastName")]
+    pub last_name: Option<String>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+pub struct KeycloakRole {
+    pub id: String,
+    pub name: String,
+}
+
+impl KeycloakClient {
+    fn keycloak_admin_error(operation: &str, status: reqwest::StatusCode, body: String) -> AppError {
+        if status.as_u16() == 403 {
+            return AppError::Api(format!(
+                "Keycloak Admin API rechazó {} (403). El token requiere permisos del cliente realm-management, por ejemplo view-users/manage-users/view-realm. {}",
+                operation, body
+            ));
+        }
+
+        AppError::Api(format!("Keycloak Admin API error en {} ({}): {}", operation, status, body))
+    }
+
+    /// GET /admin/realms/{realm}/users?search={query}
+    pub async fn admin_search_users(&self, token: &str, query: &str) -> Result<Vec<KeycloakUser>, AppError> {
+        let url = format!("{}/admin/realms/{}/users", self.config.base_url, self.config.realm);
+        let response = self.http
+            .get(&url)
+            .bearer_auth(token)
+            .query(&[("search", query)])
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_search_users] GET falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("buscar usuarios", status, body));
+        }
+
+        let users = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
+        Ok(users)
+    }
+
+    /// GET /admin/realms/{realm}/users/{id}/role-mappings/realm
+    pub async fn admin_get_user_roles(&self, token: &str, user_id: &str) -> Result<Vec<KeycloakRole>, AppError> {
+        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.config.base_url, self.config.realm, user_id);
+        let response = self.http
+            .get(&url)
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_get_user_roles] GET falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("consultar roles de usuario", status, body));
+        }
+
+        let roles = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
+        Ok(roles)
+    }
+
+    /// GET /admin/realms/{realm}/roles/{role_name}
+    pub async fn admin_get_role_by_name(&self, token: &str, role_name: &str) -> Result<KeycloakRole, AppError> {
+        let url = format!("{}/admin/realms/{}/roles/{}", self.config.base_url, self.config.realm, role_name);
+        let response = self.http
+            .get(&url)
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_get_role_by_name] GET falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("consultar rol", status, body));
+        }
+
+        let role = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
+        Ok(role)
+    }
+
+    /// POST /admin/realms/{realm}/users/{id}/role-mappings/realm
+    pub async fn admin_assign_role(&self, token: &str, user_id: &str, role: &KeycloakRole) -> Result<(), AppError> {
+        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.config.base_url, self.config.realm, user_id);
+        let response = self.http
+            .post(&url)
+            .bearer_auth(token)
+            .json(&vec![role])
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_assign_role] POST falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("asignar rol", status, body));
+        }
+        Ok(())
+    }
+
+    /// DELETE /admin/realms/{realm}/users/{id}/role-mappings/realm
+    pub async fn admin_remove_role(&self, token: &str, user_id: &str, role: &KeycloakRole) -> Result<(), AppError> {
+        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.config.base_url, self.config.realm, user_id);
+        let response = self.http
+            .delete(&url)
+            .bearer_auth(token)
+            .json(&vec![role])
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_remove_role] DELETE falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("remover rol", status, body));
+        }
+        Ok(())
+    }
+}

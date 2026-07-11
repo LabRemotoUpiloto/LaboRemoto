@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 export interface AuthSessionInfo {
   preferred_username: string;
   user_type: string;
+  roles: string[];
   given_name?: string;
   family_name?: string;
   email?: string;

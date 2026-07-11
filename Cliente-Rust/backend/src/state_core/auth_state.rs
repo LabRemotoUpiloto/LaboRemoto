@@ -114,6 +114,8 @@ pub struct StoredClaims {
     pub email: String,
     /// Tipo de usuario institucional (`Estudiante` | `Docente`).
     pub user_type: UserType,
+    /// Roles normalizados y unificados (ej. ["estudiante", "admin_lab"]).
+    pub roles: Vec<String>,
     /// Unix timestamp de expiración del access_token (campo `exp` del JWT).
     pub exp: i64,
     /// ID de sesión de Keycloak (`sid`), útil para logout federado.
@@ -132,6 +134,7 @@ pub struct AuthSessionInfo {
     pub name:               String,
     pub email:              String,
     pub user_type:          UserType,
+    pub roles:              Vec<String>,
     /// Unix timestamp de expiración del access_token.
     /// El frontend puede mostrar un countdown o solicitar refresh proactivamente.
     pub exp:                i64,
@@ -260,6 +263,7 @@ impl AuthState {
                 name:               bundle.claims.name.clone(),
                 email:              bundle.claims.email.clone(),
                 user_type:          bundle.claims.user_type.clone(),
+                roles:              bundle.claims.roles.clone(),
                 exp:                bundle.claims.exp,
             })
         })
@@ -307,6 +311,7 @@ mod tests {
                 name:               "DAVID ALEJANDRO CARREÑO PARRA".to_string(),
                 email:              "david-carreno1@upc.edu.co".to_string(),
                 user_type:          UserType::Estudiante,
+                roles:              vec!["estudiante".to_string()],
                 exp:                9999999999,
                 sid:                "e9c14877-a4f4-4816-b8b4-45f9ac1756c7".to_string(),
             },

@@ -85,6 +85,11 @@ struct JwkEntry {
 // Claims para decodificación verificada (jsonwebtoken valida firma + exp + iss + aud)
 // ─────────────────────────────────────────────────────────────────────────────
 
+#[derive(Deserialize, Debug, Clone)]
+struct RealmAccess {
+    roles: Vec<String>,
+}
+
 /// Subset del payload JWT que necesita validación completa.
 /// `jsonwebtoken::decode` valida automáticamente `exp`, `nbf`, `iss` y `aud`.
 #[derive(Deserialize, Debug)]
@@ -98,6 +103,8 @@ struct VerifiedClaims {
     user_type:          Option<String>,
     /// ID de sesión Keycloak (útil para logout federado).
     sid:                Option<String>,
+    /// Roles del realm.
+    realm_access:       Option<RealmAccess>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,6 +120,7 @@ struct RawClaims {
     email:              Option<String>,
     user_type:          Option<String>,
     sid:                Option<String>,
+    realm_access:       Option<RealmAccess>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -217,12 +225,31 @@ pub async fn verify_and_decode(
         )))?;
 
     let c = token_data.claims;
+
+    let user_type_str = c.user_type.unwrap_or_default();
+    let u_type = UserType::from_claim(&user_type_str);
+
+    let mut roles = Vec::new();
+    if let Some(ra) = c.realm_access {
+        for role in ra.roles {
+            if !role.starts_with("default-roles") && role != "offline_access" && role != "uma_authorization" {
+                roles.push(role);
+            }
+        }
+    }
+
+    let u_type_lower = u_type.to_string().to_lowercase();
+    if !roles.contains(&u_type_lower) && u_type != UserType::Unknown {
+        roles.push(u_type_lower);
+    }
+
     Ok(StoredClaims {
         sub:                c.sub,
         preferred_username: c.preferred_username,
         name:               c.name.unwrap_or_else(|| "Usuario".to_string()),
         email:              c.email.unwrap_or_default(),
-        user_type:          UserType::from_claim(&c.user_type.unwrap_or_default()),
+        user_type:          u_type,
+        roles,
         exp:                c.exp,
         sid:                c.sid.unwrap_or_default(),
     })
@@ -250,12 +277,30 @@ pub fn decode_claims_unverified(token: &str) -> Result<StoredClaims, AppError> {
     let raw: RawClaims = serde_json::from_slice(&payload_bytes)
         .map_err(|e| AppError::Serialization(format!("Error parseando claims JWT: {}", e)))?;
 
+    let user_type_str = raw.user_type.unwrap_or_default();
+    let u_type = UserType::from_claim(&user_type_str);
+
+    let mut roles = Vec::new();
+    if let Some(ra) = raw.realm_access {
+        for role in ra.roles {
+            if !role.starts_with("default-roles") && role != "offline_access" && role != "uma_authorization" {
+                roles.push(role);
+            }
+        }
+    }
+
+    let u_type_lower = u_type.to_string().to_lowercase();
+    if !roles.contains(&u_type_lower) && u_type != UserType::Unknown {
+        roles.push(u_type_lower);
+    }
+
     Ok(StoredClaims {
         sub:                raw.sub,
         preferred_username: raw.preferred_username,
         name:               raw.name.unwrap_or_else(|| "Usuario".to_string()),
         email:              raw.email.unwrap_or_default(),
-        user_type:          UserType::from_claim(&raw.user_type.unwrap_or_default()),
+        user_type:          u_type,
+        roles,
         exp:                raw.exp,
         sid:                raw.sid.unwrap_or_default(),
     })
@@ -358,6 +403,9 @@ mod tests {
         assert_eq!(claims.sub,                "d66688b1-e8b7-4c88-97c8-3458be291d89");
         assert_eq!(claims.sid,                "e9c14877-a4f4-4816-b8b4-45f9ac1756c7");
         assert_eq!(claims.exp,                1783361171);
+        assert!(claims.roles.contains(&"estudiante".to_string()));
+        assert!(!claims.roles.contains(&"uma_authorization".to_string()));
+        assert_eq!(claims.roles.len(), 1);
     }
 
     #[test]

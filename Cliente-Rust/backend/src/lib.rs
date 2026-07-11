@@ -167,6 +167,10 @@ pub fn run() {
       crate::auth::commands::auth_login_url,
       crate::auth::commands::auth_status,
       crate::auth::commands::auth_logout,
+      // Admin REST API (User Management)
+      crate::auth::commands::admin_search_users,
+      crate::auth::commands::admin_get_user_roles,
+      crate::auth::commands::admin_toggle_user_role,
     ])
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {
