@@ -299,7 +299,17 @@ export default function UserManagementPage() {
                                     )
                                 }
                             />
-                            <Button type="submit" color="red" leftSection={<Search size={16} />} loading={loading} disabled={query.trim().length < 2}>
+                            <Button
+                                type="submit"
+                                leftSection={<Search size={16} />}
+                                loading={loading}
+                                disabled={query.trim().length < 2}
+                                style={{
+                                    backgroundColor: 'var(--accent-primary)',
+                                    color: 'var(--text-inverse)',
+                                    border: '1px solid color-mix(in srgb, var(--accent-primary) 70%, transparent)',
+                                }}
+                            >
                                 Buscar
                             </Button>
                         </Group>
@@ -328,8 +338,9 @@ export default function UserManagementPage() {
                                     style={{
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        borderColor: 'rgba(213, 31, 34, 0.14)',
-                                        boxShadow: '0 18px 45px rgba(0, 0, 0, 0.05)',
+                                        backgroundColor: 'var(--background-secondary)',
+                                        borderColor: 'var(--border-subtle)',
+                                        boxShadow: 'var(--shadow)',
                                     }}
                                 >
                                     <Box
@@ -339,7 +350,7 @@ export default function UserManagementPage() {
                                             right: 0,
                                             width: 96,
                                             height: 96,
-                                            background: 'linear-gradient(135deg, rgba(213,31,34,0.14), rgba(213,31,34,0))',
+                                            background: 'linear-gradient(135deg, var(--accent-primary-subtle), transparent)',
                                             borderBottomLeftRadius: 96,
                                         }}
                                     />
@@ -349,9 +360,13 @@ export default function UserManagementPage() {
                                             <ThemeIcon
                                                 size={54}
                                                 radius="lg"
-                                                variant="light"
-                                                color="red"
-                                                style={{ fontWeight: 800, fontSize: 15 }}
+                                                style={{
+                                                    fontWeight: 800,
+                                                    fontSize: 15,
+                                                    backgroundColor: 'var(--accent-primary-subtle)',
+                                                    color: 'var(--accent-primary)',
+                                                    border: '1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent)',
+                                                }}
                                             >
                                                 {initials || <UserRound size={22} />}
                                             </ThemeIcon>
@@ -359,7 +374,14 @@ export default function UserManagementPage() {
                                                 <Group gap="xs">
                                                     <Text fw={800} size="md">{user.username}</Text>
                                                     {currentRoles.some(r => r.name === 'admin_lab') && (
-                                                        <Badge color="red" variant="light" leftSection={<ShieldCheck size={12} />}>
+                                                        <Badge
+                                                            leftSection={<ShieldCheck size={12} />}
+                                                            style={{
+                                                                backgroundColor: 'var(--accent-primary-subtle)',
+                                                                color: 'var(--accent-primary)',
+                                                                border: '1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent)',
+                                                            }}
+                                                        >
                                                             Admin
                                                         </Badge>
                                                     )}
@@ -380,11 +402,17 @@ export default function UserManagementPage() {
                                                 return (
                                                     <Badge
                                                         key={roleName}
-                                                        color={isActive ? 'red' : 'gray'}
-                                                        variant={isActive ? 'filled' : 'outline'}
                                                         radius="md"
                                                         size="lg"
-                                                        style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                                                        style={{
+                                                            cursor: 'pointer',
+                                                            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                                                            backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
+                                                            color: isActive ? 'var(--text-inverse)' : 'var(--text-secondary)',
+                                                            border: isActive
+                                                                ? '1px solid var(--accent-primary)'
+                                                                : '1px solid var(--border-strong, var(--border-subtle))',
+                                                        }}
                                                         onClick={() => toggleRole(user.id, roleName)}
                                                     >
                                                         {roleLabels[roleName]}
