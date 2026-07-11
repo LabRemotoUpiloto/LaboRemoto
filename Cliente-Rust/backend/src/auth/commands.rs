@@ -324,7 +324,7 @@ pub async fn admin_toggle_user_role(
     let token = check_admin_lab(&auth_state)?;
     let config = KeycloakConfig::from_env();
     let client = KeycloakClient::new(config);
-    
+
     let role = client.admin_get_role_by_name(&token, &role_name)
         .await
         .map_err(|e| format!("Error obteniendo rol {}: {}", role_name, e))?;

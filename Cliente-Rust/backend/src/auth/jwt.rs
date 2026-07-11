@@ -225,10 +225,10 @@ pub async fn verify_and_decode(
         )))?;
 
     let c = token_data.claims;
-    
+
     let user_type_str = c.user_type.unwrap_or_default();
     let u_type = UserType::from_claim(&user_type_str);
-    
+
     let mut roles = Vec::new();
     if let Some(ra) = c.realm_access {
         for role in ra.roles {
@@ -237,7 +237,7 @@ pub async fn verify_and_decode(
             }
         }
     }
-    
+
     let u_type_lower = u_type.to_string().to_lowercase();
     if !roles.contains(&u_type_lower) && u_type != UserType::Unknown {
         roles.push(u_type_lower);
@@ -279,7 +279,7 @@ pub fn decode_claims_unverified(token: &str) -> Result<StoredClaims, AppError> {
 
     let user_type_str = raw.user_type.unwrap_or_default();
     let u_type = UserType::from_claim(&user_type_str);
-    
+
     let mut roles = Vec::new();
     if let Some(ra) = raw.realm_access {
         for role in ra.roles {
@@ -288,7 +288,7 @@ pub fn decode_claims_unverified(token: &str) -> Result<StoredClaims, AppError> {
             }
         }
     }
-    
+
     let u_type_lower = u_type.to_string().to_lowercase();
     if !roles.contains(&u_type_lower) && u_type != UserType::Unknown {
         roles.push(u_type_lower);

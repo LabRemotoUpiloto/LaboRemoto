@@ -19,13 +19,13 @@ export default function UserManagementPage() {
         try {
             const results = await adminService.searchUsers(searchQuery);
             setUsers(results);
-            
+
             const rolesEntries = await Promise.all(
                 results.map(async (user) => [user.id, await adminService.getUserRoles(user.id)] as const)
             );
             const rolesMap = Object.fromEntries(rolesEntries);
             setUserRoles(rolesMap);
-            
+
         } catch (err: any) {
             notifications.show({ title: 'Error', message: err.toString(), color: 'red' });
         } finally {
@@ -41,7 +41,7 @@ export default function UserManagementPage() {
         const action = assign ? 'asignar' : 'remover';
         const confirmed = window.confirm(`¿Seguro que deseas ${action} el rol ${roleName} a ${userLabel}?`);
         if (!confirmed) return;
-        
+
         try {
             await adminService.toggleUserRole(userId, roleName, assign);
             // Re-fetch roles
@@ -113,7 +113,7 @@ export default function UserManagementPage() {
                                                 </Stack>
                                             </Table.Td>
                                             <Table.Td>
-                                                {user.firstName || user.lastName 
+                                                {user.firstName || user.lastName
                                                     ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
                                                     : '-'
                                                 }

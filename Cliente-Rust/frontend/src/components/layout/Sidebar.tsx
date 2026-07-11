@@ -187,7 +187,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         {[
           ...sections,
-          ...(user?.roles?.includes('admin_lab') 
+          ...(user?.roles?.includes('admin_lab')
             ? [{
                 label: 'Administración',
                 items: [
