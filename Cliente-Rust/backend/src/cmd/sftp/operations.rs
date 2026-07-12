@@ -1,10 +1,37 @@
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 
+use serde::{Deserialize, Serialize};
+
 use crate::error::AppError;
 use crate::ssh_core::ssh2_sftp as sftp2;
 use crate::cmd::state::{SESSIONS, TRANSFERS, SftpEntry, CachedSsh2};
+use crate::cmd::protocol::{wrap_result, CommandError, CommandRequest, CommandResponse};
 use super::get_or_connect_cached;
+
+// ── Fase C: envelope versionado (CommandRequest/CommandResponse) ────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SftpListPayload {
+  pub id: String,
+  pub path: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SftpListResponse {
+  pub entries: Vec<SftpEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SftpMkdirPayload {
+  pub id: String,
+  pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SftpMkdirResponse {
+  pub ok: bool,
+}
 
 #[tauri::command]
 pub async fn sftp_open(id: String) -> Result<(), String> {
@@ -40,7 +67,19 @@ pub async fn sftp_home(id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, String> {
+pub async fn sftp_list(
+  req: CommandRequest<SftpListPayload>,
+) -> Result<CommandResponse<SftpListResponse>, CommandError> {
+  let started = std::time::Instant::now();
+  let SftpListPayload { id, path } = req.payload;
+  let result = sftp_list_impl(id, path)
+    .await
+    .map(|entries| SftpListResponse { entries });
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn sftp_list_impl(id: String, path: String) -> Result<Vec<SftpEntry>, String> {
   let list = tokio::task::spawn_blocking(move || {
     let cached = {
       let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
@@ -76,7 +115,19 @@ pub async fn sftp_list(id: String, path: String) -> Result<Vec<SftpEntry>, Strin
 }
 
 #[tauri::command]
-pub async fn sftp_mkdir(id: String, path: String) -> Result<(), String> {
+pub async fn sftp_mkdir(
+  req: CommandRequest<SftpMkdirPayload>,
+) -> Result<CommandResponse<SftpMkdirResponse>, CommandError> {
+  let started = std::time::Instant::now();
+  let SftpMkdirPayload { id, path } = req.payload;
+  let result = sftp_mkdir_impl(id, path)
+    .await
+    .map(|_| SftpMkdirResponse { ok: true });
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn sftp_mkdir_impl(id: String, path: String) -> Result<(), String> {
   tokio::task::spawn_blocking(move || {
     let cached = {
       let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
