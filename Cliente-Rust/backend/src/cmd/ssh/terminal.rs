@@ -1,5 +1,6 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 use std::sync::{Arc, Mutex};
@@ -9,10 +10,87 @@ use crate::error::AppError;
 use crate::ssh_core::client::{Session, ChanCmd};
 use crate::storage;
 use crate::cmd::state::SESSIONS;
+use crate::cmd::protocol::{wrap_result, CommandError, CommandRequest, CommandResponse};
 use crate::state_core::AppState;
 
+// ── Fase B: envelope versionado (CommandRequest/CommandResponse) ────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshConnectPayload {
+  pub host: String,
+  pub port: u16,
+  pub user: String,
+  pub password: String,
+  pub cols: u32,
+  pub rows: u32,
+  pub embedded_in_chat: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshConnectResponse {
+  pub session_id: String,
+  pub host: String,
+  pub port: u16,
+  pub user: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshStdinPayload {
+  pub id: String,
+  pub data: String,
+  pub encoding: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SshStdinResponse {
+  pub ok: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshResizePayload {
+  pub id: String,
+  pub cols: u32,
+  pub rows: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SshResizeResponse {
+  pub ok: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshDisconnectPayload {
+  pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SshDisconnectResponse {
+  pub ok: bool,
+}
+
+/// Comando Tauri versionado: conecta una sesión SSH interactiva.
+/// La lógica de negocio vive en `ssh_connect_impl` para reutilizarse desde
+/// `pi4_ssh_connect` sin pasar por el envelope.
 #[tauri::command]
 pub async fn ssh_connect(
+  app: AppHandle,
+  state: tauri::State<'_, AppState>,
+  req: CommandRequest<SshConnectPayload>,
+) -> Result<CommandResponse<SshConnectResponse>, CommandError> {
+  let started = std::time::Instant::now();
+  let SshConnectPayload { host, port, user, password, cols, rows, embedded_in_chat } = req.payload;
+  let host_echo = host.clone();
+  let user_echo = user.clone();
+
+  let result = ssh_connect_impl(app, state, host, port, user, password, cols, rows, embedded_in_chat)
+    .await
+    .map(|session_id| SshConnectResponse { session_id, host: host_echo, port, user: user_echo });
+
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn ssh_connect_impl(
   app: AppHandle,
   state: tauri::State<'_, AppState>,
   host: String,
@@ -143,7 +221,7 @@ pub async fn pi4_ssh_connect(
   let creds = crate::cmd::tools::pi4_config::load_pi4_creds().ok_or_else(|| {
     "Configura PI4_USER y PI4_PASSWORD en Cliente-Rust/.env para abrir la terminal.".to_string()
   })?;
-  ssh_connect(
+  ssh_connect_impl(
     app,
     state,
     creds.host,
@@ -175,7 +253,19 @@ pub async fn ssh_ui_ready(app: AppHandle, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Result<(), String> {
+pub async fn ssh_stdin(
+  req: CommandRequest<SshStdinPayload>,
+) -> Result<CommandResponse<SshStdinResponse>, CommandError> {
+  let started = std::time::Instant::now();
+  let SshStdinPayload { id, data, encoding } = req.payload;
+  let result = ssh_stdin_impl(id, data, encoding)
+    .await
+    .map(|_| SshStdinResponse { ok: true });
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn ssh_stdin_impl(id: String, data: String, encoding: Option<String>) -> Result<(), String> {
   let tx = {
     let map = SESSIONS.lock().map_err(|e| e.to_string())?;
     map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?.term.tx.clone()
@@ -251,7 +341,19 @@ pub async fn ssh_stdin(id: String, data: String, encoding: Option<String>) -> Re
 }
 
 #[tauri::command]
-pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> {
+pub async fn ssh_resize(
+  req: CommandRequest<SshResizePayload>,
+) -> Result<CommandResponse<SshResizeResponse>, CommandError> {
+  let started = std::time::Instant::now();
+  let SshResizePayload { id, cols, rows } = req.payload;
+  let result = ssh_resize_impl(id, cols, rows)
+    .await
+    .map(|_| SshResizeResponse { ok: true });
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn ssh_resize_impl(id: String, cols: u32, rows: u32) -> Result<(), String> {
   let tx = {
     let map = SESSIONS.lock().map_err(|e| e.to_string())?;
     map.get(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?.term.tx.clone()
@@ -260,7 +362,20 @@ pub async fn ssh_resize(id: String, cols: u32, rows: u32) -> Result<(), String> 
 }
 
 #[tauri::command]
-pub async fn ssh_disconnect(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
+pub async fn ssh_disconnect(
+  state: tauri::State<'_, AppState>,
+  req: CommandRequest<SshDisconnectPayload>,
+) -> Result<CommandResponse<SshDisconnectResponse>, CommandError> {
+  let started = std::time::Instant::now();
+  let SshDisconnectPayload { id } = req.payload;
+  let result = ssh_disconnect_impl(state, id)
+    .await
+    .map(|_| SshDisconnectResponse { ok: true });
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn ssh_disconnect_impl(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
   let mut session = {
     let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     map.remove(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?
