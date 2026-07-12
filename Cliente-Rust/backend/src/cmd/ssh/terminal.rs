@@ -11,7 +11,7 @@ use crate::ssh_core::client::{Session, ChanCmd};
 use crate::storage;
 use crate::cmd::state::SESSIONS;
 use crate::cmd::protocol::{wrap_result, CommandError, CommandRequest, CommandResponse};
-use crate::state_core::AppState;
+use crate::session_manager::SessionManager;
 
 // ── Fase B: envelope versionado (CommandRequest/CommandResponse) ────────────
 
@@ -74,7 +74,7 @@ pub struct SshDisconnectResponse {
 #[tauri::command]
 pub async fn ssh_connect(
   app: AppHandle,
-  state: tauri::State<'_, AppState>,
+  state: tauri::State<'_, std::sync::Arc<dyn SessionManager>>,
   req: CommandRequest<SshConnectPayload>,
 ) -> Result<CommandResponse<SshConnectResponse>, CommandError> {
   let started = std::time::Instant::now();
@@ -92,7 +92,7 @@ pub async fn ssh_connect(
 
 async fn ssh_connect_impl(
   app: AppHandle,
-  state: tauri::State<'_, AppState>,
+  state: tauri::State<'_, std::sync::Arc<dyn SessionManager>>,
   host: String,
   port: u16,
   user: String,
@@ -103,8 +103,10 @@ async fn ssh_connect_impl(
 ) -> Result<String, String> {
   let embedded_in_chat = embedded_in_chat.unwrap_or(false);
   let id = Uuid::new_v4().to_string();
-  state.clear(&id);
-  
+  // Extraer el Arc antes de cualquier await (el guard de `State` no se retiene).
+  let manager = state.inner().clone();
+  let _ = manager.delete_session(&id).await;
+
   let id_clone = id.clone();
   let app_clone = app.clone();
   let host_clone = host.clone();
@@ -214,7 +216,7 @@ async fn ssh_connect_impl(
 #[tauri::command]
 pub async fn pi4_ssh_connect(
   app: AppHandle,
-  state: tauri::State<'_, AppState>,
+  state: tauri::State<'_, std::sync::Arc<dyn SessionManager>>,
   cols: u32,
   rows: u32,
 ) -> Result<String, String> {
@@ -363,7 +365,7 @@ async fn ssh_resize_impl(id: String, cols: u32, rows: u32) -> Result<(), String>
 
 #[tauri::command]
 pub async fn ssh_disconnect(
-  state: tauri::State<'_, AppState>,
+  state: tauri::State<'_, std::sync::Arc<dyn SessionManager>>,
   req: CommandRequest<SshDisconnectPayload>,
 ) -> Result<CommandResponse<SshDisconnectResponse>, CommandError> {
   let started = std::time::Instant::now();
@@ -375,7 +377,8 @@ pub async fn ssh_disconnect(
   Ok(wrap_result(req.id, req.version, result, elapsed_ms))
 }
 
-async fn ssh_disconnect_impl(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
+async fn ssh_disconnect_impl(state: tauri::State<'_, std::sync::Arc<dyn SessionManager>>, id: String) -> Result<(), String> {
+  let manager = state.inner().clone();
   let mut session = {
     let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     map.remove(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?
@@ -397,7 +400,7 @@ async fn ssh_disconnect_impl(state: tauri::State<'_, AppState>, id: String) -> R
   }
 
   let _ = session.term.tx.send(ChanCmd::Close);
-  state.clear(&id);
+  let _ = manager.delete_session(&id).await;
   Ok(())
 }
 
@@ -420,7 +423,7 @@ pub async fn ssh_session_info(id: String) -> Result<SessionInfo, String> {
 #[tauri::command]
 pub async fn ssh_connect_stored(
   app: AppHandle,
-  state: tauri::State<'_, AppState>,
+  state: tauri::State<'_, std::sync::Arc<dyn SessionManager>>,
   id: String,
   cols: u32,
   rows: u32,
@@ -461,7 +464,8 @@ pub async fn ssh_connect_stored(
     });
   }
 
-  state.clear(&id);
+  let manager = state.inner().clone();
+  let _ = manager.delete_session(&id).await;
 
   let app2 = app.clone();
   let id_spawn = id.clone();

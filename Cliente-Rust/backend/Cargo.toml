@@ -68,6 +68,10 @@ tokio-stream = "0.1"
 tauri-build = { version = "2", features = [] }
 dotenvy = "0.15"
 
+[[test]]
+name = "session_manager_flow_test"
+path = "tests/integration/session_manager_flow_test.rs"
+
 [profile.release]
 lto = true
 codegen-units = 1

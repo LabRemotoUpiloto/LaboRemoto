@@ -22,11 +22,13 @@
 //! | `auth://session-ready`| `AuthSessionInfo` | Login o refresh exitoso       |
 //! | `auth://error`        | `String`          | Error en cualquier paso OAuth |
 
+use std::sync::Arc;
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 use uuid::Uuid;
 
-use crate::state_core::{AuthSessionInfo, AuthState};
+use crate::session_manager::SessionManager;
+use crate::state_core::AuthSessionInfo;
 use super::{
     callback::CallbackServer,
     client::{KeycloakClient, KeycloakRole, KeycloakUser},
@@ -63,20 +65,20 @@ pub const EVENT_AUTH_ERROR:    &str = "auth://error";
 /// - `auth://error` con mensaje si algo falla
 #[tauri::command]
 pub async fn auth_login_url(
-    app:        tauri::AppHandle,
-    auth_state: tauri::State<'_, AuthState>,
+    app:     tauri::AppHandle,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<String, String> {
+    // Extraer el Arc antes de cualquier await (el guard de `State` no se retiene).
+    let manager = manager.inner().clone();
+
     // ── 1-2. Generar y guardar PKCE ──────────────────────────────────────────
     let verifier  = PkceVerifier::new();
     let challenge = verifier.challenge();
-    auth_state.set_pending_verifier(verifier.into_string());
+    manager.set_pending_verifier(verifier.into_string()).await.map_err(|e| e.to_string())?;
 
     // ── 3. Generar UUID anti-CSRF ────────────────────────────────────────────
     // UUID v4 aleatorio: imposible de predecir por un atacante externo.
     let csrf_state = Uuid::new_v4().to_string();
-
-    // Liberar State<'_> ANTES del primer await (no implementa Send)
-    drop(auth_state);
 
     // ── 4. Leer configuración ────────────────────────────────────────────────
     let config = KeycloakConfig::from_env();
@@ -115,8 +117,9 @@ pub async fn auth_login_url(
 ///
 /// Retorna `None` si no hay sesión activa o si el access_token ya expiró.
 #[tauri::command]
-pub fn auth_status(auth_state: tauri::State<'_, AuthState>) -> Option<AuthSessionInfo> {
-    auth_state.session_info()
+pub async fn auth_status(manager: tauri::State<'_, Arc<dyn SessionManager>>) -> Result<Option<AuthSessionInfo>, String> {
+    let manager = manager.inner().clone();
+    manager.session_info().await.map_err(|e| e.to_string())
 }
 
 /// Cierra la sesión del usuario con revocación remota en Keycloak.
@@ -132,17 +135,17 @@ pub fn auth_status(auth_state: tauri::State<'_, AuthState>) -> Option<AuthSessio
 /// un error de red en el servidor Keycloak.
 #[tauri::command]
 pub async fn auth_logout(
-    app:        tauri::AppHandle,
-    auth_state: tauri::State<'_, AuthState>,
+    app:     tauri::AppHandle,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<(), String> {
-    // Capturar refresh_token ANTES de limpiar el estado (y antes del await)
-    let refresh_token = auth_state.get_refresh_token();
+    // Extraer el Arc antes de cualquier await (el guard de `State` no se retiene).
+    let manager = manager.inner().clone();
+
+    // Capturar refresh_token ANTES de limpiar el estado
+    let refresh_token = manager.get_refresh_token().await.map_err(|e| e.to_string())?;
 
     // Limpiar estado local INMEDIATAMENTE (garantiza logout aunque falle la red)
-    auth_state.clear();
-
-    // Liberar State<'_> antes del primer await
-    drop(auth_state);
+    manager.clear_auth().await.map_err(|e| e.to_string())?;
 
     // Revocación remota best-effort
     if let Some(rt) = refresh_token {
@@ -187,10 +190,10 @@ async fn exchange_code_background(
     };
 
     // Recuperar y consumir el verifier PKCE (semántica de un solo uso)
-    let auth_state = app.state::<AuthState>();
-    let verifier: String = match auth_state.take_pending_verifier() {
-        Some(v) => v,
-        None => {
+    let manager = app.state::<Arc<dyn SessionManager>>().inner().clone();
+    let verifier: String = match manager.take_pending_verifier().await {
+        Ok(Some(v)) => v,
+        Ok(None) | Err(_) => {
             let _ = app.emit(EVENT_AUTH_ERROR, "Error interno: verifier PKCE no encontrado");
             return;
         }
@@ -201,7 +204,7 @@ async fn exchange_code_background(
     match client.exchange_code(&code, &verifier, &redirect_uri).await {
         Ok(bundle) => {
             let session_info = bundle_to_session_info(&bundle);
-            auth_state.store(bundle);
+            let _ = manager.store_auth(bundle).await;
             let _ = app.emit(EVENT_SESSION_READY, &session_info);
 
             // Lanzar el daemon de renovación en background
@@ -229,13 +232,13 @@ fn bundle_to_session_info(bundle: &crate::state_core::TokenBundle) -> AuthSessio
 /// silenciosamente antes de que expire.
 async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
     let client = KeycloakClient::new(config);
-    
+    // El Arc no cambia durante la vida de la app: se extrae una sola vez.
+    let manager = app.state::<Arc<dyn SessionManager>>().inner().clone();
+
     loop {
-        let auth_state = app.state::<AuthState>();
-        
-        let (_refresh_token, access_expires_at) = match auth_state.get_refresh_info() {
-            Some(info) => info,
-            None => {
+        let (_refresh_token, access_expires_at) = match manager.get_refresh_info().await {
+            Ok(Some(info)) => info,
+            Ok(None) | Err(_) => {
                 break;
             }
         };
@@ -243,7 +246,7 @@ async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
         let now = std::time::Instant::now();
         // Despertar 45 segundos antes de que expire el access token
         let margin = std::time::Duration::from_secs(45);
-        
+
         if access_expires_at > now + margin {
             let sleep_duration = access_expires_at - now - margin;
             tokio::time::sleep(sleep_duration).await;
@@ -253,9 +256,9 @@ async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
         }
 
         // Al despertar, verificamos si hay sesión (puede haber hecho logout manualmente)
-        let current_refresh_token = match auth_state.get_refresh_token() {
-            Some(rt) => rt,
-            None => {
+        let current_refresh_token = match manager.get_refresh_token().await {
+            Ok(Some(rt)) => rt,
+            Ok(None) | Err(_) => {
                 break;
             }
         };
@@ -263,11 +266,11 @@ async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
         match client.refresh_access_token(&current_refresh_token).await {
             Ok(bundle) => {
                 let session_info = bundle_to_session_info(&bundle);
-                auth_state.store(bundle);
+                let _ = manager.store_auth(bundle).await;
                 let _ = app.emit(EVENT_SESSION_READY, &session_info);
             }
             Err(_e) => {
-                auth_state.clear();
+                let _ = manager.clear_auth().await;
                 let _ = app.emit("auth://logged-out", ());
                 break;
             }
@@ -279,25 +282,28 @@ async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
 // Admin REST API Commands
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn check_admin_lab(auth_state: &tauri::State<'_, AuthState>) -> Result<String, String> {
-    let session = auth_state.session_info().ok_or("No hay sesión activa")?;
+async fn check_admin_lab(manager: &Arc<dyn SessionManager>) -> Result<String, String> {
+    let session = manager.session_info().await.map_err(|e| e.to_string())?
+        .ok_or("No hay sesión activa")?;
     if !session.roles.contains(&"admin_lab".to_string()) {
         return Err("Permisos insuficientes: se requiere rol admin_lab".to_string());
     }
-    auth_state.get_access_token().ok_or("Token de acceso expirado o inválido".to_string())
+    manager.get_access_token().await.map_err(|e| e.to_string())?
+        .ok_or("Token de acceso expirado o inválido".to_string())
 }
 
 #[tauri::command]
 pub async fn admin_search_users(
     query: String,
-    auth_state: tauri::State<'_, AuthState>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<Vec<KeycloakUser>, String> {
+    let manager = manager.inner().clone();
     let query = query.trim().to_string();
     if query.len() < 2 {
         return Err("La búsqueda debe tener al menos 2 caracteres".to_string());
     }
 
-    let token = check_admin_lab(&auth_state)?;
+    let token = check_admin_lab(&manager).await?;
     let config = KeycloakConfig::from_env();
     let client = KeycloakClient::new(config);
     client.admin_search_users(&token, &query).await.map_err(|e| e.to_string())
@@ -306,9 +312,10 @@ pub async fn admin_search_users(
 #[tauri::command]
 pub async fn admin_get_user_roles(
     user_id: String,
-    auth_state: tauri::State<'_, AuthState>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<Vec<KeycloakRole>, String> {
-    let token = check_admin_lab(&auth_state)?;
+    let manager = manager.inner().clone();
+    let token = check_admin_lab(&manager).await?;
     let config = KeycloakConfig::from_env();
     let client = KeycloakClient::new(config);
     client.admin_get_user_roles(&token, &user_id).await.map_err(|e| e.to_string())
@@ -319,9 +326,10 @@ pub async fn admin_toggle_user_role(
     user_id: String,
     role_name: String,
     assign: bool,
-    auth_state: tauri::State<'_, AuthState>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<(), String> {
-    let token = check_admin_lab(&auth_state)?;
+    let manager = manager.inner().clone();
+    let token = check_admin_lab(&manager).await?;
     let config = KeycloakConfig::from_env();
     let client = KeycloakClient::new(config);
 
