@@ -8,6 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::cmd::protocol::CommandError;
+
 const BRIDGE_URL: &str = "http://127.0.0.1:8765";
 
 /// Escapa un argumento para uso seguro dentro de comillas simples en bash.
@@ -15,6 +17,20 @@ const BRIDGE_URL: &str = "http://127.0.0.1:8765";
 fn bash_quote(s: &str) -> String {
     let escaped = s.replace('\'', r"'\''");
     format!("'{}'", escaped)
+}
+
+/// Mapea el error `String` legado de `ssh_exec` (sesión SSH ya autenticada
+/// usada como transporte hacia el bridge del Arduino) a un `CommandError`
+/// categorizado. La sesión SSH no encontrada/expirada es un caso especial
+/// (requiere re-login); cualquier otro fallo de la capa de transporte
+/// (canal, exec, lectura) se trata como error de comunicación transitorio.
+fn map_ssh_transport_error(id: &str, operation: &str, e: String) -> CommandError {
+    let lower = e.to_lowercase();
+    if lower.contains("session") && (lower.contains("not found") || lower.contains("notfoundsession")) {
+        return CommandError::session_expired();
+    }
+    CommandError::transient("COMMUNICATION_ERROR", format!("Error de comunicación SSH con el bridge del Arduino: {e}"))
+        .with_context(operation, id)
 }
 
 // ───────────────────────── /status ─────────────────────────
@@ -37,19 +53,28 @@ pub struct ArduinoBridgeStatus {
 }
 
 #[tauri::command]
-pub async fn arduino_bridge_status(id: String) -> Result<ArduinoBridgeStatus, String> {
+pub async fn arduino_bridge_status(id: String) -> Result<ArduinoBridgeStatus, CommandError> {
     let cmd = format!("curl -s --max-time 2 {}/status", BRIDGE_URL);
-    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &cmd)?;
+    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &cmd)
+        .map_err(|e| map_ssh_transport_error(&id, "arduino_bridge_status", e))?;
     let body = out.trim();
     if body.is_empty() {
+        // El bridge HTTP no respondió dentro del timeout de curl (2s): se
+        // reporta como estado "no alcanzable" (no es un error fatal, el
+        // frontend sigue funcionando con datos por defecto).
         return Ok(ArduinoBridgeStatus {
             reachable: false,
             last_error: Some("bridge no responde (¿arduino-bridge.service activo?)".into()),
             ..Default::default()
         });
     }
-    let mut parsed: ArduinoBridgeStatus =
-        serde_json::from_str(body).map_err(|e| format!("JSON inválido del bridge: {e} — body: {body:?}"))?;
+    let mut parsed: ArduinoBridgeStatus = serde_json::from_str(body).map_err(|e| {
+        CommandError::permanent(
+            "INVALID_DATA",
+            format!("JSON inválido del bridge: {e} — body: {body:?}"),
+        )
+        .with_context("arduino_bridge_status", &id)
+    })?;
     parsed.reachable = true;
     Ok(parsed)
 }
@@ -65,17 +90,23 @@ pub struct ArduinoCmdResponse {
 }
 
 #[tauri::command]
-pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdResponse, String> {
+pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdResponse, CommandError> {
     // Sanitizar: solo comandos cortos, ASCII imprimible, sin saltos.
     let trimmed = cmd.trim();
     if trimmed.is_empty() {
-        return Err("Comando vacío".into());
+        return Err(CommandError::permanent("VALIDATION_FAILED", "Comando vacío"));
     }
     if trimmed.len() > 128 {
-        return Err("Comando demasiado largo (>128)".into());
+        return Err(CommandError::permanent(
+            "VALIDATION_FAILED",
+            "Comando demasiado largo (>128)",
+        ));
     }
     if trimmed.chars().any(|c| c.is_control()) {
-        return Err("Comando contiene caracteres de control".into());
+        return Err(CommandError::permanent(
+            "VALIDATION_FAILED",
+            "Comando contiene caracteres de control",
+        ));
     }
 
     // curl -s -o /tmp/body -w "%{http_code}" -X POST .../cmd -d '<cmd>'
@@ -85,7 +116,8 @@ pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdRespo
         "curl -s --max-time 5 -X POST -o - -w '\\n\\t%{{http_code}}' {}/cmd -d {}",
         BRIDGE_URL, quoted
     );
-    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &shell)?;
+    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &shell)
+        .map_err(|e| map_ssh_transport_error(&id, "arduino_send_cmd", e))?;
 
     // Separar el código HTTP (última línea) del body.
     let (body, code) = match out.rsplit_once("\n\t") {
@@ -93,13 +125,24 @@ pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdRespo
         None => (out.trim().to_string(), 0),
     };
 
-    if code >= 400 {
-        return Err(format!("Bridge devolvió HTTP {code}: {body}"));
-    }
     if code == 0 {
-        return Err(format!(
-            "No se recibió respuesta del bridge (¿arduino-bridge.service inactivo?). Respuesta cruda: {body}"
-        ));
+        // curl no devolvió código HTTP dentro del --max-time 5: el bridge no
+        // respondió a tiempo (servicio caído o puerto serial bloqueado).
+        return Err(CommandError::transient(
+            "OPERATION_TIMEOUT",
+            format!(
+                "No se recibió respuesta del bridge (¿arduino-bridge.service inactivo?). Respuesta cruda: {body}"
+            ),
+        )
+        .with_context("arduino_send_cmd", &id)
+        .with_retry_after(2000));
+    }
+    if code >= 400 {
+        return Err(CommandError::transient(
+            "COMMUNICATION_ERROR",
+            format!("Bridge devolvió HTTP {code}: {body}"),
+        )
+        .with_context("arduino_send_cmd", &id));
     }
 
     Ok(ArduinoCmdResponse {
@@ -111,9 +154,10 @@ pub async fn arduino_send_cmd(id: String, cmd: String) -> Result<ArduinoCmdRespo
 // ───────────────────────── GET /read ─────────────────────────
 
 #[tauri::command]
-pub async fn arduino_read_buffer(id: String) -> Result<Vec<String>, String> {
+pub async fn arduino_read_buffer(id: String) -> Result<Vec<String>, CommandError> {
     let cmd = format!("curl -s --max-time 2 {}/read", BRIDGE_URL);
-    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &cmd)?;
+    let (_st, out) = crate::ssh_core::exec::ssh_exec(&id, &cmd)
+        .map_err(|e| map_ssh_transport_error(&id, "arduino_read_buffer", e))?;
     Ok(out
         .lines()
         .map(|l| l.trim().to_string())
