@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { commandClient } from "../services/command.service";
 import type { SftpEntry } from "../types";
 
 export type RemoteSortKey = "name" | "mtime" | "size" | "kind";
@@ -24,8 +25,12 @@ export function useRemoteFsBrowser(sessionId?: string, initialPath?: string) {
     setError(undefined);
     try {
       await invoke("sftp_open", { id: sessionId });
-      const list = await invoke<SftpEntry[]>("sftp_list", { id: sessionId, path });
-      setRows(list || []);
+      // Comando migrado al protocolo versionado: envelope req/response.
+      const res = await commandClient.invoke<
+        { id: string; path: string },
+        { entries: SftpEntry[] }
+      >("sftp_list", { id: sessionId, path });
+      setRows(res?.entries || []);
     } catch (e: any) {
       const errorMsg = e?.toString?.() || "Error";
       // Si el path no existe, intentar volver al home

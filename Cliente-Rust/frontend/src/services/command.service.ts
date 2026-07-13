@@ -93,7 +93,9 @@ export class CommandClient {
       };
 
       try {
-        const response = await invoke<CommandResponse<Response>>(command, { request });
+        // El parámetro del lado Rust se llama `req` en todos los comandos
+        // migrados (ver backend/src/cmd/**): la clave debe coincidir.
+        const response = await invoke<CommandResponse<Response>>(command, { req: request });
 
         if (response.status === 'error') {
           const err = new CommandError(

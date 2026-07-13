@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { commandClient } from '../../services/command.service'
 import { useMediaQuery } from '@mantine/hooks'
 import { Monitor, Server } from 'lucide-react'
 import FilePanel from '../../components/sftp/FilePanel'
@@ -224,10 +225,14 @@ const SftpPage: React.FC<Props> = ({
           remotePath: remote,
         })
       } else {
-        await invoke('sftp_upload_start', {
+        // Comando migrado al protocolo versionado (payload snake_case).
+        await commandClient.invoke<
+          { id: string; local_path: string; remote_path: string },
+          { transfer_id: string }
+        >('sftp_upload_start', {
           id: sessionId,
-          localPath: lSelectedPath,
-          remotePath: remote,
+          local_path: lSelectedPath,
+          remote_path: remote,
         })
       }
     } catch (e: any) {
@@ -251,10 +256,14 @@ const SftpPage: React.FC<Props> = ({
           localPath: local,
         })
       } else {
-        await invoke('sftp_download_start', {
+        // Comando migrado al protocolo versionado (payload snake_case).
+        await commandClient.invoke<
+          { id: string; remote_path: string; local_path: string },
+          { transfer_id: string }
+        >('sftp_download_start', {
           id: sessionId,
-          remotePath: rSelectedPath,
-          localPath: local,
+          remote_path: rSelectedPath,
+          local_path: local,
         })
       }
     } catch (e: any) {
@@ -276,7 +285,11 @@ const SftpPage: React.FC<Props> = ({
       }
       const p = joinRemotePath(rpath, name)
       try {
-        await invoke('sftp_mkdir', { id: sessionId, path: p })
+        // Comando migrado al protocolo versionado.
+        await commandClient.invoke<{ id: string; path: string }, { ok: boolean }>(
+          'sftp_mkdir',
+          { id: sessionId, path: p }
+        )
         refreshRemote()
         push({ type: 'success', message: 'Carpeta creada' })
       } catch (e: any) {
