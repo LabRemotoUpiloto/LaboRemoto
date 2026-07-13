@@ -7,6 +7,7 @@
 //! - Feedback personalizado basado en los resultados
 //! - Tests unitarios para validación de reglas
 
+use crate::cmd::protocol::CommandError;
 use serde::{Deserialize, Serialize};
 
 // ─── Tipos para validación ───
@@ -269,7 +270,14 @@ pub fn calculate_grade(percentage: f32, max_grade: f32) -> f32 {
 pub fn validate_practice_progress(
     practice_id: String,
     command_history: Vec<String>,
-) -> Result<PracticeValidation, String> {
+) -> Result<PracticeValidation, CommandError> {
+    if get_validation_rules(&practice_id).is_empty() {
+        return Err(CommandError::permanent(
+            "RESOURCE_NOT_FOUND",
+            format!("No hay reglas de validación configuradas para la práctica: {}", practice_id),
+        ));
+    }
+
     Ok(validate_practice(&practice_id, &command_history))
 }
 
@@ -279,10 +287,24 @@ pub fn calculate_practice_grade(
     practice_id: String,
     command_history: Vec<String>,
     max_grade: f32,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, CommandError> {
+    if get_validation_rules(&practice_id).is_empty() {
+        return Err(CommandError::permanent(
+            "RESOURCE_NOT_FOUND",
+            format!("No hay reglas de validación configuradas para la práctica: {}", practice_id),
+        ));
+    }
+
+    if max_grade <= 0.0 {
+        return Err(CommandError::permanent(
+            "VALIDATION_FAILED",
+            "max_grade debe ser mayor a 0",
+        ));
+    }
+
     let validation = validate_practice(&practice_id, &command_history);
     let grade = calculate_grade(validation.percentage, max_grade);
-    
+
     Ok(serde_json::json!({
         "validation": validation,
         "grade": grade,
@@ -347,5 +369,51 @@ mod tests {
         
         let grade = calculate_grade(60.0, 10.0);
         assert_eq!(grade, 6.0);
+    }
+
+    #[test]
+    fn test_validate_practice_progress_unknown_practice_returns_resource_not_found() {
+        let result = validate_practice_progress("no-existe".to_string(), vec![]);
+
+        let err = result.expect_err("se esperaba un error por práctica desconocida");
+        assert_eq!(err.code, "RESOURCE_NOT_FOUND");
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn test_validate_practice_progress_known_practice_ok() {
+        let history = vec!["ls".to_string(), "python flechas.py".to_string()];
+
+        let result = validate_practice_progress("eve3-p1".to_string(), history);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_calculate_practice_grade_unknown_practice_returns_resource_not_found() {
+        let result = calculate_practice_grade("no-existe".to_string(), vec![], 5.0);
+
+        let err = result.expect_err("se esperaba un error por práctica desconocida");
+        assert_eq!(err.code, "RESOURCE_NOT_FOUND");
+    }
+
+    #[test]
+    fn test_calculate_practice_grade_invalid_max_grade_returns_validation_failed() {
+        let history = vec!["ls".to_string(), "python flechas.py".to_string()];
+
+        let result = calculate_practice_grade("eve3-p1".to_string(), history, 0.0);
+
+        let err = result.expect_err("se esperaba un error de validación por max_grade inválido");
+        assert_eq!(err.code, "VALIDATION_FAILED");
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn test_calculate_practice_grade_known_practice_ok() {
+        let history = vec!["ls".to_string(), "python flechas.py".to_string()];
+
+        let result = calculate_practice_grade("eve3-p1".to_string(), history, 5.0);
+
+        assert!(result.is_ok());
     }
 }
