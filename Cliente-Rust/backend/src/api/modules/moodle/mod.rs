@@ -30,20 +30,20 @@ pub struct SubmitGradeRequest {
 pub async fn sync_assignment(Json(req): Json<SyncAssignmentRequest>) -> Result<Json<serde_json::Value>, ApiError> {
     let result = moodle::moodle_sync_assignment(req.assignment_id, req.username)
         .await
-        .map_err(|e| ApiError::bad_request(e))?;
+        .map_err(|e| ApiError::bad_request(e.message))?;
     Ok(Json(result))
 }
 
 pub async fn prepare_grade(Json(req): Json<PrepareGradeRequest>) -> Result<Json<serde_json::Value>, ApiError> {
     let result = moodle::moodle_prepare_grade(req.assignment_id, req.username, req.grade, req.comment)
         .await
-        .map_err(|e| ApiError::bad_request(e))?;
+        .map_err(|e| ApiError::bad_request(e.message))?;
     Ok(Json(result))
 }
 
 pub async fn submit_grade(Json(req): Json<SubmitGradeRequest>) -> Result<Json<serde_json::Value>, ApiError> {
     moodle::moodle_submit_grade_direct(req.assignment_id, req.user_id, req.username, req.grade, req.comment)
         .await
-        .map_err(|e| ApiError::bad_request(e))?;
+        .map_err(|e| ApiError::bad_request(e.message))?;
     Ok(Json(serde_json::json!({ "status": "submitted" })))
 }
