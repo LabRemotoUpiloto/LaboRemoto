@@ -503,8 +503,7 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
         })
         .await
         .map_err(|e| {
-            CommandError::transient("OPERATION_TIMEOUT", format!("Task join error: {}", e))
-                .with_context("practicas_run_setup", practice_id.clone())
+            CommandError::internal("TASK_JOIN_ERROR", format!("Task join error: {}", e))
         })?;
 
         results.push(result?);
