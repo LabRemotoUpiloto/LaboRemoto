@@ -8,6 +8,7 @@
 //! - Integración con Moodle (assignment IDs)
 //! - Contexto y tutoriales de chat AI por práctica
 
+use crate::cmd::protocol::CommandError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -300,7 +301,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
 
 /// Devuelve todas las categorías con sus prácticas (sin contraseñas)
 #[tauri::command]
-pub fn practicas_list_categories() -> Result<Vec<PracticeCategory>, String> {
+pub fn practicas_list_categories() -> Result<Vec<PracticeCategory>, CommandError> {
     let vars = load_practices_env();
     let mut categories = build_categories(&vars);
 
@@ -319,7 +320,7 @@ pub fn practicas_list_categories() -> Result<Vec<PracticeCategory>, String> {
 
 /// Devuelve la configuración completa de una práctica (para uso interno al iniciar)
 #[tauri::command]
-pub fn practicas_get_config(practice_id: String) -> Result<Practice, String> {
+pub fn practicas_get_config(practice_id: String) -> Result<Practice, CommandError> {
     let vars = load_practices_env();
     let categories = build_categories(&vars);
 
@@ -331,14 +332,17 @@ pub fn practicas_get_config(practice_id: String) -> Result<Practice, String> {
         }
     }
 
-    Err(format!("Práctica no encontrada: {}", practice_id))
+    Err(CommandError::permanent(
+        "PRACTICE_NOT_FOUND",
+        format!("Práctica no encontrada: {}", practice_id),
+    ))
 }
 
 /// Ejecuta los comandos de setup de una práctica (ej: levantar servidor del robot)
 /// Emite eventos `practice:log` con el progreso paso a paso.
 /// Devuelve el resultado de cada comando de setup.
 #[tauri::command]
-pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> Result<Vec<String>, String> {
+pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> Result<Vec<String>, CommandError> {
     use tauri::Emitter;
 
     let vars = load_practices_env();
@@ -347,7 +351,12 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
     let practice = categories.iter()
         .flat_map(|c| c.practices.iter())
         .find(|p| p.id == practice_id)
-        .ok_or_else(|| format!("Práctica no encontrada: {}", practice_id))?
+        .ok_or_else(|| {
+            CommandError::permanent(
+                "PRACTICE_NOT_FOUND",
+                format!("Práctica no encontrada: {}", practice_id),
+            )
+        })?
         .clone();
 
     let _ = app.emit("practice:log", serde_json::json!({
@@ -381,7 +390,7 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
         let app_clone = app.clone();
         let pid = practice_id.clone();
 
-        let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let result = tokio::task::spawn_blocking(move || -> Result<String, CommandError> {
             // 1. TCP connect
             let tcp = match std::net::TcpStream::connect(format!("{}:{}", host, port)) {
                 Ok(tcp) => {
@@ -397,9 +406,9 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
                     let _ = app_clone.emit("practice:log", serde_json::json!({
                         "practice_id": pid,
                         "level": "error",
-                        "message": msg
+                        "message": msg.clone()
                     }));
-                    return Err(msg);
+                    return Err(CommandError::transient("IO_ERROR", msg).with_context("practicas_run_setup", pid.clone()));
                 }
             };
 
@@ -410,7 +419,8 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
                 "message": format!("🔑 Autenticando como '{}'...", user)
             }));
 
-            let mut sess = ssh2::Session::new().map_err(|e| e.to_string())?;
+            let mut sess = ssh2::Session::new()
+                .map_err(|e| CommandError::transient("IO_ERROR", format!("Error creando sesión SSH: {}", e)).with_context("practicas_run_setup", pid.clone()))?;
             sess.set_tcp_stream(tcp);
 
             if let Err(e) = sess.handshake() {
@@ -418,9 +428,9 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
                 let _ = app_clone.emit("practice:log", serde_json::json!({
                     "practice_id": pid,
                     "level": "error",
-                    "message": msg
+                    "message": msg.clone()
                 }));
-                return Err(msg);
+                return Err(CommandError::transient("IO_ERROR", msg).with_context("practicas_run_setup", pid.clone()));
             }
 
             if let Err(e) = sess.userauth_password(&user, &password) {
@@ -428,9 +438,9 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
                 let _ = app_clone.emit("practice:log", serde_json::json!({
                     "practice_id": pid,
                     "level": "error",
-                    "message": msg
+                    "message": msg.clone()
                 }));
-                return Err(msg);
+                return Err(CommandError::transient("IO_ERROR", msg).with_context("practicas_run_setup", pid.clone()));
             }
 
             let _ = app_clone.emit("practice:log", serde_json::json!({
@@ -459,9 +469,9 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
                     let _ = app_clone.emit("practice:log", serde_json::json!({
                         "practice_id": pid,
                         "level": "error",
-                        "message": msg
+                        "message": msg.clone()
                     }));
-                    return Err(msg);
+                    return Err(CommandError::transient("IO_ERROR", msg).with_context("practicas_run_setup", pid.clone()));
                 }
             };
 
@@ -470,9 +480,9 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
                 let _ = app_clone.emit("practice:log", serde_json::json!({
                     "practice_id": pid,
                     "level": "error",
-                    "message": msg
+                    "message": msg.clone()
                 }));
-                return Err(msg);
+                return Err(CommandError::transient("IO_ERROR", msg).with_context("practicas_run_setup", pid.clone()));
             }
 
             // Timeout de 3 segundos para no bloquear si el proceso del robot sigue corriendo
@@ -492,7 +502,10 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
             Ok(format!("{}: launched", step_label))
         })
         .await
-        .map_err(|e| format!("Task join error: {}", e))?;
+        .map_err(|e| {
+            CommandError::transient("OPERATION_TIMEOUT", format!("Task join error: {}", e))
+                .with_context("practicas_run_setup", practice_id.clone())
+        })?;
 
         results.push(result?);
     }
