@@ -518,3 +518,17 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
 
     Ok(results)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_practicas_get_config_unknown_practice_returns_error() {
+        let result = practicas_get_config("nonexistent_practice_id".to_string());
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert_eq!(err.code, "PRACTICE_NOT_FOUND");
+        }
+    }
+}
