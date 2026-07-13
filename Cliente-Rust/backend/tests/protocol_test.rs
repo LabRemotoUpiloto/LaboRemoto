@@ -1,7 +1,10 @@
-//! Tests de integración para el protocolo versionado (Fase A/F del REFACTOR #1).
+//! Tests de integración para el protocolo versionado (Fase A del REFACTOR #1)
+//! y el `CommandError` unificado (paso 0 del REFACTOR #3).
 //!
 //! Verifica la (de)serialización de `CommandRequest<T>` / `CommandResponse<T>`
-//! y el helper `wrap_result` usados por los comandos migrados en las Fases B/C/D.
+//! y el helper `wrap_result` usados por los comandos migrados en las Fases B/C/D,
+//! además del contrato plano `{code, message, retryable, retry_after_ms}` que
+//! consume `frontend/src/services/command.service.ts`.
 
 use app::cmd::protocol::{wrap_result, CommandError, CommandRequest, CommandResponse};
 
@@ -50,27 +53,26 @@ fn test_command_response_success() {
 }
 
 #[test]
-fn test_command_response_error() {
+fn test_command_response_error_serializes_flat_frontend_shape() {
     let response: CommandResponse<String> = CommandResponse::Error {
         id: "test-123".to_string(),
         version: "1.0".to_string(),
-        error: CommandError::Transient { msg: "timeout".to_string() },
+        error: CommandError::transient("TIMEOUT", "timeout").with_retry_after(5000),
         retry_after_ms: Some(5000),
     };
 
     let json = serde_json::to_string(&response).unwrap();
     assert!(json.contains("\"status\":\"error\""));
-    assert!(json.contains("\"kind\":\"transient\""));
+    assert!(json.contains("\"code\":\"TIMEOUT\""));
+    assert!(json.contains("\"retryable\":true"));
     assert!(json.contains("timeout"));
 
     let decoded: CommandResponse<String> = serde_json::from_str(&json).unwrap();
     match decoded {
         CommandResponse::Error { error, retry_after_ms, .. } => {
             assert_eq!(retry_after_ms, Some(5000));
-            match error {
-                CommandError::Transient { msg } => assert_eq!(msg, "timeout"),
-                other => panic!("expected Transient error, got {:?}", other),
-            }
+            assert_eq!(error.code, "TIMEOUT");
+            assert!(error.is_retryable());
         }
         CommandResponse::Success { .. } => panic!("expected Error variant"),
     }
@@ -93,17 +95,30 @@ fn test_wrap_result_ok_produces_success() {
 }
 
 #[test]
-fn test_wrap_result_err_produces_permanent_error() {
+fn test_wrap_result_err_categorizes_generic_message_as_internal() {
     let result: Result<i32, String> = Err("boom".to_string());
     let response = wrap_result("id-2".to_string(), "1.0".to_string(), result, 5);
 
     match response {
         CommandResponse::Error { error, retry_after_ms, .. } => {
-            assert_eq!(retry_after_ms, None);
-            match error {
-                CommandError::Permanent { msg } => assert_eq!(msg, "boom"),
-                other => panic!("expected Permanent error, got {:?}", other),
-            }
+            assert_eq!(error.code, "INTERNAL_ERROR");
+            assert_eq!(error.message, "boom");
+            assert!(error.is_retryable());
+            assert_eq!(retry_after_ms, Some(1000));
+        }
+        CommandResponse::Success { .. } => panic!("expected Error variant"),
+    }
+}
+
+#[test]
+fn test_wrap_result_err_categorizes_timeout_as_transient() {
+    let result: Result<i32, String> = Err("connection timeout".to_string());
+    let response = wrap_result("id-3".to_string(), "1.0".to_string(), result, 5);
+
+    match response {
+        CommandResponse::Error { error, .. } => {
+            assert_eq!(error.code, "TIMEOUT");
+            assert!(error.is_retryable());
         }
         CommandResponse::Success { .. } => panic!("expected Error variant"),
     }
@@ -111,19 +126,19 @@ fn test_wrap_result_err_produces_permanent_error() {
 
 #[test]
 fn test_command_error_version_mismatch_serialization() {
-    let error = CommandError::VersionMismatch {
-        required: "2.0".to_string(),
-        provided: "1.0".to_string(),
-    };
-    let json = serde_json::to_string(&error).unwrap();
-    assert!(json.contains("\"kind\":\"version_mismatch\""));
-    assert!(json.contains("2.0"));
-    assert!(json.contains("1.0"));
+    let error = CommandError::version_mismatch("2.0", "1.0");
+    let json = serde_json::to_value(&error).unwrap();
+    assert_eq!(json["retryable"], false);
+    assert!(json["message"].as_str().unwrap().contains("2.0"));
+    assert!(json["message"].as_str().unwrap().contains("1.0"));
+    assert!(error.is_fatal());
 }
 
 #[test]
 fn test_command_error_session_expired_serialization() {
-    let error = CommandError::SessionExpired;
-    let json = serde_json::to_string(&error).unwrap();
-    assert!(json.contains("\"kind\":\"session_expired\""));
+    let error = CommandError::session_expired();
+    let json = serde_json::to_value(&error).unwrap();
+    assert_eq!(json["code"], "SESSION_EXPIRED");
+    assert_eq!(json["retryable"], false);
+    assert!(error.is_fatal());
 }

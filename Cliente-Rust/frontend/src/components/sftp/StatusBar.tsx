@@ -72,4 +72,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ totalItems, selectedEntry, side }
   )
 }
 
-export default StatusBar
+StatusBar.displayName = 'StatusBar'
+
+export default React.memo(StatusBar)

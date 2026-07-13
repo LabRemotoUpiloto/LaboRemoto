@@ -225,4 +225,6 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
   )
 }
 
-export default FilePanelToolbar
+FilePanelToolbar.displayName = 'FilePanelToolbar'
+
+export default React.memo(FilePanelToolbar)
