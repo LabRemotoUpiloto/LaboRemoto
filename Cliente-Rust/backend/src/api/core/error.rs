@@ -48,6 +48,7 @@ impl From<CommandError> for ApiError {
         let status = match err.category {
             ErrorCategory::SessionExpired => StatusCode::UNAUTHORIZED,
             ErrorCategory::Permanent if err.code == "RESOURCE_NOT_FOUND" => StatusCode::NOT_FOUND,
+            ErrorCategory::Permanent if err.code == "ACCESS_DENIED" => StatusCode::FORBIDDEN,
             ErrorCategory::Permanent | ErrorCategory::VersionMismatch => StatusCode::BAD_REQUEST,
             ErrorCategory::Transient | ErrorCategory::Internal => StatusCode::INTERNAL_SERVER_ERROR,
         };
@@ -76,6 +77,14 @@ mod tests {
         let api_err: ApiError = cmd_err.into();
         assert_eq!(api_err.status, StatusCode::NOT_FOUND);
         assert_eq!(api_err.code, "RESOURCE_NOT_FOUND");
+    }
+
+    #[test]
+    fn access_denied_maps_to_403() {
+        let cmd_err = CommandError::permanent("ACCESS_DENIED", "no autorizado");
+        let api_err: ApiError = cmd_err.into();
+        assert_eq!(api_err.status, StatusCode::FORBIDDEN);
+        assert_eq!(api_err.code, "ACCESS_DENIED");
     }
 
     #[test]
