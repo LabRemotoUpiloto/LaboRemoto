@@ -23,6 +23,23 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use crate::cmd::protocol::CommandError;
+
+/// Categoriza heurísticamente los errores `String` internos de `McpSession`
+/// (transporte JSON-RPC sobre stdio) en un `CommandError` explícito.
+fn categorize_mcp_error(operation: &str, resource: &str, e: String) -> CommandError {
+    let lower = e.to_lowercase();
+    let err = if lower.contains("no se pudo iniciar") {
+        CommandError::permanent("RESOURCE_NOT_FOUND", e)
+    } else if lower.contains("json inválido") || lower.contains("json invalido") {
+        CommandError::permanent("INVALID_DATA", e)
+    } else if lower.contains("tiempo de espera agotado") || lower.contains("cerró la conexión") || lower.contains("cerro la conexion") {
+        CommandError::transient("OPERATION_TIMEOUT", e).with_retry_after(2000)
+    } else {
+        CommandError::transient("COMMUNICATION_ERROR", e)
+    };
+    err.with_context(operation, resource)
+}
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 
@@ -65,13 +82,17 @@ fn load_configs() -> Vec<McpServerConfig> {
     }
 }
 
-fn save_configs(configs: &[McpServerConfig]) -> Result<(), String> {
-    let path = config_path().ok_or("No se puede determinar el directorio de configuración")?;
+fn save_configs(configs: &[McpServerConfig]) -> Result<(), CommandError> {
+    let path = config_path()
+        .ok_or_else(|| CommandError::internal("CONFIG_MISSING", "No se puede determinar el directorio de configuración"))?;
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(parent)
+            .map_err(|e| CommandError::transient("IO_ERROR", format!("No se pudo crear directorio de config: {e}")).with_context("save_configs", &parent.display().to_string()))?;
     }
-    let data = serde_json::to_string_pretty(configs).map_err(|e| e.to_string())?;
-    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    let data = serde_json::to_string_pretty(configs)
+        .map_err(|e| CommandError::permanent("INVALID_DATA", format!("Error serializando configuración MCP: {e}")))?;
+    std::fs::write(&path, data)
+        .map_err(|e| CommandError::transient("IO_ERROR", format!("No se pudo escribir configuración MCP: {e}")).with_context("save_configs", &path.display().to_string()))?;
     Ok(())
 }
 
@@ -258,10 +279,10 @@ pub async fn mcp_register_server(
     command: String,
     args: Vec<String>,
     env: Option<HashMap<String, String>>,
-) -> Result<McpServerConfig, String> {
+) -> Result<McpServerConfig, CommandError> {
     // Validar nombre: solo alfanumérico + guiones + guiones bajos
     if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
-        return Err("El nombre debe ser alfanumérico (se permiten - y _)".into());
+        return Err(CommandError::permanent("VALIDATION_FAILED", "El nombre debe ser alfanumérico (se permiten - y _)"));
     }
     let cfg_base = McpServerConfig {
         name: name.clone(),
@@ -271,16 +292,17 @@ pub async fn mcp_register_server(
         tools: vec![],
     };
     // Conectar y listar tools en hilo bloqueante
+    let name_for_ctx = name.clone();
     let tools = tokio::task::spawn_blocking({
         let cfg = cfg_base.clone();
-        move || -> Result<Vec<McpToolDef>, String> {
-            let mut sess = McpSession::start(&cfg)?;
-            sess.initialize()?;
-            sess.list_tools()
+        move || -> Result<Vec<McpToolDef>, CommandError> {
+            let mut sess = McpSession::start(&cfg).map_err(|e| categorize_mcp_error("mcp_register_server", &cfg.name, e))?;
+            sess.initialize().map_err(|e| categorize_mcp_error("mcp_register_server", &cfg.name, e))?;
+            sess.list_tools().map_err(|e| categorize_mcp_error("mcp_register_server", &cfg.name, e))
         }
     })
     .await
-    .map_err(|e| format!("Error interno: {e}"))??;
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("Error interno: {e}")).with_context("mcp_register_server", &name_for_ctx))??;
 
     let cfg = McpServerConfig { tools, ..cfg_base };
     let mut configs = load_configs();
@@ -298,34 +320,35 @@ pub fn mcp_list_servers() -> Vec<McpServerConfig> {
 
 /// Elimina un servidor MCP del registro.
 #[tauri::command]
-pub fn mcp_remove_server(name: String) -> Result<(), String> {
+pub fn mcp_remove_server(name: String) -> Result<(), CommandError> {
     let mut configs = load_configs();
     let before = configs.len();
     configs.retain(|c| c.name != name);
     if configs.len() == before {
-        return Err(format!("Servidor '{}' no encontrado", name));
+        return Err(CommandError::permanent("RESOURCE_NOT_FOUND", format!("Servidor '{}' no encontrado", name)));
     }
     save_configs(&configs)
 }
 
 /// Reconecta al servidor y actualiza el caché de tools.
 #[tauri::command]
-pub async fn mcp_refresh_tools(name: String) -> Result<McpServerConfig, String> {
+pub async fn mcp_refresh_tools(name: String) -> Result<McpServerConfig, CommandError> {
     let mut configs = load_configs();
     let cfg = configs.iter()
         .find(|c| c.name == name)
-        .ok_or_else(|| format!("Servidor '{}' no encontrado", name))?
+        .ok_or_else(|| CommandError::permanent("RESOURCE_NOT_FOUND", format!("Servidor '{}' no encontrado", name)))?
         .clone();
+    let name_for_ctx = name.clone();
     let tools = tokio::task::spawn_blocking({
         let cfg = cfg.clone();
-        move || -> Result<Vec<McpToolDef>, String> {
-            let mut sess = McpSession::start(&cfg)?;
-            sess.initialize()?;
-            sess.list_tools()
+        move || -> Result<Vec<McpToolDef>, CommandError> {
+            let mut sess = McpSession::start(&cfg).map_err(|e| categorize_mcp_error("mcp_refresh_tools", &cfg.name, e))?;
+            sess.initialize().map_err(|e| categorize_mcp_error("mcp_refresh_tools", &cfg.name, e))?;
+            sess.list_tools().map_err(|e| categorize_mcp_error("mcp_refresh_tools", &cfg.name, e))
         }
     })
     .await
-    .map_err(|e| format!("Error interno: {e}"))??;
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("Error interno: {e}")).with_context("mcp_refresh_tools", &name_for_ctx))??;
 
     let updated = McpServerConfig { tools, ..cfg };
     for c in &mut configs {

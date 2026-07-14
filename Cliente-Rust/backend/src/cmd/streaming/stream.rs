@@ -9,31 +9,33 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::cmd::state::{SESSIONS, CameraInfo};
+use crate::cmd::protocol::CommandError;
+use crate::error::AppError;
 
 #[tauri::command]
 pub async fn stream_start(
     session_id: String,
     remote_port: u16,
     local_port: u16,
-) -> Result<u16, String> {
+) -> Result<u16, CommandError> {
     // Clonar el Arc<Mutex<Handle>> de la sesión existente (Arc::clone es O(1)).
     // Cada nueva conexión TCP lockea brevemente el handle para abrir un canal
     // direct-tcpip sobre la sesión SSH ya establecida — sin nuevo handshake.
     let handle = {
-        let map = SESSIONS.lock().map_err(|e| e.to_string())?;
-        let sess = map.get(&session_id).ok_or("Sesión no encontrada")?;
+        let map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
+        let sess = map.get(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
         sess.term.handle.clone()  // Arc clone
     };
 
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{local_port}"))
         .await
-        .map_err(|e| format!("No se pudo abrir puerto local {local_port}: {e}"))?;
-    let actual_port = listener.local_addr().map_err(|e| e.to_string())?.port();
+        .map_err(|e| CommandError::transient("IO_ERROR", format!("No se pudo abrir puerto local {local_port}: {e}")))?;
+    let actual_port = listener.local_addr().map_err(|e| CommandError::transient("IO_ERROR", e.to_string()))?.port();
 
     let stop_flag = Arc::new(AtomicBool::new(false));
 
     {
-        let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
+        let mut map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
         if let Some(sess) = map.get_mut(&session_id) {
             if let Some(old_flag) = sess.stream_stop_flag.take() {
                 old_flag.store(true, Ordering::Relaxed);
@@ -103,8 +105,8 @@ pub async fn stream_start(
 }
 
 #[tauri::command]
-pub async fn stream_stop(session_id: String) -> Result<(), String> {
-    let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
+pub async fn stream_stop(session_id: String) -> Result<(), CommandError> {
+    let mut map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
     if let Some(sess) = map.get_mut(&session_id) {
         if let Some(flag) = sess.stream_stop_flag.take() {
             flag.store(true, Ordering::Relaxed);
@@ -115,12 +117,12 @@ pub async fn stream_stop(session_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn stream_list_cameras(session_id: String) -> Result<Vec<CameraInfo>, String> {
+pub async fn stream_list_cameras(session_id: String) -> Result<Vec<CameraInfo>, CommandError> {
     // Reutiliza el handle russh ya autenticado para abrir un canal exec.
     // Antes se abría una nueva conexión TCP (ssh2) cada poll → timeout 10060.
     let handle = {
-        let map = SESSIONS.lock().map_err(|e| e.to_string())?;
-        let s = map.get(&session_id).ok_or("Sesión no encontrada")?;
+        let map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
+        let s = map.get(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
         s.term.handle.clone()
     };
 
@@ -128,11 +130,11 @@ pub async fn stream_list_cameras(session_id: String) -> Result<Vec<CameraInfo>, 
     let mut channel = handle.lock().await
         .channel_open_session()
         .await
-        .map_err(|e| format!("Canal SSH: {e}"))?;
+        .map_err(|e| CommandError::transient("SSH_ERROR", format!("Canal SSH: {e}")))?;
 
     channel.exec(true, "curl -s --max-time 5 http://127.0.0.1:8877/cameras 2>/dev/null || curl -s --max-time 5 http://127.0.0.1:8888/cameras 2>/dev/null")
         .await
-        .map_err(|e| format!("exec curl: {e}"))?;
+        .map_err(|e| CommandError::transient("SSH_ERROR", format!("exec curl: {e}")))?;
 
     let mut body = Vec::new();
     loop {
@@ -148,11 +150,14 @@ pub async fn stream_list_cameras(session_id: String) -> Result<Vec<CameraInfo>, 
     let body = body.trim();
 
     if body.is_empty() {
-        return Err("El servidor de cámaras no respondió (¿está multicam.service corriendo?)".to_string());
+        return Err(CommandError::transient(
+            "OPERATION_TIMEOUT",
+            "El servidor de cámaras no respondió (¿está multicam.service corriendo?)",
+        ).with_retry_after(2000));
     }
 
     serde_json::from_str::<Vec<CameraInfo>>(body)
-        .map_err(|e| format!("JSON inválido: {e} — body: {:?}", &body[..body.len().min(120)]))
+        .map_err(|e| CommandError::permanent("INVALID_DATA", format!("JSON inválido: {e} — body: {:?}", &body[..body.len().min(120)])))
 }
 
 /// Devuelve la IP del host remoto para que el frontend pueda construir URLs WHEP directas.
@@ -164,20 +169,20 @@ pub struct StreamHostInfo {
 }
 
 #[tauri::command]
-pub fn stream_get_host(session_id: String) -> Result<StreamHostInfo, String> {
-    let map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let s = map.get(&session_id).ok_or("Sesión no encontrada")?;
+pub fn stream_get_host(session_id: String) -> Result<StreamHostInfo, CommandError> {
+    let map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
+    let s = map.get(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
     Ok(StreamHostInfo { host: s.host.clone(), whep_port: 8889 })
 }
 
 /// Realiza el POST WHEP desde Rust para evitar bloqueos CORS en el WebView.
 /// Recibe la URL WHEP y el SDP offer, devuelve el SDP answer de MediaMTX.
 #[tauri::command]
-pub async fn whep_exchange(url: String, sdp_offer: String) -> Result<String, String> {
+pub async fn whep_exchange(url: String, sdp_offer: String) -> Result<String, CommandError> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| CommandError::internal("HTTP_CLIENT_ERROR", e.to_string()))?;
 
     let resp = client
         .post(&url)
@@ -185,11 +190,11 @@ pub async fn whep_exchange(url: String, sdp_offer: String) -> Result<String, Str
         .body(sdp_offer)
         .send()
         .await
-        .map_err(|e| format!("WHEP POST falló: {e}"))?;
+        .map_err(|e| CommandError::transient("OPERATION_TIMEOUT", format!("WHEP POST falló: {e}")).with_retry_after(2000))?;
 
     if !resp.status().is_success() {
-        return Err(format!("WHEP {}", resp.status()));
+        return Err(CommandError::transient("COMMUNICATION_ERROR", format!("WHEP {}", resp.status())));
     }
 
-    resp.text().await.map_err(|e| e.to_string())
+    resp.text().await.map_err(|e| CommandError::transient("COMMUNICATION_ERROR", e.to_string()))
 }
