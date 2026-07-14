@@ -6,6 +6,7 @@ pub mod ssh_core;   // Cliente SSH basado en russh (para terminal) + ssh2_sftp
 pub mod cmd;        // Comandos invocables desde el frontend (Tauri commands)
 pub mod storage;    // Utilidades de almacenamiento cifrado de hosts
 pub mod state_core; // Memoria efímera por sesión (AppState) + AuthState JWT
+pub mod session_manager; // Store único de sesión + auth (trait SessionManager)
 pub mod security;   // Validaciones de seguridad y backups
 pub mod api;        // REST API
 pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
@@ -51,9 +52,11 @@ pub fn run() {
   
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
-    .manage(crate::state_core::AppState::new())
+    // Store único de sesión (SessionMem) + autenticación (JWT OAuth 2.1).
+    // Ver `session_manager` para el trait y `InMemorySessionManager` para el backend.
+    .manage(std::sync::Arc::new(crate::session_manager::InMemorySessionManager::new())
+      as std::sync::Arc<dyn crate::session_manager::SessionManager>)
     .manage(crate::state_core::AiCancelRegistry::new())
-    .manage(crate::state_core::AuthState::new())  // OAuth 2.1: custodio del JWT en memoria
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .invoke_handler(tauri::generate_handler![

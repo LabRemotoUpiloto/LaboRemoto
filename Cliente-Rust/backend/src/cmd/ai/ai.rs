@@ -178,8 +178,21 @@ fn sse_extract_delta(data: &str, is_claude: bool) -> Option<String> {
   None
 }
 
+/// Comando Tauri versionado (Fase D): envuelve `ai_chat_impl` en el
+/// envelope `CommandRequest`/`CommandResponse` del protocolo versionado.
 #[tauri::command]
 pub async fn ai_chat(
+  app: tauri::AppHandle,
+  cancel_state: tauri::State<'_, crate::state_core::AiCancelRegistry>,
+  req: crate::cmd::protocol::CommandRequest<AiChatRequest>,
+) -> Result<crate::cmd::protocol::CommandResponse<AiChatResponse>, crate::cmd::protocol::CommandError> {
+  let started = std::time::Instant::now();
+  let result = ai_chat_impl(app, cancel_state, req.payload).await;
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(crate::cmd::protocol::wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn ai_chat_impl(
   app: tauri::AppHandle,
   cancel_state: tauri::State<'_, crate::state_core::AiCancelRegistry>,
   req: AiChatRequest,
@@ -1131,12 +1144,25 @@ fn force_load_single_env() {
   }
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct CancelAiChatPayload {
+  pub request_id: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
+pub struct CancelAiChatResponse {
+  pub ok: bool,
+}
+
 /// Cancela una petición ai_chat en curso por su request_id.
 #[tauri::command]
 pub async fn cancel_ai_chat(
   cancel_state: tauri::State<'_, crate::state_core::AiCancelRegistry>,
-  request_id: String,
-) -> Result<(), String> {
-  cancel_state.cancel(&request_id);
-  Ok(())
+  req: crate::cmd::protocol::CommandRequest<CancelAiChatPayload>,
+) -> Result<crate::cmd::protocol::CommandResponse<CancelAiChatResponse>, crate::cmd::protocol::CommandError> {
+  let started = std::time::Instant::now();
+  cancel_state.cancel(&req.payload.request_id);
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  let result: Result<CancelAiChatResponse, String> = Ok(CancelAiChatResponse { ok: true });
+  Ok(crate::cmd::protocol::wrap_result(req.id, req.version, result, elapsed_ms))
 }

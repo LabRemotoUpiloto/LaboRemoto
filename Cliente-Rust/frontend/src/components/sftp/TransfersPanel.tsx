@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { ActionIcon, Group, Progress, ScrollArea, Text, Tooltip } from '@mantine/core'
 import { Upload, Download, X, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatBytes } from '../shared/fileFormatters'
@@ -13,6 +13,10 @@ export interface Transfer {
   total?: number
   message?: string
   session_id?: string
+  /** Velocidad promedio en bytes/segundo (ventana móvil), solo mientras corre. */
+  speedBps?: number
+  /** Tiempo estimado restante en segundos, solo mientras corre. */
+  etaSeconds?: number
 }
 
 export interface TransfersPanelProps {
@@ -21,16 +25,43 @@ export interface TransfersPanelProps {
   onClear?: () => void
 }
 
+/** Formatea una velocidad de transferencia en bytes/segundo, ej. "1.2 MB/s". */
+function formatSpeed(bps?: number): string | undefined {
+  if (!bps || bps <= 0) return undefined
+  return `${formatBytes(bps)}/s`
+}
+
+/** Formatea un tiempo restante en segundos como "Xs" o "Mm Ss". */
+function formatEta(seconds?: number): string | undefined {
+  if (seconds == null || !isFinite(seconds) || seconds < 0) return undefined
+  const total = Math.round(seconds)
+  if (total < 60) return `${total}s`
+  const minutes = Math.floor(total / 60)
+  const secs = total % 60
+  return `${minutes}m ${secs}s`
+}
+
 const TransfersPanel: React.FC<TransfersPanelProps> = ({ transfers, onCancel, onClear }) => {
   const [collapsed, setCollapsed] = useState(false)
+
+  const toggleCollapsed = useCallback(() => setCollapsed((c) => !c), [])
 
   const completedCount = transfers.filter(
     (t) => t.status === 'done' || t.status === 'cancelled' || t.status === 'error'
   ).length
+  const doneCount = transfers.filter((t) => t.status === 'done').length
   const runningCount = transfers.filter((t) => t.status === 'running').length
+
+  const statusAnnouncement =
+    runningCount > 0
+      ? `${runningCount} transferencia${runningCount > 1 ? 's' : ''} en curso`
+      : doneCount > 0
+        ? `${doneCount} transferencia${doneCount > 1 ? 's' : ''} completada${doneCount > 1 ? 's' : ''}`
+        : 'Sin transferencias activas'
 
   return (
     <div
+      aria-busy={runningCount > 0}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -44,9 +75,26 @@ const TransfersPanel: React.FC<TransfersPanelProps> = ({ transfers, onCancel, on
         gridColumn: '1 / -1',
       }}
     >
+      <span
+        aria-live="polite"
+        style={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+      >
+        {statusAnnouncement}
+      </span>
+
       {/* Header */}
       <div
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={toggleCollapsed}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -210,6 +258,33 @@ const TransfersPanel: React.FC<TransfersPanelProps> = ({ transfers, onCancel, on
                           {progressText}
                         </Text>
                       </Group>
+                      {isRunning && (t.speedBps || t.etaSeconds != null || t.total) && (
+                        <Text
+                          size="xs"
+                          mt={2}
+                          style={{
+                            fontSize: 10,
+                            color: 'var(--text-tertiary)',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {formatSpeed(t.speedBps) && (
+                            <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                              {formatSpeed(t.speedBps)}
+                            </span>
+                          )}
+                          {formatEta(t.etaSeconds) && (
+                            <span style={{ marginLeft: 8 }}>
+                              {'•'} ETA {formatEta(t.etaSeconds)}
+                            </span>
+                          )}
+                          {t.total != null && (
+                            <span style={{ marginLeft: 8 }}>
+                              {'•'} {formatBytes(t.bytes || 0)} / {formatBytes(t.total)}
+                            </span>
+                          )}
+                        </Text>
+                      )}
                       {t.message && (
                         <Text size="xs" c={isError ? 'red' : 'dimmed'} mt={2}>
                           {t.message}

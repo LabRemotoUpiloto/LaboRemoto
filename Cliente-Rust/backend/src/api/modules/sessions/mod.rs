@@ -17,7 +17,7 @@ pub struct SessionLogSummary {
 }
 
 pub async fn list_logs() -> Result<Json<Vec<SessionLogSummary>>, ApiError> {
-    let entries = logs::list_session_logs().await.map_err(|e| ApiError::internal(e))?;
+    let entries = logs::list_session_logs().await.map_err(ApiError::from)?;
     let result: Vec<SessionLogSummary> = entries.into_iter().map(|m| SessionLogSummary {
         session_id: m.session_id,
         user: m.user,
@@ -34,12 +34,12 @@ pub async fn list_logs() -> Result<Json<Vec<SessionLogSummary>>, ApiError> {
 
 pub async fn get_log_content(Path(session_id): Path<String>) -> Result<Json<serde_json::Value>, ApiError> {
     let content = logs::get_session_log_content(session_id.clone()).await
-        .map_err(|_| ApiError::not_found("Log no encontrado"))?;
+        .map_err(ApiError::from)?;
     Ok(Json(serde_json::json!({ "session_id": session_id, "html_content": content })))
 }
 
 pub async fn delete_log(Path(session_id): Path<String>) -> Result<Json<serde_json::Value>, ApiError> {
     logs::delete_session_log(session_id.clone()).await
-        .map_err(|_| ApiError::not_found("Log no encontrado"))?;
+        .map_err(ApiError::from)?;
     Ok(Json(serde_json::json!({ "status": "deleted", "session_id": session_id })))
 }

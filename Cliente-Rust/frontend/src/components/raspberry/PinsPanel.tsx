@@ -144,7 +144,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       const res = await gpioService.getPinsStatus(sessionId)
       setData(res)
     } catch (e: any) {
-      setError(e?.toString?.() ?? 'No se pudo obtener el estado de GPIO')
+      setError(e?.message ?? String(e))
     } finally {
       setLoading(false)
     }
@@ -196,7 +196,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       await load()
       setMessage(`GPIO ${selectedDefinition.gpio} configurado como ${mode === 'input' ? 'entrada' : 'salida'}.`)
     } catch (e: any) {
-      setMessage(e?.toString?.() ?? 'No se pudo cambiar el modo del pin')
+      setMessage(e?.message ?? String(e))
     } finally {
       setActionLoading(false)
     }
@@ -213,7 +213,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       const label = pull === 'up' ? 'Pull-Up' : pull === 'down' ? 'Pull-Down' : 'Sin pull'
       setMessage(`GPIO ${selectedDefinition.gpio}: ${label}.`)
     } catch (e: any) {
-      setMessage(e?.toString?.() ?? 'No se pudo configurar el pull del pin')
+      setMessage(e?.message ?? String(e))
     } finally {
       setActionLoading(false)
     }
@@ -229,7 +229,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       await load()
       setMessage(`GPIO ${selectedDefinition.gpio}: nivel ${level === 1 ? 'alto' : 'bajo'}.`)
     } catch (e: any) {
-      setMessage(e?.toString?.() ?? 'No se pudo escribir el nivel del pin')
+      setMessage(e?.message ?? String(e))
     } finally {
       setActionLoading(false)
     }
@@ -246,7 +246,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         return list
       })
     } catch (e: any) {
-      setMessage(e?.toString?.() ?? 'No se pudo leer el estado del pin')
+      setMessage(e?.message ?? String(e))
     }
   }
 

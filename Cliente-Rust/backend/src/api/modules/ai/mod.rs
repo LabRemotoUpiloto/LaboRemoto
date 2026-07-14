@@ -24,7 +24,7 @@ pub struct AiTestResponse {
 }
 
 pub async fn status() -> Result<Json<AiStatusResponse>, ApiError> {
-    let s = ai_utils::ai_env_status().map_err(|e| ApiError::internal(e))?;
+    let s = ai_utils::ai_env_status().map_err(|e| ApiError::internal(e.message))?;
     Ok(Json(AiStatusResponse {
         has_openai_key: s.has_openai_key,
         has_claude_key: s.has_claude_key,
@@ -34,7 +34,7 @@ pub async fn status() -> Result<Json<AiStatusResponse>, ApiError> {
 }
 
 pub async fn test_key() -> Result<Json<AiTestResponse>, ApiError> {
-    let r = ai_utils::ai_test_key().await.map_err(|e| ApiError::bad_request(e))?;
+    let r = ai_utils::ai_test_key().await.map_err(|e| ApiError::bad_request(e.message))?;
     Ok(Json(AiTestResponse {
         ok: r.ok,
         http_status: r.http_status,

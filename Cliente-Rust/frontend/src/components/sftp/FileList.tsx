@@ -1,9 +1,22 @@
 import React, { useCallback } from 'react'
 import { Loader, Text, ScrollArea } from '@mantine/core'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, FolderOpen } from 'lucide-react'
 import FileIcon from '../shared/FileIcon'
 import { formatDate, formatBytes } from '../shared/fileFormatters'
 import type { SftpEntry, LocalEntry } from '../../types'
+
+// Oculta visualmente el contenido mientras lo mantiene disponible para lectores de pantalla.
+const visuallyHiddenStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+}
 
 type FileEntry = SftpEntry | LocalEntry
 
@@ -79,67 +92,124 @@ const FileList: React.FC<FileListProps> = ({
     [onSelect]
   )
 
+  // Mensaje de estado para lectores de pantalla (anuncia carga, error y vacío).
+  const statusMessage = error
+    ? `Error: ${error}`
+    : loading
+      ? isRemote
+        ? 'Cargando archivos remotos'
+        : 'Cargando archivos locales'
+      : entries.length === 0
+        ? emptyMessage
+        : `${entries.length} elemento${entries.length !== 1 ? 's' : ''} cargados`
+
   if (error) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '12px 16px',
-          margin: 8,
-          borderRadius: 'var(--mantine-radius-sm)',
-          background: 'var(--danger-bg)',
-          border: '1px solid var(--danger-border)',
-          color: 'var(--danger-text)',
-          fontSize: 12,
-        }}
-      >
-        <AlertTriangle size={14} />
-        {error}
+      <div aria-busy={false}>
+        <span aria-live="polite" style={visuallyHiddenStyle}>
+          {statusMessage}
+        </span>
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            padding: '28px 16px',
+            margin: 12,
+            borderRadius: 10,
+            background: 'var(--danger-bg)',
+            border: '1.5px solid var(--danger-border)',
+            color: 'var(--danger-text)',
+          }}
+        >
+          <AlertTriangle size={20} strokeWidth={2} />
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}
+          >
+            Error
+          </span>
+          <Text size="xs" ta="center" style={{ color: 'inherit', maxWidth: 320 }}>
+            {error}
+          </Text>
+        </div>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '48px 16px',
-          gap: 12,
-        }}
-      >
-        <Loader size="sm" color="teal" />
-        <Text size="xs" c="dimmed">
-          {isRemote ? 'Cargando archivos remotos...' : 'Cargando archivos locales...'}
-        </Text>
+      <div aria-busy="true">
+        <span aria-live="polite" style={visuallyHiddenStyle}>
+          {statusMessage}
+        </span>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '48px 16px',
+            gap: 12,
+          }}
+        >
+          <Loader size="sm" color="var(--accent-primary)" />
+          <Text
+            size="xs"
+            style={{
+              color: 'var(--text-secondary)',
+              textTransform: 'uppercase',
+              fontSize: 10,
+              letterSpacing: '0.06em',
+              fontWeight: 600,
+            }}
+          >
+            {isRemote ? 'Cargando archivos remotos' : 'Cargando archivos locales'}
+          </Text>
+        </div>
       </div>
     )
   }
 
   if (entries.length === 0) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '48px 16px',
-        }}
-      >
-        <Text size="sm" c="dimmed" fs="italic">
-          {emptyMessage}
-        </Text>
+      <div aria-busy={false}>
+        <span aria-live="polite" style={visuallyHiddenStyle}>
+          {statusMessage}
+        </span>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            padding: '44px 16px',
+            margin: 12,
+            borderRadius: 10,
+            border: '1.5px dashed var(--border-subtle)',
+          }}
+        >
+          <FolderOpen size={22} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
+          <Text size="sm" style={{ color: 'var(--text-tertiary)' }}>
+            {emptyMessage}
+          </Text>
+        </div>
       </div>
     )
   }
 
   return (
-    <ScrollArea style={{ flex: 1 }} scrollbarSize={6} onClick={handleContainerClick}>
+    <ScrollArea style={{ flex: 1 }} scrollbarSize={6} onClick={handleContainerClick} aria-busy={false}>
+      <span aria-live="polite" style={visuallyHiddenStyle}>
+        {statusMessage}
+      </span>
       <table
         style={{
           width: '100%',
@@ -265,7 +335,15 @@ const FileList: React.FC<FileListProps> = ({
                 }}
               >
                 {/* Nombre */}
-                <td style={{ padding: '6px 12px' }}>
+                <td
+                  style={{
+                    padding: '6px 12px',
+                    borderLeft: isSelected
+                      ? '3px solid var(--accent-primary)'
+                      : '3px solid transparent',
+                    transition: 'border-color 0.1s',
+                  }}
+                >
                   <div
                     style={{
                       display: 'flex',
@@ -324,4 +402,6 @@ const FileList: React.FC<FileListProps> = ({
   )
 }
 
-export default FileList
+FileList.displayName = 'FileList'
+
+export default React.memo(FileList)

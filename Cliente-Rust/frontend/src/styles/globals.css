@@ -1259,13 +1259,37 @@ html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb:hover {
 /* Right-aligned monospace-ish numeric cell for sizes */
 /* (moved above with adjusted width) */
 
-/* Context menu */
-.ctx-menu { background: var(--background-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; box-shadow: none; min-width: 180px; }
-.ctx-list { list-style: none; margin: 4px; padding: 4px; }
-.ctx-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--text-primary); }
-.ctx-item:hover { background: rgba(255,255,255,0.06); }
+/* Context menu — bordes sólidos + sombra desplazada, sin blur ni transparencias */
+.ctx-menu {
+  background: var(--surface-1, var(--background-secondary));
+  border: 1.5px solid var(--border-strong, var(--border-subtle));
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--border-strong, var(--border-subtle));
+  min-width: 190px;
+  overflow: hidden;
+}
+.ctx-list { list-style: none; margin: 0; padding: 4px; }
+.ctx-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background 0.1s, color 0.1s;
+}
+.ctx-item:hover {
+  background: var(--accent-primary-subtle, var(--interactive-hover));
+  color: var(--accent-primary, var(--text-primary));
+}
 .ctx-item.disabled { opacity: .5; pointer-events: none; }
 .ctx-item.danger { color: var(--danger); }
+.ctx-item.danger:hover { background: var(--danger-bg); color: var(--danger); }
+.ctx-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
+}
 
 
 /* ============================================

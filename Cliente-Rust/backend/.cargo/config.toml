@@ -1,0 +1,14 @@
+# Configura el directorio de salida de ts-rs (generación de bindings TypeScript
+# desde structs Rust marcados con #[derive(TS)] + #[ts(export)]).
+#
+# El valor es relativo al directorio que contiene este config.toml
+# (Cliente-Rust/backend/), por lo que apunta al frontend REAL del monorepo:
+# Cliente-Rust/frontend/src/bindings.
+#
+# Generar/regenerar bindings: `cargo test export_bindings --lib` (desde backend/).
+[env]
+TS_RS_EXPORT_DIR = { value = "../frontend/src/bindings", relative = true }
+# Tauri serializa u64/i64 como JSON estándar (no BigInt) al cruzar el puente
+# invoke(); usar "number" evita que ts-rs emita `bigint` (default) para esos
+# campos, lo cual no coincidiría con el valor real recibido en runtime por JS.
+TS_RS_LARGE_INT = "number"

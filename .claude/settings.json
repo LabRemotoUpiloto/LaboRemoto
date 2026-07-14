@@ -1,0 +1,76 @@
+{
+  "$schema": "https://code.claude.com/settings.schema.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(cargo build*)",
+      "Bash(cargo test*)",
+      "Bash(npm run*)",
+      "Bash(npm install*)",
+      "Bash(cargo fmt)",
+      "Bash(cargo clippy)"
+    ]
+  },
+  "model": "sonnet",
+  "effortLevel": "high",
+  "agents": {
+    "orchestrator": {
+      "model": "sonnet",
+      "effortLevel": "high",
+      "instructions": "Coordinate the 5 refactoring phases. Use protocol-specialist, session-specialist, error-specialist, frontend-specialist, realtime-specialist agents. Start with #1, ensure each phase has tests before moving to next."
+    },
+    "builder": {
+      "model": "sonnet",
+      "effortLevel": "high",
+      "instructions": "Implement code changes for REFACTOR phases. Work with clear specifications. Create tests alongside code. Follow Rust/TypeScript conventions in .claude.md."
+    },
+    "explorer": {
+      "model": "haiku",
+      "effortLevel": "low",
+      "instructions": "Map code structure for each REFACTOR. Find all files that need changes. Quick lookups for file locations."
+    },
+    "pr-reviewer": {
+      "model": "sonnet",
+      "effortLevel": "high",
+      "instructions": "Review each REFACTOR PR. Check: backwards compatibility, tests, no regressions. Focus on the 5 identified gaps."
+    },
+    "security": {
+      "model": "sonnet",
+      "effortLevel": "high",
+      "instructions": "Security audit for each REFACTOR. Check: auth flow, token handling, injection risks, secret management."
+    }
+  },
+  "projectPaths": {
+    "source": "Cliente-Rust",
+    "backend": "Cliente-Rust/backend/src",
+    "frontend": "Cliente-Rust/frontend/src",
+    "tests": "Cliente-Rust/backend/tests",
+    "config": "Cliente-Rust/backend/config"
+  },
+  "devEnvironment": {
+    "language": "Rust/TypeScript",
+    "backendFramework": "Tauri v2 + Axum",
+    "frontendFramework": "React 18 + TypeScript + Vite",
+    "buildTool": "Cargo + npm",
+    "testFramework": "tokio + Jest/Vitest",
+    "linter": "rustfmt + clippy + eslint"
+  },
+  "toolSettings": {
+    "git": {
+      "branchPrefix": [
+        "feat/refactor-",
+        "fix/",
+        "chore/"
+      ]
+    }
+  },
+  "customAgents": {
+    "protocol-specialist": "Implement REFACTOR #1 - Tauri Protocol Versioning",
+    "session-specialist": "Implement REFACTOR #2 - Session Management",
+    "error-specialist": "Implement REFACTOR #3 - Error Handling",
+    "frontend-specialist": "Implement REFACTOR #4 - Frontend State",
+    "realtime-specialist": "Implement REFACTOR #5 - Real-time Sync"
+  }
+}

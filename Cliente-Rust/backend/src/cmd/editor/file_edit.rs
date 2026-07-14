@@ -9,6 +9,8 @@ use crate::cmd::ai::ai_utils::get_openai_api_key;
 use crate::cmd::state::SessionExt;
 use std::io::Read;
 use chrono; // ya está en Cargo.toml
+use crate::cmd::protocol::{map_io_error, CommandError};
+use crate::error::AppError;
 
 const MAX_FILE_SIZE: u64 = 500 * 1024; // 500 KB
 const MAX_BACKUPS: usize = 5;          // rotación
@@ -90,21 +92,31 @@ fn is_probably_binary(bytes: &[u8]) -> bool {
   non_print as f32 / (bytes.len().max(1) as f32) > 0.30
 }
 
-fn read_file_checked(path: &Path) -> Result<Vec<u8>, String> {
-  let meta = fs::metadata(path).map_err(|e| format!("metadata error: {e}"))?;
-  if !meta.is_file() { return Err("No es un archivo regular".into()); }
-  if meta.len() > MAX_FILE_SIZE { return Err(format!("Archivo excede límite {} bytes", MAX_FILE_SIZE)); }
-  let mut f = fs::File::open(path).map_err(|e| format!("open error: {e}"))?;
+fn read_file_checked(path: &Path) -> Result<Vec<u8>, CommandError> {
+  let path_str = path.display().to_string();
+  let meta = fs::metadata(path).map_err(|e| map_io_error(e, "read_file_checked", &path_str))?;
+  if !meta.is_file() {
+    return Err(CommandError::permanent("VALIDATION_FAILED", "No es un archivo regular").with_context("read_file_checked", &path_str));
+  }
+  if meta.len() > MAX_FILE_SIZE {
+    return Err(CommandError::permanent("VALIDATION_FAILED", format!("Archivo excede límite {} bytes", MAX_FILE_SIZE)).with_context("read_file_checked", &path_str));
+  }
+  let mut f = fs::File::open(path).map_err(|e| map_io_error(e, "read_file_checked", &path_str))?;
   let mut buf = Vec::with_capacity(meta.len() as usize + 1);
-  f.read_to_end(&mut buf).map_err(|e| format!("read error: {e}"))?;
-  if is_probably_binary(&buf) { return Err("Archivo parece binario, se rechaza".into()); }
+  f.read_to_end(&mut buf).map_err(|e| map_io_error(e, "read_file_checked", &path_str))?;
+  if is_probably_binary(&buf) {
+    return Err(CommandError::permanent("VALIDATION_FAILED", "Archivo parece binario, se rechaza").with_context("read_file_checked", &path_str));
+  }
   Ok(buf)
 }
 
-fn backup_path_for(path: &Path) -> Result<PathBuf, String> {
-  let ts = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_secs();
+fn backup_path_for(path: &Path) -> Result<PathBuf, CommandError> {
+  let ts = SystemTime::now().duration_since(UNIX_EPOCH)
+    .map_err(|e| CommandError::internal("CLOCK_ERROR", e.to_string()))?
+    .as_secs();
   let mut p = path.to_path_buf();
-  let file_name = p.file_name().and_then(|s| s.to_str()).ok_or("Nombre inválido")?;
+  let file_name = p.file_name().and_then(|s| s.to_str())
+    .ok_or_else(|| CommandError::permanent("VALIDATION_FAILED", "Nombre de archivo inválido"))?;
   let backup_name = format!("{}.bak.{}", file_name, ts);
   p.set_file_name(backup_name);
   Ok(p)
@@ -136,16 +148,20 @@ fn unified_diff(old: &str, new: &str) -> String {
 }
 
 // Utilidad SFTP (lectura/escritura) reintroducida
-fn get_sftp_for_session(session_id: &str) -> Result<ssh2::Sftp, String> {
+fn get_sftp_for_session(session_id: &str) -> Result<ssh2::Sftp, CommandError> {
   use crate::ssh_core::ssh2_sftp as sftp2; use std::sync::{Arc, Mutex}; use crate::cmd::state::CachedSsh2;
-  fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
+  fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, CommandError> {
     if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
-    let (host, port, user, password) = { let s = map.get(id).ok_or_else(|| "Sesión no encontrada".to_string())?; (s.host.clone(), s.port, s.user.clone(), s.password.clone()) };
-    let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+    let (host, port, user, password) = { let s = map.get(id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?; (s.host.clone(), s.port, s.user.clone(), s.password.clone()) };
+    let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password)
+      .map_err(|e| CommandError::transient("IO_ERROR", format!("Conexión SFTP falló: {e}")).with_context("get_sftp_for_session", id))?;
     let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess })); if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); } Ok(arc)
   }
-  let mut map = SESSIONS.lock().map_err(|_| "Lock sessions".to_string())?; let cached = get_or_connect_cached(&mut map, session_id)?; let guard = cached.lock().map_err(|_| "Lock cached".to_string())?;
-  crate::ssh_core::ssh2_sftp::open_sftp(&guard.sess).map_err(|e| e.to_string())
+  let mut map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
+  let cached = get_or_connect_cached(&mut map, session_id)?;
+  let guard = cached.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "ssh2 lock poisoned"))?;
+  crate::ssh_core::ssh2_sftp::open_sftp(&guard.sess)
+    .map_err(|e| CommandError::transient("IO_ERROR", format!("Abrir SFTP falló: {e}")).with_context("get_sftp_for_session", session_id))
 }
 
 fn list_backups_internal(path: &Path) -> Vec<PathBuf> {
@@ -163,44 +179,54 @@ fn list_backups_internal(path: &Path) -> Vec<PathBuf> {
   v
 }
 
-fn remote_backup_and_write(sftp: &ssh2::Sftp, path: &str, new_content: &str) -> Result<Option<String>, String> {
+fn remote_backup_and_write(sftp: &ssh2::Sftp, path: &str, new_content: &str) -> Result<Option<String>, CommandError> {
   use std::io::Write;
   let p = std::path::Path::new(path);
   // Crear backup si existe
   let backup_path = if let Ok(stat) = sftp.stat(p) {
     if stat.is_file() {
-      let ts = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_secs();
-      let parent = p.parent().ok_or("Sin parent")?;
-      let file_name = p.file_name().and_then(|s| s.to_str()).ok_or("Nombre inválido")?;
+      let ts = SystemTime::now().duration_since(UNIX_EPOCH)
+        .map_err(|e| CommandError::internal("CLOCK_ERROR", e.to_string()))?
+        .as_secs();
+      let parent = p.parent().ok_or_else(|| CommandError::permanent("VALIDATION_FAILED", "Ruta remota sin directorio padre"))?;
+      let file_name = p.file_name().and_then(|s| s.to_str())
+        .ok_or_else(|| CommandError::permanent("VALIDATION_FAILED", "Nombre de archivo remoto inválido"))?;
       let backup_name = format!("{}.bak.{}", file_name, ts);
       let backup_abs = parent.join(&backup_name);
-      crate::ssh_core::ssh2_sftp::rename(sftp, path, backup_abs.to_str().ok_or("Utf8")?).map_err(|e| e.to_string())?;
+      let backup_abs_str = backup_abs.to_str()
+        .ok_or_else(|| CommandError::permanent("VALIDATION_FAILED", "Ruta de backup remota no es UTF-8"))?;
+      crate::ssh_core::ssh2_sftp::rename(sftp, path, backup_abs_str)
+        .map_err(|e| CommandError::transient("IO_ERROR", format!("Rename remoto falló: {e}")).with_context("remote_backup_and_write", path))?;
       Some(backup_abs.to_string_lossy().to_string())
     } else { None }
   } else { None };
   // Escribir nuevo
-  let mut f = sftp.create(p).map_err(|e| format!("create error: {e}"))?;
-  f.write_all(new_content.as_bytes()).map_err(|e| format!("write error: {e}"))?;
+  let mut f = sftp.create(p)
+    .map_err(|e| CommandError::transient("IO_ERROR", format!("create remoto falló: {e}")).with_context("remote_backup_and_write", path))?;
+  f.write_all(new_content.as_bytes())
+    .map_err(|e| CommandError::transient("IO_ERROR", format!("write remoto falló: {e}")).with_context("remote_backup_and_write", path))?;
   f.flush().ok();
   Ok(backup_path)
 }
 
 // --- Comando ai_remote_edit_file ---
 #[tauri::command]
-pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEditResponse, String> {
+pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEditResponse, CommandError> {
   let _sec = SecurityManager::new();
-  if req.session_id.trim().is_empty() { return Err("session_id requerido".into()); }
-  if req.instruction.trim().is_empty() { return Err("instruction vacío".into()); }
-  if req.instruction.len() > 2000 { return Err("instruction demasiado largo (>2000)".into()); }
+  if req.session_id.trim().is_empty() { return Err(CommandError::permanent("VALIDATION_FAILED", "session_id requerido")); }
+  if req.instruction.trim().is_empty() { return Err(CommandError::permanent("VALIDATION_FAILED", "instruction vacío")); }
+  if req.instruction.len() > 2000 { return Err(CommandError::permanent("VALIDATION_FAILED", "instruction demasiado largo (>2000)")); }
   let sid = req.session_id.clone(); let path = req.path.clone();
-  let bytes = tokio::task::spawn_blocking(move || sftp_read_file(&sid, &path)).await.map_err(|_| "join error")??;
-  if bytes.len() > MAX_AI_EDIT_SIZE { return Err(format!("Archivo excede límite edición AI ({} bytes > {})", bytes.len(), MAX_AI_EDIT_SIZE)); }
+  let bytes = tokio::task::spawn_blocking(move || sftp_read_file(&sid, &path))
+    .await
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("join error: {e}")))??;
+  if bytes.len() > MAX_AI_EDIT_SIZE { return Err(CommandError::permanent("VALIDATION_FAILED", format!("Archivo excede límite edición AI ({} bytes > {})", bytes.len(), MAX_AI_EDIT_SIZE))); }
   let original_content = String::from_utf8_lossy(&bytes).to_string();
   let original_sha = sha256_hex(&bytes);
   let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-3.5-turbo".into());
   // Resolver endpoint y key: soporta OpenAI, Claude-via-OpenAI y OpenRouter
   let (ai_url, ai_key_opt, is_openrouter) = crate::cmd::ai::ai_utils::resolve_openai_endpoint(&model);
-  let api_key = ai_key_opt.ok_or_else(|| "No se encontró API key (OPENAI_API_KEY u OPENROUTER_API_KEY)".to_string())?;
+  let api_key = ai_key_opt.ok_or_else(|| CommandError::permanent("CONFIG_MISSING", "No se encontró API key (OPENAI_API_KEY u OPENROUTER_API_KEY)"))?;
   if std::env::var("FILE_AI_DEBUG").ok().as_deref() == Some("1") {
     let _ = (&model, &api_key);
   }
@@ -218,17 +244,23 @@ pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEdi
     "temperature": 0.1,
     "max_tokens": 1200
   });
-  let client = reqwest::Client::builder().timeout(Duration::from_secs(20)).build().map_err(|e| e.to_string())?;
+  let client = reqwest::Client::builder().timeout(Duration::from_secs(20)).build()
+    .map_err(|e| CommandError::internal("HTTP_CLIENT_ERROR", e.to_string()))?;
   let mut req_b = client.post(&ai_url).bearer_auth(&api_key).json(&body);
   if is_openrouter {
     req_b = req_b.header("HTTP-Referer", "https://github.com/ssh-ai-client").header("X-Title", "SSH AI Client");
   }
-  let resp = req_b.send().await.map_err(|e| format!("http error: {e}"))?;
-  let json: serde_json::Value = resp.json().await.map_err(|e| format!("json error: {e}"))?;
-  let raw = json.pointer("/choices/0/message/content").and_then(|v| v.as_str()).ok_or("sin contenido de modelo")?;
+  let resp = req_b.send().await
+    .map_err(|e| CommandError::transient("OPERATION_TIMEOUT", format!("http error: {e}")).with_retry_after(2000))?;
+  let json: serde_json::Value = resp.json().await
+    .map_err(|e| CommandError::transient("COMMUNICATION_ERROR", format!("json error: {e}")))?;
+  let raw = json.pointer("/choices/0/message/content").and_then(|v| v.as_str())
+    .ok_or_else(|| CommandError::permanent("INVALID_DATA", "sin contenido de modelo"))?;
   let trimmed = raw.trim().trim_matches('`').trim_start_matches("json").trim();
-  let parsed: serde_json::Value = serde_json::from_str(trimmed).map_err(|_| "JSON IA inválido")?;
-  let new_content = parsed.get("new_content").and_then(|v| v.as_str()).ok_or("new_content faltante")?.to_string();
+  let parsed: serde_json::Value = serde_json::from_str(trimmed)
+    .map_err(|e| CommandError::permanent("INVALID_DATA", format!("JSON IA inválido: {e}")))?;
+  let new_content = parsed.get("new_content").and_then(|v| v.as_str())
+    .ok_or_else(|| CommandError::permanent("INVALID_DATA", "new_content faltante"))?.to_string();
   // Nuevo campo descripcion (preferido). Si no viene, usar purpose legacy si existe.
   let descripcion = parsed.get("descripcion").and_then(|v| v.as_str()).map(|s| s.to_string());
   let purpose_legacy = parsed.get("purpose").and_then(|v| v.as_str()).map(|s| s.to_string());
@@ -243,50 +275,56 @@ pub async fn ai_remote_edit_file(req: AiRemoteEditRequest) -> Result<AiRemoteEdi
     backup_path = tokio::task::spawn_blocking(move || {
       let sftp = get_sftp_for_session(&sid2)?;
       remote_backup_and_write(&sftp, &path2, &nc)
-    }).await.map_err(|_| "join write error")??;
+    }).await.map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("join write error: {e}")))??;
     applied = true;
   }
   Ok(AiRemoteEditResponse { original_sha, new_sha, original_size: original_content.len(), new_size: new_content.len(), diff, new_content, applied, backup_path, purpose, key_points, model_used: Some(model), refused, descripcion })
 }
 
 #[tauri::command]
-pub fn analyze_file(path: String) -> Result<AnalyzeFileResponse, String> {
+pub fn analyze_file(path: String) -> Result<AnalyzeFileResponse, CommandError> {
   // Unificamos lógica: delegar a analyze_any_file sin session_id (D)
   tauri::async_runtime::block_on(analyze_any_file(None, path, None))
 }
 
-fn sftp_read_file(session_id: &str, remote_path: &str) -> Result<Vec<u8>, String> {
+fn sftp_read_file(session_id: &str, remote_path: &str) -> Result<Vec<u8>, CommandError> {
   use crate::ssh_core::ssh2_sftp as sftp2;
   use std::sync::{Arc, Mutex};
   use crate::cmd::state::CachedSsh2;
   // Reutilizar lógica de conexión de sftp.rs (simplificada aquí)
-  fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
+  fn get_or_connect_cached(map: &mut std::collections::HashMap<String, SessionExt>, id: &str) -> Result<Arc<Mutex<CachedSsh2>>, CommandError> {
     if let Some(existing) = map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
     let (host, port, user, password) = {
-      let s = map.get(id).ok_or_else(|| "Sesión no encontrada".to_string())?;
+      let s = map.get(id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
       (s.host.clone(), s.port, s.user.clone(), s.password.clone())
     };
-    let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
+    let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password)
+      .map_err(|e| CommandError::transient("IO_ERROR", format!("Conexión SFTP falló: {e}")).with_context("sftp_read_file", id))?;
     let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess }));
     if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); }
     Ok(arc)
   }
-  let mut map = SESSIONS.lock().map_err(|_| "Lock sessions".to_string())?;
+  let mut map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
   let cached = get_or_connect_cached(&mut map, session_id)?;
-  let guard = cached.lock().map_err(|_| "Lock cached".to_string())?;
-  let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
+  let guard = cached.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "ssh2 lock poisoned"))?;
+  let sftp = sftp2::open_sftp(&guard.sess)
+    .map_err(|e| CommandError::transient("IO_ERROR", format!("Abrir SFTP falló: {e}")).with_context("sftp_read_file", session_id))?;
   let path = std::path::Path::new(remote_path);
-  let mut f = sftp.open(path).map_err(|e| format!("sftp open error: {e}"))?;
+  let mut f = sftp.open(path).map_err(|e| {
+    CommandError::permanent("RESOURCE_NOT_FOUND", format!("No se pudo abrir archivo remoto: {e}"))
+      .with_context("sftp_read_file", remote_path)
+  })?;
   let mut buf = Vec::new();
   use std::io::Read as _;
-  f.read_to_end(&mut buf).map_err(|e| format!("sftp read error: {e}"))?;
+  f.read_to_end(&mut buf)
+    .map_err(|e| CommandError::transient("IO_ERROR", format!("Lectura SFTP falló: {e}")).with_context("sftp_read_file", remote_path))?;
   Ok(buf)
 }
 
 /// Analiza un archivo remoto o local. Acepta `session_id` (snake) y alias `sessionId` (camel) para compatibilidad frontend.
 #[tauri::command]
 #[allow(non_snake_case)] // permitimos alias camelCase proveniente de bundles antiguos
-pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionId: Option<String>) -> Result<AnalyzeFileResponse, String> {
+pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionId: Option<String>) -> Result<AnalyzeFileResponse, CommandError> {
   let _sec = SecurityManager::new();
   // Cargar .env temprano (asegura OPENAI_API_KEY disponible para lógica de activación)
   let _ = dotenvy::dotenv();
@@ -327,9 +365,15 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
   if bytes_opt.is_none() { if let Some(sid)=&effective_session { if let Some(b)=try_remote(sid,&path).await { bytes_opt=Some(b); } } }
 
   if effective_session.is_none() { reasons.push("Sin session_id efectivo (no se suministró session_id/sessionId)".into()); }
-  let bytes = bytes_opt.ok_or_else(|| format!("No se pudo leer el archivo: {} => intentos: {}", original_input, reasons.join(" | ")))?;
-  if bytes.len() as u64 > MAX_FILE_SIZE { return Err(format!("Archivo excede límite {} bytes", MAX_FILE_SIZE)); }
-  if is_probably_binary(&bytes) { return Err("Archivo parece binario, se rechaza".into()); }
+  let bytes = bytes_opt.ok_or_else(|| {
+    CommandError::permanent(
+      "RESOURCE_NOT_FOUND",
+      format!("No se pudo leer el archivo: {} => intentos: {}", original_input, reasons.join(" | ")),
+    )
+    .with_context("analyze_any_file", &original_input)
+  })?;
+  if bytes.len() as u64 > MAX_FILE_SIZE { return Err(CommandError::permanent("VALIDATION_FAILED", format!("Archivo excede límite {} bytes", MAX_FILE_SIZE))); }
+  if is_probably_binary(&bytes) { return Err(CommandError::permanent("VALIDATION_FAILED", "Archivo parece binario, se rechaza")); }
 
   let content = String::from_utf8_lossy(&bytes);
   let line_count = content.lines().count();
@@ -733,7 +777,7 @@ pub async fn analyze_any_file(session_id: Option<String>, path: String, sessionI
 // Nota: plan_file_edit usa una heurística temporal para demostrar cambios mientras no se integra el modelo.
 // Heurística: añade un bloque de comentario inicial con la instrucción si no existe ya una huella similar.
 #[tauri::command]
-pub fn plan_file_edit(req: PlanFileEditRequest) -> Result<PlanFileEditResponse, String> {
+pub fn plan_file_edit(req: PlanFileEditRequest) -> Result<PlanFileEditResponse, CommandError> {
   let _sec = SecurityManager::new();
   let p = PathBuf::from(&req.path);
   let bytes = read_file_checked(&p)?;
@@ -767,24 +811,24 @@ pub fn plan_file_edit(req: PlanFileEditRequest) -> Result<PlanFileEditResponse, 
 }
 
 #[tauri::command]
-pub fn apply_file_edit(req: ApplyFileEditRequest) -> Result<ApplyFileEditResponse, String> {
+pub fn apply_file_edit(req: ApplyFileEditRequest) -> Result<ApplyFileEditResponse, CommandError> {
   let _sec = SecurityManager::new();
   let p = PathBuf::from(&req.path);
   let existing = read_file_checked(&p)?;
   let existing_str = String::from_utf8_lossy(&existing);
-  if existing_str == req.new_content { return Err("Nuevo contenido es idéntico al actual".into()); }
+  if existing_str == req.new_content { return Err(CommandError::permanent("VALIDATION_FAILED", "Nuevo contenido es idéntico al actual")); }
   // Backup
   let backup_path = backup_path_for(&p)?;
-  fs::write(&backup_path, &existing).map_err(|e| format!("backup write error: {e}"))?;
+  fs::write(&backup_path, &existing).map_err(|e| map_io_error(e, "apply_file_edit", &backup_path.display().to_string()))?;
   rotate_backups(&p);
   // Escribir nuevo
-  fs::write(&p, req.new_content.as_bytes()).map_err(|e| format!("write error: {e}"))?;
+  fs::write(&p, req.new_content.as_bytes()).map_err(|e| map_io_error(e, "apply_file_edit", &req.path))?;
   let sha256_new = sha256_hex(req.new_content.as_bytes());
   Ok(ApplyFileEditResponse { backup_path: backup_path.display().to_string(), bytes_written: req.new_content.len(), sha256_new })
 }
 
 #[tauri::command]
-pub fn list_file_backups(path: String) -> Result<ListBackupsResponse, String> {
+pub fn list_file_backups(path: String) -> Result<ListBackupsResponse, CommandError> {
   let _sec = SecurityManager::new();
   let p = PathBuf::from(&path);
   let mut metas = Vec::new();
@@ -797,13 +841,14 @@ pub fn list_file_backups(path: String) -> Result<ListBackupsResponse, String> {
 }
 
 #[tauri::command]
-pub fn revert_file(req: RevertFileRequest) -> Result<RevertFileResponse, String> {
+pub fn revert_file(req: RevertFileRequest) -> Result<RevertFileResponse, CommandError> {
   let _sec = SecurityManager::new();
   let p = PathBuf::from(&req.path);
   let backups = list_backups_internal(&p);
-  let target = backups.first().ok_or("No hay backups disponibles")?;
-  let data = fs::read(target).map_err(|e| format!("read backup error: {e}"))?;
-  fs::write(&p, &data).map_err(|e| format!("restore write error: {e}"))?;
+  let target = backups.first()
+    .ok_or_else(|| CommandError::permanent("RESOURCE_NOT_FOUND", "No hay backups disponibles"))?;
+  let data = fs::read(target).map_err(|e| map_io_error(e, "revert_file", &target.display().to_string()))?;
+  fs::write(&p, &data).map_err(|e| map_io_error(e, "revert_file", &req.path))?;
   Ok(RevertFileResponse { restored_from: target.display().to_string() })
 }
 

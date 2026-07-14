@@ -31,8 +31,9 @@ import ChatToast from './chat/ChatToast';
 import { useDisplayName } from '../pages/home/useDisplayName';
 import ChatFloatingActions from './chatPane/ChatFloatingActions';
 import { pi4AgentReady as fetchPi4AgentReady } from '../services/ai.service';
-import { vncStop } from '../services/ssh.service';
+import { vncStop, sshSessionInfo } from '../services/ssh.service';
 import { useTour } from '../tour/useTour';
+import { useQueryData } from '../hooks/useQueryData';
 
 type Props = {
   sessionId?: string | null;
@@ -86,12 +87,20 @@ const ChatPane: React.FC<Props> = ({
   const [streamedText, setStreamedText] = useState('');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTokenPopover, setShowTokenPopover] = useState(false);
-  const [hostKey, setHostKey] = useState<string>(sessionId ?? 'default');
-  const [pi4Ready, setPi4Ready] = useState(false);
+  // Estado de disponibilidad del agente Pi4 (PI4_USER/PI4_PASSWORD en .env):
+  // dato de solo lectura, cacheado (Batch 3, REFACTOR #4) para no
+  // re-consultar al backend en cada remontaje de ChatPane dentro del TTL.
+  const { data: pi4ReadyData } = useQueryData('ai:pi4-agent-ready', fetchPi4AgentReady);
+  const pi4Ready = pi4ReadyData ?? false;
 
-  useEffect(() => {
-    fetchPi4AgentReady().then(setPi4Ready).catch(() => setPi4Ready(false));
-  }, []);
+  // Metadata de la sesión SSH activa (host/user), también de solo lectura
+  // y cacheada por sessionId.
+  const { data: sshInfo } = useQueryData(
+    `ssh:session-info:${sessionId ?? 'none'}`,
+    () => sshSessionInfo(sessionId as string),
+    { enabled: !!sessionId },
+  );
+  const hostKey = sessionId ? (sshInfo ? `${sshInfo.user}@${sshInfo.host}` : sessionId) : 'default';
 
   // Refs
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -104,12 +113,6 @@ const ChatPane: React.FC<Props> = ({
 
   // ── Session & API Resolve ──
   const { mem, setLastCommand, clear: clearMemory } = useSessionMemory(sessionId ?? null);
-  useEffect(() => {
-    if (!sessionId) { setHostKey('default'); return; }
-    invoke<{ host: string; port: number; user: string }>('ssh_session_info', { id: sessionId })
-      .then(info => setHostKey(`${info.user}@${info.host}`))
-      .catch(() => setHostKey(sessionId));
-  }, [sessionId]);
 
   useEffect(() => { localStorage.setItem('chatSelectedModel', selectedModel); }, [selectedModel]);
 

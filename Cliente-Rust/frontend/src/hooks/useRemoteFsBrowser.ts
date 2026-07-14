@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { commandClient } from "../services/command.service";
 import type { SftpEntry } from "../types";
+import { useMultiSelection } from "./useMultiSelection";
 
 export type RemoteSortKey = "name" | "mtime" | "size" | "kind";
 
@@ -14,7 +16,15 @@ export function useRemoteFsBrowser(sessionId?: string, initialPath?: string) {
   const [rows, setRows] = useState<SftpEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  const [selectedPath, setSelectedPath] = useState<string | undefined>();
+  const {
+    selectedPaths,
+    lastSelected,
+    selectOnly,
+    toggleSelect,
+    selectRange,
+    selectAll: selectAllPaths,
+    clearSelection,
+  } = useMultiSelection();
   const [sort, setSort] = useState<RemoteSort>({ key: "name", dir: "asc" });
   const [filter, setFilter] = useState<string>("");
 
@@ -24,12 +34,16 @@ export function useRemoteFsBrowser(sessionId?: string, initialPath?: string) {
     setError(undefined);
     try {
       await invoke("sftp_open", { id: sessionId });
-      const list = await invoke<SftpEntry[]>("sftp_list", { id: sessionId, path });
-      setRows(list || []);
+      // Comando migrado al protocolo versionado: envelope req/response.
+      const res = await commandClient.invoke<
+        { id: string; path: string },
+        { entries: SftpEntry[] }
+      >("sftp_list", { id: sessionId, path });
+      setRows(res?.entries || []);
     } catch (e: any) {
-      const errorMsg = e?.toString?.() || "Error";
+      const errorMsg = e?.message ?? "Error";
       // Si el path no existe, intentar volver al home
-      if (errorMsg.includes("no such file") && path !== "/") {
+      if (e?.code === "SFTP_NOT_FOUND" && path !== "/") {
         try {
           const home = await invoke<string>("sftp_home", { id: sessionId });
           if (home && home.length > 1) {
@@ -72,9 +86,30 @@ export function useRemoteFsBrowser(sessionId?: string, initialPath?: string) {
   }, [sessionId, path, refresh]);
 
   useEffect(() => {
-    setSelectedPath(undefined);
+    clearSelection();
     setFilter("");
-  }, [path]);
+  }, [path, clearSelection]);
+
+  // Inserta o actualiza (por nombre) una entrada en el directorio actual sin
+  // disparar un refresh completo. Se usa tras mkdir/upload para reflejar el
+  // cambio de inmediato en la UI.
+  const insertEntry = useCallback((entry: SftpEntry) => {
+    setRows(prev => {
+      const idx = prev.findIndex(e => e.name === entry.name);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = entry;
+        return next;
+      }
+      return [...prev, entry];
+    });
+  }, []);
+
+  // Quita una entrada del directorio actual por nombre, sin refresh completo.
+  // Se usa tras eliminar en remoto.
+  const removeEntry = useCallback((name: string) => {
+    setRows(prev => prev.filter(e => e.name !== name));
+  }, []);
 
   const display = useMemo(() => {
     const arr = [...rows];
@@ -111,13 +146,20 @@ export function useRemoteFsBrowser(sessionId?: string, initialPath?: string) {
     display,
     loading,
     error,
-    selectedPath,
-    setSelectedPath,
+    selectedPaths,
+    lastSelected,
+    selectOnly,
+    toggleSelect,
+    selectRange,
+    selectAll: selectAllPaths,
+    clearSelection,
     sort,
     setSort,
     filter,
     setFilter,
-    refresh
+    refresh,
+    insertEntry,
+    removeEntry
   };
 }
 
