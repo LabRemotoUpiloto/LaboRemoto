@@ -137,6 +137,34 @@ export function useQueryData<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData])
 
+  // Ref que trackea si esta key llegó a tener una entrada con datos en el
+  // store (Batch 3, fix de gap de eviction detectado por pr-reviewer). Si el
+  // cache es evictado (LRU, `evictOldestEntries`) o invalidado externamente
+  // mientras el componente sigue montado con la misma `key`, `entry` cae de
+  // "definida" a `undefined` sin que cambie ninguna dependencia del efecto
+  // de arriba (`[key, ttl, enabled]`) — antes del fix esto dejaba el hook
+  // en `isLoading: true` para siempre (spinner infinito). Este efecto
+  // detecta esa transición (existía → ya no existe) y dispara un refetch
+  // automático.
+  //
+  // No genera loop infinito: `refetch()`/`fetchData()` normal nunca borran
+  // la entrada del store (van por `setQueryLoading`/`setQueryData`, jamás
+  // por `invalidateQuery`), así que un refetch disparado por este efecto no
+  // vuelve a producir la transición "existía → desapareció" a menos que el
+  // cache sea evictado/invalidado de nuevo por una causa externa real.
+  const hadEntryRef = useRef(false)
+  useEffect(() => {
+    if (!enabled) return
+    if (entry) {
+      hadEntryRef.current = true
+      return
+    }
+    if (hadEntryRef.current) {
+      hadEntryRef.current = false
+      fetchData()
+    }
+  }, [entry, enabled, fetchData])
+
   const refetch = useCallback(() => {
     fetchData(true)
   }, [fetchData])
