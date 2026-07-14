@@ -27,13 +27,28 @@ use crate::cmd::protocol::CommandError;
 
 /// Categoriza heurísticamente los errores `String` internos de `McpSession`
 /// (transporte JSON-RPC sobre stdio) en un `CommandError` explícito.
+///
+/// Distingue errores de aplicación/protocolo JSON-RPC (ej. `initialize
+/// falló`, `tools/list falló`, `tools/call falló`) —que son permanentes,
+/// reintentarlos no cambia el resultado— de errores de red/transporte
+/// (timeout, conexión cerrada), que sí son transitorios y se benefician de
+/// un reintento.
 fn categorize_mcp_error(operation: &str, resource: &str, e: String) -> CommandError {
     let lower = e.to_lowercase();
     let err = if lower.contains("no se pudo iniciar") {
         CommandError::permanent("RESOURCE_NOT_FOUND", e)
     } else if lower.contains("json inválido") || lower.contains("json invalido") {
         CommandError::permanent("INVALID_DATA", e)
-    } else if lower.contains("tiempo de espera agotado") || lower.contains("cerró la conexión") || lower.contains("cerro la conexion") {
+    } else if lower.contains("initialize falló") || lower.contains("initialize fallo")
+        || lower.contains("tools/list falló") || lower.contains("tools/list fallo")
+        || lower.contains("tools/call falló") || lower.contains("tools/call fallo") {
+        // Errores de aplicación/protocolo JSON-RPC: el servidor MCP respondió
+        // con un error explícito (no un problema de red), por lo que
+        // reintentar automáticamente no ayuda. Se revisa antes que las
+        // heurísticas de red para evitar falsos positivos si el mensaje de
+        // error de la app contuviera palabras como "connection".
+        CommandError::permanent("INVALID_REQUEST", e)
+    } else if lower.contains("tiempo de espera agotado") || lower.contains("cerró la conexión") || lower.contains("cerro la conexion") || lower.contains("timeout") || lower.contains("connection") {
         CommandError::transient("OPERATION_TIMEOUT", e).with_retry_after(2000)
     } else {
         CommandError::transient("COMMUNICATION_ERROR", e)

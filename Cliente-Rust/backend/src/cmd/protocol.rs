@@ -392,6 +392,22 @@ fn categorize_error_message(msg: String) -> CommandError {
     }
 }
 
+/// Mapea un `std::io::Error` a `CommandError` categorizado explícitamente
+/// (recurso no encontrado / permiso denegado / error de E/S transitorio).
+/// Consolidado aquí (antes duplicado en `editor/file_edit.rs`,
+/// `filesystem/local.rs` y `filesystem/pdf_reports.rs`) para evitar que las
+/// copias diverjan del `impl From<std::io::Error> for CommandError` de este
+/// mismo módulo.
+pub fn map_io_error(e: std::io::Error, operation: &str, resource: &str) -> CommandError {
+    use std::io::ErrorKind::*;
+    match e.kind() {
+        NotFound => CommandError::permanent("RESOURCE_NOT_FOUND", format!("Recurso no encontrado: {e}")),
+        PermissionDenied => CommandError::permanent("ACCESS_DENIED", format!("Permiso denegado: {e}")),
+        _ => CommandError::transient("IO_ERROR", format!("Error de E/S: {e}")),
+    }
+    .with_context(operation, resource)
+}
+
 /// Envuelve rápidamente un `Result<T, String>` legado en un `CommandResponse<T>`.
 /// Útil para las fases B/C/D al migrar comandos existentes sin cambiar su
 /// firma pública (`id`, `version`, `elapsed_ms` siguen viniendo del envelope).
@@ -408,5 +424,35 @@ pub fn wrap_result<T>(
             let retry_after_ms = error.retry_after_ms.map(|ms| ms as i64);
             CommandResponse::error(id, version, error, retry_after_ms)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    #[test]
+    fn map_io_error_not_found() {
+        let e = io::Error::new(io::ErrorKind::NotFound, "file not found");
+        let err = map_io_error(e, "read", "file.txt");
+        assert_eq!(err.code, "RESOURCE_NOT_FOUND");
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn map_io_error_permission_denied() {
+        let e = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
+        let err = map_io_error(e, "write", "file.txt");
+        assert_eq!(err.code, "ACCESS_DENIED");
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn map_io_error_other() {
+        let e = io::Error::new(io::ErrorKind::Other, "other io error");
+        let err = map_io_error(e, "read", "file.txt");
+        assert_eq!(err.code, "IO_ERROR");
+        assert!(err.is_retryable());
     }
 }

@@ -1,18 +1,7 @@
 use base64::{engine::general_purpose, Engine as _};
 use std::fs;
 use crate::cmd::logs::logs::{STORAGE, LogStorage};
-use crate::cmd::protocol::CommandError;
-
-/// Mapea un `std::io::Error` a `CommandError` categorizado explícitamente.
-fn map_io_error(e: std::io::Error, operation: &str, resource: &str) -> CommandError {
-    use std::io::ErrorKind::*;
-    match e.kind() {
-        NotFound => CommandError::permanent("RESOURCE_NOT_FOUND", format!("Recurso no encontrado: {e}")),
-        PermissionDenied => CommandError::permanent("ACCESS_DENIED", format!("Permiso denegado: {e}")),
-        _ => CommandError::transient("IO_ERROR", format!("Error de E/S: {e}")),
-    }
-    .with_context(operation, resource)
-}
+use crate::cmd::protocol::{map_io_error, CommandError};
 
 #[tauri::command]
 pub async fn save_pdf_base64(session_log_id: String, base64_data: String) -> Result<String, CommandError> {

@@ -9,20 +9,8 @@ use crate::cmd::ai::ai_utils::get_openai_api_key;
 use crate::cmd::state::SessionExt;
 use std::io::Read;
 use chrono; // ya está en Cargo.toml
-use crate::cmd::protocol::CommandError;
+use crate::cmd::protocol::{map_io_error, CommandError};
 use crate::error::AppError;
-
-/// Mapea un `std::io::Error` a `CommandError` categorizado explícitamente
-/// (archivo no encontrado / permiso denegado / error de E/S transitorio).
-fn map_io_error(e: std::io::Error, operation: &str, resource: &str) -> CommandError {
-  use std::io::ErrorKind::*;
-  match e.kind() {
-    NotFound => CommandError::permanent("RESOURCE_NOT_FOUND", format!("Recurso no encontrado: {e}")),
-    PermissionDenied => CommandError::permanent("ACCESS_DENIED", format!("Permiso denegado: {e}")),
-    _ => CommandError::transient("IO_ERROR", format!("Error de E/S: {e}")),
-  }
-  .with_context(operation, resource)
-}
 
 const MAX_FILE_SIZE: u64 = 500 * 1024; // 500 KB
 const MAX_BACKUPS: usize = 5;          // rotación

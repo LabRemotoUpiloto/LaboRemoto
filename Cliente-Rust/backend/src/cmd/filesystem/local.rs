@@ -6,19 +6,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
 use crate::cmd::state::LocalEntry;
-use crate::cmd::protocol::CommandError;
-
-/// Mapea un `std::io::Error` a `CommandError` categorizado explícitamente
-/// (ruta no encontrada / permiso denegado / error de E/S transitorio).
-fn map_io_error(e: std::io::Error, operation: &str, resource: &str) -> CommandError {
-  use std::io::ErrorKind::*;
-  match e.kind() {
-    NotFound => CommandError::permanent("RESOURCE_NOT_FOUND", format!("Recurso no encontrado: {e}")),
-    PermissionDenied => CommandError::permanent("ACCESS_DENIED", format!("Permiso denegado: {e}")),
-    _ => CommandError::transient("IO_ERROR", format!("Error de E/S: {e}")),
-  }
-  .with_context(operation, resource)
-}
+use crate::cmd::protocol::{map_io_error, CommandError};
 
 #[tauri::command]
 pub async fn local_home_dir() -> Result<String, CommandError> {
