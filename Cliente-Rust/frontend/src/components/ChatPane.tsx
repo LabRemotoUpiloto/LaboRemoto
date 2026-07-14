@@ -34,6 +34,7 @@ import { pi4AgentReady as fetchPi4AgentReady } from '../services/ai.service';
 import { vncStop, sshSessionInfo } from '../services/ssh.service';
 import { useTour } from '../tour/useTour';
 import { useQueryData } from '../hooks/useQueryData';
+import { useAuth } from '../hooks/useAuth';
 
 type Props = {
   sessionId?: string | null;
@@ -52,6 +53,7 @@ const ChatPane: React.FC<Props> = ({
   const isHome = layout === 'home';
   const displayName = useDisplayName();
   const { startTour } = useTour();
+  const { isAuthenticated } = useAuth();
   // ── Core State ──
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -95,10 +97,23 @@ const ChatPane: React.FC<Props> = ({
 
   // Metadata de la sesión SSH activa (host/user), también de solo lectura
   // y cacheada por sessionId.
+  //
+  // Fix REFACTOR #4 (hallazgo final de @pr-reviewer sobre el commit
+  // 0462128): `enabled` también depende de `isAuthenticated`. `logout()`
+  // invalida todo el `queryCache` (incluida esta key), y el mecanismo de
+  // auto-refetch de `useQueryData` (ver comentario en ese hook) reacciona a
+  // cualquier entrada que desaparezca mientras el componente sigue montado
+  // — sin distinguir "invalidación por logout" de "eviction LRU". Como los
+  // tabs de sesión no se desmontan automáticamente al perder autenticación
+  // (solo se ocultan por navegación), sin este guard el ChatPane dispararía
+  // una llamada de red (`sshSessionInfo`) justo cuando el backend está
+  // cerrando la sesión. Atar `enabled` a `isAuthenticated` evita ese
+  // refetch innecesario; al volver a autenticarse, `enabled` vuelve a
+  // `true` y el efecto de `useQueryData` dispara el fetch normalmente.
   const { data: sshInfo } = useQueryData(
     `ssh:session-info:${sessionId ?? 'none'}`,
     () => sshSessionInfo(sessionId as string),
-    { enabled: !!sessionId },
+    { enabled: !!sessionId && isAuthenticated },
   );
   const hostKey = sessionId ? (sshInfo ? `${sshInfo.user}@${sshInfo.host}` : sessionId) : 'default';
 
