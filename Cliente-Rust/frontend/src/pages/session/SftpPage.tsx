@@ -13,7 +13,7 @@ import PromptModal from '../../components/modals/PromptModal'
 import QuickViewModal from '../../components/sftp/QuickViewModal'
 import { useLocalFsBrowser } from '../../hooks/useLocalFsBrowser'
 import { useRemoteFsBrowser } from '../../hooks/useRemoteFsBrowser'
-import { useSftpTransfers } from '../../hooks/useSftpTransfers'
+import { useSftpSession } from '../../hooks/useSftpSession'
 import { usePointerDrag } from '../../components/sftp/usePointerDrag'
 import { useToasts } from '../../contexts/ToastContext'
 import {
@@ -122,7 +122,7 @@ const SftpPage: React.FC<Props> = ({
     transfers,
     cancelTransfer: doCancel,
     clearCompleted: doClearTransfers,
-  } = useSftpTransfers(sessionId)
+  } = useSftpSession(sessionId)
 
   // ── Actualización incremental del panel remoto tras subidas completadas ────
   // Cuando una transferencia de subida termina, inserta/actualiza la entrada
