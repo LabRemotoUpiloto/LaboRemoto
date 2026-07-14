@@ -10,6 +10,7 @@ pub mod session_manager; // Store único de sesión + auth (trait SessionManager
 pub mod security;   // Validaciones de seguridad y backups
 pub mod api;        // REST API
 pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
+pub mod ipc;        // Contrato de mensajería interna Message+ACK+backpressure (REFACTOR #5 Fase A, sin wiring aún)
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 fn load_dotenv() {
