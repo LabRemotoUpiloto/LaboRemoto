@@ -123,9 +123,6 @@ export function useTerminalSessionCapture({
   };
 
   useEffect(() => {
-    const term = termRef.current;
-    if (!term) return;
-
     const previousMetadata = sessionMetadataRef.current;
     if (previousMetadata && previousMetadata.sessionId !== sessionId) {
       captureCurrentSession();
@@ -136,6 +133,12 @@ export function useTerminalSessionCapture({
     }
 
     const handleSaveBeforeClose = async (event: CustomEvent) => {
+      // Leer termRef.current AQUÍ (en el momento del evento), no al registrar el
+      // listener: este efecto corre antes que useTerminalLifecycle pueble termRef,
+      // por lo que en el primer montaje termRef.current siempre sería null.
+      const term = termRef.current;
+      if (!term) return;
+
       const { sessionId: requestedSessionId } = event.detail;
       if (requestedSessionId === sessionId) {
         try {
