@@ -6,7 +6,7 @@ use crate::cmd::logs::logs::{STORAGE, LogStorage};
 pub async fn save_pdf_base64(session_log_id: String, base64_data: String) -> Result<String, String> {
     // 1. Obtener metadatos para armar el nombre por defecto
     let log = STORAGE.get_log(&session_log_id)
-        .map_err(|e| format!("Error obteniendo log: {}", e))?;
+        .map_err(|e| format!("Error obteniendo log: {}", e.message))?;
     
     let metadata = log.metadata;
     let default_name = format!("SSH_Report_{}_{}.pdf", metadata.host, 
