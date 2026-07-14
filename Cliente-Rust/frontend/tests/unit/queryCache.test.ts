@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { create } from 'zustand';
-import { QueryCacheSlice, createQueryCacheSlice } from '../../src/store/queryCache';
+import { QueryCacheSlice, createQueryCacheSlice, MAX_QUERY_CACHE_ENTRIES } from '../../src/store/queryCache';
 
 describe('queryCache slice', () => {
   let useStore: ReturnType<typeof create<QueryCacheSlice>>;
@@ -63,5 +63,29 @@ describe('queryCache slice', () => {
     useStore.getState().invalidateAllQueries();
 
     expect(useStore.getState().queryCache).toEqual({});
+  });
+
+  it('evicts the oldest entry once the cache exceeds MAX_QUERY_CACHE_ENTRIES', () => {
+    for (let i = 0; i < MAX_QUERY_CACHE_ENTRIES; i++) {
+      useStore.getState().setQueryData(`k${i}`, i);
+    }
+    expect(Object.keys(useStore.getState().queryCache)).toHaveLength(MAX_QUERY_CACHE_ENTRIES);
+
+    // One more entry pushes the cache over the limit; the oldest key (k0) should be evicted.
+    useStore.getState().setQueryData('k-new', 'newest');
+
+    const cache = useStore.getState().queryCache;
+    expect(Object.keys(cache)).toHaveLength(MAX_QUERY_CACHE_ENTRIES);
+    expect(cache['k0']).toBeUndefined();
+    expect(cache['k-new']).toBeDefined();
+    expect(cache['k1']).toBeDefined();
+  });
+
+  it('never grows the cache beyond MAX_QUERY_CACHE_ENTRIES no matter how many keys are set', () => {
+    for (let i = 0; i < MAX_QUERY_CACHE_ENTRIES * 3; i++) {
+      useStore.getState().setQueryData(`session:${i}`, { i });
+    }
+
+    expect(Object.keys(useStore.getState().queryCache)).toHaveLength(MAX_QUERY_CACHE_ENTRIES);
   });
 });

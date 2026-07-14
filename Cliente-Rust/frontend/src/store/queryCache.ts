@@ -20,6 +20,34 @@ export interface QueryCacheEntry {
   error: unknown
 }
 
+/**
+ * Tamaño máximo del cache (Batch 3, fix de eviction). Keys dinámicas (ej.
+ * `ssh:session-info:${sessionId}`) nunca se invalidan por sí solas, así que
+ * sin este límite el store crecería indefinidamente en sesiones largas.
+ *
+ * Estrategia: LRU simple por `timestamp` — al superar el límite se elimina
+ * la entrada más antigua (la que lleva más tiempo sin refrescarse) hasta
+ * volver a estar dentro del límite. Se aplica en `setQueryData`, que es el
+ * único punto donde el cache puede crecer con una key nueva.
+ */
+export const MAX_QUERY_CACHE_ENTRIES = 50
+
+/** Elimina las entradas más antiguas (por `timestamp`) hasta respetar `maxEntries`. */
+function evictOldestEntries(
+  cache: Record<string, QueryCacheEntry>,
+  maxEntries: number,
+): Record<string, QueryCacheEntry> {
+  const keys = Object.keys(cache)
+  if (keys.length <= maxEntries) return cache
+
+  const oldestFirst = keys.sort((a, b) => cache[a].timestamp - cache[b].timestamp)
+  const keysToEvict = oldestFirst.slice(0, keys.length - maxEntries)
+
+  const next = { ...cache }
+  for (const key of keysToEvict) delete next[key]
+  return next
+}
+
 export interface QueryCacheSlice {
   queryCache: Record<string, QueryCacheEntry>
   setQueryLoading: (key: string, isLoading: boolean) => void
@@ -51,8 +79,8 @@ export const createQueryCacheSlice: StateCreator<QueryCacheSlice, [], [], QueryC
     }),
 
   setQueryData: (key, data) =>
-    set((state) => ({
-      queryCache: {
+    set((state) => {
+      const withNewEntry = {
         ...state.queryCache,
         [key]: {
           data,
@@ -60,8 +88,9 @@ export const createQueryCacheSlice: StateCreator<QueryCacheSlice, [], [], QueryC
           isLoading: false,
           error: null,
         },
-      },
-    })),
+      }
+      return { queryCache: evictOldestEntries(withNewEntry, MAX_QUERY_CACHE_ENTRIES) }
+    }),
 
   setQueryError: (key, error) =>
     set((state) => {

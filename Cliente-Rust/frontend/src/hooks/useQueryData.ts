@@ -42,6 +42,71 @@ export interface UseQueryDataResult<T> {
   refetch: () => void
 }
 
+/**
+ * Mapa module-level de promesas en vuelo, indexadas por `key` (Batch 3, fix
+ * de deduplicación). Vive fuera del store porque no es estado de UI/render
+ * — es puramente un mecanismo de coordinación entre llamadas concurrentes a
+ * `fetchQueryData` con la misma key (ej. dos componentes montando a la vez).
+ *
+ * Cuando ya hay un fetch en curso para una key, las llamadas subsiguientes
+ * esperan esa misma promesa en lugar de disparar otra llamada a `queryFn`
+ * (típicamente un `invoke()` de Tauri). El store ya se actualiza una sola
+ * vez cuando la promesa original resuelve, y todos los componentes
+ * suscritos a esa key se re-renderizan automáticamente vía Zustand.
+ */
+const inFlightRequests = new Map<string, Promise<unknown>>()
+
+export interface FetchQueryDataOptions {
+  ttl?: number
+  /** Ignora el TTL vigente y fuerza una relectura (pero sigue deduplicando contra un fetch ya en curso). */
+  force?: boolean
+}
+
+/**
+ * Ejecuta (o reutiliza, si ya hay una en curso) el fetch para `key` y
+ * actualiza el `QueryCacheSlice` del store con el resultado/estado.
+ *
+ * Se exporta como función independiente del hook para poder testear la
+ * lógica de cache/dedup/TTL sin necesidad de renderizar componentes React.
+ */
+export async function fetchQueryData<T>(
+  key: string,
+  queryFn: () => Promise<T>,
+  options?: FetchQueryDataOptions,
+): Promise<void> {
+  const ttl = options?.ttl ?? DEFAULT_QUERY_TTL_MS
+  const force = options?.force ?? false
+
+  const { queryCache, setQueryLoading, setQueryData, setQueryError } = useAppStore.getState()
+  const current = queryCache[key]
+  const isFresh = !!current && current.data !== undefined && !current.error && Date.now() - current.timestamp < ttl
+
+  if (!force && isFresh) return
+
+  const existing = inFlightRequests.get(key)
+  if (existing) {
+    // Ya hay un fetch en curso para esta key: esperamos su resolución en
+    // vez de disparar una llamada duplicada. El error (si lo hay) ya queda
+    // registrado en el store por la llamada original.
+    await existing.catch(() => undefined)
+    return
+  }
+
+  setQueryLoading(key, true)
+  const promise = queryFn()
+  inFlightRequests.set(key, promise)
+  try {
+    const data = await promise
+    setQueryData(key, data)
+  } catch (err) {
+    setQueryError(key, err instanceof Error ? err : new Error(String(err)))
+  } finally {
+    if (inFlightRequests.get(key) === promise) {
+      inFlightRequests.delete(key)
+    }
+  }
+}
+
 export function useQueryData<T>(
   key: string,
   queryFn: () => Promise<T>,
@@ -51,9 +116,6 @@ export function useQueryData<T>(
   const enabled = options?.enabled ?? true
 
   const entry = useAppStore((state) => state.queryCache[key])
-  const setQueryLoading = useAppStore((state) => state.setQueryLoading)
-  const setQueryData = useAppStore((state) => state.setQueryData)
-  const setQueryError = useAppStore((state) => state.setQueryError)
 
   // La queryFn puede recrearse en cada render del consumidor (closures sobre
   // props); la guardamos en un ref para no reejecutar el efecto por eso.
@@ -63,22 +125,9 @@ export function useQueryData<T>(
   const fetchData = useCallback(
     async (force = false) => {
       if (!enabled) return
-
-      const current = useAppStore.getState().queryCache[key]
-      const isFresh =
-        !!current && current.data !== undefined && !current.error && Date.now() - current.timestamp < ttl
-
-      if (!force && isFresh) return
-
-      setQueryLoading(key, true)
-      try {
-        const data = await queryFnRef.current()
-        setQueryData(key, data)
-      } catch (err) {
-        setQueryError(key, err instanceof Error ? err : new Error(String(err)))
-      }
+      await fetchQueryData(key, () => queryFnRef.current(), { ttl, force })
     },
-    [key, ttl, enabled, setQueryLoading, setQueryData, setQueryError],
+    [key, ttl, enabled],
   )
 
   useEffect(() => {
