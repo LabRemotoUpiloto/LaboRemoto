@@ -20,7 +20,7 @@
 import { useEffect, MutableRefObject, RefObject } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { invoke } from '@tauri-apps/api/core';
+import { sshResize } from '../../../services/ssh.service';
 import { canRefocusTerminal, isPaneVisible } from './terminalDomUtils';
 
 interface UseTerminalResizeParams {
@@ -108,11 +108,7 @@ export function useTerminalResize({
 
             // Aquí sí aplicamos el tamaño real (incluso si es menor) al servidor
             term.resize(proposed.cols, proposed.rows);
-            invoke('ssh_resize', {
-              id: sessionId,
-              cols: proposed.cols,
-              rows: proposed.rows
-            }).catch(() => {});
+            sshResize(sessionId, proposed.cols, proposed.rows).catch(() => {});
 
             // Forzar scroll al fondo después del reflow real de tamaño
             setTimeout(() => {

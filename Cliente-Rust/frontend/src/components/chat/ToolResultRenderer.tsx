@@ -1,5 +1,5 @@
 import React from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { sshStdin } from '../../services/ssh.service';
 import { ChevronDown, ChevronRight, File, Folder, Search, FileText } from 'lucide-react';
 
 interface ToolResultRendererProps { action: any; sessionId?: string | null; }
@@ -11,7 +11,7 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
   const remote = action.remote;
 
   const runSshCommand = async (cmd: string) => {
-    try { if (!sessionId) return; await invoke('ssh_stdin', { id: sessionId, data: cmd + '\n' }); } catch {}
+    try { if (!sessionId) return; await sshStdin(sessionId, cmd + '\n'); } catch {}
   };
 
   const Header = ({ title, count, onClick, icon: Icon }: any) => (

@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 
 import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext, ModelSelection } from './chatModes/types';
+import type { CommandResponse } from '../services/command.service';
 import { AskModeHandler } from './chatModes/classes/AskModeHandler';
 import { AgenteModeHandler } from './chatModes/classes/AgenteModeHandler';
 import { PlanModeHandler } from './chatModes/classes/PlanModeHandler';
@@ -388,15 +389,24 @@ const ChatPane: React.FC<Props> = ({
     });
 
     try {
-      const res = await invoke<AiResponseRaw>('ai_chat', {
+      const envelope = await invoke<CommandResponse<AiResponseRaw>>('ai_chat', {
         req: {
-          user_input: getContent(userMsg), mode, history, state: agentState, model_selection: selectedModel,
-          image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
-          terminal_context: null, request_id: reqId,
+          id: reqId,
+          version: '1.0',
+          timestamp_ms: Date.now(),
+          payload: {
+            user_input: getContent(userMsg), mode, history, state: agentState, model_selection: selectedModel,
+            image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
+            terminal_context: null, request_id: reqId,
+          },
         }
       });
       unlistenChunk(); currentReqIdRef.current = null;
       if (!isSendingRef.current) { setStreamedText(''); setStreamingMsgId(null); return; }
+      if (envelope.status === 'error') {
+        throw new Error(envelope.error?.message || 'Error del asistente');
+      }
+      const res = envelope.data as AiResponseRaw;
       const displayText = cleanText(String((res as any).ai_response || (res as any).explanation || ''));
       const cleanedMeta: any = { chat_mode: mode, ...(res as any) };
       delete cleanedMeta.code_output; delete cleanedMeta.suggestedCommands;
