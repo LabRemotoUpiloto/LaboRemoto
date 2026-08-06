@@ -30,16 +30,25 @@ pub struct KeycloakConfig {
 }
 
 impl KeycloakConfig {
-    /// Construye la configuración desde variables de entorno.
-    /// Exige obligatoriamente que las variables estén definidas en el `.env`.
+    /// Construye la configuración desde variables de entorno, con fallback a
+    /// los defaults de AUTH_SPEC §1 (no son secretos — cliente OAuth público
+    /// PKCE, ver doc del struct).
+    ///
+    /// El fallback es necesario para el `.exe` empaquetado: `load_dotenv()`
+    /// (`lib.rs`) busca un `.env` a partir de `env!("CARGO_MANIFEST_DIR")`,
+    /// una ruta congelada en tiempo de compilación — en el binario instalado
+    /// esa ruta es la del runner de CI que compiló el release, no existe en
+    /// la máquina del usuario final, así que nunca hay `.env` que cargar ahí.
+    /// Sin este fallback, `auth_login_url` entraba en pánico en cualquier
+    /// build sin `.env` local (todo build de release).
     pub fn from_env() -> Self {
         Self {
             base_url: env::var("KEYCLOAK_BASE_URL")
-                .expect("Falta la variable de entorno KEYCLOAK_BASE_URL. Define esta variable en tu archivo .env global"),
+                .unwrap_or_else(|_| "http://52.14.162.232/auth".to_string()),
             realm: env::var("KEYCLOAK_REALM")
-                .expect("Falta la variable de entorno KEYCLOAK_REALM. Define esta variable en tu archivo .env global"),
+                .unwrap_or_else(|_| "laboratorio-semillero".to_string()),
             client_id: env::var("KEYCLOAK_CLIENT_ID")
-                .expect("Falta la variable de entorno KEYCLOAK_CLIENT_ID. Define esta variable en tu archivo .env global"),
+                .unwrap_or_else(|_| "semillero-app".to_string()),
         }
     }
 
