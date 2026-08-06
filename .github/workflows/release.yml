@@ -1,0 +1,100 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, Pruebas(QA), Desarrollo, Produccion]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: Cliente-Rust/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: Cliente-Rust/frontend
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build Tauri app
+        working-directory: Cliente-Rust/backend
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: cargo tauri build
+
+      - name: Extract version
+        id: version
+        shell: pwsh
+        run: |
+          $config = Get-Content tauri.conf.json -Raw | ConvertFrom-Json
+          echo "VERSION=$($config.version)" >> $env:GITHUB_OUTPUT
+        working-directory: Cliente-Rust/backend
+
+      - name: Prepare updater metadata
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          $bundleDir = "Cliente-Rust/backend/target/release/bundle/nsis"
+          $assetName = "Cliente.SSH.Unipiloto_$env:VERSION`_x64-setup.exe"
+          $sourceExe = Get-ChildItem -LiteralPath $bundleDir -Filter "*_$env:VERSION`_x64-setup.exe" | Select-Object -First 1
+
+          if (-not $sourceExe) {
+            throw "No NSIS installer found for version $env:VERSION"
+          }
+
+          $assetPath = Join-Path $bundleDir $assetName
+          Copy-Item -LiteralPath $sourceExe.FullName -Destination $assetPath -Force
+
+          $signaturePath = "$($sourceExe.FullName).sig"
+          if (-not (Test-Path -LiteralPath $signaturePath)) {
+            throw "No updater signature found at $signaturePath"
+          }
+
+          $signature = (Get-Content -Raw -LiteralPath $signaturePath).Trim()
+          $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $url = "https://github.com/LabRemotoUpiloto/LaboRemoto/releases/download/v$env:VERSION/$assetName"
+
+          $latest = [ordered]@{
+            version = $env:VERSION
+            notes = "Release v$env:VERSION"
+            pub_date = $pubDate
+            platforms = [ordered]@{
+              "windows-x86_64" = [ordered]@{
+                signature = $signature
+                url = $url
+              }
+            }
+          }
+
+          $latest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $bundleDir "latest.json") -Encoding UTF8
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: v${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            Cliente-Rust/backend/target/release/bundle/nsis/Cliente.SSH.Unipiloto_${{ steps.version.outputs.VERSION }}_x64-setup.exe
+            Cliente-Rust/backend/target/release/bundle/nsis/latest.json
