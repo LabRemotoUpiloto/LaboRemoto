@@ -1,80 +1,35 @@
-//! cmd/nvr/shinobi — Cliente de API del NVR Shinobi
+//! cmd/nvr/shinobi — Cliente de API del NVR Shinobi (vía broker)
 //!
-//! Reemplaza el consumo de cámaras vía túnel SSH + MediaMTX
-//! (`cmd::streaming::stream`) por consumo directo de la API HTTP de un NVR
-//! Shinobi centralizado. No depende de ninguna sesión SSH: el NVR es
-//! alcanzable directamente desde el cliente.
+//! Consume el catálogo de cámaras a través del broker desplegado en la Pi
+//! (`infra/nvr-broker`, expuesto públicamente en `NVR_BROKER_HOST/nvr/...`
+//! vía el mismo túnel SSH inverso + nginx que ya usa Keycloak). El cliente
+//! nunca tiene la `SHINOBI_API_KEY` real ni una clave SSH hacia la Pi — solo
+//! manda el access_token de Keycloak (el mismo que ya tiene por el login) y
+//! el broker decide si autoriza, sin exponer ningún secreto al cliente.
 //!
-//! La API key de Shinobi nunca se expone al frontend como valor propio:
-//! el backend arma la URL de stream ya lista (la key queda embebida en la
-//! URL, como exige el propio esquema de Shinobi) y el frontend solo recibe
-//! esa URL final para pasarla a hls.js.
+//! Reemplaza el diseño anterior (túnel SSH propio vía `ssh_tunnel.rs` +
+//! `SHINOBI_SSH_KEY_PATH`), que dependía de una clave privada presente en el
+//! disco de cada instalación — inviable para un build distribuido (ver
+//! commit que retira `ssh_tunnel.rs`).
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use ts_rs::TS;
 
-use crate::cmd::nvr::ssh_tunnel::{self, SshTunnelConfig};
 use crate::cmd::protocol::CommandError;
+use crate::session_manager::SessionManager;
 
-// ─── Config: cargada desde .env (mismo patrón que cmd::integration::moodle) ───
-
-struct ShinobiConfig {
-    api_key: String,
-    tunnel: SshTunnelConfig,
-}
-
-fn clean_env_value(value: &str) -> String {
-    value
-        .trim()
-        .trim_matches('\u{feff}')
-        .trim_matches('"')
-        .trim_matches('\'')
-        .trim()
-        .to_string()
-}
-
-fn env_var(name: &str) -> Option<String> {
-    std::env::var(name).ok().map(|v| clean_env_value(&v)).filter(|v| !v.is_empty())
-}
-
-fn require_env(name: &str) -> Result<String, CommandError> {
-    env_var(name).ok_or_else(|| CommandError::permanent("VALIDATION_FAILED", format!("{name} no configurado en .env")))
-}
-
-/// Carga la config de Shinobi. El NVR no es alcanzable por red pública en el
-/// piloto (el router no reenvía su puerto) — se llega vía un túnel SSH
-/// dedicado (ver `ssh_tunnel.rs`), no por una URL directa.
-fn load_shinobi_config() -> Result<ShinobiConfig, CommandError> {
-    let _ = dotenvy::dotenv();
-
-    let api_key = require_env("SHINOBI_API_KEY")?;
-    let ssh_host = require_env("SHINOBI_SSH_HOST")?;
-    let ssh_user = require_env("SHINOBI_SSH_USER")?;
-    let ssh_key_path = require_env("SHINOBI_SSH_KEY_PATH")?;
-    let ssh_port: u16 = env_var("SHINOBI_SSH_PORT")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(22);
-    let remote_port: u16 = env_var("SHINOBI_REMOTE_PORT")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(8082);
-
-    Ok(ShinobiConfig {
-        api_key,
-        tunnel: SshTunnelConfig {
-            host: ssh_host,
-            port: ssh_port,
-            user: ssh_user,
-            key_path: ssh_key_path,
-            remote_port,
-        },
-    })
-}
+/// Host público del broker (Pi vía túnel inverso + nginx en AWS, mismo
+/// mecanismo que expone Keycloak). No es un secreto — es una URL pública,
+/// igual que `KEYCLOAK_BASE_URL`.
+const NVR_BROKER_HOST: &str = "http://52.14.162.232";
 
 // ─── Tipos ───
 
 /// Cámara del NVR, ya lista para consumir desde el frontend.
-/// `stream_url` es la URL HLS completa (api key incluida por Shinobi) —
-/// el frontend la pasa directo a `HlsPlayer`, igual que antes con `CameraInfo`.
+/// `stream_url` es la URL HLS completa contra el broker (nunca contra
+/// Shinobi directo, nunca con la API key real embebida) — el frontend la
+/// pasa directo a `HlsPlayer`, igual que antes con `CameraInfo`.
 #[derive(Serialize, Deserialize, Clone, TS)]
 #[ts(export)]
 pub struct NvrCamera {
@@ -84,7 +39,8 @@ pub struct NvrCamera {
     pub stream_url: String,
 }
 
-// Forma cruda de la respuesta de Shinobi: GET /{apiKey}/monitor/{groupKey}
+// Forma cruda de la respuesta del broker: GET /nvr/monitor/{groupKey}
+// (el broker reenvía el shape de Shinobi tal cual, solo reescribe streams)
 #[derive(Deserialize)]
 struct ShinobiMonitorRaw {
     mid: String,
@@ -109,26 +65,35 @@ fn map_status(mode: &str, status: Option<&str>) -> String {
 // ─── Comandos Tauri ───
 
 /// Lista las cámaras (monitors) de un Group de Shinobi, con la URL de
-/// stream HLS ya resuelta. `group_key` identifica el dispositivo de
-/// práctica (1 dispositivo = 1 Group, ver docs/plan-shinobi-nvr.md).
+/// stream HLS ya resuelta contra el broker. `group_key` identifica el
+/// dispositivo de práctica (1 dispositivo = 1 Group, ver
+/// docs/plan-shinobi-nvr.md). Requiere sesión activa (access_token de
+/// Keycloak) — el broker lo valida contra el JWKS institucional.
 #[tauri::command]
-pub async fn nvr_list_cameras(group_key: String) -> Result<Vec<NvrCamera>, CommandError> {
-    let config = load_shinobi_config()?;
-    let local_port = ssh_tunnel::ensure_tunnel(&config.tunnel).await?;
-    let base_url = format!("http://127.0.0.1:{local_port}");
+pub async fn nvr_list_cameras(
+    group_key: String,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<Vec<NvrCamera>, CommandError> {
+    let access_token = manager
+        .get_access_token()
+        .await
+        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
+        .ok_or_else(|| {
+            CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión para ver las cámaras")
+        })?;
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(8))
         .build()
         .map_err(|e| CommandError::internal("HTTP_CLIENT_ERROR", e.to_string()))?;
 
-    let url = format!("{}/{}/monitor/{}", base_url, config.api_key, group_key);
+    let url = format!("{}/nvr/monitor/{}", NVR_BROKER_HOST, group_key);
 
-    let response = client.get(&url).send().await.map_err(|e| {
+    let response = client.get(&url).bearer_auth(&access_token).send().await.map_err(|e| {
         let err = if e.is_timeout() {
-            CommandError::transient("OPERATION_TIMEOUT", format!("Timeout consultando NVR: {e}")).with_retry_after(2000)
+            CommandError::transient("OPERATION_TIMEOUT", format!("Timeout consultando el NVR: {e}")).with_retry_after(2000)
         } else {
-            CommandError::transient("COMMUNICATION_ERROR", format!("Error consultando NVR: {e}")).with_retry_after(2000)
+            CommandError::transient("COMMUNICATION_ERROR", format!("Error consultando el NVR: {e}")).with_retry_after(2000)
         };
         err.with_context("nvr_list_cameras", &group_key)
     })?;
@@ -141,19 +106,18 @@ pub async fn nvr_list_cameras(group_key: String) -> Result<Vec<NvrCamera>, Comma
 
     if !status.is_success() {
         let err = if status.as_u16() == 401 || status.as_u16() == 403 {
-            CommandError::permanent("AUTH_FAILED", format!("NVR respondió {status}: credenciales inválidas"))
+            CommandError::permanent("AUTH_FAILED", format!("Broker NVR respondió {status}: sesión inválida o expirada"))
         } else if status.is_server_error() {
-            CommandError::transient("COMMUNICATION_ERROR", format!("NVR respondió con error de servidor {status}"))
+            CommandError::transient("COMMUNICATION_ERROR", format!("Broker NVR respondió con error de servidor {status}"))
                 .with_retry_after(3000)
         } else {
-            CommandError::permanent("VALIDATION_FAILED", format!("NVR respondió {status}: {text}"))
+            CommandError::permanent("VALIDATION_FAILED", format!("Broker NVR respondió {status}: {text}"))
         };
         return Err(err.with_context("nvr_list_cameras", &group_key));
     }
 
-    // Shinobi devuelve `{"ok":false,"msg":"..."}` (no un array) cuando el
-    // group_key no existe o la key no tiene permiso — hay que distinguirlo
-    // del caso normal (array de monitors) antes de intentar parsear como tal.
+    // El broker puede devolver el error de Shinobi tal cual
+    // (`{"ok":false,"msg":"..."}`) si el group_key no existe.
     if let Ok(err_body) = serde_json::from_str::<serde_json::Value>(&text) {
         if err_body.get("ok").and_then(|v| v.as_bool()) == Some(false) {
             let msg = err_body.get("msg").and_then(|v| v.as_str()).unwrap_or("Not Authorized");
@@ -173,7 +137,7 @@ pub async fn nvr_list_cameras(group_key: String) -> Result<Vec<NvrCamera>, Comma
             let stream_path = m.streams.first().cloned().unwrap_or_default();
             NvrCamera {
                 status: map_status(&m.mode, m.status.as_deref()),
-                stream_url: format!("{}{}", base_url, stream_path),
+                stream_url: format!("{}{}", NVR_BROKER_HOST, stream_path),
                 id: m.mid,
                 name: m.name,
             }
@@ -181,11 +145,11 @@ pub async fn nvr_list_cameras(group_key: String) -> Result<Vec<NvrCamera>, Comma
         .collect())
 }
 
-/// Cierra el túnel SSH hacia el NVR (equivalente a `stream_stop` del módulo legacy).
+/// No-op: ya no hay túnel SSH propio que cerrar (el broker gestiona sus
+/// sesiones internamente con TTL). Se mantiene el comando por compatibilidad
+/// con el frontend (`useNvrCameras` lo llama al detener/desmontar).
 #[tauri::command]
-pub async fn nvr_disconnect() {
-    ssh_tunnel::disconnect().await;
-}
+pub async fn nvr_disconnect() {}
 
 #[cfg(test)]
 mod tests {
@@ -204,21 +168,5 @@ mod tests {
     #[test]
     fn map_status_missing_is_connecting() {
         assert_eq!(map_status("start", None), "connecting");
-    }
-
-    /// Smoke test end-to-end contra el NVR piloto real (túnel SSH + Shinobi).
-    /// Requiere SHINOBI_* en backend/.env. No corre en CI normal:
-    /// `cargo test -- --ignored nvr_e2e_smoke_test_against_pilot`
-    #[tokio::test]
-    #[ignore]
-    async fn nvr_e2e_smoke_test_against_pilot() {
-        let cameras = nvr_list_cameras("pilabpiloto".to_string())
-            .await
-            .expect("nvr_list_cameras contra el piloto debería responder");
-        assert!(!cameras.is_empty(), "se esperaba al menos Camara1");
-        let cam = &cameras[0];
-        assert!(cam.stream_url.starts_with("http://127.0.0.1:"));
-        assert!(cam.stream_url.contains("/hls/pilabpiloto/"));
-        println!("OK: {} → {}", cam.id, cam.stream_url);
     }
 }
