@@ -153,12 +153,15 @@ pub fn run() {
       cmd::vnc::vnc_stop,
       cmd::vnc::vnc_status,
       cmd::vnc::vnc_cleanup_all,
-      // Port-forwarding genérico (streaming)
+      // Port-forwarding genérico (streaming) — legacy, ver cmd::nvr abajo
       cmd::streaming::stream::stream_start,
       cmd::streaming::stream::stream_stop,
       cmd::streaming::stream::stream_list_cameras,
       cmd::streaming::stream::stream_get_host,
       cmd::streaming::stream::whep_exchange,
+      // NVR Shinobi — consumo de cámaras vía API HTTP (reemplaza stream_list_cameras)
+      cmd::nvr::shinobi::nvr_list_cameras,
+      cmd::nvr::shinobi::nvr_disconnect,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,
