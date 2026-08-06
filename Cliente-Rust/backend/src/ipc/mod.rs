@@ -1,26 +1,33 @@
 //! `ipc` — Contrato de mensajería interna Message + ACK + backpressure
-//! (REFACTOR #5, Fase A).
+//! (REFACTOR #5: Fase A completa + Fase B — piloto de wiring con `auth`).
 //!
-//! ## Alcance de esta fase
-//! Infraestructura pura, sin wiring: ningún emisor real (`ssh/terminal.rs`,
-//! `sftp/transfers.rs`, `ai/*.rs`, `auth/commands.rs`) fue modificado. Este
-//! módulo compila como parte del crate pero no es invocado desde ningún
-//! comando todavía.
+//! ## Alcance de Fase A (histórico)
+//! Infraestructura pura, sin wiring: ningún emisor real fue modificado.
+//!
+//! ## Alcance de Fase B (este estado)
+//! `auth/commands.rs` (el emisor de menor riesgo: baja frecuencia, 1x por
+//! login/logout) ya encola sus tres eventos (`session-ready`, `logged-out`,
+//! `error`) vía `IpcHub::enqueue`, y `IpcHub::spawn_dispatcher` (arrancado
+//! en `.setup()` de `lib.rs`) los entrega al frontend. `ssh/terminal.rs`,
+//! `sftp/transfers.rs` y `ai/*.rs` siguen sin wiring — quedan para fases
+//! posteriores.
 //!
 //! ## Estrategia híbrida (decisión ya confirmada)
-//! El backend construirá/encolará mensajes internamente vía
+//! El backend construye/encola mensajes internamente vía
 //! `Message` + `MessageEnvelope` + `BackpressureChannel` + ACK, pero la
-//! entrega real al frontend seguirá usando, por ahora, los nombres de
-//! canal Tauri existentes (`ssh_out_{id}`, `sftp_transfer`,
-//! `auth://session-ready`, `ai:chunk`, etc.). El mapeo `Message` → nombre de
-//! canal legado + `AppHandle::emit` es responsabilidad de una fase
-//! posterior (dispatcher), no de esta.
+//! entrega real al frontend sigue usando los nombres de canal Tauri
+//! existentes (`ssh_out_{id}`, `sftp_transfer`, `auth://session-ready`,
+//! `ai:chunk`, etc.). El mapeo `Message` → nombre de canal legado +
+//! `AppHandle::emit` vive en el submódulo `dispatch` de este archivo
+//! (`IpcHub::spawn_dispatcher`).
 //!
 //! ## Piezas
 //! - [`message`]: `Message`, `MessageEnvelope`, `Priority`.
 //! - [`channel`]: `BackpressureChannel`, la cola bounded priority-aware.
 //! - [`AckRegistry`] (este módulo): registro de mensajes `require_ack: true`
 //!   pendientes de confirmación, con timeout configurable.
+//! - `IpcHub::spawn_dispatcher` (este módulo, Fase B): consume la cola y
+//!   traduce `Message::AuthStateChange` a los eventos Tauri legados.
 
 pub mod channel;
 pub mod message;
@@ -37,6 +44,15 @@ use tokio::sync::oneshot;
 
 /// Timeout por defecto para esperar un ACK, si el llamador no especifica uno.
 pub const DEFAULT_ACK_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Nombres de canal Tauri legados usados por el dispatcher de auth
+/// (REFACTOR #5 Fase B). Única fuente de verdad para estos tres nombres:
+/// `auth::commands` NO debe volver a hardcodearlos ni emitirlos
+/// directamente — solo encola `Message::AuthStateChange` vía `IpcHub` y es
+/// este módulo el que decide el nombre de canal de entrega.
+pub const EVENT_AUTH_SESSION_READY: &str = "auth://session-ready";
+pub const EVENT_AUTH_LOGGED_OUT: &str = "auth://logged-out";
+pub const EVENT_AUTH_ERROR: &str = "auth://error";
 
 /// Error retornado al esperar confirmación (ACK) de un mensaje.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -256,6 +272,105 @@ impl Default for IpcHub {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Dispatcher (REFACTOR #5, Fase B) — piloto: auth
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Traduce `MessageEnvelope`s ya encolados en `IpcHub` a los nombres de canal
+// Tauri legados que el frontend ya escucha hoy (estrategia híbrida: el
+// backend construye/encola vía Message+ACK+backpressure, pero la entrega
+// preserva el contrato de eventos existente — cero cambios en el frontend).
+//
+// Alcance de esta fase: solo `Message::AuthStateChange` tiene mapeo de
+// entrega. El resto de variantes (`TerminalOutput`, `SftpProgress`,
+// `ChatOutput`, `ErrorNotification`) quedan para fases posteriores (ssh,
+// sftp, ai) y por ahora solo se registran en el log si llegaran a
+// encolarse (no debería ocurrir todavía: ningún otro emisor está wireado).
+/// Traduce un `Message` a `(nombre_de_canal_legado, payload)` si es un
+/// mensaje con mapeo de entrega conocido; `None` en caso contrario (variante
+/// sin wiring todavía, ej. `TerminalOutput`).
+///
+/// Función pura (sin `AppHandle`, sin I/O) para poder testear la lógica de
+/// mapeo — la parte con valor real de negocio de este dispatcher — con
+/// `cargo test --lib`, sin depender de un runtime de Tauri real ni de
+/// `tauri::test::MockRuntime` (que en Windows requiere WebView2 Runtime
+/// instalado incluso en modo mock; ver
+/// `tests/integration/auth_ipc_dispatch_test.rs` para el test que sí ejercita
+/// el `app.emit` real, marcado como best-effort por esa dependencia externa).
+pub fn map_auth_message_to_legacy_event(message: &Message) -> Option<(&'static str, &serde_json::Value)> {
+    match message {
+        Message::AuthStateChange { new_state, payload, .. } => {
+            let event_name = match new_state {
+                AuthStateKind::SessionReady => EVENT_AUTH_SESSION_READY,
+                AuthStateKind::LoggedOut => EVENT_AUTH_LOGGED_OUT,
+                AuthStateKind::Error => EVENT_AUTH_ERROR,
+            };
+            Some((event_name, payload))
+        }
+        _ => None,
+    }
+}
+
+mod dispatch {
+    use super::*;
+
+    /// Emite un `MessageEnvelope` de auth al canal Tauri legado
+    /// correspondiente, preservando el payload exacto que el frontend
+    /// (`store/auth.ts`) ya consume hoy. Delgado a propósito: toda la lógica
+    /// de mapeo vive en `map_auth_message_to_legacy_event` (testeable sin
+    /// runtime); esta función solo hace el `app.emit` real.
+    ///
+    /// Genérico sobre `R: tauri::Runtime` (en vez de fijar el runtime `Wry`
+    /// por defecto) para poder ejercitar este mismo código con
+    /// `tauri::test::MockRuntime` en tests de integración.
+    pub fn emit_auth_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, envelope: &MessageEnvelope) {
+        use tauri::Emitter;
+
+        if let Some((event_name, payload)) = map_auth_message_to_legacy_event(&envelope.message) {
+            if let Err(e) = app.emit(event_name, payload) {
+                tracing::warn!(
+                    message_id = %envelope.id,
+                    event = event_name,
+                    error = %e,
+                    "ipc: fallo al emitir evento de auth al frontend"
+                );
+            }
+        }
+    }
+}
+
+impl IpcHub {
+    /// Arranca el dispatcher en background: consume mensajes de `channel`
+    /// en loop y los traduce a eventos Tauri legados. Debe llamarse una
+    /// sola vez, típicamente en `.setup()` del builder de Tauri (necesita
+    /// un `AppHandle`, que no está disponible al construir `IpcHub` como
+    /// managed state con `.manage()`).
+    ///
+    /// Fase B (piloto auth): solo procesa `Message::AuthStateChange`. Otras
+    /// variantes se ignoran (log de advertencia) hasta que sus fases de
+    /// wiring correspondientes las agreguen al `match`.
+    pub fn spawn_dispatcher<R: tauri::Runtime>(&self, app: tauri::AppHandle<R>) {
+        let channel = self.channel.clone();
+        tauri::async_runtime::spawn(async move {
+            loop {
+                let envelope = channel.dequeue().await;
+                match &envelope.message {
+                    Message::AuthStateChange { .. } => {
+                        dispatch::emit_auth_event(&app, &envelope);
+                    }
+                    other => {
+                        tracing::warn!(
+                            message_id = %envelope.id,
+                            message = ?other,
+                            "ipc: dispatcher recibió un tipo de mensaje sin mapeo de entrega todavía"
+                        );
+                    }
+                }
+            }
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -409,6 +524,96 @@ mod tests {
         let outcome = hub.enqueue(envelope);
         assert_eq!(outcome, EnqueueOutcome::Enqueued);
         assert_eq!(hub.channel.len(), 1);
+    }
+
+    // ── Fase B: mapeo Message → evento Tauri legado (auth) ──────────────────
+
+    #[test]
+    fn maps_session_ready_to_legacy_event_preserving_payload() {
+        let payload = serde_json::json!({ "preferred_username": "alice" });
+        let msg = Message::AuthStateChange {
+            session_id: "alice".into(),
+            new_state: AuthStateKind::SessionReady,
+            payload: payload.clone(),
+        };
+        let (event, got_payload) = map_auth_message_to_legacy_event(&msg).expect("debe mapear");
+        assert_eq!(event, "auth://session-ready");
+        assert_eq!(got_payload, &payload);
+    }
+
+    #[test]
+    fn maps_logged_out_to_legacy_event_with_null_payload() {
+        let msg = Message::AuthStateChange {
+            session_id: "local".into(),
+            new_state: AuthStateKind::LoggedOut,
+            payload: serde_json::Value::Null,
+        };
+        let (event, got_payload) = map_auth_message_to_legacy_event(&msg).expect("debe mapear");
+        assert_eq!(event, "auth://logged-out");
+        assert_eq!(got_payload, &serde_json::Value::Null);
+    }
+
+    #[test]
+    fn maps_error_to_legacy_event_with_string_payload() {
+        let msg = Message::AuthStateChange {
+            session_id: "unknown".into(),
+            new_state: AuthStateKind::Error,
+            payload: serde_json::Value::String("boom".into()),
+        };
+        let (event, got_payload) = map_auth_message_to_legacy_event(&msg).expect("debe mapear");
+        assert_eq!(event, "auth://error");
+        assert_eq!(got_payload, &serde_json::Value::String("boom".into()));
+    }
+
+    #[test]
+    fn non_auth_messages_have_no_legacy_mapping_yet() {
+        let msg = Message::ChatOutput {
+            session_id: "s".into(),
+            text: "hola".into(),
+        };
+        assert_eq!(map_auth_message_to_legacy_event(&msg), None);
+    }
+
+    /// Ejercita el pipeline completo `Message → MessageEnvelope →
+    /// IpcHub.enqueue() → dequeue() → map_auth_message_to_legacy_event`
+    /// (todo salvo el `app.emit` real, que requiere un `AppHandle` de Tauri
+    /// — ver `tests/integration/auth_ipc_dispatch_test.rs` para esa parte).
+    /// Reproduce exactamente lo que hace `auth::commands::enqueue_auth_event`
+    /// seguido del dispatcher.
+    #[tokio::test]
+    async fn full_pipeline_enqueue_then_dequeue_maps_to_correct_legacy_event() {
+        let hub = IpcHub::new();
+        let session_info_payload = serde_json::json!({
+            "preferred_username": "bob",
+            "name": "Bob",
+            "email": "bob@example.com",
+            "user_type": "estudiante",
+            "roles": ["estudiante"],
+            "exp": 123,
+        });
+
+        let envelope = MessageEnvelope::new(
+            Message::AuthStateChange {
+                session_id: "bob".into(),
+                new_state: AuthStateKind::SessionReady,
+                payload: session_info_payload.clone(),
+            },
+            Priority::High,
+            false, // require_ack: false, ver justificación en auth::commands
+        );
+        let message_id = envelope.id.clone();
+
+        let outcome = hub.enqueue(envelope);
+        assert_eq!(outcome, EnqueueOutcome::Enqueued);
+
+        let dequeued = hub.channel.dequeue().await;
+        assert_eq!(dequeued.id, message_id);
+        assert_eq!(dequeued.priority, Priority::High);
+        assert!(!dequeued.require_ack);
+
+        let (event, payload) = map_auth_message_to_legacy_event(&dequeued.message).expect("debe mapear");
+        assert_eq!(event, "auth://session-ready");
+        assert_eq!(payload, &session_info_payload);
     }
 
     #[tokio::test]

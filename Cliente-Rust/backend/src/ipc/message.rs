@@ -47,9 +47,23 @@ pub enum Message {
     },
     /// Cambio de estado de autenticación (hoy: `auth://session-ready`,
     /// `auth://logged-out`, `auth://error`).
+    ///
+    /// `payload` lleva el mismo valor que hoy se emite crudo por el canal
+    /// legado correspondiente (REFACTOR #5 Fase B, estrategia híbrida):
+    /// - `SessionReady` → `AuthSessionInfo` serializado a JSON.
+    /// - `LoggedOut` → `serde_json::Value::Null` (el frontend ignora el
+    ///   payload de este evento, ver `store/auth.ts`).
+    /// - `Error` → el mensaje de error como `serde_json::Value::String`.
+    ///
+    /// Se modela como `serde_json::Value` (en vez de un enum tipado por
+    /// variante) porque el dispatcher de Fase B solo necesita reenviar este
+    /// valor tal cual al mismo nombre de evento Tauri que ya existe hoy, sin
+    /// interpretarlo — mantener el shape exacto es lo único que importa para
+    /// no romper `store/auth.ts`.
     AuthStateChange {
         session_id: String,
         new_state: AuthStateKind,
+        payload: serde_json::Value,
     },
     /// Notificación de error genérica, con la misma forma que
     /// `CommandError` (`code`/`message`/`retryable`) para mantener
@@ -155,6 +169,17 @@ mod tests {
         let msg = Message::AuthStateChange {
             session_id: "sess-1".into(),
             new_state: AuthStateKind::SessionReady,
+            payload: serde_json::json!({ "preferred_username": "alice" }),
+        };
+        roundtrip(&msg);
+    }
+
+    #[test]
+    fn message_auth_state_change_logged_out_has_null_payload() {
+        let msg = Message::AuthStateChange {
+            session_id: "sess-1".into(),
+            new_state: AuthStateKind::LoggedOut,
+            payload: serde_json::Value::Null,
         };
         roundtrip(&msg);
     }
