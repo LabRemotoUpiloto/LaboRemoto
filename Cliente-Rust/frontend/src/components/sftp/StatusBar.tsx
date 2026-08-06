@@ -7,11 +7,17 @@ type FileEntry = SftpEntry | LocalEntry
 
 export interface StatusBarProps {
   totalItems: number
-  selectedEntry?: FileEntry
+  totalSize: number
+  selectedEntries: FileEntry[]
   side: 'local' | 'remote'
 }
 
-const StatusBar: React.FC<StatusBarProps> = ({ totalItems, selectedEntry, side }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ totalItems, totalSize, selectedEntries, side }) => {
+  const hasSelection = selectedEntries.length > 0
+  const selectedSize = hasSelection
+    ? selectedEntries.reduce((sum, e) => sum + (e.kind === 'dir' ? 0 : e.size || 0), 0)
+    : 0
+
   return (
     <Group
       gap="md"
@@ -25,11 +31,21 @@ const StatusBar: React.FC<StatusBarProps> = ({ totalItems, selectedEntry, side }
         flexShrink: 0,
       }}
     >
-      <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {totalItems} elemento{totalItems !== 1 ? 's' : ''}
-      </Text>
+      {hasSelection ? (
+        <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {selectedEntries.length} seleccionado{selectedEntries.length !== 1 ? 's' : ''}
+          {' — '}
+          {formatBytes(selectedSize)}
+        </Text>
+      ) : (
+        <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {totalItems} elemento{totalItems !== 1 ? 's' : ''}
+          {' — '}
+          {formatBytes(totalSize)} total
+        </Text>
+      )}
 
-      {selectedEntry && (
+      {hasSelection && selectedEntries.length === 1 && (
         <>
           <div
             style={{
@@ -49,14 +65,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ totalItems, selectedEntry, side }
               flex: 1,
               minWidth: 0,
             }}
-            title={selectedEntry.name}
+            title={selectedEntries[0].name}
           >
-            {selectedEntry.name}
-            {selectedEntry.kind !== 'dir' && selectedEntry.size != null && (
-              <span style={{ marginLeft: 8, opacity: 0.7 }}>
-                {formatBytes(selectedEntry.size)}
-              </span>
-            )}
+            {selectedEntries[0].name}
           </Text>
         </>
       )}

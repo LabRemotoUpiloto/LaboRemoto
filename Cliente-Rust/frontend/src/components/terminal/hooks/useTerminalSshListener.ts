@@ -26,6 +26,7 @@ import { useEffect, useState, MutableRefObject, RefObject } from 'react';
 import { Terminal } from 'xterm';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { sshStdin, sshResize } from '../../../services/ssh.service';
 import { canRefocusTerminal, ensureBlinkClasses, sanitizeSessionId } from './terminalDomUtils';
 import { TerminalSessionMetadata } from './terminalTypes';
 
@@ -177,7 +178,7 @@ export function useTerminalSshListener({
         if (!hasHiddenLoading && !nudgeSent) {
           nudgeSent = true;
           setWaitingForPrompt(true);
-          invoke('ssh_stdin', { id: sessionId, data: '\n' }).catch(() => {});
+          sshStdin(sessionId, '\n').catch(() => {});
         }
       }, 6000);
 
@@ -190,7 +191,7 @@ export function useTerminalSshListener({
 
       disposers.push(term.onData((data) => {
         try { onTerminalInput?.(data); } catch {}
-        invoke('ssh_stdin', { id: sessionId, data }).catch(() => {});
+        sshStdin(sessionId, data).catch(() => {});
       }));
 
       listen<string>(`ssh_out_${safe}`, (event) => {
@@ -208,7 +209,7 @@ export function useTerminalSshListener({
         }
       }).then(un => { unlistenRef.current = un }).catch(() => {});
 
-      invoke('ssh_resize', { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
+      sshResize(sessionId, term.cols, term.rows).catch(() => {});
       invoke('ssh_ui_ready', { id: sessionId }).catch(() => {});
       try { if (canRefocusTerminal(containerRef)) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
       try { ensureBlinkClasses(containerRef); } catch {}

@@ -17,8 +17,10 @@ pub use operations::{
   sftp_home,
   sftp_list,
   sftp_mkdir,
+  sftp_rename,
   sftp_remove,
   sftp_cancel,
+  sftp_read_text,
 };
 
 pub use transfers::{

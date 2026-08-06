@@ -10,6 +10,9 @@ pub mod session_manager; // Store único de sesión + auth (trait SessionManager
 pub mod security;   // Validaciones de seguridad y backups
 pub mod api;        // REST API
 pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
+pub mod ipc;        // Contrato de mensajería interna Message+ACK+backpressure (REFACTOR #5: Fase A completa + Fase B piloto auth wireado)
+
+use tauri::Manager;
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 fn load_dotenv() {
@@ -57,8 +60,18 @@ pub fn run() {
     .manage(std::sync::Arc::new(crate::session_manager::InMemorySessionManager::new())
       as std::sync::Arc<dyn crate::session_manager::SessionManager>)
     .manage(crate::state_core::AiCancelRegistry::new())
+    // IpcHub (REFACTOR #5 Fase B): cola con backpressure + registro de ACK
+    // compartida por los emisores wireados a `ipc`. El dispatcher que la
+    // consume se arranca en `.setup()` porque necesita un `AppHandle`
+    // (no disponible aún en este punto de construcción del builder).
+    .manage(crate::ipc::IpcHub::new())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
+    .setup(|app| {
+      let hub = app.state::<crate::ipc::IpcHub>().inner().clone();
+      hub.spawn_dispatcher(app.handle().clone());
+      Ok(())
+    })
     .invoke_handler(tauri::generate_handler![
       // SSH
       cmd::ssh::terminal::ssh_connect,
@@ -79,16 +92,21 @@ pub fn run() {
       cmd::sftp::operations::sftp_home,
       cmd::sftp::operations::sftp_list,
       cmd::sftp::operations::sftp_mkdir,
+      cmd::sftp::operations::sftp_rename,
       cmd::sftp::operations::sftp_remove,
       cmd::sftp::transfers::sftp_download_start,
       cmd::sftp::transfers::sftp_upload_start,
       cmd::sftp::operations::sftp_cancel,
       cmd::sftp::transfers::sftp_upload_dir_start,
       cmd::sftp::transfers::sftp_download_dir_start,
+      cmd::sftp::operations::sftp_read_text,
       // Local FS (pane izquierdo)
       cmd::filesystem::local::local_home_dir,
       cmd::filesystem::local::local_list_dir,
       cmd::filesystem::local::local_list_drives,
+      cmd::filesystem::local::local_open_path,
+      cmd::filesystem::local::local_reveal_in_explorer,
+      cmd::filesystem::local::local_temp_dir,
       cmd::filesystem::local::save_text_file,
       cmd::filesystem::local::chat_history_load,
       cmd::filesystem::local::chat_history_save,
@@ -135,12 +153,15 @@ pub fn run() {
       cmd::vnc::vnc_stop,
       cmd::vnc::vnc_status,
       cmd::vnc::vnc_cleanup_all,
-      // Port-forwarding genérico (streaming)
+      // Port-forwarding genérico (streaming) — legacy, ver cmd::nvr abajo
       cmd::streaming::stream::stream_start,
       cmd::streaming::stream::stream_stop,
       cmd::streaming::stream::stream_list_cameras,
       cmd::streaming::stream::stream_get_host,
       cmd::streaming::stream::whep_exchange,
+      // NVR Shinobi — consumo de cámaras vía API HTTP (reemplaza stream_list_cameras)
+      cmd::nvr::shinobi::nvr_list_cameras,
+      cmd::nvr::shinobi::nvr_disconnect,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,

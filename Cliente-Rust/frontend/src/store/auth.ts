@@ -11,6 +11,7 @@ import { StateCreator } from 'zustand'
 import { listen } from '@tauri-apps/api/event'
 import { notifications } from '@mantine/notifications'
 import { authService, AuthSessionInfo } from '../services/auth.service'
+import { QueryCacheSlice } from './queryCache'
 
 export interface AuthSlice {
   user: AuthSessionInfo | null
@@ -28,7 +29,7 @@ export interface AuthSlice {
   initAuth: () => () => void
 }
 
-export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set, get) => ({
+export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], AuthSlice> = (set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -60,6 +61,11 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
       console.error('Failed to logout:', error)
     } finally {
       set({ isLoading: false })
+      // Fix REFACTOR #4 (hallazgo de @security/@pr-reviewer): invalidamos todo
+      // el queryCache al cerrar sesión para que ningún dato cacheado de la
+      // sesión saliente quede accesible si otro estudiante inicia sesión en
+      // la misma app sin reiniciarla.
+      get().invalidateAllQueries()
     }
   },
 
@@ -98,6 +104,11 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
     const unlistenLogoutPromise = listen('auth://logged-out', () => {
       console.log('Logged out event received')
       set({ user: null, isAuthenticated: false })
+      // Fix REFACTOR #4: mismo motivo que en logout() — este evento puede
+      // llegar también sin haber pasado por logout() (ej. sesión expirada o
+      // revocada del lado del backend), así que invalidamos el cache acá
+      // también para no depender de un único punto de entrada.
+      get().invalidateAllQueries()
     })
 
     // Cleanup: manejamos las promesas para evitar que se acumulen listeners en el Strict Mode

@@ -21,12 +21,24 @@
 //! |-----------------------|-------------------|-------------------------------|
 //! | `auth://session-ready`| `AuthSessionInfo` | Login o refresh exitoso       |
 //! | `auth://error`        | `String`          | Error en cualquier paso OAuth |
+//!
+//! ## REFACTOR #5 Fase B — piloto de integración con `ipc`
+//! Los tres puntos de emisión de arriba ya NO llaman a `AppHandle::emit`
+//! directamente. En su lugar construyen un `Message::AuthStateChange`,
+//! lo envuelven en un `MessageEnvelope` (`Priority::High`, `require_ack:
+//! false` — ver justificación en `enqueue_auth_event`) y lo encolan vía
+//! `IpcHub` (managed state de Tauri, ver `lib.rs`). Un dispatcher en
+//! `ipc::IpcHub::spawn_dispatcher` (arrancado en `.setup()`) consume la cola
+//! y hace el `emit` real, preservando exactamente los mismos nombres de
+//! canal y el mismo payload que el frontend (`store/auth.ts`) ya consume
+//! hoy — cero cambios requeridos ahí.
 
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use uuid::Uuid;
 
+use crate::ipc::{AuthStateKind, IpcHub, Message, MessageEnvelope, Priority};
 use crate::session_manager::SessionManager;
 use crate::state_core::AuthSessionInfo;
 use super::{
@@ -37,9 +49,48 @@ use super::{
 };
 
 /// Evento Tauri emitido al frontend cuando la sesión OAuth está lista.
+/// (Referencia documental: el nombre real de canal vive en
+/// `ipc::EVENT_AUTH_SESSION_READY`, única fuente de verdad usada por el
+/// dispatcher — ver módulo `ipc`.)
 pub const EVENT_SESSION_READY: &str = "auth://session-ready";
 /// Evento Tauri emitido al frontend cuando el flujo OAuth falla.
+/// (Referencia documental: el nombre real vive en `ipc::EVENT_AUTH_ERROR`.)
 pub const EVENT_AUTH_ERROR:    &str = "auth://error";
+
+/// Construye un `Message::AuthStateChange`, lo envuelve en un
+/// `MessageEnvelope` fresco (nuevo `message_id` UUID v4 en cada llamada —
+/// nunca reutilizar ids entre reintentos, ver advertencia de Fase A sobre
+/// `DuplicateRegistration` transitorio en `AckRegistry`) y lo encola en el
+/// `IpcHub`.
+///
+/// ## `require_ack: false` — justificación
+/// Los eventos de auth son de altísima prioridad (`Priority::High`, que
+/// `BackpressureChannel` **nunca** descarta, incluso con la cola saturada)
+/// pero de bajísima frecuencia (1x por login/logout/error). No usamos
+/// `require_ack: true` porque:
+/// 1. El mecanismo de ACK existente requeriría que el frontend invoque un
+///    comando Tauri de confirmación tras recibir el evento — un cambio de
+///    contrato en `store/auth.ts` que el piloto explícitamente evita.
+/// 2. `Priority::High` ya garantiza que el mensaje no se pierde en la cola
+///    interna del backend; el riesgo real que un ACK mitigaría (pérdida en
+///    la capa de transporte hacia el frontend) no cambia con este piloto:
+///    `AppHandle::emit` es exactamente el mismo mecanismo de entrega de hoy.
+/// 3. Bloquear el flujo de login/logout esperando una confirmación del
+///    frontend para un evento informativo introduciría latencia y una
+///    nueva fuente de fallos (timeout) sin beneficio de negocio claro.
+fn enqueue_auth_event(
+    hub: &IpcHub,
+    session_id: String,
+    new_state: AuthStateKind,
+    payload: serde_json::Value,
+) {
+    let envelope = MessageEnvelope::new(
+        Message::AuthStateChange { session_id, new_state, payload },
+        Priority::High,
+        false,
+    );
+    hub.enqueue(envelope);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Comandos Tauri
@@ -158,7 +209,8 @@ pub async fn auth_logout(
 
     // Notificar al frontend que la sesión fue cerrada
     // (el frontend puede usar esto para redirigir al login)
-    let _ = app.emit("auth://logged-out", ());
+    let hub = app.state::<IpcHub>().inner().clone();
+    enqueue_auth_event(&hub, "local".to_string(), AuthStateKind::LoggedOut, serde_json::Value::Null);
 
     Ok(())
 }
@@ -176,15 +228,17 @@ async fn exchange_code_background(
     redirect_uri: String,
     code_rx:      tokio::sync::oneshot::Receiver<String>,
 ) {
+    let hub = app.state::<IpcHub>().inner().clone();
+
     // Esperar el código (con margen de 10 s sobre el timeout del servidor loopback)
     let code = match tokio::time::timeout(Duration::from_secs(310), code_rx).await {
         Ok(Ok(code)) => code,
         Ok(Err(_)) => {
-            let _ = app.emit(EVENT_AUTH_ERROR, "Flujo OAuth cancelado");
+            enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String("Flujo OAuth cancelado".to_string()));
             return;
         }
         Err(_) => {
-            let _ = app.emit(EVENT_AUTH_ERROR, "Timeout: el login tardó demasiado");
+            enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String("Timeout: el login tardó demasiado".to_string()));
             return;
         }
     };
@@ -194,7 +248,7 @@ async fn exchange_code_background(
     let verifier: String = match manager.take_pending_verifier().await {
         Ok(Some(v)) => v,
         Ok(None) | Err(_) => {
-            let _ = app.emit(EVENT_AUTH_ERROR, "Error interno: verifier PKCE no encontrado");
+            enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String("Error interno: verifier PKCE no encontrado".to_string()));
             return;
         }
     };
@@ -205,13 +259,14 @@ async fn exchange_code_background(
         Ok(bundle) => {
             let session_info = bundle_to_session_info(&bundle);
             let _ = manager.store_auth(bundle).await;
-            let _ = app.emit(EVENT_SESSION_READY, &session_info);
+            let payload = serde_json::to_value(&session_info).unwrap_or(serde_json::Value::Null);
+            enqueue_auth_event(&hub, session_info.preferred_username.clone(), AuthStateKind::SessionReady, payload);
 
             // Lanzar el daemon de renovación en background
             tauri::async_runtime::spawn(token_refresh_daemon(app.clone(), config));
         }
         Err(e) => {
-            let _ = app.emit(EVENT_AUTH_ERROR, e.to_string());
+            enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String(e.to_string()));
         }
     }
 }
@@ -234,6 +289,7 @@ async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
     let client = KeycloakClient::new(config);
     // El Arc no cambia durante la vida de la app: se extrae una sola vez.
     let manager = app.state::<Arc<dyn SessionManager>>().inner().clone();
+    let hub = app.state::<IpcHub>().inner().clone();
 
     loop {
         let (_refresh_token, access_expires_at) = match manager.get_refresh_info().await {
@@ -267,11 +323,12 @@ async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
             Ok(bundle) => {
                 let session_info = bundle_to_session_info(&bundle);
                 let _ = manager.store_auth(bundle).await;
-                let _ = app.emit(EVENT_SESSION_READY, &session_info);
+                let payload = serde_json::to_value(&session_info).unwrap_or(serde_json::Value::Null);
+                enqueue_auth_event(&hub, session_info.preferred_username.clone(), AuthStateKind::SessionReady, payload);
             }
             Err(_e) => {
                 let _ = manager.clear_auth().await;
-                let _ = app.emit("auth://logged-out", ());
+                enqueue_auth_event(&hub, "local".to_string(), AuthStateKind::LoggedOut, serde_json::Value::Null);
                 break;
             }
         }

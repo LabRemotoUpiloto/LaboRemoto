@@ -553,7 +553,19 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     (claude_payload, claude_url)
   } else {
     // OpenAI API format
-    let max_tok = if matches!(incoming_mode, ChatMode::Plan) { 1000u32 } else { 500u32 };
+    let is_openrouter = proxy_url.as_deref().unwrap_or("").contains("openrouter.ai");
+    // Modelos "reasoning" (ej. nvidia/nemotron-*:free) gastan buena parte del
+    // presupuesto de tokens pensando antes de responder; con 500 tokens el
+    // stream se corta a mitad del razonamiento y el usuario nunca ve la
+    // respuesta final. Les damos más margen y le pedimos a OpenRouter que
+    // excluya el bloque de razonamiento del `content` devuelto.
+    let max_tok = if matches!(incoming_mode, ChatMode::Plan) {
+      1000u32
+    } else if is_openrouter {
+      1500u32
+    } else {
+      500u32
+    };
     let mut openai_payload = serde_json::json!({
       "model": model_id,
       "messages": messages,
@@ -564,6 +576,9 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     // stream_options solo cuando se usa streaming; OpenRouter rechaza el campo si es null
     if use_stream {
       openai_payload["stream_options"] = serde_json::json!({"include_usage": true});
+    }
+    if is_openrouter {
+      openai_payload["reasoning"] = serde_json::json!({ "exclude": true });
     }
     let openai_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
     (openai_payload, openai_url)
@@ -706,6 +721,19 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
         .to_string()
     }
   };
+
+  // Salvaguarda: algunos modelos "reasoning" (vía OpenRouter) ignoran
+  // `reasoning.exclude` y devuelven su monólogo interno envuelto en
+  // <think>...</think> dentro del propio `content`. Lo descartamos para no
+  // mostrarle al usuario el razonamiento crudo del modelo.
+  if let (Some(start), Some(end)) = (assistant_text.find("<think>"), assistant_text.find("</think>")) {
+    if end > start {
+      let end_tag_close = end + "</think>".len();
+      assistant_text = format!("{}{}", &assistant_text[..start], &assistant_text[end_tag_close..])
+        .trim()
+        .to_string();
+    }
+  }
 
   // (Heurísticas desactivadas por pedido: no se hará clasificación difusa de identidad)
 
