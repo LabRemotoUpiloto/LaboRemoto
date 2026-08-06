@@ -180,6 +180,9 @@ pub fn run() {
       cmd::integration::moodle::moodle_sync_assignment,
       cmd::integration::moodle::moodle_prepare_grade,
       cmd::integration::moodle::moodle_submit_grade_direct,
+      // Catálogo externo de prácticas (solo lectura, contenido no confiable)
+      cmd::integration::lab_practices::lab_practices_list,
+      cmd::integration::lab_practices::lab_practices_get,
       // Validador de prácticas
       cmd::practices::practice_validator::validate_practice_progress,
       cmd::practices::practice_validator::calculate_practice_grade,
