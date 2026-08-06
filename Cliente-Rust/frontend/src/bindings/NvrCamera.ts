@@ -2,7 +2,8 @@
 
 /**
  * Cámara del NVR, ya lista para consumir desde el frontend.
- * `stream_url` es la URL HLS completa (api key incluida por Shinobi) —
- * el frontend la pasa directo a `HlsPlayer`, igual que antes con `CameraInfo`.
+ * `stream_url` es la URL HLS completa contra el broker (nunca contra
+ * Shinobi directo, nunca con la API key real embebida) — el frontend la
+ * pasa directo a `HlsPlayer`, igual que antes con `CameraInfo`.
  */
 export type NvrCamera = { id: string, name: string, status: string, stream_url: string, };

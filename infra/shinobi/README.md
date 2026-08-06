@@ -9,6 +9,11 @@ de forma **nativa** (sin Docker) por los motivos explicados abajo. El
 `docker-compose.yml` de este directorio quedó como referencia para un futuro
 host amd64/arm64 — **no es el método usado en el despliegue actual**.
 
+**Actualización (2026-08-06):** el cliente ya NO consume Shinobi directo
+(ni por túnel SSH propio ni con la `SHINOBI_API_KEY` local) — ver
+`infra/nvr-broker/` para el broker HTTP que ahora media el acceso,
+autenticado con el mismo login de Keycloak del cliente.
+
 ## Por qué no se usó Docker aquí
 
 El plan original asumía Docker. Al hacer el reconocimiento real de la Pi
