@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { sshStdin } from '../../services/ssh.service';
 import hljs from 'highlight.js/lib/core';
 import bash from 'highlight.js/lib/languages/bash';
 import python from 'highlight.js/lib/languages/python';
@@ -92,7 +92,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
     setExecutionStatus('idle');
 
     try {
-      await invoke('ssh_stdin', { id: sessionId, data: toSendRaw + '\n' });
+      await sshStdin(sessionId, toSendRaw + '\n');
       try {
         await setLastCommand?.(toSendRaw);
       } catch {}

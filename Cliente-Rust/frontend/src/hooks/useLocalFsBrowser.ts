@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { LocalEntry } from "../types";
+import { useMultiSelection } from "./useMultiSelection";
 
 export type LocalSortKey = "name" | "mtime" | "size" | "kind";
 
@@ -14,7 +15,15 @@ export function useLocalFsBrowser() {
   const [rows, setRows] = useState<LocalEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [drives, setDrives] = useState<string[]>([]);
-  const [selectedPath, setSelectedPath] = useState<string | undefined>();
+  const {
+    selectedPaths,
+    lastSelected,
+    selectOnly,
+    toggleSelect,
+    selectRange,
+    selectAll: selectAllPaths,
+    clearSelection,
+  } = useMultiSelection();
   const [sort, setSort] = useState<LocalSort>({ key: "name", dir: "asc" });
   const [filter, setFilter] = useState<string>("");
 
@@ -47,9 +56,9 @@ export function useLocalFsBrowser() {
   }, [refresh]);
 
   useEffect(() => {
-    setSelectedPath(undefined);
+    clearSelection();
     setFilter("");
-  }, [path]);
+  }, [path, clearSelection]);
 
   const display = useMemo(() => {
     const arr = [...rows];
@@ -86,8 +95,13 @@ export function useLocalFsBrowser() {
     display,
     loading,
     drives,
-    selectedPath,
-    setSelectedPath,
+    selectedPaths,
+    lastSelected,
+    selectOnly,
+    toggleSelect,
+    selectRange,
+    selectAll: selectAllPaths,
+    clearSelection,
     sort,
     setSort,
     filter,

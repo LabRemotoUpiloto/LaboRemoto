@@ -23,6 +23,7 @@ use axum::{
     routing::get,
     Router,
 };
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use tokio::{
     net::TcpListener,
     sync::{oneshot, Mutex},
@@ -152,7 +153,7 @@ async fn callback_handler(
                 let _ = tx.send(());
             }
         }
-        Html(SUCCESS_HTML.to_string())
+        Html(build_success_html())
     } else {
         // Error reportado por Keycloak (ej. usuario canceló el login)
         let error       = params.get("error").map(|s| s.as_str()).unwrap_or("desconocido");
@@ -165,7 +166,20 @@ async fn callback_handler(
 // HTML de respuesta para el navegador
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUCCESS_HTML: &str = r#"<!DOCTYPE html>
+const LOGO_UNIPILOTO: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../frontend/src/assets/logo-unipiloto.png"));
+const ABEJA_UNIPILOTO: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../frontend/public/abeja1.jpeg"));
+
+fn image_data_uri(mime: &str, bytes: &[u8]) -> String {
+    format!("data:{};base64,{}", mime, STANDARD.encode(bytes))
+}
+
+fn build_success_html() -> String {
+    SUCCESS_HTML_TEMPLATE
+        .replace("__LOGO_SRC__", &image_data_uri("image/png", LOGO_UNIPILOTO))
+        .replace("__ABEJA_SRC__", &image_data_uri("image/jpeg", ABEJA_UNIPILOTO))
+}
+
+const SUCCESS_HTML_TEMPLATE: &str = r#"<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
@@ -174,35 +188,163 @@ const SUCCESS_HTML: &str = r#"<!DOCTYPE html>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: #0f0f1a;
+      font-family: 'Open Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #1c1c1c;
+      background: #f7f2f2;
       display: flex; align-items: center; justify-content: center;
       min-height: 100vh;
+      padding: 32px;
+      overflow: hidden;
+    }
+    .page-mark {
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: min(28vw, 420px);
+      background: #d51f22;
+      clip-path: polygon(0 0, 82% 0, 100% 100%, 0 100%);
+      z-index: 0;
     }
     .card {
-      background: #1a1a2e;
-      border: 1px solid rgba(76,175,80,0.3);
-      border-radius: 16px;
-      padding: 2.5rem 3rem;
-      text-align: center;
-      max-width: 440px; width: 90%;
-      box-shadow: 0 0 60px rgba(76,175,80,0.08);
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 290px minmax(320px, 1fr);
+      max-width: 900px; width: min(94vw, 900px);
+      min-height: 430px;
+      background: #ffffff;
+      border-radius: 10px 34px 34px 10px;
+      box-shadow: 0 30px 90px rgba(88, 22, 22, .16);
       animation: fadeIn .4s ease;
+      overflow: hidden;
+    }
+    .visual-panel {
+      position: relative;
+      background: linear-gradient(160deg, #a81010 0%, #d51f22 58%, #e8403d 100%);
+      padding: 2rem;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .visual-panel::after {
+      content: '';
+      position: absolute;
+      width: 220px; height: 220px;
+      right: -72px; bottom: -72px;
+      border: 28px solid rgba(255,255,255,.16);
+      border-radius: 999px;
+    }
+    .brand-logo {
+      width: 76px; height: 76px; object-fit: contain;
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 9px;
+      box-shadow: 0 16px 34px rgba(0,0,0,.18);
+    }
+    .visual-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 210px;
+    }
+    .visual-copy span {
+      display: block;
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      opacity: .86;
+    }
+    .visual-copy strong {
+      display: block;
+      margin-top: .45rem;
+      font-size: 1.55rem;
+      line-height: 1.05;
+    }
+    .content-panel {
+      position: relative;
+      padding: 3.3rem 4rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background:
+        linear-gradient(90deg, rgba(213,31,34,.08), transparent 34%),
+        #ffffff;
+    }
+    .content-panel::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 130px; height: 130px;
+      background: #d51f22;
+      clip-path: polygon(100% 0, 0 0, 100% 100%);
+      opacity: .92;
+    }
+    .status-label {
+      width: max-content;
+      margin-bottom: 1.2rem;
+      padding: .46rem .78rem;
+      border-left: 5px solid #d51f22;
+      background: #fff3f3;
+      color: #a81010;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .bee-wrap {
+      position: absolute;
+      right: -18px;
+      top: -24px;
+      width: 86px; height: 86px;
+      pointer-events: none;
+    }
+    .bee {
+      width: 86px; height: 86px;
+      object-fit: cover;
+      mix-blend-mode: multiply;
+      filter: drop-shadow(0 12px 18px rgba(168,16,16,.14));
     }
     @keyframes fadeIn { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:none } }
-    .icon { font-size: 3rem; margin-bottom: 1rem; }
-    h1 { color: #4caf50; font-size: 1.4rem; margin-bottom: .75rem; font-weight: 600; }
-    p  { color: #8888aa; line-height: 1.7; font-size: .9rem; }
-    .highlight { color: #c8c8ff; font-weight: 500; }
+    .title-lockup {
+      position: relative;
+      width: max-content;
+      max-width: 100%;
+      padding-right: 54px;
+      margin-bottom: 1rem;
+    }
+    h1 { color: #a81010; font-size: clamp(2rem, 4vw, 3.2rem); line-height: .95; font-weight: 900; letter-spacing: -.04em; }
+    p  { color: #353535; line-height: 1.75; font-size: 1rem; max-width: 420px; }
+    .highlight { color: #d51f22; font-weight: 800; }
+    @media (max-width: 760px) {
+      body { padding: 20px; overflow: auto; }
+      .page-mark { width: 100%; height: 180px; inset: 0 0 auto 0; clip-path: polygon(0 0, 100% 0, 100% 68%, 0 100%); }
+      .card { grid-template-columns: 1fr; border-radius: 26px; min-height: auto; }
+      .visual-panel { min-height: 190px; }
+      .content-panel { padding: 2.4rem 1.6rem 2.4rem; }
+      .title-lockup { padding-right: 42px; }
+      .bee-wrap { right: -16px; top: -20px; width: 68px; height: 68px; }
+      .bee { width: 68px; height: 68px; }
+    }
   </style>
 </head>
 <body>
+  <div class="page-mark" aria-hidden="true"></div>
   <div class="card">
-    <div class="icon">✓</div>
-    <h1>Autenticación exitosa</h1>
-    <p>Tu sesión ha sido iniciada correctamente.<br>
-       Puedes <span class="highlight">cerrar esta pestaña</span>
-       y volver a <span class="highlight">LaboRemoto</span>.</p>
+    <section class="visual-panel">
+      <img class="brand-logo" src="__LOGO_SRC__" alt="Universidad Piloto de Colombia">
+      <div class="visual-copy">
+        <span>Universidad Piloto</span>
+        <strong>LaboRemoto</strong>
+      </div>
+    </section>
+    <section class="content-panel">
+      <div class="status-label">Acceso confirmado</div>
+      <div class="title-lockup">
+        <h1>Autenticación<br>exitosa</h1>
+        <div class="bee-wrap"><img class="bee" src="__ABEJA_SRC__" alt="Abeja LaboRemoto"></div>
+      </div>
+      <p>Tu sesión ha sido iniciada correctamente. Puedes <span class="highlight">cerrar esta pestaña</span> y volver a <span class="highlight">LaboRemoto</span>.</p>
+    </section>
   </div>
 </body>
 </html>"#;
@@ -218,26 +360,29 @@ fn build_error_html(error: &str, description: &str) -> String {
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0 }}
     body {{
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: #0f0f1a;
+      font-family: 'Open Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #ffffff 0%, #f4f4f4 55%, #fff1f1 100%);
+      color: #1c1c1c;
       display: flex; align-items: center; justify-content: center;
       min-height: 100vh;
+      padding: 24px;
     }}
     .card {{
-      background: #1a1a2e;
-      border: 1px solid rgba(244,67,54,0.3);
-      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid rgba(213,31,34,0.22);
+      border-radius: 24px;
       padding: 2.5rem 3rem;
       text-align: center;
       max-width: 440px; width: 90%;
+      box-shadow: 0 24px 70px rgba(168,16,16,.12);
     }}
     .icon {{ font-size: 3rem; margin-bottom: 1rem; }}
-    h1 {{ color: #f44336; font-size: 1.4rem; margin-bottom: .75rem; }}
-    p  {{ color: #8888aa; line-height: 1.7; font-size: .9rem; margin-top: .5rem; }}
+    h1 {{ color: #a81010; font-size: 1.4rem; margin-bottom: .75rem; }}
+    p  {{ color: #494949; line-height: 1.7; font-size: .9rem; margin-top: .5rem; }}
     code {{
-      background: rgba(244,67,54,0.1);
+      background: rgba(213,31,34,0.10);
       padding: .15em .45em; border-radius: 4px;
-      color: #ff8a80; font-size: .85em;
+      color: #a81010; font-size: .85em;
     }}
   </style>
 </head>

@@ -131,7 +131,7 @@ const AppMain: React.FC = () => {
   const { handleCloseTab } = useTabLifecycle({ tabs, closeTab, clearPracticeMeta })
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test']
+  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users']
   const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {
@@ -177,6 +177,14 @@ const AppMain: React.FC = () => {
     window.addEventListener('tour:open-chat', handler)
     return () => window.removeEventListener('tour:open-chat', handler)
   }, [setIsChatOpen])
+
+  // ── Reset state on logout ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) {
+      openPanel('landing')
+      setActiveTabId(HOME_TAB_ID)
+    }
+  }, [isAuthenticated, openPanel, setActiveTabId])
 
   // ── Visibilidad de paneles ───────────────────────────────────────────────────
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'

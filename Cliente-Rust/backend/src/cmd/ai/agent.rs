@@ -516,8 +516,19 @@ fn fs_grep(root: &Path, needle: &str, limit_total: usize) -> Vec<GrepMatch> {
     out
 }
 
+/// Comando Tauri versionado (Fase D): envuelve `agent_plan_impl` en el
+/// envelope `CommandRequest`/`CommandResponse` del protocolo versionado.
 #[tauri::command]
-pub async fn agent_plan(req: AgentPlanRequest) -> Result<AgentPlanResponse, String> {
+pub async fn agent_plan(
+  req: crate::cmd::protocol::CommandRequest<AgentPlanRequest>,
+) -> Result<crate::cmd::protocol::CommandResponse<AgentPlanResponse>, crate::cmd::protocol::CommandError> {
+  let started = std::time::Instant::now();
+  let result = agent_plan_impl(req.payload).await;
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(crate::cmd::protocol::wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn agent_plan_impl(req: AgentPlanRequest) -> Result<AgentPlanResponse, String> {
     let intent_detected = detect_intent(&req.user_message);
     let norm_msg = normalize(&req.user_message);
     let mut intent = intent_detected.clone();

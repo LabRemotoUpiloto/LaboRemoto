@@ -2,6 +2,18 @@ import { useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Message } from '../../chatModes/types';
 
+/**
+ * El backend representa la cancelación intencional del diálogo de guardado
+ * como un `CommandError` con `code: 'VALIDATION_FAILED'` y un mensaje que
+ * contiene "cancelada" (ver `save_text_file` en el backend Rust). Cualquier
+ * otro error debe mostrarse al usuario.
+ */
+function isCancelledError(e: any): boolean {
+  const message: string | undefined = e?.message;
+  if (typeof message !== 'string') return false;
+  return e?.code === 'VALIDATION_FAILED' && message.includes('cancelada');
+}
+
 export function useChatExport(messages: Message[], setToast: (msg: string | null) => void) {
   const handleExportMd = useCallback(async () => {
     if (messages.length === 0) return;
@@ -18,9 +30,8 @@ export function useChatExport(messages: Message[], setToast: (msg: string | null
         setToast(`Guardado: ${savedPath.split(/[\\/]/).pop()}`);
         setTimeout(() => setToast(null), 2500);
       }
-    } catch (e) {
-      const err = String(e);
-      if (err !== 'cancelled') setToast('Error al guardar el archivo');
+    } catch (e: any) {
+      if (!isCancelledError(e)) setToast('Error al guardar el archivo');
       setTimeout(() => setToast(null), 2000);
     }
   }, [messages, setToast]);
@@ -47,9 +58,8 @@ export function useChatExport(messages: Message[], setToast: (msg: string | null
     try {
       const savedPath = await invoke<string>('save_text_file', { content: html, defaultName });
       if (savedPath && savedPath !== 'cancelled') { setToast(`HTML guardado: ${savedPath.split(/[\\/]/).pop()}`); setTimeout(() => setToast(null), 2500); }
-    } catch (e) {
-      const err = String(e);
-      if (err !== 'cancelled') setToast('Error al exportar HTML');
+    } catch (e: any) {
+      if (!isCancelledError(e)) setToast('Error al exportar HTML');
       setTimeout(() => setToast(null), 2000);
     }
   }, [messages, setToast]);

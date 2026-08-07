@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 
 import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext, ModelSelection } from './chatModes/types';
+import type { CommandResponse } from '../services/command.service';
 import { AskModeHandler } from './chatModes/classes/AskModeHandler';
 import { AgenteModeHandler } from './chatModes/classes/AgenteModeHandler';
 import { PlanModeHandler } from './chatModes/classes/PlanModeHandler';
@@ -31,8 +32,10 @@ import ChatToast from './chat/ChatToast';
 import { useDisplayName } from '../pages/home/useDisplayName';
 import ChatFloatingActions from './chatPane/ChatFloatingActions';
 import { pi4AgentReady as fetchPi4AgentReady } from '../services/ai.service';
-import { vncStop } from '../services/ssh.service';
+import { vncStop, sshSessionInfo } from '../services/ssh.service';
 import { useTour } from '../tour/useTour';
+import { useQueryData } from '../hooks/useQueryData';
+import { useAuth } from '../hooks/useAuth';
 
 type Props = {
   sessionId?: string | null;
@@ -51,6 +54,7 @@ const ChatPane: React.FC<Props> = ({
   const isHome = layout === 'home';
   const displayName = useDisplayName();
   const { startTour } = useTour();
+  const { isAuthenticated } = useAuth();
   // ── Core State ──
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -86,12 +90,33 @@ const ChatPane: React.FC<Props> = ({
   const [streamedText, setStreamedText] = useState('');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTokenPopover, setShowTokenPopover] = useState(false);
-  const [hostKey, setHostKey] = useState<string>(sessionId ?? 'default');
-  const [pi4Ready, setPi4Ready] = useState(false);
+  // Estado de disponibilidad del agente Pi4 (PI4_USER/PI4_PASSWORD en .env):
+  // dato de solo lectura, cacheado (Batch 3, REFACTOR #4) para no
+  // re-consultar al backend en cada remontaje de ChatPane dentro del TTL.
+  const { data: pi4ReadyData } = useQueryData('ai:pi4-agent-ready', fetchPi4AgentReady);
+  const pi4Ready = pi4ReadyData ?? false;
 
-  useEffect(() => {
-    fetchPi4AgentReady().then(setPi4Ready).catch(() => setPi4Ready(false));
-  }, []);
+  // Metadata de la sesión SSH activa (host/user), también de solo lectura
+  // y cacheada por sessionId.
+  //
+  // Fix REFACTOR #4 (hallazgo final de @pr-reviewer sobre el commit
+  // 0462128): `enabled` también depende de `isAuthenticated`. `logout()`
+  // invalida todo el `queryCache` (incluida esta key), y el mecanismo de
+  // auto-refetch de `useQueryData` (ver comentario en ese hook) reacciona a
+  // cualquier entrada que desaparezca mientras el componente sigue montado
+  // — sin distinguir "invalidación por logout" de "eviction LRU". Como los
+  // tabs de sesión no se desmontan automáticamente al perder autenticación
+  // (solo se ocultan por navegación), sin este guard el ChatPane dispararía
+  // una llamada de red (`sshSessionInfo`) justo cuando el backend está
+  // cerrando la sesión. Atar `enabled` a `isAuthenticated` evita ese
+  // refetch innecesario; al volver a autenticarse, `enabled` vuelve a
+  // `true` y el efecto de `useQueryData` dispara el fetch normalmente.
+  const { data: sshInfo } = useQueryData(
+    `ssh:session-info:${sessionId ?? 'none'}`,
+    () => sshSessionInfo(sessionId as string),
+    { enabled: !!sessionId && isAuthenticated },
+  );
+  const hostKey = sessionId ? (sshInfo ? `${sshInfo.user}@${sshInfo.host}` : sessionId) : 'default';
 
   // Refs
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -104,12 +129,6 @@ const ChatPane: React.FC<Props> = ({
 
   // ── Session & API Resolve ──
   const { mem, setLastCommand, clear: clearMemory } = useSessionMemory(sessionId ?? null);
-  useEffect(() => {
-    if (!sessionId) { setHostKey('default'); return; }
-    invoke<{ host: string; port: number; user: string }>('ssh_session_info', { id: sessionId })
-      .then(info => setHostKey(`${info.user}@${info.host}`))
-      .catch(() => setHostKey(sessionId));
-  }, [sessionId]);
 
   useEffect(() => { localStorage.setItem('chatSelectedModel', selectedModel); }, [selectedModel]);
 
@@ -370,15 +389,24 @@ const ChatPane: React.FC<Props> = ({
     });
 
     try {
-      const res = await invoke<AiResponseRaw>('ai_chat', {
+      const envelope = await invoke<CommandResponse<AiResponseRaw>>('ai_chat', {
         req: {
-          user_input: getContent(userMsg), mode, history, state: agentState, model_selection: selectedModel,
-          image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
-          terminal_context: null, request_id: reqId,
+          id: reqId,
+          version: '1.0',
+          timestamp_ms: Date.now(),
+          payload: {
+            user_input: getContent(userMsg), mode, history, state: agentState, model_selection: selectedModel,
+            image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
+            terminal_context: null, request_id: reqId,
+          },
         }
       });
       unlistenChunk(); currentReqIdRef.current = null;
       if (!isSendingRef.current) { setStreamedText(''); setStreamingMsgId(null); return; }
+      if (envelope.status === 'error') {
+        throw new Error(envelope.error?.message || 'Error del asistente');
+      }
+      const res = envelope.data as AiResponseRaw;
       const displayText = cleanText(String((res as any).ai_response || (res as any).explanation || ''));
       const cleanedMeta: any = { chat_mode: mode, ...(res as any) };
       delete cleanedMeta.code_output; delete cleanedMeta.suggestedCommands;

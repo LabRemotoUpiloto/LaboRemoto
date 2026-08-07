@@ -13,8 +13,56 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit, type UnlistenFn } from '@tauri-apps/api/event';
+import { commandClient } from './command.service';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
+
+// Payloads/responses del protocolo versionado (Fase B del REFACTOR #1).
+// Deben reflejar las structs Rust en backend/src/cmd/ssh/terminal.rs.
+export interface SshConnectPayload {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  cols: number;
+  rows: number;
+  embedded_in_chat?: boolean;
+}
+
+export interface SshConnectCommandResponse {
+  session_id: string;
+  host: string;
+  port: number;
+  user: string;
+}
+
+export interface SshStdinPayload {
+  id: string;
+  data: string;
+  encoding?: string | null;
+}
+
+export interface SshStdinResponse {
+  ok: boolean;
+}
+
+export interface SshResizePayload {
+  id: string;
+  cols: number;
+  rows: number;
+}
+
+export interface SshResizeResponse {
+  ok: boolean;
+}
+
+export interface SshDisconnectPayload {
+  id: string;
+}
+
+export interface SshDisconnectResponse {
+  ok: boolean;
+}
 
 export interface SshConnectParams {
   host: string;
@@ -43,8 +91,14 @@ export interface SshConnectResult {
  * Inicia una conexión SSH. El backend devuelve el ID inmediatamente
  * y conecta en background. Para saber cuándo conectó, usar `waitForConnection`.
  */
-export const sshConnect = (params: SshConnectParams): Promise<string> =>
-  invoke<string>('ssh_connect', { ...params });
+export const sshConnect = async (params: SshConnectParams): Promise<string> => {
+  const response = await commandClient.invoke<SshConnectPayload, SshConnectCommandResponse>(
+    'ssh_connect',
+    { ...params },
+    { version: '1.0', retries: 3 },
+  );
+  return response.session_id;
+};
 
 /** Sesión SSH interactiva a la Raspberry Pi (credenciales PI4_* del .env). */
 export const pi4SshConnect = (cols: number, rows: number): Promise<string> =>
@@ -80,16 +134,31 @@ export const sshUiReady = (id: string): Promise<void> =>
   invoke<void>('ssh_ui_ready', { id });
 
 /** Envía datos (stdin) a una sesión SSH activa. */
-export const sshStdin = (id: string, data: string, encoding?: string): Promise<void> =>
-  invoke<void>('ssh_stdin', { id, data, encoding: encoding ?? null });
+export const sshStdin = async (id: string, data: string, encoding?: string): Promise<void> => {
+  await commandClient.invoke<SshStdinPayload, SshStdinResponse>(
+    'ssh_stdin',
+    { id, data, encoding: encoding ?? null },
+    { version: '1.0', retries: 3 },
+  );
+};
 
 /** Redimensiona el terminal de una sesión SSH. */
-export const sshResize = (id: string, cols: number, rows: number): Promise<void> =>
-  invoke<void>('ssh_resize', { id, cols, rows });
+export const sshResize = async (id: string, cols: number, rows: number): Promise<void> => {
+  await commandClient.invoke<SshResizePayload, SshResizeResponse>(
+    'ssh_resize',
+    { id, cols, rows },
+    { version: '1.0', retries: 3 },
+  );
+};
 
 /** Desconecta y limpia una sesión SSH. */
-export const sshDisconnect = (id: string): Promise<void> =>
-  invoke<void>('ssh_disconnect', { id });
+export const sshDisconnect = async (id: string): Promise<void> => {
+  await commandClient.invoke<SshDisconnectPayload, SshDisconnectResponse>(
+    'ssh_disconnect',
+    { id },
+    { version: '1.0', retries: 3 },
+  );
+};
 
 /** Conecta a un host previamente guardado (por su ID de almacenamiento). */
 export const sshConnectStored = (id: string, cols: number, rows: number): Promise<string> =>

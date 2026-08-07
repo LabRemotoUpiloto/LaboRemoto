@@ -53,6 +53,33 @@ pub fn remove_dir(sftp: &Ssh2Sftp, path: &str) -> anyhow::Result<()> { sftp.rmdi
 
 pub fn stat(sftp: &Ssh2Sftp, path: &str) -> anyhow::Result<FileStat> { Ok(sftp.stat(Path::new(path))?) }
 
+/// Lee hasta `max_bytes` de un archivo remoto. Devuelve el contenido leído,
+/// si se truncó (había más datos que `max_bytes`) y el tamaño total reportado
+/// por `stat` (si estaba disponible).
+pub fn read_text(sftp: &Ssh2Sftp, path: &str, max_bytes: u64) -> anyhow::Result<(Vec<u8>, bool, Option<u64>)> {
+  let size = stat(sftp, path).ok().and_then(|s| s.size);
+  let mut f = sftp.open(Path::new(path))?;
+  let cap = max_bytes.min(usize::MAX as u64) as usize;
+  let mut buf = vec![0u8; cap];
+  let mut done: usize = 0;
+  loop {
+    if done >= cap { break; }
+    let n = f.read(&mut buf[done..])?;
+    if n == 0 { break; }
+    done += n;
+  }
+  buf.truncate(done);
+  let truncated = match size {
+    Some(s) => s > done as u64,
+    None => {
+      // Sin size confiable: intenta leer un byte más para detectar si hay más datos.
+      let mut probe = [0u8; 1];
+      f.read(&mut probe).map(|n| n > 0).unwrap_or(false)
+    }
+  };
+  Ok((buf, truncated, size))
+}
+
 pub fn download(sftp: &Ssh2Sftp, remote: &str, local: &str, cancel: &std::sync::atomic::AtomicBool) -> anyhow::Result<(u64, bool)> {
   let mut f = sftp.open(Path::new(remote))?;
   let mut out = std::fs::File::create(local)?;

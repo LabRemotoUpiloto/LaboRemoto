@@ -3,15 +3,56 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::io::{Read, Write};
 
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
 use crate::ssh_core::ssh2_sftp as sftp2;
 use crate::cmd::state::{SESSIONS, TRANSFERS};
+use crate::cmd::protocol::{wrap_result, CommandError, CommandRequest, CommandResponse};
 use super::{get_or_connect_cached, classify_sftp_error};
 
+// ── Fase C: envelope versionado (CommandRequest/CommandResponse) ────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SftpDownloadPayload {
+  pub id: String,
+  pub remote_path: String,
+  pub local_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SftpDownloadResponse {
+  pub transfer_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SftpUploadPayload {
+  pub id: String,
+  pub local_path: String,
+  pub remote_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SftpUploadResponse {
+  pub transfer_id: String,
+}
+
 #[tauri::command]
-pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String, local_path: String) -> Result<String, String> {
+pub async fn sftp_download_start(
+  app: AppHandle,
+  req: CommandRequest<SftpDownloadPayload>,
+) -> Result<CommandResponse<SftpDownloadResponse>, CommandError> {
+  let started = std::time::Instant::now();
+  let SftpDownloadPayload { id, remote_path, local_path } = req.payload;
+  let result = sftp_download_start_impl(app, id, remote_path, local_path)
+    .await
+    .map(|transfer_id| SftpDownloadResponse { transfer_id });
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn sftp_download_start_impl(app: AppHandle, id: String, remote_path: String, local_path: String) -> Result<String, String> {
   let cached = {
     let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     get_or_connect_cached(&mut map, &id)?
@@ -72,7 +113,20 @@ pub async fn sftp_download_start(app: AppHandle, id: String, remote_path: String
 }
 
 #[tauri::command]
-pub async fn sftp_upload_start(app: AppHandle, id: String, local_path: String, remote_path: String) -> Result<String, String> {
+pub async fn sftp_upload_start(
+  app: AppHandle,
+  req: CommandRequest<SftpUploadPayload>,
+) -> Result<CommandResponse<SftpUploadResponse>, CommandError> {
+  let started = std::time::Instant::now();
+  let SftpUploadPayload { id, local_path, remote_path } = req.payload;
+  let result = sftp_upload_start_impl(app, id, local_path, remote_path)
+    .await
+    .map(|transfer_id| SftpUploadResponse { transfer_id });
+  let elapsed_ms = started.elapsed().as_millis() as i64;
+  Ok(wrap_result(req.id, req.version, result, elapsed_ms))
+}
+
+async fn sftp_upload_start_impl(app: AppHandle, id: String, local_path: String, remote_path: String) -> Result<String, String> {
   let cached = {
     let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
     get_or_connect_cached(&mut map, &id)?

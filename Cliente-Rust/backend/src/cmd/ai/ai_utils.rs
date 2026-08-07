@@ -6,6 +6,8 @@ use serde::{Serialize, Deserialize};
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 
+use crate::cmd::protocol::CommandError;
+
 // Helper centralizado para obtener la API key saneada.
 pub fn get_openai_api_key() -> Option<String> {
     // Cargar .env una vez por proceso (dotenvy es idempotente, pero evitamos ruido)
@@ -171,7 +173,7 @@ pub struct AiEnvStatus {
 }
 
 #[tauri::command]
-pub fn ai_env_status() -> Result<AiEnvStatus, String> {
+pub fn ai_env_status() -> Result<AiEnvStatus, CommandError> {
     let openai_key_opt = get_openai_api_key();
     let claude_key_opt = get_claude_api_key();
     let openrouter_key_opt = get_openrouter_api_key();
@@ -274,13 +276,16 @@ pub struct AiTestKeyResult {
 }
 
 #[tauri::command]
-pub async fn ai_test_key() -> Result<AiTestKeyResult, String> {
+pub async fn ai_test_key() -> Result<AiTestKeyResult, CommandError> {
     // Determinar qué API key probar basado en el modelo configurado
     let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "claude-sonnet-4-5".to_string());
-    
+
     if model.starts_with("claude") {
         // Probar Claude API
-        let key = get_claude_api_key().ok_or_else(|| "CLAUDE_API_KEY no encontrada".to_string())?;
+        let key = get_claude_api_key().ok_or_else(|| CommandError::permanent(
+            "MISSING_API_KEY",
+            "CLAUDE_API_KEY no encontrada",
+        ))?;
         
         let client = reqwest::Client::new();
         let test_payload = serde_json::json!({
@@ -328,7 +333,10 @@ pub async fn ai_test_key() -> Result<AiTestKeyResult, String> {
         }
     } else {
         // Probar OpenAI API
-        let key = get_openai_api_key().ok_or_else(|| "OPENAI_API_KEY no encontrada".to_string())?;
+        let key = get_openai_api_key().ok_or_else(|| CommandError::permanent(
+            "MISSING_API_KEY",
+            "OPENAI_API_KEY no encontrada",
+        ))?;
         
         let client = reqwest::Client::new();
         let test_payload = serde_json::json!({

@@ -6,9 +6,13 @@ pub mod ssh_core;   // Cliente SSH basado en russh (para terminal) + ssh2_sftp
 pub mod cmd;        // Comandos invocables desde el frontend (Tauri commands)
 pub mod storage;    // Utilidades de almacenamiento cifrado de hosts
 pub mod state_core; // Memoria efímera por sesión (AppState) + AuthState JWT
+pub mod session_manager; // Store único de sesión + auth (trait SessionManager)
 pub mod security;   // Validaciones de seguridad y backups
 pub mod api;        // REST API
 pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
+pub mod ipc;        // Contrato de mensajería interna Message+ACK+backpressure (REFACTOR #5: Fase A completa + Fase B piloto auth wireado)
+
+use tauri::Manager;
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 fn load_dotenv() {
@@ -51,11 +55,23 @@ pub fn run() {
   
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
-    .manage(crate::state_core::AppState::new())
+    // Store único de sesión (SessionMem) + autenticación (JWT OAuth 2.1).
+    // Ver `session_manager` para el trait y `InMemorySessionManager` para el backend.
+    .manage(std::sync::Arc::new(crate::session_manager::InMemorySessionManager::new())
+      as std::sync::Arc<dyn crate::session_manager::SessionManager>)
     .manage(crate::state_core::AiCancelRegistry::new())
-    .manage(crate::state_core::AuthState::new())  // OAuth 2.1: custodio del JWT en memoria
+    // IpcHub (REFACTOR #5 Fase B): cola con backpressure + registro de ACK
+    // compartida por los emisores wireados a `ipc`. El dispatcher que la
+    // consume se arranca en `.setup()` porque necesita un `AppHandle`
+    // (no disponible aún en este punto de construcción del builder).
+    .manage(crate::ipc::IpcHub::new())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
+    .setup(|app| {
+      let hub = app.state::<crate::ipc::IpcHub>().inner().clone();
+      hub.spawn_dispatcher(app.handle().clone());
+      Ok(())
+    })
     .invoke_handler(tauri::generate_handler![
       // SSH
       cmd::ssh::terminal::ssh_connect,
@@ -76,16 +92,21 @@ pub fn run() {
       cmd::sftp::operations::sftp_home,
       cmd::sftp::operations::sftp_list,
       cmd::sftp::operations::sftp_mkdir,
+      cmd::sftp::operations::sftp_rename,
       cmd::sftp::operations::sftp_remove,
       cmd::sftp::transfers::sftp_download_start,
       cmd::sftp::transfers::sftp_upload_start,
       cmd::sftp::operations::sftp_cancel,
       cmd::sftp::transfers::sftp_upload_dir_start,
       cmd::sftp::transfers::sftp_download_dir_start,
+      cmd::sftp::operations::sftp_read_text,
       // Local FS (pane izquierdo)
       cmd::filesystem::local::local_home_dir,
       cmd::filesystem::local::local_list_dir,
       cmd::filesystem::local::local_list_drives,
+      cmd::filesystem::local::local_open_path,
+      cmd::filesystem::local::local_reveal_in_explorer,
+      cmd::filesystem::local::local_temp_dir,
       cmd::filesystem::local::save_text_file,
       cmd::filesystem::local::chat_history_load,
       cmd::filesystem::local::chat_history_save,
@@ -132,12 +153,15 @@ pub fn run() {
       cmd::vnc::vnc_stop,
       cmd::vnc::vnc_status,
       cmd::vnc::vnc_cleanup_all,
-      // Port-forwarding genérico (streaming)
+      // Port-forwarding genérico (streaming) — legacy, ver cmd::nvr abajo
       cmd::streaming::stream::stream_start,
       cmd::streaming::stream::stream_stop,
       cmd::streaming::stream::stream_list_cameras,
       cmd::streaming::stream::stream_get_host,
       cmd::streaming::stream::whep_exchange,
+      // NVR Shinobi — consumo de cámaras vía API HTTP (reemplaza stream_list_cameras)
+      cmd::nvr::shinobi::nvr_list_cameras,
+      cmd::nvr::shinobi::nvr_disconnect,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,
@@ -167,6 +191,10 @@ pub fn run() {
       crate::auth::commands::auth_login_url,
       crate::auth::commands::auth_status,
       crate::auth::commands::auth_logout,
+      // Admin REST API (User Management)
+      crate::auth::commands::admin_search_users,
+      crate::auth::commands::admin_get_user_roles,
+      crate::auth::commands::admin_toggle_user_role,
     ])
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {

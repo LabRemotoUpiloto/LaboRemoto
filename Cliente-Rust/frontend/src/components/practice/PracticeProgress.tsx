@@ -90,7 +90,11 @@ const PracticeProgress: React.FC<Props> = ({
       })
       setValidation(result)
     } catch (err) {
+      // Comportamiento intencional: el backend ahora puede rechazar la validación
+      // (ej. practice_id inválido) en lugar de responder Ok con feedback. Limpiamos
+      // el estado de validación para que la UI no muestre datos obsoletos/incorrectos.
       console.error('Error validando práctica:', err)
+      setValidation(null)
     }
   }
 

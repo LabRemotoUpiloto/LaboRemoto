@@ -1,102 +1,33 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { authService, AuthSessionInfo } from '../services/auth.service';
-import { useToasts } from './ToastContext';
+/**
+ * contexts/AuthContext.tsx — DEPRECADO como fuente de verdad.
+ *
+ * El estado de autenticación vive ahora en `store/app.ts` (Zustand,
+ * slice definido en `store/auth.ts`). Este archivo se mantiene únicamente
+ * por compatibilidad hacia atrás:
+ *
+ *  - `AuthProvider` ya no guarda estado propio (sin `useState`); solo
+ *    dispara `initAuth()` del store una vez al montar, registrando los
+ *    listeners de Tauri y haciendo cleanup al desmontar.
+ *  - `useAuth` se re-exporta desde `hooks/useAuth.ts` (el wrapper sobre
+ *    el store) para que los imports existentes (`from '../contexts/AuthContext'`)
+ *    sigan funcionando sin cambios.
+ *
+ * TODO(REFACTOR #4 - batch futuro): una vez migrados todos los imports a
+ * `hooks/useAuth`, este archivo puede eliminarse y `initAuth()` puede
+ * invocarse directamente en `App.tsx` sin necesidad de un Provider.
+ */
+import React, { useEffect } from 'react'
+import { useAppStore } from '../store/app'
 
-interface AuthContextType {
-  user: AuthSessionInfo | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: () => Promise<void>;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export { useAuth } from '../hooks/useAuth'
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthSessionInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { push } = useToasts();
-  
-  // Ref para tener acceso al estado actual dentro del callback del listener
-  const userRef = useRef<AuthSessionInfo | null>(null);
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
-
-  const checkStatus = async () => {
-    try {
-      const session = await authService.status();
-      setUser(session);
-    } catch (error) {
-      console.error('Failed to check auth status:', error);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const initAuth = useAppStore((s) => s.initAuth)
 
   useEffect(() => {
-    checkStatus();
+    const cleanup = initAuth()
+    return cleanup
+  }, [initAuth])
 
-    const unlistenReadyPromise = listen<AuthSessionInfo>('auth://session-ready', (event) => {
-      console.log('Session ready event received', event.payload.preferred_username);
-      
-      // Evaluamos el estado previo para no disparar la notificación en cada refresco silencioso
-      if (!userRef.current) {
-        push({ type: 'success', message: `Sesión iniciada correctamente` });
-      }
-      
-      setUser(event.payload);
-    });
-
-    const unlistenLogoutPromise = listen('auth://logged-out', () => {
-      console.log('Logged out event received');
-      setUser(null);
-    });
-
-    // Cleanup: manejamos las promesas para evitar que se acumulen listeners en el Strict Mode
-    return () => {
-      unlistenReadyPromise.then(unlisten => unlisten());
-      unlistenLogoutPromise.then(unlisten => unlisten());
-    };
-  }, []);
-
-  const login = async () => {
-    try {
-      await authService.loginUrl();
-      // Nota: El backend abrirá el navegador.
-      // Cuando se complete, 'auth://session-ready' será emitido.
-    } catch (error) {
-      console.error('Failed to initialize login flow:', error);
-      push({ type: 'error', message: 'Error al iniciar sesión' });
-    }
-  };
-
-  const logout = async () => {
-    try {
-      // Indicamos que cargue mientras el backend hace el request a Keycloak
-      setIsLoading(true); 
-      await authService.logout();
-      // El backend limpiará y emitirá 'auth://logged-out'
-    } catch (error) {
-      console.error('Failed to logout:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+  return <>{children}</>
+}

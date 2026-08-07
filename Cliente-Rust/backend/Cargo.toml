@@ -15,6 +15,7 @@ thiserror = "1.0"
 uuid = { version = "1", features = ["v4"] }
 toml = "0.8"
 ts-rs = "12.0"
+tracing = "0.1"
 
 # storage/encryption
 argon2 = "0.4"
@@ -68,6 +69,21 @@ tokio-stream = "0.1"
 tauri-build = { version = "2", features = [] }
 dotenvy = "0.15"
 
+[[test]]
+name = "session_manager_flow_test"
+path = "tests/integration/session_manager_flow_test.rs"
+
+[[test]]
+name = "auth_ipc_dispatch_test"
+path = "tests/integration/auth_ipc_dispatch_test.rs"
+
 [profile.release]
 lto = true
 codegen-units = 1
+
+[dev-dependencies]
+tracing-test = { version = "0.2.6", features = ["no-env-filter"] }
+# Habilita `tauri::test::mock_app()` para tests de integración del
+# dispatcher `ipc::IpcHub::spawn_dispatcher` (REFACTOR #5 Fase B) sin
+# necesitar una ventana real.
+tauri = { version = "2", features = ["test"] }
