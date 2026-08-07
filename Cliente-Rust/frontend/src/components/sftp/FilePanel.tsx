@@ -2,7 +2,6 @@ import React, { useCallback, useMemo } from 'react'
 import AddressBar from './AddressBar'
 import FilePanelToolbar from './FilePanelToolbar'
 import FileList from './FileList'
-import StatusBar from './StatusBar'
 import type { SftpEntry, LocalEntry } from '../../types'
 
 type FileEntry = SftpEntry | LocalEntry
@@ -252,16 +251,9 @@ const FilePanel: React.FC<FilePanelProps> = ({
           consumeSuppressedClick={consumeSuppressedClick}
         />
       </div>
-
-      {/* Status bar */}
-      <StatusBar
-        totalItems={entries.length}
-        totalSize={totalSize}
-        selectedEntries={selectedEntries}
-        side={side}
-      />
     </div>
   )
 }
 
 export default FilePanel
+
