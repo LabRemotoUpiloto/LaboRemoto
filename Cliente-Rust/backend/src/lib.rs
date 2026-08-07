@@ -196,6 +196,8 @@ pub fn run() {
       crate::auth::commands::auth_logout,
       // Admin REST API (User Management)
       crate::auth::commands::admin_search_users,
+      crate::auth::commands::admin_list_all_users,
+      crate::auth::commands::admin_list_users_by_role,
       crate::auth::commands::admin_get_user_roles,
       crate::auth::commands::admin_toggle_user_role,
     ])
