@@ -197,6 +197,7 @@ pub async fn auth_logout(
 
     // Limpiar estado local INMEDIATAMENTE (garantiza logout aunque falle la red)
     manager.clear_auth().await.map_err(|e| e.to_string())?;
+    let _ = crate::auth::token_store::clear_refresh_token();
 
     // Revocación remota best-effort
     if let Some(rt) = refresh_token {
@@ -258,7 +259,10 @@ async fn exchange_code_background(
     match client.exchange_code(&code, &verifier, &redirect_uri).await {
         Ok(bundle) => {
             let session_info = bundle_to_session_info(&bundle);
+            let refresh_token = bundle.refresh_token.clone();
+            let refresh_expires_at_unix = bundle.refresh_expires_at_unix;
             let _ = manager.store_auth(bundle).await;
+            let _ = crate::auth::token_store::save_refresh_token(&refresh_token, refresh_expires_at_unix);
             let payload = serde_json::to_value(&session_info).unwrap_or(serde_json::Value::Null);
             enqueue_auth_event(&hub, session_info.preferred_username.clone(), AuthStateKind::SessionReady, payload);
 
@@ -322,15 +326,61 @@ async fn token_refresh_daemon(app: tauri::AppHandle, config: KeycloakConfig) {
         match client.refresh_access_token(&current_refresh_token).await {
             Ok(bundle) => {
                 let session_info = bundle_to_session_info(&bundle);
+                let refresh_token = bundle.refresh_token.clone();
+                let refresh_expires_at_unix = bundle.refresh_expires_at_unix;
                 let _ = manager.store_auth(bundle).await;
+                let _ = crate::auth::token_store::save_refresh_token(&refresh_token, refresh_expires_at_unix);
                 let payload = serde_json::to_value(&session_info).unwrap_or(serde_json::Value::Null);
                 enqueue_auth_event(&hub, session_info.preferred_username.clone(), AuthStateKind::SessionReady, payload);
             }
             Err(_e) => {
                 let _ = manager.clear_auth().await;
+                let _ = crate::auth::token_store::clear_refresh_token();
                 enqueue_auth_event(&hub, "local".to_string(), AuthStateKind::LoggedOut, serde_json::Value::Null);
                 break;
             }
+        }
+    }
+}
+
+/// Intenta retomar una sesión persistida de un arranque anterior de la app.
+///
+/// Se lanza en background desde `lib.rs::run().setup()`. Si no hay
+/// refresh_token guardado (o ya venció), no hace nada: la app simplemente
+/// muestra la pantalla de login normal, sin errores visibles.
+///
+/// Si el refresh_token guardado sigue siendo válido, lo intercambia por un
+/// access_token fresco, guarda la sesión en el `SessionManager`, persiste el
+/// refresh_token rotado y emite `auth://session-ready` — el mismo evento que
+/// ya consume `store/auth.ts` tras un login manual, sin cambios de frontend.
+/// También relanza el daemon de renovación, igual que tras un login fresco.
+pub(crate) async fn try_restore_session(app: tauri::AppHandle) {
+    let (refresh_token, _exp) = match crate::auth::token_store::load_refresh_token() {
+        Ok(Some(v)) => v,
+        Ok(None) => return,
+        Err(_) => return,
+    };
+
+    let manager = app.state::<Arc<dyn SessionManager>>().inner().clone();
+    let config = KeycloakConfig::from_env();
+    let client = KeycloakClient::new(config.clone());
+
+    match client.refresh_access_token(&refresh_token).await {
+        Ok(bundle) => {
+            let session_info = bundle_to_session_info(&bundle);
+            let new_refresh_token = bundle.refresh_token.clone();
+            let refresh_expires_at_unix = bundle.refresh_expires_at_unix;
+            let _ = manager.store_auth(bundle).await;
+            let _ = crate::auth::token_store::save_refresh_token(&new_refresh_token, refresh_expires_at_unix);
+
+            let hub = app.state::<IpcHub>().inner().clone();
+            let payload = serde_json::to_value(&session_info).unwrap_or(serde_json::Value::Null);
+            enqueue_auth_event(&hub, session_info.preferred_username.clone(), AuthStateKind::SessionReady, payload);
+
+            tauri::async_runtime::spawn(token_refresh_daemon(app.clone(), config));
+        }
+        Err(_) => {
+            let _ = crate::auth::token_store::clear_refresh_token();
         }
     }
 }
