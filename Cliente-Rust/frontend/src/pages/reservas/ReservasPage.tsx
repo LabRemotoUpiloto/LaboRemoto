@@ -183,7 +183,7 @@ const PracticePickCard: React.FC<{
             </Tooltip>
           )}
           {opt.practice.panels?.chat && (
-            <Tooltip label="Chat con asistente IA" withArrow>
+            <Tooltip label="Chat del asistente" withArrow>
               <Box style={{ color: 'var(--text-muted)', display: 'flex' }}>
                 <MessageSquare size={13} />
               </Box>
@@ -732,17 +732,19 @@ const MisReservasPanel: React.FC<{
   <Stack gap="sm">
     <Group justify="space-between" align="center">
       <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>Mis reservas</Text>
-      <Badge
-        size="sm"
-        style={{
-          backgroundColor: 'var(--accent-primary-subtle)',
-          color: 'var(--accent-primary)',
-          border: '1px solid var(--accent-primary)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {reservas.length}
-      </Badge>
+      {reservas.length > 0 && (
+        <Badge
+          size="sm"
+          style={{
+            backgroundColor: 'var(--accent-primary-subtle)',
+            color: 'var(--accent-primary)',
+            border: '1px solid var(--accent-primary)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {reservas.length}
+        </Badge>
+      )}
     </Group>
 
     {reservas.length === 0 ? (

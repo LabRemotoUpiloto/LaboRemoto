@@ -55,6 +55,7 @@ export const THEME_CATALOG: ThemeMeta[] = [
 
   // Especiales
   { id: 'sunburst-rainbow', label: 'Sunburst Rainbow', personality: 'special',      darkMode: true },
+  { id: 'glass-water',     label: 'Liquid Glass',      personality: 'special',      darkMode: true },
 ]
 
 /** Qué temas son light para Mantine */
@@ -99,6 +100,7 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
       'lavender-dream': 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&display=swap',
       'pastel-dream':   'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap',
       'sepia-paper':    'https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&display=swap',
+      'glass-water':    'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
     }
     const fontUrl = THEME_FONTS[theme]
     const existingLink = document.getElementById('theme-font') as HTMLLinkElement | null

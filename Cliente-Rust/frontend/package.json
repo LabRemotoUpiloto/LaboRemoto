@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5174",
+    "dev": "powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 5174 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\" & vite --port 5174",
     "build": "vite build",
     "preview": "vite preview --port 5174",
     "test": "vitest run",
@@ -15,6 +15,7 @@
     "@mantine/hooks": "9.1.1",
     "@mantine/modals": "9.1.1",
     "@mantine/notifications": "9.1.1",
+    "@mawtech/glass-ui": "1.0.0",
     "@novnc/novnc": "1.4.0",
     "@tauri-apps/api": "2.8.0",
     "@tauri-apps/plugin-process": "2.3.0",

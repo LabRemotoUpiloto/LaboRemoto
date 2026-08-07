@@ -59,7 +59,7 @@ const SidebarSessionActions: React.FC<Props> = ({
         data-no-window-drag
         size="md"
         onClick={onToggleChat}
-        title="Chat de IA"
+        title="Asistente SSH"
         style={{
           backgroundColor: isChatOpen ? 'var(--interactive-selected)' : 'transparent',
           color: isChatOpen ? 'var(--accent-primary)' : 'var(--text-secondary)',
