@@ -155,6 +155,47 @@ pub fn save_host_with_master(id: &str, json_payload: &str) -> anyhow::Result<()>
   Ok(())
 }
 
+/// Cifra un payload arbitrario con la clave maestra (HKDF por-blob + ChaCha20-Poly1305).
+/// Reutilizado por `auth::token_store` para persistir el refresh_token de sesión
+/// con el mismo modelo de amenaza ya aceptado para los hosts guardados.
+pub(crate) fn encrypt_with_master(plaintext: &[u8]) -> anyhow::Result<serde_json::Value> {
+  let master = get_or_create_master_key()?;
+  let salt = SaltString::generate(&mut OsRng).as_ref().as_bytes().to_vec();
+  let hk = Hkdf::<Sha256Hkdf>::new(Some(&salt), &master);
+  let mut out = [0u8; 32];
+  hk.expand(&[], &mut out).map_err(|e| anyhow!(format!("hkdf expand: {}", e)))?;
+  let key = Key::from_slice(&out).clone();
+  let cipher = ChaCha20Poly1305::new(&key);
+  let mut nonce_bytes = [0u8; 12];
+  OsRng.fill_bytes(&mut nonce_bytes);
+  let nonce = Nonce::from_slice(&nonce_bytes);
+  let ciphertext = cipher.encrypt(nonce, plaintext).map_err(|e| anyhow!(format!("encrypt failed: {}", e)))?;
+  Ok(serde_json::json!({
+    "salt": STANDARD.encode(&salt),
+    "nonce": STANDARD.encode(&nonce_bytes),
+    "payload": STANDARD.encode(&ciphertext),
+  }))
+}
+
+/// Descifra un blob producido por [`encrypt_with_master`].
+pub(crate) fn decrypt_with_master(blob: &serde_json::Value) -> anyhow::Result<Vec<u8>> {
+  let salt_b64 = blob.get("salt").and_then(|s| s.as_str()).context("missing salt")?;
+  let nonce_b64 = blob.get("nonce").and_then(|s| s.as_str()).context("missing nonce")?;
+  let payload_b64 = blob.get("payload").and_then(|s| s.as_str()).context("missing payload")?;
+  let salt = STANDARD.decode(salt_b64.as_bytes())?;
+  let nonce_bytes = STANDARD.decode(nonce_b64.as_bytes())?;
+  let payload = STANDARD.decode(payload_b64.as_bytes())?;
+  let master = get_or_create_master_key()?;
+  let hk = Hkdf::<Sha256Hkdf>::new(Some(&salt), &master);
+  let mut out = [0u8; 32];
+  hk.expand(&[], &mut out).map_err(|e| anyhow!(format!("hkdf expand: {}", e)))?;
+  let key = Key::from_slice(&out).clone();
+  let cipher = ChaCha20Poly1305::new(&key);
+  let nonce = Nonce::from_slice(&nonce_bytes);
+  let plain = cipher.decrypt(nonce, payload.as_ref()).map_err(|e| anyhow!(format!("decrypt failed: {}", e)))?;
+  Ok(plain)
+}
+
 /// Carga y descifra una entrada usando la clave maestra.
 pub fn load_host_with_master(id: &str) -> anyhow::Result<String> {
   let path = file_for_id(id)?;
