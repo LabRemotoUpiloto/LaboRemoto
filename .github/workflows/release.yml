@@ -2,7 +2,11 @@ name: Build & Release
 
 on:
   push:
-    branches: [main, Pruebas(QA), Desarrollo, Produccion]
+    # "Desarrollo" fuera a propósito: cada merge ahí generaba un release
+    # público (sobrescribiendo el anterior si no se subía la versión a
+    # mano). Las releases públicas ahora solo salen de Produccion. Para
+    # probar el workflow desde Desarrollo sigue disponible workflow_dispatch.
+    branches: [main, Pruebas(QA), Produccion]
     tags: ['v*']
   workflow_dispatch:
 
