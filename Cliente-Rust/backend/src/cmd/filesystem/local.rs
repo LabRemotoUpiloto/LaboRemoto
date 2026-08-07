@@ -16,21 +16,25 @@ pub async fn local_home_dir() -> Result<String, CommandError> {
 
 #[tauri::command]
 pub async fn local_list_dir(path: String) -> Result<Vec<LocalEntry>, CommandError> {
-  let mut out: Vec<LocalEntry> = Vec::new();
-  let rd = fs::read_dir(&path).map_err(|e| map_io_error(e, "local_list_dir", &path))?;
-  for ent in rd {
-    let ent = ent.map_err(|e| map_io_error(e, "local_list_dir", &path))?;
-    let p: PathBuf = ent.path();
-    let name = ent.file_name().to_string_lossy().to_string();
-    let meta = fs::symlink_metadata(&p).map_err(|e| map_io_error(e, "local_list_dir", &p.display().to_string()))?;
-    let ft = meta.file_type();
-    let kind = if ft.is_dir() { "dir" } else if ft.is_symlink() { "sym" } else { "file" }.to_string();
-    let size = if ft.is_file() { Some(meta.len()) } else { None };
-    let mtime = meta.modified().ok().and_then(|st| st.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as i64);
-    out.push(LocalEntry { name, path: p.to_string_lossy().to_string(), kind, size, mtime });
-  }
-  out.sort_by(|a,b| if a.kind!=b.kind { if a.kind=="dir" { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater } } else { a.name.to_lowercase().cmp(&b.name.to_lowercase()) });
-  Ok(out)
+  tokio::task::spawn_blocking(move || {
+    let mut out: Vec<LocalEntry> = Vec::new();
+    let rd = fs::read_dir(&path).map_err(|e| map_io_error(e, "local_list_dir", &path))?;
+    for ent in rd {
+      let ent = ent.map_err(|e| map_io_error(e, "local_list_dir", &path))?;
+      let p: PathBuf = ent.path();
+      let name = ent.file_name().to_string_lossy().to_string();
+      let meta = fs::symlink_metadata(&p).map_err(|e| map_io_error(e, "local_list_dir", &p.display().to_string()))?;
+      let ft = meta.file_type();
+      let kind = if ft.is_dir() { "dir" } else if ft.is_symlink() { "sym" } else { "file" }.to_string();
+      let size = if ft.is_file() { Some(meta.len()) } else { None };
+      let mtime = meta.modified().ok().and_then(|st| st.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as i64);
+      out.push(LocalEntry { name, path: p.to_string_lossy().to_string(), kind, size, mtime });
+    }
+    out.sort_by(|a,b| if a.kind!=b.kind { if a.kind=="dir" { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater } } else { a.name.to_lowercase().cmp(&b.name.to_lowercase()) });
+    Ok(out)
+  })
+  .await
+  .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 /// Abre un archivo local con la aplicación predeterminada del sistema.
@@ -128,20 +132,24 @@ pub async fn local_temp_dir() -> Result<String, CommandError> {
 
 #[tauri::command]
 pub async fn local_list_drives() -> Result<Vec<String>, CommandError> {
-  #[cfg(target_os = "windows")]
-  {
-    let mut drives = Vec::new();
-    for letter in b'A'..=b'Z' {
-      let p = format!("{}:\\", letter as char);
-      if std::path::Path::new(&p).exists() { drives.push(p); }
+  tokio::task::spawn_blocking(|| {
+    #[cfg(target_os = "windows")]
+    {
+      let mut drives = Vec::new();
+      for letter in b'A'..=b'Z' {
+        let p = format!("{}:\\", letter as char);
+        if std::path::Path::new(&p).exists() { drives.push(p); }
+      }
+      if drives.is_empty() { drives.push("C:\\".to_string()); }
+      Ok(drives)
     }
-    if drives.is_empty() { drives.push("C:\\".to_string()); }
-    return Ok(drives);
-  }
-  #[cfg(not(target_os = "windows"))]
-  {
-    Ok(vec!["/".to_string()])
-  }
+    #[cfg(not(target_os = "windows"))]
+    {
+      Ok(vec!["/".to_string()])
+    }
+  })
+  .await
+  .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 /// Abre el diálogo "Guardar como" del sistema y escribe el contenido en el archivo elegido.
@@ -185,8 +193,12 @@ pub async fn save_text_file(content: String, default_name: String) -> Result<Str
   match path {
     None => Err(CommandError::permanent("VALIDATION_FAILED", "Operación cancelada por el usuario")),
     Some(p) => {
-      fs::write(&p, content.as_bytes()).map_err(|e| map_io_error(e, "save_text_file", &p.display().to_string()))?;
-      Ok(p.to_string_lossy().to_string())
+      tokio::task::spawn_blocking(move || {
+        fs::write(&p, content.as_bytes()).map_err(|e| map_io_error(e, "save_text_file", &p.display().to_string()))?;
+        Ok(p.to_string_lossy().to_string())
+      })
+      .await
+      .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
     }
   }
 }
@@ -222,13 +234,17 @@ pub async fn chat_history_load(
   session_id: String,
   mode: String,
 ) -> Result<Vec<ChatHistoryEntry>, CommandError> {
-  let path = history_file(&app, &session_id, &mode)?;
-  if !path.exists() {
-    return Ok(vec![]);
-  }
-  let raw = fs::read_to_string(&path).map_err(|e| map_io_error(e, "chat_history_load", &path.display().to_string()))?;
-  let entries: Vec<ChatHistoryEntry> = serde_json::from_str(&raw).unwrap_or_default();
-  Ok(entries)
+  tokio::task::spawn_blocking(move || {
+    let path = history_file(&app, &session_id, &mode)?;
+    if !path.exists() {
+      return Ok(vec![]);
+    }
+    let raw = fs::read_to_string(&path).map_err(|e| map_io_error(e, "chat_history_load", &path.display().to_string()))?;
+    let entries: Vec<ChatHistoryEntry> = serde_json::from_str(&raw).unwrap_or_default();
+    Ok(entries)
+  })
+  .await
+  .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 /// Guarda (reemplaza) el historial de una sesión+modo en disco.
@@ -239,10 +255,14 @@ pub async fn chat_history_save(
   mode: String,
   entries: Vec<ChatHistoryEntry>,
 ) -> Result<(), CommandError> {
-  let path = history_file(&app, &session_id, &mode)?;
-  let json = serde_json::to_string(&entries)
-    .map_err(|e| CommandError::permanent("INVALID_DATA", format!("Error serializando historial: {e}")))?;
-  fs::write(&path, json.as_bytes()).map_err(|e| map_io_error(e, "chat_history_save", &path.display().to_string()))
+  tokio::task::spawn_blocking(move || {
+    let path = history_file(&app, &session_id, &mode)?;
+    let json = serde_json::to_string(&entries)
+      .map_err(|e| CommandError::permanent("INVALID_DATA", format!("Error serializando historial: {e}")))?;
+    fs::write(&path, json.as_bytes()).map_err(|e| map_io_error(e, "chat_history_save", &path.display().to_string()))
+  })
+  .await
+  .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 /// Elimina una entrada del historial por su ID.
@@ -253,37 +273,49 @@ pub async fn chat_history_delete_entry(
   mode: String,
   entry_id: String,
 ) -> Result<Vec<ChatHistoryEntry>, CommandError> {
-  let path = history_file(&app, &session_id, &mode)?;
-  let mut entries: Vec<ChatHistoryEntry> = if path.exists() {
-    let raw = fs::read_to_string(&path).map_err(|e| map_io_error(e, "chat_history_delete_entry", &path.display().to_string()))?;
-    serde_json::from_str(&raw).unwrap_or_default()
-  } else {
-    vec![]
-  };
-  entries.retain(|e| e.id != entry_id);
-  let json = serde_json::to_string(&entries)
-    .map_err(|e| CommandError::permanent("INVALID_DATA", format!("Error serializando historial: {e}")))?;
-  fs::write(&path, json.as_bytes()).map_err(|e| map_io_error(e, "chat_history_delete_entry", &path.display().to_string()))?;
-  Ok(entries)
+  tokio::task::spawn_blocking(move || {
+    let path = history_file(&app, &session_id, &mode)?;
+    let mut entries: Vec<ChatHistoryEntry> = if path.exists() {
+      let raw = fs::read_to_string(&path).map_err(|e| map_io_error(e, "chat_history_delete_entry", &path.display().to_string()))?;
+      serde_json::from_str(&raw).unwrap_or_default()
+    } else {
+      vec![]
+    };
+    entries.retain(|e| e.id != entry_id);
+    let json = serde_json::to_string(&entries)
+      .map_err(|e| CommandError::permanent("INVALID_DATA", format!("Error serializando historial: {e}")))?;
+    fs::write(&path, json.as_bytes()).map_err(|e| map_io_error(e, "chat_history_delete_entry", &path.display().to_string()))?;
+    Ok(entries)
+  })
+  .await
+  .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn local_mkdir(path: String) -> Result<(), CommandError> {
-  fs::create_dir_all(&path).map_err(|e| map_io_error(e, "local_mkdir", &path))
+  tokio::task::spawn_blocking(move || fs::create_dir_all(&path).map_err(|e| map_io_error(e, "local_mkdir", &path)))
+    .await
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn local_rename(old_path: String, new_path: String) -> Result<(), CommandError> {
-  fs::rename(&old_path, &new_path).map_err(|e| map_io_error(e, "local_rename", &old_path))
+  tokio::task::spawn_blocking(move || fs::rename(&old_path, &new_path).map_err(|e| map_io_error(e, "local_rename", &old_path)))
+    .await
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn local_delete(path: String) -> Result<(), CommandError> {
-  let p = std::path::Path::new(&path);
-  if p.is_dir() {
-    fs::remove_dir_all(&path).map_err(|e| map_io_error(e, "local_delete", &path))
-  } else {
-    fs::remove_file(&path).map_err(|e| map_io_error(e, "local_delete", &path))
-  }
+  tokio::task::spawn_blocking(move || {
+    let p = std::path::Path::new(&path);
+    if p.is_dir() {
+      fs::remove_dir_all(&path).map_err(|e| map_io_error(e, "local_delete", &path))
+    } else {
+      fs::remove_file(&path).map_err(|e| map_io_error(e, "local_delete", &path))
+    }
+  })
+  .await
+  .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 

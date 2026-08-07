@@ -337,8 +337,10 @@ pub async fn save_session_log(
         metadata,
         html_content,
     };
-    
-    STORAGE.save_log(log)
+
+    tokio::task::spawn_blocking(move || STORAGE.save_log(log))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 /// Guarda un log recibiendo SOLO el HTML del terminal (fragmento) y
@@ -376,32 +378,46 @@ pub async fn save_session_log_fragment(
         metadata,
         html_content: full_html,
     };
-    STORAGE.save_log(log)
+    tokio::task::spawn_blocking(move || STORAGE.save_log(log))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn list_session_logs() -> Result<Vec<SessionLogMetadata>, CommandError> {
-    STORAGE.list_logs()
+    // Perf: recorre y lee TODOS los .meta.json/.html guardados — potencialmente
+    // muchos archivos — así que nunca debe correr inline en el runtime async.
+    tokio::task::spawn_blocking(|| STORAGE.list_logs())
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn get_session_log_content(session_id: String) -> Result<String, CommandError> {
-    STORAGE.get_log_content(&session_id)
+    tokio::task::spawn_blocking(move || STORAGE.get_log_content(&session_id))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn get_session_log(session_id: String) -> Result<SessionLog, CommandError> {
-    STORAGE.get_log(&session_id)
+    tokio::task::spawn_blocking(move || STORAGE.get_log(&session_id))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn delete_session_log(session_id: String) -> Result<(), CommandError> {
-    STORAGE.delete_log(&session_id)
+    tokio::task::spawn_blocking(move || STORAGE.delete_log(&session_id))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
 pub async fn cleanup_old_session_logs(days: i64) -> Result<usize, CommandError> {
-    STORAGE.cleanup_old_logs(days)
+    tokio::task::spawn_blocking(move || STORAGE.cleanup_old_logs(days))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[cfg(test)]

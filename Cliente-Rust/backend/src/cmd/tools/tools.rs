@@ -15,10 +15,17 @@
 //   agent_chat            — loop completo Claude tool_use → ejecuta tools → respuesta final
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::Read;
+use std::sync::{Arc, Mutex};
+use once_cell::sync::Lazy;
 use tauri::{AppHandle, Emitter};
-use crate::cmd::state::SESSIONS;
+use crate::cmd::state::{CachedSsh2, SESSIONS};
 use crate::cmd::ai::ai_utils::get_claude_api_key;
+
+// Perf: cliente HTTP compartido para las llamadas a la API de Claude desde
+// el loop del agente, en vez de uno nuevo por cada agent_chat/plan_chat.
+static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(reqwest::Client::new);
 
 fn emit_agent_step(app: &AppHandle, request_id: Option<&str>, step: &AgentStep) {
     let Some(rid) = request_id.filter(|s| !s.is_empty()) else {
@@ -151,12 +158,12 @@ fn tool_estado_raspberry() -> ToolResult {
 }
 
 fn tool_conectar_raspberry(session_id: &str) -> ToolResult {
-    let (host, port, user, password) = match get_creds(session_id) {
+    let (host, port, user, _password) = match get_creds(session_id) {
         Ok(c) => c,
         Err(e) => return ToolResult { tool: "conectar_raspberry".into(), output: e, ok: false },
     };
     let cmd = "echo '=== CONEXION OK ===' && hostname && whoami && uname -a";
-    match run_ssh_exec(&host, port, &user, &password, cmd) {
+    match run_ssh_exec(session_id, cmd) {
         Ok(out) => ToolResult {
             tool: "conectar_raspberry".into(),
             output: format!("Conectado a {user}@{host}:{port}\n{out}"),
@@ -191,11 +198,7 @@ fn tool_ejecutar_comando(session_id: &str, input: &serde_json::Value) -> ToolRes
         Some(c) => c.to_string(),
         None => return ToolResult { tool: "ejecutar_comando".into(), output: "Falta parámetro 'comando'".into(), ok: false },
     };
-    let (host, port, user, password) = match get_creds(session_id) {
-        Ok(c) => c,
-        Err(e) => return ToolResult { tool: "ejecutar_comando".into(), output: e, ok: false },
-    };
-    match run_ssh_exec(&host, port, &user, &password, &cmd) {
+    match run_ssh_exec(session_id, &cmd) {
         Ok(out) => ToolResult { tool: "ejecutar_comando".into(), output: out, ok: true },
         Err(e)  => ToolResult { tool: "ejecutar_comando".into(), output: e, ok: false },
     }
@@ -207,11 +210,7 @@ fn tool_leer_archivo(session_id: &str, input: &serde_json::Value) -> ToolResult 
         Some(p) => p.to_string(),
         None => return ToolResult { tool: "leer_archivo".into(), output: "Falta parámetro 'ruta'".into(), ok: false },
     };
-    let (host, port, user, password) = match get_creds(session_id) {
-        Ok(c) => c,
-        Err(e) => return ToolResult { tool: "leer_archivo".into(), output: e, ok: false },
-    };
-    match sftp_read(&host, port, &user, &password, &path) {
+    match sftp_read(session_id, &path) {
         Ok(content) => ToolResult { tool: "leer_archivo".into(), output: content, ok: true },
         Err(e)      => ToolResult { tool: "leer_archivo".into(), output: e, ok: false },
     }
@@ -221,11 +220,7 @@ fn tool_leer_archivo(session_id: &str, input: &serde_json::Value) -> ToolResult 
 fn tool_escribir_archivo(session_id: &str, input: &serde_json::Value) -> ToolResult {
     let path    = match input.get("ruta").and_then(|v| v.as_str()) { Some(p) => p.to_string(), None => return ToolResult { tool: "escribir_archivo".into(), output: "Falta 'ruta'".into(), ok: false } };
     let content = match input.get("contenido").and_then(|v| v.as_str()) { Some(c) => c.to_string(), None => return ToolResult { tool: "escribir_archivo".into(), output: "Falta 'contenido'".into(), ok: false } };
-    let (host, port, user, password) = match get_creds(session_id) {
-        Ok(c) => c,
-        Err(e) => return ToolResult { tool: "escribir_archivo".into(), output: e, ok: false },
-    };
-    match sftp_write(&host, port, &user, &password, &path, content.as_bytes()) {
+    match sftp_write(session_id, &path, content.as_bytes()) {
         Ok(_)  => ToolResult { tool: "escribir_archivo".into(), output: format!("Archivo '{path}' escrito ({} bytes)", content.len()), ok: true },
         Err(e) => ToolResult { tool: "escribir_archivo".into(), output: e, ok: false },
     }
@@ -234,12 +229,8 @@ fn tool_escribir_archivo(session_id: &str, input: &serde_json::Value) -> ToolRes
 // ── listar_directorio ─────────────────────────────────────────────────────────
 fn tool_listar_directorio(session_id: &str, input: &serde_json::Value) -> ToolResult {
     let path = input.get("ruta").and_then(|v| v.as_str()).unwrap_or("~").to_string();
-    let (host, port, user, password) = match get_creds(session_id) {
-        Ok(c) => c,
-        Err(e) => return ToolResult { tool: "listar_directorio".into(), output: e, ok: false },
-    };
     let cmd = format!("ls -la {path}");
-    match run_ssh_exec(&host, port, &user, &password, &cmd) {
+    match run_ssh_exec(session_id, &cmd) {
         Ok(out) => ToolResult { tool: "listar_directorio".into(), output: out, ok: true },
         Err(e)  => ToolResult { tool: "listar_directorio".into(), output: e, ok: false },
     }
@@ -247,12 +238,8 @@ fn tool_listar_directorio(session_id: &str, input: &serde_json::Value) -> ToolRe
 
 // ── info_sistema ──────────────────────────────────────────────────────────────
 fn tool_info_sistema(session_id: &str) -> ToolResult {
-    let (host, port, user, password) = match get_creds(session_id) {
-        Ok(c) => c,
-        Err(e) => return ToolResult { tool: "info_sistema".into(), output: e, ok: false },
-    };
     let cmd = "echo '=== CPU ===' && top -bn1 | head -5 && echo '=== MEMORIA ===' && free -h && echo '=== DISCO ===' && df -h / && echo '=== UPTIME ===' && uptime";
-    match run_ssh_exec(&host, port, &user, &password, cmd) {
+    match run_ssh_exec(session_id, cmd) {
         Ok(out) => ToolResult { tool: "info_sistema".into(), output: out, ok: true },
         Err(e)  => ToolResult { tool: "info_sistema".into(), output: e, ok: false },
     }
@@ -264,12 +251,8 @@ fn tool_reiniciar_servicio(session_id: &str, input: &serde_json::Value) -> ToolR
         Some(s) => s.to_string(),
         None => return ToolResult { tool: "reiniciar_servicio".into(), output: "Falta parámetro 'servicio'".into(), ok: false },
     };
-    let (host, port, user, password) = match get_creds(session_id) {
-        Ok(c) => c,
-        Err(e) => return ToolResult { tool: "reiniciar_servicio".into(), output: e, ok: false },
-    };
     let cmd = format!("sudo systemctl restart {svc} && sudo systemctl status {svc} --no-pager -l | head -20");
-    match run_ssh_exec(&host, port, &user, &password, &cmd) {
+    match run_ssh_exec(session_id, &cmd) {
         Ok(out) => ToolResult { tool: "reiniciar_servicio".into(), output: out, ok: true },
         Err(e)  => ToolResult { tool: "reiniciar_servicio".into(), output: e, ok: false },
     }
@@ -294,47 +277,130 @@ fn get_creds(session_id: &str) -> Result<(String, u16, String, String), String> 
     }
 }
 
-fn run_ssh_exec(host: &str, port: u16, user: &str, password: &str, cmd: &str) -> Result<String, String> {
-    let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(host, port, user, password)
+// Cache de conexiones SSH reutilizadas entre llamadas a tools dentro del
+// loop del agente. Perf: antes de esto, CADA tool call (ejecutar_comando,
+// leer_archivo, escribir_archivo, ...) hacía un connect_password completo
+// (TCP + handshake + auth) desde cero — una conversación de agente con 8
+// rondas podía pagar 8 handshakes SSH. Separado de `SESSIONS.sftp_cached`
+// porque `session_id` aquí puede ser el pseudo-id de la Pi configurada por
+// .env (`PI4_ENV_SESSION_ID`), que no tiene entrada en `SESSIONS`.
+static TOOL_SSH_CACHE: Lazy<Mutex<HashMap<String, Arc<Mutex<CachedSsh2>>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn evict_tool_ssh(session_id: &str) {
+    if let Ok(mut cache) = TOOL_SSH_CACHE.lock() {
+        cache.remove(session_id);
+    }
+}
+
+fn get_or_connect_tool_ssh(session_id: &str) -> Result<Arc<Mutex<CachedSsh2>>, String> {
+    if let Some(existing) = TOOL_SSH_CACHE.lock().map_err(|e| e.to_string())?.get(session_id).cloned() {
+        return Ok(existing);
+    }
+
+    // El handshake se hace SIN el lock del cache tomado, para no bloquear
+    // otras tool calls concurrentes mientras este conecta.
+    let (host, port, user, password) = get_creds(session_id)?;
+    let (tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
         .map_err(|e| format!("SSH: {e}"))?;
     sess.set_blocking(true);
     sess.set_timeout(30_000);
-    let mut ch = sess.channel_session().map_err(|e| format!("Canal: {e}"))?;
-    ch.exec(cmd).map_err(|e| format!("exec: {e}"))?;
-    let mut stdout = String::new();
-    ch.read_to_string(&mut stdout).map_err(|e| format!("read: {e}"))?;
-    let mut stderr_buf = String::new();
-    ch.stderr().read_to_string(&mut stderr_buf).ok();
-    ch.wait_close().ok();
-    let exit_code = ch.exit_status().unwrap_or(-1);
-    let mut out = stdout;
-    if !stderr_buf.is_empty() { out.push_str(&format!("\n[stderr]: {stderr_buf}")); }
-    if exit_code != 0 { out.push_str(&format!("\n[exit: {exit_code}]")); }
-    Ok(if out.is_empty() { "(sin salida)".to_string() } else { out.trim_end().to_string() })
-}
+    let arc = Arc::new(Mutex::new(CachedSsh2::new(tcp, sess)));
 
-fn sftp_read(host: &str, port: u16, user: &str, password: &str, path: &str) -> Result<String, String> {
-    let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(host, port, user, password)
-        .map_err(|e| format!("SSH: {e}"))?;
-    let sftp = sess.sftp().map_err(|e| format!("SFTP: {e}"))?;
-    let mut f = sftp.open(std::path::Path::new(path)).map_err(|e| format!("open '{path}': {e}"))?;
-    let mut content = String::new();
-    f.read_to_string(&mut content).map_err(|e| format!("read: {e}"))?;
-    if content.len() > 32_768 {
-        content.truncate(32_768);
-        content.push_str("\n[...truncado a 32KB]");
+    let mut cache = TOOL_SSH_CACHE.lock().map_err(|e| e.to_string())?;
+    if let Some(existing) = cache.get(session_id).cloned() {
+        return Ok(existing);
     }
-    Ok(content)
+    cache.insert(session_id.to_string(), arc.clone());
+    Ok(arc)
 }
 
-fn sftp_write(host: &str, port: u16, user: &str, password: &str, path: &str, data: &[u8]) -> Result<(), String> {
-    let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(host, port, user, password)
-        .map_err(|e| format!("SSH: {e}"))?;
-    let sftp = sess.sftp().map_err(|e| format!("SFTP: {e}"))?;
-    use std::io::Write;
-    let mut f = sftp.create(std::path::Path::new(path)).map_err(|e| format!("create '{path}': {e}"))?;
-    f.write_all(data).map_err(|e| format!("write: {e}"))?;
-    Ok(())
+fn run_ssh_exec(session_id: &str, cmd: &str) -> Result<String, String> {
+    fn exec_once(sess: &ssh2::Session, cmd: &str) -> Result<String, String> {
+        let mut ch = sess.channel_session().map_err(|e| format!("Canal: {e}"))?;
+        ch.exec(cmd).map_err(|e| format!("exec: {e}"))?;
+        let mut stdout = String::new();
+        ch.read_to_string(&mut stdout).map_err(|e| format!("read: {e}"))?;
+        let mut stderr_buf = String::new();
+        ch.stderr().read_to_string(&mut stderr_buf).ok();
+        ch.wait_close().ok();
+        let exit_code = ch.exit_status().unwrap_or(-1);
+        let mut out = stdout;
+        if !stderr_buf.is_empty() { out.push_str(&format!("\n[stderr]: {stderr_buf}")); }
+        if exit_code != 0 { out.push_str(&format!("\n[exit: {exit_code}]")); }
+        Ok(if out.is_empty() { "(sin salida)".to_string() } else { out.trim_end().to_string() })
+    }
+
+    let arc = get_or_connect_tool_ssh(session_id)?;
+    let first = {
+        let guard = arc.lock().map_err(|_| "ssh2 lock poisoned".to_string())?;
+        exec_once(&guard.sess, cmd)
+    };
+    match first {
+        Ok(out) => Ok(out),
+        Err(_) => {
+            // La conexión cacheada puede haberse caído (sesión SSH remota
+            // cerrada); se reconecta una vez antes de fallar.
+            evict_tool_ssh(session_id);
+            let arc2 = get_or_connect_tool_ssh(session_id)?;
+            let guard = arc2.lock().map_err(|_| "ssh2 lock poisoned".to_string())?;
+            exec_once(&guard.sess, cmd)
+        }
+    }
+}
+
+fn sftp_read(session_id: &str, path: &str) -> Result<String, String> {
+    fn read_once(guard: &mut CachedSsh2, path: &str) -> Result<String, String> {
+        let sftp = guard.get_or_open_sftp().map_err(|e| format!("SFTP: {e}"))?;
+        let mut f = sftp.open(std::path::Path::new(path)).map_err(|e| format!("open '{path}': {e}"))?;
+        let mut content = String::new();
+        f.read_to_string(&mut content).map_err(|e| format!("read: {e}"))?;
+        if content.len() > 32_768 {
+            content.truncate(32_768);
+            content.push_str("\n[...truncado a 32KB]");
+        }
+        Ok(content)
+    }
+
+    let arc = get_or_connect_tool_ssh(session_id)?;
+    let first = {
+        let mut guard = arc.lock().map_err(|_| "ssh2 lock poisoned".to_string())?;
+        read_once(&mut guard, path)
+    };
+    match first {
+        Ok(v) => Ok(v),
+        Err(_) => {
+            evict_tool_ssh(session_id);
+            let arc2 = get_or_connect_tool_ssh(session_id)?;
+            let mut guard = arc2.lock().map_err(|_| "ssh2 lock poisoned".to_string())?;
+            read_once(&mut guard, path)
+        }
+    }
+}
+
+fn sftp_write(session_id: &str, path: &str, data: &[u8]) -> Result<(), String> {
+    fn write_once(guard: &mut CachedSsh2, path: &str, data: &[u8]) -> Result<(), String> {
+        use std::io::Write;
+        let sftp = guard.get_or_open_sftp().map_err(|e| format!("SFTP: {e}"))?;
+        let mut f = sftp.create(std::path::Path::new(path)).map_err(|e| format!("create '{path}': {e}"))?;
+        f.write_all(data).map_err(|e| format!("write: {e}"))?;
+        Ok(())
+    }
+
+    let arc = get_or_connect_tool_ssh(session_id)?;
+    let first = {
+        let mut guard = arc.lock().map_err(|_| "ssh2 lock poisoned".to_string())?;
+        write_once(&mut guard, path, data)
+    };
+    match first {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            evict_tool_ssh(session_id);
+            let arc2 = get_or_connect_tool_ssh(session_id)?;
+            let mut guard = arc2.lock().map_err(|_| "ssh2 lock poisoned".to_string())?;
+            write_once(&mut guard, path, data)
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -456,7 +522,7 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
         serde_json::json!({ "role": "user", "content": req.message })
     ];
 
-    let client = reqwest::Client::new();
+    let client = &*HTTP_CLIENT;
     let mut steps: Vec<AgentStep> = vec![];
     let mut final_answer = String::new();
 
@@ -677,7 +743,7 @@ pub async fn plan_chat(app: AppHandle, req: PlanChatRequest) -> Result<AgentChat
         serde_json::json!({ "role": "user", "content": req.message })
     ];
 
-    let client = reqwest::Client::new();
+    let client = &*HTTP_CLIENT;
     let mut steps: Vec<AgentStep> = vec![];
     let mut final_answer = String::new();
 

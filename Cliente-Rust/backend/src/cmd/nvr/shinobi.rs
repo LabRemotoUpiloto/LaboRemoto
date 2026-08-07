@@ -12,6 +12,7 @@
 //! disco de cada instalación — inviable para un build distribuido (ver
 //! commit que retira `ssh_tunnel.rs`).
 
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ts_rs::TS;
@@ -23,6 +24,16 @@ use crate::session_manager::SessionManager;
 /// mecanismo que expone Keycloak). No es un secreto — es una URL pública,
 /// igual que `KEYCLOAK_BASE_URL`.
 const NVR_BROKER_HOST: &str = "http://52.14.162.232";
+
+// Perf: cliente HTTP compartido — `nvr_list_cameras` se sondea
+// periódicamente desde el panel de cámaras; reconstruir el cliente (y su
+// pool TCP/TLS) en cada poll era puro desperdicio.
+static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .unwrap_or_default()
+});
 
 // ─── Tipos ───
 
@@ -82,10 +93,7 @@ pub async fn nvr_list_cameras(
             CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión para ver las cámaras")
         })?;
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(8))
-        .build()
-        .map_err(|e| CommandError::internal("HTTP_CLIENT_ERROR", e.to_string()))?;
+    let client = &*HTTP_CLIENT;
 
     let url = format!("{}/nvr/monitor/{}", NVR_BROKER_HOST, group_key);
 
