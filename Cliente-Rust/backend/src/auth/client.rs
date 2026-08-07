@@ -201,11 +201,19 @@ impl KeycloakClient {
         ).await?;
 
         let now = Instant::now();
+        // Unix timestamp (no `Instant`, que es relativo al proceso) para poder
+        // persistir la expiración del refresh_token entre reinicios (`token_store`).
+        let refresh_expires_at_unix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0)
+            + token_resp.refresh_expires_in as i64;
         Ok(TokenBundle {
             access_token:       token_resp.access_token,
             refresh_token:      token_resp.refresh_token,
             access_expires_at:  now + Duration::from_secs(token_resp.expires_in),
             refresh_expires_at: now + Duration::from_secs(token_resp.refresh_expires_in),
+            refresh_expires_at_unix,
             claims,
         })
     }
@@ -224,6 +232,11 @@ pub struct KeycloakUser {
     pub first_name: Option<String>,
     #[serde(rename = "lastName")]
     pub last_name: Option<String>,
+    /// Cuenta habilitada en Keycloak — mostrado como "Estado" en la UI.
+    pub enabled: Option<bool>,
+    /// Fecha de creación en Keycloak (epoch millis) — "Fecha Registro" en la UI.
+    #[serde(rename = "createdTimestamp")]
+    pub created_timestamp: Option<i64>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
@@ -259,6 +272,54 @@ impl KeycloakClient {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             return Err(Self::keycloak_admin_error("buscar usuarios", status, body));
+        }
+
+        let users = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
+        Ok(users)
+    }
+
+    /// GET /admin/realms/{realm}/users?max=1000
+    /// Lista TODOS los usuarios del realm (sin filtro) — usado para derivar
+    /// el grupo "Estudiante": cualquiera que no esté en ninguno de los roles
+    /// especiales. `max=1000` es un límite razonable para no traer un realm
+    /// completo entero; si el realm crece más allá de eso, esta vista deja
+    /// de ser exhaustiva (limitación conocida, no paginada por ahora).
+    pub async fn admin_list_all_users(&self, token: &str) -> Result<Vec<KeycloakUser>, AppError> {
+        let url = format!("{}/admin/realms/{}/users", self.config.base_url, self.config.realm);
+        let response = self.http
+            .get(&url)
+            .bearer_auth(token)
+            .query(&[("max", "1000")])
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_list_all_users] GET falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("listar todos los usuarios", status, body));
+        }
+
+        let users = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
+        Ok(users)
+    }
+
+    /// GET /admin/realms/{realm}/roles/{role_name}/users
+    /// Lista los usuarios que ya tienen asignado un rol dado — usado por la
+    /// vista por defecto de gestión de roles (lista, no búsqueda).
+    pub async fn admin_list_role_users(&self, token: &str, role_name: &str) -> Result<Vec<KeycloakUser>, AppError> {
+        let url = format!("{}/admin/realms/{}/roles/{}/users", self.config.base_url, self.config.realm, role_name);
+        let response = self.http
+            .get(&url)
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_list_role_users] GET falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("listar usuarios por rol", status, body));
         }
 
         let users = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;

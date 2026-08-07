@@ -70,6 +70,10 @@ pub fn run() {
     .setup(|app| {
       let hub = app.state::<crate::ipc::IpcHub>().inner().clone();
       hub.spawn_dispatcher(app.handle().clone());
+      // Intenta retomar una sesión persistida de un arranque anterior (si hay
+      // un refresh_token guardado y aún vigente) sin bloquear el arranque de
+      // la ventana. Ver `auth::token_store` y `auth::commands::try_restore_session`.
+      tauri::async_runtime::spawn(crate::auth::commands::try_restore_session(app.handle().clone()));
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -199,6 +203,8 @@ pub fn run() {
       crate::auth::commands::auth_logout,
       // Admin REST API (User Management)
       crate::auth::commands::admin_search_users,
+      crate::auth::commands::admin_list_all_users,
+      crate::auth::commands::admin_list_users_by_role,
       crate::auth::commands::admin_get_user_roles,
       crate::auth::commands::admin_toggle_user_role,
     ])

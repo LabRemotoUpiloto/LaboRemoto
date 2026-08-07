@@ -1,32 +1,161 @@
-import React, { useEffect, useState } from 'react';
-import { adminService, KeycloakUser, KeycloakRole } from '../../services/admin.service';
-import { Container, Title, Text, TextInput, Badge, Stack, Paper, Group, ActionIcon, Loader, Center, Button, SimpleGrid, Box, ThemeIcon } from '@mantine/core';
-import { Search, ShieldAlert, X, UserRound, ShieldCheck } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { adminService, KeycloakUser } from '../../services/admin.service';
+import { Container, Title, Text, TextInput, Stack, Group, ActionIcon, Loader, Box, Select, Paper } from '@mantine/core';
+import { X, Search, Users } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import Swal from 'sweetalert2';
+
+// ─── Modelo: UN rol por persona ──────────────────────────────────────────────
+// Keycloak permite múltiples realm roles, pero aquí cada persona tiene un
+// rol efectivo (el de mayor privilegio). Cambiarlo asigna el nuevo y quita
+// los demás; "Estudiante" = no tener ninguno de los especiales.
+
+const specialRoles = ['admin_lab', 'semillerista', 'laboratorista'];
+
+const ROLE_LABELS: Record<string, string> = {
+    estudiante: 'Estudiante',
+    semillerista: 'Semillerista',
+    laboratorista: 'Laboratorista',
+    admin_lab: 'Administrador',
+};
+
+// Mayor privilegio primero.
+const roleOrder = ['admin_lab', 'laboratorista', 'semillerista', 'estudiante'];
+const ROLE_SELECT_OPTIONS = roleOrder.map(r => ({ value: r, label: ROLE_LABELS[r] }));
+const FILTER_OPTIONS = [{ value: 'all', label: 'Todos los roles' }, ...ROLE_SELECT_OPTIONS];
+
+function effectiveRole(activeSpecialRoles: string[]): string {
+    if (activeSpecialRoles.includes('admin_lab')) return 'admin_lab';
+    if (activeSpecialRoles.includes('laboratorista')) return 'laboratorista';
+    if (activeSpecialRoles.includes('semillerista')) return 'semillerista';
+    return 'estudiante';
+}
+
+function fullNameOf(user: KeycloakUser) {
+    return user.firstName || user.lastName
+        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        : '';
+}
+
+function initialsOf(user: KeycloakUser) {
+    const fn = fullNameOf(user);
+    if (fn) return fn.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+    return (user.username || user.email || 'U').slice(0, 2).toUpperCase();
+}
+
+function formatDate(ms?: number) {
+    if (!ms) return '—';
+    try { return new Date(ms).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+    catch { return '—'; }
+}
+
+// El avatar deriva un tono estable del nombre — variedad visual sin asignar
+// color por rol (eso sería volver a los badges de colores). Es solo
+// decoración del avatar, el dato real (rol) va aparte en texto.
+const AVATAR_TINTS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1'];
+function tintOf(user: KeycloakUser) {
+    const key = user.username || user.id;
+    let h = 0;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+    return AVATAR_TINTS[h % AVATAR_TINTS.length];
+}
+
+interface Row { user: KeycloakUser; role: string; }
+
+// ─── Fila ────────────────────────────────────────────────────────────────────
+
+interface PersonRowProps {
+    row: Row;
+    onChangeRole: (user: KeycloakUser, currentRole: string, newRole: string) => void;
+    last: boolean;
+}
+
+const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
+    const { user, role } = row;
+    const tint = tintOf(user);
+    return (
+        <Group
+            wrap="nowrap"
+            align="center"
+            px="lg"
+            py="md"
+            className="person-row"
+            style={{ borderBottom: last ? 'none' : '1px solid var(--border-subtle)' }}
+        >
+            {/* Usuario */}
+            <Group gap={12} wrap="nowrap" style={{ flex: 2.4, minWidth: 0 }}>
+                <Box
+                    style={{
+                        width: 40, height: 40, borderRadius: 999, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 700, color: '#fff',
+                        background: `color-mix(in srgb, ${tint} 82%, #000 8%)`,
+                    }}
+                    aria-hidden
+                >
+                    {initialsOf(user)}
+                </Box>
+                <div style={{ minWidth: 0 }}>
+                    <Text size="sm" fw={600} truncate>{fullNameOf(user) || user.username}</Text>
+                    <Text size="xs" c="dimmed" truncate>{user.email || user.username}</Text>
+                </div>
+            </Group>
+
+            {/* Rol (texto, sin badge) */}
+            <Text size="sm" fw={500} style={{ flex: 1.1, minWidth: 0 }} truncate>{ROLE_LABELS[role]}</Text>
+
+            {/* Fecha registro */}
+            <Text size="sm" c="dimmed" style={{ flex: 1, minWidth: 0 }} truncate visibleFrom="sm">
+                {formatDate(user.createdTimestamp)}
+            </Text>
+
+            {/* Acciones: selector de rol */}
+            <Box style={{ flexShrink: 0 }}>
+                <Select
+                    aria-label={`Cambiar rol de ${user.username}`}
+                    data={ROLE_SELECT_OPTIONS}
+                    value={role}
+                    onChange={(newRole) => { if (newRole && newRole !== role) onChangeRole(user, role, newRole); }}
+                    allowDeselect={false}
+                    size="sm"
+                    w={168}
+                    comboboxProps={{ withinPortal: true }}
+                    styles={{
+                        input: {
+                            background: 'var(--background-secondary)',
+                            border: '1px solid var(--border-subtle)',
+                            fontWeight: 500,
+                        },
+                    }}
+                />
+            </Box>
+        </Group>
+    );
+};
+
+// ─── Página ──────────────────────────────────────────────────────────────────
+
 export default function UserManagementPage() {
     const [query, setQuery] = useState('');
-    const [users, setUsers] = useState<KeycloakUser[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [hasSearched, setHasSearched] = useState(false);
-    const [userRoles, setUserRoles] = useState<Record<string, KeycloakRole[]>>({});
-    const searchUsers = async (searchQuery: string) => {
-        if (searchQuery.length < 2) {
-            return;
-        }
+    const [roleFilter, setRoleFilter] = useState<string>('all');
 
+    // Se carga el universo completo una vez: usuarios por cada rol especial +
+    // todos los usuarios (para derivar Estudiante). Con eso se arma una lista
+    // plana con el rol efectivo de cada quien — el filtro y la búsqueda son
+    // del lado del cliente, instantáneos.
+    const [roleMembers, setRoleMembers] = useState<Record<string, KeycloakUser[]>>({});
+    const [allUsers, setAllUsers] = useState<KeycloakUser[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadAll = async () => {
         setLoading(true);
-        setHasSearched(true);
         try {
-            const results = await adminService.searchUsers(searchQuery);
-            setUsers(results);
-
-            const rolesEntries = await Promise.all(
-                results.map(async (user) => [user.id, await adminService.getUserRoles(user.id)] as const)
-            );
-            const rolesMap = Object.fromEntries(rolesEntries);
-            setUserRoles(rolesMap);
-
+            const [special, all] = await Promise.all([
+                Promise.all(specialRoles.map(r => adminService.listUsersByRole(r).then(us => [r, us] as const))),
+                adminService.listAllUsers(),
+            ]);
+            setRoleMembers(Object.fromEntries(special));
+            setAllUsers(all);
         } catch (err: any) {
             notifications.show({ title: 'Error', message: err.toString(), color: 'red' });
         } finally {
@@ -35,418 +164,180 @@ export default function UserManagementPage() {
     };
 
     useEffect(() => {
-        const searchQuery = query.trim();
-        if (searchQuery.length < 2) {
-            setUsers([]);
-            setUserRoles({});
-            setHasSearched(false);
-            setLoading(false);
-            return;
+        void loadAll();
+    }, []);
+
+    // Lista plana: cada usuario con su rol efectivo, ordenada por privilegio.
+    const rows: Row[] = useMemo(() => {
+        const roleById = new Map<string, string>();
+        for (const r of specialRoles) {
+            for (const u of roleMembers[r] || []) {
+                // Si ya tiene uno más alto asignado, no lo pises (precedencia).
+                if (!roleById.has(u.id)) roleById.set(u.id, r);
+                else roleById.set(u.id, effectiveRole([roleById.get(u.id)!, r]));
+            }
         }
-
-        const timeoutId = window.setTimeout(() => {
-            searchUsers(searchQuery);
-        }, 350);
-
-        return () => window.clearTimeout(timeoutId);
-    }, [query]);
-
-    const handleSearch = async (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        const searchQuery = query.trim();
-        if (searchQuery.length < 2) {
-            notifications.show({ title: 'Búsqueda muy corta', message: 'Ingresa al menos 2 caracteres.', color: 'yellow' });
-            return;
+        const all = allUsers.length > 0 ? allUsers : Object.values(roleMembers).flat();
+        // dedup por id (allUsers ya es el universo; el fallback puede repetir)
+        const seen = new Set<string>();
+        const list: Row[] = [];
+        for (const u of all) {
+            if (seen.has(u.id)) continue;
+            seen.add(u.id);
+            list.push({ user: u, role: roleById.get(u.id) || 'estudiante' });
         }
+        list.sort((a, b) => {
+            const ra = roleOrder.indexOf(a.role), rb = roleOrder.indexOf(b.role);
+            if (ra !== rb) return ra - rb;
+            return (fullNameOf(a.user) || a.user.username).localeCompare(fullNameOf(b.user) || b.user.username);
+        });
+        return list;
+    }, [roleMembers, allUsers]);
 
-        await searchUsers(searchQuery);
-    };
+    const counts = useMemo(() => {
+        const c: Record<string, number> = { all: rows.length };
+        for (const r of roleOrder) c[r] = 0;
+        for (const row of rows) c[row.role]++;
+        return c;
+    }, [rows]);
 
-    const clearSearch = () => {
-        setQuery('');
-        setUsers([]);
-        setUserRoles({});
-        setHasSearched(false);
-    };
+    const filteredRows = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        return rows.filter(({ user, role }) => {
+            if (roleFilter !== 'all' && role !== roleFilter) return false;
+            if (!q) return true;
+            return (user.username || '').toLowerCase().includes(q)
+                || (user.email || '').toLowerCase().includes(q)
+                || fullNameOf(user).toLowerCase().includes(q);
+        });
+    }, [rows, query, roleFilter]);
 
     const escapeHtml = (value: string) => value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
-    const toggleRole = async (userId: string, roleName: string) => {
-        const hasRole = userRoles[userId]?.some(r => r.name === roleName);
-        const assign = !hasRole;
-        const user = users.find(u => u.id === userId);
-        const userLabel = user?.username || user?.email || 'este usuario';
-        const roleLabel = roleLabels[roleName] || roleName;
+    const changeRole = async (user: KeycloakUser, currentRole: string, newRole: string) => {
+        const userLabel = user.username || user.email || 'este usuario';
         const result = await Swal.fire({
             html: `
                 <style>
-                    .role-confirm-popup {
-                        padding: 0 !important;
-                        border-radius: 18px !important;
-                        background: var(--background-secondary) !important;
-                        color: var(--text-primary) !important;
-                        border: 1px solid var(--border-subtle) !important;
-                        box-shadow: var(--shadow) !important;
-                        overflow: hidden !important;
-                        width: min(92vw, 520px) !important;
-                    }
-                    .role-confirm-html { margin: 0 !important; padding: 0 !important; }
-                    .role-confirm-shell {
-                        text-align: left;
-                        background: var(--background-secondary);
-                    }
-                    .role-confirm-head {
-                        padding: 24px 26px 20px;
-                        border-bottom: 1px solid var(--border-subtle);
-                    }
-                    .role-confirm-eyebrow {
-                        color: var(--accent-primary);
-                        font-size: 11px;
-                        font-weight: 800;
-                        letter-spacing: .12em;
-                        text-transform: uppercase;
-                        margin-bottom: 10px;
-                    }
-                    .role-confirm-title {
-                        color: var(--text-primary);
-                        font-size: 25px;
-                        font-weight: 850;
-                        line-height: 1.1;
-                        letter-spacing: -.03em;
-                    }
-                    .role-confirm-body {
-                        padding: 22px 26px 20px;
-                    }
-                    .role-confirm-copy,
-                    .role-confirm-label {
-                        color: var(--text-secondary);
-                        font-size: 14px;
-                        line-height: 1.6;
-                    }
-                    .role-confirm-change {
-                        margin-top: 16px;
-                        padding: 0;
-                        border-radius: 14px;
-                        background: var(--background-tertiary);
-                        border: 1px solid var(--border-subtle);
-                        overflow: hidden;
-                    }
-                    .role-confirm-row {
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        gap: 14px;
-                        padding: 14px 16px;
-                    }
-                    .role-confirm-row + .role-confirm-row {
-                        border-top: 1px solid var(--border-subtle);
-                    }
-                    .role-confirm-label { font-size: 12px; }
-                    .role-confirm-value {
-                        color: var(--text-primary);
-                        font-size: 15px;
-                        font-weight: 800;
-                        word-break: break-word;
-                        text-align: right;
-                    }
-                    .role-confirm-role {
-                        color: var(--accent-primary);
-                        font-size: 15px;
-                        font-weight: 850;
-                        text-align: right;
-                        text-transform: uppercase;
-                        letter-spacing: .04em;
-                    }
-                    .role-confirm-action {
-                        color: var(--accent-primary);
-                        font-weight: 800;
-                        text-transform: uppercase;
-                    }
-                    .role-confirm-warning {
-                        margin-top: 14px;
-                        color: var(--text-tertiary, var(--text-secondary));
-                        font-size: 12px;
-                        line-height: 1.55;
-                    }
-                    .role-confirm-actions {
-                        gap: 10px !important;
-                        margin: 0 !important;
-                        padding: 0 26px 24px !important;
-                        justify-content: flex-end !important;
-                    }
-                    .role-confirm-confirm,
-                    .role-confirm-cancel {
-                        border-radius: 999px;
-                        min-width: 118px;
-                        padding: 11px 16px;
-                        font-size: 14px;
-                        font-weight: 800;
-                        cursor: pointer;
-                        transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
-                    }
-                    .role-confirm-confirm {
-                        border: 0;
-                        background: var(--accent-primary);
-                        color: var(--text-inverse);
-                        box-shadow: 0 10px 22px color-mix(in srgb, var(--accent-primary) 24%, transparent);
-                    }
-                    .role-confirm-cancel {
-                        background: var(--background-tertiary);
-                        color: var(--text-secondary);
-                        border: 1px solid var(--border-subtle);
-                    }
-                    .role-confirm-confirm:hover,
-                    .role-confirm-cancel:hover { transform: translateY(-1px); }
-                    @media (max-width: 520px) {
-                        .role-confirm-head { padding: 22px 20px 16px; }
-                        .role-confirm-body { padding: 18px 20px 20px; }
-                        .role-confirm-row { align-items: flex-start; flex-direction: column; gap: 6px; }
-                        .role-confirm-value, .role-confirm-role { text-align: left; }
-                        .role-confirm-actions { padding: 0 20px 22px !important; flex-direction: column-reverse; }
-                        .role-confirm-confirm, .role-confirm-cancel { width: 100%; }
-                    }
+                    .role-confirm-popup { padding:0!important; border-radius:14px!important; background:var(--background-secondary)!important; color:var(--text-primary)!important; border:1px solid var(--border-subtle)!important; box-shadow:var(--shadow)!important; width:min(92vw,440px)!important; }
+                    .role-confirm-html { margin:0!important; padding:0!important; }
+                    .role-confirm-shell { text-align:left; padding:24px 24px 8px; }
+                    .role-confirm-title { color:var(--text-primary); font-size:20px; font-weight:700; margin-bottom:12px; }
+                    .role-confirm-copy { color:var(--text-secondary); font-size:15px; line-height:1.6; }
+                    .role-confirm-copy strong { color:var(--text-primary); }
+                    .role-confirm-actions { gap:10px!important; margin:0!important; padding:16px 24px 22px!important; justify-content:flex-end!important; }
+                    .role-confirm-confirm, .role-confirm-cancel { border-radius:8px; min-width:110px; min-height:44px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+                    .role-confirm-confirm { border:0; background:var(--accent-primary); color:var(--text-inverse); }
+                    .role-confirm-cancel { background:transparent; color:var(--text-secondary); border:1px solid var(--border-subtle); }
+                    .role-confirm-confirm:focus-visible, .role-confirm-cancel:focus-visible { outline:2px solid var(--accent-primary); outline-offset:2px; }
                 </style>
                 <div class="role-confirm-shell">
-                    <div class="role-confirm-head">
-                        <div class="role-confirm-eyebrow">Confirmación requerida</div>
-                        <div class="role-confirm-title">${assign ? 'Asignar privilegio' : 'Remover privilegio'}</div>
-                    </div>
-                    <div class="role-confirm-body">
-                        <div class="role-confirm-copy">Se actualizarán los permisos del usuario seleccionado.</div>
-                        <div class="role-confirm-change">
-                            <div class="role-confirm-row">
-                                <div class="role-confirm-label">Acción</div>
-                                <div class="role-confirm-action">${assign ? 'Asignar' : 'Remover'}</div>
-                            </div>
-                            <div class="role-confirm-row">
-                                <div class="role-confirm-label">Rol</div>
-                                <div class="role-confirm-role">${escapeHtml(roleLabel)}</div>
-                            </div>
-                            <div class="role-confirm-row">
-                                <div class="role-confirm-label">Usuario</div>
-                                <div class="role-confirm-value">${escapeHtml(userLabel)}</div>
-                            </div>
-                        </div>
-                        <div class="role-confirm-warning">Este cambio modifica permisos reales del usuario en el sistema.</div>
+                    <div class="role-confirm-title">¿Cambiar rol?</div>
+                    <div class="role-confirm-copy">
+                        <strong>${escapeHtml(userLabel)}</strong> pasará de
+                        <strong>${escapeHtml(ROLE_LABELS[currentRole])}</strong> a
+                        <strong>${escapeHtml(ROLE_LABELS[newRole])}</strong>.
+                        Esto cambia lo que puede ver y hacer en la aplicación.
                     </div>
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: assign ? 'Sí, asignar' : 'Sí, remover',
+            confirmButtonText: 'Cambiar rol',
             cancelButtonText: 'Cancelar',
             buttonsStyling: false,
             reverseButtons: true,
             customClass: {
-                container: 'swal-fullscreen',
-                popup: 'role-confirm-popup',
-                htmlContainer: 'role-confirm-html',
-                actions: 'role-confirm-actions',
-                confirmButton: 'role-confirm-confirm',
-                cancelButton: 'role-confirm-cancel',
+                container: 'swal-fullscreen', popup: 'role-confirm-popup', htmlContainer: 'role-confirm-html',
+                actions: 'role-confirm-actions', confirmButton: 'role-confirm-confirm', cancelButton: 'role-confirm-cancel',
             },
         });
         if (!result.isConfirmed) return;
 
         try {
-            await adminService.toggleUserRole(userId, roleName, assign);
-            // Re-fetch roles
-            const roles = await adminService.getUserRoles(userId);
-            setUserRoles(prev => ({ ...prev, [userId]: roles }));
-            notifications.show({ title: 'Éxito', message: `Rol ${roleName} ${assign ? 'asignado' : 'removido'} exitosamente.`, color: 'green' });
+            if (newRole !== 'estudiante') await adminService.toggleUserRole(user.id, newRole, true);
+            for (const roleName of specialRoles) {
+                if (roleName !== newRole && (roleMembers[roleName] || []).some(u => u.id === user.id)) {
+                    await adminService.toggleUserRole(user.id, roleName, false);
+                }
+            }
+            await loadAll();
+            notifications.show({ title: 'Rol actualizado', message: `${user.username} ahora es ${ROLE_LABELS[newRole]}.`, color: 'green' });
         } catch (err: any) {
-            notifications.show({ title: 'Error', message: `Error modificando rol: ${err.toString()}`, color: 'red' });
+            notifications.show({ title: 'Error', message: `Error cambiando rol: ${err.toString()}`, color: 'red' });
         }
-    };
-
-    const targetRoles = ['admin_lab', 'semillerista', 'laboratorista'];
-    const roleLabels: Record<string, string> = {
-        admin_lab: 'Admin Lab',
-        semillerista: 'Semillerista',
-        laboratorista: 'Laboratorista',
     };
 
     return (
         <Container size="lg" py="xl" px="xl" h="100%" style={{ overflow: 'auto' }}>
-            <Stack gap="xl">
-                <Stack gap="sm">
-                    <Title order={1}>Gestión de Usuarios</Title>
-                    <Text size="md" c="dimmed" maw={600}>
-                        Busca usuarios registrados en el sistema para asignar o remover privilegios administrativos y roles especiales.
+            <style>{`.person-row:hover { background: var(--background-tertiary, var(--background-secondary)); }`}</style>
+            <Stack gap="lg">
+                <Group justify="space-between" align="flex-start" wrap="wrap" gap="md">
+                    <Group gap={12} align="center" wrap="nowrap">
+                        <Users size={26} style={{ color: 'var(--accent-primary)' }} aria-hidden />
+                        <div>
+                            <Title order={1} style={{ fontSize: 26, letterSpacing: '-.02em' }}>Gestión de Usuarios</Title>
+                            <Text size="sm" c="dimmed">Administra los roles y accesos de las personas registradas.</Text>
+                        </div>
+                    </Group>
+                    <TextInput
+                        radius="xl"
+                        placeholder="Buscar usuario…"
+                        aria-label="Buscar usuario"
+                        value={query}
+                        onChange={(e) => setQuery(e.currentTarget.value)}
+                        leftSection={<Search size={16} aria-hidden />}
+                        rightSection={query && (
+                            <ActionIcon variant="subtle" color="gray" onClick={() => setQuery('')} aria-label="Limpiar búsqueda">
+                                <X size={14} />
+                            </ActionIcon>
+                        )}
+                        w={280}
+                        styles={{ input: { background: 'var(--background-secondary)', border: '1px solid var(--border-subtle)' } }}
+                    />
+                </Group>
+
+                <Group gap="sm" justify="space-between" wrap="wrap">
+                    <Select
+                        aria-label="Filtrar por rol"
+                        data={FILTER_OPTIONS.map(o => ({
+                            value: o.value,
+                            label: `${o.label}${loading ? '' : ` (${counts[o.value] ?? 0})`}`,
+                        }))}
+                        value={roleFilter}
+                        onChange={(v) => setRoleFilter(v || 'all')}
+                        allowDeselect={false}
+                        w={230}
+                        comboboxProps={{ withinPortal: true }}
+                        styles={{ input: { background: 'var(--background-secondary)', border: '1px solid var(--border-subtle)', fontWeight: 600 } }}
+                    />
+                    <Text size="sm" c="dimmed">
+                        {loading ? 'Cargando…' : `${filteredRows.length} ${filteredRows.length === 1 ? 'persona' : 'personas'}`}
                     </Text>
-                </Stack>
+                </Group>
 
-                <Paper withBorder p="md" radius="md">
-                    <form onSubmit={handleSearch}>
-                        <Group align="flex-end">
-                            <TextInput
-                                flex={1}
-                                label="Buscar usuario"
-                                description="Escribe al menos 2 caracteres para buscar automáticamente."
-                                placeholder="Nombre, usuario o correo institucional..."
-                                value={query}
-                                onChange={(e) => setQuery(e.currentTarget.value)}
-                                leftSection={<Search size={16} />}
-                                rightSection={
-                                    query && (
-                                        <ActionIcon variant="subtle" color="gray" onClick={clearSearch}>
-                                            <X size={14} />
-                                        </ActionIcon>
-                                    )
-                                }
-                            />
-                            <Button
-                                type="submit"
-                                leftSection={<Search size={16} />}
-                                loading={loading}
-                                disabled={query.trim().length < 2}
-                                style={{
-                                    backgroundColor: 'var(--accent-primary)',
-                                    color: 'var(--text-inverse)',
-                                    border: '1px solid color-mix(in srgb, var(--accent-primary) 70%, transparent)',
-                                }}
-                            >
-                                Buscar
-                            </Button>
-                        </Group>
-                    </form>
-                </Paper>
+                <Paper radius="lg" style={{ background: 'var(--background-secondary)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                    {/* Encabezados */}
+                    <Group wrap="nowrap" px="lg" py="sm" style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--background-tertiary, transparent)' }}>
+                        <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ flex: 2.4, letterSpacing: '.05em' }}>Usuario</Text>
+                        <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ flex: 1.1, letterSpacing: '.05em' }}>Rol</Text>
+                        <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ flex: 1, letterSpacing: '.05em' }} visibleFrom="sm">Fecha registro</Text>
+                        <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ width: 168, textAlign: 'right', letterSpacing: '.05em' }}>Acciones</Text>
+                    </Group>
 
-                {loading ? (
-                    <Center py="xl">
-                        <Loader />
-                    </Center>
-                ) : users.length > 0 ? (
-                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-                        {users.map(user => {
-                            const currentRoles = userRoles[user.id] || [];
-                            const fullName = user.firstName || user.lastName
-                                ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
-                                : 'Nombre no registrado';
-                            const initials = (user.username || user.email || 'U').slice(0, 2).toUpperCase();
-
-                            return (
-                                <Paper
-                                    key={user.id}
-                                    withBorder
-                                    radius="xl"
-                                    p="lg"
-                                    style={{
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        backgroundColor: 'var(--background-secondary)',
-                                        borderColor: 'var(--border-subtle)',
-                                        boxShadow: 'var(--shadow)',
-                                    }}
-                                >
-                                    <Box
-                                        style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            right: 0,
-                                            width: 96,
-                                            height: 96,
-                                            background: 'linear-gradient(135deg, var(--accent-primary-subtle), transparent)',
-                                            borderBottomLeftRadius: 96,
-                                        }}
-                                    />
-
-                                    <Group align="flex-start" justify="space-between" wrap="nowrap">
-                                        <Group align="flex-start" wrap="nowrap">
-                                            <ThemeIcon
-                                                size={54}
-                                                radius="lg"
-                                                style={{
-                                                    fontWeight: 800,
-                                                    fontSize: 15,
-                                                    backgroundColor: 'var(--accent-primary-subtle)',
-                                                    color: 'var(--accent-primary)',
-                                                    border: '1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent)',
-                                                }}
-                                            >
-                                                {initials || <UserRound size={22} />}
-                                            </ThemeIcon>
-                                            <Stack gap={3}>
-                                                <Group gap="xs">
-                                                    <Text fw={800} size="md">{user.username}</Text>
-                                                    {currentRoles.some(r => r.name === 'admin_lab') && (
-                                                        <Badge
-                                                            leftSection={<ShieldCheck size={12} />}
-                                                            style={{
-                                                                backgroundColor: 'var(--accent-primary-subtle)',
-                                                                color: 'var(--accent-primary)',
-                                                                border: '1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent)',
-                                                            }}
-                                                        >
-                                                            Admin
-                                                        </Badge>
-                                                    )}
-                                                </Group>
-                                                <Text size="sm" c="dimmed">{fullName}</Text>
-                                                <Text size="xs" c="dimmed">{user.email || 'Sin correo registrado'}</Text>
-                                            </Stack>
-                                        </Group>
-                                    </Group>
-
-                                    <Box mt="lg" pt="md" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                                        <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="xs" style={{ letterSpacing: '.08em' }}>
-                                            Privilegios
-                                        </Text>
-                                        <Group gap="xs">
-                                            {targetRoles.map(roleName => {
-                                                const isActive = currentRoles.some(r => r.name === roleName);
-                                                return (
-                                                    <Badge
-                                                        key={roleName}
-                                                        radius="md"
-                                                        size="lg"
-                                                        style={{
-                                                            cursor: 'pointer',
-                                                            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                                                            backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
-                                                            color: isActive ? 'var(--text-inverse)' : 'var(--text-secondary)',
-                                                            border: isActive
-                                                                ? '1px solid var(--accent-primary)'
-                                                                : '1px solid var(--border-strong, var(--border-subtle))',
-                                                        }}
-                                                        onClick={() => toggleRole(user.id, roleName)}
-                                                    >
-                                                        {roleLabels[roleName]}
-                                                    </Badge>
-                                                );
-                                            })}
-                                        </Group>
-                                    </Box>
-                                </Paper>
-                            );
-                        })}
-                    </SimpleGrid>
-                ) : (
-                    hasSearched ? (
-                        <Paper withBorder p="xl" radius="md">
-                            <Center>
-                                <Stack align="center" gap="xs">
-                                    <ShieldAlert size={40} style={{ opacity: 0.5 }} />
-                                    <Text c="dimmed">No se encontraron usuarios para la búsqueda.</Text>
-                                </Stack>
-                            </Center>
-                        </Paper>
+                    {loading ? (
+                        <Group py={48} justify="center"><Loader size="sm" /><Text size="sm" c="dimmed">Cargando usuarios…</Text></Group>
+                    ) : filteredRows.length === 0 ? (
+                        <Text size="sm" c="dimmed" ta="center" py={48}>
+                            {query.trim() ? 'No se encontró a nadie con ese nombre.' : 'No hay personas en esta vista.'}
+                        </Text>
                     ) : (
-                        <Paper withBorder p="xl" radius="md">
-                            <Center>
-                                <Stack align="center" gap="xs">
-                                    <Search size={40} style={{ opacity: 0.45 }} />
-                                    <Text fw={600}>Escribe para buscar usuarios</Text>
-                                    <Text size="sm" c="dimmed">Los resultados aparecerán automáticamente al ingresar 2 o más caracteres.</Text>
-                                </Stack>
-                            </Center>
-                        </Paper>
-                    )
-                )}
+                        filteredRows.map((row, i) => (
+                            <PersonRow key={row.user.id} row={row} onChangeRole={changeRole} last={i === filteredRows.length - 1} />
+                        ))
+                    )}
+                </Paper>
             </Stack>
         </Container>
     );

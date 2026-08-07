@@ -4,11 +4,18 @@
 //! durante la vida útil de la aplicación.
 //!
 //! ## Reglas de Seguridad (AUTH_SPEC §4)
-//! - El token **NUNCA** se escribe en disco, localStorage ni cookies.
-//! - El frontend **NUNCA** recibe el token directamente; solo recibe
+//! - El **access_token** vive exclusivamente en memoria: nunca se escribe en
+//!   disco, localStorage ni cookies, y se borra automáticamente cuando el
+//!   proceso termina.
+//! - El **refresh_token** sí se persiste cifrado en disco (ver
+//!   `auth::token_store`), con el mismo modelo de amenaza ya aceptado para
+//!   las credenciales de hosts guardados (`storage.rs`: clave maestra en el
+//!   llavero del sistema + ChaCha20-Poly1305). Esto permite retomar la
+//!   sesión al reabrir la app sin pedir login de nuevo, mientras el
+//!   refresh_token siga vigente según el TTL que define el realm de
+//!   Keycloak.
+//! - El frontend **NUNCA** recibe ningún token directamente; solo recibe
 //!   metadatos de sesión mediante [`AuthSessionInfo`].
-//! - Los tokens se borran automáticamente cuando el proceso termina
-//!   (memoria volátil de proceso).
 //!
 //! ## Diseño de Concurrencia
 //! Se utiliza [`parking_lot::RwLock`] (ya en Cargo.toml) para permitir
@@ -92,6 +99,12 @@ pub struct TokenBundle {
 
     /// Instante en que el refresh_token expira.
     pub refresh_expires_at: Instant,
+
+    /// Unix timestamp (segundos) de expiración del refresh_token. `Instant`
+    /// no sobrevive un reinicio del proceso; este campo sí puede persistirse
+    /// (ver `auth::token_store`) para saber si el refresh_token guardado
+    /// sigue siendo utilizable la próxima vez que arranca la app.
+    pub refresh_expires_at_unix: i64,
 
     /// Claims extraídos del JWT en el momento del store.
     /// Evita re-parsear el token en cada consulta.
@@ -305,6 +318,7 @@ mod tests {
             refresh_token:      "eyJ.fake.refresh".to_string(),
             access_expires_at:  Instant::now() + Duration::from_secs(access_secs),
             refresh_expires_at: Instant::now() + Duration::from_secs(refresh_secs),
+            refresh_expires_at_unix: 9999999999,
             claims: StoredClaims {
                 sub:                "d66688b1-e8b7-4c88-97c8-3458be291d89".to_string(),
                 preferred_username: "david-carreno1".to_string(),

@@ -8,6 +8,7 @@ import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import { User, Shield } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAccessTier, canAccessPage } from '../../hooks/usePermissions';
 import {
   MonitorIcon,
   CompassIcon,
@@ -89,24 +90,20 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [appVersion, setAppVersion] = useState<string>('');
   const showMacTitleBarZone = isMacOS();
   const { user, logout } = useAuth();
+  const tier = useAccessTier();
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => setAppVersion(''));
   }, []);
 
+  // Un solo rol efectivo visible (no la lista cruda de claims): el de mayor
+  // privilegio gana — mismo orden de precedencia que usePermissions.
   const formatRoles = () => {
-    if (!user?.roles || user.roles.length === 0) {
-      return user?.user_type ? `${user.user_type} ` : '';
-    }
-    const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, ' ');
-    const primaryRole = user.user_type?.toLowerCase();
-    const otherRoles = user.roles.filter(r => r.toLowerCase() !== primaryRole);
-    const displayRoles = [];
-    if (primaryRole && user.roles.includes(primaryRole)) {
-      displayRoles.push(capitalize(primaryRole));
-    }
-    displayRoles.push(...otherRoles.map(capitalize));
-    return displayRoles.join(' - ') + ' ';
+    const roles = user?.roles ?? [];
+    if (roles.includes('admin_lab')) return 'Administrador ';
+    if (roles.includes('laboratorista')) return 'Laboratorista ';
+    if (roles.includes('semillerista')) return 'Semillerista ';
+    return 'Estudiante ';
   };
 
   return (
@@ -187,15 +184,11 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         {[
           ...sections,
-          ...(user?.roles?.includes('admin_lab')
-            ? [{
-                label: 'Administración',
-                items: [
-                  { id: 'admin-users', label: 'Usuarios', icon: Shield },
-                ]
-              }]
-            : [])
-        ].map((section, si, arr) => (
+          { label: 'Administración', items: [{ id: 'admin-users', label: 'Usuarios', icon: Shield }] },
+        ]
+          .map(section => ({ ...section, items: section.items.filter(item => canAccessPage(item.id, tier)) }))
+          .filter(section => section.items.length > 0)
+          .map((section, si, arr) => (
           <Box key={section.label} mb={si < arr.length - 1 ? 8 : 0}>
             {/* Section label */}
             <Text
