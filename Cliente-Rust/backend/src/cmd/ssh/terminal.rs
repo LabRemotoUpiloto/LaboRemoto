@@ -304,7 +304,7 @@ async fn ssh_stdin_impl(id: String, data: String, encoding: Option<String>) -> R
       if let Some(s) = map.get_mut(&id) {
         let arc = if let Some(existing) = s.sftp_cached.clone() { existing } else {
           if let Ok((tcp, sess2)) = crate::ssh_core::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password) {
-            let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess: sess2 }));
+            let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2::new(tcp, sess2)));
             s.sftp_cached = Some(arc.clone());
             arc
           } else { return; }

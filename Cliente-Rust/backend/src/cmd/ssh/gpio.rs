@@ -20,7 +20,7 @@ fn get_or_connect_cached(id: &str) -> Result<Arc<Mutex<CachedSsh2>>, CommandErro
   } else {
     let (tcp, sess2) = crate::ssh_core::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
       .map_err(|e| CommandError::transient("SSH_ERROR", e.to_string()))?;
-    let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess: sess2 }));
+    let arc = Arc::new(Mutex::new(CachedSsh2::new(tcp, sess2)));
     s.sftp_cached = Some(arc.clone());
     Ok(arc)
   }
