@@ -2,7 +2,11 @@ use crate::cmd::protocol::CommandError;
 use crate::cmd::state::{SESSIONS, CachedSsh2};
 use crate::error::AppError;
 use regex::Regex;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use once_cell::sync::Lazy;
+use tauri::{AppHandle, Emitter};
+use tokio::sync::oneshot;
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct RpiGpioLine {
@@ -206,3 +210,67 @@ pub async fn rpi_pin_read(id: String, gpio: u32) -> Result<RpiGpioLine, CommandE
 
   Err(CommandError::permanent("GPIO_PARSE_ERROR", "No se pudo parsear la salida de raspi-gpio"))
 }
+
+// ── Streaming / Monitoreo continuo en segundo plano (Rust Tokio Background Task) ──
+
+static GPIO_MONITORS: Lazy<Mutex<HashMap<String, oneshot::Sender<()>>>> =
+  Lazy::new(|| Mutex::new(HashMap::new()));
+
+#[tauri::command]
+pub async fn rpi_pins_monitor_start(
+  app: AppHandle,
+  id: String,
+  interval_ms: Option<u64>,
+) -> Result<(), CommandError> {
+  let _ = rpi_pins_monitor_stop(id.clone()).await;
+
+  let (tx, mut rx) = oneshot::channel::<()>();
+
+  {
+    let mut map = GPIO_MONITORS.lock().map_err(|e| CommandError::internal("LOCK_POISONED", e.to_string()))?;
+    map.insert(id.clone(), tx);
+  }
+
+  let delay = interval_ms.unwrap_or(1000).max(200);
+  let session_id = id.clone();
+
+  tokio::spawn(async move {
+    let mut timer = tokio::time::interval(tokio::time::Duration::from_millis(delay));
+    loop {
+      tokio::select! {
+        _ = timer.tick() => {
+          match rpi_pins_status(session_id.clone()).await {
+            Ok(lines) => {
+              let channel_name = format!("gpio_update_{}", session_id);
+              let _ = app.emit(&channel_name, &lines);
+            }
+            Err(err) => {
+              let channel_name = format!("gpio_error_{}", session_id);
+              let _ = app.emit(&channel_name, &err.message);
+              break;
+            }
+          }
+        }
+        _ = &mut rx => {
+          break;
+        }
+      }
+    }
+
+    if let Ok(mut map) = GPIO_MONITORS.lock() {
+      map.remove(&session_id);
+    }
+  });
+
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn rpi_pins_monitor_stop(id: String) -> Result<(), CommandError> {
+  let mut map = GPIO_MONITORS.lock().map_err(|e| CommandError::internal("LOCK_POISONED", e.to_string()))?;
+  if let Some(tx) = map.remove(&id) {
+    let _ = tx.send(());
+  }
+  Ok(())
+}
+

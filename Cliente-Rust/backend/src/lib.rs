@@ -87,6 +87,8 @@ pub fn run() {
       cmd::ssh::gpio::rpi_pin_set_pull,
       cmd::ssh::gpio::rpi_pin_write_level,
       cmd::ssh::gpio::rpi_pin_read,
+      cmd::ssh::gpio::rpi_pins_monitor_start,
+      cmd::ssh::gpio::rpi_pins_monitor_stop,
       // SFTP
       cmd::sftp::operations::sftp_open,
       cmd::sftp::operations::sftp_home,
