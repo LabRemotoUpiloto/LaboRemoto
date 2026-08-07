@@ -6,6 +6,10 @@ export interface KeycloakUser {
   email?: string;
   firstName?: string;
   lastName?: string;
+  /** Cuenta habilitada en Keycloak (viene en la representación estándar). */
+  enabled?: boolean;
+  /** Fecha de creación en Keycloak (epoch millis). */
+  createdTimestamp?: number;
 }
 
 export interface KeycloakRole {
@@ -16,6 +20,14 @@ export interface KeycloakRole {
 export const adminService = {
   searchUsers: async (query: string): Promise<KeycloakUser[]> => {
     return await invoke<KeycloakUser[]>('admin_search_users', { query });
+  },
+
+  listUsersByRole: async (roleName: string): Promise<KeycloakUser[]> => {
+    return await invoke<KeycloakUser[]>('admin_list_users_by_role', { roleName });
+  },
+
+  listAllUsers: async (): Promise<KeycloakUser[]> => {
+    return await invoke<KeycloakUser[]>('admin_list_all_users');
   },
 
   getUserRoles: async (userId: string): Promise<KeycloakRole[]> => {

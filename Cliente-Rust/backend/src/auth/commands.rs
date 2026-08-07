@@ -366,6 +366,33 @@ pub async fn admin_search_users(
     client.admin_search_users(&token, &query).await.map_err(|e| e.to_string())
 }
 
+/// Lista TODOS los usuarios del realm — usado para derivar el grupo
+/// "Estudiante" (cualquiera sin admin_lab/semillerista/laboratorista).
+#[tauri::command]
+pub async fn admin_list_all_users(
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<Vec<KeycloakUser>, String> {
+    let manager = manager.inner().clone();
+    let token = check_admin_lab(&manager).await?;
+    let config = KeycloakConfig::from_env();
+    let client = KeycloakClient::new(config);
+    client.admin_list_all_users(&token).await.map_err(|e| e.to_string())
+}
+
+/// Lista los usuarios que ya tienen un rol asignado — vista por defecto de
+/// la pantalla de gestión (lista filtrable por rol, no búsqueda-primero).
+#[tauri::command]
+pub async fn admin_list_users_by_role(
+    role_name: String,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<Vec<KeycloakUser>, String> {
+    let manager = manager.inner().clone();
+    let token = check_admin_lab(&manager).await?;
+    let config = KeycloakConfig::from_env();
+    let client = KeycloakClient::new(config);
+    client.admin_list_role_users(&token, &role_name).await.map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn admin_get_user_roles(
     user_id: String,
