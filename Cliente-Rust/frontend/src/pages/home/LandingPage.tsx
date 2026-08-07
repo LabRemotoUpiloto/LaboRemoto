@@ -11,7 +11,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTutorial, onOpenPanel 
   const displayName = useDisplayName();
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-[linear-gradient(135deg,color-mix(in_srgb,var(--background-secondary)_42%,var(--background-primary))_0_46%,var(--background-primary)_46%_100%)] flex items-center justify-center">
+    <div className="relative w-full h-full overflow-hidden bg-transparent flex items-center justify-center">
       <div 
         className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(135deg,transparent_0_63%,color-mix(in_srgb,var(--background-tertiary)_44%,transparent)_63%_100%),_repeating-linear-gradient(135deg,transparent_0_46px,color-mix(in_srgb,var(--text-primary)_2%,transparent)_46px_47px)] opacity-55"
         aria-hidden 

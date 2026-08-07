@@ -45,7 +45,6 @@ const ChatHeader: React.FC<Props> = ({
             <Terminal size={12} strokeWidth={2.5} />
           </div>
           <span className="font-semibold text-[13px] tracking-wide text-primary truncate">Asistente SSH</span>
-          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0 ml-1" title="Activo"/>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
@@ -146,10 +145,6 @@ const ChatHeader: React.FC<Props> = ({
 
       {/* Mode Description */}
       <div className="py-1 px-3 bg-secondary text-[10px] text-white/40 border-b border-subtle flex items-center gap-2 h-[22px]">
-        <div 
-          className="w-1.5 h-1.5 rounded-full shrink-0" 
-          style={{ backgroundColor: mode === 'agente' ? '#f59e0b' : mode === 'plan' ? '#10b981' : '#60a5fa' }} 
-        />
         <span className="truncate">{MODE_DESCRIPTIONS[mode]}</span>
       </div>
     </div>

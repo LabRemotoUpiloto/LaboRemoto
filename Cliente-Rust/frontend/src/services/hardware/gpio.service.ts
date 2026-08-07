@@ -63,3 +63,18 @@ export async function readPin(sessionId: string, gpio: number): Promise<GpioLine
     pull: r.pull == null ? null : String(r.pull),
   };
 }
+
+/**
+ * Inicia el monitoreo continuo en segundo plano desde el backend Rust.
+ */
+export async function startPinsMonitor(sessionId: string, intervalMs?: number): Promise<void> {
+  return invoke<void>('rpi_pins_monitor_start', { id: sessionId, intervalMs });
+}
+
+/**
+ * Detiene el monitoreo continuo en segundo plano en Rust.
+ */
+export async function stopPinsMonitor(sessionId: string): Promise<void> {
+  return invoke<void>('rpi_pins_monitor_stop', { id: sessionId });
+}
+

@@ -5,7 +5,7 @@
   "description": "Cliente SSH Unipiloto - Laboratorio remoto",
   "scripts": {
     "install:all": "npm install && npm install --prefix frontend",
-    "dev": "cd backend && cargo tauri dev",
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1",
     "build": "cd backend && cargo tauri build",
     "build:linux": "cd backend && cargo tauri build --target x86_64-unknown-linux-gnu",
     "build:bake": "export $(grep -v '^#' .env | xargs) && npm run build",

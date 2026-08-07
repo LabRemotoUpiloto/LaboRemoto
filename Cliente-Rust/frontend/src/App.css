@@ -75,7 +75,7 @@
 
 /* ─── Pins Panel ─── */
 .pins-panel {
-  width: 350px;
+  width: 420px;
   height: calc(100vh - 24px) !important;
   position: absolute;
   right: 12px;
@@ -90,6 +90,17 @@
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.pins-panel ::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.pins-panel ::-webkit-scrollbar-corner {
+  background: transparent !important;
+  display: none !important;
 }
 
 .pins-panel__header {
@@ -132,19 +143,21 @@
 
 .pins-panel__content {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--background-primary);
 }
 
 /* Adjust main content and header when panels are open */
 .app-container.pins-open .main-content,
 .app-container.domotica-open .main-content {
-  right: calc(350px + 24px) !important;
+  right: calc(420px + 24px) !important;
 }
 
 .app-container.pins-open .app-header,
 .app-container.domotica-open .app-header {
-  right: calc(350px + 24px) !important;
+  right: calc(420px + 24px) !important;
 }
 
 .app-container.no-sidebar .main-content {

@@ -87,6 +87,8 @@ pub fn run() {
       cmd::ssh::gpio::rpi_pin_set_pull,
       cmd::ssh::gpio::rpi_pin_write_level,
       cmd::ssh::gpio::rpi_pin_read,
+      cmd::ssh::gpio::rpi_pins_monitor_start,
+      cmd::ssh::gpio::rpi_pins_monitor_stop,
       // SFTP
       cmd::sftp::operations::sftp_open,
       cmd::sftp::operations::sftp_home,
@@ -107,6 +109,9 @@ pub fn run() {
       cmd::filesystem::local::local_open_path,
       cmd::filesystem::local::local_reveal_in_explorer,
       cmd::filesystem::local::local_temp_dir,
+      cmd::filesystem::local::local_mkdir,
+      cmd::filesystem::local::local_rename,
+      cmd::filesystem::local::local_delete,
       cmd::filesystem::local::save_text_file,
       cmd::filesystem::local::chat_history_load,
       cmd::filesystem::local::chat_history_save,

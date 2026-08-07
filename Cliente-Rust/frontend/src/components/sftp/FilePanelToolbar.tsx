@@ -1,11 +1,9 @@
 import React from 'react'
-import { Group, Select, Text, TextInput } from '@mantine/core'
+import { Group, Select, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   RefreshCw,
   FolderPlus,
   Pencil,
-  Upload,
-  Download,
   Trash2,
   Search,
   X,
@@ -46,13 +44,14 @@ export interface FilePanelToolbarProps {
   selectedCount?: number
 }
 
-// Estilo WinSCP: botón compacto con icono (14-16px) + etiqueta de texto (12px).
+// Botón compacto con icono (14-16px) y tooltip
 const toolbarButtonBaseStyle: React.CSSProperties = {
   all: 'unset',
   display: 'flex',
   alignItems: 'center',
+  justifyContent: 'center',
   gap: 5,
-  padding: '4px 7px',
+  padding: '4px 6px',
   borderRadius: 5,
   fontSize: 12,
   fontWeight: 500,
@@ -68,31 +67,34 @@ interface ToolbarButtonProps {
   onClick?: () => void
   disabled?: boolean
   danger?: boolean
+  hideLabel?: boolean
 }
 
-const ToolbarButton: React.FC<ToolbarButtonProps> = ({ icon, label, onClick, disabled, danger }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    aria-label={label}
-    style={{
-      ...toolbarButtonBaseStyle,
-      opacity: disabled ? 0.4 : 1,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      color: disabled ? 'var(--text-muted)' : danger ? 'var(--danger)' : 'var(--text-primary)',
-    }}
-    onMouseEnter={(e) => {
-      if (disabled) return
-      e.currentTarget.style.background = 'var(--interactive-hover)'
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.background = 'transparent'
-    }}
-  >
-    {icon}
-    <span>{label}</span>
-  </button>
+const ToolbarButton: React.FC<ToolbarButtonProps> = ({ icon, label, onClick, disabled, danger, hideLabel = true }) => (
+  <Tooltip label={label} withArrow position="bottom" openDelay={150}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      style={{
+        ...toolbarButtonBaseStyle,
+        opacity: disabled ? 0.4 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        color: disabled ? 'var(--text-muted)' : danger ? 'var(--danger)' : 'var(--text-primary)',
+      }}
+      onMouseEnter={(e) => {
+        if (disabled) return
+        e.currentTarget.style.background = 'var(--interactive-hover)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent'
+      }}
+    >
+      {icon}
+      {!hideLabel && <span>{label}</span>}
+    </button>
+  </Tooltip>
 )
 
 const ToolbarSeparator: React.FC = () => (
@@ -146,25 +148,17 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
         flexShrink: 0,
       }}
     >
-      {/* Action buttons con etiqueta de texto (estilo WinSCP) */}
+      {/* Action buttons de icono con tooltip */}
       <Group gap={2} wrap="nowrap">
-        {side === 'local' && onUpload && (
-          <ToolbarButton icon={<Upload size={14} />} label="Subir" onClick={onUpload} disabled={!canUpload} />
-        )}
-
-        {side === 'remote' && onDownload && (
-          <ToolbarButton icon={<Download size={14} />} label="Descargar" onClick={onDownload} disabled={!canDownload} />
-        )}
-
-        {side === 'remote' && onNewFolder && (
+        {onNewFolder && (
           <ToolbarButton icon={<FolderPlus size={14} />} label="Nueva carpeta" onClick={onNewFolder} disabled={disabled} />
         )}
 
-        {side === 'remote' && onRename && (
+        {onRename && (
           <ToolbarButton icon={<Pencil size={14} />} label="Renombrar" onClick={onRename} disabled={!canRename} />
         )}
 
-        {side === 'remote' && onDelete && (
+        {onDelete && (
           <ToolbarButton icon={<Trash2 size={14} />} label="Eliminar" onClick={onDelete} disabled={!canDelete} danger />
         )}
 

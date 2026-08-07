@@ -275,7 +275,7 @@ const ChatInput: React.FC<Props> = ({
         className={
           isPill
             ? `flex items-center gap-1.5 min-h-[62px] py-2.5 pr-2.5 pl-3.5 rounded-r-[18px] rounded-l-none max-[760px]:rounded-r-[14px] border-none border-l-[5px] border-l-[var(--accent-primary)] bg-[color-mix(in_srgb,var(--background-secondary)_96%,var(--accent-primary)_4%)] shadow-[0_20px_44px_rgba(0,0,0,0.16)] transition-all duration-200 overflow-hidden focus-within:bg-[color-mix(in_srgb,var(--background-secondary)_90%,var(--accent-secondary)_10%)] focus-within:shadow-[0_24px_52px_rgba(0,0,0,0.24)] ${(attachedImage || attachedFile) ? 'flex-col items-stretch !rounded-3xl' : ''}`
-            : `flex flex-col items-stretch border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-[var(--accent-primary)]/40 p-2 gap-1`
+            : `flex flex-col items-stretch border border-subtle rounded-xl overflow-hidden shadow-sm transition-colors duration-200 focus-within:border-[var(--accent-primary)]/40 px-2 py-1.5`
         }
         style={isPill ? undefined : { backgroundColor: 'var(--background-tertiary)' }}
       >
@@ -329,12 +329,12 @@ const ChatInput: React.FC<Props> = ({
                 placeholder={MODE_PLACEHOLDERS[mode]}
                 variant="unstyled"
                 autosize
-                minRows={2}
+                minRows={1}
                 maxRows={10}
                 className="w-full"
                 classNames={{
                   wrapper: 'w-full',
-                  input: 'bg-transparent border-none text-[var(--text-primary)] text-[13.5px] leading-relaxed placeholder-[var(--placeholder-fg)] focus:ring-0 px-2 py-1.5 scrollbar-thin w-full min-h-[40px]',
+                  input: 'bg-transparent border-none text-[var(--text-primary)] text-[13.5px] leading-relaxed placeholder-[var(--placeholder-fg)] focus:ring-0 px-2 py-1.5 scrollbar-thin w-full',
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape' && isSending) { e.preventDefault(); onCancel(); return; }
@@ -370,7 +370,7 @@ const ChatInput: React.FC<Props> = ({
             </div>
             
             {/* Bottom row: actions on left, send on right */}
-            <div className="flex items-center justify-between w-full pt-1.5 px-2 border-t border-[var(--border-subtle)]/30 mt-1 min-h-[32px]">
+            <div className="flex items-center justify-between w-full px-2 border-t border-[var(--border-subtle)]/30 min-h-[28px]">
               {/* Left actions */}
               <div className="flex items-center gap-1.5">
                 <ActionIcon
