@@ -201,11 +201,19 @@ impl KeycloakClient {
         ).await?;
 
         let now = Instant::now();
+        // Unix timestamp (no `Instant`, que es relativo al proceso) para poder
+        // persistir la expiración del refresh_token entre reinicios (`token_store`).
+        let refresh_expires_at_unix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0)
+            + token_resp.refresh_expires_in as i64;
         Ok(TokenBundle {
             access_token:       token_resp.access_token,
             refresh_token:      token_resp.refresh_token,
             access_expires_at:  now + Duration::from_secs(token_resp.expires_in),
             refresh_expires_at: now + Duration::from_secs(token_resp.refresh_expires_in),
+            refresh_expires_at_unix,
             claims,
         })
     }

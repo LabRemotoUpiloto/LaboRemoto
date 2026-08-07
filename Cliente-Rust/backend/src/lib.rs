@@ -70,6 +70,10 @@ pub fn run() {
     .setup(|app| {
       let hub = app.state::<crate::ipc::IpcHub>().inner().clone();
       hub.spawn_dispatcher(app.handle().clone());
+      // Intenta retomar una sesión persistida de un arranque anterior (si hay
+      // un refresh_token guardado y aún vigente) sin bloquear el arranque de
+      // la ventana. Ver `auth::token_store` y `auth::commands::try_restore_session`.
+      tauri::async_runtime::spawn(crate::auth::commands::try_restore_session(app.handle().clone()));
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
