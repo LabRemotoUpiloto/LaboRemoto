@@ -11,7 +11,15 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use once_cell::sync::Lazy;
+
 use crate::cmd::protocol::CommandError;
+
+// Perf: cliente HTTP compartido — evita reconstruir el pool TCP/TLS en cada
+// llamada a la API de Moodle (get_assignment/get_user_submission/
+// get_user_by_username/submit_grade se llaman en secuencia dentro de un
+// mismo `moodle_sync_assignment`).
+static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(reqwest::Client::new);
 
 // ─── Tipos para la API de Moodle ───
 
@@ -248,7 +256,7 @@ async fn moodle_request(
 pub async fn get_assignment(assignment_id: u32) -> Result<MoodleAssignment, CommandError> {
     let config = load_moodle_config()?;
 
-    let client = reqwest::Client::new();
+    let client = &*HTTP_CLIENT;
     let url = format!("{}/webservice/rest/server.php", config.url);
     let assignment_id_str = assignment_id.to_string();
 
@@ -258,7 +266,7 @@ pub async fn get_assignment(assignment_id: u32) -> Result<MoodleAssignment, Comm
         ("moodlewsrestformat", "json"),
     ];
 
-    let json = moodle_request(&client, &url, &params, "get_assignment", &assignment_id_str).await?;
+    let json = moodle_request(client, &url, &params,"get_assignment", &assignment_id_str).await?;
 
     // Verificar si hay error en la respuesta
     if let Some(error) = extract_moodle_error(&json, "mod_assign_get_assignments") {
@@ -303,7 +311,7 @@ pub async fn get_assignment(assignment_id: u32) -> Result<MoodleAssignment, Comm
 pub async fn get_user_submission(assignment_id: u32, user_id: u32) -> Result<Option<MoodleSubmission>, CommandError> {
     let config = load_moodle_config()?;
 
-    let client = reqwest::Client::new();
+    let client = &*HTTP_CLIENT;
     let url = format!("{}/webservice/rest/server.php", config.url);
     let assignment_id_str = assignment_id.to_string();
     let user_id_str = user_id.to_string();
@@ -317,7 +325,7 @@ pub async fn get_user_submission(assignment_id: u32, user_id: u32) -> Result<Opt
         ("userid", user_id_str.as_str()),
     ];
 
-    let json = moodle_request(&client, &url, &params, "get_user_submission", &resource).await?;
+    let json = moodle_request(client, &url, &params,"get_user_submission", &resource).await?;
 
     if let Some(error) = extract_moodle_error(&json, "mod_assign_get_submission_status") {
         // Si el token no tiene permisos para ver entregas ajenas, asumir sin entrega previa
@@ -360,7 +368,7 @@ pub async fn get_user_submission(assignment_id: u32, user_id: u32) -> Result<Opt
 pub async fn get_user_by_username(username: &str) -> Result<MoodleUser, CommandError> {
     let config = load_moodle_config()?;
 
-    let client = reqwest::Client::new();
+    let client = &*HTTP_CLIENT;
     let url = format!("{}/webservice/rest/server.php", config.url);
 
     let params = [
@@ -371,7 +379,7 @@ pub async fn get_user_by_username(username: &str) -> Result<MoodleUser, CommandE
         ("values[0]", username),
     ];
 
-    let json = moodle_request(&client, &url, &params, "get_user_by_username", username).await?;
+    let json = moodle_request(client, &url, &params,"get_user_by_username", username).await?;
 
     if let Some(error) = extract_moodle_error(&json, "core_user_get_users_by_field") {
         if error.contains("accessexception") || error.contains("nopermission") || error.contains("required_capability") {
@@ -414,7 +422,7 @@ pub async fn get_user_by_username(username: &str) -> Result<MoodleUser, CommandE
 pub async fn submit_grade(grade_data: GradeSubmission) -> Result<(), CommandError> {
     let config = load_moodle_config()?;
 
-    let client = reqwest::Client::new();
+    let client = &*HTTP_CLIENT;
     let url = format!("{}/webservice/rest/server.php", config.url);
 
     let grade_str = format!("{:.4}", grade_data.grade);
@@ -444,7 +452,7 @@ pub async fn submit_grade(grade_data: GradeSubmission) -> Result<(), CommandErro
         ("plugindata[assignfeedbackcomments_editor][format]", "1"),
     ];
 
-    let json = moodle_request(&client, &url, &params, "submit_grade", &resource).await?;
+    let json = moodle_request(client, &url, &params,"submit_grade", &resource).await?;
 
     if let Some(error) = extract_moodle_error(&json, "mod_assign_save_grade") {
         return Err(moodle_app_error(error, "submit_grade", &resource));

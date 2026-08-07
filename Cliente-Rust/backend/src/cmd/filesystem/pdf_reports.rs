@@ -6,9 +6,14 @@ use crate::cmd::protocol::{map_io_error, CommandError};
 #[tauri::command]
 pub async fn save_pdf_base64(session_log_id: String, base64_data: String) -> Result<String, CommandError> {
     // 1. Obtener metadatos para armar el nombre por defecto
-    let log = STORAGE.get_log(&session_log_id)
-        .map_err(|e| CommandError::permanent("RESOURCE_NOT_FOUND", format!("Error obteniendo log: {}", e.message))
-            .with_context("save_pdf_base64", &session_log_id))?;
+    let log = {
+        let id_for_task = session_log_id.clone();
+        tokio::task::spawn_blocking(move || STORAGE.get_log(&id_for_task))
+            .await
+            .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
+            .map_err(|e| CommandError::permanent("RESOURCE_NOT_FOUND", format!("Error obteniendo log: {}", e.message))
+                .with_context("save_pdf_base64", &session_log_id))?
+    };
 
     let metadata = log.metadata;
     let default_name = format!("SSH_Report_{}_{}.pdf", metadata.host,
@@ -37,9 +42,12 @@ pub async fn save_pdf_base64(session_log_id: String, base64_data: String) -> Res
         .path()
         .to_path_buf();
 
-    // 5. Guardar archivo en disco
-    fs::write(&output_path, pdf_bytes)
-        .map_err(|e| map_io_error(e, "save_pdf_base64", &output_path.display().to_string()))?;
-
-    Ok(output_path.to_string_lossy().to_string())
+    // 5. Guardar archivo en disco (potencialmente varios MB de PDF)
+    tokio::task::spawn_blocking(move || {
+        fs::write(&output_path, pdf_bytes)
+            .map_err(|e| map_io_error(e, "save_pdf_base64", &output_path.display().to_string()))?;
+        Ok(output_path.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
