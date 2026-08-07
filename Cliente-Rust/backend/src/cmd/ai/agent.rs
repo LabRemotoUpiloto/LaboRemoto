@@ -405,7 +405,7 @@ fn get_or_connect_ssh2(id: &str) -> Result<std::sync::Arc<std::sync::Mutex<crate
         (s.host.clone(), s.port, s.user.clone(), s.password.clone())
     };
     let (tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-    let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2 { tcp, sess }));
+    let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2::new(tcp, sess)));
     if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); }
     Ok(arc)
 }

@@ -293,96 +293,117 @@ const FileList: React.FC<FileListProps> = ({
   }
 
   return (
-    <ScrollArea
-      style={{ flex: 1 }}
-      scrollbarSize={6}
-      onClick={handleContainerClick}
-      aria-busy={false}
-      viewportRef={setViewportRef}
-      onScrollPositionChange={handleScrollPositionChange}
-    >
-      <span aria-live="polite" style={visuallyHiddenStyle}>
-        {statusMessage}
-      </span>
-      <table
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {/* Header fijo de columnas (fuera del ScrollArea) */}
+      <div
         style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          fontSize: 13,
-          tableLayout: 'fixed',
+          background: 'var(--surface-1)',
+          borderBottom: '1px solid var(--border-subtle)',
+          flexShrink: 0,
+          zIndex: 5,
         }}
-        role="grid"
       >
-        <thead
+        <table
           style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 5,
-            background: 'var(--surface-1)',
-            boxShadow: '0 1px 0 var(--border-subtle)',
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: 13,
+            tableLayout: 'fixed',
           }}
         >
-          <tr>
-            {COLUMNS.map((col, idx) => {
-              const isSorted = sortKey === col.key
-              const arrow = isSorted ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
-              let width: string | undefined
-              if (idx === 0) width = undefined // auto
-              else if (idx === 1) width = '90px' // Tamaño
-              else if (idx === 2) width = '150px' // Modificado
-              else if (idx === 3) width = '80px' // Tipo
+          <colgroup>
+            <col />
+            <col style={{ width: 90 }} />
+            <col style={{ width: 150 }} />
+            <col style={{ width: 80 }} />
+          </colgroup>
+          <thead>
+            <tr>
+              {COLUMNS.map((col) => {
+                const isSorted = sortKey === col.key
+                const arrow = isSorted ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
 
-              return (
-                <th
-                  key={col.key}
-                  style={{
-                    textAlign: col.align || 'left',
-                    fontWeight: 600,
-                    fontSize: 11,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    color: 'var(--text-secondary)',
-                    padding: 0,
-                    width,
-                    userSelect: 'none',
-                  }}
-                >
-                  {col.sortable ? (
-                    <button
-                      onClick={() => onSort(col.key)}
-                      style={{
-                        all: 'unset',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        width: '100%',
-                        padding: '7px 12px',
-                        cursor: 'pointer',
-                        color: 'inherit',
-                        transition: 'background 0.1s',
-                        justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start',
-                      }}
-                      onMouseEnter={(e) => {
-                        ;(e.target as HTMLElement).style.background = 'var(--interactive-hover)'
-                      }}
-                      onMouseLeave={(e) => {
-                        ;(e.target as HTMLElement).style.background = 'transparent'
-                      }}
-                    >
-                      {col.label}
-                      {arrow && (
-                        <span style={{ fontSize: 9, color: 'var(--accent-primary)' }}>{arrow}</span>
-                      )}
-                    </button>
-                  ) : (
-                    <span style={{ display: 'block', padding: '7px 12px' }}>{col.label}</span>
-                  )}
-                </th>
-              )
-            })}
-          </tr>
-        </thead>
-        <tbody>
+                return (
+                  <th
+                    key={col.key}
+                    style={{
+                      textAlign: col.align || 'left',
+                      fontWeight: 600,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      color: 'var(--text-secondary)',
+                      padding: 0,
+                      userSelect: 'none',
+                    }}
+                  >
+                    {col.sortable ? (
+                      <button
+                        onClick={() => onSort(col.key)}
+                        style={{
+                          all: 'unset',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          width: '100%',
+                          padding: '7px 12px',
+                          cursor: 'pointer',
+                          color: 'inherit',
+                          transition: 'background 0.1s',
+                          justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start',
+                          boxSizing: 'border-box',
+                        }}
+                        onMouseEnter={(e) => {
+                          ;(e.target as HTMLElement).style.background = 'var(--interactive-hover)'
+                        }}
+                        onMouseLeave={(e) => {
+                          ;(e.target as HTMLElement).style.background = 'transparent'
+                        }}
+                      >
+                        {col.label}
+                        {arrow && (
+                          <span style={{ fontSize: 9, color: 'var(--accent-primary)' }}>{arrow}</span>
+                        )}
+                      </button>
+                    ) : (
+                      <span style={{ display: 'block', padding: '7px 12px' }}>{col.label}</span>
+                    )}
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+        </table>
+      </div>
+
+      {/* Cuerpo scrolleable de la lista */}
+      <ScrollArea
+        style={{ flex: 1 }}
+        scrollbarSize={6}
+        onClick={handleContainerClick}
+        aria-busy={false}
+        viewportRef={setViewportRef}
+        onScrollPositionChange={handleScrollPositionChange}
+      >
+        <span aria-live="polite" style={visuallyHiddenStyle}>
+          {statusMessage}
+        </span>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: 13,
+            tableLayout: 'fixed',
+          }}
+          role="grid"
+        >
+          <colgroup>
+            <col />
+            <col style={{ width: 90 }} />
+            <col style={{ width: 150 }} />
+            <col style={{ width: 80 }} />
+          </colgroup>
+          <tbody>
           {topSpacer > 0 && (
             <tr aria-hidden="true">
               <td colSpan={COLUMNS.length} style={{ padding: 0, border: 'none', height: topSpacer }} />
@@ -505,6 +526,7 @@ const FileList: React.FC<FileListProps> = ({
         </tbody>
       </table>
     </ScrollArea>
+    </div>
   )
 }
 

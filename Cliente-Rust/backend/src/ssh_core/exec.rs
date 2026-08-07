@@ -13,10 +13,7 @@ pub fn acquire_ssh2(id: &str) -> Result<std::sync::Arc<std::sync::Mutex<CachedSs
     } else {
         let (tcp, sess2) = crate::ssh_core::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
             .map_err(|e| e.to_string())?;
-        let arc = std::sync::Arc::new(std::sync::Mutex::new(CachedSsh2 {
-            tcp,
-            sess: sess2,
-        }));
+        let arc = std::sync::Arc::new(std::sync::Mutex::new(CachedSsh2::new(tcp, sess2)));
         s.sftp_cached = Some(arc.clone());
         Ok(arc)
     }

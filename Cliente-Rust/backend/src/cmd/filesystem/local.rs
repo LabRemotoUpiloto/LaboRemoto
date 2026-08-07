@@ -266,3 +266,24 @@ pub async fn chat_history_delete_entry(
   fs::write(&path, json.as_bytes()).map_err(|e| map_io_error(e, "chat_history_delete_entry", &path.display().to_string()))?;
   Ok(entries)
 }
+
+#[tauri::command]
+pub async fn local_mkdir(path: String) -> Result<(), CommandError> {
+  fs::create_dir_all(&path).map_err(|e| map_io_error(e, "local_mkdir", &path))
+}
+
+#[tauri::command]
+pub async fn local_rename(old_path: String, new_path: String) -> Result<(), CommandError> {
+  fs::rename(&old_path, &new_path).map_err(|e| map_io_error(e, "local_rename", &old_path))
+}
+
+#[tauri::command]
+pub async fn local_delete(path: String) -> Result<(), CommandError> {
+  let p = std::path::Path::new(&path);
+  if p.is_dir() {
+    fs::remove_dir_all(&path).map_err(|e| map_io_error(e, "local_delete", &path))
+  } else {
+    fs::remove_file(&path).map_err(|e| map_io_error(e, "local_delete", &path))
+  }
+}
+

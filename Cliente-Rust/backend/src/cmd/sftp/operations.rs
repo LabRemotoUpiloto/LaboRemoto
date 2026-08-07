@@ -153,9 +153,9 @@ async fn sftp_read_text_impl(id: String, path: String, max_bytes: u64) -> Result
       let mut map = SESSIONS.lock().map_err(|_| lock_poisoned("SESSIONS"))?;
       get_or_connect_cached(&mut map, &id).map_err(|e| map_cache_error(e, "sftp_read_text", &id))?
     };
-    let guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
-    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| map_sftp_error(e, "sftp_read_text", &path))?;
-    sftp2::read_text(&sftp, &path, max_bytes).map_err(|e| map_sftp_error(e, "sftp_read_text", &path))
+    let mut guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
+    let sftp = guard.get_or_open_sftp().map_err(|e| map_sftp_error(e, "sftp_read_text", &path))?;
+    sftp2::read_text(sftp, &path, max_bytes).map_err(|e| map_sftp_error(e, "sftp_read_text", &path))
   }).await.map_err(task_join_error)??;
 
   Ok(SftpReadTextResponse {
@@ -185,8 +185,8 @@ pub async fn sftp_home(id: String) -> Result<String, CommandError> {
       let cached = get_or_connect_cached(&mut map, &id).map_err(|e| map_cache_error(e, "sftp_home", &id))?;
       (cached, user)
     };
-    let guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
-    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| map_sftp_error(e, "sftp_home", &id))?;
+    let mut guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
+    let sftp = guard.get_or_open_sftp().map_err(|e| map_sftp_error(e, "sftp_home", &id))?;
     use std::path::Path;
     if let Ok(p) = sftp.realpath(Path::new(".")) {
       if let Some(s) = p.to_str() { if !s.is_empty() { return Ok(s.to_string()); } }
@@ -196,7 +196,7 @@ pub async fn sftp_home(id: String) -> Result<String, CommandError> {
     }
     let user_sanit = user.split(|c| c=='\\' || c=='/').last().unwrap_or(&user);
     let guess = if user_sanit == "root" { "/root".to_string() } else { format!("/home/{}", user_sanit) };
-    if sftp2::list_dir(&sftp, &guess).is_ok() { return Ok(guess); }
+    if sftp2::list_dir(sftp, &guess).is_ok() { return Ok(guess); }
     Ok("/".to_string())
   }).await.map_err(task_join_error)??;
   Ok(home)
@@ -222,9 +222,9 @@ async fn sftp_list_impl(id: String, path: String) -> Result<Vec<SftpEntry>, Comm
       get_or_connect_cached(&mut map, &id).map_err(|e| map_cache_error(e, "sftp_list", &id))?
     };
     let out_res: Result<_, CommandError> = (||{
-      let guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
-      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| map_sftp_error(e, "sftp_list", &path))?;
-      sftp2::list_dir(&sftp, &path).map_err(|e| map_sftp_error(e, "sftp_list", &path))
+      let mut guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
+      let sftp = guard.get_or_open_sftp().map_err(|e| map_sftp_error(e, "sftp_list", &path))?;
+      sftp2::list_dir(sftp, &path).map_err(|e| map_sftp_error(e, "sftp_list", &path))
     })();
     match out_res {
       Ok(v) => Ok(v),
@@ -244,16 +244,16 @@ async fn sftp_list_impl(id: String, path: String) -> Result<Vec<SftpEntry>, Comm
           ).with_context("sftp_list", &id))?;
         let cached2 = {
           let mut map = SESSIONS.lock().map_err(|_| lock_poisoned("SESSIONS"))?;
-          if let Some(s) = map.get_mut(&id) { s.sftp_cached = Some(Arc::new(Mutex::new(CachedSsh2 { tcp, sess }))); }
+          if let Some(s) = map.get_mut(&id) { s.sftp_cached = Some(Arc::new(Mutex::new(CachedSsh2::new(tcp, sess)))); }
           map.get(&id)
             .ok_or_else(|| CommandError::from(AppError::NotFoundSession))?
             .sftp_cached.as_ref()
             .ok_or_else(|| CommandError::internal("SFTP_NOT_CACHED", "SFTP not cached"))?
             .clone()
         };
-        let guard = cached2.lock().map_err(|_| lock_poisoned("ssh2"))?;
-        let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| map_sftp_error(e, "sftp_list", &path))?;
-        sftp2::list_dir(&sftp, &path).map_err(|e| map_sftp_error(e, "sftp_list", &path))
+        let mut guard = cached2.lock().map_err(|_| lock_poisoned("ssh2"))?;
+        let sftp = guard.get_or_open_sftp().map_err(|e| map_sftp_error(e, "sftp_list", &path))?;
+        sftp2::list_dir(sftp, &path).map_err(|e| map_sftp_error(e, "sftp_list", &path))
       }
     }
   }).await.map_err(task_join_error)??;
@@ -280,9 +280,9 @@ async fn sftp_mkdir_impl(id: String, path: String) -> Result<(), CommandError> {
       let mut map = SESSIONS.lock().map_err(|_| lock_poisoned("SESSIONS"))?;
       get_or_connect_cached(&mut map, &id).map_err(|e| map_cache_error(e, "sftp_mkdir", &id))?
     };
-    let guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
-    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| map_sftp_error(e, "sftp_mkdir", &path))?;
-    sftp2::mkdir(&sftp, &path).map_err(|e| map_sftp_error(e, "sftp_mkdir", &path))
+    let mut guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
+    let sftp = guard.get_or_open_sftp().map_err(|e| map_sftp_error(e, "sftp_mkdir", &path))?;
+    sftp2::mkdir(sftp, &path).map_err(|e| map_sftp_error(e, "sftp_mkdir", &path))
   }).await.map_err(task_join_error)??;
   Ok(())
 }
@@ -306,9 +306,9 @@ async fn sftp_rename_impl(id: String, old_path: String, new_path: String) -> Res
       let mut map = SESSIONS.lock().map_err(|_| lock_poisoned("SESSIONS"))?;
       get_or_connect_cached(&mut map, &id).map_err(|e| map_cache_error(e, "sftp_rename", &id))?
     };
-    let guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
-    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| map_sftp_error(e, "sftp_rename", &old_path))?;
-    sftp2::rename(&sftp, &old_path, &new_path).map_err(|e| map_sftp_error(e, "sftp_rename", &old_path))
+    let mut guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
+    let sftp = guard.get_or_open_sftp().map_err(|e| map_sftp_error(e, "sftp_rename", &old_path))?;
+    sftp2::rename(sftp, &old_path, &new_path).map_err(|e| map_sftp_error(e, "sftp_rename", &old_path))
   }).await.map_err(task_join_error)??;
   Ok(())
 }
@@ -321,11 +321,11 @@ pub async fn sftp_remove(id: String, path: String, recursive: Option<bool>) -> R
       let mut map = SESSIONS.lock().map_err(|_| lock_poisoned("SESSIONS"))?;
       get_or_connect_cached(&mut map, &id).map_err(|e| map_cache_error(e, "sftp_remove", &id))?
     };
-    let guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
-    let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| map_sftp_error(e, "sftp_remove", &path))?;
+    let mut guard = cached.lock().map_err(|_| lock_poisoned("ssh2"))?;
+    let sftp = guard.get_or_open_sftp().map_err(|e| map_sftp_error(e, "sftp_remove", &path))?;
     if !rec {
-      if sftp2::remove_file(&sftp, &path).is_ok() { return Ok(()); }
-      return sftp2::remove_dir(&sftp, &path).map_err(|e| map_sftp_error(e, "sftp_remove", &path));
+      if sftp2::remove_file(sftp, &path).is_ok() { return Ok(()); }
+      return sftp2::remove_dir(sftp, &path).map_err(|e| map_sftp_error(e, "sftp_remove", &path));
     }
     fn remove_rec(sftp: &ssh2::Sftp, p: &str) -> Result<(), CommandError> {
       let list = sftp2::list_dir(sftp, p).map_err(|e| map_sftp_error(e, "sftp_remove", p))?;
@@ -338,7 +338,7 @@ pub async fn sftp_remove(id: String, path: String, recursive: Option<bool>) -> R
       }
       sftp2::remove_dir(sftp, p).map_err(|e| map_sftp_error(e, "sftp_remove", p))
     }
-    remove_rec(&sftp, &path)
+    remove_rec(sftp, &path)
   }).await.map_err(task_join_error)??;
   Ok(())
 }

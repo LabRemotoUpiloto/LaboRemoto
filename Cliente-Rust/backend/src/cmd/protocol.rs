@@ -121,6 +121,12 @@ pub struct CommandError {
     pub retry_after_ms: Option<u32>,
 }
 
+impl std::fmt::Display for CommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}]: {}", self.code, self.message)
+    }
+}
+
 impl CommandError {
     /// Error transitorio (el frontend lo reintenta automáticamente).
     pub fn transient(code: impl Into<String>, message: impl Into<String>) -> Self {

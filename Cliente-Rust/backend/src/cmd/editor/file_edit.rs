@@ -155,7 +155,7 @@ fn get_sftp_for_session(session_id: &str) -> Result<ssh2::Sftp, CommandError> {
     let (host, port, user, password) = { let s = map.get(id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?; (s.host.clone(), s.port, s.user.clone(), s.password.clone()) };
     let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password)
       .map_err(|e| CommandError::transient("IO_ERROR", format!("Conexión SFTP falló: {e}")).with_context("get_sftp_for_session", id))?;
-    let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess })); if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); } Ok(arc)
+    let arc = Arc::new(Mutex::new(CachedSsh2::new(tcp, sess))); if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); } Ok(arc)
   }
   let mut map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
   let cached = get_or_connect_cached(&mut map, session_id)?;
@@ -300,7 +300,7 @@ fn sftp_read_file(session_id: &str, remote_path: &str) -> Result<Vec<u8>, Comman
     };
     let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password)
       .map_err(|e| CommandError::transient("IO_ERROR", format!("Conexión SFTP falló: {e}")).with_context("sftp_read_file", id))?;
-    let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess }));
+    let arc = Arc::new(Mutex::new(CachedSsh2::new(tcp, sess)));
     if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); }
     Ok(arc)
   }

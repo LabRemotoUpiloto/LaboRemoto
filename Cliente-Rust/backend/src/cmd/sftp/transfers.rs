@@ -62,9 +62,9 @@ async fn sftp_download_start_impl(app: AppHandle, id: String, remote_path: Strin
   let cancel = Arc::new(AtomicBool::new(false));
   TRANSFERS.lock().map_err(|e| e.to_string())?.insert(transfer_id.clone(), cancel.clone());
   let total = tokio::task::spawn_blocking({ let cached = cached.clone(); let remote_path=remote_path.clone(); move || {
-    let guard = cached.lock().map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    let sftp = sftp2::open_sftp(&guard.sess)?;
-    let st = sftp2::stat(&sftp, &remote_path).ok();
+    let mut guard = cached.lock().map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let sftp = guard.get_or_open_sftp()?;
+    let st = sftp2::stat(sftp, &remote_path).ok();
     Ok::<_, anyhow::Error>(st.and_then(|s| s.size))
   }}).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
   let _ = app.emit("sftp_transfer", Some(serde_json::json!({
@@ -75,8 +75,8 @@ async fn sftp_download_start_impl(app: AppHandle, id: String, remote_path: Strin
   let transfer_id2 = transfer_id.clone();
   tokio::task::spawn_blocking(move || {
     let res: Result<(), String> = (||{
-      let guard = cached.lock().map_err(|e| e.to_string())?;
-      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
+      let mut guard = cached.lock().map_err(|e| e.to_string())?;
+      let sftp = guard.get_or_open_sftp().map_err(|e| e.to_string())?;
       let mut rf = sftp.open(std::path::Path::new(&remote_path)).map_err(|e| e.to_string())?;
       let mut lf = std::fs::File::create(&local_path).map_err(|e| e.to_string())?;
       let mut buf = vec![0u8; 64*1024];
@@ -143,8 +143,8 @@ async fn sftp_upload_start_impl(app: AppHandle, id: String, local_path: String, 
   let transfer_id2 = transfer_id.clone();
   tokio::task::spawn_blocking(move || {
     let res: Result<(), String> = (||{
-      let guard = cached.lock().map_err(|e| e.to_string())?;
-      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
+      let mut guard = cached.lock().map_err(|e| e.to_string())?;
+      let sftp = guard.get_or_open_sftp().map_err(|e| e.to_string())?;
       let mut rf = std::fs::File::open(&local_path).map_err(|e| e.to_string())?;
       let mut lf = sftp.create(std::path::Path::new(&remote_path)).map_err(|e| e.to_string())?;
       let mut buf = vec![0u8; 64*1024];
@@ -204,8 +204,8 @@ pub async fn sftp_upload_dir_start(app: AppHandle, id: String, local_path: Strin
   let transfer_id2 = transfer_id.clone();
   tokio::task::spawn_blocking(move || {
     let res: Result<(), String> = (||{
-      let guard = cached.lock().map_err(|e| e.to_string())?;
-      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
+      let mut guard = cached.lock().map_err(|e| e.to_string())?;
+      let sftp = guard.get_or_open_sftp().map_err(|e| e.to_string())?;
       let base = PathBuf::from(&remote_path);
       let _ = sftp.mkdir(&base, 0o755);
       let mut done: u64 = 0;
@@ -265,8 +265,8 @@ pub async fn sftp_download_dir_start(app: AppHandle, id: String, remote_path: St
   };
   if let Some(parent) = std::path::Path::new(&local_path).parent() { if !parent.as_os_str().is_empty() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; } }
   let total = tokio::task::spawn_blocking({ let remote_path=remote_path.clone(); let cached = cached.clone(); move || {
-    let guard = cached.lock().map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    let sftp = sftp2::open_sftp(&guard.sess)?;
+    let mut guard = cached.lock().map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let sftp = guard.get_or_open_sftp()?;
     fn sum_remote(sftp: &sftp2::Ssh2Sftp, p: &Path) -> anyhow::Result<u64> {
       let mut s = 0u64;
       for entry in sftp.readdir(p)? { let (pb, st) = entry; if let Some(name) = pb.file_name().and_then(|s| s.to_str()) { if name=="."||name==".." { continue; } }
@@ -274,7 +274,7 @@ pub async fn sftp_download_dir_start(app: AppHandle, id: String, remote_path: St
       }
       Ok(s)
     }
-    let total = sum_remote(&sftp, Path::new(&remote_path)).ok();
+    let total = sum_remote(sftp, Path::new(&remote_path)).ok();
     Ok::<_, anyhow::Error>(total)
   }}).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
 
@@ -289,8 +289,8 @@ pub async fn sftp_download_dir_start(app: AppHandle, id: String, remote_path: St
   let transfer_id2 = transfer_id.clone();
   tokio::task::spawn_blocking(move || {
     let res: Result<(), String> = (||{
-      let guard = cached.lock().map_err(|e| e.to_string())?;
-      let sftp = sftp2::open_sftp(&guard.sess).map_err(|e| e.to_string())?;
+      let mut guard = cached.lock().map_err(|e| e.to_string())?;
+      let sftp = guard.get_or_open_sftp().map_err(|e| e.to_string())?;
       let base_remote = PathBuf::from(&remote_path);
       let base_local = PathBuf::from(&local_path);
       let _ = fs::create_dir_all(&base_local);

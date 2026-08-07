@@ -3,9 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commandClient } from '../../services/command.service'
 import { useMediaQuery } from '@mantine/hooks'
-import { Monitor, Server } from 'lucide-react'
 import FilePanel from '../../components/sftp/FilePanel'
-import TransferDivider from '../../components/sftp/TransferDivider'
 import TransferQueue from '../../components/sftp/TransferQueue'
 import ContextMenu from '../../components/shared/ContextMenu'
 import ConfirmModal from '../../components/modals/ConfirmModal'
@@ -188,6 +186,11 @@ const SftpPage: React.FC<Props> = ({
   const [mkdirOpen, setMkdirOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
+
+  const [localMkdirOpen, setLocalMkdirOpen] = useState(false)
+  const [localConfirmOpen, setLocalConfirmOpen] = useState(false)
+  const [localRenameOpen, setLocalRenameOpen] = useState(false)
+
   const [quickView, setQuickView] = useState<{
     open: boolean
     fileName: string
@@ -195,7 +198,8 @@ const SftpPage: React.FC<Props> = ({
     truncated: boolean
   }>({ open: false, fileName: '', content: '', truncated: false })
 
-  const anyModalOpen = mkdirOpen || confirmOpen || renameOpen || quickView.open
+  const anyModalOpen =
+    mkdirOpen || confirmOpen || renameOpen || localMkdirOpen || localConfirmOpen || localRenameOpen || quickView.open
 
   // ── Path helpers (memoized) ────────────────────────────────────────────────
   const getLocalEntryPath = useCallback(
@@ -630,6 +634,84 @@ const SftpPage: React.FC<Props> = ({
     [sessionId, rSelectedEntries, getRemoteEntryPath, rpath, removeRemoteEntry, insertRemoteEntry, rSelectOnly, push]
   )
 
+  // ── Local operations (mkdir, rename, delete) ──────────────────────────────
+  const doLocalMkdir = useCallback(() => {
+    setLocalMkdirOpen(true)
+  }, [])
+
+  const confirmLocalMkdir = useCallback(
+    async (name: string) => {
+      const p = joinLocalPath(lpath, name)
+      try {
+        await invoke('local_mkdir', { path: p })
+        refreshLocal()
+        push({ type: 'success', message: 'Carpeta local creada' })
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al crear carpeta local: ' + (e?.message ?? String(e)) })
+      }
+      setLocalMkdirOpen(false)
+    },
+    [lpath, refreshLocal, push]
+  )
+
+  const doLocalDelete = useCallback(() => {
+    if (lSelectedPaths.size === 0) return
+    setLocalConfirmOpen(true)
+  }, [lSelectedPaths])
+
+  const confirmLocalDelete = useCallback(async () => {
+    if (lSelectedEntries.length === 0) {
+      setLocalConfirmOpen(false)
+      return
+    }
+    setLocalConfirmOpen(false)
+    let okCount = 0
+    for (const entry of lSelectedEntries) {
+      const path = getLocalEntryPath(entry)
+      try {
+        await invoke('local_delete', { path })
+        okCount += 1
+      } catch (e: any) {
+        push({ type: 'error', message: `Error eliminando "${entry.name}": ` + (e?.message ?? String(e)) })
+      }
+    }
+    lClearSelection()
+    refreshLocal()
+    if (okCount > 0) {
+      push({ type: 'success', message: `Eliminado${okCount !== 1 ? 's' : ''} ${okCount} elemento${okCount !== 1 ? 's' : ''}` })
+    }
+  }, [lSelectedEntries, getLocalEntryPath, lClearSelection, refreshLocal, push])
+
+  const localDeleteConfirmMessage = useMemo(() => {
+    const names = lSelectedEntries.map((e) => e.name)
+    if (names.length === 0) return ''
+    return `¿Eliminar ${names.length} elemento${names.length !== 1 ? 's' : ''} en local (${lpath})? ${summarizeNames(names)}`
+  }, [lSelectedEntries, lpath])
+
+  const doLocalRename = useCallback(() => {
+    if (lSelectedEntries.length !== 1) return
+    setLocalRenameOpen(true)
+  }, [lSelectedEntries])
+
+  const confirmLocalRename = useCallback(
+    async (newName: string) => {
+      setLocalRenameOpen(false)
+      if (lSelectedEntries.length !== 1) return
+      const entry = lSelectedEntries[0]
+      const oldPath = getLocalEntryPath(entry)
+      const newPath = joinLocalPath(lpath, newName)
+      try {
+        await invoke('local_rename', { old_path: oldPath, new_path: newPath })
+        lSelectOnly(newPath)
+        refreshLocal()
+        push({ type: 'success', message: 'Elemento renombrado' })
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al renombrar local: ' + (e?.message ?? String(e)) })
+      }
+    },
+    [lSelectedEntries, getLocalEntryPath, lpath, lSelectOnly, refreshLocal, push]
+  )
+
   // ── Drag & drop interno por puntero entre paneles ───────────────────────────
   const localPanelRef = useRef<HTMLDivElement | null>(null)
   const remotePanelRef = useRef<HTMLDivElement | null>(null)
@@ -764,7 +846,7 @@ const SftpPage: React.FC<Props> = ({
       ctx.side === 'local'
         ? [
             {
-              label: 'Enviar al laboratorio',
+              label: 'Subir al remoto',
               onClick: doUpload,
               disabled: !sessionId || lSelectedPaths.size === 0,
             },
@@ -784,9 +866,21 @@ const SftpPage: React.FC<Props> = ({
                 },
               ],
             },
+            {
+              label: 'Renombrar',
+              onClick: doLocalRename,
+              disabled: lSelectedPaths.size !== 1,
+            },
+            {
+              label: 'Eliminar',
+              onClick: doLocalDelete,
+              disabled: lSelectedPaths.size === 0,
+              danger: true,
+            },
+            { label: 'Nueva carpeta', onClick: doLocalMkdir },
           ]
         : [
-            { label: 'Traer', onClick: doDownload, disabled: !canUse || rSelectedPaths.size === 0 },
+            { label: 'Bajar a local', onClick: doDownload, disabled: !canUse || rSelectedPaths.size === 0 },
             {
               label: 'Abrir',
               onClick: () => rSingleFileEntry && doDownloadAndOpen(rSingleFileEntry),
@@ -828,6 +922,9 @@ const SftpPage: React.FC<Props> = ({
       rSelectedPaths,
       doUpload,
       doDownload,
+      doLocalRename,
+      doLocalDelete,
+      doLocalMkdir,
       doRemoteRename,
       doRemoteMkdir,
       doRemoteDelete,
@@ -978,48 +1075,7 @@ const SftpPage: React.FC<Props> = ({
         minHeight: 0,
       }}
     >
-      {/* Cabecera de sesión (franja delgada) */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '5px 10px',
-          borderRadius: 6,
-          border: '1.5px solid var(--border-strong)',
-          background: 'var(--surface-1)',
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ ...microLabelStyle, flex: 1 }}>
-          <Monitor size={13} aria-hidden="true" />
-          Tu equipo
-        </span>
-        <div style={{ width: isNarrow ? 0 : 44, flexShrink: 0 }} aria-hidden="true" />
-        <span style={{ ...microLabelStyle, flex: 1 }}>
-          <Server size={13} aria-hidden="true" />
-          Laboratorio
-          {remoteSessionLabel && (
-            <span style={{ color: 'var(--text-primary)', fontWeight: 600, textTransform: 'none', letterSpacing: 'normal' }}>
-              {remoteSessionLabel}
-            </span>
-          )}
-          <span
-            aria-hidden="true"
-            title={rerr ? 'Error de conexión' : canUse ? 'Conectado' : 'Sin conexión'}
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: remoteStatusColor,
-              flexShrink: 0,
-              marginLeft: 'auto',
-            }}
-          />
-        </span>
-      </div>
-
-      {/* Paneles: local | divisor | remoto */}
+      {/* Paneles: local | remoto */}
       <div
         style={{
           display: 'flex',
@@ -1060,6 +1116,11 @@ const SftpPage: React.FC<Props> = ({
           drives={ldrives}
           currentDrive={currentLocalDrive}
           onDriveChange={handleLocalDriveChange}
+          onNewFolder={doLocalMkdir}
+          onRename={doLocalRename}
+          canRename={lSelectedPaths.size === 1}
+          onDelete={doLocalDelete}
+          canDelete={lSelectedPaths.size > 0}
           onUpload={doUpload}
           canUpload={!!sessionId && lSelectedPaths.size > 0}
           onContextMenu={handleLocalContextMenu}
@@ -1070,17 +1131,6 @@ const SftpPage: React.FC<Props> = ({
           onOpenFile={(entry) => doLocalOpenPath(getLocalEntryPath(entry))}
         />
       </div>
-
-      {/* Divisor con botones de envío/recepción */}
-      <TransferDivider
-        vertical={!isNarrow}
-        onUpload={doUpload}
-        canUpload={!!sessionId && lSelectedPaths.size > 0}
-        uploadCount={lSelectedPaths.size > 1 ? lSelectedPaths.size : undefined}
-        onDownload={doDownload}
-        canDownload={canUse && rSelectedPaths.size > 0}
-        downloadCount={rSelectedPaths.size > 1 ? rSelectedPaths.size : undefined}
-      />
 
       {/* Remote column */}
       <div
@@ -1137,40 +1187,7 @@ const SftpPage: React.FC<Props> = ({
       {/* Cola de transferencias (ancho completo, colapsable) */}
       <TransferQueue transfers={transfers} onCancel={doCancel} onClear={doClearTransfers} />
 
-      {/* Barra de estado global */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '4px 10px',
-          borderRadius: 6,
-          border: '1px solid var(--border-subtle)',
-          background: 'var(--surface-2)',
-          flexShrink: 0,
-          fontSize: 11,
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {activeSelectedEntries.length > 0
-            ? `${activeSelectedEntries.length} seleccionado${activeSelectedEntries.length !== 1 ? 's' : ''} — ${formatBytes(activeSelectedSize)}`
-            : `${activeTotalEntries} elemento${activeTotalEntries !== 1 ? 's' : ''}`}
-        </span>
-        <div style={{ flex: 1 }} />
-        <span>SFTP · {remoteSessionLabel || 'sin sesión'}</span>
-        <span
-          aria-hidden="true"
-          title={rerr ? 'Error de conexión' : canUse ? 'Conectado' : 'Sin conexión'}
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            background: remoteStatusColor,
-            flexShrink: 0,
-          }}
-        />
-      </div>
+
 
       {/* Context Menu */}
       <ContextMenu
@@ -1181,7 +1198,7 @@ const SftpPage: React.FC<Props> = ({
         items={ctxItems}
       />
 
-      {/* Modals */}
+      {/* Modals remotos */}
       <ConfirmModal
         open={confirmOpen}
         title="Eliminar en remoto"
@@ -1191,20 +1208,46 @@ const SftpPage: React.FC<Props> = ({
       />
       <PromptModal
         open={mkdirOpen}
-        title="Nueva carpeta"
-        message="Nombre de la carpeta nueva:"
+        title="Nueva carpeta remota"
+        message="Nombre de la carpeta nueva en remoto:"
         placeholder="nombre_carpeta"
         onCancel={() => setMkdirOpen(false)}
         onConfirm={confirmRemoteMkdir}
       />
       <PromptModal
         open={renameOpen}
-        title="Renombrar"
+        title="Renombrar en remoto"
         message="Nuevo nombre:"
         placeholder="nuevo_nombre"
-        defaultValue={renameDefaultValue}
+        defaultValue={rSelectedEntries[0]?.name || ''}
         onCancel={() => setRenameOpen(false)}
         onConfirm={confirmRemoteRename}
+      />
+
+      {/* Modals locales */}
+      <ConfirmModal
+        open={localConfirmOpen}
+        title="Eliminar en local"
+        message={localDeleteConfirmMessage}
+        onCancel={() => setLocalConfirmOpen(false)}
+        onConfirm={confirmLocalDelete}
+      />
+      <PromptModal
+        open={localMkdirOpen}
+        title="Nueva carpeta local"
+        message="Nombre de la carpeta nueva en local:"
+        placeholder="nombre_carpeta"
+        onCancel={() => setLocalMkdirOpen(false)}
+        onConfirm={confirmLocalMkdir}
+      />
+      <PromptModal
+        open={localRenameOpen}
+        title="Renombrar en local"
+        message="Nuevo nombre:"
+        placeholder="nuevo_nombre"
+        defaultValue={lSelectedEntries[0]?.name || ''}
+        onCancel={() => setLocalRenameOpen(false)}
+        onConfirm={confirmLocalRename}
       />
       <QuickViewModal
         open={quickView.open}
