@@ -1,83 +1,9 @@
 /**
- * Utility to extract valid Linux commands from a terminal HTML/Text buffer.
+ * Utilidad para armar el reporte PDF de comandos de una sesión. La
+ * extracción de los comandos en sí (`extractValidCommands`) corre ahora en
+ * el backend (`cmd/logs/logs.rs::extract_session_commands`) — ver
+ * `services/session.service.ts::extractSessionCommands`.
  */
-
-// A comprehensive but not exhaustive set of common Linux commands and utilities.
-// This is used to filter out typos or non-commands from the heuristic extraction.
-const COMMON_COMMANDS = new Set([
-  'ls', 'cd', 'pwd', 'cat', 'echo', 'rm', 'cp', 'mv', 'mkdir', 'rmdir', 'touch',
-  'ln', 'find', 'grep', 'awk', 'sed', 'head', 'tail', 'less', 'more', 'nano', 'vim', 'vi',
-  'df', 'du', 'free', 'top', 'htop', 'ps', 'kill', 'killall', 'pkill', 'bg', 'fg', 'jobs',
-  'tar', 'gzip', 'gunzip', 'zip', 'unzip', 'bzip2', 'xz',
-  'chmod', 'chown', 'chgrp', 'usermod', 'useradd', 'userdel', 'groupadd', 'passwd',
-  'su', 'sudo', 'apt', 'apt-get', 'dpkg', 'yum', 'dnf', 'rpm', 'pacman', 'zypper',
-  'systemctl', 'journalctl', 'service', 'chkconfig',
-  'ping', 'netstat', 'ss', 'ip', 'ifconfig', 'curl', 'wget', 'ssh', 'scp', 'rsync', 'ftp', 'sftp', 'telnet', 'nc', 'nmap',
-  'docker', 'docker-compose', 'kubectl', 'git', 'svn', 'hg',
-  'python', 'python3', 'pip', 'pip3', 'node', 'npm', 'yarn', 'pnpm', 'npx', 'ruby', 'gem', 'go', 'cargo', 'rustc', 'php', 'composer', 'java', 'javac', 'mvn', 'gradle',
-  'bash', 'sh', 'zsh', 'fish', 'tmux', 'screen', 'clear', 'history', 'alias', 'unalias', 'export', 'source',
-  'make', 'cmake', 'gcc', 'g++', 'clang',
-  'mysql', 'psql', 'sqlite3', 'mongo', 'redis-cli',
-  'htpasswd', 'apache2ctl', 'nginx',
-  'crontab', 'at', 'date', 'cal', 'uptime', 'whoami', 'id', 'groups', 'who', 'w', 'last',
-  // Raspberry Pi specifics that might be relevant based on the codebase
-  'raspi-gpio', 'vcgencmd', 'pinout'
-]);
-
-export function extractValidCommands(htmlContent: string): string[] {
-  // 1. Strip HTML tags to get raw text, replacing <br> and <div> with newlines
-  let text = htmlContent
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<[^>]*>?/gm, ''); // remove all other tags
-    
-  // Convert HTML entities
-  text = text
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-
-  const lines = text.split('\n');
-  const commands: string[] = [];
-
-  // Regex to detect common terminal prompts:
-  // e.g., user@hostname:~$ 
-  // e.g., root@hostname:/var/log#
-  // This looks for a $, #, or % followed by a space, which is the standard prompt ending.
-  const promptRegex = /[$#%]\s+(.*)$/;
-
-  for (const line of lines) {
-    const match = line.match(promptRegex);
-    if (match && match[1]) {
-      // The text after the prompt
-      let possibleCommand = match[1].trim();
-      
-      // Clean up common terminal garbage (like unexpected control characters if any survived)
-      possibleCommand = possibleCommand.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-      
-      if (!possibleCommand) continue;
-
-      // Extract the primary command (first word)
-      const firstWord = possibleCommand.split(/\s+/)[0];
-      
-      // Remove any leading path stuff for the check (e.g., ./script.sh -> script.sh, /usr/bin/python -> python)
-      const baseCommand = firstWord.split('/').pop() || firstWord;
-
-      // Check if it's a known valid command OR if it's an execution of a local script (./)
-      if (COMMON_COMMANDS.has(baseCommand) || firstWord.startsWith('./') || firstWord.startsWith('/')) {
-        // avoid duplicates in immediate succession (e.g. if the user hit enter multiple times with the same command lying around, or visual glitches from terminal redraws)
-        if (commands.length === 0 || commands[commands.length - 1] !== possibleCommand) {
-          commands.push(possibleCommand);
-        }
-      }
-    }
-  }
-
-  return commands;
-}
 
 import { unipilotoLogo } from '../assets/logoBase64';
 

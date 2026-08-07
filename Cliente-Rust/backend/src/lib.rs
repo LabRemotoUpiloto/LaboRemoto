@@ -151,6 +151,7 @@ pub fn run() {
       cmd::logs::logs::get_session_log,
       cmd::logs::logs::delete_session_log,
       cmd::logs::logs::cleanup_old_session_logs,
+      cmd::logs::logs::extract_session_commands,
       // PDF reports locales
       cmd::filesystem::pdf_reports::save_pdf_base64,
       // Escritorio gráfico remoto (VNC sobre SSH)
