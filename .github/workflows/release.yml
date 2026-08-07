@@ -71,7 +71,11 @@ jobs:
 
           $signature = (Get-Content -Raw -LiteralPath $signaturePath).Trim()
           $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-          $url = "https://github.com/LabRemotoUpiloto/LaboRemoto/releases/download/v$env:VERSION/$assetName"
+          # El release publica en Haider2231/Releases-Cliente-SSH-Unipiloto (ver
+          # paso "Create Release" abajo), no en este repo — es de ahi que leen
+          # tanto la landing de descarga (cliente-rust-nu5m.vercel.app) como el
+          # auto-updater embebido en la app (tauri.conf.json > plugins.updater).
+          $url = "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/download/v$env:VERSION/$assetName"
 
           $latest = [ordered]@{
             version = $env:VERSION
@@ -90,6 +94,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          repository: Haider2231/Releases-Cliente-SSH-Unipiloto
+          token: ${{ secrets.RELEASES_REPO_TOKEN }}
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: v${{ steps.version.outputs.VERSION }}
           draft: false
