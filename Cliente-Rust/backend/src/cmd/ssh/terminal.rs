@@ -297,44 +297,69 @@ async fn ssh_stdin_impl(id: String, data: String, encoding: Option<String>) -> R
   if let Some(target) = cd_target {
     tokio::task::spawn_blocking(move || {
       use std::path::PathBuf;
-      let mut map = match SESSIONS.lock() {
-          Ok(m) => m,
-          Err(_) => return,
+
+      // Perf: el lock global de `SESSIONS` (compartido por todas las
+      // sesiones activas) solo se toma para leer/guardar estado en
+      // memoria — nunca mientras se hace el connect_password de fallback
+      // ni los 2 round trips SSH de este `cd` (antes quedaba retenido
+      // durante todo eso, bloqueando terminal/SFTP/GPIO de cualquier otra
+      // sesión mientras tanto).
+      let (host, port, user, password, existing, base) = {
+        let map = match SESSIONS.lock() { Ok(m) => m, Err(_) => return };
+        let s = match map.get(&id) { Some(s) => s, None => return };
+        (s.host.clone(), s.port, s.user.clone(), s.password.clone(), s.sftp_cached.clone(), s.current_dir.clone())
       };
-      if let Some(s) = map.get_mut(&id) {
-        let arc = if let Some(existing) = s.sftp_cached.clone() { existing } else {
-          if let Ok((tcp, sess2)) = crate::ssh_core::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password) {
-            let arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2::new(tcp, sess2)));
-            s.sftp_cached = Some(arc.clone());
-            arc
-          } else { return; }
+
+      let arc = if let Some(existing) = existing {
+        existing
+      } else {
+        let (tcp, sess2) = match crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password) {
+          Ok(v) => v,
+          Err(_) => return,
         };
-        if let Ok(guard) = arc.lock() {
-          let raw = target.trim();
-          let expanded = if raw.starts_with('~') {
-            if let Ok(mut ch) = guard.sess.channel_session() {
-              let _ = ch.exec("echo $HOME");
-              use std::io::Read; let mut buf = String::new(); let _ = ch.read_to_string(&mut buf); let _ = ch.wait_close();
-              let home = buf.lines().next().unwrap_or("").trim();
-              if !home.is_empty() { format!("{}{}", home, &raw[1..]) } else { raw.to_string() }
-            } else { raw.to_string() }
-          } else { raw.to_string() };
-          let base = s.current_dir.clone();
-          let candidate = if PathBuf::from(&expanded).is_absolute() {
-            PathBuf::from(&expanded)
-          } else if let Some(b) = base { PathBuf::from(b).join(expanded) } else { PathBuf::from(expanded) };
-          let new_dir = {
-            if let Ok(mut ch2) = guard.sess.channel_session() {
-              let cmd = format!("test -d '{}' && cd '{}' && pwd", candidate.display(), candidate.display());
-              if ch2.exec(&cmd).is_ok() {
-                use std::io::Read; let mut buf = String::new(); let _ = ch2.read_to_string(&mut buf); let _ = ch2.wait_close();
-                let out = buf.lines().next().unwrap_or("").trim().to_string();
-                if !out.is_empty() { Some(out) } else { None }
-              } else { None }
-            } else { None }
-          };
-          if let Some(dir) = new_dir { s.current_dir = Some(dir); }
-        };
+        let new_arc = std::sync::Arc::new(std::sync::Mutex::new(crate::cmd::state::CachedSsh2::new(tcp, sess2)));
+        let mut map = match SESSIONS.lock() { Ok(m) => m, Err(_) => return };
+        match map.get_mut(&id) {
+          Some(s) => {
+            // Otra tarea pudo haber conectado primero mientras se esperaba
+            // la red: reusar esa conexión en vez de dejar dos abiertas.
+            if let Some(existing2) = s.sftp_cached.clone() { existing2 } else {
+              s.sftp_cached = Some(new_arc.clone());
+              new_arc
+            }
+          }
+          None => return,
+        }
+      };
+
+      let new_dir = {
+        let guard = match arc.lock() { Ok(g) => g, Err(_) => return };
+        let raw = target.trim();
+        let expanded = if raw.starts_with('~') {
+          if let Ok(mut ch) = guard.sess.channel_session() {
+            let _ = ch.exec("echo $HOME");
+            use std::io::Read; let mut buf = String::new(); let _ = ch.read_to_string(&mut buf); let _ = ch.wait_close();
+            let home = buf.lines().next().unwrap_or("").trim();
+            if !home.is_empty() { format!("{}{}", home, &raw[1..]) } else { raw.to_string() }
+          } else { raw.to_string() }
+        } else { raw.to_string() };
+        let candidate = if PathBuf::from(&expanded).is_absolute() {
+          PathBuf::from(&expanded)
+        } else if let Some(b) = base { PathBuf::from(b).join(expanded) } else { PathBuf::from(expanded) };
+        if let Ok(mut ch2) = guard.sess.channel_session() {
+          let cmd = format!("test -d '{}' && cd '{}' && pwd", candidate.display(), candidate.display());
+          if ch2.exec(&cmd).is_ok() {
+            use std::io::Read; let mut buf = String::new(); let _ = ch2.read_to_string(&mut buf); let _ = ch2.wait_close();
+            let out = buf.lines().next().unwrap_or("").trim().to_string();
+            if !out.is_empty() { Some(out) } else { None }
+          } else { None }
+        } else { None }
+      };
+
+      if let Some(dir) = new_dir {
+        if let Ok(mut map) = SESSIONS.lock() {
+          if let Some(s) = map.get_mut(&id) { s.current_dir = Some(dir); }
+        }
       }
     });
   }

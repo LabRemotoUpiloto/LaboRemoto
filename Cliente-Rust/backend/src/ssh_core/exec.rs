@@ -3,20 +3,37 @@ use crate::cmd::state::{CachedSsh2, SESSIONS};
 use crate::error::AppError;
 
 /// Devuelve o crea la sesión ssh2 cacheada para el session_id dado.
+///
+/// Perf: el handshake+auth de `connect_password` (potencialmente varios
+/// segundos en un host lento) NUNCA se hace con el lock de `SESSIONS`
+/// tomado — ese mutex es global y compartido por todas las sesiones
+/// activas, así que retenerlo durante I/O de red bloquearía terminal/SFTP/
+/// GPIO de cualquier otra sesión mientras esta se conecta.
 pub fn acquire_ssh2(id: &str) -> Result<std::sync::Arc<std::sync::Mutex<CachedSsh2>>, String> {
+    let (host, port, user, password) = {
+        let map = SESSIONS.lock().map_err(|e| e.to_string())?;
+        let s = map.get(id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
+        if let Some(existing) = s.sftp_cached.clone() {
+            return Ok(existing);
+        }
+        (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+    };
+
+    let (tcp, sess2) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
+        .map_err(|e| e.to_string())?;
+    let arc = std::sync::Arc::new(std::sync::Mutex::new(CachedSsh2::new(tcp, sess2)));
+
     let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let s = map
-        .get_mut(id)
-        .ok_or_else(|| AppError::NotFoundSession.to_string())?;
+    let s = map.get_mut(id).ok_or_else(|| AppError::NotFoundSession.to_string())?;
+    // Otra llamada concurrente puede haber conectado primero mientras
+    // esta esperaba la red: en ese caso se descarta la nueva conexión y
+    // se reutiliza la que ya quedó cacheada, para no dejar dos sesiones
+    // SSH abiertas hacia el mismo host.
     if let Some(existing) = s.sftp_cached.clone() {
-        Ok(existing)
-    } else {
-        let (tcp, sess2) = crate::ssh_core::ssh2_sftp::connect_password(&s.host, s.port, &s.user, &s.password)
-            .map_err(|e| e.to_string())?;
-        let arc = std::sync::Arc::new(std::sync::Mutex::new(CachedSsh2::new(tcp, sess2)));
-        s.sftp_cached = Some(arc.clone());
-        Ok(arc)
+        return Ok(existing);
     }
+    s.sftp_cached = Some(arc.clone());
+    Ok(arc)
 }
 
 /// Ejecuta un comando shell vía la sesión ssh2 cacheada identificada por `id`.

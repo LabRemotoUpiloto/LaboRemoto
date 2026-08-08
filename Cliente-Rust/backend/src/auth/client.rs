@@ -13,11 +13,23 @@
 //! RS256 con JWKS se añadirá en la Fase 3 sin modificar esta interfaz.
 
 use std::time::{Duration, Instant};
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 
 use crate::error::AppError;
 use crate::state_core::TokenBundle;
 use super::{config::KeycloakConfig, jwt};
+
+// Perf: `reqwest::Client` es barato de clonar (Arc interno) pero costoso de
+// construir (pool TCP/TLS nuevo). `KeycloakClient::new` se llama por cada
+// comando admin_* (búsqueda de usuarios, roles, etc.), así que se comparte
+// una sola instancia subyacente en vez de reconstruirla cada vez.
+static SHARED_HTTP: Lazy<reqwest::Client> = Lazy::new(|| {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .expect("[auth::client] reqwest::Client siempre se puede construir")
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos internos
@@ -62,13 +74,10 @@ pub struct KeycloakClient {
 }
 
 impl KeycloakClient {
-    /// Construye el cliente con un timeout de 15 segundos por petición.
+    /// Construye el cliente reutilizando el `reqwest::Client` compartido
+    /// (timeout de 15 segundos por petición).
     pub fn new(config: KeycloakConfig) -> Self {
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(15))
-            .build()
-            .expect("[auth::client] reqwest::Client siempre se puede construir");
-        Self { config, http }
+        Self { config, http: SHARED_HTTP.clone() }
     }
 
     /// Intercambia el código de autorización por un par de tokens (AUTH_SPEC §3, paso 7).

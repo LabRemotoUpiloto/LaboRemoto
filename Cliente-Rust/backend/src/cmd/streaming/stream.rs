@@ -8,9 +8,19 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use once_cell::sync::Lazy;
 use crate::cmd::state::{SESSIONS, CameraInfo};
 use crate::cmd::protocol::CommandError;
 use crate::error::AppError;
+
+// Perf: cliente HTTP compartido para el intercambio WHEP — evita reconstruir
+// el pool TCP/TLS en cada conexión de cámara.
+static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .unwrap_or_default()
+});
 
 #[tauri::command]
 pub async fn stream_start(
@@ -179,10 +189,7 @@ pub fn stream_get_host(session_id: String) -> Result<StreamHostInfo, CommandErro
 /// Recibe la URL WHEP y el SDP offer, devuelve el SDP answer de MediaMTX.
 #[tauri::command]
 pub async fn whep_exchange(url: String, sdp_offer: String) -> Result<String, CommandError> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| CommandError::internal("HTTP_CLIENT_ERROR", e.to_string()))?;
+    let client = &*HTTP_CLIENT;
 
     let resp = client
         .post(&url)

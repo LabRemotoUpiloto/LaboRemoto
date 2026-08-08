@@ -93,6 +93,12 @@ pub fn run() {
       cmd::ssh::gpio::rpi_pin_read,
       cmd::ssh::gpio::rpi_pins_monitor_start,
       cmd::ssh::gpio::rpi_pins_monitor_stop,
+      // Terminal local (PTY embebido)
+      cmd::terminal_local::local_term_spawn,
+      cmd::terminal_local::local_term_ui_ready,
+      cmd::terminal_local::local_term_stdin,
+      cmd::terminal_local::local_term_resize,
+      cmd::terminal_local::local_term_close,
       // SFTP
       cmd::sftp::operations::sftp_open,
       cmd::sftp::operations::sftp_home,
@@ -155,6 +161,7 @@ pub fn run() {
       cmd::logs::logs::get_session_log,
       cmd::logs::logs::delete_session_log,
       cmd::logs::logs::cleanup_old_session_logs,
+      cmd::logs::logs::extract_session_commands,
       // PDF reports locales
       cmd::filesystem::pdf_reports::save_pdf_base64,
       // Escritorio gráfico remoto (VNC sobre SSH)

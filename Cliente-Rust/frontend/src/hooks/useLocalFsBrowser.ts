@@ -51,9 +51,18 @@ export function useLocalFsBrowser() {
     [path, drives.length]
   );
 
+  // Solo al montar: resuelve el directorio home (path === "") y hace el
+  // primer listado. Antes dependía de `[refresh]`, cuya identidad cambia
+  // en cuanto `refresh()` resuelve el home y llama `setPath(root)` — eso
+  // volvía a disparar este efecto y duplicaba `local_list_drives`/
+  // `local_list_dir` en cada apertura del panel local. La navegación
+  // posterior ya la disparan explícitamente los callers (ver
+  // `handleLocalNavigate` en SftpPage), así que no hace falta reaccionar
+  // a cambios de `path` aquí.
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     clearSelection();

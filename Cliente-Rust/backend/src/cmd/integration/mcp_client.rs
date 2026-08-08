@@ -21,7 +21,9 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::Mutex;
 use directories::ProjectDirs;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use crate::cmd::protocol::CommandError;
 
@@ -265,22 +267,46 @@ pub fn load_mcp_tool_defs() -> Vec<serde_json::Value> {
         .collect()
 }
 
+// Perf: cachea la sesión MCP (proceso hijo + handshake `initialize`) por
+// servidor durante la vida de la app, en vez de spawn+initialize en CADA
+// llamada a una tool MCP dentro del loop del agente (que puede iterar
+// varias rondas por conversación).
+static MCP_SESSIONS: Lazy<Mutex<HashMap<String, McpSession>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
 /// Intenta ejecutar `tool_name` en el servidor MCP que lo registró.
 /// Devuelve `None` si ningún servidor conoce esa tool.
 pub fn exec_mcp_call(tool_name: &str, input: &serde_json::Value) -> Option<(String, bool)> {
     let cfg = load_configs()
         .into_iter()
         .find(|c| c.tools.iter().any(|t| t.name == tool_name))?;
-    let mut sess = match McpSession::start(&cfg) {
-        Ok(s) => s,
-        Err(e) => return Some((e, false)),
+
+    let mut sessions = match MCP_SESSIONS.lock() {
+        Ok(g) => g,
+        Err(_) => return Some(("MCP_SESSIONS lock poisoned".to_string(), false)),
     };
-    if let Err(e) = sess.initialize() {
-        return Some((e, false));
+
+    if !sessions.contains_key(&cfg.name) {
+        let mut sess = match McpSession::start(&cfg) {
+            Ok(s) => s,
+            Err(e) => return Some((e, false)),
+        };
+        if let Err(e) = sess.initialize() {
+            return Some((e, false));
+        }
+        sessions.insert(cfg.name.clone(), sess);
     }
+
+    let sess = sessions.get_mut(&cfg.name).expect("recién insertado o ya presente");
     match sess.call_tool(tool_name, input) {
         Ok(out) => Some((out, true)),
-        Err(e) => Some((e, false)),
+        Err(e) => {
+            // La sesión cacheada puede haber muerto (proceso hijo
+            // terminado/pipe roto): se descarta para reconectar en la
+            // próxima llamada en vez de quedar rota permanentemente.
+            sessions.remove(&cfg.name);
+            Some((e, false))
+        }
     }
 }
 
@@ -342,6 +368,7 @@ pub fn mcp_remove_server(name: String) -> Result<(), CommandError> {
     if configs.len() == before {
         return Err(CommandError::permanent("RESOURCE_NOT_FOUND", format!("Servidor '{}' no encontrado", name)));
     }
+    if let Ok(mut sessions) = MCP_SESSIONS.lock() { sessions.remove(&name); }
     save_configs(&configs)
 }
 

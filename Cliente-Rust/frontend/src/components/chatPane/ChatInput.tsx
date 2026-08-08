@@ -5,8 +5,8 @@ import { MAX_CHAR_WARN, MODE_PLACEHOLDERS, TOKEN_STORAGE_KEY } from './chatPane.
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { ActionIcon, Menu, Popover, Progress, Textarea } from '@mantine/core';
-import { Image, FileText, Send, Square, Activity, ChevronUp, ChevronDown, Plus, Paperclip, History, X, SquarePen } from 'lucide-react';
+import { ActionIcon, Menu, Textarea } from '@mantine/core';
+import { Image, FileText, Send, Square, Plus, Paperclip, History, X, SquarePen } from 'lucide-react';
 import ModelSelect from './ModelSelect';
 import { ModelSelection } from '../chatModes/types';
 
@@ -518,9 +518,7 @@ const ChatInput: React.FC<Props> = ({
                     ? 'Modo consulta · cambia a Agente en el selector junto al enviar'
                     : 'Modo consulta · conecta SSH o configura PI4 en .env para Agente')}
             </span>
-          ) : input.length === 0 ? (
-            <span className="text-secondary/40 font-medium">Shift+↵ nueva línea · Shift+? atajos</span>
-          ) : (
+          ) : input.length === 0 ? null : (
             <span className={`${input.length > MAX_CHAR_WARN ? 'text-red-400 font-semibold' : 'text-secondary/50 font-medium'}`}>
               {input.length > MAX_CHAR_WARN
                 ? `⚠ ${input.length.toLocaleString()} car. — mensaje muy largo`
@@ -528,78 +526,6 @@ const ChatInput: React.FC<Props> = ({
             </span>
           )}
         </div>
-
-        {/* Token badge */}
-        {!footerMinimal && (
-        <div className="relative">
-          <Popover opened={showTokenPopover} onChange={setShowTokenPopover} position="top-end" withArrow shadow="md">
-            <Popover.Target>
-              <button
-                className={`flex items-center h-5 px-1.5 rounded bg-[var(--background-primary)] border border-[var(--border-subtle)] text-[9px] font-mono tracking-wider cursor-pointer transition-colors duration-200 hover:bg-[var(--interactive-hover)] hover:border-[var(--border-strong)] text-[var(--text-secondary)]
-                  ${sessionTokens.input === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}`}
-                onClick={() => setShowTokenPopover(v => !v)}
-                title="Ver desglose de tokens de la sesión"
-              >
-                <Activity size={10} className="mr-1 opacity-70 text-[var(--accent-primary)]" />
-                <span className="text-[var(--accent-primary)]">{sessionTokens.input.toLocaleString()}</span>
-                <span className="mx-1 opacity-30"><ChevronUp size={9} /></span>
-                <span className="text-[var(--success)]">{sessionTokens.output.toLocaleString()}</span>
-                <span className="mx-1 opacity-30"><ChevronDown size={9} /></span>
-              </button>
-            </Popover.Target>
-            <Popover.Dropdown className="bg-[var(--background-secondary)] border border-[var(--border-subtle)] p-3 min-w-[220px]">
-              <div className="flex justify-between items-center text-xs mb-2">
-                <span className="text-[var(--text-secondary)] font-medium">Entrada</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-[var(--accent-primary)] font-mono tracking-wider">{sessionTokens.input.toLocaleString()}</span>
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-semibold">tok</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center text-xs mb-2">
-                <span className="text-[var(--text-secondary)] font-medium">Salida</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-[var(--success)] font-mono tracking-wider">{sessionTokens.output.toLocaleString()}</span>
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-semibold">tok</span>
-                </div>
-              </div>
-              <div className="h-[1px] bg-[var(--border-subtle)] my-2" />
-              <div className="flex justify-between items-center text-xs mb-2">
-                <span className="text-[var(--text-secondary)] font-medium">Total</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-[var(--text-primary)] font-mono tracking-wider">{(sessionTokens.input + sessionTokens.output).toLocaleString()}</span>
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-semibold">tok</span>
-                </div>
-              </div>
-              <div className="h-[1px] bg-[var(--border-subtle)] my-2" />
-              <div className="bg-[var(--background-tertiary)] rounded-lg p-2.5 mt-2 border border-[var(--border-subtle)]">
-                <div className="flex justify-between items-center text-xs mb-1.5">
-                  <span className="text-[var(--text-secondary)]/70 font-medium">Contexto ~</span>
-                  <span className={`text-[10.5px] font-mono ${ctxUsagePct > 90 ? 'text-[var(--danger-text)]' : ctxUsagePct > 70 ? 'text-[var(--warning-text)]' : 'text-[var(--text-secondary)]/60'}`}>
-                    {sessionTokens.input.toLocaleString()} tok ({ctxUsagePct.toFixed(1)}%)
-                  </span>
-                </div>
-                <Progress 
-                  value={ctxUsagePct} 
-                  color={ctxUsagePct > 90 ? 'red' : ctxUsagePct > 70 ? 'yellow' : 'violet'} 
-                  size="sm" 
-                  radius="xl" 
-                />
-              </div>
-              <button 
-                className="w-full mt-3 h-7 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 rounded-md text-[11px] font-medium transition-all duration-200 cursor-pointer"
-                onClick={() => {
-                  const zeroed = { input: 0, output: 0 };
-                  setSessionTokens(zeroed);
-                  try { localStorage.setItem(TOKEN_STORAGE_KEY(sessionId ?? null), JSON.stringify(zeroed)); } catch {}
-                  setShowTokenPopover(false);
-                }}
-              >
-                Reiniciar contador
-              </button>
-            </Popover.Dropdown>
-          </Popover>
-        </div>
-        )}
       </div>
     </div>
   );

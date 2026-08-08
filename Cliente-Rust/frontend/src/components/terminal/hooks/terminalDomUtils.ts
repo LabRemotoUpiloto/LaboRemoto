@@ -123,11 +123,5 @@ export function applyXtermTheme(
 
   try { term.setOption('theme', themeObj); } catch { (term as any).options.theme = themeObj; }
 
-  // Forzamos el parpadeo y estilo del cursor en cada cambio de tema
-  try { term.setOption('cursorBlink', true); } catch {}
-  try { term.setOption('cursorStyle', 'block'); } catch {}
-
-  try { term.write('\x1b[?25h'); } catch {}
   try { term.refresh(0, term.rows - 1); } catch {}
-  try { ensureBlinkClasses(containerRef); } catch {}
 }

@@ -52,6 +52,10 @@ fn load_prompts_or_default() -> PromptsConfig {
 
 static PROMPTS: Lazy<PromptsConfig> = Lazy::new(|| load_prompts_or_default());
 
+// Perf: cliente HTTP compartido para el chat IA — evita reconstruir el pool
+// TCP/TLS en cada mensaje enviado.
+static HTTP_CLIENT: Lazy<Client> = Lazy::new(Client::new);
+
 /// Tipo de modo del chat canónico.
 /// Se unifica a un solo modo 'ask' para mantener FE y BE sincronizados.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -448,7 +452,7 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   let system_prompt = get_system_prompt(&incoming_mode);
 
   // Construir historial de mensajes para OpenAI: system + historial completo del cliente + user actual
-  let client = Client::builder().build().map_err(|e| e.to_string())?;
+  let client = &*HTTP_CLIENT;
   let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({"role":"system","content": system_prompt})];
   // Inyectar pista de sesión como mensaje de sistema (NO imprimir)
   if let Some(ref st) = state {
