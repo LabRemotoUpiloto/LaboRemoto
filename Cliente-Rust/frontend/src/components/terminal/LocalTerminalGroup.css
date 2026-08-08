@@ -45,6 +45,15 @@
   min-width: 0;
   min-height: 0;
   position: relative;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  box-sizing: border-box;
+}
+
+.local-terminal-leaf.is-active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
 }
 
 .local-terminal-leaf-toolbar {

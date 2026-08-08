@@ -18,12 +18,12 @@
  * remuevan antes de que el terminal se destruya — igual que en el efecto único
  * original.
  */
-import { useEffect, MutableRefObject, RefObject } from 'react';
+import { useEffect, useRef, MutableRefObject, RefObject } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SerializeAddon } from '@xterm/addon-serialize';
-import { applyXtermTheme, canRefocusTerminal, ensureBlinkClasses } from './terminalDomUtils';
+import { applyXtermTheme, canRefocusTerminal } from './terminalDomUtils';
 
 interface UseTerminalLifecycleParams {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -34,6 +34,7 @@ interface UseTerminalLifecycleParams {
   serializeRef: MutableRefObject<SerializeAddon | null>;
   hasFocusedOnceRef: MutableRefObject<boolean>;
   unlistenRef: MutableRefObject<(() => void) | null>;
+  isActive?: boolean;
   /**
    * Invocado en el cleanup, ANTES de destruir el terminal, para intentar
    * capturar/guardar la sesión actual (ver useTerminalSessionCapture.captureCurrentSession).
@@ -50,8 +51,11 @@ export function useTerminalLifecycle({
   serializeRef,
   hasFocusedOnceRef,
   unlistenRef,
+  isActive = true,
   onDispose,
 }: UseTerminalLifecycleParams): void {
+  const isActiveRef = useRef<boolean>(isActive);
+  isActiveRef.current = isActive;
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -88,28 +92,8 @@ export function useTerminalLifecycle({
         try { term.scrollToBottom(); } catch {}
       });
 
-      // Blink JS directo - más confiable que CSS con xterm DOM renderer
-      let blinkVisible = true;
-      const blinkInterval = window.setInterval(() => {
-        const root = containerRef.current;
-        if (!root) return;
-        const cursor = root.querySelector<HTMLElement>('.xterm-cursor-outline, .xterm-cursor-block, .xterm-cursor-bar');
-        if (cursor) {
-          cursor.style.setProperty('opacity', blinkVisible ? '1' : '0', 'important');
-        }
-        blinkVisible = !blinkVisible;
-      }, 600);
-      (term as any)._blinkInterval = blinkInterval;
-
+      // Hacer visible el cursor con secuencia ANSI
       term.write('\x1b[?25h');
-
-      requestAnimationFrame(() => {
-        try {
-          termRef.current?.focus();
-          hasFocusedOnceRef.current = true;
-          ensureBlinkClasses(containerRef);
-        } catch {}
-      });
 
       termRef.current = term;
       fitRef.current = fit;
@@ -117,10 +101,15 @@ export function useTerminalLifecycle({
       try { applyXtermTheme(termRef, containerRef); } catch {}
       try { requestAnimationFrame(() => applyXtermTheme(termRef, containerRef)); } catch {}
 
-      // Suscribirse al renderizado para asegurar que el cursor siempre tenga la clase blink
-      if ((term as any).onRender) {
-        (term as any).onRender(() => ensureBlinkClasses(containerRef));
-      }
+      // Enfocar si es el panel activo
+      requestAnimationFrame(() => {
+        try {
+          if (isActiveRef.current) {
+            term.focus();
+            hasFocusedOnceRef.current = true;
+          }
+        } catch {}
+      });
 
       try {
         container.addEventListener('mousedown', () => {
@@ -154,15 +143,7 @@ export function useTerminalLifecycle({
     try { mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch {}
 
     return () => {
-      // Fire-and-forget, igual que en el hook monolítico original: no se espera
-      // (`await`) ni se captura el error acá — `onDispose` (captureCurrentSession)
-      // maneja su propio estado de error internamente.
       onDispose();
-
-      try {
-        const bi = (term as any)._blinkInterval;
-        if (bi) window.clearInterval(bi);
-      } catch {}
 
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
@@ -173,4 +154,18 @@ export function useTerminalLifecycle({
     applyXtermTheme(termRef, containerRef);
     try { requestAnimationFrame(() => applyXtermTheme(termRef, containerRef)); } catch {}
   }, [theme]);
+
+  // Controlar foco entre paneles split — xterm maneja el cursor nativamente
+  useEffect(() => {
+    const term = termRef.current;
+    if (!term) return;
+
+    if (isActive) {
+      try { term.options.cursorBlink = true; } catch {}
+      try { term.focus(); } catch {}
+    } else {
+      try { term.options.cursorBlink = false; } catch {}
+      try { term.blur(); } catch {}
+    }
+  }, [isActive]);
 }

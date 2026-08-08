@@ -6,13 +6,14 @@ import { useLocalTerminal } from './useLocalTerminal';
 
 type Props = {
   paneId: string;
+  isActive?: boolean;
 };
 
 /** Leaf component de un panel de terminal local — mirror de TerminalPane.tsx. */
-const LocalTerminalPane: React.FC<Props> = ({ paneId }) => {
+const LocalTerminalPane: React.FC<Props> = ({ paneId, isActive = true }) => {
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { isLoading, hasExited } = useLocalTerminal(paneId, containerRef, theme);
+  const { isLoading, hasExited } = useLocalTerminal(paneId, containerRef, theme, isActive);
 
   return (
     <div className="terminal-pane" ref={containerRef}>

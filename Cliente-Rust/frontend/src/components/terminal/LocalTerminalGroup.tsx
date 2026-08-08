@@ -49,22 +49,29 @@ type Props = {
  */
 const LocalTerminalGroup: React.FC<Props> = ({ tabId, onEmptyGroup }) => {
   const [tree, setTree] = useState<SplitNode>(() => ({ type: 'leaf', id: crypto.randomUUID() }));
+  const [activePaneId, setActivePaneId] = useState<string | null>(null);
   const setLocalTerminalPanes = useAppStore(s => s.setLocalTerminalPanes);
   const clearLocalTerminalPanes = useAppStore(s => s.clearLocalTerminalPanes);
 
   useEffect(() => {
-    setLocalTerminalPanes(tabId, collectLeafIds(tree));
-  }, [tree, tabId, setLocalTerminalPanes]);
+    const leaves = collectLeafIds(tree);
+    setLocalTerminalPanes(tabId, leaves);
+    if (leaves.length > 0 && (!activePaneId || !leaves.includes(activePaneId))) {
+      setActivePaneId(leaves[0]);
+    }
+  }, [tree, tabId, setLocalTerminalPanes, activePaneId]);
 
   useEffect(() => () => { clearLocalTerminalPanes(tabId); }, [tabId, clearLocalTerminalPanes]);
 
   const splitPane = useCallback((leafId: string, direction: 'horizontal' | 'vertical') => {
+    const newId = crypto.randomUUID();
     setTree(prev => replaceLeaf(prev, leafId, {
       type: 'split',
       id: crypto.randomUUID(),
       direction,
-      children: [{ type: 'leaf', id: leafId }, { type: 'leaf', id: crypto.randomUUID() }],
+      children: [{ type: 'leaf', id: leafId }, { type: 'leaf', id: newId }],
     }));
+    setActivePaneId(newId);
   }, []);
 
   const closePane = useCallback((leafId: string) => {
@@ -81,21 +88,37 @@ const LocalTerminalGroup: React.FC<Props> = ({ tabId, onEmptyGroup }) => {
 
   const renderNode = (node: SplitNode): React.ReactNode => {
     if (node.type === 'leaf') {
+      const isActive = node.id === activePaneId;
       return (
-        <div className="local-terminal-leaf">
+        <div
+          className={`local-terminal-leaf ${isActive ? 'is-active' : ''}`}
+          onMouseDown={() => setActivePaneId(node.id)}
+        >
           <div className="local-terminal-leaf-toolbar">
-            <button type="button" title="Dividir a la derecha" onClick={() => splitPane(node.id, 'horizontal')}>
+            <button
+              type="button"
+              title="Dividir a la derecha"
+              onClick={(e) => { e.stopPropagation(); splitPane(node.id, 'horizontal'); }}
+            >
               <SplitSquareHorizontal size={14} />
             </button>
-            <button type="button" title="Dividir abajo" onClick={() => splitPane(node.id, 'vertical')}>
+            <button
+              type="button"
+              title="Dividir abajo"
+              onClick={(e) => { e.stopPropagation(); splitPane(node.id, 'vertical'); }}
+            >
               <SplitSquareVertical size={14} />
             </button>
-            <button type="button" title="Cerrar panel" onClick={() => closePane(node.id)}>
+            <button
+              type="button"
+              title="Cerrar panel"
+              onClick={(e) => { e.stopPropagation(); closePane(node.id); }}
+            >
               <X size={14} />
             </button>
           </div>
           <div className="local-terminal-leaf-body">
-            <LocalTerminalPane paneId={node.id} />
+            <LocalTerminalPane paneId={node.id} isActive={isActive} />
           </div>
         </div>
       );
@@ -119,3 +142,4 @@ const LocalTerminalGroup: React.FC<Props> = ({ tabId, onEmptyGroup }) => {
 };
 
 export default LocalTerminalGroup;
+

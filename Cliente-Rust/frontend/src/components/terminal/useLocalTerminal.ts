@@ -21,6 +21,7 @@ export function useLocalTerminal(
   paneId: string,
   containerRef: RefObject<HTMLDivElement>,
   theme: string,
+  isActive: boolean = true,
 ) {
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -63,6 +64,7 @@ export function useLocalTerminal(
     serializeRef,
     hasFocusedOnceRef,
     unlistenRef,
+    isActive,
     onDispose: captureCurrentSession,
   });
 
