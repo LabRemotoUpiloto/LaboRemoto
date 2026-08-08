@@ -20,7 +20,6 @@
 import { useEffect, MutableRefObject, RefObject } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { sshResize } from '../../../services/ssh.service';
 import { canRefocusTerminal, isPaneVisible } from './terminalDomUtils';
 
 interface UseTerminalResizeParams {
@@ -29,6 +28,8 @@ interface UseTerminalResizeParams {
   termRef: MutableRefObject<Terminal | null>;
   fitRef: MutableRefObject<FitAddon | null>;
   hasFocusedOnceRef: MutableRefObject<boolean>;
+  /** Notifica el nuevo tamaño (cols/rows) al backend correspondiente (SSH o terminal local). */
+  notifyResize: (cols: number, rows: number) => Promise<void>;
 }
 
 export function useTerminalResize({
@@ -37,6 +38,7 @@ export function useTerminalResize({
   termRef,
   fitRef,
   hasFocusedOnceRef,
+  notifyResize,
 }: UseTerminalResizeParams): void {
   useEffect(() => {
     const container = containerRef.current;
@@ -51,72 +53,46 @@ export function useTerminalResize({
     const lastColsRef: MutableRefObject<number> = { current: 80 };
     const lastBackendSizeRef: MutableRefObject<{ cols: number; rows: number } | null> = { current: null };
 
+    const isTermReady = () => {
+      const term = termRef.current;
+      const fit = fitRef.current;
+      const cont = containerRef.current;
+      if (!term || !fit || !cont) return false;
+      if (!term.element || !cont.contains(term.element)) return false;
+      const renderService = (term as any)._core?._renderService;
+      if (!renderService || !renderService.dimensions) return false;
+      return isPaneVisible(containerRef);
+    };
+
+    const safeFit = () => {
+      if (!isTermReady()) return;
+      try {
+        const proposed = fitRef.current?.proposeDimensions();
+        if (!proposed || proposed.cols <= 0 || proposed.rows <= 0) return;
+        const term = termRef.current;
+        if (!term) return;
+        if (term.cols !== proposed.cols || term.rows !== proposed.rows) {
+          term.resize(proposed.cols, proposed.rows);
+          notifyResize(proposed.cols, proposed.rows).catch(() => {});
+        }
+      } catch {}
+    };
+
     const onResize = () => {
-      if (!isPaneVisible(containerRef)) return;
-      try { fitRef.current?.fit(); } catch {}
+      safeFit();
       try { if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal(containerRef)) termRef.current.focus(); } catch {}
     };
 
     window.addEventListener('resize', onResize);
 
-    const smartResize = () => {
-      if (!termRef.current || !fitRef.current || !containerRef.current) return;
-      if (!isPaneVisible(containerRef)) return;
-      const cont = containerRef.current;
-      if (cont.clientWidth < 50 || cont.clientHeight < 30) return;
-
-      try {
-        const proposed = fitRef.current.proposeDimensions();
-        if (!proposed || proposed.cols <= 0 || proposed.rows <= 0) return;
-
-        // Lógica Asimétrica: Solo permitimos que las columnas CREZCAN visualmente de forma inmediata.
-        // Esto evita que xterm intente hacer wrap del prompt cuando achicas el panel.
-        const currentCols = termRef.current.cols;
-        const newCols = proposed.cols > currentCols ? proposed.cols : currentCols;
-        const newRows = proposed.rows;
-
-        if (newCols !== termRef.current.cols || newRows !== termRef.current.rows) {
-          termRef.current.resize(newCols, newRows);
-          lastColsRef.current = newCols;
-        }
-      } catch (e) {
-        try { fitRef.current.fit(); } catch {}
-      }
-    };
-
     const debouncedResize = () => {
       if (resizeThrottleRef.current) {
         window.clearTimeout(resizeThrottleRef.current);
       }
-
-      // Ajuste visual instantáneo (crecimiento asimétrico) para fluidez
-      smartResize();
-
-      // Notificación al servidor con un delay mayor (fin del drag)
+      safeFit();
       resizeThrottleRef.current = window.setTimeout(() => {
-        const term = termRef.current;
-        const fit = fitRef.current;
-        if (!term || !fit || !sessionId) return;
-
-        try {
-          if (!isPaneVisible(containerRef)) return;
-          const proposed = fit.proposeDimensions();
-          if (proposed && proposed.cols > 0 && proposed.rows > 0) {
-            const last = lastBackendSizeRef.current;
-            if (last && last.cols === proposed.cols && last.rows === proposed.rows) return;
-            lastBackendSizeRef.current = { cols: proposed.cols, rows: proposed.rows };
-
-            // Aquí sí aplicamos el tamaño real (incluso si es menor) al servidor
-            term.resize(proposed.cols, proposed.rows);
-            sshResize(sessionId, proposed.cols, proposed.rows).catch(() => {});
-
-            // Forzar scroll al fondo después del reflow real de tamaño
-            setTimeout(() => {
-              try { term.scrollToBottom(); } catch {}
-            }, 50);
-          }
-        } catch {}
-      }, 500);
+        safeFit();
+      }, 100);
     };
 
     const onSidebarToggled = () => { debouncedResize(); };
@@ -125,6 +101,7 @@ export function useTerminalResize({
     window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
     window.addEventListener('app:bottombar-toggled', onBottomBarToggled as any);
     window.addEventListener('app:pins-toggled', onPinsToggled as any);
+
 
     if (container && window.ResizeObserver) {
       resizeObserverRef.current = new ResizeObserver((entries) => {

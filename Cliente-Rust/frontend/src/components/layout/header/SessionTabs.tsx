@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useLayoutEffect } from 'react';
 import { Tabs, UnstyledButton, rem } from '@mantine/core';
 import { gsap } from 'gsap';
+import { SquareTerminal } from 'lucide-react';
 import { CloseIcon, Tab } from './HeaderConstants';
 
 interface SessionTabsProps {
@@ -9,6 +10,7 @@ interface SessionTabsProps {
   onTabClick: (id: string) => void;
   onCloseTab: (id: string) => void;
   onNewSession: () => void;
+  onNewLocalTerminal: () => void;
   activePanel: string;
   dragOver: string | null;
   dragRef: React.MutableRefObject<string | null>;
@@ -23,6 +25,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
   onTabClick,
   onCloseTab,
   onNewSession,
+  onNewLocalTerminal,
   activePanel,
   dragOver,
   dragRef,
@@ -75,7 +78,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
     }
   }, [tabs.length]);
 
-  const sessionTabsList = tabs.filter(t => t.type === 'session');
+  const sessionTabsList = tabs.filter(t => t.type === 'session' || t.type === 'local-terminal');
 
   if (sessionTabsList.length === 0 && activePanel !== 'terminal') return null;
 
@@ -152,8 +155,18 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         <UnstyledButton
           className="flex items-center justify-center w-[24px] h-[24px] rounded-md text-secondary hover:text-primary hover:bg-secondary transition-colors shrink-0"
           onClick={onNewSession}
+          aria-label="Nueva sesión SSH"
+          title="Nueva sesión SSH"
         >
           <svg viewBox="0 0 13 13" fill="none" className="w-3 h-3"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+        </UnstyledButton>
+        <UnstyledButton
+          className="flex items-center justify-center w-[24px] h-[24px] rounded-md text-secondary hover:text-primary hover:bg-secondary transition-colors shrink-0"
+          onClick={onNewLocalTerminal}
+          aria-label="Nueva terminal local"
+          title="Nueva terminal local"
+        >
+          <SquareTerminal size={13} />
         </UnstyledButton>
       </div>
     </div>

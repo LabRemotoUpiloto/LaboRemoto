@@ -93,6 +93,12 @@ pub fn run() {
       cmd::ssh::gpio::rpi_pin_read,
       cmd::ssh::gpio::rpi_pins_monitor_start,
       cmd::ssh::gpio::rpi_pins_monitor_stop,
+      // Terminal local (PTY embebido)
+      cmd::terminal_local::local_term_spawn,
+      cmd::terminal_local::local_term_ui_ready,
+      cmd::terminal_local::local_term_stdin,
+      cmd::terminal_local::local_term_resize,
+      cmd::terminal_local::local_term_close,
       // SFTP
       cmd::sftp::operations::sftp_open,
       cmd::sftp::operations::sftp_home,

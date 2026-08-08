@@ -46,6 +46,7 @@ import { useTerminalLifecycle } from './hooks/useTerminalLifecycle';
 import { useTerminalSessionCapture } from './hooks/useTerminalSessionCapture';
 import { useTerminalSshListener } from './hooks/useTerminalSshListener';
 import { canRefocusTerminal } from './hooks/terminalDomUtils';
+import { sshResize } from '../../services/ssh.service';
 import { TerminalSessionMetadata } from './hooks/terminalTypes';
 
 export function useTerminal(
@@ -91,6 +92,7 @@ export function useTerminal(
     termRef,
     fitRef,
     hasFocusedOnceRef,
+    notifyResize: (cols, rows) => sshResize(sessionId!, cols, rows),
   });
 
   useTerminalLifecycle({

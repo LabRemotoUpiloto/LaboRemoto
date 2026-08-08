@@ -6,6 +6,7 @@
 
 pub mod state;       // Estado compartido entre comandos (sesiones SSH activas)
 pub mod ssh;         // Conexión SSH interactiva
+pub mod terminal_local; // Terminal local embebida (PTY nativo: powershell/pwsh en Windows, $SHELL en Unix)
 pub mod sftp;        // Operaciones SFTP y transferencias
 pub mod vnc;         // Escritorio gráfico remoto (Xvfb + x11vnc + noVNC)
 pub mod ai;          // Chat con IA, agente y utilidades

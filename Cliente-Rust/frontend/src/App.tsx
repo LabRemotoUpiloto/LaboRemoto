@@ -95,7 +95,7 @@ const AppMain: React.FC = () => {
     pendingHost, setPendingHost,
     selectedPage, activeTab,
     openSession, closeTab,
-    handleNewSession, openLogTab,
+    handleNewSession, openLogTab, openLocalTerminalTab,
     openPanels, activePanel,
     openPanel, closePanel: closePanelTab,
     activeView, setActiveView,
@@ -140,7 +140,7 @@ const AppMain: React.FC = () => {
     const clickedTab = tabs.find(t => t.id === id)
     if (clickedTab?.type === 'home') {
       if (!HOME_PAGES.includes(activePanel)) handleOpenPanel('landing')
-    } else if (clickedTab?.type === 'session') {
+    } else if (clickedTab?.type === 'session' || clickedTab?.type === 'local-terminal') {
       handleOpenPanel('terminal')
     }
   }
@@ -156,7 +156,7 @@ const AppMain: React.FC = () => {
 
   const handleClosePanel = (panelId: string) => {
     if (panelId === 'terminal') {
-      const sessionTabs = tabs.filter(t => t.type === 'session')
+      const sessionTabs = tabs.filter(t => t.type === 'session' || t.type === 'local-terminal')
       sessionTabs.forEach(t => handleCloseTab(t.id))
     }
     closePanelTab(panelId)
@@ -190,7 +190,7 @@ const AppMain: React.FC = () => {
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
   const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
   const isH2Visible = activePanel === 'terminal'
-  const hasSessionTabs = tabs.some(t => t.type === 'session')
+  const hasSessionTabs = tabs.some(t => t.type === 'session' || t.type === 'local-terminal')
   const isSessionActive = activeTab.type === 'session'
 
   if (isLoading) {
@@ -230,6 +230,7 @@ const AppMain: React.FC = () => {
               onTabClick={handleTabClick}
               onCloseTab={handleCloseTab}
               onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
+              onNewLocalTerminal={openLocalTerminalTab}
               showSessionActions={isSessionActive}
               activeView={activeView}
               onViewChange={setActiveView}
@@ -274,6 +275,7 @@ const AppMain: React.FC = () => {
                 sftpPaths={sftpPaths}
                 setSftpPaths={setSftpPaths}
                 practiceMeta={practiceMeta}
+                onCloseTab={handleCloseTab}
               />
               <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />
             </main>

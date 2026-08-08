@@ -11,6 +11,8 @@
 import { useCallback } from 'react';
 import type { Tab } from './useAppTabs';
 import { vncStop, sshDisconnect } from '../services/ssh.service';
+import { localTermClose } from '../services/localTerminal.service';
+import { useAppStore } from '../store/app';
 
 const SAVE_TIMEOUT_MS = 2000;
 
@@ -52,6 +54,21 @@ export function useTabLifecycle({ tabs, closeTab, clearPracticeMeta }: UseTabLif
 
     // Los tabs de log se cierran directamente, sin lógica SSH
     if (tab?.type === 'log') {
+      closeTab(id);
+      return;
+    }
+
+    // Terminal local: N paneles con N sesiones PTY backend independientes
+    // (no 1 tab = 1 sesión, como en SSH) — se guarda/cierra cada una.
+    if (tab?.type === 'local-terminal') {
+      const paneIds = useAppStore.getState().localTerminalPanes[id] || [];
+      await Promise.all(paneIds.map(async (paneId) => {
+        window.dispatchEvent(new CustomEvent('app:save-session-before-close', { detail: { sessionId: paneId } }));
+        await waitForSessionSave(paneId);
+      }));
+      await Promise.all(paneIds.map((paneId) => localTermClose(paneId).catch(() => {})));
+      useAppStore.getState().clearLocalTerminalPanes(id);
+      clearPracticeMeta(id);
       closeTab(id);
       return;
     }

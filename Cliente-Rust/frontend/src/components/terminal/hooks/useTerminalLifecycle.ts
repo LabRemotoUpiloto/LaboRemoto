@@ -82,6 +82,7 @@ export function useTerminalLifecycle({
       try { (term as any).options.rendererType = 'dom'; } catch {}
 
       term.open(container);
+      try { fit.fit(); } catch {}
 
       term.onWriteParsed(() => {
         try { term.scrollToBottom(); } catch {}
