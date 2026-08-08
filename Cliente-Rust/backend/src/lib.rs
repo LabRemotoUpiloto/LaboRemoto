@@ -99,6 +99,9 @@ pub fn run() {
       cmd::terminal_local::local_term_stdin,
       cmd::terminal_local::local_term_resize,
       cmd::terminal_local::local_term_close,
+      cmd::terminal_local::local_term_save_paste_image,
+      cmd::terminal_local::local_term_read_clipboard,
+      cmd::terminal_local::local_term_write_clipboard,
       // SFTP
       cmd::sftp::operations::sftp_open,
       cmd::sftp::operations::sftp_home,
@@ -220,6 +223,9 @@ pub fn run() {
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {
         crate::cmd::vnc::cleanup_all_vnc_sessions();
+        // En Windows los procesos hijos no mueren con el padre: matar las
+        // shells PTY locales para no dejar procesos huérfanos.
+        crate::cmd::terminal_local::cleanup_all_local_term_sessions();
       }
     })
     .run(tauri::generate_context!())

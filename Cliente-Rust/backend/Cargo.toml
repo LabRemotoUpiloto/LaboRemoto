@@ -41,6 +41,12 @@ ssh2 = "0.9"
 # PTY local (terminal local embebida, ConPTY en Windows / pty real en Unix)
 portable-pty = "0.9"
 
+# Portapapeles nativo (leer/escribir texto e imágenes desde el backend —
+# navigator.clipboard no existe en el webview: http://tauri.localhost no es
+# contexto seguro en Windows). png ya venía como dependencia transitiva.
+arboard = { version = "3", default-features = false, features = ["image-data"] }
+png = "0.17"
+
 # Tauri v2
 tauri = { version = "2", features = [] }
 tauri-plugin-updater = "2"
