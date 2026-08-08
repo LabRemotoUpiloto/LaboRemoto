@@ -99,15 +99,26 @@ export function useAppTabs() {
     openSession(id, label);
   };
 
-  const openLocalTerminalTab = () => {
+  const openLocalTerminalTab = useCallback(() => {
     const id = crypto.randomUUID();
-    const n = tabs.filter(t => t.type === 'local-terminal').length + 1;
-    setTabs(prev => [...prev, { id, type: 'local-terminal', label: n > 1 ? `Terminal local #${n}` : 'Terminal local' }]);
+    setTabs(prev => {
+      const n = prev.filter(t => t.type === 'local-terminal').length + 1;
+      return [...prev, { id, type: 'local-terminal', label: n > 1 ? `Terminal local #${n}` : 'Terminal local' }];
+    });
     setActiveTabId(id);
     setSelectedPage('terminal');
     setOpenPanels(prev => prev.includes('terminal') ? prev : [...prev, 'terminal']);
     setActivePanel('terminal');
-  };
+  }, []);
+
+  // "Nueva pestaña de terminal" desde el menú contextual de un panel
+  // (LocalTerminalGroup) — el grupo vive muy abajo en el árbol, así que se
+  // comunica por CustomEvent, mismo patrón que los eventos `app:*` existentes.
+  useEffect(() => {
+    const onOpenLocalTerminal = () => openLocalTerminalTab();
+    window.addEventListener('app:open-local-terminal', onOpenLocalTerminal);
+    return () => window.removeEventListener('app:open-local-terminal', onOpenLocalTerminal);
+  }, [openLocalTerminalTab]);
 
   const openLogTab = (session: SessionLog) => {
     const logTabId = `log:${session.id}`;
