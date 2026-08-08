@@ -82,9 +82,6 @@ export function useTerminalLifecycle({
     try { container.setAttribute('tabindex', '0'); container.setAttribute('role', 'textbox'); } catch {}
 
     const initializeTerminal = () => {
-      // Fuerza DOM renderer ANTES de open() para que xterm lo use desde el inicio
-      try { (term as any).options.rendererType = 'dom'; } catch {}
-
       term.open(container);
       try { fit.fit(); } catch {}
 
@@ -123,16 +120,26 @@ export function useTerminalLifecycle({
       } catch {}
     };
 
-    const rect = container.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      initializeTerminal();
-    } else {
-      requestAnimationFrame(() => {
-        const r = container.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) {
-          initializeTerminal();
-        }
-      });
+    // Esperar a que el contenedor tenga tamaño real antes de open(): un panel
+    // recién creado por un split puede medir 0×0 durante la animación de
+    // layout. Con un solo reintento rAF la terminal podía no abrirse nunca
+    // (panel en blanco); el ResizeObserver espera lo que haga falta.
+    let sizeObserver: ResizeObserver | null = null;
+    let initialized = false;
+    const tryInitialize = (): boolean => {
+      if (initialized) return true;
+      const r = container.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        initialized = true;
+        initializeTerminal();
+        if (sizeObserver) { try { sizeObserver.disconnect(); } catch {} sizeObserver = null; }
+        return true;
+      }
+      return false;
+    };
+    if (!tryInitialize() && window.ResizeObserver) {
+      sizeObserver = new ResizeObserver(() => { tryInitialize(); });
+      sizeObserver.observe(container);
     }
 
     const mo = new MutationObserver((recs) => {
@@ -145,6 +152,8 @@ export function useTerminalLifecycle({
     return () => {
       onDispose();
 
+      if (sizeObserver) { try { sizeObserver.disconnect(); } catch {} }
+      try { mo.disconnect(); } catch {}
       try { term.dispose(); } catch {}
       if (unlistenRef.current) { try { unlistenRef.current(); } catch {} }
     };
