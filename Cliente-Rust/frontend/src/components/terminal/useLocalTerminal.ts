@@ -51,7 +51,6 @@ export function useLocalTerminal(
     sessionId: paneId,
     termRef,
     fitRef,
-    hasFocusedOnceRef,
     notifyResize: (cols, rows) => localTermResize(paneId, cols, rows),
   });
 

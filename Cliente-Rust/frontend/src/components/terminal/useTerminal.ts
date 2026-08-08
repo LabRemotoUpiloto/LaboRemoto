@@ -91,7 +91,6 @@ export function useTerminal(
     sessionId,
     termRef,
     fitRef,
-    hasFocusedOnceRef,
     notifyResize: (cols, rows) => sshResize(sessionId!, cols, rows),
   });
 
