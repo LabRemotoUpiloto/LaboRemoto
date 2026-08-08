@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import {
@@ -131,6 +131,29 @@ const LocalTerminalGroup: React.FC<Props> = ({ tabId, onEmptyGroup }) => {
 
   useEffect(() => () => { clearLocalTerminalPanes(tabId); }, [tabId, clearLocalTerminalPanes]);
 
+  // Reposiciona el menú contextual si se sale de la ventana (ej. click cerca
+  // del borde inferior/derecho): se abre en el punto del click igual que
+  // siempre, pero antes de pintar se mide y se "flipea" hacia el lado que sí
+  // tenga espacio, en vez de quedar cortado. useLayoutEffect corre antes del
+  // paint, así que no hay parpadeo del menú saltando de posición.
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = contextMenuRef.current;
+    if (!el || !contextMenu) return;
+    const margin = 8;
+    const rect = el.getBoundingClientRect();
+    let left = contextMenu.x;
+    let top = contextMenu.y;
+    if (left + rect.width > window.innerWidth - margin) {
+      left = Math.max(margin, contextMenu.x - rect.width);
+    }
+    if (top + rect.height > window.innerHeight - margin) {
+      top = Math.max(margin, contextMenu.y - rect.height);
+    }
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+  }, [contextMenu]);
+
   const splitPane = useCallback((leafId: string, direction: 'horizontal' | 'vertical') => {
     const newId = crypto.randomUUID();
     setTree(prev => replaceLeaf(prev, leafId, {
@@ -261,6 +284,7 @@ const LocalTerminalGroup: React.FC<Props> = ({ tabId, onEmptyGroup }) => {
       )}
       {contextMenu && (
         <div
+          ref={contextMenuRef}
           className="local-terminal-context-menu"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseDown={(e) => e.stopPropagation()}
