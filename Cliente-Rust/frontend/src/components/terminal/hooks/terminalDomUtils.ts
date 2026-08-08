@@ -42,29 +42,6 @@ export function isPaneVisible(containerRef: RefObject<HTMLDivElement | null>): b
 }
 
 /**
- * Fuerza la clase `blink` en los nodos del cursor renderizados por xterm (DOM renderer),
- * ya que el CSS por sí solo no siempre alcanza a "engancharse" a los nodos recién creados.
- */
-export function ensureBlinkClasses(containerRef: RefObject<HTMLDivElement | null>): void {
-  const root = containerRef.current;
-  if (!root) return;
-  try {
-    // Selector más amplio para capturar cursor del DOM renderer
-    const nodes = root.querySelectorAll(
-      '.xterm-cursor, .xterm-cursor-block, [class*="xterm-cursor"]'
-    );
-    nodes.forEach(n => {
-      const el = n as HTMLElement;
-      el.classList.add('blink');
-      // Solo quitamos animation: none si existiera inline
-      if (el.style.animation === 'none') {
-        el.style.animation = '';
-      }
-    });
-  } catch {}
-}
-
-/**
  * Aplica el tema actual (variables CSS del documento) al terminal xterm,
  * resolviendo referencias `var(--x)` en cadena, y fuerza el parpadeo/estilo del cursor.
  */

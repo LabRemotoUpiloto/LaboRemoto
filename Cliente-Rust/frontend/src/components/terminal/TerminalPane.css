@@ -130,16 +130,10 @@
     font-size: calc(var(--terminal-font-size) * 1px) !important;
   }
 
-  /* Cursor color theming — let xterm handle visibility/blink natively */
-  .xterm-cursor-block {
-    background-color: var(--accent-primary) !important;
-  }
-  .xterm-cursor-outline {
-    outline-color: var(--accent-primary) !important;
-  }
-  .xterm-cursor-bar {
-    background-color: var(--accent-primary) !important;
-  }
+  /* Cursor: color y parpadeo los maneja xterm nativamente vía el theme
+     (applyXtermTheme pasa cursor/cursorAccent). NO forzar background-color
+     con !important acá: pisa la animación de blink del DOM renderer y el
+     cursor queda sólido sin titilar. */
 
   .xterm ::selection { background: var(--accent-primary-hover) !important; color: var(--background-primary) !important; }
 
