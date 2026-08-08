@@ -5,7 +5,7 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
-import { User, Shield } from 'lucide-react';
+import { User, Shield, SquareTerminal } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAccessTier, canAccessPage } from '../../hooks/usePermissions';
@@ -29,6 +29,7 @@ interface SidebarProps {
   onTabClick?: (id: string) => void;
   onCloseTab?: (id: string) => void;
   onNewSession?: () => void;
+  onNewLocalTerminal?: () => void;
   hasSessions?: boolean;
   showSessionActions?: boolean;
   activeView?: ActiveView;
@@ -56,6 +57,9 @@ const sections = [
       { id: 'connect', label: 'Connect', icon: MonitorIcon },
       { id: 'hosts',   label: 'Hosts',   icon: CompassIcon },
       { id: 'logs',    label: 'Logs',    icon: FileTextIcon },
+      // No es una página de `onOpenPanel`: crea y abre directamente un tab
+      // "Terminal local" nuevo — ver caso especial en el onClick del item.
+      { id: 'local-terminal-new', label: 'Terminal local', icon: SquareTerminal },
     ],
   },
   {
@@ -76,6 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onTabClick,
   onCloseTab,
   onNewSession,
+  onNewLocalTerminal,
   hasSessions = false,
   showSessionActions = false,
   activeView = 'terminal',
@@ -150,13 +155,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         </Text>
       </Box>
 
-      {hasSessions && onTabClick && onCloseTab && onNewSession && (
+      {hasSessions && onTabClick && onCloseTab && onNewSession && onNewLocalTerminal && (
         <SidebarSessions
           tabs={tabs}
           activeTabId={activeTabId}
           onTabClick={onTabClick}
           onCloseTab={onCloseTab}
           onNewSession={onNewSession}
+          onNewLocalTerminal={onNewLocalTerminal}
         />
       )}
 
@@ -214,7 +220,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <UnstyledButton
                   key={item.id}
                   data-page={item.id}
-                  onClick={() => onOpenPanel(item.id)}
+                  onClick={() => item.id === 'local-terminal-new' ? onNewLocalTerminal?.() : onOpenPanel(item.id)}
                   aria-current={isActive ? 'page' : undefined}
                   className="relative w-full flex items-center gap-3 transition-colors duration-150"
                   style={{

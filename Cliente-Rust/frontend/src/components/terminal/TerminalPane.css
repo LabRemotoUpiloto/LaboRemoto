@@ -91,6 +91,14 @@
   .xterm .xterm-viewport {
     overflow-y: auto !important;
     overflow-x: hidden !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  .xterm .xterm-viewport::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
   }
 
   .terminal-pane .xterm-screen canvas {
@@ -122,20 +130,16 @@
     font-size: calc(var(--terminal-font-size) * 1px) !important;
   }
 
-  /* cursor rules - simplificado para JS control */ 
-  .xterm-cursor-outline, 
-  .xterm-cursor-block, 
-  .xterm-cursor-bar { 
-    visibility: visible !important; 
-    outline: 1px solid var(--accent-primary) !important; 
-    background-color: var(--accent-primary) !important; 
-  } 
+  /* Cursor color theming — let xterm handle visibility/blink natively */
+  .xterm-cursor-block {
+    background-color: var(--accent-primary) !important;
+  }
+  .xterm-cursor-outline {
+    outline-color: var(--accent-primary) !important;
+  }
+  .xterm-cursor-bar {
+    background-color: var(--accent-primary) !important;
+  }
 
   .xterm ::selection { background: var(--accent-primary-hover) !important; color: var(--background-primary) !important; }
 
-  /* Fallback universal por si xterm cambia el classname */ 
-  .xterm-rows span.xterm-cursor { 
-    background-color: var(--accent-primary) !important; 
-    color: var(--background-primary) !important; 
-    opacity: 1 !important; 
-  }

@@ -3,7 +3,7 @@ import type { SessionLog } from "../components/logs/SessionCard";
 
 export type Tab = {
   id: string;
-  type: "home" | "session" | "log";
+  type: "home" | "session" | "log" | "local-terminal";
   label: string;
   logData?: SessionLog;
 };
@@ -99,6 +99,16 @@ export function useAppTabs() {
     openSession(id, label);
   };
 
+  const openLocalTerminalTab = () => {
+    const id = crypto.randomUUID();
+    const n = tabs.filter(t => t.type === 'local-terminal').length + 1;
+    setTabs(prev => [...prev, { id, type: 'local-terminal', label: n > 1 ? `Terminal local #${n}` : 'Terminal local' }]);
+    setActiveTabId(id);
+    setSelectedPage('terminal');
+    setOpenPanels(prev => prev.includes('terminal') ? prev : [...prev, 'terminal']);
+    setActivePanel('terminal');
+  };
+
   const openLogTab = (session: SessionLog) => {
     const logTabId = `log:${session.id}`;
     const logLabel = `Log ${session.user}@${session.host}`;
@@ -153,10 +163,10 @@ export function useAppTabs() {
     }
   }, [activePanel, activeTabId, tabs]);
 
-  // Clean up terminal panel if last session closes
+  // Clean up terminal panel if last session (SSH o terminal local) closes
   useEffect(() => {
-    const hasSessions = tabs.some(t => t.type === 'session');
-    
+    const hasSessions = tabs.some(t => t.type === 'session' || t.type === 'local-terminal');
+
     // If no sessions exist but terminal panel is open, remove it
     if (!hasSessions && openPanels.includes('terminal')) {
       setOpenPanels(prev => prev.filter(p => p !== 'terminal'));
@@ -189,6 +199,7 @@ export function useAppTabs() {
     closeTab,
     handleNewSession,
     openLogTab,
+    openLocalTerminalTab,
     // Dual-header panel state
     openPanels,
     activePanel,

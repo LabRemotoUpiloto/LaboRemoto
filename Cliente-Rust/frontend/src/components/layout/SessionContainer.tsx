@@ -1,5 +1,6 @@
 import React from 'react'
 import TerminalView from '../terminal/TerminalView'
+import LocalTerminalGroup from '../terminal/LocalTerminalGroup'
 import SftpPage from '../../pages/session/SftpPage'
 import SnippetsPage from '../../pages/session/SnippetsPage'
 import LogsPage from '../../pages/logs/LogsPage'
@@ -25,6 +26,7 @@ type Props = {
   onOpenLog: (session: SessionLog) => void
   sftpPaths: Record<string, string>
   setSftpPaths: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  onCloseTab: (id: string) => void
 }
 
 const SessionContainer: React.FC<Props> = ({
@@ -39,10 +41,16 @@ const SessionContainer: React.FC<Props> = ({
   sessionMeta,
   onOpenLog,
   sftpPaths,
-  setSftpPaths
+  setSftpPaths,
+  onCloseTab
 }) => {
   return (
     <>
+      {tabs.filter(t => t.type === 'local-terminal').map(t => (
+        <div key={t.id} style={{ display: activeTabId === t.id ? 'block' : 'none', height: '100%', width: '100%' }}>
+          <LocalTerminalGroup tabId={t.id} onEmptyGroup={() => onCloseTab(t.id)} />
+        </div>
+      ))}
       {tabs.filter(t => t.type === 'session').map(t => (
         <div key={t.id} style={{ display: activeTabId === t.id ? 'block' : 'none', height: '100%', width: '100%' }}>
           <div

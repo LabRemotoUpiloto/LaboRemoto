@@ -5,10 +5,10 @@ import { modals } from '@mantine/modals'
 import { Search, Monitor, RefreshCw } from 'lucide-react'
 import SessionsGrid from '../../components/logs/SessionsGrid'
 import type { SessionLog } from '../../components/logs/SessionCard'
-import { listSessionLogs, deleteSessionLog, getSessionLogContent, type SessionLogMetadata } from '../../services/session.service'
+import { listSessionLogs, deleteSessionLog, extractSessionCommands, type SessionLogMetadata } from '../../services/session.service'
 import html2pdf from 'html2pdf.js'
 import { useToasts } from '../../contexts/ToastContext'
-import { extractValidCommands, buildCommandsReportHtml } from '../../utils/commandParser'
+import { buildCommandsReportHtml } from '../../utils/commandParser'
 
 type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'
 
@@ -115,9 +115,7 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const handleDownloadReport = async (session: SessionLog) => {
     push({ type: 'info', message: 'Preparando Reporte de Comandos...' })
     try {
-      const content = await getSessionLogContent(session.id)
-      
-      const commands = extractValidCommands(content);
+      const commands = await extractSessionCommands(session.id);
       const reportHtml = buildCommandsReportHtml(commands, {
         sessionId: session.id,
         user: session.user,

@@ -16,10 +16,12 @@
 import { create } from 'zustand'
 import { AuthSlice, createAuthSlice } from './auth'
 import { QueryCacheSlice, createQueryCacheSlice } from './queryCache'
+import { LocalTerminalSlice, createLocalTerminalSlice } from './localTerminal'
 
-export type AppState = AuthSlice & QueryCacheSlice
+export type AppState = AuthSlice & QueryCacheSlice & LocalTerminalSlice
 
 export const useAppStore = create<AppState>()((...a) => ({
   ...createAuthSlice(...a),
   ...createQueryCacheSlice(...a),
+  ...createLocalTerminalSlice(...a),
 }))
