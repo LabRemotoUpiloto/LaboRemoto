@@ -1531,24 +1531,36 @@ html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb:hover {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--accent-primary) var(--background-secondary);
+  scrollbar-color: var(--accent-primary) transparent;
 }
-/* Chromium/WebKit */
+/* Chromium/WebKit — sin botones de flecha nativos (los dejaba sin ocultar,
+   por eso se veían las flechitas del SO encima de la barra) y con el thumb
+   "inset" vía background-clip para que se vea una píldora redondeada en vez
+   de un bloque plano pegado al borde. */
 *::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 *::-webkit-scrollbar-track {
-  background: var(--background-secondary);
+  background: transparent;
 }
 *::-webkit-scrollbar-thumb {
   background-color: var(--accent-primary);
   border-radius: 8px;
-  border: 3px solid var(--background-secondary);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   box-shadow: none;
 }
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--accent-primary-hover);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Make code/terminal panes a bit more contrasted when scrolling */
@@ -1762,7 +1774,6 @@ body {
   background:
     repeating-linear-gradient(135deg, transparent 0 46px, color-mix(in srgb, var(--text-primary) 1.1%, transparent) 46px 47px),
     linear-gradient(135deg, transparent 0 63%, color-mix(in srgb, var(--background-tertiary) 24.2%, transparent) 63% 100%),
-    linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 28%, transparent) 0 1px, transparent 1px) 12% 0 / 1px 100% no-repeat,
     linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 42%, var(--background-primary)) 0 46%, var(--background-primary) 46% 100%);
   color: var(--text-primary);
   font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
@@ -2133,38 +2144,6 @@ a:hover { text-decoration-thickness: 2px; }
 .ctx-item:hover { background: rgba(255,255,255,0.06); }
 .ctx-item.disabled { opacity: .5; pointer-events: none; }
 .ctx-item.danger { color: var(--danger); }
-
-/* ============================================
-   Scrollbar redesign (visible change)
-   Applies globally; uses theme colors
-   ============================================ */
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-primary) var(--background-secondary);
-}
-/* Chromium/WebKit */
-*::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-*::-webkit-scrollbar-track {
-  background: var(--background-secondary);
-}
-*::-webkit-scrollbar-thumb {
-  background-color: var(--accent-primary);
-  border-radius: 8px;
-  border: 3px solid var(--background-secondary);
-  box-shadow: none;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent-primary-hover);
-}
-
-/* Make code/terminal panes a bit more contrasted when scrolling */
-pre, code, .terminal, .xterm-viewport, .content-area {
-  scrollbar-color: var(--accent-primary) var(--panel);
-}
 
 /* ============================================
    🛠️ GLOBAL MANTINE THEME OVERRIDES
