@@ -381,6 +381,34 @@ html[data-theme="light"] {
   --table-row-selected: rgba(8,145,178,0.15);
 }
 
+/* Estados semánticos (success/warning/danger/info) para temas claros.
+   Los valores en :root están pensados para fondo oscuro (verde/ámbar/rojo/
+   cian brillantes); sin este override, esos temas heredan ese texto claro
+   sobre fondo blanco y queda ilegible (p.ej. el ámbar de --warning-text se
+   ve "naranja lavado" en el panel de chat). unipiloto ya tenía su propio
+   set — aquí se cubre al resto de temas claros seleccionables. */
+html[data-theme="lavender-dream"],
+html[data-theme="polar-mint"],
+html[data-theme="sepia-paper"],
+html[data-theme="pastel-dream"] {
+  --success: #15803d;
+  --success-bg: rgba(21, 128, 61, 0.10);
+  --success-border: rgba(21, 128, 61, 0.25);
+  --success-text: #15803d;
+  --warning: #b45309;
+  --warning-bg: rgba(180, 83, 9, 0.10);
+  --warning-border: rgba(180, 83, 9, 0.25);
+  --warning-text: #b45309;
+  --danger: #b91c1c;
+  --danger-bg: rgba(185, 28, 28, 0.10);
+  --danger-border: rgba(185, 28, 28, 0.25);
+  --danger-text: #b91c1c;
+  --info: #0369a1;
+  --info-bg: rgba(3, 105, 161, 0.10);
+  --info-border: rgba(3, 105, 161, 0.25);
+  --info-text: #0369a1;
+}
+
 /* Midnight Muse: dark, modern, subtle green accent */
 /* 🔥 Crimson Gold - Rojo intenso con detalles dorados */
 html[data-theme="crimson-gold"] {
