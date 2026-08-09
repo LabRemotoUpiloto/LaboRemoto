@@ -1,6 +1,11 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
 import React, { useEffect, useRef, useState } from 'react'
+import { gsap } from 'gsap'
 import './App.css'
+
+// Anchos de la sidebar (deben coincidir con --sidebar-width por defecto en App.css).
+const SIDEBAR_WIDTH_EXPANDED = 200
+const SIDEBAR_WIDTH_COLLAPSED = 64
 
 // ── Mantine ──────────────────────────────────────────────────────────────────
 import { MantineProvider, createTheme, Modal, Button, Text, Group } from '@mantine/core'
@@ -109,9 +114,8 @@ const AppMain: React.FC = () => {
   const {
     isPinsPanelOpen, isCameraOpen, isDomoticaPanelOpen,
     togglePinsPanel, closePinsPanel,
-    toggleCameraPanel,
+    toggleCameraPanel, setCameraPanelOpen,
     toggleDomoticaPanel, closeDomoticaPanel,
-    closeAllPanels,
   } = useSidePanels()
 
   // ── Estado local residual ────────────────────────────────────────────────────
@@ -120,7 +124,7 @@ const AppMain: React.FC = () => {
   // ── Prácticas de laboratorio ─────────────────────────────────────────────────
   const { practiceMeta, handleStartPractice, clearPracticeMeta } = usePracticeSession({
     onNewSession: handleNewSession,
-    setCameraOpen: (open) => open ? toggleCameraPanel() : undefined,
+    setCameraOpen: setCameraPanelOpen,
     setChatOpen: setIsChatOpen,
   })
 
@@ -136,7 +140,8 @@ const AppMain: React.FC = () => {
 
   const handleTabClick = (id: string) => {
     setActiveTabId(id)
-    closeAllPanels()
+    closePinsPanel()
+    closeDomoticaPanel()
     const clickedTab = tabs.find(t => t.id === id)
     if (clickedTab?.type === 'home') {
       if (!HOME_PAGES.includes(activePanel)) handleOpenPanel('landing')
@@ -185,6 +190,22 @@ const AppMain: React.FC = () => {
       setActiveTabId(HOME_TAB_ID)
     }
   }, [isAuthenticated, openPanel, setActiveTabId])
+
+  // ── Colapsar/expandir sidebar (GSAP, no CSS transition) ──────────────────────
+  // --sidebar-width alimenta el offset de .app-header y .main-content además del
+  // ancho de la propia sidebar (ver App.css) — animarla acá con GSAP mueve las
+  // tres cosas en un solo sistema sincronizado, en vez de que cada elemento la
+  // persiga por separado con su propia `transition: all` (eso era lo que se veía
+  // "sucio": dos motores de animación compitiendo por la misma propiedad).
+  useEffect(() => {
+    const el = appContainerRef.current
+    if (!el || !isAuthenticated) return
+    gsap.to(el, {
+      '--sidebar-width': `${isSidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED}px`,
+      duration: 0.4,
+      ease: 'power3.inOut',
+    })
+  }, [isSidebarOpen, isAuthenticated])
 
   // ── Visibilidad de paneles ───────────────────────────────────────────────────
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
@@ -236,11 +257,13 @@ const AppMain: React.FC = () => {
               onViewChange={setActiveView}
               isChatOpen={isChatOpen}
               onToggleChat={() => setIsChatOpen(!isChatOpen)}
-              onToggleCamera={toggleCameraPanel}
+              onToggleCamera={() => toggleCameraPanel(activeTab.id)}
               onTogglePins={togglePinsPanel}
-              isCameraActive={isCameraOpen}
+              isCameraActive={isCameraOpen(activeTab.id)}
               isPinsActive={isPinsPanelOpen}
               hasSessions={hasSessionTabs}
+              collapsed={!isSidebarOpen}
+              onToggleCollapse={() => setIsSidebarOpen(o => !o)}
             />
           )}
           <div className="main-content">

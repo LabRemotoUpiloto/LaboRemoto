@@ -15,7 +15,8 @@ export type ActiveView = 'terminal' | 'escritorio';
 export function useAppTabs() {
   const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_TAB_ID, type: "home", label: "Inicio" }]);
   const [activeTabId, setActiveTabId] = useState<string>(HOME_TAB_ID);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // sidebar always compact now
+  // true = sidebar expandida (iconos + texto); false = colapsada (solo iconos).
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sessionMeta, setSessionMeta] = useState<Record<string, { label: string }>>({});
   const [pendingHost, setPendingHost] = useState<any | null>(null);
   const [selectedPage, setSelectedPage] = useState<string>("landing");
