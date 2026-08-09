@@ -31,4 +31,13 @@ export const authService = {
    * Al terminar, emite el evento `auth://logged-out`.
    */
   logout: (): Promise<void> => invoke('auth_logout'),
+
+  /**
+   * API de cuenta propia (self-service) contra Keycloak -- no requiere
+   * admin_lab, cualquier usuario autenticado puede leer/editar su propio
+   * avatar. Se guarda como atributo custom `avatar` (data URL, ya
+   * redimensionada/comprimida del lado del cliente antes de subir).
+   */
+  getAvatar: (): Promise<string | null> => invoke('account_get_avatar'),
+  setAvatar: (avatarDataUrl: string): Promise<void> => invoke('account_set_avatar', { avatarDataUrl }),
 };

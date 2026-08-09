@@ -3,6 +3,8 @@ import LandingPage from '../../pages/home/LandingPage'
 import ConnectFormPage from '../../pages/connection/ConnectFormPage'
 import SavedHostsPage from '../../pages/connection/SavedHostsPage'
 import ThemesPage from '../../pages/settings/ThemesPage'
+import PerfilPage from '../../pages/settings/PerfilPage'
+import AjustesPage from '../../pages/settings/AjustesPage'
 import LogsPage from '../../pages/logs/LogsPage'
 import SftpPage from '../../pages/session/SftpPage'
 import SnippetsPage from '../../pages/session/SnippetsPage'
@@ -97,6 +99,10 @@ const HomeContainer: React.FC<Props> = ({
         <UserManagementPage />
       ) : effectivePage === 'vigilancia' ? (
         <VigilanciaPage />
+      ) : effectivePage === 'perfil' ? (
+        <PerfilPage />
+      ) : effectivePage === 'ajustes' ? (
+        <AjustesPage onOpenPanel={onOpenPanel} />
       ) : (
         <LandingPage
           onStartTutorial={() => onOpenPanel('landing')}
