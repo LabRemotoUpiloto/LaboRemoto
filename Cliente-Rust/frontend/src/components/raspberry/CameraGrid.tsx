@@ -1,6 +1,7 @@
 // components/raspberry/CameraGrid.tsx
 import React, { useEffect, useState } from 'react'
 import { useNvrCameras, NvrCamera } from '../../hooks/useNvrCameras'
+import { usePtzControl } from '../../hooks/usePtzControl'
 import CameraPane from './CameraPane'
 
 interface Props {
@@ -15,9 +16,18 @@ interface Props {
    * cae al group del piloto si no se pasa explícito.
    */
   groupKey?: string
+  /**
+   * Habilita los controles PTZ superpuestos en la vista expandida de una
+   * cámara. Default false a propósito: el panel de cámaras de una sesión
+   * normal (chat, escritorio remoto) nunca debe mostrarlos — solo
+   * `VigilanciaPage` (admin_lab/laboratorista) los activa. Aun con esto en
+   * true, el control solo aparece si la cámara puntual es PTZ
+   * (`NvrCamera.ptz`, decidido por el broker).
+   */
+  showPtz?: boolean
 }
 
-const PILOT_GROUP_KEY = 'pilabpiloto'
+export const PILOT_GROUP_KEY = 'pilabpiloto'
 
 const CameraIcon = () => (
   <svg viewBox="0 0 44 44" fill="none" width="40" height="40">
@@ -42,9 +52,10 @@ function getGridCols(count: number): number {
   return Math.ceil(Math.sqrt(count))
 }
 
-const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = false, groupKey }) => {
+const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = false, groupKey, showPtz = false }) => {
   const effectiveGroupKey = groupKey || (sessionId ? PILOT_GROUP_KEY : null)
   const { cameras, status, error, start, stop } = useNvrCameras(effectiveGroupKey)
+  const { sendPtz } = usePtzControl(effectiveGroupKey)
   const [expandedCam, setExpandedCam] = useState<string | null>(null)
   const [swapSource, setSwapSource] = useState<string | null>(null)
   const [cameraOrder, setCameraOrder] = useState<string[]>([])
@@ -215,6 +226,8 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = f
             isExpanded={expandedCam === cam.id}
             isSwapSource={swapSource === cam.id}
             swapMode={swapSource !== null}
+            ptzEnabled={showPtz && cam.ptz}
+            onPtzCommand={(op) => sendPtz(cam.id, op)}
             onClick={() => {
               if (swapSource) return handleSwap(swapSource, cam.id)
               toggleExpand(cam.id)

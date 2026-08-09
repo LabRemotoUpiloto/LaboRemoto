@@ -1,6 +1,8 @@
 // components/raspberry/CameraPane.tsx
 import React, { useState } from 'react'
 import HlsPlayer from './HlsPlayer'
+import PtzControls from './PtzControls'
+import type { PtzOp } from '../../hooks/usePtzControl'
 
 interface Props {
   streamUrl?: string   // HLS via túnel SSH — http://127.0.0.1:localPort/camId/index.m3u8
@@ -13,9 +15,13 @@ interface Props {
   swapMode?: boolean
   onClick?: () => void
   onDoubleClick?: () => void
+  /** Solo true si el broker marcó esta cámara como PTZ (`NvrCamera.ptz`) y el
+   * contenedor habilitó los controles (`CameraGrid`'s `showPtz`). */
+  ptzEnabled?: boolean
+  onPtzCommand?: (op: PtzOp) => void
 }
 
-const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true, isExpanded = false, isSwapSource = false, swapMode = false, onClick, onDoubleClick }) => {
+const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true, isExpanded = false, isSwapSource = false, swapMode = false, onClick, onDoubleClick, ptzEnabled = false, onPtzCommand }) => {
   const [retryKey, setRetryKey] = useState(0)
 
   const borderClass = isSwapSource
@@ -63,6 +69,9 @@ const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true,
           title="Reconectar stream"
         >↺</button>
       </div>
+      {isExpanded && ptzEnabled && onPtzCommand && (
+        <PtzControls onCommand={onPtzCommand} />
+      )}
       {camId && <div className="absolute bottom-2 right-2 bg-black/60 text-white/70 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide z-10">{camId}</div>}
     </div>
   )

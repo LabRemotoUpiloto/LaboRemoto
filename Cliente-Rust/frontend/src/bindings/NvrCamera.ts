@@ -6,4 +6,10 @@
  * Shinobi directo, nunca con la API key real embebida) — el frontend la
  * pasa directo a `HlsPlayer`, igual que antes con `CameraInfo`.
  */
-export type NvrCamera = { id: string, name: string, status: string, stream_url: string, };
+export type NvrCamera = { id: string, name: string, status: string, stream_url: string, 
+/**
+ * No todas las cámaras del NVR son PTZ — el broker lo indica por cámara
+ * (`PTZ_CAMERAS_JSON` en la Pi) según qué modelos exponen la API HTTP
+ * de Reolink en la red. El frontend solo muestra el control si es true.
+ */
+ptz: boolean, };
