@@ -15,7 +15,8 @@ export type ActiveView = 'terminal' | 'escritorio';
 export function useAppTabs() {
   const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_TAB_ID, type: "home", label: "Inicio" }]);
   const [activeTabId, setActiveTabId] = useState<string>(HOME_TAB_ID);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // sidebar always compact now
+  // true = sidebar expandida (iconos + texto); false = colapsada (solo iconos).
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sessionMeta, setSessionMeta] = useState<Record<string, { label: string }>>({});
   const [pendingHost, setPendingHost] = useState<any | null>(null);
   const [selectedPage, setSelectedPage] = useState<string>("landing");
@@ -109,15 +110,26 @@ export function useAppTabs() {
     openSession(id, label);
   };
 
-  const openLocalTerminalTab = () => {
+  const openLocalTerminalTab = useCallback(() => {
     const id = crypto.randomUUID();
-    const n = tabs.filter(t => t.type === 'local-terminal').length + 1;
-    setTabs(prev => [...prev, { id, type: 'local-terminal', label: n > 1 ? `Terminal local #${n}` : 'Terminal local' }]);
+    setTabs(prev => {
+      const n = prev.filter(t => t.type === 'local-terminal').length + 1;
+      return [...prev, { id, type: 'local-terminal', label: n > 1 ? `Terminal local #${n}` : 'Terminal local' }];
+    });
     setActiveTabId(id);
     setSelectedPage('terminal');
     setOpenPanels(prev => prev.includes('terminal') ? prev : [...prev, 'terminal']);
     setActivePanel('terminal');
-  };
+  }, []);
+
+  // "Nueva pestaña de terminal" desde el menú contextual de un panel
+  // (LocalTerminalGroup) — el grupo vive muy abajo en el árbol, así que se
+  // comunica por CustomEvent, mismo patrón que los eventos `app:*` existentes.
+  useEffect(() => {
+    const onOpenLocalTerminal = () => openLocalTerminalTab();
+    window.addEventListener('app:open-local-terminal', onOpenLocalTerminal);
+    return () => window.removeEventListener('app:open-local-terminal', onOpenLocalTerminal);
+  }, [openLocalTerminalTab]);
 
   const openLogTab = (session: SessionLog) => {
     const logTabId = `log:${session.id}`;

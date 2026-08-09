@@ -27,7 +27,7 @@ import { Terminal } from 'xterm';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { sshStdin, sshResize } from '../../../services/ssh.service';
-import { canRefocusTerminal, ensureBlinkClasses, sanitizeSessionId } from './terminalDomUtils';
+import { canRefocusTerminal, sanitizeSessionId } from './terminalDomUtils';
 import { TerminalSessionMetadata } from './terminalTypes';
 
 interface UseTerminalSshListenerParams {
@@ -205,14 +205,12 @@ export function useTerminalSshListener({
           try { term.scrollToBottom(); } catch {}
           setTimeout(checkAndHideLoading, 200);
           try { if (!hasFocusedOnceRef.current && canRefocusTerminal(containerRef)) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
-          try { ensureBlinkClasses(containerRef); } catch {}
         }
       }).then(un => { unlistenRef.current = un }).catch(() => {});
 
       sshResize(sessionId, term.cols, term.rows).catch(() => {});
       invoke('ssh_ui_ready', { id: sessionId }).catch(() => {});
       try { if (canRefocusTerminal(containerRef)) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
-      try { ensureBlinkClasses(containerRef); } catch {}
 
       return () => {
         disposers.forEach(d => d.dispose());

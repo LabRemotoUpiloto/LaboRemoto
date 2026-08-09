@@ -20,6 +20,15 @@
 .local-terminal-separator {
   background-color: var(--border-color);
   flex-shrink: 0;
+  /* Hit-area de agarre más ancho que los 4px visibles (truco de pseudo-
+     elemento): arrastrar el separador se siente mucho más cómodo sin
+     engordar la línea visual. */
+  position: relative;
+}
+
+.local-terminal-separator::before {
+  content: '';
+  position: absolute;
 }
 
 .local-terminal-separator[data-orientation='horizontal'] {
@@ -27,9 +36,23 @@
   cursor: col-resize;
 }
 
+.local-terminal-separator[data-orientation='horizontal']::before {
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  right: -4px;
+}
+
 .local-terminal-separator[data-orientation='vertical'] {
   height: 4px;
   cursor: row-resize;
+}
+
+.local-terminal-separator[data-orientation='vertical']::before {
+  left: 0;
+  right: 0;
+  top: -4px;
+  bottom: -4px;
 }
 
 .local-terminal-separator:hover,
@@ -51,53 +74,84 @@
   box-sizing: border-box;
 }
 
-.local-terminal-leaf.is-active {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
-}
-
-.local-terminal-leaf-toolbar {
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  z-index: 20;
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 150ms ease-out;
-  background-color: var(--background-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 2px;
-}
-
-.local-terminal-leaf:hover .local-terminal-leaf-toolbar,
-.local-terminal-leaf:focus-within .local-terminal-leaf-toolbar {
-  opacity: 1;
-}
-
-.local-terminal-leaf-toolbar button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.local-terminal-leaf-toolbar button:hover {
-  background-color: var(--interactive-selected);
-  color: var(--text-primary);
+/* Indicador de panel activo: solo cuando hay splits (con un único panel no
+   aporta nada y se veía como un marco azul alrededor de toda la terminal).
+   Usa el acento del tema, tenue — nada de azul hardcodeado. */
+.local-terminal-group.has-splits .local-terminal-leaf.is-active {
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
 }
 
 .local-terminal-leaf-body {
   flex: 1;
   min-height: 0;
   min-width: 0;
+  display: flex;
+}
+
+/* Host estable del pane (creado imperativamente, se mueve entre leaves al
+   re-estructurar los splits — nunca se recrea, la shell no se reinicia). */
+.local-terminal-pane-host {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+
+.local-terminal-pane-host > .terminal-pane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ── Menú contextual (click derecho en un panel) ── */
+.local-terminal-context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 220px;
+  padding: 4px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.local-terminal-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.local-terminal-context-menu button:hover,
+.local-terminal-context-menu button:focus-visible {
+  background-color: var(--interactive-selected);
+  outline: none;
+}
+
+.local-terminal-context-menu .ltcm-shortcut {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.local-terminal-context-menu .ltcm-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background-color: var(--border-color);
+}
+
+.local-terminal-context-menu .ltcm-danger:hover {
+  color: var(--status-error, #e5484d);
 }
 
 .local-terminal-exited-badge {

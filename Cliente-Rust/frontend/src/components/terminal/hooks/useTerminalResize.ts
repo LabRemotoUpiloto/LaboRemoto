@@ -1,33 +1,36 @@
 /**
- * useTerminalResize.ts — ResizeObserver + fit + notificación de tamaño al backend SSH.
+ * useTerminalResize.ts — ÚNICA lógica de resize del terminal (SSH y local).
  *
- * Responsable de:
- * - Re-ajustar el tamaño visual del terminal (`fit.fit()` / resize asimétrico) ante
- *   cambios de tamaño del contenedor (ResizeObserver), del layout (sidebar/bottom-bar/
- *   pins toggled, transiciones CSS) o de la ventana.
- * - Notificar el tamaño final (cols/rows) al backend vía `ssh_resize`, con debounce,
- *   solo cuando cambia respecto al último tamaño enviado.
+ * Un solo mecanismo: `ResizeObserver` sobre el contenedor del terminal.
+ * Cualquier causa de cambio de tamaño (drag de separadores de
+ * react-resizable-panels, resize de la ventana, toggle del sidebar/bottom-bar,
+ * transiciones CSS del layout) termina cambiando el tamaño del contenedor, y
+ * el observer lo reporta — no hacen falta listeners manuales por cada causa
+ * (window resize, eventos `app:*`, transitionend), que era la lógica legacy
+ * duplicada que convivía con el observer.
+ *
+ * Dos velocidades deliberadas:
+ * - El resize VISUAL (`term.resize` vía fit) es inmediato + un pase trailing
+ *   de 100ms para asentar el valor final tras ráfagas del observer.
+ * - El aviso al backend (SIGWINCH a la PTY) va con trailing debounce de
+ *   150ms: durante un drag continuo sería una tormenta de reflows para
+ *   apps TUI (vim/htop) — tmux/Herdr también re-dibujan una sola vez al
+ *   estabilizarse. Al desmontar se hace flush del tamaño pendiente.
  *
  * Nota de orden: este hook se monta ANTES que useTerminalLifecycle en el hook
- * orquestador (useTerminal.ts) para que, en cleanup, sus listeners/observers se
- * remuevan ANTES de que el terminal se destruya (`term.dispose()`) — reproduciendo
- * el orden interno del efecto único original (resize cleanup antes que dispose).
- *
- * Los handlers acceden a `termRef.current` / `fitRef.current` en vez de variables
- * locales: son válidos apenas useTerminalLifecycle los puebla (mismo commit/render),
- * y se auto-protegen con checks de null si llegaran a dispararse antes.
+ * orquestador para que, en cleanup, su observer se desconecte ANTES de que el
+ * terminal se destruya (`term.dispose()`).
  */
 import { useEffect, MutableRefObject, RefObject } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { canRefocusTerminal, isPaneVisible } from './terminalDomUtils';
+import { isPaneVisible } from './terminalDomUtils';
 
 interface UseTerminalResizeParams {
   containerRef: RefObject<HTMLDivElement | null>;
   sessionId: string | null;
   termRef: MutableRefObject<Terminal | null>;
   fitRef: MutableRefObject<FitAddon | null>;
-  hasFocusedOnceRef: MutableRefObject<boolean>;
   /** Notifica el nuevo tamaño (cols/rows) al backend correspondiente (SSH o terminal local). */
   notifyResize: (cols: number, rows: number) => Promise<void>;
 }
@@ -37,21 +40,15 @@ export function useTerminalResize({
   sessionId,
   termRef,
   fitRef,
-  hasFocusedOnceRef,
   notifyResize,
 }: UseTerminalResizeParams): void {
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !window.ResizeObserver) return;
 
-    // Refs internas del efecto original (algunas se mantienen sin uso activo
-    // por fidelidad 1:1 con el comportamiento previo; ver reporte del batch).
-    const resizeTimeoutsRef: MutableRefObject<number[]> = { current: [] };
-    const isResizingRef: MutableRefObject<boolean> = { current: false };
-    const resizeThrottleRef: MutableRefObject<number | null> = { current: null };
-    const resizeObserverRef: MutableRefObject<ResizeObserver | null> = { current: null };
-    const lastColsRef: MutableRefObject<number> = { current: 80 };
-    const lastBackendSizeRef: MutableRefObject<{ cols: number; rows: number } | null> = { current: null };
+    let fitThrottle: number | null = null;
+    let notifyTimer: number | null = null;
+    let pendingNotify: { cols: number; rows: number } | null = null;
 
     const isTermReady = () => {
       const term = termRef.current;
@@ -64,6 +61,17 @@ export function useTerminalResize({
       return isPaneVisible(containerRef);
     };
 
+    const scheduleNotify = (cols: number, rows: number) => {
+      pendingNotify = { cols, rows };
+      if (notifyTimer) window.clearTimeout(notifyTimer);
+      notifyTimer = window.setTimeout(() => {
+        notifyTimer = null;
+        const p = pendingNotify;
+        pendingNotify = null;
+        if (p) notifyResize(p.cols, p.rows).catch(() => {});
+      }, 150);
+    };
+
     const safeFit = () => {
       if (!isTermReady()) return;
       try {
@@ -73,92 +81,33 @@ export function useTerminalResize({
         if (!term) return;
         if (term.cols !== proposed.cols || term.rows !== proposed.rows) {
           term.resize(proposed.cols, proposed.rows);
-          notifyResize(proposed.cols, proposed.rows).catch(() => {});
+          scheduleNotify(proposed.cols, proposed.rows);
         }
       } catch {}
     };
 
-    const onResize = () => {
+    const debouncedFit = () => {
       safeFit();
-      try { if (termRef.current && hasFocusedOnceRef.current && canRefocusTerminal(containerRef)) termRef.current.focus(); } catch {}
-    };
-
-    window.addEventListener('resize', onResize);
-
-    const debouncedResize = () => {
-      if (resizeThrottleRef.current) {
-        window.clearTimeout(resizeThrottleRef.current);
-      }
-      safeFit();
-      resizeThrottleRef.current = window.setTimeout(() => {
+      if (fitThrottle) window.clearTimeout(fitThrottle);
+      fitThrottle = window.setTimeout(() => {
+        fitThrottle = null;
         safeFit();
       }, 100);
     };
 
-    const onSidebarToggled = () => { debouncedResize(); };
-    const onBottomBarToggled = () => { debouncedResize(); };
-    const onPinsToggled = () => { debouncedResize(); };
-    window.addEventListener('app:sidebar-toggled', onSidebarToggled as any);
-    window.addEventListener('app:bottombar-toggled', onBottomBarToggled as any);
-    window.addEventListener('app:pins-toggled', onPinsToggled as any);
-
-
-    if (container && window.ResizeObserver) {
-      resizeObserverRef.current = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.target === container) {
-            debouncedResize();
-          }
-        }
-      });
-      resizeObserverRef.current.observe(container);
-    }
-
-    const mainContentEl = document.querySelector('.main-content');
-    const onTransitionEnd = (ev: Event) => {
-      const te = ev as TransitionEvent;
-      if (!te.propertyName || te.propertyName === 'margin-left') {
-        debouncedResize();
-      }
-    };
-    try { mainContentEl?.addEventListener('transitionend', onTransitionEnd); } catch {}
-
-    const bottomBarContent = (() => {
-      const el = containerRef.current;
-      const stack = el?.closest?.('.terminal-stack') as HTMLElement | null;
-      return stack ? (stack.querySelector('.bottom-bar .bb-content') as HTMLElement | null) : null;
-    })();
-    const onBottomBarTransitionEnd = (ev: Event) => {
-      const te = ev as TransitionEvent;
-      if (te.propertyName === 'height') {
-        debouncedResize();
-      }
-    };
-    try { bottomBarContent?.addEventListener('transitionend', onBottomBarTransitionEnd); } catch {}
+    const observer = new ResizeObserver(() => { debouncedFit(); });
+    observer.observe(container);
 
     return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('app:sidebar-toggled', onSidebarToggled as any);
-      window.removeEventListener('app:bottombar-toggled', onBottomBarToggled as any);
-      window.removeEventListener('app:pins-toggled', onPinsToggled as any);
-      try { mainContentEl?.removeEventListener('transitionend', onTransitionEnd); } catch {}
-      try {
-        const bottomBarContent2 = document.querySelector('.bottom-bar .bb-content');
-        bottomBarContent2?.removeEventListener('transitionend', onBottomBarTransitionEnd);
-      } catch {}
-      resizeTimeoutsRef.current.forEach(timeoutId => {
-        try { window.clearTimeout(timeoutId); } catch {}
-      });
-      resizeTimeoutsRef.current = [];
-      if (resizeThrottleRef.current) {
-        try { window.clearTimeout(resizeThrottleRef.current); } catch {}
-        resizeThrottleRef.current = null;
+      try { observer.disconnect(); } catch {}
+      if (fitThrottle) { try { window.clearTimeout(fitThrottle); } catch {} }
+      // Flush del notify pendiente para que la PTY quede con el tamaño final.
+      if (notifyTimer) { try { window.clearTimeout(notifyTimer); } catch {} }
+      if (pendingNotify) {
+        const p = pendingNotify;
+        pendingNotify = null;
+        notifyResize(p.cols, p.rows).catch(() => {});
       }
-      if (resizeObserverRef.current) {
-        try { resizeObserverRef.current.disconnect(); } catch {}
-        resizeObserverRef.current = null;
-      }
-      isResizingRef.current = false;
     };
   }, [containerRef, sessionId]);
 }
