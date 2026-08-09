@@ -29,8 +29,15 @@ const HlsPlayer: React.FC<Props> = ({ src, label }) => {
       // fatales. Buffer un poco más generoso + auto-recovery de errores no fatales.
       const hls = new Hls({
         lowLatencyMode: false,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 10,
+        // liveMaxLatencyDurationCount alto (era 10 = hasta 20s con segmentos
+        // de 2s) es lo que hacía sentir el PTZ con delay: hls.js tolera
+        // quedarse muy atrás del vivo antes de ponerse al día. Bajado a un
+        // rango que sigue absorbiendo jitter de red sin acumular tanto
+        // atraso, más un playback rate variable para alcanzar el vivo sin
+        // saltos bruscos quando se atrasa.
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 4,
+        maxLiveSyncPlaybackRate: 1.3,
         enableWorker: true,
         manifestLoadingMaxRetry: 6,
         manifestLoadingRetryDelay: 500,
