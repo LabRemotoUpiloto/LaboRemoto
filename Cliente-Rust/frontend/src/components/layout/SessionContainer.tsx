@@ -19,7 +19,7 @@ type Props = {
   practiceMeta?: Record<string, PracticeMeta>
   selectedPage: string
   activeView: 'terminal' | 'escritorio'
-  isCameraOpen: boolean
+  isCameraOpen: (sessionId: string) => boolean
   isChatOpen: boolean
   onCloseChat: () => void
   sessionMeta: Record<string, { label: string }>
@@ -63,7 +63,7 @@ const SessionContainer: React.FC<Props> = ({
             <TerminalView
               sessionId={t.id}
               activeView={activeView}
-              isCameraOpen={isCameraOpen}
+              isCameraOpen={isCameraOpen(t.id)}
               isChatOpen={isChatOpen}
               onCloseChat={onCloseChat}
               isTabActive={activeTabId === t.id}
