@@ -94,13 +94,19 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
 
     // Lazy-load Google Font for personality themes
     const THEME_FONTS: Partial<Record<Theme, string>> = {
-      'unipiloto':      'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Open+Sans:wght@400;600&display=swap',
-      'neo-brutalist':   'https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap',
-      'amber-night':    'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap',
-      'lavender-dream': 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&display=swap',
-      'pastel-dream':   'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap',
-      'sepia-paper':    'https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&display=swap',
-      'glass-water':    'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
+      'unipiloto':       'https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap',
+      'dracula':         'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&display=swap',
+      'neo-brutalist':   'https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap',
+      'amber-night':     'https://fonts.googleapis.com/css2?family=Urbanist:wght@600;700;800&family=Inter:wght@400;500;600&display=swap',
+      'oceanic-teal':    'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap',
+      'crimson-gold':    'https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600&display=swap',
+      'obsidian-rose':   'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap',
+      'lavender-dream':  'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap',
+      'polar-mint':      'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap',
+      'sepia-paper':     'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&display=swap',
+      'pastel-dream':    'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap',
+      'sunburst-rainbow':'https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700;800&display=swap',
+      'glass-water':     'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
     }
     const fontUrl = THEME_FONTS[theme]
     const existingLink = document.getElementById('theme-font') as HTMLLinkElement | null

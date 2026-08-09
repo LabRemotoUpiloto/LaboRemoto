@@ -22,7 +22,9 @@ html[data-theme="lavender-dream"]{
   --radius-md: 12px;
   --shadow-card: 0 8px 32px rgba(139, 92, 246, 0.08);
   --shadow-card-hover: 0 16px 48px rgba(139, 92, 246, 0.18);
-  --font-heading: 'Cormorant Garamond', serif;
+  --font-heading: Optima, Candara, 'Segoe UI', 'Plus Jakarta Sans', sans-serif;
+  --font-body: Candara, 'Segoe UI', -apple-system, sans-serif;
+  --svg-filter: drop-shadow(0 2px 4px rgba(167, 139, 250, 0.3));
 
   /* Surfaces & inputs translucent overrides */
   --surface-0: rgba(255, 255, 255, 0.35);

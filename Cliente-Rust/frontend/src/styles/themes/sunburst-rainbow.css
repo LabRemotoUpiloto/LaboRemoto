@@ -17,6 +17,9 @@ html[data-theme="sunburst-rainbow"]{
   --border-color: rgba(255,255,255,0.08);
   --accent-guard-shadow: 0 1px 0 rgba(0,0,0,0.35);
   --accent-guard-inset: inset 0 0 0 1px rgba(0,0,0,0.28);
+  --font-heading: 'Lexend', sans-serif;
+  --font-body: 'Lexend', sans-serif;
+  --svg-filter: drop-shadow(0 0 4px rgba(255, 75, 107, 0.45));
 }
 
 /* Header con gradiente arcoíris animado */

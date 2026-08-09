@@ -1,46 +1,37 @@
 import React, { useRef } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Badge, Text, Group, Box, Card, Stack } from '@mantine/core';
-
-type ThemeCategory = 'dark' | 'light' | 'special';
+import { Text, Group, Box, Card, Stack } from '@mantine/core';
 
 interface ThemeInfo {
   id: string;
   label: string;
   gradient: string;
-  category: ThemeCategory;
   description?: string;
   swatches?: number;
 }
 
 const THEMES: ThemeInfo[] = [
   // Institucional
-  { id: 'unipiloto', label: 'Universidad Piloto', gradient: 'linear-gradient(135deg, #f4f4f4 0%, #ffffff 55%, #d51f22 100%)', category: 'light', description: 'Identidad oficial — blanco institucional con rojo Unipiloto' },
+  { id: 'unipiloto', label: 'Universidad Piloto', gradient: 'linear-gradient(135deg, #f4f4f4 0%, #ffffff 55%, #d51f22 100%)', description: 'Identidad oficial — blanco institucional con rojo Unipiloto' },
 
-  // Temas Claros
-  { id: 'lavender-dream', label: 'Lavender Dream', gradient: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', category: 'light', description: 'Lavanda suave con toques violeta y vidrio translúcido' },
-  { id: 'polar-mint', label: 'Polar Mint', gradient: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', category: 'light', description: 'Fresco, limpio y minimalista' },
-  { id: 'sepia-paper', label: 'Sepia Paper', gradient: 'linear-gradient(135deg, #fbf5ef, #f3e9de)', category: 'light', description: 'Papel cálido vintage estilo libro clásico' },
-  
-  // Temas Oscuros
-  { id: 'dracula', label: 'Dracula Console', gradient: 'linear-gradient(135deg, #44475a, #282a36)', category: 'dark', description: 'Retro terminal cyberpunk' },
-  { id: 'neo-brutalist', label: 'Brutalist Lime', gradient: 'linear-gradient(135deg, #121212, #84cc16)', category: 'dark', description: 'Neo-Brutalismo con bordes gruesos y lima neón' },
-  { id: 'amber-night', label: 'Amber Night', gradient: 'linear-gradient(135deg, #2d241d, #120d0a)', category: 'dark', description: 'Ámbar de lujo profundo con toques bronce' },
-  { id: 'oceanic-teal', label: 'Oceanic Teal', gradient: 'linear-gradient(135deg, #134e4a, #0a1a1a)', category: 'dark', description: 'Vidrio marino fresco y tranquilo' },
-  { id: 'crimson-gold', label: 'Crimson Gold', gradient: 'linear-gradient(135deg, #450a0a, #1a0f0f)', category: 'dark', description: 'Rojo imperial intenso con detalles dorados' },
-  { id: 'obsidian-rose', label: 'Obsidian Rose', gradient: 'linear-gradient(135deg, #1c0a0a, #0a0505)', category: 'dark', description: 'Synthwave fucsia sobre obsidiana' },
-  
-  // Temas Especiales
-  { id: 'pastel-dream', label: 'Pastel Dream', gradient: 'linear-gradient(45deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff)', category: 'special', description: 'Colores pastel suaves multi-color y divertidos' },
-  { id: 'sunburst-rainbow', label: 'Sunburst Rainbow', gradient: 'linear-gradient(45deg, #ff4b6b, #ff8b3b, #ffd56b, #6bff8b, #6bd7ff)', category: 'special', description: 'Arcoíris cálido con efectos RGB animados', swatches: 5 },
-  { id: 'glass-water', label: 'Liquid Glass', gradient: 'linear-gradient(135deg, #ff007f 0%, #00f0ff 100%)', category: 'special', description: 'Vidrio líquido refractivo sobre orbes de neón vibrantes' },
+  // Claros
+  { id: 'lavender-dream', label: 'Lavender Dream', gradient: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', description: 'Lavanda suave con toques violeta y vidrio translúcido' },
+  { id: 'polar-mint', label: 'Polar Mint', gradient: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', description: 'Fresco, limpio y minimalista' },
+  { id: 'sepia-paper', label: 'Sepia Paper', gradient: 'linear-gradient(135deg, #fbf5ef, #f3e9de)', description: 'Papel cálido vintage estilo libro clásico' },
+
+  // Oscuros
+  { id: 'dracula', label: 'Dracula Console', gradient: 'linear-gradient(135deg, #44475a, #282a36)', description: 'Retro terminal cyberpunk' },
+  { id: 'neo-brutalist', label: 'Brutalist Lime', gradient: 'linear-gradient(135deg, #121212, #84cc16)', description: 'Neo-Brutalismo con bordes gruesos y lima neón' },
+  { id: 'amber-night', label: 'Amber Night', gradient: 'linear-gradient(135deg, #2d241d, #120d0a)', description: 'Ámbar de lujo profundo con toques bronce' },
+  { id: 'oceanic-teal', label: 'Oceanic Teal', gradient: 'linear-gradient(135deg, #134e4a, #0a1a1a)', description: 'Vidrio marino fresco y tranquilo' },
+  { id: 'crimson-gold', label: 'Crimson Gold', gradient: 'linear-gradient(135deg, #450a0a, #1a0f0f)', description: 'Rojo imperial intenso con detalles dorados' },
+  { id: 'obsidian-rose', label: 'Obsidian Rose', gradient: 'linear-gradient(135deg, #1c0a0a, #0a0505)', description: 'Synthwave fucsia sobre obsidiana' },
+
+  // Especiales
+  { id: 'pastel-dream', label: 'Pastel Dream', gradient: 'linear-gradient(45deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff)', description: 'Colores pastel suaves multi-color y divertidos' },
+  { id: 'sunburst-rainbow', label: 'Sunburst Rainbow', gradient: 'linear-gradient(45deg, #ff4b6b, #ff8b3b, #ffd56b, #6bff8b, #6bd7ff)', description: 'Arcoíris cálido con efectos RGB animados', swatches: 5 },
+  { id: 'glass-water', label: 'Liquid Glass', gradient: 'linear-gradient(135deg, #ff007f 0%, #00f0ff 100%)', description: 'Vidrio líquido refractivo sobre orbes de neón vibrantes' },
 ];
-
-const THEME_CATEGORIES = {
-  dark: THEMES.filter(t => t.category === 'dark'),
-  light: THEMES.filter(t => t.category === 'light'),
-  special: THEMES.filter(t => t.category === 'special')
-};
 
 export default function ThemesPage() {
   const { theme, setTheme } = useTheme();
@@ -68,7 +59,7 @@ export default function ThemesPage() {
         <Box className="h-[110px] w-full relative overflow-hidden shrink-0" style={{ background: t.gradient }}>
           {/* Overlay fade */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 pointer-events-none" />
-          
+
           {/* Active indicator */}
           {isActive && (
             <div
@@ -114,63 +105,9 @@ export default function ThemesPage() {
 
       <div className="flex-1 overflow-y-auto p-6 scroll-smooth custom-scrollbar">
         <div className="max-w-[1400px] mx-auto pb-10">
-          
-          {/* Dark Themes */}
-          <Box mb={40}>
-            <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{ color: 'var(--accent-primary)', backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-              </Box>
-              <Text fw={700} size="sm" className="uppercase tracking-wider">Temas Oscuros</Text>
-              <Badge variant="light" color="gray" size="sm" radius="xl">{THEME_CATEGORIES.dark.length} temas</Badge>
-            </Group>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4" ref={gridRef}>
-              {THEME_CATEGORIES.dark.map(renderThemeCard)}
-            </div>
-          </Box>
-
-          {/* Light Themes */}
-          <Box mb={40}>
-            <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{ color: 'var(--accent-primary)', backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="5" />
-                  <line x1="12" y1="1" x2="12" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="23" />
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                  <line x1="1" y1="12" x2="3" y2="12" />
-                  <line x1="21" y1="12" x2="23" y2="12" />
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </svg>
-              </Box>
-              <Text fw={700} size="sm" className="uppercase tracking-wider">Temas Claros</Text>
-              <Badge variant="light" color="gray" size="sm" radius="xl">{THEME_CATEGORIES.light.length} temas</Badge>
-            </Group>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-              {THEME_CATEGORIES.light.map(renderThemeCard)}
-            </div>
-          </Box>
-
-          {/* Special Themes */}
-          <Box mb={40}>
-            <Group gap="sm" mb="md" className="border-b pb-2" style={{ borderColor: 'var(--border-subtle)' }}>
-              <Box className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{ color: 'var(--accent-primary)', backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              </Box>
-              <Text fw={700} size="sm" className="uppercase tracking-wider">Temas Especiales</Text>
-              <Badge variant="light" color="gray" size="sm" radius="xl">{THEME_CATEGORIES.special.length} temas</Badge>
-            </Group>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-              {THEME_CATEGORIES.special.map(renderThemeCard)}
-            </div>
-          </Box>
-
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4" ref={gridRef}>
+            {THEMES.map(renderThemeCard)}
+          </div>
         </div>
       </div>
     </div>
