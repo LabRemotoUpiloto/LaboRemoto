@@ -181,6 +181,7 @@ pub fn run() {
       // NVR Shinobi — consumo de cámaras vía API HTTP (reemplaza stream_list_cameras)
       cmd::nvr::shinobi::nvr_list_cameras,
       cmd::nvr::shinobi::nvr_disconnect,
+      cmd::nvr::shinobi::nvr_ptz_control,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,

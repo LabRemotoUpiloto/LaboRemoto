@@ -52,6 +52,17 @@ Authorization: Bearer        location /nvr/ {                  (valida JWT,
 - `GET /nvr/hls/:token/*` — proxy hacia Shinobi real, solo si `:token` es
   una sesión vigente (emitida por `/nvr/monitor`, TTL 15 min). Reescribe
   además cualquier referencia a la key real dentro del manifest `.m3u8`.
+- `POST /nvr/ptz/:groupKey/:mid` — requiere `Authorization: Bearer <JWT
+  Keycloak>` **con rol `admin_lab` o `laboratorista`** (`realm_access.roles`
+  del token) — a diferencia de `/nvr/monitor`, que es solo lectura y no
+  exige rol. Body `{"op": "Left"|"Right"|"Up"|"Down"|"LeftUp"|"LeftDown"|
+  "RightUp"|"RightDown"|"ZoomInc"|"ZoomDec"|"Stop", "speed"?: 1-8}`.
+  Traduce `:mid` a la cámara Reolink real vía `PTZ_CAMERAS` (env
+  `PTZ_CAMERAS_JSON`) y reenvía el comando por su API HTTP nativa
+  (`cgi-bin/api.cgi?cmd=PtzCtrl`) — la IP y credenciales de la cámara nunca
+  salen de la Pi. Si `:mid` no está en el mapa, responde 404
+  `ptz_not_supported` (no todas las cámaras del NVR son PTZ, y de las que
+  sí, no todas tienen su API HTTP alcanzable en la red — ver nota abajo).
 
 **Importante:** el token de sesión se reutiliza mientras esté vigente para
 el mismo `usuario+groupKey` (`getOrCreateSessionToken`) — el cliente hace
@@ -85,6 +96,7 @@ Environment="SHINOBI_API_KEY=<la key real de Shinobi>"
 Environment="SHINOBI_LOCAL_PORT=8082"
 Environment="KEYCLOAK_JWKS_URL=http://52.14.162.232/auth/realms/laboratorio-semillero/protocol/openid-connect/certs"
 Environment="KEYCLOAK_ISSUER=http://52.14.162.232/auth/realms/laboratorio-semillero"
+Environment="PTZ_CAMERAS_JSON={\"Camara1\":{\"host\":\"172.16.118.115\",\"user\":\"admin\",\"pass\":\"<password real>\"}}"
 ExecStart=/usr/local/bin/node /opt/nvr-broker/broker_server.js
 Restart=always
 RestartSec=5
@@ -141,6 +153,27 @@ duplicado. Los backups van fuera de `sites-enabled/`.
 Ninguna — el host del broker está hardcodeado en
 `cmd::nvr::shinobi.rs::NVR_BROKER_HOST` porque no es un secreto (URL
 pública, igual que `KEYCLOAK_BASE_URL`).
+
+## PTZ
+
+Solo algunas cámaras del NVR son físicamente PTZ, y de esas, solo las que
+tienen su API HTTP de Reolink (`cgi-bin/api.cgi`) alcanzable en la red desde
+la Pi pueden controlarse — otras solo exponen el puerto RTSP 554 hacia
+Shinobi (verificado en el grupo piloto `pilabpiloto`: de 3 cámaras, solo
+`Camara1` en `172.16.118.115` responde en `cgi-bin/api.cgi`; `Camara03` y
+`Camara2` solo tienen el puerto 554 abierto). El mapa `PTZ_CAMERAS`
+(`PTZ_CAMERAS_JSON`) es la fuente de la verdad de qué `mid` acepta control —
+`/nvr/monitor` refleja esto en cada cámara con el campo `ptz: true/false`,
+y el frontend solo muestra los controles si viene en `true`.
+
+Las credenciales de la cámara (RTSP `muser`/`mpass` en la config de Shinobi)
+sirven también para el login de la API HTTP de Reolink — mismo par
+usuario/contraseña.
+
+Para agregar otra cámara PTZ al mapa: confirmar que su IP responde en
+`cgi-bin/api.cgi?cmd=Login` (con `curl` desde la Pi, no basta con que el
+puerto RTSP funcione), agregar la entrada a `PTZ_CAMERAS_JSON` y reiniciar
+`nvr-broker.service`.
 
 ## Pendiente / mejoras futuras
 

@@ -48,6 +48,10 @@ pub struct NvrCamera {
     pub name: String,
     pub status: String, // "active" | "connecting" | "offline"
     pub stream_url: String,
+    /// No todas las cámaras del NVR son PTZ — el broker lo indica por cámara
+    /// (`PTZ_CAMERAS_JSON` en la Pi) según qué modelos exponen la API HTTP
+    /// de Reolink en la red. El frontend solo muestra el control si es true.
+    pub ptz: bool,
 }
 
 // Forma cruda de la respuesta del broker: GET /nvr/monitor/{groupKey}
@@ -59,7 +63,25 @@ struct ShinobiMonitorRaw {
     mode: String,
     status: Option<String>,
     streams: Vec<String>,
+    #[serde(default)]
+    ptz: bool,
 }
+
+/// Resultado de un comando PTZ — solo confirma que el broker lo aceptó y lo
+/// reenvió a la cámara; el movimiento en sí no tiene feedback síncrono.
+#[derive(Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PtzCommandResult {
+    pub ok: bool,
+}
+
+/// Operaciones PTZ soportadas (subconjunto de las que expone la API Reolink
+/// en `PTZCtrl.txt` — se deja afuera `ToPos`/`StartPatrol`/`Auto` porque no
+/// hay UI para presets todavía, y `Focus*`/`Iris*` porque no son necesarias
+/// para el caso de uso de vigilancia). Validado también en el broker.
+const VALID_PTZ_OPS: &[&str] = &[
+    "Left", "Right", "Up", "Down", "LeftUp", "LeftDown", "RightUp", "RightDown", "ZoomInc", "ZoomDec", "Stop",
+];
 
 fn map_status(mode: &str, status: Option<&str>) -> String {
     if mode == "stop" || mode == "disabled" {
@@ -148,6 +170,7 @@ pub async fn nvr_list_cameras(
                 stream_url: format!("{}{}", NVR_BROKER_HOST, stream_path),
                 id: m.mid,
                 name: m.name,
+                ptz: m.ptz,
             }
         })
         .collect())
@@ -158,6 +181,68 @@ pub async fn nvr_list_cameras(
 /// con el frontend (`useNvrCameras` lo llama al detener/desmontar).
 #[tauri::command]
 pub async fn nvr_disconnect() {}
+
+/// Envía un comando PTZ (mover/zoom/detener) a una cámara del Group. El
+/// backend nunca habla directo con la cámara Reolink — todo pasa por el
+/// broker, que valida rol (admin_lab/laboratorista) y traduce `mid` a la
+/// IP+credenciales reales de la cámara física (ver `PTZ_CAMERAS_JSON` en
+/// `infra/nvr-broker`). Si la cámara no está en ese mapa (no es PTZ), el
+/// broker responde 404 y este comando lo traduce a `VALIDATION_FAILED`.
+#[tauri::command]
+pub async fn nvr_ptz_control(
+    group_key: String,
+    mid: String,
+    op: String,
+    speed: Option<u8>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<PtzCommandResult, CommandError> {
+    if !VALID_PTZ_OPS.contains(&op.as_str()) {
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Operación PTZ inválida: {op}"))
+            .with_context("nvr_ptz_control", &mid));
+    }
+
+    let access_token = manager
+        .get_access_token()
+        .await
+        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
+        .ok_or_else(|| {
+            CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión para controlar la cámara")
+        })?;
+
+    let client = &*HTTP_CLIENT;
+    let url = format!("{}/nvr/ptz/{}/{}", NVR_BROKER_HOST, group_key, mid);
+    let body = serde_json::json!({ "op": op, "speed": speed.unwrap_or(4) });
+
+    let response = client
+        .post(&url)
+        .bearer_auth(&access_token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| {
+            let err = if e.is_timeout() {
+                CommandError::transient("OPERATION_TIMEOUT", format!("Timeout controlando la cámara: {e}")).with_retry_after(1000)
+            } else {
+                CommandError::transient("COMMUNICATION_ERROR", format!("Error controlando la cámara: {e}")).with_retry_after(1000)
+            };
+            err.with_context("nvr_ptz_control", &mid)
+        })?;
+
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+
+    if !status.is_success() {
+        let err = match status.as_u16() {
+            401 | 403 => CommandError::permanent("AUTH_FAILED", "No tienes permiso para controlar esta cámara"),
+            404 => CommandError::permanent("VALIDATION_FAILED", "Esta cámara no soporta control PTZ"),
+            _ => CommandError::transient("COMMUNICATION_ERROR", format!("Broker PTZ respondió {status}: {text}"))
+                .with_retry_after(1500),
+        };
+        return Err(err.with_context("nvr_ptz_control", &mid));
+    }
+
+    Ok(PtzCommandResult { ok: true })
+}
 
 #[cfg(test)]
 mod tests {

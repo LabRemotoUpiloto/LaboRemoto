@@ -10,15 +10,23 @@
 //     Requiere: Authorization: Bearer <jwt de Keycloak>
 //     Devuelve el mismo JSON que Shinobi, pero con las stream_url
 //     reescritas para usar un token opaco de sesion en vez de la
-//     SHINOBI_API_KEY real.
-//   GET /nvr/hls/:token/*
+//     SHINOBI_API_KEY real. Cada monitor trae ademas `ptz: true/false`
+//     segun si esta en PTZ_CAMERAS (ver mas abajo).
+//   GET /nvr/hls/:token/*    
 //     Proxya hacia Shinobi real usando la SHINOBI_API_KEY real,
 //     solo si :token es un token de sesion valido y no vencido
 //     (emitido por /nvr/monitor tras validar el JWT).
+//   POST /nvr/ptz/:groupKey/:mid
+//     Requiere: Authorization: Bearer <jwt de Keycloak> con rol
+//     admin_lab o laboratorista (realm_access.roles). Body JSON
+//     {"op": "Left"|"Right"|...|"Stop"|"ZoomInc"|"ZoomDec", "speed"?: n}.
+//     Traduce :mid a la camara Reolink real (IP+credenciales, nunca
+//     expuestas al cliente) y reenvia el comando PTZ via su API HTTP.
 //
 // Config: variables de entorno SHINOBI_API_KEY, SHINOBI_LOCAL_PORT (8082),
 // PORT (puerto donde escucha este broker, default 8091),
-// KEYCLOAK_JWKS_URL, KEYCLOAK_ISSUER.
+// KEYCLOAK_JWKS_URL, KEYCLOAK_ISSUER, PTZ_CAMERAS_JSON (mapa mid -> camara
+// Reolink real, ver seccion PTZ mas abajo).
 
 const http = require('node:http');
 const https = require('node:https');
@@ -124,7 +132,91 @@ async function verifyJwt(jwt) {
   if (typeof payload.exp !== 'number' || payload.exp < now) throw new Error('token expirado');
   if (payload.iss !== ISSUER) throw new Error(`issuer inesperado: ${payload.iss}`);
 
-  return payload.preferred_username || payload.sub;
+  return payload; // el caller decide que campos necesita (sub, roles, ...)
+}
+
+// ── PTZ (control de camaras Reolink con soporte PTZ) ──
+// No todas las camaras del NVR son fisicamente PTZ, y de las que lo son no
+// todas tienen su API HTTP de Reolink alcanzable en la red (algunas solo
+// exponen el puerto RTSP 554 hacia Shinobi). Este mapa es la fuente de la
+// verdad de "cuales camaras aceptan control" — mid -> {host, user, pass}.
+// Se carga por env var (nunca hardcodeado en el fuente, mismo criterio que
+// SHINOBI_API_KEY), ej.:
+//   PTZ_CAMERAS_JSON='{"Camara1":{"host":"172.16.118.115","user":"admin","pass":"..."}}'
+let PTZ_CAMERAS = {};
+try {
+  PTZ_CAMERAS = JSON.parse(process.env.PTZ_CAMERAS_JSON || '{}');
+} catch (e) {
+  console.error('[nvr-broker] PTZ_CAMERAS_JSON invalido:', e.message);
+}
+
+const PTZ_OPS = new Set([
+  'Left', 'Right', 'Up', 'Down',
+  'LeftUp', 'LeftDown', 'RightUp', 'RightDown',
+  'ZoomInc', 'ZoomDec', 'Stop',
+]);
+
+const ptzTokens = new Map(); // mid -> { token, expiresAt }
+
+function reolinkPost(host, path, payload) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(payload);
+    const req = http.request({
+      host,
+      port: 80,
+      path,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      timeout: 5000,
+    }, (upRes) => {
+      let data = '';
+      upRes.on('data', (c) => { data += c; });
+      upRes.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch { reject(new Error('respuesta invalida de la camara')); }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('timeout de la camara')));
+    req.write(body);
+    req.end();
+  });
+}
+
+async function getPtzToken(mid, cam) {
+  const cached = ptzTokens.get(mid);
+  if (cached && Date.now() < cached.expiresAt) return cached.token;
+
+  const resp = await reolinkPost(cam.host, '/cgi-bin/api.cgi?cmd=Login', [{
+    cmd: 'Login',
+    param: { User: { Version: '0', userName: cam.user, password: cam.pass } },
+  }]);
+  const token = resp?.[0]?.value?.Token?.name;
+  if (!token) throw new Error(resp?.[0]?.error?.detail || 'login PTZ fallido');
+  // leaseTime real reportado por la camara es 3600s -- cacheamos con margen
+  // para renovar antes de que la camara lo expire del otro lado.
+  ptzTokens.set(mid, { token, expiresAt: Date.now() + 30 * 60 * 1000 });
+  return token;
+}
+
+async function sendPtzCommand(mid, cam, op, speed) {
+  const attempt = async () => {
+    const token = await getPtzToken(mid, cam);
+    return reolinkPost(cam.host, `/cgi-bin/api.cgi?cmd=PtzCtrl&token=${token}`, [{
+      cmd: 'PtzCtrl',
+      param: { channel: 0, op, speed },
+    }]);
+  };
+
+  let resp = await attempt();
+  if (resp?.[0]?.error) {
+    // El token puede haber quedado invalido del lado de la camara (reinicio,
+    // etc.) sin que nuestro cache lo supiera -- un reintento con token fresco
+    // cubre ese caso sin que el usuario vea el error.
+    ptzTokens.delete(mid);
+    resp = await attempt();
+  }
+  if (resp?.[0]?.error) throw new Error(resp[0].error.detail || 'comando PTZ rechazado por la camara');
+  return resp;
 }
 
 // ── Proxy hacia Shinobi real ──
@@ -167,7 +259,7 @@ const server = http.createServer(async (req, res) => {
   // el webview bloquea la respuesta como cross-origin, aunque el broker
   // haya respondido bien (por eso las camaras se quedaban en "Conectando...").
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -175,12 +267,8 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  if (req.method !== 'GET') {
-    res.writeHead(405); return res.end();
-  }
-
   // GET /nvr/monitor/:groupKey
-  if (parts.length === 3 && parts[0] === 'nvr' && parts[1] === 'monitor') {
+  if (req.method === 'GET' && parts.length === 3 && parts[0] === 'nvr' && parts[1] === 'monitor') {
     const groupKey = decodeURIComponent(parts[2]);
     const auth = req.headers['authorization'] || '';
     const jwt = auth.startsWith('Bearer ') ? auth.slice(7) : null;
@@ -189,13 +277,14 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: 'missing_bearer_token' }));
     }
 
-    let username;
+    let claims;
     try {
-      username = await verifyJwt(jwt);
+      claims = await verifyJwt(jwt);
     } catch (e) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'invalid_jwt', message: e.message }));
     }
+    const username = claims.preferred_username || claims.sub;
 
     const shinobiPath = `/${SHINOBI_API_KEY}/monitor/${encodeURIComponent(groupKey)}`;
     http.get({ host: '127.0.0.1', port: SHINOBI_LOCAL_PORT, path: shinobiPath }, (upRes) => {
@@ -212,6 +301,7 @@ const server = http.createServer(async (req, res) => {
         console.log(`[nvr-broker] sesion (re)usada para usuario=${username} groupKey=${groupKey}`);
         const rewritten = monitors.map((m) => ({
           ...m,
+          ptz: Object.prototype.hasOwnProperty.call(PTZ_CAMERAS, m.mid),
           streams: (m.streams || []).map((s) => s.replace(`/${SHINOBI_API_KEY}/`, `/nvr/hls/${token}/`)),
         }));
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -225,7 +315,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // GET /nvr/hls/:token/...resto...
-  if (parts.length >= 4 && parts[0] === 'nvr' && parts[1] === 'hls') {
+  if (req.method === 'GET' && parts.length >= 4 && parts[0] === 'nvr' && parts[1] === 'hls') {
     const token = parts[2];
     if (!isValidSession(token)) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -236,7 +326,65 @@ const server = http.createServer(async (req, res) => {
     return proxyToShinobi(shinobiPath, token, res);
   }
 
-  res.writeHead(404); res.end();
+  // POST /nvr/ptz/:groupKey/:mid
+  if (req.method === 'POST' && parts.length === 4 && parts[0] === 'nvr' && parts[1] === 'ptz') {
+    const mid = decodeURIComponent(parts[3]);
+    const auth = req.headers['authorization'] || '';
+    const jwt = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!jwt) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'missing_bearer_token' }));
+    }
+
+    let claims;
+    try {
+      claims = await verifyJwt(jwt);
+    } catch (e) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'invalid_jwt', message: e.message }));
+    }
+
+    // PTZ mueve hardware real -- a diferencia de /nvr/monitor (solo lectura),
+    // aca si se exige rol, igual que la restriccion de "Vigilancia" en el
+    // frontend (usePermissions.canAccessVigilancia: admin_lab o laboratorista).
+    const roles = claims.realm_access?.roles || [];
+    if (!roles.includes('admin_lab') && !roles.includes('laboratorista')) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'forbidden', message: 'PTZ requiere rol admin_lab o laboratorista' }));
+    }
+
+    const cam = PTZ_CAMERAS[mid];
+    if (!cam) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'ptz_not_supported', mid }));
+    }
+
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', async () => {
+      let parsed;
+      try { parsed = JSON.parse(body); } catch { parsed = {}; }
+      const op = parsed.op;
+      const speed = Number.isFinite(parsed.speed) ? Math.max(1, Math.min(8, parsed.speed)) : 4;
+      if (!PTZ_OPS.has(op)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'invalid_op', op }));
+      }
+      try {
+        await sendPtzCommand(mid, cam, op, speed);
+        console.log(`[nvr-broker] PTZ ${op} mid=${mid} usuario=${claims.preferred_username || claims.sub}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'ptz_camera_error', message: e.message }));
+      }
+    });
+    return;
+  }
+
+  res.writeHead(req.method === 'GET' || req.method === 'POST' ? 404 : 405);
+  res.end();
 });
 
 server.listen(PORT, '127.0.0.1', () => {
