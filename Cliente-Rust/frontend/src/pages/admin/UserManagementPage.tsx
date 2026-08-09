@@ -37,6 +37,12 @@ function fullNameOf(user: KeycloakUser) {
         : '';
 }
 
+/** Foto subida desde Perfil (self-service, ver PerfilPage/authService.setAvatar)
+ *  -- Keycloak la guarda como atributo custom, por eso llega en `attributes`. */
+function avatarUrlOf(user: KeycloakUser): string | undefined {
+    return user.attributes?.avatar?.[0];
+}
+
 function initialsOf(user: KeycloakUser) {
     const fn = fullNameOf(user);
     if (fn) return fn.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
@@ -73,6 +79,7 @@ interface PersonRowProps {
 const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
     const { user, role } = row;
     const tint = tintOf(user);
+    const avatarUrl = avatarUrlOf(user);
     return (
         <Group
             wrap="nowrap"
@@ -89,11 +96,16 @@ const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
                         width: 40, height: 40, borderRadius: 999, flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 14, fontWeight: 700, color: '#fff',
-                        background: `color-mix(in srgb, ${tint} 82%, #000 8%)`,
+                        background: avatarUrl ? undefined : `color-mix(in srgb, ${tint} 82%, #000 8%)`,
+                        overflow: 'hidden',
                     }}
                     aria-hidden
                 >
-                    {initialsOf(user)}
+                    {avatarUrl ? (
+                        <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                        initialsOf(user)
+                    )}
                 </Box>
                 <div style={{ minWidth: 0 }}>
                     <Text size="sm" fw={600} truncate>{fullNameOf(user) || user.username}</Text>

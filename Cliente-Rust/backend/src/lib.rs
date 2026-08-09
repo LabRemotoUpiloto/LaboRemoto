@@ -220,6 +220,9 @@ pub fn run() {
       crate::auth::commands::admin_list_users_by_role,
       crate::auth::commands::admin_get_user_roles,
       crate::auth::commands::admin_toggle_user_role,
+      // Account API (self-service)
+      crate::auth::commands::account_get_avatar,
+      crate::auth::commands::account_set_avatar,
     ])
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {

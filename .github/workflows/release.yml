@@ -1,8 +1,12 @@
 name: Build & Release
 
 on:
+  # Solo Produccion publica releases publicos -- pushes a Desarrollo/
+  # Pruebas(QA)/main tambien disparaban esto antes, generando un release
+  # publico real (visible al auto-updater) por cada merge intermedio, no
+  # solo cuando el codigo de verdad llega a produccion.
   push:
-    branches: [main, Pruebas(QA), Desarrollo, Produccion]
+    branches: [Produccion]
     tags: ['v*']
   workflow_dispatch:
 
