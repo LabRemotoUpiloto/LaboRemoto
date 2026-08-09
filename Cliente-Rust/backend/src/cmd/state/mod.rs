@@ -10,6 +10,7 @@
 pub mod types;
 pub mod session;
 pub mod hosts;
+pub mod local_terminal;
 
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
@@ -20,6 +21,7 @@ use std::sync::atomic::AtomicBool;
 pub use types::{CameraInfo, SftpEntry, LocalEntry};
 pub use session::{SessionExt, CachedSsh2, VncSessionState, run_pending_vnc_cleanups};
 pub use hosts::{save_host_encrypted, load_host_encrypted, save_host_master, load_host_master, list_hosts_files, list_hosts_entries, delete_host_file};
+pub use local_terminal::LocalTermSession;
 
 // Alias para el tipo de sesión para uso en otros módulos
 pub type SessionType = session::SessionExt;
@@ -30,4 +32,9 @@ pub static SESSIONS: Lazy<Mutex<HashMap<String, session::SessionExt>>> =
 
 // Registro de cancelación de transferencias
 pub static TRANSFERS: Lazy<Mutex<HashMap<String, Arc<AtomicBool>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+// Sesiones de terminal local activas (PTY nativa), indexadas por ID (UUID).
+// Cada panel de la terminal local multiplexada es una entrada independiente.
+pub static LOCAL_TERM_SESSIONS: Lazy<Mutex<HashMap<String, LocalTermSession>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));

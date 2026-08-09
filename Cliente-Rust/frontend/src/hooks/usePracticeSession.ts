@@ -19,7 +19,7 @@ import { sshConnect, sshStdin, memPut } from '../services/ssh.service';
 
 interface UsePracticeSessionParams {
   onNewSession: (info: { id: string; label: string }) => void;
-  setCameraOpen: (open: boolean) => void;
+  setCameraOpen: (sessionId: string, open: boolean) => void;
   setChatOpen: (open: boolean) => void;
 }
 
@@ -105,7 +105,7 @@ export function usePracticeSession({
     // 6. Activar cámara si la práctica lo requiere
     if (practice.panels?.camera) {
       log('info', '📷 Activando cámara del laboratorio...');
-      setCameraOpen(true);
+      setCameraOpen(sessionId, true);
       log('success', '✅ Cámara del laboratorio activada');
     }
 

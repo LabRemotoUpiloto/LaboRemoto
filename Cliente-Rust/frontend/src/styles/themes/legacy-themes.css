@@ -1,0 +1,817 @@
+/* ==========================================================================
+   🎨 LEGACY & RECOLOR THEMES
+   ========================================================================== */
+
+/* 1. Default (Mantine Blue) */
+html[data-theme="default"] {
+  --background-primary: #141517;
+  --background-secondary: #1A1B1E;
+  --background-tertiary: #25262B;
+  --text-primary: #C1C2C5;
+  --text-secondary: #A6A7AB;
+  --accent-guard-shadow: none; /* text-shadow */
+  --accent-guard-inset: none;  /* inner border box-shadow */
+  --accent-primary: #228BE6; /* Mantine Blue */
+  --accent-primary-hover: #1C7ED6;
+  --accent-strong: #1971C2;
+  --border-color: #373A40;
+  --ring: #339AF0;
+  --accent-contrast: #FFFFFF;
+  --panel: var(--background-secondary);
+  --panel-muted: var(--background-tertiary);
+  --shadow: 0 10px 28px rgba(0,0,0,0.28);
+}
+
+/* 2. Light Theme */
+html[data-theme="light"] {
+  --background-primary: #f6f7fb;
+  --background-secondary: #eef2f7;
+  --background-tertiary: #e6ebf5;
+  --text-primary: #0b1220;
+  --text-secondary: #4b5563;
+  --accent-primary: #06b6d4;
+  --accent-primary-hover: #34d7e8;
+  --accent-strong: #0891b2;
+  --border-color: #d1d5db;
+  --border-subtle: #c8d1db;
+  --border-strong: #94a3b8;
+  /* ensure terminal text is dark on light themes */
+  --terminal-foreground: #0b1220;
+  --panel: #ffffff;
+  --panel-muted: var(--background-secondary);
+  --shadow: 0 8px 24px rgba(0,0,0,0.08);
+  /* Improve focus visibility on light */
+  --focus-inner: #0e7490;
+  --focus-outer: #ffffff;
+  /* Interaction tonal deltas on light */
+  --interactive-hover: rgba(2,6,23,0.06);
+  --interactive-active: rgba(2,6,23,0.09);
+  --interactive-selected: rgba(2,6,23,0.12);
+  --table-row-selected: rgba(8,145,178,0.15);
+}
+
+/* 3. Crimson Gold */
+html[data-theme="crimson-gold"] {
+  --background-primary: #1a0505;
+  --background-secondary: #2a0a0a;
+  --background-tertiary: #3d1010;
+  --text-primary: #ffe6e6;
+  --text-secondary: #ffcccc;
+  --accent-primary: #dc143c;
+  --accent-primary-hover: #ff6b6b;
+  --accent-strong: #b8860b;
+  --border-color: rgba(220, 20, 60, 0.15);
+}
+
+/* 4. Obsidian Rose */
+html[data-theme="obsidian-rose"]{
+  --background-primary: #0a0608;
+  --background-secondary: #141012;
+  --background-tertiary: #1e1619;
+  --text-primary: #F3E9EB;
+  --text-secondary: #C2AEB3;
+  --accent-primary: #ff6b9a;
+  --accent-primary-hover: #ff8eb1;
+  --accent-strong: #ff3868;
+  --border-color: rgba(255,255,255,0.03);
+  /* Capa 2 */
+  --radius-lg: 18px;
+  --shadow-card: 0 6px 24px rgba(255, 107, 154, 0.08);
+  --shadow-card-hover: 0 14px 36px rgba(255, 107, 154, 0.18);
+  --hover-lift: translateY(-4px);
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(20, 16, 18, 0.85);
+  --sidebar-border: 1px solid rgba(255, 107, 154, 0.15);
+  --sidebar-radius: 18px;
+  --header-bg: rgba(10, 6, 8, 0.85);
+  --header-border: 1px solid rgba(255, 107, 154, 0.1);
+}
+html[data-theme="obsidian-rose"] body {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 107, 154, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(255, 56, 104, 0.08) 0%, transparent 45%),
+    #0a0608 !important;
+}
+
+/* 5. Mist Harbor */
+html[data-theme="mist-harbor"]{
+  --background-primary: #f3f8fa;
+  --background-secondary: #e9eff3;
+  --background-tertiary: #e0e9ee;
+  --text-primary: #0f2026;
+  --text-secondary: #52666e;
+  --accent-primary: #1f8fa0;
+  --accent-primary-hover: #58b9c6;
+  --accent-strong: #0b6f78;
+  --border-color: #d3dde0;
+  --terminal-foreground: #0f2026;
+  --interactive-hover: rgba(0,0,0,0.06);
+  --interactive-active: rgba(0,0,0,0.09);
+  --interactive-selected: rgba(0,0,0,0.10);
+}
+
+/* 6. Sakura Blush */
+html[data-theme="sakura-blush"]{
+  --background-primary: #fff7f9;
+  --background-secondary: #fff0f4;
+  --background-tertiary: #fdeef2;
+  --text-primary: #2b1220;
+  --text-secondary: #6f4756;
+  --accent-primary: #ff7aa6;
+  --accent-primary-hover: #ff9fbe;
+  --accent-strong: #ff4f85;
+  --border-color: #fae6eb;
+  --terminal-foreground: #2b1220;
+  --interactive-hover: rgba(43,18,32,0.06);
+  --interactive-active: rgba(43,18,32,0.09);
+  --interactive-selected: rgba(43,18,32,0.12);
+  /* Capa 2: soft glassmorphism */
+  --glass-bg: rgba(255, 240, 244, 0.6);
+  --glass-blur: 12px;
+  --glass-border-color: rgba(255, 122, 166, 0.2);
+  --radius-lg: 18px;
+  --shadow-card: 0 6px 24px rgba(255, 122, 166, 0.08);
+  --shadow-card-hover: 0 14px 40px rgba(255, 122, 166, 0.16);
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(255, 227, 232, 0.45);
+  --sidebar-border: 1px solid rgba(255, 122, 166, 0.2);
+  --sidebar-radius: 16px;
+  --sidebar-blur: blur(16px);
+  --header-bg: rgba(255, 245, 247, 0.45);
+  --header-border: 1px solid rgba(255, 117, 143, 0.2);
+  --header-blur: blur(16px);
+}
+html[data-theme="sakura-blush"] body {
+  background:
+    radial-gradient(circle at 20% 20%, #ffe3e8 0%, transparent 45%),
+    radial-gradient(circle at 80% 80%, #ffd1dc 0%, transparent 50%),
+    #fff5f7 !important;
+}
+
+/* 7. Aurora Coral */
+html[data-theme="aurora-coral"]{
+  --background-primary: #061025;
+  --background-secondary: #0f1724;
+  --background-tertiary: #173044;
+  --text-primary: #eaf6f4;
+  --text-secondary: #b9e6df;
+  --accent-primary: #ffb86b;
+  --accent-primary-hover: #ffc89a;
+  --accent-strong: #ff6b6b;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 8. Verdant Neon */
+html[data-theme="verdant-neon"]{
+  --background-primary: #03120a;
+  --background-secondary: #062016;
+  --background-tertiary: #0a2a1f;
+  --text-primary: #e6fff4;
+  --text-secondary: #9fe9c7;
+  --accent-primary: #34d399; /* softened emerald */
+  --accent-primary-hover: #6ee7b7;
+  --accent-strong: #10b981;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+/* 9. Sunset Blush */
+html[data-theme="sunset-blush"]{
+  --background-primary: #1b0a0f;
+  --background-secondary: #2a0f14;
+  --background-tertiary: #3a141a;
+  --text-primary: #ffeef0;
+  --text-secondary: #f7c7cc;
+  --accent-primary: #ff7a88;
+  --accent-primary-hover: #ff9aa6;
+  --accent-strong: #ff4568;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 10. Electric Indigo */
+html[data-theme="electric-indigo"]{
+  --background-primary: #0a0520;
+  --background-secondary: #150a35;
+  --background-tertiary: #200f4a;
+  --text-primary: #e8e0ff;
+  --text-secondary: #b8a8ff;
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #818cf8;
+  --accent-strong: #06b6d4;
+  --border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* 11. Ruby Night */
+html[data-theme="ruby-night"]{
+  --background-primary: #16080a;
+  --background-secondary: #2a0f11;
+  --background-tertiary: #3d1416;
+  --text-primary: #ffeaea;
+  --text-secondary: #f1b6b8;
+  --accent-primary: #ff3b55;
+  --accent-primary-hover: #ff6b7f;
+  --accent-strong: #e03147;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 12. Toxic Lime */
+html[data-theme="toxic-lime"]{
+  --background-primary: #0a1505;
+  --background-secondary: #15250a;
+  --background-tertiary: #203510;
+  --text-primary: #e8ffe0;
+  --text-secondary: #c0ffa8;
+  --accent-primary: #84cc16;
+  --accent-primary-hover: #bef264;
+  --accent-strong: #4ade80;
+  --border-color: rgba(132, 204, 22, 0.2);
+}
+
+/* 13. Berry Soda */
+html[data-theme="berry-soda"]{
+  --background-primary: #08121a;
+  --background-secondary: #0f2130;
+  --background-tertiary: #17283b;
+  --text-primary: #f5f6ff;
+  --text-secondary: #c9d1ff;
+  --accent-primary: #ec4899; /* muted pink */
+  --accent-primary-hover: #f9a8d4;
+  --accent-strong: #db2777;
+  --border-color: rgba(255,255,255,0.02);
+}
+
+/* 14. Violet Ember */
+html[data-theme="violet-ember"]{
+  --background-primary: #0b0610;
+  --background-secondary: #140b19;
+  --background-tertiary: #1d0f23;
+  --text-primary: #fff5ff;
+  --text-secondary: #e0cfe6;
+  --accent-primary: #8b5cf6; /* softer violet */
+  --accent-primary-hover: #c4b5fd;
+  --accent-strong: #7c3aed;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 15. Bold Rainbow */
+html[data-theme="bold-rainbow"]{
+  --background-primary: #000000;
+  --background-secondary: #0a0a0a;
+  --background-tertiary: #121212;
+  --text-primary: #ffffff;
+  --text-secondary: #e6e6e6;
+  --accent-primary: #ff3b7a; 
+  --accent-1: #ff8b3b;
+  --accent-2: #ffe33b;
+  --accent-3: #4bff7a;
+  --accent-4: #39d6ff;
+  --accent-5: #6b7bff;
+  --accent-primary-hover: #ffb86b;
+  --accent-strong: #ffd56b;
+  --border-color: rgba(255,255,255,0.1);
+  --accent-guard-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  --accent-guard-inset: inset 0 0 0 1px rgba(0,0,0,0.35);
+}
+
+/* Header con animación RGB continua */
+html[data-theme="bold-rainbow"] .app-header {
+  background: linear-gradient(90deg, 
+    #ff0080 0%, #ff0080 10%,
+    #ff8000 10%, #ff8000 20%,
+    #ffff00 20%, #ffff00 30%,
+    #00ff00 30%, #00ff00 40%,
+    #00ffff 40%, #00ffff 50%,
+    #0080ff 50%, #0080ff 60%,
+    #8000ff 60%, #8000ff 70%,
+    #ff0080 70%, #ff0080 80%,
+    #ff8000 80%, #ff8000 90%,
+    #ffff00 90%, #ffff00 100%
+  );
+  background-size: 300% 100%;
+  animation: boldRgbWave 15s linear infinite;
+  box-shadow: none;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Sidebar con borde RGB animado */
+html[data-theme="bold-rainbow"] .sidebar {
+  border-right: 3px solid transparent;
+  background: linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+              linear-gradient(180deg, #ff0080, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff, #ff0080) border-box;
+  background-size: 100% 200%;
+  animation: boldRgbBorderFlow 8s linear infinite;
+  box-shadow: none;
+}
+
+/* Botones con gradiente RGB completo */
+html[data-theme="bold-rainbow"] .btn,
+html[data-theme="bold-rainbow"] .btn-connect,
+html[data-theme="bold-rainbow"] .btn-primary {
+  background: linear-gradient(135deg, 
+    #ff0080 0%, #ff8000 25%, #ffff00 50%, #00ff00 75%, #00ffff 100%
+  );
+  background-size: 300% 300%;
+  color: #000000;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+  animation: boldRgbButtonPulse 4s ease-in-out infinite;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+html[data-theme="bold-rainbow"] .btn:hover,
+html[data-theme="bold-rainbow"] .btn-connect:hover,
+html[data-theme="bold-rainbow"] .btn-primary:hover {
+  background-position: 100% 100%;
+  box-shadow: none;
+  transform: translateY(-4px) scale(1.05);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Elementos activos */
+html[data-theme="bold-rainbow"] .nav-item.active {
+  background: linear-gradient(90deg, 
+    rgba(255, 0, 128, 0.2), 
+    rgba(0, 255, 255, 0.2)
+  );
+  border-left: 4px solid #ff0080;
+  box-shadow: none;
+  animation: boldRgbPulseGlow 2s ease-in-out infinite;
+}
+
+html[data-theme="bold-rainbow"] .nav-item.active::before {
+  background: linear-gradient(180deg, #ff0080, #00ffff, #ffff00);
+  box-shadow: none;
+  animation: boldRgbSpinGlow 3s linear infinite;
+}
+
+/* Tabs */
+html[data-theme="bold-rainbow"] .tab.active {
+  background: linear-gradient(135deg, 
+    rgba(255, 0, 128, 0.25), 
+    rgba(0, 255, 255, 0.25)
+  );
+  border-bottom: 3px solid transparent;
+  border-image: linear-gradient(90deg, #ff0080, #00ffff, #ffff00) 1;
+  box-shadow: none;
+  animation: boldRgbTabGlow 3s ease-in-out infinite;
+}
+
+/* Badges y elementos destacados */
+html[data-theme="bold-rainbow"] .host-badge {
+  background: linear-gradient(90deg, #ff0080, #00ffff);
+  background-size: 200% 100%;
+  animation: boldRgbSlide 3s linear infinite;
+  box-shadow: none;
+  color: #000000;
+  font-weight: 700;
+}
+
+/* Scrollbar */
+html[data-theme="bold-rainbow"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff0080, #00ffff, #ffff00);
+  box-shadow: none;
+}
+
+/* Ensure header controls remain legible */
+html[data-theme="bold-rainbow"] .app-header, html[data-theme="bold-rainbow"] .app-header .tab, html[data-theme="bold-rainbow"] .app-header .tabs .tab.active {
+  color: #070707;
+}
+
+/* 16. FC Barcelona */
+html[data-theme="fc-barcelona"] {
+  /* Fondos - Azul Barcelona profundo */
+  --background-primary: #001a3d;
+  --background-secondary: #002654;
+  --background-tertiary: #00326b;
+  
+  /* Textos - Blanco y dorado */
+  --text-primary: #ffffff;
+  --text-secondary: #e0e7ff;
+  --text-muted: #94a3b8;
+  
+  /* Acentos - Granate Barcelona */
+  --accent-primary: #a50044;
+  --accent-primary-hover: #8a0038;
+  --accent-strong: #c7154a;
+  
+  /* Secundarios - Azul Barcelona */
+  --accent-secondary: #004d98;
+  --accent-secondary-hover: #003d7a;
+  
+  /* Dorado Barça */
+  --accent-gold: #edbb00;
+  --accent-gold-hover: #d4a600;
+  
+  /* Bordes - Azulgrana */
+  --border-color: #004d98;
+  --border-subtle: #003366;
+  --border-strong: #a50044;
+  
+  /* Estados */
+  --success: #10b981;
+  --warning: #edbb00;
+  --danger: #ef4444;
+  --info: #004d98;
+  
+  /* Interacción - Barça colors */
+  --interactive-bg: rgba(165, 0, 68, 0.1);
+  --interactive-hover: rgba(165, 0, 68, 0.2);
+  --interactive-active: rgba(165, 0, 68, 0.3);
+  --interactive-selected: rgba(0, 77, 152, 0.25);
+}
+
+/* Header con gradiente azulgrana */
+html[data-theme="fc-barcelona"] .app-header {
+  background: linear-gradient(90deg, #004d98 0%, #a50044 100%);
+  border-bottom: 3px solid #edbb00;
+  box-shadow: none;
+}
+
+/* Sidebar con borde azulgrana */
+html[data-theme="fc-barcelona"] .app-sidebar {
+  background: var(--background-secondary);
+  border-right: 2px solid #004d98;
+}
+
+/* Botones con colores Barça */
+html[data-theme="fc-barcelona"] button,
+html[data-theme="fc-barcelona"] .btn {
+  background: linear-gradient(135deg, #a50044 0%, #004d98 100%);
+  color: #ffffff;
+  border: 1px solid #edbb00;
+  box-shadow: none;
+  font-weight: 600;
+}
+
+html[data-theme="fc-barcelona"] button:hover,
+html[data-theme="fc-barcelona"] .btn:hover {
+  background: linear-gradient(135deg, #c7154a 0%, #005bb5 100%);
+  border-color: #d4a600;
+  box-shadow: none;
+}
+
+html[data-theme="fc-barcelona"] button:active,
+html[data-theme="fc-barcelona"] .btn:active {
+  background: linear-gradient(135deg, #8a0038 0%, #003d7a 100%);
+  box-shadow: none;
+}
+
+/* Nav items con efecto azulgrana */
+html[data-theme="fc-barcelona"] .nav-item {
+  border-left: 3px solid transparent;
+}
+
+html[data-theme="fc-barcelona"] .nav-item:hover {
+  background: rgba(165, 0, 68, 0.15);
+  border-left-color: #a50044;
+}
+
+html[data-theme="fc-barcelona"] .nav-item.active {
+  background: rgba(165, 0, 68, 0.2);
+  border-left: 4px solid #edbb00;
+  box-shadow: none;
+}
+
+/* Tabs con colores del Barça */
+html[data-theme="fc-barcelona"] .tab {
+  border-bottom: 3px solid transparent;
+}
+
+html[data-theme="fc-barcelona"] .tab:hover {
+  background: rgba(0, 77, 152, 0.15);
+  border-bottom-color: #004d98;
+}
+
+html[data-theme="fc-barcelona"] .tab.active {
+  background: rgba(165, 0, 68, 0.2);
+  border-bottom: 3px solid #edbb00;
+  font-weight: 700;
+}
+
+/* Badges con colores Barça */
+html[data-theme="fc-barcelona"] .host-badge {
+  background: linear-gradient(135deg, #a50044, #004d98);
+  box-shadow: none;
+  color: #ffffff;
+  font-weight: 700;
+  border: 1px solid rgba(237, 187, 0, 0.4);
+}
+
+/* Terminal con toque azulgrana */
+html[data-theme="fc-barcelona"] .terminal {
+  border: 2px solid #004d98;
+  box-shadow: none;
+}
+
+/* Scrollbar Barcelona */
+html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #a50044 0%, #004d98 100%);
+  border: 1px solid rgba(237, 187, 0, 0.3);
+}
+
+html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #c7154a 0%, #005bb5 100%);
+}
+
+/* 17. Polar Mint */
+html[data-theme="polar-mint"]{
+  --background-primary: #fbffff;
+  --background-secondary: #f3fbfa;
+  --background-tertiary: #e9f7f5;
+  --text-primary: #072022;
+  --text-secondary: #4b6a67;
+  --accent-primary: #4dd0c8;
+  --accent-primary-hover: #83e9dd;
+  --accent-strong: #2bbab0;
+  --border-color: #dfeff0;
+  /* terminal overrides for legibility on very light backgrounds */
+  --terminal-foreground: #072022;
+  --interactive-hover: rgba(7,32,34,0.06);
+  --interactive-active: rgba(7,32,34,0.09);
+  --interactive-selected: rgba(7,32,34,0.12);
+}
+
+/* 18. Peachy Sunrise */
+html[data-theme="peachy-sunrise"]{
+  --background-primary: #fff7ed;
+  --background-secondary: #ffedd5;
+  --background-tertiary: #fed7aa;
+  --text-primary: #7c2d12;
+  --text-secondary: #c2410c;
+  --accent-primary: #fb923c;
+  --accent-primary-hover: #fdba74;
+  --accent-strong: #f97316;
+  --border-color: #fcd34d;
+  --terminal-foreground: #7c2d12;
+  --interactive-hover: rgba(124,45,18,0.06);
+  --interactive-active: rgba(124,45,18,0.09);
+  --interactive-selected: rgba(124,45,18,0.12);
+}
+
+/* 19. Rose Quartz */
+html[data-theme="rose-quartz"]{
+  --background-primary: #fff5f7;
+  --background-secondary: #ffe4e9;
+  --background-tertiary: #ffd1dc;
+  --text-primary: #831843;
+  --text-secondary: #be185d;
+  --accent-primary: #ec4899;
+  --accent-primary-hover: #f472b6;
+  --accent-strong: #db2777;
+  --border-color: #fbbf24;
+  --terminal-foreground: #831843;
+  --interactive-hover: rgba(131,24,67,0.06);
+  --interactive-active: rgba(131,24,67,0.09);
+  --interactive-selected: rgba(131,24,67,0.12);
+}
+
+/* 20. Metro Gray */
+html[data-theme="metro-gray"]{
+  --background-primary: #0f1316;
+  --background-secondary: #15181b;
+  --background-tertiary: #1c1f22;
+  --text-primary: #e6e9eb;
+  --text-secondary: #b7bfc4;
+  --accent-primary: #9aa0ff;
+  --accent-primary-hover: #c7cbff;
+  --accent-strong: #747bff;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 21. Cosmic Latte */
+html[data-theme="cosmic-latte"]{
+  --background-primary: #fffaf2;
+  --background-secondary: #fff4e6;
+  --background-tertiary: #fff0dc;
+  --text-primary: #2b2a22;
+  --text-secondary: #7a6f61;
+  --accent-primary: #f4b942;
+  --accent-primary-hover: #f7d280;
+  --accent-strong: #e09b2f;
+  --border-color: #efe7da;
+  --terminal-foreground: #2b2a22;
+}
+
+/* 22. Ember Dawn */
+html[data-theme="ember-dawn"]{
+  --background-primary: #0b0807;
+  --background-secondary: #14100f;
+  --background-tertiary: #221a19;
+  --text-primary: #fff3eb;
+  --text-secondary: #d9bfb3;
+  --accent-primary: #ff8b5a;
+  --accent-primary-hover: #ffb393;
+  --accent-strong: #ff6b35;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 23. Nebula Ink */
+html[data-theme="nebula-ink"]{
+  --background-primary: #05030a;
+  --background-secondary: #0a0713;
+  --background-tertiary: #151026;
+  --text-primary: #f7f3ff;
+  --text-secondary: #d8ccf8;
+  --accent-primary: #9b8cff;
+  --accent-primary-hover: #cdbaff;
+  --accent-strong: #7b5bff;
+  --border-color: rgba(255,255,255,0.03);
+}
+
+/* 24. Silver Cloud */
+html[data-theme="silver-cloud"]{
+  --background-primary: #f1f5f9;
+  --background-secondary: #e2e8f0;
+  --background-tertiary: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #475569;
+  --text-muted: #64748b;
+  --accent-primary: #0ea5e9;
+  --accent-primary-hover: #38bdf8;
+  --accent-primary-light: #7dd3fc;
+  --accent-primary-dark: #0284c7;
+  --accent-strong: #0284c7;
+  --border-color: #94a3b8;
+  --border-subtle: #cbd5e1;
+  --border-strong: #64748b;
+  --terminal-foreground: #0f172a;
+  --interactive-hover: rgba(15,23,42,0.06);
+  --interactive-active: rgba(15,23,42,0.09);
+  --interactive-selected: rgba(15,23,42,0.12);
+}
+
+/* ==========================================================================
+   🔑 SHARED KEYFRAME ANIMATIONS & UTILITIES
+   ========================================================================== */
+
+/* FC Barcelona - Pulso azulgrana */
+@keyframes barcaIconPulse {
+  0%, 100% { 
+    transform: scale(1);
+  }
+  50% { 
+    transform: scale(1.1);
+  }
+}
+
+/* Crimson Gold - Resplandor rojo-dorado */
+@keyframes crimsonGoldGlow {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  50% { 
+    opacity: 1;
+  }
+}
+
+/* Electric Indigo - Chispas eléctricas */
+@keyframes electricSpark {
+  0%, 100% { 
+    transform: scale(1);
+  }
+  25% { 
+    transform: scale(1.05);
+  }
+  50% { 
+    transform: scale(1);
+  }
+  75% { 
+    transform: scale(1.03);
+  }
+}
+
+/* Toxic Lime - Radiación verde */
+@keyframes toxicRadiation {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  33% { 
+    opacity: 1;
+  }
+  66% { 
+    opacity: 0.9;
+  }
+}
+
+/* Lavender Dream - Respiración lavanda */
+@keyframes lavenderBreath {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  50% { 
+    opacity: 1;
+  }
+}
+
+/* Peachy Sunrise - Brillo durazno */
+@keyframes peachyGlow {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  50% { 
+    opacity: 1;
+  }
+}
+
+/* Rose Quartz - Destello rosa-dorado */
+@keyframes roseQuartzShimmer {
+  0%, 100% { 
+    opacity: 0.8;
+  }
+  50% { 
+    opacity: 1;
+  }
+}
+
+/* Bold Rainbow - Ciclo RGB */
+@keyframes boldRgbIconCycle {
+  0% { 
+    filter: hue-rotate(0deg);
+  }
+  100% { 
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Bold Rainbow - Ondas RGB intensas */
+@keyframes boldRgbWave {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+@keyframes boldRgbScan {
+  0% { 
+    opacity: 0;
+    left: -100%;
+  }
+  50% { 
+    opacity: 1;
+    left: 100%;
+  }
+  100% { 
+    opacity: 0;
+    left: 100%;
+  }
+}
+
+@keyframes boldRgbBorderFlow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes boldRgbButtonPulse {
+  0%, 100% { 
+    background-position: 0% 50%;
+    transform: scale(1);
+  }
+  25% { 
+    background-position: 50% 50%;
+    transform: scale(1.02);
+  }
+  50% { 
+    background-position: 100% 50%;
+    transform: scale(1);
+  }
+  75% { 
+    background-position: 150% 50%;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes boldRgbPulseGlow {
+  0%, 100% { 
+    background: rgba(255, 0, 128, 0.2);
+  }
+  50% { 
+    background: rgba(0, 255, 255, 0.2);
+  }
+}
+
+@keyframes boldRgbSpinGlow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes boldRgbTabGlow {
+  0%, 100% { 
+    background: rgba(255, 0, 128, 0.25);
+  }
+  50% { 
+    background: rgba(0, 255, 255, 0.25);
+  }
+}
+
+@keyframes boldRgbSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Animación legacy para compatibilidad */
+@keyframes headerRgbShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

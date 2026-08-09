@@ -17,8 +17,10 @@ pub use operations::{
   sftp_home,
   sftp_list,
   sftp_mkdir,
+  sftp_rename,
   sftp_remove,
   sftp_cancel,
+  sftp_read_text,
 };
 
 pub use transfers::{
@@ -36,7 +38,7 @@ pub fn get_or_connect_cached(map: &mut std::collections::HashMap<String, Session
     (s.host.clone(), s.port, s.user.clone(), s.password.clone())
   };
   let (tcp, sess) = sftp2::connect_password(&host, port, &user, &password).map_err(|e| e.to_string())?;
-  let arc = Arc::new(Mutex::new(CachedSsh2 { tcp, sess }));
+  let arc = Arc::new(Mutex::new(CachedSsh2::new(tcp, sess)));
   if let Some(s) = map.get_mut(id) { s.sftp_cached = Some(arc.clone()); }
   Ok(arc)
 }

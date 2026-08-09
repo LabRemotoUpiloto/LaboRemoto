@@ -1,10 +1,18 @@
 // components/desktop/DesktopPane.tsx — Escritorio gráfico remoto via noVNC
 
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useDesktopSession } from '../../hooks/useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
 import './DesktopPane.css'
+
+// Resolución fija con la que arranca Xvfb en el Pi. No es configurable por
+// el usuario: cambiarla en caliente no es posible (ver investigación en
+// server.rs — el máximo de framebuffer de Xvfb queda fijado para siempre al
+// arrancar el proceso) y no hace falta pedirla, porque `scaleViewport` en
+// `connectRFB` ajusta visualmente el canvas al tamaño real del contenedor
+// sin importar a qué resolución esté corriendo la X remota.
+const DESKTOP_RESOLUTION = '1280x720'
 
 // ── Mapa de keysyms X11 para teclas especiales ────────────────────────────────
 // Para caracteres imprimibles (e.key.length === 1) el keysym = código Unicode.
@@ -52,7 +60,6 @@ interface Props {
 const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const rfbRef = useRef<any>(null)
-  const [resolution, setResolution] = useState('1280x720')
   const { status, sessionInfo, error, start, stop } = useDesktopSession(sessionId)
 
   // Portapapeles: texto copiado desde el escritorio remoto (sincronización automática)
@@ -225,6 +232,42 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Reescalado automático del canvas ante CUALQUIER cambio de tamaño del
+  // contenedor (splits, toggle de sidebar, aparición de otro panel como la
+  // cámara, cambio de vista, resize de ventana...), no solo el resize de
+  // ventana. noVNC trae su propio ResizeObserver interno sobre su wrapper
+  // (`_screen`), pero no siempre dispara de forma confiable cuando el cambio
+  // de tamaño viene de un toggle de visibilidad (display:none → flex al
+  // cambiar de vista) o de un layout externo en vez de un resize real de
+  // ventana — el mismo tipo de problema que ya resolvimos en la terminal
+  // local con un ResizeObserver propio.
+  //
+  // Reasignar `scaleViewport` (aunque sea al mismo valor) es la vía pública
+  // de noVNC para forzar un recálculo síncrono de la escala contra el
+  // tamaño ACTUAL del contenedor (ver el setter en rfb.js: internamente
+  // llama _updateScale()) — no depende de que su ResizeObserver interno
+  // haya disparado correctamente.
+  useEffect(() => {
+    const container = canvasContainerRef.current
+    if (!container || !window.ResizeObserver) return
+
+    let raf = 0
+    const observer = new ResizeObserver(() => {
+      if (raf) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        if (rfbRef.current) {
+          try { rfbRef.current.scaleViewport = true } catch { /* ignore */ }
+        }
+      })
+    })
+    observer.observe(container)
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      observer.disconnect()
+    }
+  }, [])
+
   // Only auto-start VNC when the user explicitly navigates to the desktop view
   // Do NOT auto-start on mount — the DesktopPane is always mounted (visibility: hidden)
   // and auto-starting causes port-forward spam when viewing terminal/camera
@@ -247,7 +290,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     }
     // isActive es true — iniciar VNC si aún no se ha hecho
     if (status === 'idle') {
-      start(resolution)
+      start(DESKTOP_RESOLUTION)
       return
     }
     // Conectar RFB cuando el backend está listo y el contenedor es visible
@@ -256,10 +299,6 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     connectRFB(canvasContainerRef.current, `ws://127.0.0.1:${sessionInfo.ws_port}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, sessionInfo, isActive])
-
-  const handleStart = () => {
-    start(resolution)
-  }
 
   const handleStop = async () => {
     if (rfbRef.current) {
@@ -287,17 +326,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   }
 
   const handleRetry = () => {
-    start(resolution)
+    start(DESKTOP_RESOLUTION)
   }
-
-
 
   return (
     <div className="desktop-pane" style={{ display: isActive ? 'flex' : 'none' }}>
       <DesktopToolbar
         status={status}
-        resolution={resolution}
-        onResolutionChange={setResolution}
         onStop={handleStop}
         onSendAltTab={handleSendAltTab}
         onCleanupAll={handleCleanupAll}

@@ -7,6 +7,18 @@
   --sidebar-width: 200px;
 }
 
+/* El nav de la sidebar oculta su scrollbar (la barra de acento se veía
+   demasiado prominente en el rail angosto). Sigue siendo scrolleable con
+   rueda/trackpad. */
+.sidebar-nav-scroll {
+  scrollbar-width: none; /* Firefox */
+}
+.sidebar-nav-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .app-container.h2-visible {
   --header-height: 0px;
 }
@@ -41,12 +53,17 @@
   position: fixed;
   top: 0;
   right: 0;
+  /* left NO se transiciona acá: lo mueve GSAP vía --sidebar-width (App.tsx),
+     con una sola animación en vez de que esto la persiga por detrás con su
+     propio timing y produzca un efecto de "arrastre" doble. */
   left: calc(var(--sidebar-width) + 24px) !important;
   height: 46px;
-  background-color: var(--background-primary) !important;
-  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--header-bg, var(--background-primary)) !important;
+  border-bottom: var(--header-border, 1px solid var(--border-subtle)) !important;
+  backdrop-filter: var(--header-blur, none) !important;
+  -webkit-backdrop-filter: var(--header-blur, none) !important;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  transition: right 0.3s cubic-bezier(0.2, 0, 0, 1), background-color 0.3s cubic-bezier(0.2, 0, 0, 1), border-color 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .main-content {
@@ -58,8 +75,9 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* margin-left NO se transiciona acá — mismo motivo que .app-header arriba. */
   margin-left: calc(var(--sidebar-width) + 24px) !important;
-  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  transition: right 0.3s cubic-bezier(0.2, 0, 0, 1);
   overflow: hidden;
 }
 
@@ -73,7 +91,7 @@
 
 /* ─── Pins Panel ─── */
 .pins-panel {
-  width: 350px;
+  width: 420px;
   height: calc(100vh - 24px) !important;
   position: absolute;
   right: 12px;
@@ -88,6 +106,17 @@
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.pins-panel ::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.pins-panel ::-webkit-scrollbar-corner {
+  background: transparent !important;
+  display: none !important;
 }
 
 .pins-panel__header {
@@ -130,17 +159,27 @@
 
 .pins-panel__content {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--background-primary);
 }
 
 /* Adjust main content and header when panels are open */
 .app-container.pins-open .main-content,
 .app-container.domotica-open .main-content {
-  right: calc(350px + 24px) !important;
+  right: calc(420px + 24px) !important;
 }
 
 .app-container.pins-open .app-header,
 .app-container.domotica-open .app-header {
-  right: calc(350px + 24px) !important;
+  right: calc(420px + 24px) !important;
+}
+
+.app-container.no-sidebar .main-content {
+  margin-left: 0 !important;
+}
+
+.app-container.no-sidebar .app-header {
+  left: 0 !important;
 }

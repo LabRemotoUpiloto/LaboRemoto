@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
-use ssh2::Session as Ssh2Session;
+use ssh2::{Session as Ssh2Session, Sftp as Ssh2Sftp};
 
 use crate::ssh_core::client::Session;
 
@@ -35,6 +35,26 @@ pub struct SessionExt {
 pub struct CachedSsh2 {
   pub tcp: TcpStream,
   pub sess: Ssh2Session,
+  // Canal SFTP cacheado de forma perezosa (Perf: abrir el subsistema SFTP
+  // cuesta un round-trip de red; sin este cache, cada operación --list,
+  // mkdir, rename, stat, etc.-- pagaba ese costo de nuevo aunque la sesión
+  // SSH ya estuviera abierta. Se abre una vez y se reutiliza mientras la
+  // conexión siga viva.
+  sftp: Option<Ssh2Sftp>,
+}
+
+impl CachedSsh2 {
+  pub fn new(tcp: TcpStream, sess: Ssh2Session) -> Self {
+    Self { tcp, sess, sftp: None }
+  }
+
+  /// Devuelve el canal SFTP cacheado, abriéndolo la primera vez que se pide.
+  pub fn get_or_open_sftp(&mut self) -> anyhow::Result<&Ssh2Sftp> {
+    if self.sftp.is_none() {
+      self.sftp = Some(crate::ssh_core::ssh2_sftp::open_sftp(&self.sess)?);
+    }
+    Ok(self.sftp.as_ref().unwrap())
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

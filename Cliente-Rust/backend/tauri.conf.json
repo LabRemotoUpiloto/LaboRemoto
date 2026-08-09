@@ -1,18 +1,18 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Cliente SSH Unipiloto",
-  "version": "0.1.9",
+  "version": "3.5.2",
   "identifier": "co.unipiloto.sshclient",
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:5174",
-    "beforeDevCommand": "npm run dev:frontend --prefix ..",
-    "beforeBuildCommand": "npm run build:frontend --prefix .."
+    "beforeDevCommand": "npm run dev:frontend",
+    "beforeBuildCommand": "npm run build:frontend"
   },
   "app": {
     "windows": [
       {
-        "title": "Cliente SSH Unipiloto",
+        "title": "Laboratorio remoto Unipiloto",
         "width": 800,
         "height": 600,
         "resizable": true,
@@ -40,7 +40,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/Haider2231/Releases-Cliente-SSH-Unipiloto/releases/latest/download/latest.json"
+        "https://github.com/LabRemotoUpiloto/LaboRemoto/releases/latest/download/latest.json"
       ],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgyNjJBMDYzNTMyRTNFMkIKUldRclBpNVRZNkJpZ3NsYlJSUTlLU25vK2NSVldpVUJLUW1ETStodHhlUlV2VlpwRko4NW95dGMK"

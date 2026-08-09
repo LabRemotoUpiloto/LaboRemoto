@@ -1,12 +1,12 @@
 /**
  * session.service.ts
- * 
+ *
  * Capa de servicio para la gestión de logs de sesión y capturas.
- * Centraliza la conversión de ANSI a HTML y la comunicación con el backend.
+ * La conversión de ANSI a HTML corre en el backend (`cmd/logs/ansi_html.rs`)
+ * — este módulo solo manda el buffer crudo y consume los comandos Tauri.
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import AnsiToHtml from 'ansi-to-html';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -36,92 +36,17 @@ export interface SessionLog {
   html_content: string;
 }
 
-// ── Utilidades Internas ───────────────────────────────────────────────────────
-
-/**
- * Procesa el stream del terminal simulando cómo xterm maneja backspaces.
- */
-function processTerminalStream(text: string): string {
-  const cleaned = cleanAnsiControlSequences(text);
-  let result = '';
-  
-  for (let i = 0; i < cleaned.length; i++) {
-    const char = cleaned[i];
-    if (char === '\b' || char === '\x7F') {
-      if (result.length > 0 && result[result.length - 1] !== '\n') {
-        result = result.slice(0, -1);
-      }
-      continue;
-    }
-    result += char;
-  }
-  return result;
-}
-
-/**
- * Limpia secuencias de escape ANSI de control que NO son de color/formato.
- */
-function cleanAnsiControlSequences(text: string): string {
-  return text
-    .replace(/\x1b\[H\x1b\[2J/g, '\n\n──────────── CLEAR ────────────\n\n')
-    .replace(/\x1b\[2J\x1b\[H/g, '\n\n──────────── CLEAR ────────────\n\n')
-    .replace(/\x1b\[3J/g, '\n\n──────────── CLEAR ────────────\n\n')
-    .replace(/\x1b\[\?[0-9;]+[hl]/g, '')
-    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
-    .replace(/\x1b\[200~|\x1b\[201~/g, '')
-    .replace(/\x1b\[s|\x1b\[u/g, '')
-    .replace(/\x1b7|\x1b8/g, '')
-    .replace(/\x1b\([AB0]/g, '')
-    .replace(/\x1b\[[0-9]*A/g, '')
-    .replace(/\x1b\[[0-9]*B/g, '')
-    .replace(/\x1b\[[0-9]*C/g, '')
-    .replace(/\x1b\[[0-9]*D/g, '')
-    .replace(/\x1b\[[0-9]*E/g, '')
-    .replace(/\x1b\[[0-9]*F/g, '')
-    .replace(/\x1b\[[0-9]*G/g, '')
-    .replace(/\x1b\[[0-9;]*H/g, '')
-    .replace(/\x1b\[[0-9;]*f/g, '')
-    .replace(/\x1b\[[0-9]*J/g, '')
-    .replace(/\x1b\[[0-9]*K/g, '')
-    .replace(/\x1b\[[0-9;]*r/g, '')
-    .replace(/\x1b\[[0-9]*L/g, '')
-    .replace(/\x1b\[[0-9]*M/g, '')
-    .replace(/\x1b\[[0-9]*@/g, '')
-    .replace(/\x1b\[[0-9]*P/g, '')
-    .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1A\x1C-\x1F\x7F]/g, '');
-}
-
-/**
- * Convierte códigos ANSI a HTML con colores preservados.
- */
-function convertAnsiToHtml(ansiText: string): string {
-  const processedText = processTerminalStream(ansiText);
-  const converter = new AnsiToHtml({
-    fg: '#d4d4d4',
-    bg: '#1e1e1e',
-    newline: true,
-    escapeXML: true,
-    stream: false,
-    colors: {
-      0: '#1e1e1e', 1: '#cd3131', 2: '#0dbc79', 3: '#e5e510',
-      4: '#2472c8', 5: '#bc3fbc', 6: '#11a8cd', 7: '#e5e5e5',
-      8: '#666666', 9: '#f14c4c', 10: '#23d18b', 11: '#f5f543',
-      12: '#3b8eea', 13: '#d670d6', 14: '#29b8db', 15: '#e5e5e5',
-    }
-  });
-  return converter.toHtml(processedText);
-}
-
 // ── Comandos ──────────────────────────────────────────────────────────────────
 
 /**
  * Captura el buffer completo de una sesión y lo guarda en el backend.
+ * El buffer serializado (ANSI crudo) se manda tal cual — la conversión a
+ * HTML corre en Rust (`save_session_log_fragment` → `ansi_html::convert_ansi_to_html`).
  */
 export async function captureAndSaveSession(
   serializedContent: string,
   metadata: SessionMetadata
 ): Promise<void> {
-  const htmlContent = convertAnsiToHtml(serializedContent);
   return invoke('save_session_log_fragment', {
     sessionId: metadata.sessionId,
     user: metadata.user,
@@ -129,7 +54,7 @@ export async function captureAndSaveSession(
     port: metadata.port,
     startTime: metadata.startTime,
     endTime: metadata.endTime,
-    htmlFragment: htmlContent,
+    rawContent: serializedContent,
   });
 }
 
@@ -150,3 +75,11 @@ export const getSessionLogContent = (sessionId: string): Promise<string> =>
  */
 export const deleteSessionLog = (sessionId: string): Promise<void> =>
   invoke<void>('delete_session_log', { sessionId });
+
+/**
+ * Extrae la lista de comandos válidos detectados en el log de una sesión
+ * (usado para el reporte PDF). El backend lee el HTML guardado y filtra
+ * contra su lista de comandos Linux conocidos.
+ */
+export const extractSessionCommands = (sessionId: string): Promise<string[]> =>
+  invoke<string[]>('extract_session_commands', { sessionId });

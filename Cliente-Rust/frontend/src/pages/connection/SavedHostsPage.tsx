@@ -190,11 +190,8 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
                 return (
                   <Card
                     key={it.file}
-                    withBorder
                     padding="lg"
-                    radius="md"
-                    className="group cursor-pointer"
-                    style={{ transition: 'all 0.2s ease' }}
+                    className="dribbble-card dribbble-card-interactive group"
                     onClick={() => connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password)}
                   >
                     <Stack gap="md">
@@ -210,12 +207,12 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
                             <IconComponent size={20} />
                           </div>
                           <div className="min-w-0">
-                            <Text size="sm" fw={600} truncate>{it.payload.name || displayName}</Text>
+                            <Text size="sm" fw={600} truncate style={{ color: 'var(--text-primary)' }}>{it.payload.name || displayName}</Text>
                             {it.payload.name && (
-                              <Text size="xs" c="dimmed" fw={500} style={{ marginTop: -2 }}>{displayName}</Text>
+                              <Text size="xs" style={{ color: 'var(--text-secondary)', marginTop: -2 }} fw={500}>{displayName}</Text>
                             )}
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <Text size="xs" c="dimmed" truncate>
+                              <Text size="xs" style={{ color: 'var(--text-secondary)' }} truncate>
                                 {it.payload.user && (
                                   <span style={{ color: 'var(--accent-primary)' }}>{it.payload.user}@</span>
                                 )}
@@ -229,7 +226,7 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
                         <Menu shadow="md" width={160} position="bottom-end" withinPortal>
                           <Menu.Target>
                             <ActionIcon
-                              variant="subtle" color="gray" size="sm"
+                              variant="subtle" style={{ color: 'var(--text-secondary)' }} size="sm"
                               onClick={e => e.stopPropagation()}
                               aria-label="Más opciones"
                             >
@@ -255,8 +252,9 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
                       </div>
 
                       <Button
-                        size="xs" variant="light" fullWidth
+                        size="xs"
                         disabled={loadingLocal}
+                        className="dribbble-btn-primary h-8 text-xs w-full"
                         rightSection={<ArrowRight size={14} />}
                         onClick={e => { e.stopPropagation(); connectToHost(it.payload.host, it.payload.port, it.payload.user, it.payload.password) }}
                       >

@@ -104,10 +104,10 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             <Terminal size={18} />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-lg font-semibold m-0 leading-tight text-[var(--mantine-color-text)]">
+            <h2 className="text-lg font-semibold m-0 leading-tight text-[var(--text-primary)]">
               Conexión SSH
             </h2>
-            <span className="text-[11px] text-[var(--mantine-color-dimmed)] leading-tight mt-0.5">
+            <span className="text-[11px] text-[var(--text-secondary)] leading-tight mt-0.5">
               Introduce las credenciales del servidor
             </span>
           </div>
@@ -115,7 +115,7 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
 
         <Divider className="mb-5 opacity-50" />
 
-        <Stack gap="md">
+        <Stack gap="md" className="dribbble-input-container">
           {/* Host + Port row — ocultos para Raspberry Pi */}
           {!isRaspberryPi() && (
             <div className="flex gap-3">
@@ -128,7 +128,7 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
                   onChange={(e) => handleHostChange(e.currentTarget.value)}
                   error={errors.host}
                   title="Dirección IP o nombre de dominio del servidor SSH"
-                  leftSection={<Globe size={15} className="text-[var(--mantine-color-dimmed)]" />}
+                  leftSection={<Globe size={15} style={{ color: 'var(--text-secondary)' }} />}
                 />
               </div>
               <div className="w-24">
@@ -141,7 +141,7 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
                   onChange={(e) => handlePortChange(e.currentTarget.value)}
                   error={errors.port}
                   title="Puerto SSH (1-65535)"
-                  leftSection={<Hash size={15} className="text-[var(--mantine-color-dimmed)]" />}
+                  leftSection={<Hash size={15} style={{ color: 'var(--text-secondary)' }} />}
                 />
               </div>
             </div>
@@ -159,7 +159,7 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             }}
             error={errors.user}
             title="Nombre de usuario para la conexión SSH"
-            leftSection={<User size={15} className="text-[var(--mantine-color-dimmed)]" />}
+            leftSection={<User size={15} style={{ color: 'var(--text-secondary)' }} />}
           />
 
           {/* Password */}
@@ -175,18 +175,16 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             visible={showPassword}
             onVisibilityChange={setShowPassword}
             autoComplete="off"
-            leftSection={<Lock size={15} className="text-[var(--mantine-color-dimmed)]" />}
+            leftSection={<Lock size={15} style={{ color: 'var(--text-secondary)' }} />}
           />
         </Stack>
 
         {/* Acciones */}
         <Group mt="xl" gap="sm" justify="space-between">
           <Button
-            variant="subtle"
-            color="gray"
-            size="sm"
             onClick={openSaveModal}
             disabled={isConnecting}
+            className="dribbble-btn-secondary text-xs h-9 px-4"
             title="Guardar host (Ctrl+S)"
             leftSection={<Save size={14} />}
           >
@@ -196,6 +194,7 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
             type="submit"
             loading={isConnecting}
             disabled={!isValid}
+            className="dribbble-btn-primary text-xs h-9 px-4"
             title={isValid ? 'Conectar (Enter)' : 'Completa todos los campos correctamente'}
             rightSection={!isConnecting && <ArrowRight size={16} />}
           >

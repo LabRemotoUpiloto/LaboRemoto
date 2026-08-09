@@ -1,6 +1,7 @@
 // hooks/useCameraGrid.ts
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { useLifecycleStatus } from './useLifecycleStatus'
 
 /** Devuelve true si el host es claramente un túnel público (Pinggy/ngrok/etc).
  *  En esos casos UDP no funciona — WebRTC/RTP no puede atravesar el túnel TCP. */
@@ -19,12 +20,13 @@ export interface CameraInfo {
 type GridStatus = 'idle' | 'connecting' | 'active' | 'error'
 
 export function useCameraGrid(sessionId: string | null) {
+  const { status, setStatus, error, setError } = useLifecycleStatus<GridStatus>('idle')
   const [cameras, setCameras] = useState<CameraInfo[]>([])
   const [localPort, setLocalPort] = useState<number | null>(null)
   const [piHost, setPiHost] = useState<string | null>(null)
-  const [status, setStatus] = useState<GridStatus>('idle')
-  const [error, setError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Corta el polling al detener/desmontar; semántica distinta de un guard de
+  // reentrada (startingRef en useDesktopSession) — por eso se queda local.
   const stoppedRef = useRef(false)
 
   const pollCameras = useCallback(async (sid: string) => {

@@ -1,13 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
+import { commandClient } from '../../services/command.service'
+import { useMediaQuery } from '@mantine/hooks'
 import FilePanel from '../../components/sftp/FilePanel'
-import TransfersPanel from '../../components/sftp/TransfersPanel'
+import TransferQueue from '../../components/sftp/TransferQueue'
 import ContextMenu from '../../components/shared/ContextMenu'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import PromptModal from '../../components/modals/PromptModal'
+import QuickViewModal from '../../components/sftp/QuickViewModal'
 import { useLocalFsBrowser } from '../../hooks/useLocalFsBrowser'
 import { useRemoteFsBrowser } from '../../hooks/useRemoteFsBrowser'
-import { useSftpTransfers } from '../../hooks/useSftpTransfers'
+import { useSftpSession } from '../../hooks/useSftpSession'
+import { usePointerDrag } from '../../components/sftp/usePointerDrag'
 import { useToasts } from '../../contexts/ToastContext'
 import {
   joinLocalPath,
@@ -15,6 +20,7 @@ import {
   getParentLocalPath,
   getParentRemotePath,
 } from '../../components/shared/pathUtils'
+import { formatBytes } from '../../components/shared/fileFormatters'
 import type { SftpEntry, LocalEntry } from '../../types'
 
 type Props = {
@@ -23,6 +29,28 @@ type Props = {
   sessionsMeta?: Record<string, { label: string }>
   initialPath?: string
   onPathChange?: (path: string) => void
+}
+
+/** Trunca una lista de nombres a `max` elementos para mostrar en confirmaciones. */
+function summarizeNames(names: string[], max = 10): string {
+  const shown = names.slice(0, max)
+  const rest = names.length - shown.length
+  return rest > 0 ? `${shown.join(', ')}, …y ${rest} más` : shown.join(', ')
+}
+
+/** Extensiones consideradas de texto para habilitar "Vista rápida" (sftp_read_text). */
+const TEXT_EXTENSIONS = new Set([
+  'txt', 'log', 'md', 'py', 'sh', 'conf', 'cfg', 'ini', 'json', 'yaml', 'yml',
+  'toml', 'xml', 'csv', 'js', 'ts', 'rs', 'c', 'cpp', 'h', 'html', 'css',
+  'sql', 'service', 'env', 'gitignore',
+])
+
+/** Determina si un nombre de archivo corresponde a un archivo de texto conocido. */
+function isTextFileName(name: string): boolean {
+  const idx = name.lastIndexOf('.')
+  if (idx === -1) return true
+  const ext = name.slice(idx + 1).toLowerCase()
+  return TEXT_EXTENSIONS.has(ext)
 }
 
 const SftpPage: React.FC<Props> = ({
@@ -35,6 +63,7 @@ const SftpPage: React.FC<Props> = ({
   const { push } = useToasts()
   const [sessionId, setSessionId] = useState<string | undefined>(activeSessionId)
   const [activePane, setActivePane] = useState<'local' | 'remote'>('local')
+  const isNarrow = useMediaQuery('(max-width: 1099px)')
 
   useEffect(() => setSessionId(activeSessionId), [activeSessionId])
 
@@ -48,8 +77,13 @@ const SftpPage: React.FC<Props> = ({
     display: ldisplay,
     loading: lload,
     drives: ldrives,
-    selectedPath: lSelectedPath,
-    setSelectedPath: setLSelectedPath,
+    selectedPaths: lSelectedPaths,
+    lastSelected: lLastSelected,
+    selectOnly: lSelectOnly,
+    toggleSelect: lToggleSelect,
+    selectRange: lSelectRange,
+    selectAll: lSelectAll,
+    clearSelection: lClearSelection,
     sort: lSort,
     setSort: setLSort,
     filter: lfilter,
@@ -65,13 +99,20 @@ const SftpPage: React.FC<Props> = ({
     display: rdisplay,
     loading: rload,
     error: rerr,
-    selectedPath: rSelectedPath,
-    setSelectedPath: setRSelectedPath,
+    selectedPaths: rSelectedPaths,
+    lastSelected: rLastSelected,
+    selectOnly: rSelectOnly,
+    toggleSelect: rToggleSelect,
+    selectRange: rSelectRange,
+    selectAll: rSelectAll,
+    clearSelection: rClearSelection,
     sort: rSort,
     setSort: setRSort,
     filter: rfilter,
     setFilter: setRfilter,
     refresh: refreshRemote,
+    insertEntry: insertRemoteEntry,
+    removeEntry: removeRemoteEntry,
   } = useRemoteFsBrowser(sessionId, initialPath)
 
   // ── Transfers ──────────────────────────────────────────────────────────────
@@ -79,7 +120,33 @@ const SftpPage: React.FC<Props> = ({
     transfers,
     cancelTransfer: doCancel,
     clearCompleted: doClearTransfers,
-  } = useSftpTransfers(sessionId)
+  } = useSftpSession(sessionId)
+
+  // ── Actualización incremental del panel remoto tras subidas completadas ────
+  // Cuando una transferencia de subida termina, inserta/actualiza la entrada
+  // resultante en el panel remoto (sin refresh completo) si el directorio
+  // destino de la subida sigue siendo el directorio remoto que se está viendo.
+  const processedUploadIdsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    for (const t of transfers) {
+      if (t.direction !== 'upload' || t.status !== 'done') continue
+      if (processedUploadIdsRef.current.has(t.id)) continue
+      processedUploadIdsRef.current.add(t.id)
+      const remotePath = t.remote_path
+      if (!remotePath) continue
+      const parent = getParentRemotePath(remotePath) ?? '/'
+      if (parent === rpath) {
+        const name = remotePath.split('/').filter(Boolean).pop() || remotePath
+        insertRemoteEntry({
+          name,
+          path: remotePath,
+          kind: 'file',
+          size: t.total ?? t.bytes,
+          mtime: Math.floor(Date.now() / 1000),
+        })
+      }
+    }
+  }, [transfers, rpath, insertRemoteEntry])
 
   // ── Sync remote path to parent ─────────────────────────────────────────────
   const onPathChangeRef = React.useRef(onPathChange)
@@ -118,6 +185,21 @@ const SftpPage: React.FC<Props> = ({
   // ── Modal states ───────────────────────────────────────────────────────────
   const [mkdirOpen, setMkdirOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+
+  const [localMkdirOpen, setLocalMkdirOpen] = useState(false)
+  const [localConfirmOpen, setLocalConfirmOpen] = useState(false)
+  const [localRenameOpen, setLocalRenameOpen] = useState(false)
+
+  const [quickView, setQuickView] = useState<{
+    open: boolean
+    fileName: string
+    content: string
+    truncated: boolean
+  }>({ open: false, fileName: '', content: '', truncated: false })
+
+  const anyModalOpen =
+    mkdirOpen || confirmOpen || renameOpen || localMkdirOpen || localConfirmOpen || localRenameOpen || quickView.open
 
   // ── Path helpers (memoized) ────────────────────────────────────────────────
   const getLocalEntryPath = useCallback(
@@ -141,6 +223,16 @@ const SftpPage: React.FC<Props> = ({
   const localCanGoBack = useMemo(
     () => lpath !== '/' && !/^[A-Za-z]:\\?$/.test(lpath),
     [lpath]
+  )
+
+  // ── Selección: entradas seleccionadas resueltas (derivadas de rows) ───────
+  const lSelectedEntries = useMemo(
+    () => lrows.filter((x) => lSelectedPaths.has(x.path)),
+    [lrows, lSelectedPaths]
+  )
+  const rSelectedEntries = useMemo(
+    () => rrows.filter((x) => rSelectedPaths.has(getRemoteEntryPath(x))),
+    [rrows, rSelectedPaths, getRemoteEntryPath]
   )
 
   // ── Navigation handlers ────────────────────────────────────────────────────
@@ -174,6 +266,18 @@ const SftpPage: React.FC<Props> = ({
     if (parent) setRpath(parent)
   }, [rpath, setRpath])
 
+  // Callbacks estables para que el memo de FilePanelToolbar/AddressBar surta efecto.
+  const handleLocalRefresh = useCallback(() => {
+    refreshLocal()
+  }, [refreshLocal])
+
+  const handleRemoteRefresh = useCallback(() => {
+    refreshRemote()
+  }, [refreshRemote])
+
+  const handleSetActivePaneLocal = useCallback(() => setActivePane('local'), [])
+  const handleSetActivePaneRemote = useCallback(() => setActivePane('remote'), [])
+
   // ── Sort handlers ──────────────────────────────────────────────────────────
   const handleLocalSort = useCallback(
     (key: string) => {
@@ -195,57 +299,235 @@ const SftpPage: React.FC<Props> = ({
     [setRSort]
   )
 
-  // ── Transfer actions ───────────────────────────────────────────────────────
-  const doUpload = useCallback(async () => {
-    if (!sessionId || !lSelectedPath) return
-    const entry = lrows.find((x) => x.path === lSelectedPath)
-    if (!entry) return
-    const remote = joinRemotePath(rpath, entry.name)
-    try {
-      if (entry.kind === 'dir') {
-        await invoke('sftp_upload_dir_start', {
-          id: sessionId,
-          localPath: lSelectedPath,
-          remotePath: remote,
-        })
-      } else {
-        await invoke('sftp_upload_start', {
-          id: sessionId,
-          localPath: lSelectedPath,
-          remotePath: remote,
-        })
+  // ── Transfer actions (multi-archivo) ───────────────────────────────────────
+  // Sube una lista de entradas locales al directorio remoto actual, de forma
+  // secuencial (for..of, no en paralelo). Reutiliza exactamente los mismos
+  // comandos/mecanismos de invocación que la versión de un solo archivo.
+  const doUploadEntries = useCallback(
+    async (entries: LocalEntry[]) => {
+      if (!sessionId || entries.length === 0) return
+      for (const entry of entries) {
+        // Defensivo: nunca invocar upload con un path vacío/indefinido.
+        if (!entry || typeof entry.path !== 'string' || entry.path.trim() === '') {
+          push({
+            type: 'error',
+            message: `Ruta local inválida para "${entry?.name ?? 'elemento desconocido'}"`,
+          })
+          continue
+        }
+        const remote = joinRemotePath(rpath, entry.name)
+        try {
+          if (entry.kind === 'dir') {
+            await invoke('sftp_upload_dir_start', {
+              id: sessionId,
+              localPath: entry.path,
+              remotePath: remote,
+            })
+          } else {
+            // Comando migrado al protocolo versionado (payload snake_case).
+            await commandClient.invoke<
+              { id: string; local_path: string; remote_path: string },
+              { transfer_id: string }
+            >('sftp_upload_start', {
+              id: sessionId,
+              local_path: entry.path,
+              remote_path: remote,
+            })
+          }
+        } catch (e: any) {
+          push({ type: 'error', message: 'Error al subir: ' + (e?.toString?.() || e) })
+        }
       }
-    } catch (e: any) {
-      push({ type: 'error', message: 'Error al subir: ' + (e?.toString?.() || e) })
-    }
-  }, [sessionId, lSelectedPath, lrows, rpath, push])
+    },
+    [sessionId, rpath, push]
+  )
 
-  const doDownload = useCallback(async () => {
-    if (!sessionId || !rSelectedPath) return
-    const entry = rrows.find(
-      (x) =>
-        x.path === rSelectedPath || joinRemotePath(rpath, x.name) === rSelectedPath
-    )
-    if (!entry) return
-    const local = joinLocalPath(lpath, entry.name)
-    try {
-      if (entry.kind === 'dir') {
-        await invoke('sftp_download_dir_start', {
-          id: sessionId,
-          remotePath: rSelectedPath,
-          localPath: local,
-        })
-      } else {
-        await invoke('sftp_download_start', {
-          id: sessionId,
-          remotePath: rSelectedPath,
-          localPath: local,
-        })
+  const doUpload = useCallback(() => {
+    doUploadEntries(lSelectedEntries)
+  }, [doUploadEntries, lSelectedEntries])
+
+  // Sube un path local arbitrario (sin LocalEntry conocido) al directorio remoto
+  // actual, determinando si es carpeta o archivo antes de elegir el comando.
+  // Se usa para el drag & drop nativo de archivos del explorador de Windows.
+  const doUploadPath = useCallback(
+    async (localPath: string) => {
+      if (!sessionId) return
+      if (typeof localPath !== 'string' || localPath.trim() === '') {
+        push({ type: 'error', message: 'Ruta local inválida' })
+        return
       }
-    } catch (e: any) {
-      push({ type: 'error', message: 'Error al descargar: ' + (e?.toString?.() || e) })
+      const name = localPath.split(/[\\/]/).filter(Boolean).pop() || localPath
+      const remote = joinRemotePath(rpath, name)
+      let isDir = false
+      try {
+        await invoke('local_list_dir', { path: localPath })
+        isDir = true
+      } catch {
+        isDir = false
+      }
+      try {
+        if (isDir) {
+          await invoke('sftp_upload_dir_start', {
+            id: sessionId,
+            localPath,
+            remotePath: remote,
+          })
+        } else {
+          await commandClient.invoke<
+            { id: string; local_path: string; remote_path: string },
+            { transfer_id: string }
+          >('sftp_upload_start', {
+            id: sessionId,
+            local_path: localPath,
+            remote_path: remote,
+          })
+        }
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al subir: ' + (e?.toString?.() || e) })
+      }
+    },
+    [sessionId, rpath, push]
+  )
+
+  // Descarga una lista de entradas remotas al directorio local actual, de
+  // forma secuencial (for..of).
+  const doDownloadEntries = useCallback(
+    async (entries: SftpEntry[]) => {
+      if (!sessionId || entries.length === 0) return
+      for (const entry of entries) {
+        const remotePath = entry?.path || (entry ? joinRemotePath(rpath, entry.name) : undefined)
+        // Defensivo: nunca invocar download con un path remoto o local vacío.
+        if (!entry || typeof remotePath !== 'string' || remotePath.trim() === '') {
+          push({
+            type: 'error',
+            message: `Ruta remota inválida para "${entry?.name ?? 'elemento desconocido'}"`,
+          })
+          continue
+        }
+        const local = joinLocalPath(lpath, entry.name)
+        if (typeof local !== 'string' || local.trim() === '') {
+          push({ type: 'error', message: `Ruta local de destino inválida para "${entry.name}"` })
+          continue
+        }
+        try {
+          if (entry.kind === 'dir') {
+            await invoke('sftp_download_dir_start', {
+              id: sessionId,
+              remotePath,
+              localPath: local,
+            })
+          } else {
+            // Comando migrado al protocolo versionado (payload snake_case).
+            await commandClient.invoke<
+              { id: string; remote_path: string; local_path: string },
+              { transfer_id: string }
+            >('sftp_download_start', {
+              id: sessionId,
+              remote_path: remotePath,
+              local_path: local,
+            })
+          }
+        } catch (e: any) {
+          push({ type: 'error', message: 'Error al descargar: ' + (e?.toString?.() || e) })
+        }
+      }
+    },
+    [sessionId, rpath, lpath, push]
+  )
+
+  const doDownload = useCallback(() => {
+    doDownloadEntries(rSelectedEntries)
+  }, [doDownloadEntries, rSelectedEntries])
+
+  // ── Abrir / Abrir con… (local) ──────────────────────────────────────────────
+  const doLocalOpenPath = useCallback(
+    async (path: string) => {
+      try {
+        await invoke('local_open_path', { path })
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al abrir: ' + (e?.toString?.() || e) })
+      }
+    },
+    [push]
+  )
+
+  const doLocalRevealInExplorer = useCallback(
+    async (path: string) => {
+      try {
+        await invoke('local_reveal_in_explorer', { path })
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al mostrar en el explorador: ' + (e?.toString?.() || e) })
+      }
+    },
+    [push]
+  )
+
+  // ── Abrir / Abrir con… (remoto): descargar-y-abrir y vista rápida ─────────
+  // Mapa de transfer_id -> ruta local temporal pendiente de abrir cuando la
+  // descarga termine (observado vía el efecto que sigue `transfers`).
+  const pendingOpenTransfersRef = useRef<Map<string, string>>(new Map())
+
+  const doDownloadAndOpen = useCallback(
+    async (entry: SftpEntry) => {
+      if (!sessionId) return
+      const remotePath = getRemoteEntryPath(entry)
+      if (typeof remotePath !== 'string' || remotePath.trim() === '') {
+        push({ type: 'error', message: `Ruta remota inválida para "${entry.name}"` })
+        return
+      }
+      try {
+        const tempDir = await invoke<string>('local_temp_dir')
+        const openDir = joinLocalPath(tempDir, 'laboremoto-open')
+        const localPath = joinLocalPath(openDir, entry.name)
+        const res = await commandClient.invoke<
+          { id: string; remote_path: string; local_path: string },
+          { transfer_id: string }
+        >('sftp_download_start', { id: sessionId, remote_path: remotePath, local_path: localPath })
+        pendingOpenTransfersRef.current.set(res.transfer_id, localPath)
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al descargar: ' + (e?.toString?.() || e) })
+      }
+    },
+    [sessionId, getRemoteEntryPath, push]
+  )
+
+  // Cuando una transferencia de descarga marcada para "abrir" termina, se
+  // invoca local_open_path con el archivo temporal descargado.
+  useEffect(() => {
+    for (const t of transfers) {
+      const localPath = pendingOpenTransfersRef.current.get(t.id)
+      if (!localPath) continue
+      if (t.status === 'done') {
+        pendingOpenTransfersRef.current.delete(t.id)
+        invoke('local_open_path', { path: localPath }).catch((e: any) => {
+          push({ type: 'error', message: 'Error al abrir: ' + (e?.toString?.() || e) })
+        })
+      } else if (t.status === 'error' || t.status === 'cancelled') {
+        pendingOpenTransfersRef.current.delete(t.id)
+      }
     }
-  }, [sessionId, rSelectedPath, rrows, rpath, lpath, push])
+  }, [transfers, push])
+
+  const doQuickView = useCallback(
+    async (entry: SftpEntry) => {
+      if (!sessionId) return
+      const remotePath = getRemoteEntryPath(entry)
+      if (typeof remotePath !== 'string' || remotePath.trim() === '') {
+        push({ type: 'error', message: `Ruta remota inválida para "${entry.name}"` })
+        return
+      }
+      try {
+        const res = await commandClient.invoke<
+          { id: string; path: string; max_bytes?: number },
+          { content: string; truncated: boolean; size?: number }
+        >('sftp_read_text', { id: sessionId, path: remotePath })
+        setQuickView({ open: true, fileName: entry.name, content: res.content, truncated: res.truncated })
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al leer el archivo: ' + (e?.toString?.() || e) })
+      }
+    },
+    [sessionId, getRemoteEntryPath, push]
+  )
 
   // ── Remote operations ──────────────────────────────────────────────────────
   const doRemoteMkdir = useCallback(() => {
@@ -261,8 +543,13 @@ const SftpPage: React.FC<Props> = ({
       }
       const p = joinRemotePath(rpath, name)
       try {
-        await invoke('sftp_mkdir', { id: sessionId, path: p })
-        refreshRemote()
+        // Comando migrado al protocolo versionado.
+        await commandClient.invoke<{ id: string; path: string }, { ok: boolean }>(
+          'sftp_mkdir',
+          { id: sessionId, path: p }
+        )
+        // Actualización local: inserta la carpeta nueva sin refrescar todo el directorio.
+        insertRemoteEntry({ name, path: p, kind: 'dir', mtime: Math.floor(Date.now() / 1000) })
         push({ type: 'success', message: 'Carpeta creada' })
       } catch (e: any) {
         push({
@@ -272,41 +559,244 @@ const SftpPage: React.FC<Props> = ({
       }
       setMkdirOpen(false)
     },
-    [sessionId, rpath, refreshRemote, push]
+    [sessionId, rpath, insertRemoteEntry, push]
   )
 
   const doRemoteDelete = useCallback(() => {
-    if (!sessionId || !rSelectedPath) return
+    if (!sessionId || rSelectedPaths.size === 0) return
     setConfirmOpen(true)
-  }, [sessionId, rSelectedPath])
+  }, [sessionId, rSelectedPaths])
 
   const confirmRemoteDelete = useCallback(async () => {
-    if (!sessionId || !rSelectedPath) {
+    if (!sessionId || rSelectedEntries.length === 0) {
       setConfirmOpen(false)
       return
     }
-    const entry = rrows.find(
-      (x) =>
-        x.path === rSelectedPath || joinRemotePath(rpath, x.name) === rSelectedPath
-    )
-    const isDir = entry?.kind === 'dir' || rSelectedPath.endsWith('/')
-    try {
-      await invoke('sftp_remove', {
-        id: sessionId,
-        path: rSelectedPath,
-        recursive: isDir,
-      })
-      setConfirmOpen(false)
-      refreshRemote()
-      push({ type: 'success', message: 'Eliminado' })
-    } catch (e: any) {
-      setConfirmOpen(false)
-      push({
-        type: 'error',
-        message: 'Error eliminando: ' + (e?.toString?.() || e),
-      })
+    setConfirmOpen(false)
+    let okCount = 0
+    for (const entry of rSelectedEntries) {
+      const path = getRemoteEntryPath(entry)
+      const isDir = entry.kind === 'dir'
+      try {
+        await invoke('sftp_remove', {
+          id: sessionId,
+          path,
+          recursive: isDir,
+        })
+        // Actualización local: quita la entrada eliminada sin refrescar todo el directorio.
+        removeRemoteEntry(entry.name)
+        okCount += 1
+      } catch (e: any) {
+        push({
+          type: 'error',
+          message: `Error eliminando "${entry.name}": ` + (e?.message ?? String(e)),
+        })
+      }
     }
-  }, [sessionId, rSelectedPath, rrows, rpath, refreshRemote, push])
+    rClearSelection()
+    if (okCount > 0) {
+      push({ type: 'success', message: `Eliminado${okCount !== 1 ? 's' : ''} ${okCount} elemento${okCount !== 1 ? 's' : ''}` })
+    }
+  }, [sessionId, rSelectedEntries, getRemoteEntryPath, removeRemoteEntry, rClearSelection, push])
+
+  const deleteConfirmMessage = useMemo(() => {
+    const names = rSelectedEntries.map((e) => e.name)
+    if (names.length === 0) return ''
+    return `¿Eliminar ${names.length} elemento${names.length !== 1 ? 's' : ''} en ${rpath}? ${summarizeNames(names)}`
+  }, [rSelectedEntries, rpath])
+
+  // ── Renombrar (solo remoto) ─────────────────────────────────────────────────
+  const doRemoteRename = useCallback(() => {
+    if (!sessionId || rSelectedEntries.length !== 1) return
+    setRenameOpen(true)
+  }, [sessionId, rSelectedEntries])
+
+  const confirmRemoteRename = useCallback(
+    async (newName: string) => {
+      setRenameOpen(false)
+      if (!sessionId || rSelectedEntries.length !== 1) return
+      const entry = rSelectedEntries[0]
+      const oldPath = getRemoteEntryPath(entry)
+      const newPath = joinRemotePath(rpath, newName)
+      try {
+        await commandClient.invoke<
+          { id: string; old_path: string; new_path: string },
+          { ok: boolean }
+        >('sftp_rename', { id: sessionId, old_path: oldPath, new_path: newPath })
+        removeRemoteEntry(entry.name)
+        insertRemoteEntry({ ...entry, name: newName, path: newPath })
+        rSelectOnly(newPath)
+        push({ type: 'success', message: 'Elemento renombrado' })
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al renombrar: ' + (e?.toString?.() || e) })
+      }
+    },
+    [sessionId, rSelectedEntries, getRemoteEntryPath, rpath, removeRemoteEntry, insertRemoteEntry, rSelectOnly, push]
+  )
+
+  // ── Local operations (mkdir, rename, delete) ──────────────────────────────
+  const doLocalMkdir = useCallback(() => {
+    setLocalMkdirOpen(true)
+  }, [])
+
+  const confirmLocalMkdir = useCallback(
+    async (name: string) => {
+      const p = joinLocalPath(lpath, name)
+      try {
+        await invoke('local_mkdir', { path: p })
+        refreshLocal()
+        push({ type: 'success', message: 'Carpeta local creada' })
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al crear carpeta local: ' + (e?.message ?? String(e)) })
+      }
+      setLocalMkdirOpen(false)
+    },
+    [lpath, refreshLocal, push]
+  )
+
+  const doLocalDelete = useCallback(() => {
+    if (lSelectedPaths.size === 0) return
+    setLocalConfirmOpen(true)
+  }, [lSelectedPaths])
+
+  const confirmLocalDelete = useCallback(async () => {
+    if (lSelectedEntries.length === 0) {
+      setLocalConfirmOpen(false)
+      return
+    }
+    setLocalConfirmOpen(false)
+    let okCount = 0
+    for (const entry of lSelectedEntries) {
+      const path = getLocalEntryPath(entry)
+      try {
+        await invoke('local_delete', { path })
+        okCount += 1
+      } catch (e: any) {
+        push({ type: 'error', message: `Error eliminando "${entry.name}": ` + (e?.message ?? String(e)) })
+      }
+    }
+    lClearSelection()
+    refreshLocal()
+    if (okCount > 0) {
+      push({ type: 'success', message: `Eliminado${okCount !== 1 ? 's' : ''} ${okCount} elemento${okCount !== 1 ? 's' : ''}` })
+    }
+  }, [lSelectedEntries, getLocalEntryPath, lClearSelection, refreshLocal, push])
+
+  const localDeleteConfirmMessage = useMemo(() => {
+    const names = lSelectedEntries.map((e) => e.name)
+    if (names.length === 0) return ''
+    return `¿Eliminar ${names.length} elemento${names.length !== 1 ? 's' : ''} en local (${lpath})? ${summarizeNames(names)}`
+  }, [lSelectedEntries, lpath])
+
+  const doLocalRename = useCallback(() => {
+    if (lSelectedEntries.length !== 1) return
+    setLocalRenameOpen(true)
+  }, [lSelectedEntries])
+
+  const confirmLocalRename = useCallback(
+    async (newName: string) => {
+      setLocalRenameOpen(false)
+      if (lSelectedEntries.length !== 1) return
+      const entry = lSelectedEntries[0]
+      const oldPath = getLocalEntryPath(entry)
+      const newPath = joinLocalPath(lpath, newName)
+      try {
+        await invoke('local_rename', { old_path: oldPath, new_path: newPath })
+        lSelectOnly(newPath)
+        refreshLocal()
+        push({ type: 'success', message: 'Elemento renombrado' })
+      } catch (e: any) {
+        push({ type: 'error', message: 'Error al renombrar local: ' + (e?.message ?? String(e)) })
+      }
+    },
+    [lSelectedEntries, getLocalEntryPath, lpath, lSelectOnly, refreshLocal, push]
+  )
+
+  // ── Drag & drop interno por puntero entre paneles ───────────────────────────
+  const localPanelRef = useRef<HTMLDivElement | null>(null)
+  const remotePanelRef = useRef<HTMLDivElement | null>(null)
+
+  const handlePointerDropOnRemote = useCallback(() => {
+    doUploadEntries(lSelectedEntries)
+  }, [doUploadEntries, lSelectedEntries])
+
+  const handlePointerDropOnLocal = useCallback(() => {
+    doDownloadEntries(rSelectedEntries)
+  }, [doDownloadEntries, rSelectedEntries])
+
+  const {
+    dragging,
+    ghostPos,
+    hoverSide,
+    startPress,
+    consumeSuppressedClick,
+  } = usePointerDrag({
+    localPanelRef,
+    remotePanelRef,
+    onDropOnLocal: handlePointerDropOnLocal,
+    onDropOnRemote: handlePointerDropOnRemote,
+  })
+
+  const handleLocalRowPointerDown = useCallback(
+    (_entry: LocalEntry | SftpEntry, e: React.MouseEvent) => {
+      startPress('local', lSelectedPaths.size || 1, e)
+    },
+    [startPress, lSelectedPaths]
+  )
+
+  const handleRemoteRowPointerDown = useCallback(
+    (_entry: LocalEntry | SftpEntry, e: React.MouseEvent) => {
+      startPress('remote', rSelectedPaths.size || 1, e)
+    },
+    [startPress, rSelectedPaths]
+  )
+
+  // ── Drag & drop nativo de archivos del explorador de Windows ───────────────
+  const [nativeDragOverRemote, setNativeDragOverRemote] = useState(false)
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    let cancelled = false
+
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const el = remotePanelRef.current
+        if (!el) return
+        const payload = event.payload
+        if (payload.type === 'leave') {
+          setNativeDragOverRemote(false)
+          return
+        }
+        // Las posiciones llegan en píxeles físicos; se convierten a CSS px
+        // para compararlas contra getBoundingClientRect().
+        const scale = window.devicePixelRatio || 1
+        const x = payload.position.x / scale
+        const y = payload.position.y / scale
+        const rect = el.getBoundingClientRect()
+        const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+
+        if (payload.type === 'over') {
+          setNativeDragOverRemote(inside)
+          return
+        }
+        if (payload.type === 'drop') {
+          setNativeDragOverRemote(false)
+          if (!inside || !sessionId) return
+          for (const p of payload.paths) {
+            doUploadPath(p)
+          }
+        }
+      })
+      .then((fn) => {
+        if (cancelled) fn()
+        else unlisten = fn
+      })
+
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
+  }, [sessionId, doUploadPath])
 
   // ── Context menu handlers ──────────────────────────────────────────────────
   const handleLocalContextMenu = useCallback(
@@ -324,133 +814,380 @@ const SftpPage: React.FC<Props> = ({
   )
 
   const handleLocalOpen = useCallback(() => {
-    if (!lSelectedPath) return
-    const ent = ldisplay.find((e) => e.path === lSelectedPath)
-    if (ent?.kind === 'dir') {
+    if (lSelectedPaths.size !== 1) return
+    const p = Array.from(lSelectedPaths)[0]
+    const ent = ldisplay.find((e) => e.path === p)
+    if (!ent) return
+    if (ent.kind === 'dir') {
       handleLocalNavigate(ent.path)
+    } else {
+      doLocalOpenPath(getLocalEntryPath(ent))
     }
-  }, [lSelectedPath, ldisplay, handleLocalNavigate])
+  }, [lSelectedPaths, ldisplay, handleLocalNavigate, doLocalOpenPath, getLocalEntryPath])
+
+  // ── Selección única de archivo (no carpeta): habilita "Abrir con…" ────────
+  const lSingleFileEntry = useMemo(() => {
+    if (lSelectedPaths.size !== 1) return undefined
+    const p = Array.from(lSelectedPaths)[0]
+    const ent = ldisplay.find((e) => e.path === p)
+    return ent && ent.kind !== 'dir' ? ent : undefined
+  }, [lSelectedPaths, ldisplay])
+
+  const rSingleFileEntry = useMemo(() => {
+    if (rSelectedPaths.size !== 1) return undefined
+    const p = Array.from(rSelectedPaths)[0]
+    const ent = rdisplay.find((e) => getRemoteEntryPath(e) === p)
+    return ent && ent.kind !== 'dir' ? (ent as SftpEntry) : undefined
+  }, [rSelectedPaths, rdisplay, getRemoteEntryPath])
 
   // ── Context menu items ─────────────────────────────────────────────────────
   const ctxItems = useMemo(
     () =>
       ctx.side === 'local'
         ? [
-            { label: 'Subir', onClick: doUpload, disabled: !sessionId || !lSelectedPath },
-            { label: 'Abrir', onClick: handleLocalOpen },
+            {
+              label: 'Subir al remoto',
+              onClick: doUpload,
+              disabled: !sessionId || lSelectedPaths.size === 0,
+            },
+            { label: 'Abrir', onClick: handleLocalOpen, disabled: lSelectedPaths.size !== 1 },
+            {
+              label: 'Abrir con…',
+              disabled: !lSingleFileEntry,
+              children: [
+                {
+                  label: 'Aplicación predeterminada',
+                  onClick: () => lSingleFileEntry && doLocalOpenPath(getLocalEntryPath(lSingleFileEntry)),
+                },
+                {
+                  label: 'Mostrar en el explorador',
+                  onClick: () =>
+                    lSingleFileEntry && doLocalRevealInExplorer(getLocalEntryPath(lSingleFileEntry)),
+                },
+              ],
+            },
+            {
+              label: 'Renombrar',
+              onClick: doLocalRename,
+              disabled: lSelectedPaths.size !== 1,
+            },
+            {
+              label: 'Eliminar',
+              onClick: doLocalDelete,
+              disabled: lSelectedPaths.size === 0,
+              danger: true,
+            },
+            { label: 'Nueva carpeta', onClick: doLocalMkdir },
           ]
         : [
-            { label: 'Nueva carpeta', onClick: doRemoteMkdir, disabled: !canUse },
+            { label: 'Bajar a local', onClick: doDownload, disabled: !canUse || rSelectedPaths.size === 0 },
+            {
+              label: 'Abrir',
+              onClick: () => rSingleFileEntry && doDownloadAndOpen(rSingleFileEntry),
+              disabled: !canUse || !rSingleFileEntry,
+            },
+            {
+              label: 'Abrir con…',
+              disabled: !canUse || !rSingleFileEntry,
+              children: [
+                {
+                  label: 'Descargar y abrir',
+                  onClick: () => rSingleFileEntry && doDownloadAndOpen(rSingleFileEntry),
+                },
+                {
+                  label: 'Vista rápida',
+                  onClick: () => rSingleFileEntry && doQuickView(rSingleFileEntry),
+                  disabled: !rSingleFileEntry || !isTextFileName(rSingleFileEntry.name),
+                },
+              ],
+            },
+            {
+              label: 'Renombrar',
+              onClick: doRemoteRename,
+              disabled: !canUse || rSelectedPaths.size !== 1,
+            },
             {
               label: 'Eliminar',
               onClick: doRemoteDelete,
-              disabled: !canUse || !rSelectedPath,
+              disabled: !canUse || rSelectedPaths.size === 0,
               danger: true,
             },
-            {
-              label: 'Descargar',
-              onClick: doDownload,
-              disabled: !canUse || !rSelectedPath,
-            },
+            { label: 'Nueva carpeta', onClick: doRemoteMkdir, disabled: !canUse },
           ],
     [
       ctx.side,
       sessionId,
-      lSelectedPath,
+      lSelectedPaths,
       canUse,
-      rSelectedPath,
+      rSelectedPaths,
       doUpload,
       doDownload,
+      doLocalRename,
+      doLocalDelete,
+      doLocalMkdir,
+      doRemoteRename,
       doRemoteMkdir,
       doRemoteDelete,
       handleLocalOpen,
+      lSingleFileEntry,
+      rSingleFileEntry,
+      getLocalEntryPath,
+      doLocalOpenPath,
+      doLocalRevealInExplorer,
+      doDownloadAndOpen,
+      doQuickView,
     ]
+  )
+
+  // ── Atajos de teclado (nivel página) ────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (anyModalOpen) return
+      const active = document.activeElement as HTMLElement | null
+      const tag = active?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || active?.isContentEditable) {
+        return
+      }
+
+      if (e.key === 'F5') {
+        e.preventDefault()
+        if (activePane === 'local') doUpload()
+        else doDownload()
+        return
+      }
+      if (e.key === 'F7') {
+        e.preventDefault()
+        doRemoteMkdir()
+        return
+      }
+      if (e.key === 'Delete' || e.key === 'F8') {
+        e.preventDefault()
+        doRemoteDelete()
+        return
+      }
+      if (e.key === 'F2') {
+        e.preventDefault()
+        doRemoteRename()
+        return
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault()
+        if (activePane === 'local') lSelectAll(ldisplay.map(getLocalEntryPath))
+        else rSelectAll(rdisplay.map(getRemoteEntryPath))
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (activePane === 'local') lClearSelection()
+        else rClearSelection()
+        return
+      }
+      if (e.key === 'Enter') {
+        if (activePane === 'local') {
+          if (lSelectedPaths.size === 1) {
+            const p = Array.from(lSelectedPaths)[0]
+            const ent = ldisplay.find((x) => x.path === p)
+            if (ent?.kind === 'dir') {
+              e.preventDefault()
+              handleLocalNavigate(ent.path)
+            }
+          }
+        } else if (rSelectedPaths.size === 1) {
+          const p = Array.from(rSelectedPaths)[0]
+          const ent = rdisplay.find((x) => getRemoteEntryPath(x) === p)
+          if (ent?.kind === 'dir') {
+            e.preventDefault()
+            handleRemoteNavigate(getRemoteEntryPath(ent))
+          }
+        }
+        return
+      }
+      if (e.key === 'Backspace') {
+        e.preventDefault()
+        if (activePane === 'local') handleLocalBack()
+        else handleRemoteBack()
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [
+    anyModalOpen,
+    activePane,
+    doUpload,
+    doDownload,
+    doRemoteMkdir,
+    doRemoteDelete,
+    doRemoteRename,
+    ldisplay,
+    rdisplay,
+    getLocalEntryPath,
+    getRemoteEntryPath,
+    lSelectAll,
+    rSelectAll,
+    lClearSelection,
+    rClearSelection,
+    lSelectedPaths,
+    rSelectedPaths,
+    handleLocalNavigate,
+    handleRemoteNavigate,
+    handleLocalBack,
+    handleRemoteBack,
+  ])
+
+  // ── Header labels ──────────────────────────────────────────────────────────
+  const remoteSessionLabel = sessionId ? sessionsMeta?.[sessionId]?.label || sessionId : undefined
+  const remoteStatusColor = rerr ? 'var(--danger)' : canUse ? 'var(--success)' : 'var(--text-muted)'
+
+  const microLabelStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: 'var(--text-secondary)',
+    flexShrink: 0,
+    minWidth: 0,
+  }
+
+  const renameDefaultValue = rSelectedEntries.length === 1 ? rSelectedEntries[0].name : ''
+
+  // ── Barra de estado global (pane activo) ───────────────────────────────────
+  const activeSelectedEntries = activePane === 'local' ? lSelectedEntries : rSelectedEntries
+  const activeTotalEntries = activePane === 'local' ? lrows.length : rrows.length
+  const activeSelectedSize = activeSelectedEntries.reduce(
+    (sum, e) => sum + (e.kind === 'dir' ? 0 : e.size || 0),
+    0
   )
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
       style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gridTemplateRows: '1fr auto',
+        display: 'flex',
+        flexDirection: 'column',
         height: '100%',
-        gap: 8,
+        gap: 6,
         padding: 8,
+        minHeight: 0,
       }}
     >
-      {/* Local Panel */}
-      <FilePanel
-        side="local"
-        active={activePane === 'local'}
-        onClick={() => setActivePane('local')}
-        path={lpath}
-        onNavigate={handleLocalNavigate}
-        onBack={handleLocalBack}
-        canGoBack={localCanGoBack}
-        entries={ldisplay}
-        loading={lload}
-        selectedPath={lSelectedPath}
-        onSelect={setLSelectedPath}
-        sortKey={lSort.key}
-        sortDir={lSort.dir}
-        onSort={handleLocalSort}
-        filter={lfilter}
-        onFilterChange={setLfilter}
-        rootLabel="Local"
-        onRefresh={() => refreshLocal()}
-        drives={ldrives}
-        currentDrive={currentLocalDrive}
-        onDriveChange={handleLocalDriveChange}
-        onUpload={doUpload}
-        canUpload={!!sessionId && !!lSelectedPath}
-        onContextMenu={handleLocalContextMenu}
-        getEntryPath={getLocalEntryPath}
-      />
+      {/* Paneles: local | remoto */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isNarrow ? 'column' : 'row',
+          flex: 1,
+          minHeight: 0,
+          gap: 8,
+        }}
+      >
+      {/* Local column */}
+      <div
+        ref={localPanelRef}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: isNarrow ? 320 : 0, minWidth: 0 }}
+      >
+        <FilePanel
+          side="local"
+          active={activePane === 'local'}
+          onClick={handleSetActivePaneLocal}
+          path={lpath}
+          onNavigate={handleLocalNavigate}
+          onBack={handleLocalBack}
+          canGoBack={localCanGoBack}
+          entries={ldisplay}
+          loading={lload}
+          selectedPaths={lSelectedPaths}
+          lastSelected={lLastSelected}
+          onSelectOnly={lSelectOnly}
+          onToggleSelect={lToggleSelect}
+          onSelectRange={lSelectRange}
+          onClearSelection={lClearSelection}
+          sortKey={lSort.key}
+          sortDir={lSort.dir}
+          onSort={handleLocalSort}
+          filter={lfilter}
+          onFilterChange={setLfilter}
+          rootLabel="Local"
+          onRefresh={handleLocalRefresh}
+          drives={ldrives}
+          currentDrive={currentLocalDrive}
+          onDriveChange={handleLocalDriveChange}
+          onNewFolder={doLocalMkdir}
+          onRename={doLocalRename}
+          canRename={lSelectedPaths.size === 1}
+          onDelete={doLocalDelete}
+          canDelete={lSelectedPaths.size > 0}
+          onUpload={doUpload}
+          canUpload={!!sessionId && lSelectedPaths.size > 0}
+          onContextMenu={handleLocalContextMenu}
+          getEntryPath={getLocalEntryPath}
+          onRowPointerDown={handleLocalRowPointerDown}
+          consumeSuppressedClick={consumeSuppressedClick}
+          forceDragOver={hoverSide === 'local'}
+          onOpenFile={(entry) => doLocalOpenPath(getLocalEntryPath(entry))}
+        />
+      </div>
 
-      {/* Remote Panel */}
-      <FilePanel
-        side="remote"
-        active={activePane === 'remote'}
-        onClick={() => setActivePane('remote')}
-        path={rpath}
-        onNavigate={handleRemoteNavigate}
-        onBack={handleRemoteBack}
-        canGoBack={rpath !== '/'}
-        entries={rdisplay}
-        loading={rload}
-        error={rerr}
-        selectedPath={rSelectedPath}
-        onSelect={setRSelectedPath}
-        sortKey={rSort.key}
-        sortDir={rSort.dir}
-        onSort={handleRemoteSort}
-        filter={rfilter}
-        onFilterChange={setRfilter}
-        rootLabel="Remoto"
-        addressPrefix="/"
-        onRefresh={() => refreshRemote()}
-        sessions={sessions}
-        sessionId={sessionId}
-        sessionsMeta={sessionsMeta}
-        onSessionChange={setSessionId}
-        isConnected={canUse}
-        onNewFolder={doRemoteMkdir}
-        onDelete={doRemoteDelete}
-        canDelete={canUse && !!rSelectedPath}
-        onDownload={doDownload}
-        canDownload={canUse && !!rSelectedPath}
-        disabled={!canUse}
-        onContextMenu={handleRemoteContextMenu}
-        getEntryPath={getRemoteEntryPath}
-      />
+      {/* Remote column */}
+      <div
+        ref={remotePanelRef}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: isNarrow ? 320 : 0, minWidth: 0 }}
+      >
+        <FilePanel
+          side="remote"
+          active={activePane === 'remote'}
+          onClick={handleSetActivePaneRemote}
+          path={rpath}
+          onNavigate={handleRemoteNavigate}
+          onBack={handleRemoteBack}
+          canGoBack={rpath !== '/'}
+          entries={rdisplay}
+          loading={rload}
+          error={rerr}
+          selectedPaths={rSelectedPaths}
+          lastSelected={rLastSelected}
+          onSelectOnly={rSelectOnly}
+          onToggleSelect={rToggleSelect}
+          onSelectRange={rSelectRange}
+          onClearSelection={rClearSelection}
+          sortKey={rSort.key}
+          sortDir={rSort.dir}
+          onSort={handleRemoteSort}
+          filter={rfilter}
+          onFilterChange={setRfilter}
+          rootLabel="Remoto"
+          addressPrefix="/"
+          onRefresh={handleRemoteRefresh}
+          sessions={sessions}
+          sessionId={sessionId}
+          sessionsMeta={sessionsMeta}
+          onSessionChange={setSessionId}
+          onNewFolder={doRemoteMkdir}
+          onRename={doRemoteRename}
+          canRename={canUse && rSelectedPaths.size === 1}
+          onDelete={doRemoteDelete}
+          canDelete={canUse && rSelectedPaths.size > 0}
+          onDownload={doDownload}
+          canDownload={canUse && rSelectedPaths.size > 0}
+          disabled={!canUse}
+          onContextMenu={handleRemoteContextMenu}
+          getEntryPath={getRemoteEntryPath}
+          onRowPointerDown={handleRemoteRowPointerDown}
+          consumeSuppressedClick={consumeSuppressedClick}
+          forceDragOver={nativeDragOverRemote || hoverSide === 'remote'}
+          onOpenFile={(entry) => doDownloadAndOpen(entry as SftpEntry)}
+        />
+      </div>
+      </div>
 
-      {/* Transfers */}
-      <TransfersPanel
-        transfers={transfers}
-        onCancel={doCancel}
-        onClear={doClearTransfers}
-      />
+      {/* Cola de transferencias (ancho completo, colapsable) */}
+      <TransferQueue transfers={transfers} onCancel={doCancel} onClear={doClearTransfers} />
+
+
 
       {/* Context Menu */}
       <ContextMenu
@@ -461,22 +1198,87 @@ const SftpPage: React.FC<Props> = ({
         items={ctxItems}
       />
 
-      {/* Modals */}
+      {/* Modals remotos */}
       <ConfirmModal
         open={confirmOpen}
         title="Eliminar en remoto"
-        message={`¿Eliminar "${rSelectedPath?.split('/').pop() || ''}" en ${rpath}?`}
+        message={deleteConfirmMessage}
         onCancel={() => setConfirmOpen(false)}
         onConfirm={confirmRemoteDelete}
       />
       <PromptModal
         open={mkdirOpen}
-        title="Nueva carpeta"
-        message="Nombre de la carpeta nueva:"
+        title="Nueva carpeta remota"
+        message="Nombre de la carpeta nueva en remoto:"
         placeholder="nombre_carpeta"
         onCancel={() => setMkdirOpen(false)}
         onConfirm={confirmRemoteMkdir}
       />
+      <PromptModal
+        open={renameOpen}
+        title="Renombrar en remoto"
+        message="Nuevo nombre:"
+        placeholder="nuevo_nombre"
+        defaultValue={rSelectedEntries[0]?.name || ''}
+        onCancel={() => setRenameOpen(false)}
+        onConfirm={confirmRemoteRename}
+      />
+
+      {/* Modals locales */}
+      <ConfirmModal
+        open={localConfirmOpen}
+        title="Eliminar en local"
+        message={localDeleteConfirmMessage}
+        onCancel={() => setLocalConfirmOpen(false)}
+        onConfirm={confirmLocalDelete}
+      />
+      <PromptModal
+        open={localMkdirOpen}
+        title="Nueva carpeta local"
+        message="Nombre de la carpeta nueva en local:"
+        placeholder="nombre_carpeta"
+        onCancel={() => setLocalMkdirOpen(false)}
+        onConfirm={confirmLocalMkdir}
+      />
+      <PromptModal
+        open={localRenameOpen}
+        title="Renombrar en local"
+        message="Nuevo nombre:"
+        placeholder="nuevo_nombre"
+        defaultValue={lSelectedEntries[0]?.name || ''}
+        onCancel={() => setLocalRenameOpen(false)}
+        onConfirm={confirmLocalRename}
+      />
+      <QuickViewModal
+        open={quickView.open}
+        fileName={quickView.fileName}
+        content={quickView.content}
+        truncated={quickView.truncated}
+        onClose={() => setQuickView((q) => ({ ...q, open: false }))}
+      />
+
+      {/* Ghost de arrastre por puntero (drag & drop interno) */}
+      {dragging && (
+        <div
+          style={{
+            position: 'fixed',
+            left: ghostPos.x + 12,
+            top: ghostPos.y + 12,
+            zIndex: 10001,
+            pointerEvents: 'none',
+            padding: '6px 10px',
+            borderRadius: 8,
+            border: '1.5px solid var(--border-strong)',
+            background: 'var(--surface-1)',
+            color: 'var(--text-primary)',
+            fontSize: 12,
+            fontWeight: 600,
+            boxShadow: '2px 2px 0 var(--border-strong)',
+          }}
+        >
+          {dragging.count} elemento{dragging.count !== 1 ? 's' : ''}
+        </div>
+      )}
     </div>
   )
 }

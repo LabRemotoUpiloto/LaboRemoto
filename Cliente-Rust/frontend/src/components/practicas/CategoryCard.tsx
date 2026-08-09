@@ -25,25 +25,20 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, pr
 
     return (
         <Card
-            withBorder
             padding="lg"
-            radius="md"
-            className={`animate-reveal ${isAvailable ? 'group' : ''}`}
+            className={`animate-reveal dribbble-card ${isAvailable ? 'dribbble-card-interactive group' : ''}`}
             style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}
             onClick={isAvailable ? onClick : undefined}
-            sx={{
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                ...(isAvailable && {
-                    '&:hover': {
-                        transform: 'translateY(-4px) scale(1.01)',
-                        boxShadow: '0 12px 24px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 139, 230, 0.1)',
-                        borderColor: theme.colors.blue[5],
-                    },
-                }),
-            }}
         >
             <Stack gap="md">
-                <ThemeIcon size="xl" radius="md" variant="light" color={isAvailable ? 'blue' : 'gray'}>
+                <ThemeIcon
+                    size="xl"
+                    radius="md"
+                    style={{
+                        backgroundColor: isAvailable ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'color-mix(in srgb, var(--border-subtle) 30%, transparent)',
+                        color: isAvailable ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    }}
+                >
                     <IconComponent size={24} />
                 </ThemeIcon>
 
@@ -57,8 +52,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, pr
                         size="xs" 
                         tt="uppercase" 
                         fw={500} 
-                        className="text-gray-500 group-hover:text-blue-500 transition-colors duration-200"
-                        style={{ letterSpacing: '0.04em' }}
+                        className="transition-colors duration-200 group-hover:text-[var(--accent-primary)]"
+                        style={{ letterSpacing: '0.04em', color: 'var(--text-secondary)' }}
                     >
                         {isAvailable
                             ? `${practiceCount} práctica${practiceCount !== 1 ? 's' : ''}`
@@ -67,7 +62,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, pr
                     {isAvailable && (
                         <ArrowRight 
                             size={14} 
-                            className="opacity-40 group-hover:opacity-100 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all duration-200" 
+                            className="opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent-primary)] group-hover:translate-x-0.5 transition-all duration-200" 
+                            style={{ color: 'var(--text-secondary)' }}
                         />
                     )}
                 </Group>

@@ -1,0 +1,48 @@
+/* Oceanic Teal Theme */
+
+html[data-theme="oceanic-teal"]{
+  --background-primary: #021922;
+  --background-secondary: #062b31;
+  --background-tertiary: #0b3f45;
+  --text-primary: #e9f8f7;
+  --text-secondary: #a7d7d2;
+  --accent-primary: #2bd6c8;
+  --accent-primary-hover: #6fe8dc;
+  --accent-strong: #1fb7a8;
+  --border-color: rgba(255,255,255,0.02);
+  /* Capa 2: cool glassmorphism */
+  --glass-bg: rgba(6, 43, 49, 0.45);
+  --glass-blur: 12px;
+  --glass-border-color: rgba(43, 214, 200, 0.25);
+  --shadow-card: 0 4px 24px rgba(43, 214, 200, 0.05);
+  --shadow-card-hover: 0 12px 40px rgba(43, 214, 200, 0.15);
+  --radius-lg: 16px;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(6, 43, 49, 0.45);
+  --sidebar-border: 1px solid rgba(43, 214, 200, 0.18);
+  --sidebar-radius: 16px;
+  --sidebar-blur: blur(12px);
+  --header-bg: rgba(2, 25, 34, 0.45);
+  --header-border: 1px solid rgba(43, 214, 200, 0.12);
+  --header-blur: blur(12px);
+}
+
+/* Oceanic Teal — orbes de neón en océano profundo */
+html[data-theme="oceanic-teal"] body {
+  background:
+    radial-gradient(circle at 15% 15%, rgba(43, 214, 200, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 75% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 40%),
+    #021922 !important;
+}
+
+/* Burbujas de chat */
+html[data-theme="oceanic-teal"] .chat-bubble-user,
+html[data-theme="oceanic-teal"] .chat-bubble-ai {
+  background-color: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+  border: 1px solid var(--glass-border-color) !important;
+  color: var(--text-primary) !important;
+}

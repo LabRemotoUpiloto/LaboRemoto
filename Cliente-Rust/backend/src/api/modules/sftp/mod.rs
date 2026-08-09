@@ -2,6 +2,7 @@ use axum::{Json, extract::{Path, Query}};
 use serde::{Deserialize, Serialize};
 
 use crate::api::error::ApiError;
+use crate::cmd::sftp::get_or_connect_cached;
 use crate::cmd::state::SESSIONS;
 
 #[derive(Deserialize)]
@@ -21,18 +22,22 @@ pub struct SftpEntryResponse {
 
 pub async fn list(Path(session_id): Path<String>, Query(q): Query<ListQuery>) -> Result<Json<Vec<SftpEntryResponse>>, ApiError> {
     let base_path = q.path.unwrap_or_else(|| ".".to_string());
-    let (host, port, user, password) = {
+    {
         let map = SESSIONS.lock().map_err(|_| ApiError::internal("Error de bloqueo"))?;
-        let s = map.get(&session_id).ok_or_else(|| ApiError::not_found("Sesión no encontrada"))?;
-        (s.host.clone(), s.port, s.user.clone(), s.password.clone())
-    };
+        if !map.contains_key(&session_id) { return Err(ApiError::not_found("Sesión no encontrada")); }
+    }
 
+    // Perf: reutiliza la conexión SSH/SFTP cacheada de la sesión (la misma
+    // que usa el panel SFTP del escritorio) en vez de reconectar desde cero
+    // en cada request HTTP.
     let entries = tokio::task::spawn_blocking(move || {
-        let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
-            .map_err(|e| e.to_string())?;
-        let sftp = crate::ssh_core::ssh2_sftp::open_sftp(&sess)
-            .map_err(|e| e.to_string())?;
-        crate::ssh_core::ssh2_sftp::list_dir(&sftp, &base_path)
+        let cached = {
+            let mut map = SESSIONS.lock().map_err(|_| "Error de bloqueo".to_string())?;
+            get_or_connect_cached(&mut map, &session_id)?
+        };
+        let mut guard = cached.lock().map_err(|_| "ssh2 lock poisoned".to_string())?;
+        let sftp = guard.get_or_open_sftp().map_err(|e| e.to_string())?;
+        crate::ssh_core::ssh2_sftp::list_dir(sftp, &base_path)
             .map_err(|e| e.to_string())
     }).await.map_err(|e| ApiError::internal(e.to_string()))?
     .map_err(|e| ApiError::bad_request(e))?;
@@ -50,17 +55,20 @@ pub async fn list(Path(session_id): Path<String>, Query(q): Query<ListQuery>) ->
 }
 
 pub async fn home(Path(session_id): Path<String>) -> Result<Json<serde_json::Value>, ApiError> {
-    let (host, port, user, password) = {
+    let user = {
         let map = SESSIONS.lock().map_err(|_| ApiError::internal("Error de bloqueo"))?;
         let s = map.get(&session_id).ok_or_else(|| ApiError::not_found("Sesión no encontrada"))?;
-        (s.host.clone(), s.port, s.user.clone(), s.password.clone())
+        s.user.clone()
     };
 
+    // Perf: reutiliza la conexión SSH/SFTP cacheada en vez de reconectar.
     let home = tokio::task::spawn_blocking(move || {
-        let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
-            .map_err(|e| e.to_string())?;
-        let sftp = crate::ssh_core::ssh2_sftp::open_sftp(&sess)
-            .map_err(|e| e.to_string())?;
+        let cached = {
+            let mut map = SESSIONS.lock().map_err(|_| "Error de bloqueo".to_string())?;
+            get_or_connect_cached(&mut map, &session_id)?
+        };
+        let mut guard = cached.lock().map_err(|_| "ssh2 lock poisoned".to_string())?;
+        let sftp = guard.get_or_open_sftp().map_err(|e| e.to_string())?;
         use std::path::Path;
         if let Ok(p) = sftp.realpath(Path::new(".")) {
             if let Some(s) = p.to_str() { if !s.is_empty() { return Ok(s.to_string()); } }

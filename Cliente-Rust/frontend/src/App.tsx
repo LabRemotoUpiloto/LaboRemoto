@@ -1,6 +1,11 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
 import React, { useEffect, useRef, useState } from 'react'
+import { gsap } from 'gsap'
 import './App.css'
+
+// Anchos de la sidebar (deben coincidir con --sidebar-width por defecto en App.css).
+const SIDEBAR_WIDTH_EXPANDED = 200
+const SIDEBAR_WIDTH_COLLAPSED = 64
 
 // ── Mantine ──────────────────────────────────────────────────────────────────
 import { MantineProvider, createTheme, Modal, Button, Text, Group } from '@mantine/core'
@@ -31,6 +36,7 @@ import { useUpdateCheck } from './hooks/useUpdateCheck'
 import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 // ── Mantine theme — color primario reactivo al tema CSS activo ───────────────
 function buildMantineTheme(primaryColor: string) {
@@ -94,7 +100,7 @@ const AppMain: React.FC = () => {
     pendingHost, setPendingHost,
     selectedPage, activeTab,
     openSession, closeTab,
-    handleNewSession, openLogTab,
+    handleNewSession, openLogTab, openLocalTerminalTab,
     openPanels, activePanel,
     openPanel, closePanel: closePanelTab,
     activeView, setActiveView,
@@ -108,9 +114,8 @@ const AppMain: React.FC = () => {
   const {
     isPinsPanelOpen, isCameraOpen, isDomoticaPanelOpen,
     togglePinsPanel, closePinsPanel,
-    toggleCameraPanel,
+    toggleCameraPanel, setCameraPanelOpen,
     toggleDomoticaPanel, closeDomoticaPanel,
-    closeAllPanels,
   } = useSidePanels()
 
   // ── Estado local residual ────────────────────────────────────────────────────
@@ -119,24 +124,28 @@ const AppMain: React.FC = () => {
   // ── Prácticas de laboratorio ─────────────────────────────────────────────────
   const { practiceMeta, handleStartPractice, clearPracticeMeta } = usePracticeSession({
     onNewSession: handleNewSession,
-    setCameraOpen: (open) => open ? toggleCameraPanel() : undefined,
+    setCameraOpen: setCameraPanelOpen,
     setChatOpen: setIsChatOpen,
   })
+
+  // ── Sesión y Autenticación ───────────────────────────────────────────────────
+  const { isAuthenticated, isLoading } = useAuth()
 
   // ── Ciclo de vida de tabs ────────────────────────────────────────────────────
   const { handleCloseTab } = useTabLifecycle({ tabs, closeTab, clearPracticeMeta })
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test']
+  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users']
   const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {
     setActiveTabId(id)
-    closeAllPanels()
+    closePinsPanel()
+    closeDomoticaPanel()
     const clickedTab = tabs.find(t => t.id === id)
     if (clickedTab?.type === 'home') {
       if (!HOME_PAGES.includes(activePanel)) handleOpenPanel('landing')
-    } else if (clickedTab?.type === 'session') {
+    } else if (clickedTab?.type === 'session' || clickedTab?.type === 'local-terminal') {
       handleOpenPanel('terminal')
     }
   }
@@ -152,7 +161,7 @@ const AppMain: React.FC = () => {
 
   const handleClosePanel = (panelId: string) => {
     if (panelId === 'terminal') {
-      const sessionTabs = tabs.filter(t => t.type === 'session')
+      const sessionTabs = tabs.filter(t => t.type === 'session' || t.type === 'local-terminal')
       sessionTabs.forEach(t => handleCloseTab(t.id))
     }
     closePanelTab(panelId)
@@ -174,15 +183,51 @@ const AppMain: React.FC = () => {
     return () => window.removeEventListener('tour:open-chat', handler)
   }, [setIsChatOpen])
 
+  // ── Reset state on logout ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) {
+      openPanel('landing')
+      setActiveTabId(HOME_TAB_ID)
+    }
+  }, [isAuthenticated, openPanel, setActiveTabId])
+
+  // ── Colapsar/expandir sidebar (GSAP, no CSS transition) ──────────────────────
+  // --sidebar-width alimenta el offset de .app-header y .main-content además del
+  // ancho de la propia sidebar (ver App.css) — animarla acá con GSAP mueve las
+  // tres cosas en un solo sistema sincronizado, en vez de que cada elemento la
+  // persiga por separado con su propia `transition: all` (eso era lo que se veía
+  // "sucio": dos motores de animación compitiendo por la misma propiedad).
+  useEffect(() => {
+    const el = appContainerRef.current
+    if (!el || !isAuthenticated) return
+    gsap.to(el, {
+      '--sidebar-width': `${isSidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED}px`,
+      duration: 0.4,
+      ease: 'power3.inOut',
+    })
+  }, [isSidebarOpen, isAuthenticated])
+
   // ── Visibilidad de paneles ───────────────────────────────────────────────────
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
   const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
   const isH2Visible = activePanel === 'terminal'
-  const hasSessionTabs = tabs.some(t => t.type === 'session')
+  const hasSessionTabs = tabs.some(t => t.type === 'session' || t.type === 'local-terminal')
   const isSessionActive = activeTab.type === 'session'
 
+  if (isLoading) {
+    return (
+      <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
+        <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          Cargando sesión...
+        </div>
+      </MantineProvider>
+    )
+  }
+
+  // Removed AuthGuard to allow public access to the Landing Page
+
   return (
-    <MantineProvider theme={mantineTheme} defaultColorScheme={mantineColorScheme}>
+    <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
       <ModalsProvider>
         <Notifications position="bottom-right" zIndex={9998} />
         <GlobalLoader />
@@ -194,27 +239,33 @@ const AppMain: React.FC = () => {
             isPinsVisible ? 'pins-open' : '',
             isDomoticaVisible ? 'domotica-open' : '',
             isH2Visible ? 'h2-visible' : '',
+            !isAuthenticated ? 'no-sidebar' : '',
           ].filter(Boolean).join(' ')}
         >
-          <Sidebar
-            activePanel={activePanel}
-            onOpenPanel={handleOpenPanel}
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onTabClick={handleTabClick}
-            onCloseTab={handleCloseTab}
-            onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
-            showSessionActions={isSessionActive}
-            activeView={activeView}
-            onViewChange={setActiveView}
-            isChatOpen={isChatOpen}
-            onToggleChat={() => setIsChatOpen(!isChatOpen)}
-            onToggleCamera={toggleCameraPanel}
-            onTogglePins={togglePinsPanel}
-            isCameraActive={isCameraOpen}
-            isPinsActive={isPinsPanelOpen}
-            hasSessions={hasSessionTabs}
-          />
+          {isAuthenticated && (
+            <Sidebar
+              activePanel={activePanel}
+              onOpenPanel={handleOpenPanel}
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onTabClick={handleTabClick}
+              onCloseTab={handleCloseTab}
+              onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
+              onNewLocalTerminal={openLocalTerminalTab}
+              showSessionActions={isSessionActive}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              isChatOpen={isChatOpen}
+              onToggleChat={() => setIsChatOpen(!isChatOpen)}
+              onToggleCamera={() => toggleCameraPanel(activeTab.id)}
+              onTogglePins={togglePinsPanel}
+              isCameraActive={isCameraOpen(activeTab.id)}
+              isPinsActive={isPinsPanelOpen}
+              hasSessions={hasSessionTabs}
+              collapsed={!isSidebarOpen}
+              onToggleCollapse={() => setIsSidebarOpen(o => !o)}
+            />
+          )}
           <div className="main-content">
             <MacWindowDragStrip />
             <main className="content-area">
@@ -247,6 +298,7 @@ const AppMain: React.FC = () => {
                 sftpPaths={sftpPaths}
                 setSftpPaths={setSftpPaths}
                 practiceMeta={practiceMeta}
+                onCloseTab={handleCloseTab}
               />
               <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />
             </main>
@@ -283,7 +335,9 @@ const App: React.FC = () => (
   <LoadingProvider>
     <ToastProvider>
       <ThemeProvider>
-        <AppMain />
+        <AuthProvider>
+          <AppMain />
+        </AuthProvider>
       </ThemeProvider>
     </ToastProvider>
   </LoadingProvider>

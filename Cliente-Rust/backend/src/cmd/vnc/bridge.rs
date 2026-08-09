@@ -131,6 +131,19 @@ pub fn run_port_forward(
     remote_port: u16,
     stop_flag: Arc<AtomicBool>,
 ) {
+    // Perf: una sola sesión ssh2 (TCP + handshake + auth) para todo el
+    // ciclo de vida de este port-forward, reutilizada por cada conexión
+    // TCP local que se acepte, en vez de reconectar desde cero cada vez
+    // (antes: 1 handshake SSH completo por cada reconexión del cliente
+    // VNC/WS). Se protege con un Mutex porque `ssh2::Session` no admite
+    // llamadas concurrentes desde varios hilos; en el caso normal (una
+    // sola conexión activa a la vez) el lock no genera contención real —
+    // se mantiene tomado durante toda la vida de esa conexión.
+    let shared_sess = match crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password) {
+        Ok((_tcp, sess)) => std::sync::Arc::new(std::sync::Mutex::new(sess)),
+        Err(_) => return,
+    };
+
     loop {
         if stop_flag.load(Ordering::Relaxed) { return; }
         let mut local_conn = match listener.accept() {
@@ -143,13 +156,10 @@ pub fn run_port_forward(
         };
         local_conn.set_nodelay(true).ok();
 
-        let (h, u, p) = (host.clone(), user.clone(), password.clone());
+        let shared_sess = shared_sess.clone();
 
         std::thread::spawn(move || {
-            let Ok((_tcp, sess)) = crate::ssh_core::ssh2_sftp::connect_password(&h, port, &u, &p)
-            else {
-                return;
-            };
+            let Ok(sess) = shared_sess.lock() else { return; };
             sess.set_blocking(true);
             sess.set_timeout(0);
             let Ok(mut channel) = sess.channel_direct_tcpip("127.0.0.1", remote_port, None)

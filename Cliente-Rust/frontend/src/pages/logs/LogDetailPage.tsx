@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { Box, Group, Stack, Title, Text, Button, ActionIcon, Tooltip, Loader } from '@mantine/core'
 import { ChevronLeft, FileDown } from 'lucide-react'
 import type { SessionLog } from '../../components/logs/SessionCard'
-import { getSessionLogContent } from '../../services/session.service'
+import { getSessionLogContent, extractSessionCommands } from '../../services/session.service'
 import { invoke } from '@tauri-apps/api/core'
 import { useToasts } from '../../contexts/ToastContext'
 import html2pdf from 'html2pdf.js'
-import { extractValidCommands, buildCommandsReportHtml } from '../../utils/commandParser'
+import { buildCommandsReportHtml } from '../../utils/commandParser'
 
 interface LogDetailPageProps {
   session: SessionLog
@@ -53,7 +53,7 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session, onBack }) => {
 
       showToast({ type: 'info', message: 'Generando Reporte de Comandos PDF...' });
       
-      const commands = extractValidCommands(htmlContent);
+      const commands = await extractSessionCommands(session.id);
       const reportHtml = buildCommandsReportHtml(commands, {
         sessionId: session.id,
         user: session.user,

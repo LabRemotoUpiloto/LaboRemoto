@@ -1,0 +1,170 @@
+/* 🍭 PASTEL DREAM - Tema multi-color pastel suave con transiciones */
+
+html[data-theme="pastel-dream"]{
+  --background-primary: #fef8ff;
+  --background-secondary: #fef3f7;
+  --background-tertiary: #feeef3;
+  --text-primary: #3d1a2f;
+  --text-secondary: #6d3b5a;
+  --accent-primary: #e879f9;
+  --accent-primary-hover: #f0abfc;
+  --accent-strong: #d946ef;
+  --border-color: rgba(232, 121, 249, 0.2);
+  --interactive-hover: rgba(61,26,47,0.06);
+  --interactive-active: rgba(61,26,47,0.09);
+  --interactive-selected: rgba(61,26,47,0.12);
+  --terminal-foreground: #3d1a2f;
+  /* Capa 2: round + playful */
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --shadow-card: 0 6px 28px rgba(232, 121, 249, 0.08);
+  --shadow-card-hover: 0 14px 44px rgba(232, 121, 249, 0.16);
+  --glass-bg: rgba(254, 243, 247, 0.7);
+  --glass-blur: 14px;
+  --glass-border-color: rgba(232, 121, 249, 0.25);
+  --font-heading: 'Nunito', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(250, 235, 240, 0.5);
+  --sidebar-border: 1px solid rgba(232, 121, 249, 0.2);
+  --sidebar-radius: 24px;
+  --sidebar-blur: blur(20px);
+  --header-bg: rgba(253, 248, 245, 0.5);
+  --header-border: 1px solid rgba(232, 121, 249, 0.15);
+  --header-blur: blur(20px);
+}
+
+/* Pastel Dream — orbes pastel difuminados */
+html[data-theme="pastel-dream"] body {
+  background:
+    radial-gradient(circle at 10% 30%, #faebf0 0%, transparent 50%),
+    radial-gradient(circle at 90% 70%, #f0ebfa 0%, transparent 50%),
+    radial-gradient(circle at 50% 20%, #e8f4fd 0%, transparent 45%),
+    #fdf8f5 !important;
+}
+
+/* Header con gradiente pastel animado */
+html[data-theme="pastel-dream"] .app-header {
+  background: linear-gradient(90deg, 
+    #ffc9e5 0%,   /* Rosa pastel */
+    #ffd9a3 20%,  /* Durazno pastel */
+    #fff4b3 40%,  /* Amarillo pastel */
+    #c9f5d9 60%,  /* Verde menta pastel */
+    #c9e5ff 80%,  /* Azul pastel */
+    #e5c9ff 100%  /* Lavanda pastel */
+  );
+  background-size: 200% 100%;
+  animation: pastelFlow 12s ease-in-out infinite;
+  box-shadow: none;
+  border-bottom: 2px solid rgba(232, 121, 249, 0.15);
+}
+
+/* Sidebar con borde pastel suave */
+html[data-theme="pastel-dream"] .sidebar {
+  border-right: 2px solid transparent;
+  background: linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+              linear-gradient(180deg, #ffc9e5, #ffd9a3, #fff4b3, #c9f5d9, #c9e5ff, #e5c9ff) border-box;
+  background-size: 100% 200%;
+  animation: pastelBorderFlow 10s linear infinite;
+  box-shadow: none;
+}
+
+/* Botones con gradiente pastel suave */
+html[data-theme="pastel-dream"] .btn,
+html[data-theme="pastel-dream"] .btn-connect {
+  background: linear-gradient(135deg, #ffc9e5 0%, #ffd9a3 50%, #c9f5d9 100%);
+  background-size: 200% 200%;
+  color: #3d1a2f;
+  border: 1px solid rgba(232, 121, 249, 0.3);
+  font-weight: 600;
+  box-shadow: none;
+  animation: pastelButtonGlow 4s ease-in-out infinite;
+  transition: all 0.3s ease;
+}
+
+html[data-theme="pastel-dream"] .btn:hover,
+html[data-theme="pastel-dream"] .btn-connect:hover {
+  background-position: 100% 100%;
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+/* Nav items activos con color pastel */
+html[data-theme="pastel-dream"] .nav-item.active {
+  background: linear-gradient(90deg, 
+    rgba(255, 201, 229, 0.3), 
+    rgba(255, 217, 163, 0.3)
+  );
+  border-left: 3px solid #e879f9;
+  box-shadow: none;
+}
+
+html[data-theme="pastel-dream"] .nav-item.active::before {
+  background: linear-gradient(180deg, #ffc9e5, #c9f5d9, #e5c9ff);
+  box-shadow: none;
+}
+
+/* Tabs con efecto pastel */
+html[data-theme="pastel-dream"] .tab.active {
+  background: linear-gradient(135deg, 
+    rgba(255, 201, 229, 0.2), 
+    rgba(201, 229, 255, 0.2)
+  );
+  border-bottom: 2px solid #e879f9;
+  box-shadow: none;
+}
+
+/* Badges con colores pastel */
+html[data-theme="pastel-dream"] .host-badge {
+  background: linear-gradient(90deg, #ffc9e5, #c9e5ff);
+  background-size: 200% 100%;
+  animation: pastelSlide 4s linear infinite;
+  box-shadow: none;
+  color: #3d1a2f;
+  font-weight: 600;
+}
+
+/* 🍬 Personalización Pastel Dream del Chat */
+html[data-theme="pastel-dream"] .chat-bubble-user {
+  border-radius: 20px 20px 4px 20px !important;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #ffc9e5 100%) !important;
+  color: #3d1a2f !important;
+  border: 2px solid rgba(232, 121, 249, 0.2) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+html[data-theme="pastel-dream"] .chat-bubble-ai {
+  border-radius: 20px 20px 20px 4px !important;
+  background-color: var(--background-secondary) !important;
+  border: 2px solid rgba(232, 121, 249, 0.15) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+/* Pastel Dream - Animaciones suaves y delicadas */
+@keyframes pastelFlow {
+  0%, 100% { 
+    background-position: 0% 50%;
+  }
+  50% { 
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes pastelBorderFlow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes pastelButtonGlow {
+  0%, 100% { 
+    background-position: 0% 50%;
+  }
+  50% { 
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes pastelSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}

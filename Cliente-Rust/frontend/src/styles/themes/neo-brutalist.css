@@ -1,0 +1,113 @@
+/* 🟩 BRUTALIST LIME - Tema de Personalidad Neo-Brutalista (Estilo Figma/Gumroad) */
+
+html[data-theme="neo-brutalist"] {
+  /* ── Fondos: de alto contraste ── */
+  --background-primary:    #121212;
+  --background-secondary:  #1c1c1e;
+  --background-tertiary:   #2c2c2e;
+
+  /* ── Textos ── */
+  --text-primary:          #ffffff;
+  --text-secondary:        #d1d1d6;
+  --text-tertiary:         #aeaeB2;
+  --text-muted:            #8e8e93;
+  --text-disabled:         #48484a;
+  --text-inverse:          #000000;
+
+  /* ── Acentos brutalistas: lima neón de alto impacto ── */
+  --accent-primary:        #84cc16;
+  --accent-primary-hover:  #a3e635;
+  --accent-primary-light:  #bef264;
+  --accent-primary-dark:   #65a30d;
+  --accent-primary-subtle: rgba(132, 204, 22, 0.12);
+
+  --accent-secondary:      #22d3ee;
+  --accent-strong:         #a3e635;
+  --accent-contrast:       #000000;
+
+  /* ── Bordes negros gruesos característicos del neo-brutalismo ── */
+  --border-color:          #000000;
+  --border-subtle:         #000000;
+  --border-strong:         #000000;
+
+  /* ── Superficies ── */
+  --panel:                 #1c1c1e;
+  --panel-muted:           #2c2c2e;
+  --surface-0:             #121212;
+  --surface-1:             #1c1c1e;
+  --surface-2:             #2c2c2e;
+  --surface-3:             #3a3a3c;
+  --surface-overlay:       rgba(0, 0, 0, 0.7);
+
+  /* ── Sombras de desplazamiento sólido ── */
+  --shadow:                4px 4px 0px #000000;
+
+  --ring:                  #84cc16;
+  --focus-inner:           #84cc16;
+  --focus-outer:           #000000;
+
+  /* ── Interacciones ── */
+  --interactive-hover:     rgba(132, 204, 22, 0.15);
+  --interactive-active:    rgba(132, 204, 22, 0.25);
+  --interactive-selected:  rgba(132, 204, 22, 0.3);
+  --table-row-selected:    rgba(132, 204, 22, 0.2);
+  --table-row-hover:       rgba(255, 255, 255, 0.05);
+
+  --terminal-foreground:   #84cc16;
+
+  /* ── Inputs ── */
+  --input-bg:              #2c2c2e;
+  --input-border:          #000000;
+  --input-focus-border:    #84cc16;
+  --placeholder-fg:        #8e8e93;
+
+  /* ── Capa 2: Sin esquinas redondeadas y bordes ultra marcados ── */
+  --radius-lg:             0px;
+  --radius-md:             0px;
+  --radius-sm:             0px;
+  --card-border-width:     3px;
+  --card-border-color:     #000000;
+  --shadow-card:           4px 4px 0px #000000;
+  --shadow-card-hover:     8px 8px 0px #000000;
+  --hover-lift:            translate(-4px, -4px);
+
+  /* ── Tipografía brutalista ── */
+  --font-heading:          'Outfit', sans-serif;
+  --font-body:             'Outfit', sans-serif;
+}
+
+html[data-theme="neo-brutalist"] body {
+  background: #121212 !important;
+}
+
+/* Header, sidebar e items brutalistas */
+html[data-theme="neo-brutalist"] .app-header {
+  background: #1c1c1e;
+  border-bottom: 3px solid #000000;
+}
+html[data-theme="neo-brutalist"] .sidebar {
+  background: #1c1c1e;
+  border-right: 3px solid #000000;
+}
+html[data-theme="neo-brutalist"] .nav-item.active {
+  background: #84cc16;
+  color: #000000 !important;
+  border: 3px solid #000000;
+  box-shadow: 2px 2px 0px #000000;
+}
+html[data-theme="neo-brutalist"] .nav-item.active::before {
+  background: #000000;
+}
+
+/* 🟩 Personalización Brutalista del Chat */
+html[data-theme="neo-brutalist"] .chat-bubble-user {
+  background-color: var(--accent-primary) !important;
+  color: #000000 !important;
+  border: 3px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+}
+html[data-theme="neo-brutalist"] .chat-bubble-ai {
+  background-color: var(--background-secondary) !important;
+  border: 3px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+}

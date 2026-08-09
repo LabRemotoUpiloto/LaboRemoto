@@ -21,8 +21,42 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::Mutex;
 use directories::ProjectDirs;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use crate::cmd::protocol::CommandError;
+
+/// Categoriza heurísticamente los errores `String` internos de `McpSession`
+/// (transporte JSON-RPC sobre stdio) en un `CommandError` explícito.
+///
+/// Distingue errores de aplicación/protocolo JSON-RPC (ej. `initialize
+/// falló`, `tools/list falló`, `tools/call falló`) —que son permanentes,
+/// reintentarlos no cambia el resultado— de errores de red/transporte
+/// (timeout, conexión cerrada), que sí son transitorios y se benefician de
+/// un reintento.
+fn categorize_mcp_error(operation: &str, resource: &str, e: String) -> CommandError {
+    let lower = e.to_lowercase();
+    let err = if lower.contains("no se pudo iniciar") {
+        CommandError::permanent("RESOURCE_NOT_FOUND", e)
+    } else if lower.contains("json inválido") || lower.contains("json invalido") {
+        CommandError::permanent("INVALID_DATA", e)
+    } else if lower.contains("initialize falló") || lower.contains("initialize fallo")
+        || lower.contains("tools/list falló") || lower.contains("tools/list fallo")
+        || lower.contains("tools/call falló") || lower.contains("tools/call fallo") {
+        // Errores de aplicación/protocolo JSON-RPC: el servidor MCP respondió
+        // con un error explícito (no un problema de red), por lo que
+        // reintentar automáticamente no ayuda. Se revisa antes que las
+        // heurísticas de red para evitar falsos positivos si el mensaje de
+        // error de la app contuviera palabras como "connection".
+        CommandError::permanent("INVALID_REQUEST", e)
+    } else if lower.contains("tiempo de espera agotado") || lower.contains("cerró la conexión") || lower.contains("cerro la conexion") || lower.contains("timeout") || lower.contains("connection") {
+        CommandError::transient("OPERATION_TIMEOUT", e).with_retry_after(2000)
+    } else {
+        CommandError::transient("COMMUNICATION_ERROR", e)
+    };
+    err.with_context(operation, resource)
+}
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 
@@ -65,13 +99,17 @@ fn load_configs() -> Vec<McpServerConfig> {
     }
 }
 
-fn save_configs(configs: &[McpServerConfig]) -> Result<(), String> {
-    let path = config_path().ok_or("No se puede determinar el directorio de configuración")?;
+fn save_configs(configs: &[McpServerConfig]) -> Result<(), CommandError> {
+    let path = config_path()
+        .ok_or_else(|| CommandError::internal("CONFIG_MISSING", "No se puede determinar el directorio de configuración"))?;
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(parent)
+            .map_err(|e| CommandError::transient("IO_ERROR", format!("No se pudo crear directorio de config: {e}")).with_context("save_configs", &parent.display().to_string()))?;
     }
-    let data = serde_json::to_string_pretty(configs).map_err(|e| e.to_string())?;
-    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    let data = serde_json::to_string_pretty(configs)
+        .map_err(|e| CommandError::permanent("INVALID_DATA", format!("Error serializando configuración MCP: {e}")))?;
+    std::fs::write(&path, data)
+        .map_err(|e| CommandError::transient("IO_ERROR", format!("No se pudo escribir configuración MCP: {e}")).with_context("save_configs", &path.display().to_string()))?;
     Ok(())
 }
 
@@ -229,22 +267,46 @@ pub fn load_mcp_tool_defs() -> Vec<serde_json::Value> {
         .collect()
 }
 
+// Perf: cachea la sesión MCP (proceso hijo + handshake `initialize`) por
+// servidor durante la vida de la app, en vez de spawn+initialize en CADA
+// llamada a una tool MCP dentro del loop del agente (que puede iterar
+// varias rondas por conversación).
+static MCP_SESSIONS: Lazy<Mutex<HashMap<String, McpSession>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
 /// Intenta ejecutar `tool_name` en el servidor MCP que lo registró.
 /// Devuelve `None` si ningún servidor conoce esa tool.
 pub fn exec_mcp_call(tool_name: &str, input: &serde_json::Value) -> Option<(String, bool)> {
     let cfg = load_configs()
         .into_iter()
         .find(|c| c.tools.iter().any(|t| t.name == tool_name))?;
-    let mut sess = match McpSession::start(&cfg) {
-        Ok(s) => s,
-        Err(e) => return Some((e, false)),
+
+    let mut sessions = match MCP_SESSIONS.lock() {
+        Ok(g) => g,
+        Err(_) => return Some(("MCP_SESSIONS lock poisoned".to_string(), false)),
     };
-    if let Err(e) = sess.initialize() {
-        return Some((e, false));
+
+    if !sessions.contains_key(&cfg.name) {
+        let mut sess = match McpSession::start(&cfg) {
+            Ok(s) => s,
+            Err(e) => return Some((e, false)),
+        };
+        if let Err(e) = sess.initialize() {
+            return Some((e, false));
+        }
+        sessions.insert(cfg.name.clone(), sess);
     }
+
+    let sess = sessions.get_mut(&cfg.name).expect("recién insertado o ya presente");
     match sess.call_tool(tool_name, input) {
         Ok(out) => Some((out, true)),
-        Err(e) => Some((e, false)),
+        Err(e) => {
+            // La sesión cacheada puede haber muerto (proceso hijo
+            // terminado/pipe roto): se descarta para reconectar en la
+            // próxima llamada en vez de quedar rota permanentemente.
+            sessions.remove(&cfg.name);
+            Some((e, false))
+        }
     }
 }
 
@@ -258,10 +320,10 @@ pub async fn mcp_register_server(
     command: String,
     args: Vec<String>,
     env: Option<HashMap<String, String>>,
-) -> Result<McpServerConfig, String> {
+) -> Result<McpServerConfig, CommandError> {
     // Validar nombre: solo alfanumérico + guiones + guiones bajos
     if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
-        return Err("El nombre debe ser alfanumérico (se permiten - y _)".into());
+        return Err(CommandError::permanent("VALIDATION_FAILED", "El nombre debe ser alfanumérico (se permiten - y _)"));
     }
     let cfg_base = McpServerConfig {
         name: name.clone(),
@@ -271,16 +333,17 @@ pub async fn mcp_register_server(
         tools: vec![],
     };
     // Conectar y listar tools en hilo bloqueante
+    let name_for_ctx = name.clone();
     let tools = tokio::task::spawn_blocking({
         let cfg = cfg_base.clone();
-        move || -> Result<Vec<McpToolDef>, String> {
-            let mut sess = McpSession::start(&cfg)?;
-            sess.initialize()?;
-            sess.list_tools()
+        move || -> Result<Vec<McpToolDef>, CommandError> {
+            let mut sess = McpSession::start(&cfg).map_err(|e| categorize_mcp_error("mcp_register_server", &cfg.name, e))?;
+            sess.initialize().map_err(|e| categorize_mcp_error("mcp_register_server", &cfg.name, e))?;
+            sess.list_tools().map_err(|e| categorize_mcp_error("mcp_register_server", &cfg.name, e))
         }
     })
     .await
-    .map_err(|e| format!("Error interno: {e}"))??;
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("Error interno: {e}")).with_context("mcp_register_server", &name_for_ctx))??;
 
     let cfg = McpServerConfig { tools, ..cfg_base };
     let mut configs = load_configs();
@@ -298,34 +361,36 @@ pub fn mcp_list_servers() -> Vec<McpServerConfig> {
 
 /// Elimina un servidor MCP del registro.
 #[tauri::command]
-pub fn mcp_remove_server(name: String) -> Result<(), String> {
+pub fn mcp_remove_server(name: String) -> Result<(), CommandError> {
     let mut configs = load_configs();
     let before = configs.len();
     configs.retain(|c| c.name != name);
     if configs.len() == before {
-        return Err(format!("Servidor '{}' no encontrado", name));
+        return Err(CommandError::permanent("RESOURCE_NOT_FOUND", format!("Servidor '{}' no encontrado", name)));
     }
+    if let Ok(mut sessions) = MCP_SESSIONS.lock() { sessions.remove(&name); }
     save_configs(&configs)
 }
 
 /// Reconecta al servidor y actualiza el caché de tools.
 #[tauri::command]
-pub async fn mcp_refresh_tools(name: String) -> Result<McpServerConfig, String> {
+pub async fn mcp_refresh_tools(name: String) -> Result<McpServerConfig, CommandError> {
     let mut configs = load_configs();
     let cfg = configs.iter()
         .find(|c| c.name == name)
-        .ok_or_else(|| format!("Servidor '{}' no encontrado", name))?
+        .ok_or_else(|| CommandError::permanent("RESOURCE_NOT_FOUND", format!("Servidor '{}' no encontrado", name)))?
         .clone();
+    let name_for_ctx = name.clone();
     let tools = tokio::task::spawn_blocking({
         let cfg = cfg.clone();
-        move || -> Result<Vec<McpToolDef>, String> {
-            let mut sess = McpSession::start(&cfg)?;
-            sess.initialize()?;
-            sess.list_tools()
+        move || -> Result<Vec<McpToolDef>, CommandError> {
+            let mut sess = McpSession::start(&cfg).map_err(|e| categorize_mcp_error("mcp_refresh_tools", &cfg.name, e))?;
+            sess.initialize().map_err(|e| categorize_mcp_error("mcp_refresh_tools", &cfg.name, e))?;
+            sess.list_tools().map_err(|e| categorize_mcp_error("mcp_refresh_tools", &cfg.name, e))
         }
     })
     .await
-    .map_err(|e| format!("Error interno: {e}"))??;
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("Error interno: {e}")).with_context("mcp_refresh_tools", &name_for_ctx))??;
 
     let updated = McpServerConfig { tools, ..cfg };
     for c in &mut configs {

@@ -5,10 +5,10 @@ import { modals } from '@mantine/modals'
 import { Search, Monitor, RefreshCw } from 'lucide-react'
 import SessionsGrid from '../../components/logs/SessionsGrid'
 import type { SessionLog } from '../../components/logs/SessionCard'
-import { listSessionLogs, deleteSessionLog, getSessionLogContent, type SessionLogMetadata } from '../../services/session.service'
+import { listSessionLogs, deleteSessionLog, extractSessionCommands, type SessionLogMetadata } from '../../services/session.service'
 import html2pdf from 'html2pdf.js'
 import { useToasts } from '../../contexts/ToastContext'
-import { extractValidCommands, buildCommandsReportHtml } from '../../utils/commandParser'
+import { buildCommandsReportHtml } from '../../utils/commandParser'
 
 type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'
 
@@ -115,9 +115,7 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const handleDownloadReport = async (session: SessionLog) => {
     push({ type: 'info', message: 'Preparando Reporte de Comandos...' })
     try {
-      const content = await getSessionLogContent(session.id)
-      
-      const commands = extractValidCommands(content);
+      const commands = await extractSessionCommands(session.id);
       const reportHtml = buildCommandsReportHtml(commands, {
         sessionId: session.id,
         user: session.user,
@@ -168,17 +166,19 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
               placeholder="Buscar usuario..."
               value={filterUser}
               onChange={e => setFilterUser(e.currentTarget.value)}
-              leftSection={<Search size={14} style={{ color: 'var(--text-muted)' }} />}
+              leftSection={<Search size={14} style={{ color: 'var(--text-secondary)' }} />}
               size="sm"
               w={180}
+              className="dribbble-toolbar-input"
             />
             <TextInput
               placeholder="Buscar host..."
               value={filterHost}
               onChange={e => setFilterHost(e.currentTarget.value)}
-              leftSection={<Monitor size={14} style={{ color: 'var(--text-muted)' }} />}
+              leftSection={<Monitor size={14} style={{ color: 'var(--text-secondary)' }} />}
               size="sm"
               w={180}
+              className="dribbble-toolbar-input"
             />
             <Select
               size="sm"
@@ -194,13 +194,14 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
               ]}
               w={160}
               allowDeselect={false}
+              className="dribbble-toolbar-input"
             />
-            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <Text size="xs" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
               {sortedSessions.length} sesión{sortedSessions.length !== 1 ? 'es' : ''}
             </Text>
             <Tooltip label="Recargar" withArrow>
-              <ActionIcon variant="default" size="md" onClick={loadSessions} aria-label="Recargar">
-                <RefreshCw size={15} />
+              <ActionIcon variant="subtle" className="dribbble-btn-secondary h-8 w-8" onClick={loadSessions} aria-label="Recargar">
+                <RefreshCw size={15} style={{ color: 'var(--text-primary)' }} />
               </ActionIcon>
             </Tooltip>
           </Group>

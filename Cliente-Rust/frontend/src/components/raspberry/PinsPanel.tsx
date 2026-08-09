@@ -1,58 +1,91 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { listen } from '@tauri-apps/api/event'
+import {
+  Group,
+  Stack,
+  Text,
+  Title,
+  Paper,
+  Button,
+  ActionIcon,
+  SegmentedControl,
+  Switch,
+  TextInput,
+  Tooltip,
+  ScrollArea,
+  Table,
+  UnstyledButton,
+  Box,
+  Alert,
+} from '@mantine/core'
+import {
+  RefreshCw,
+  LayoutGrid,
+  List,
+  ArrowLeft,
+  Zap,
+  Edit3,
+  AlertTriangle,
+  Check,
+  Power,
+  Search,
+  X,
+} from 'lucide-react'
 import * as gpioService from '../../services/hardware/gpio.service'
-import { GpioLine } from '../../services/hardware/gpio.service'
+import type { GpioLine } from '../../services/hardware/gpio.service'
 
 type PinRole = 'power5' | 'power3' | 'ground' | 'gpio' | 'other'
 
 type PinDefinition = {
   physical: number
-  label: string
+  name: string
   role: PinRole
   gpio?: number
   alias?: string
 }
 
+// 40 Pines Raspberry Pi con nombres cortos y precisos para evitar desbordamientos
 const PIN_DEFINITIONS: PinDefinition[] = [
-  { physical: 1, label: 'Poder 3v3', role: 'power3' },
-  { physical: 2, label: 'Poder 5V', role: 'power5' },
-  { physical: 3, label: 'GPIO 2 (SDA1)', role: 'gpio', gpio: 2, alias: 'I2C SDA' },
-  { physical: 4, label: 'Poder 5V', role: 'power5' },
-  { physical: 5, label: 'GPIO 3 (SCL1)', role: 'gpio', gpio: 3, alias: 'I2C SCL' },
-  { physical: 6, label: 'Suelo', role: 'ground' },
-  { physical: 7, label: 'GPIO 4 (GPCLK0)', role: 'gpio', gpio: 4, alias: 'CLK' },
-  { physical: 8, label: 'GPIO 14 (UART TX)', role: 'gpio', gpio: 14, alias: 'UART TX' },
-  { physical: 9, label: 'Suelo', role: 'ground' },
-  { physical: 10, label: 'GPIO 15 (UART RX)', role: 'gpio', gpio: 15, alias: 'UART RX' },
-  { physical: 11, label: 'GPIO 17', role: 'gpio', gpio: 17 },
-  { physical: 12, label: 'GPIO 18 (PCM CLK)', role: 'gpio', gpio: 18, alias: 'PCM CLK' },
-  { physical: 13, label: 'GPIO 27', role: 'gpio', gpio: 27 },
-  { physical: 14, label: 'Suelo', role: 'ground' },
-  { physical: 15, label: 'GPIO 22', role: 'gpio', gpio: 22 },
-  { physical: 16, label: 'GPIO 23', role: 'gpio', gpio: 23 },
-  { physical: 17, label: 'Poder 3v3', role: 'power3' },
-  { physical: 18, label: 'GPIO 24', role: 'gpio', gpio: 24 },
-  { physical: 19, label: 'GPIO 10 (MOSI)', role: 'gpio', gpio: 10, alias: 'SPI MOSI' },
-  { physical: 20, label: 'Suelo', role: 'ground' },
-  { physical: 21, label: 'GPIO 9 (MISO)', role: 'gpio', gpio: 9, alias: 'SPI MISO' },
-  { physical: 22, label: 'GPIO 25', role: 'gpio', gpio: 25 },
-  { physical: 23, label: 'GPIO 11 (SCLK)', role: 'gpio', gpio: 11, alias: 'SPI SCLK' },
-  { physical: 24, label: 'GPIO 8 (CE0)', role: 'gpio', gpio: 8, alias: 'SPI CE0' },
-  { physical: 25, label: 'Suelo', role: 'ground' },
-  { physical: 26, label: 'GPIO 7 (CE1)', role: 'gpio', gpio: 7, alias: 'SPI CE1' },
-  { physical: 27, label: 'GPIO 0 (ID_SD)', role: 'other', gpio: 0, alias: 'EEPROM SDA' },
-  { physical: 28, label: 'GPIO 1 (ID_SC)', role: 'other', gpio: 1, alias: 'EEPROM SCL' },
-  { physical: 29, label: 'GPIO 5', role: 'gpio', gpio: 5 },
-  { physical: 30, label: 'Suelo', role: 'ground' },
-  { physical: 31, label: 'GPIO 6', role: 'gpio', gpio: 6 },
-  { physical: 32, label: 'GPIO 12 (PWM0)', role: 'gpio', gpio: 12, alias: 'PWM0' },
-  { physical: 33, label: 'GPIO 13 (PWM1)', role: 'gpio', gpio: 13, alias: 'PWM1' },
-  { physical: 34, label: 'Suelo', role: 'ground' },
-  { physical: 35, label: 'GPIO 19 (PCM FS)', role: 'gpio', gpio: 19, alias: 'PCM FS' },
-  { physical: 36, label: 'GPIO 16', role: 'gpio', gpio: 16 },
-  { physical: 37, label: 'GPIO 26', role: 'gpio', gpio: 26 },
-  { physical: 38, label: 'GPIO 20 (PCM DIN)', role: 'gpio', gpio: 20, alias: 'PCM DIN' },
-  { physical: 39, label: 'Suelo', role: 'ground' },
-  { physical: 40, label: 'GPIO 21 (PCM DOUT)', role: 'gpio', gpio: 21, alias: 'PCM DOUT' },
+  { physical: 1, name: '3.3V', role: 'power3' },
+  { physical: 2, name: '5V', role: 'power5' },
+  { physical: 3, name: 'GPIO 2', role: 'gpio', gpio: 2, alias: 'SDA1' },
+  { physical: 4, name: '5V', role: 'power5' },
+  { physical: 5, name: 'GPIO 3', role: 'gpio', gpio: 3, alias: 'SCL1' },
+  { physical: 6, name: 'GND', role: 'ground' },
+  { physical: 7, name: 'GPIO 4', role: 'gpio', gpio: 4, alias: 'CLK' },
+  { physical: 8, name: 'GPIO 14', role: 'gpio', gpio: 14, alias: 'TXD' },
+  { physical: 9, name: 'GND', role: 'ground' },
+  { physical: 10, name: 'GPIO 15', role: 'gpio', gpio: 15, alias: 'RXD' },
+  { physical: 11, name: 'GPIO 17', role: 'gpio', gpio: 17 },
+  { physical: 12, name: 'GPIO 18', role: 'gpio', gpio: 18, alias: 'PWM0' },
+  { physical: 13, name: 'GPIO 27', role: 'gpio', gpio: 27 },
+  { physical: 14, name: 'GND', role: 'ground' },
+  { physical: 15, name: 'GPIO 22', role: 'gpio', gpio: 22 },
+  { physical: 16, name: 'GPIO 23', role: 'gpio', gpio: 23 },
+  { physical: 17, name: '3.3V', role: 'power3' },
+  { physical: 18, name: 'GPIO 24', role: 'gpio', gpio: 24 },
+  { physical: 19, name: 'GPIO 10', role: 'gpio', gpio: 10, alias: 'MOSI' },
+  { physical: 20, name: 'GND', role: 'ground' },
+  { physical: 21, name: 'GPIO 9', role: 'gpio', gpio: 9, alias: 'MISO' },
+  { physical: 22, name: 'GPIO 25', role: 'gpio', gpio: 25 },
+  { physical: 23, name: 'GPIO 11', role: 'gpio', gpio: 11, alias: 'SCLK' },
+  { physical: 24, name: 'GPIO 8', role: 'gpio', gpio: 8, alias: 'CE0' },
+  { physical: 25, name: 'GND', role: 'ground' },
+  { physical: 26, name: 'GPIO 7', role: 'gpio', gpio: 7, alias: 'CE1' },
+  { physical: 27, name: 'GPIO 0', role: 'other', gpio: 0, alias: 'ID_SD' },
+  { physical: 28, name: 'GPIO 1', role: 'other', gpio: 1, alias: 'ID_SC' },
+  { physical: 29, name: 'GPIO 5', role: 'gpio', gpio: 5 },
+  { physical: 30, name: 'GND', role: 'ground' },
+  { physical: 31, name: 'GPIO 6', role: 'gpio', gpio: 6 },
+  { physical: 32, name: 'GPIO 12', role: 'gpio', gpio: 12, alias: 'PWM0' },
+  { physical: 33, name: 'GPIO 13', role: 'gpio', gpio: 13, alias: 'PWM1' },
+  { physical: 34, name: 'GND', role: 'ground' },
+  { physical: 35, name: 'GPIO 19', role: 'gpio', gpio: 19, alias: 'PCM_FS' },
+  { physical: 36, name: 'GPIO 16', role: 'gpio', gpio: 16 },
+  { physical: 37, name: 'GPIO 26', role: 'gpio', gpio: 26 },
+  { physical: 38, name: 'GPIO 20', role: 'gpio', gpio: 20, alias: 'PCM_DIN' },
+  { physical: 39, name: 'GND', role: 'ground' },
+  { physical: 40, name: 'GPIO 21', role: 'gpio', gpio: 21, alias: 'PCM_DOUT' },
 ]
 
 const PIN_ROWS = Array.from({ length: 20 }, (_, idx) => ({
@@ -60,46 +93,30 @@ const PIN_ROWS = Array.from({ length: 20 }, (_, idx) => ({
   right: PIN_DEFINITIONS[idx * 2 + 1],
 }))
 
-const COLORS = {
-  power5: 'var(--danger)',
-  power3: 'var(--warning)',
-  ground: 'color-mix(in srgb, var(--text-primary) 12%, transparent)',
-  gpioInput: 'var(--info)',
-  gpioOutput: 'var(--success)',
-  gpioAlt: 'var(--accent-strong, var(--accent-primary))',
-  other: 'color-mix(in srgb, var(--text-secondary) 65%, transparent)',
-  idle: 'color-mix(in srgb, var(--text-secondary) 45%, transparent)',
-  high: 'var(--success)',
-  low: 'color-mix(in srgb, var(--text-primary) 25%, transparent)'
+const PIN_COLORS = {
+  power5: '#ef4444',
+  power3: '#f59e0b',
+  ground: '#334155',
+  gpioInput: '#06b6d4',
+  gpioOutput: '#10b981',
+  gpioAlt: '#8b5cf6',
+  other: '#64748b',
+  idle: '#475569',
+  high: '#22c55e',
+  low: '#0f172a',
 }
 
-const resolveColor = (pin: PinDefinition, line: GpioLine | undefined) => {
-  if (pin.role === 'power5') return COLORS.power5
-  if (pin.role === 'power3') return COLORS.power3
-  if (pin.role === 'ground') return COLORS.ground
-  if (pin.role === 'other') return COLORS.other
-  if (!line) return COLORS.idle
+const resolvePinColor = (pin: PinDefinition, line: GpioLine | undefined) => {
+  if (pin.role === 'power5') return PIN_COLORS.power5
+  if (pin.role === 'power3') return PIN_COLORS.power3
+  if (pin.role === 'ground') return PIN_COLORS.ground
+  if (pin.role === 'other') return PIN_COLORS.other
+  if (!line) return PIN_COLORS.idle
 
-  const func = line.func.toUpperCase()
-  // Color del círculo según el modo (INPUT/OUTPUT/ALT)
-  if (func.includes('INPUT')) return COLORS.gpioInput
-  if (func.includes('OUTPUT')) return COLORS.gpioOutput
-  return COLORS.gpioAlt
-}
-
-const describeLevel = (line: GpioLine | undefined) => {
-  if (!line || line.level == null) return 'Sin nivel'
-  return line.level === 1 ? 'Nivel alto' : 'Nivel bajo'
-}
-
-const describePull = (line: GpioLine | undefined) => {
-  if (!line || !line.pull) return 'Pull: no informado'
-  return `Pull: ${line.pull}`
-}
-
-const formatFunction = (line: GpioLine | undefined) => {
-  if (!line) return 'Función desconocida'
-  return line.func || 'Sin función'
+  const func = (line.func || '').toUpperCase()
+  if (func.includes('INPUT')) return PIN_COLORS.gpioInput
+  if (func.includes('OUTPUT')) return PIN_COLORS.gpioOutput
+  return PIN_COLORS.gpioAlt
 }
 
 const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
@@ -109,22 +126,26 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const [selectedPin, setSelectedPin] = useState<number | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const [autoRefresh, setAutoRefresh] = useState(false)
   const [descriptions, setDescriptions] = useState<Record<number, string>>({})
-  const [showSummary, setShowSummary] = useState(false)
+  const [viewMode, setViewMode] = useState<'pinout' | 'table'>('pinout')
+  const [filterText, setFilterText] = useState('')
 
-  // Pines reservados por defecto (advertencias/bloqueo)
-  const RESERVED: Record<string, number[]> = useMemo(() => ({
-    I2C: [2, 3],
-    UART: [14, 15],
-    SPI: [7, 8, 9, 10, 11],
-    EEPROM: [0, 1],
-  }), [])
+  const RESERVED: Record<string, number[]> = useMemo(
+    () => ({
+      I2C: [2, 3],
+      UART: [14, 15],
+      SPI: [7, 8, 9, 10, 11],
+      EEPROM: [0, 1],
+    }),
+    []
+  )
 
   const RESERVED_SET = useMemo(() => new Set(Object.values(RESERVED).flat()), [RESERVED])
-  const isReserved = useCallback((gpio?: number | null) => gpio != null && RESERVED_SET.has(gpio), [RESERVED_SET])
+  const isReserved = useCallback(
+    (gpio?: number | null) => gpio != null && RESERVED_SET.has(gpio),
+    [RESERVED_SET]
+  )
 
-  // Storage para descripciones por sesión
   const storageKey = useMemo(() => `pins:descriptions:${sessionId}`, [sessionId])
   useEffect(() => {
     try {
@@ -132,10 +153,16 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       if (raw) setDescriptions(JSON.parse(raw))
     } catch {}
   }, [storageKey])
-  const persistDescriptions = useCallback((next: Record<number, string>) => {
-    setDescriptions(next)
-    try { localStorage.setItem(storageKey, JSON.stringify(next)) } catch {}
-  }, [storageKey])
+
+  const persistDescriptions = useCallback(
+    (next: Record<number, string>) => {
+      setDescriptions(next)
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next))
+      } catch {}
+    },
+    [storageKey]
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -144,22 +171,55 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       const res = await gpioService.getPinsStatus(sessionId)
       setData(res)
     } catch (e: any) {
-      setError(e?.toString?.() ?? 'No se pudo obtener el estado de GPIO')
+      setError(e?.message ?? String(e))
     } finally {
       setLoading(false)
     }
   }, [sessionId])
 
   useEffect(() => {
+    // Initial fast fetch
     load()
-  }, [load])
 
-  // Auto-actualizar cada 1s si está activado
-  useEffect(() => {
-    if (!autoRefresh) return
-    const t = window.setInterval(() => { load() }, 1000)
-    return () => { try { window.clearInterval(t) } catch {} }
-  }, [autoRefresh, load])
+    let unlistenUpdate: (() => void) | undefined
+    let unlistenError: (() => void) | undefined
+
+    const setupRustMonitor = async () => {
+      try {
+        unlistenUpdate = await listen<any[]>(`gpio_update_${sessionId}`, (event) => {
+          if (event.payload) {
+            const lines: GpioLine[] = event.payload.map((r) => ({
+              gpio: Number(r.gpio),
+              level: r.level == null ? null : Number(r.level),
+              func: String(r.func || ''),
+              pull: r.pull == null ? null : String(r.pull),
+            }))
+            setData(lines)
+            setError(null)
+          }
+        })
+
+        unlistenError = await listen<string>(`gpio_error_${sessionId}`, (event) => {
+          if (event.payload) {
+            setError(event.payload)
+          }
+        })
+
+        // Start Rust background async task
+        await gpioService.startPinsMonitor(sessionId, 1000)
+      } catch (e: any) {
+        console.warn('Fallback: Error al iniciar monitor Rust:', e)
+      }
+    }
+
+    setupRustMonitor()
+
+    return () => {
+      unlistenUpdate?.()
+      unlistenError?.()
+      gpioService.stopPinsMonitor(sessionId).catch(() => {})
+    }
+  }, [sessionId, load])
 
   const gpioMap = useMemo(() => {
     const map = new Map<number, GpioLine>()
@@ -169,34 +229,32 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     return map
   }, [data])
 
-  const selectedDefinition = selectedPin != null
-    ? PIN_DEFINITIONS.find(p => p.physical === selectedPin) ?? null
-    : null
-  const selectedStatus = selectedDefinition?.gpio != null
-    ? gpioMap.get(selectedDefinition.gpio)
-    : undefined
+  const selectedDefinition =
+    selectedPin != null
+      ? PIN_DEFINITIONS.find((p) => p.physical === selectedPin) ?? null
+      : null
+  const selectedStatus =
+    selectedDefinition?.gpio != null ? gpioMap.get(selectedDefinition.gpio) : undefined
 
   const handlePinClick = (pin: PinDefinition) => {
-    setSelectedPin(pin.physical)
-    setMessage(null)
-  }
-
-  const handleBack = () => {
-    setSelectedPin(null)
+    setSelectedPin((prev) => (prev === pin.physical ? null : pin.physical))
     setMessage(null)
   }
 
   const setMode = async (mode: 'input' | 'output') => {
     if (!selectedDefinition || selectedDefinition.gpio == null) return
-    if (isReserved(selectedDefinition.gpio)) { setMessage('⚠ Pin reservado: operación bloqueada.'); return }
+    if (isReserved(selectedDefinition.gpio)) {
+      setMessage('Pin reservado: operación bloqueada por seguridad.')
+      return
+    }
     setActionLoading(true)
     setMessage(null)
     try {
       await gpioService.setPinMode(sessionId, selectedDefinition.gpio, mode)
       await load()
-      setMessage(`GPIO ${selectedDefinition.gpio} configurado como ${mode === 'input' ? 'entrada' : 'salida'}.`)
+      setMessage(`GPIO ${selectedDefinition.gpio} en ${mode === 'input' ? 'ENTRADA' : 'SALIDA'}.`)
     } catch (e: any) {
-      setMessage(e?.toString?.() ?? 'No se pudo cambiar el modo del pin')
+      setMessage(e?.message ?? String(e))
     } finally {
       setActionLoading(false)
     }
@@ -204,16 +262,19 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
   const setPull = async (pull: 'up' | 'down' | 'none') => {
     if (!selectedDefinition || selectedDefinition.gpio == null) return
-    if (isReserved(selectedDefinition.gpio)) { setMessage('⚠ Pin reservado: operación bloqueada.'); return }
+    if (isReserved(selectedDefinition.gpio)) {
+      setMessage('Pin reservado: operación bloqueada por seguridad.')
+      return
+    }
     setActionLoading(true)
     setMessage(null)
     try {
       await gpioService.setPinPull(sessionId, selectedDefinition.gpio, pull)
       await load()
-      const label = pull === 'up' ? 'Pull-Up' : pull === 'down' ? 'Pull-Down' : 'Sin pull'
+      const label = pull === 'up' ? 'Pull-Up' : pull === 'down' ? 'Pull-Down' : 'Sin Pull'
       setMessage(`GPIO ${selectedDefinition.gpio}: ${label}.`)
     } catch (e: any) {
-      setMessage(e?.toString?.() ?? 'No se pudo configurar el pull del pin')
+      setMessage(e?.message ?? String(e))
     } finally {
       setActionLoading(false)
     }
@@ -221,15 +282,18 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
   const writeLevel = async (level: 0 | 1) => {
     if (!selectedDefinition || selectedDefinition.gpio == null) return
-    if (isReserved(selectedDefinition.gpio)) { setMessage('⚠ Pin reservado: operación bloqueada.'); return }
+    if (isReserved(selectedDefinition.gpio)) {
+      setMessage('Pin reservado: operación bloqueada por seguridad.')
+      return
+    }
     setActionLoading(true)
     setMessage(null)
     try {
       await gpioService.writePinLevel(sessionId, selectedDefinition.gpio, level)
       await load()
-      setMessage(`GPIO ${selectedDefinition.gpio}: nivel ${level === 1 ? 'alto' : 'bajo'}.`)
+      setMessage(`GPIO ${selectedDefinition.gpio}: ${level === 1 ? 'HIGH (1)' : 'LOW (0)'}.`)
     } catch (e: any) {
-      setMessage(e?.toString?.() ?? 'No se pudo escribir el nivel del pin')
+      setMessage(e?.message ?? String(e))
     } finally {
       setActionLoading(false)
     }
@@ -239,321 +303,529 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     if (!selectedDefinition || selectedDefinition.gpio == null) return
     try {
       const updated = await gpioService.readPin(sessionId, selectedDefinition.gpio)
-      setData(prev => {
+      setData((prev) => {
         const list = prev ? [...prev] : []
-        const idx = list.findIndex(x => x.gpio === updated.gpio)
-        if (idx >= 0) list[idx] = updated; else list.push(updated)
+        const idx = list.findIndex((x) => x.gpio === updated.gpio)
+        if (idx >= 0) list[idx] = updated
+        else list.push(updated)
         return list
       })
     } catch (e: any) {
-      setMessage(e?.toString?.() ?? 'No se pudo leer el estado del pin')
+      setMessage(e?.message ?? String(e))
     }
   }
 
-  const renderNode = (pin: PinDefinition, line: GpioLine | undefined, isSelected: boolean) => {
-    const color = resolveColor(pin, line)
-    const level = line?.level
-    const dotColor = level == null ? 'transparent' : level === 1 ? COLORS.high : COLORS.low
-    const occupied = pin.gpio != null && (isReserved(pin.gpio) || ((line?.func || '').toUpperCase().startsWith('ALT')))
-    const title = pin.gpio != null
-      ? `GPIO ${pin.gpio} · ${line?.func ?? '—'} · ${line?.level == null ? 'sin nivel' : (line.level === 1 ? 'HIGH' : 'LOW')}`
-      : pin.label
-      
-    // Clases dinámicas Tailwind
-    const baseClass = "flex flex-col items-center gap-1.5 border-none bg-transparent text-inherit cursor-pointer rounded-xl p-1.5 transition-all duration-150 ease-in-out relative hover:bg-[var(--interactive-hover,rgba(255,255,255,0.06))] hover:-translate-y-[1px]"
-    const selectedClass = isSelected ? " shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent-primary)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)]" : ""
-    const staticClass = pin.gpio == null ? " opacity-85" : ""
-    const occupiedClass = occupied ? " shadow-[0_0_0_2px_color-mix(in_srgb,var(--warning)_50%,transparent)]" : ""
-    
-    return (
-      <button
-        type="button"
-        key={pin.physical}
-        className={`${baseClass}${selectedClass}${staticClass}${occupiedClass} group`}
-        onClick={() => handlePinClick(pin)}
-        title={title}
-      >
-        <span className="text-[11px] font-semibold text-secondary">{pin.physical}</span>
-        <span className="w-[26px] h-[26px] rounded-full flex items-center justify-center shadow-[inset_0_0_0_1px_rgba(0,0,0,0.45)] relative" style={{ backgroundColor: color }}>
-          <span className="w-2.5 h-2.5 rounded-full bg-[var(--panel,#fff)] shadow-[0_0_0_1px_rgba(0,0,0,0.2)] relative z-[2]" style={{ backgroundColor: dotColor }} />
-          {occupied && <span className="absolute top-1.5 right-2.5 w-2 h-2 rounded-full bg-warning shadow-[0_0_0_1px_rgba(0,0,0,0.3)] z-[3]" title="Ocupado (reservado/ALT)" />}
-          {occupied && <span className="absolute inset-0 rounded-full bg-black opacity-25 z-[1]" />}
-        </span>
-        <span className={`text-[10px] font-semibold text-center ${occupied ? 'opacity-80' : ''}`}>{pin.gpio != null ? `GPIO ${pin.gpio}` : pin.label}</span>
-        {pin.alias && <span className={`text-[9px] text-secondary uppercase tracking-[0.04em] ${occupied ? 'opacity-80' : ''}`}>{pin.alias}</span>}
-        {pin.gpio != null && line && (
-          <span className="text-[9px] text-secondary text-center leading-[1.3]">
-            {line.func}
-            {line.level == null ? '' : line.level === 1 ? ' • Nivel alto' : ' • Nivel bajo'}
-          </span>
-        )}
-      </button>
-    )
-  }
-
-  const renderGrid = () => (
-    <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto py-3 px-3.5 bg-tertiary rounded-xl border border-color shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border-subtle)_40%,transparent)] max-w-[320px] w-full mx-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--text-secondary)_40%,transparent)] [&::-webkit-scrollbar-thumb]:rounded-full">
-      {PIN_ROWS.map(row => {
-        const leftLine = row.left.gpio != null ? gpioMap.get(row.left.gpio) : undefined
-        const rightLine = row.right.gpio != null ? gpioMap.get(row.right.gpio) : undefined
-        return (
-          <div className="grid grid-cols-2 gap-3" key={row.left.physical}>
-            {renderNode(row.left, leftLine, selectedPin === row.left.physical)}
-            {renderNode(row.right, rightLine, selectedPin === row.right.physical)}
-          </div>
-        )
-      })}
-    </div>
+  // Filtrado de pines por búsqueda
+  const matchesFilter = useCallback(
+    (pin: PinDefinition) => {
+      if (!filterText.trim()) return true
+      const q = filterText.toLowerCase()
+      const gpioStr = pin.gpio != null ? `gpio ${pin.gpio}` : ''
+      const aliasStr = pin.alias || ''
+      const nameStr = pin.name || ''
+      const physStr = pin.physical.toString()
+      return (
+        gpioStr.includes(q) ||
+        aliasStr.toLowerCase().includes(q) ||
+        nameStr.toLowerCase().includes(q) ||
+        physStr.includes(q)
+      )
+    },
+    [filterText]
   )
 
-  const renderDetail = () => {
-    if (!selectedDefinition) return null
-    const reserved = isReserved(selectedDefinition.gpio)
-    const desc = selectedDefinition.gpio != null ? (descriptions[selectedDefinition.gpio] || '') : ''
-    const setDesc = (value: string) => {
-      if (selectedDefinition.gpio == null) return
-      const next = { ...descriptions, [selectedDefinition.gpio]: value }
-      persistDescriptions(next)
-    }
-    return (
-      <div className="flex-1 flex flex-col gap-3.5 p-[18px] bg-tertiary rounded-xl border border-color shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border-subtle)_40%,transparent)] overflow-y-auto w-full">
-        <button type="button" className="self-start border-none bg-transparent text-accent text-xs font-semibold cursor-pointer inline-flex items-center gap-1 hover:text-[var(--accent-primary-hover)]" onClick={handleBack}>
-          ← Ver todos los pines
-        </button>
+  // ── Render de Pin Individual en la Cabecera 2x20 ────────────────────────────
+  const renderPinUnit = (pin: PinDefinition, side: 'left' | 'right') => {
+    const line = pin.gpio != null ? gpioMap.get(pin.gpio) : undefined
+    const isSelected = selectedPin === pin.physical
+    const isMatched = matchesFilter(pin)
+    const color = resolvePinColor(pin, line)
+    const level = line?.level
+    const isHigh = level === 1
+    const occupied =
+      pin.gpio != null &&
+      (isReserved(pin.gpio) || (line?.func || '').toUpperCase().startsWith('ALT'))
 
-        <h3 className="m-0 text-base font-bold text-primary">Pin físico {selectedDefinition.physical}</h3>
+    const funcStr = line?.func || ''
+    const currentMode = funcStr.toUpperCase().includes('INPUT')
+      ? 'Entrada'
+      : funcStr.toUpperCase().includes('OUTPUT')
+        ? 'Salida'
+        : funcStr || '—'
 
-        <div className="flex flex-col gap-1 text-[13px]">
-          <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Propósito (editable)</span>
-          <div className="flex gap-2">
-            <input
-              className="w-full py-2 px-2.5 rounded-lg border border-color bg-[var(--background-secondary)] text-primary text-xs"
-              type="text"
-              value={desc}
-              onChange={e => setDesc(e.target.value)}
-              placeholder="Ej: Sensor de puerta, Relé 1"
-            />
-          </div>
-        </div>
-
-        {reserved && (
-          <div className="rounded-[10px] py-2 px-3 text-xs text-warning bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] border border-[color-mix(in_srgb,var(--warning)_22%,transparent)]">
-            ⚠ Este pin está asociado a un periférico del sistema.
-            {selectedDefinition.gpio === 2 || selectedDefinition.gpio === 3 ? ' (I2C SDA/SCL)' : ''}
-            {selectedDefinition.gpio === 14 || selectedDefinition.gpio === 15 ? ' (UART TX/RX)' : ''}
-            {([7, 8, 9, 10, 11] as number[]).includes(selectedDefinition.gpio as number) ? ' (SPI)' : ''}
-            Cambiarlo puede afectar sensores o la consola serie.
-          </div>
-        )}
-
-        {selectedDefinition.alias && (
-          <div className="flex flex-col gap-1 text-[13px]">
-            <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Alias</span>
-            <span>{selectedDefinition.alias}</span>
-          </div>
-        )}
-
-        {selectedDefinition.gpio != null ? (
+    const tooltipLabel = (
+      <Stack gap={2} style={{ fontSize: 11 }}>
+        <Text fw={700} size="xs">
+          Pin Físico #{pin.physical} · {pin.name} {pin.alias ? `(${pin.alias})` : ''}
+        </Text>
+        {pin.gpio != null && (
           <>
-            <div className="flex flex-col gap-1 text-[13px]">
-              <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">GPIO</span>
-              <span>GPIO {selectedDefinition.gpio}</span>
-            </div>
-
-            <div className="flex flex-col gap-1 text-[13px]">
-              <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Función actual</span>
-              <span>{formatFunction(selectedStatus)}</span>
-            </div>
-            <div className="flex flex-col gap-1 text-[13px]">
-              <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Nivel</span>
-              <span>{describeLevel(selectedStatus)}</span>
-            </div>
-            <div className="flex flex-col gap-1 text-[13px]">
-              <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Pull</span>
-              <span>{describePull(selectedStatus)}</span>
-            </div>
-
-            <div className="grid gap-2.5">
-              <button
-                type="button"
-                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
-                onClick={() => setMode('input')}
-                disabled={actionLoading || !!selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
-              >
-                Configurar como entrada
-              </button>
-              <button
-                type="button"
-                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
-                onClick={() => setMode('output')}
-                disabled={actionLoading || !!selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
-              >
-                Configurar como salida
-              </button>
-
-              <button
-                type="button"
-                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
-                onClick={() => setPull('up')}
-                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
-              >
-                Pull-Up (INPUT)
-              </button>
-              <button
-                type="button"
-                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
-                onClick={() => setPull('down')}
-                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
-              >
-                Pull-Down (INPUT)
-              </button>
-              <button
-                type="button"
-                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
-                onClick={() => setPull('none')}
-                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('INPUT') || reserved}
-              >
-                Sin pull (INPUT)
-              </button>
-              <button
-                type="button"
-                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
-                onClick={() => writeLevel(1)}
-                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
-              >
-                Escribir HIGH (1)
-              </button>
-              <button
-                type="button"
-                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
-                onClick={() => writeLevel(0)}
-                disabled={actionLoading || !selectedStatus?.func?.toUpperCase().includes('OUTPUT') || reserved}
-              >
-                Escribir LOW (0)
-              </button>
-              <button
-                type="button"
-                className="border-none rounded-xl py-2.5 px-3.5 text-xs font-semibold cursor-pointer text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-info to-accent transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--info)_20%,transparent)] disabled:cursor-default disabled:opacity-50 hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_20px_color-mix(in_srgb,var(--info)_25%,transparent)]"
-                onClick={readNow}
-                disabled={actionLoading}
-              >
-                Leer ahora
-              </button>
-            </div>
+            <Text size="xs">Modo: {currentMode} | Level: {level == null ? '—' : isHigh ? 'HIGH (1)' : 'LOW (0)'}</Text>
+            <Text size="xs" color="dimmed">Pull: {line?.pull || 'no especificado'}</Text>
           </>
-        ) : (
-          <div className="flex flex-col gap-1 text-[13px]">
-            <span className="text-[11px] text-secondary uppercase tracking-[0.05em]">Información</span>
-            <span>Este pin no admite cambio de modo.</span>
-          </div>
         )}
-      </div>
+      </Stack>
+    )
+
+    return (
+      <Tooltip key={pin.physical} label={tooltipLabel} position={side === 'left' ? 'left' : 'right'} withArrow openDelay={100}>
+        <UnstyledButton
+          onClick={() => handlePinClick(pin)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '2px 4px',
+            borderRadius: 6,
+            background: isSelected ? 'var(--mantine-color-dark-4)' : 'transparent',
+            outline: isSelected ? '1.5px solid var(--accent-primary)' : 'none',
+            opacity: isMatched ? 1 : 0.25,
+            transition: 'all 0.12s ease',
+            cursor: 'pointer',
+            flexDirection: side === 'left' ? 'row' : 'row-reverse',
+            width: '100%',
+          }}
+        >
+          {/* Texto del Pin (Nombre Corto + Alias) */}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: side === 'left' ? 'row' : 'row-reverse',
+              alignItems: 'center',
+              gap: 4,
+              minWidth: 0,
+              justifyContent: 'flex-end',
+            }}
+          >
+            {pin.alias && (
+              <Text
+                size="xs"
+                fw={700}
+                style={{
+                  fontSize: 9,
+                  color: 'var(--danger)',
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1,
+                  flexShrink: 0,
+                }}
+              >
+                {pin.alias}
+              </Text>
+            )}
+            <Text
+              size="xs"
+              fw={600}
+              style={{
+                fontSize: 11,
+                color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+                lineHeight: 1.1,
+                textAlign: side === 'left' ? 'right' : 'left',
+              }}
+            >
+              {pin.name}
+            </Text>
+          </div>
+
+          {/* Número físico */}
+          <Text
+            size="xs"
+            fw={700}
+            style={{
+              width: 16,
+              textAlign: 'center',
+              color: 'var(--text-tertiary)',
+              fontSize: 10,
+              flexShrink: 0,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {pin.physical}
+          </Text>
+
+          {/* Cabeza metálica del Pin físico */}
+          <div
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              backgroundColor: color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: isSelected
+                ? '0 0 0 2px var(--accent-primary)'
+                : 'inset 0 0 0 1px rgba(0,0,0,0.3)',
+              position: 'relative',
+              flexShrink: 0,
+            }}
+          >
+            {/* Indicador LED de Estado (HIGH/LOW) */}
+            {pin.gpio != null && (
+              <div
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  backgroundColor: level == null ? 'transparent' : isHigh ? PIN_COLORS.high : '#0f172a',
+                  boxShadow: isHigh ? '0 0 5px #22c55e' : 'none',
+                }}
+              />
+            )}
+
+            {/* Advertencia reservado */}
+            {occupied && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -1,
+                  right: -1,
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  backgroundColor: '#f59e0b',
+                }}
+              />
+            )}
+          </div>
+        </UnstyledButton>
+      </Tooltip>
     )
   }
 
-  const isDetail = selectedDefinition != null
+  // ── Tarjeta de Control del Pin Seleccionado (Inspector) ────────────────────
+  const renderInspector = () => {
+    if (!selectedDefinition) return null
+    const reserved = isReserved(selectedDefinition.gpio)
+    const desc = selectedDefinition.gpio != null ? descriptions[selectedDefinition.gpio] || '' : ''
+    const setDesc = (val: string) => {
+      if (selectedDefinition.gpio == null) return
+      const next = { ...descriptions, [selectedDefinition.gpio]: val }
+      persistDescriptions(next)
+    }
+
+    const funcUpper = (selectedStatus?.func || '').toUpperCase()
+    const currentModeValue = funcUpper.includes('INPUT')
+      ? 'input'
+      : funcUpper.includes('OUTPUT')
+        ? 'output'
+        : ''
+
+    const pullUpper = (selectedStatus?.pull || '').toLowerCase()
+    const currentPullValue = pullUpper.includes('up')
+      ? 'up'
+      : pullUpper.includes('down')
+        ? 'down'
+        : 'none'
+
+    return (
+      <Paper p="xs" radius="md" style={{ background: 'var(--surface-2)', border: '1.5px solid var(--accent-primary)' }}>
+        <Stack gap="xs">
+          <Group justify="space-between" align="center">
+            <Group gap={6}>
+              <Title order={5} style={{ color: 'var(--text-primary)', fontSize: 13 }}>
+                Pin #{selectedDefinition.physical} · {selectedDefinition.name}
+              </Title>
+              {selectedDefinition.alias && (
+                <Text size="xs" fw={700} style={{ color: 'var(--accent-primary)', fontSize: 11 }}>
+                  ({selectedDefinition.alias})
+                </Text>
+              )}
+            </Group>
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setSelectedPin(null)}>
+              <X size={12} />
+            </ActionIcon>
+          </Group>
+
+          {/* Nota personalizada de uso */}
+          <TextInput
+            size="xs"
+            placeholder="Etiqueta / Nota (ej: Sensor, Relé 1)..."
+            leftSection={<Edit3 size={11} />}
+            value={desc}
+            onChange={(e) => setDesc(e.currentTarget.value)}
+            styles={{ input: { fontSize: 11 } }}
+          />
+
+          {reserved && (
+            <Alert icon={<AlertTriangle size={14} />} color="yellow" radius="xs" p="xs">
+              <Text size="xs" style={{ fontSize: 10 }}>
+                Pin de sistema reservado (I2C/UART/SPI).
+              </Text>
+            </Alert>
+          )}
+
+          {selectedDefinition.gpio != null ? (
+            <Stack gap={6}>
+              <Group justify="space-between" align="center">
+                <Text size="xs" style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+                  Modo actual: <strong style={{ color: 'var(--text-primary)' }}>{selectedStatus?.func || '—'}</strong>
+                </Text>
+                <Group gap={4}>
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: selectedStatus?.level === 1 ? PIN_COLORS.high : '#475569',
+                    }}
+                  />
+                  <Text size="xs" fw={700} style={{ fontSize: 11, color: selectedStatus?.level === 1 ? 'var(--success)' : 'var(--text-secondary)' }}>
+                    {selectedStatus?.level == null ? '—' : selectedStatus.level === 1 ? 'HIGH (1)' : 'LOW (0)'}
+                  </Text>
+                </Group>
+              </Group>
+
+              {/* Selector de Modo: ENTRADA / SALIDA */}
+              <div>
+                <SegmentedControl
+                  fullWidth
+                  size="xs"
+                  value={currentModeValue}
+                  onChange={(val) => setMode(val as 'input' | 'output')}
+                  disabled={actionLoading || reserved}
+                  data={[
+                    { label: 'Entrada (INPUT)', value: 'input' },
+                    { label: 'Salida (OUTPUT)', value: 'output' },
+                  ]}
+                  styles={{ label: { fontSize: 10, padding: '2px 4px' } }}
+                />
+              </div>
+
+              {/* Selector de Pull (si es Input) */}
+              {currentModeValue === 'input' && (
+                <div>
+                  <SegmentedControl
+                    fullWidth
+                    size="xs"
+                    value={currentPullValue}
+                    onChange={(val) => setPull(val as 'up' | 'down' | 'none')}
+                    disabled={actionLoading || reserved}
+                    data={[
+                      { label: 'Pull-Up', value: 'up' },
+                      { label: 'Pull-Down', value: 'down' },
+                      { label: 'Sin Pull', value: 'none' },
+                    ]}
+                    styles={{ label: { fontSize: 10, padding: '2px 4px' } }}
+                  />
+                </div>
+              )}
+
+              {/* Conmutador HIGH / LOW (si es Output) */}
+              {currentModeValue === 'output' && (
+                <Group grow gap={4}>
+                  <Button
+                    size="xs"
+                    variant={selectedStatus?.level === 1 ? 'filled' : 'outline'}
+                    color="green"
+                    leftSection={<Zap size={11} />}
+                    onClick={() => writeLevel(1)}
+                    disabled={actionLoading || reserved}
+                    styles={{ root: { fontSize: 10, height: 26 } }}
+                  >
+                    HIGH (1)
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant={selectedStatus?.level === 0 ? 'filled' : 'outline'}
+                    color="gray"
+                    leftSection={<Power size={11} />}
+                    onClick={() => writeLevel(0)}
+                    disabled={actionLoading || reserved}
+                    styles={{ root: { fontSize: 10, height: 26 } }}
+                  >
+                    LOW (0)
+                  </Button>
+                </Group>
+              )}
+            </Stack>
+          ) : (
+            <Text size="xs" style={{ color: 'var(--text-tertiary)', fontSize: 10 }}>
+              Pin de alimentación/tierra no configurable por software.
+            </Text>
+          )}
+        </Stack>
+      </Paper>
+    )
+  }
 
   return (
-    <div className="flex flex-col gap-4 h-full p-4 rounded-2xl bg-[var(--background-secondary)] text-primary border border-color shadow-[0_12px_32px_rgba(0,0,0,0.2)]">
-      <header className="flex justify-between items-center gap-3">
-        <div>
-          <h2 className="m-0 text-base font-bold text-primary">Pinout Raspberry Pi</h2>
-          <span className="block text-xs text-secondary">Estado actual según raspi-gpio</span>
-        </div>
-        <button
-          type="button"
-          className="border-none rounded-full py-1.5 px-4 text-xs font-semibold text-[var(--accent-contrast,#061016)] bg-gradient-to-br from-accent to-[var(--accent-primary-hover)] cursor-pointer transition-all duration-150 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-primary)_25%,transparent)] disabled:opacity-60 disabled:cursor-default hover:not(:disabled):-translate-y-[1px] hover:not(:disabled):shadow-[0_10px_24px_color-mix(in_srgb,var(--accent-primary)_25%,transparent)]"
-          onClick={load}
-          disabled={loading || actionLoading}
-        >
-          {loading ? 'Actualizando…' : 'Actualizar'}
-        </button>
-      </header>
+    <Stack gap="xs" style={{ height: '100%', minHeight: 0 }}>
+      {/* Barra de Controles e Inspección */}
+      <Paper p="xs" radius="md" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+        <Stack gap="xs">
+          {/* Toggle de Modo y Búsqueda */}
+          <Group gap="xs" wrap="nowrap">
+            <Box style={{ flex: 1 }}>
+              <SegmentedControl
+                fullWidth
+                size="xs"
+                value={viewMode}
+                onChange={(v) => setViewMode(v as 'pinout' | 'table')}
+                data={[
+                  {
+                    label: (
+                      <Group gap={3} justify="center">
+                        <LayoutGrid size={11} />
+                        <span>Cabecera 2x20</span>
+                      </Group>
+                    ),
+                    value: 'pinout',
+                  },
+                  {
+                    label: (
+                      <Group gap={3} justify="center">
+                        <List size={11} />
+                        <span>Tabla</span>
+                      </Group>
+                    ),
+                    value: 'table',
+                  },
+                ]}
+                styles={{ label: { fontSize: 10 } }}
+              />
+            </Box>
+          </Group>
 
-      {error && <div className="rounded-xl py-2 px-3 text-xs leading-[1.4] text-danger bg-[color-mix(in_srgb,var(--danger)_16%,transparent)] border border-[color-mix(in_srgb,var(--danger)_28%,transparent)]">{error}</div>}
-      {isDetail && message && !error && <div className="rounded-xl py-2 px-3 text-xs leading-[1.4] text-accent bg-[color-mix(in_srgb,var(--accent-primary)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent-primary)_24%,transparent)]">{message}</div>}
+          {viewMode === 'pinout' && (
+            <TextInput
+              size="xs"
+              placeholder="Buscar GPIO, I2C, SPI, 5V..."
+              leftSection={<Search size={11} />}
+              rightSection={
+                filterText ? (
+                  <UnstyledButton onClick={() => setFilterText('')} style={{ display: 'flex' }}>
+                    <X size={11} />
+                  </UnstyledButton>
+                ) : null
+              }
+              value={filterText}
+              onChange={(e) => setFilterText(e.currentTarget.value)}
+              styles={{ input: { fontSize: 11, height: 26 } }}
+            />
+          )}
+        </Stack>
+      </Paper>
 
-      <div className="flex gap-4 items-center text-secondary">
-        <label className="inline-flex gap-1.5 items-center text-xs cursor-pointer"><input type="checkbox" checked={showSummary} onChange={e => setShowSummary(e.target.checked)} /> Mostrar resumen</label>
-      </div>
+      {/* Alertas / Mensajes de Operación */}
+      {error && (
+        <Alert icon={<AlertTriangle size={14} />} color="red" radius="md" p="xs">
+          <Text size="xs" style={{ fontSize: 10 }}>{error}</Text>
+        </Alert>
+      )}
+      {message && !error && (
+        <Alert icon={<Check size={14} />} color="green" radius="md" p="xs">
+          <Text size="xs" style={{ fontSize: 10 }}>{message}</Text>
+        </Alert>
+      )}
 
-      <div className="flex-1 min-h-0 flex">
-        {isDetail ? renderDetail() : (
-          <>
-            {renderGrid()}
-            {showSummary && (
-              <div className="flex-1 ml-3 overflow-auto">
-                <table className="w-full border-collapse text-xs text-primary">
-                  <thead>
-                    <tr>
-                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Físico</th>
-                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">GPIO</th>
-                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Modo</th>
-                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Pull</th>
-                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Estado</th>
-                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Propósito</th>
-                      <th className="border border-color py-1.5 px-2 text-left bg-[color-mix(in_srgb,var(--background-tertiary)_80%,transparent)] sticky top-0 z-[1]">Ocupado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {PIN_DEFINITIONS.filter(p => p.gpio != null).map(p => {
-                      const line = gpioMap.get(p.gpio!)
-                      const func = (line?.func || '').toUpperCase()
-                      const modo = func.includes('INPUT') ? 'INPUT' : func.includes('OUTPUT') ? 'OUTPUT' : func || '—'
-                      const estado = line?.level == null ? '—' : (line.level === 1 ? 'HIGH' : 'LOW')
-                      const pull = line?.pull || (modo === 'OUTPUT' ? '—' : 'NONE')
-                      const desc = descriptions[p.gpio!] || ''
-                      const ocupado = isReserved(p.gpio) || func.startsWith('ALT')
-                      return (
-                        <tr key={p.gpio} onClick={() => handlePinClick(p)} className="cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent-primary)_10%,transparent)]">
-                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{p.physical}</td>
-                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{p.gpio}</td>
-                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{modo}</td>
-                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{pull}</td>
-                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{estado}</td>
-                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary" title={desc}>{desc || '—'}</td>
-                          <td className="border border-color py-1.5 px-2 text-left bg-tertiary">{ocupado ? 'Ocupado' : 'Libre'}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
+      {/* Inspector del Pin Seleccionado */}
+      {selectedPin != null && renderInspector()}
+
+      {/* Contenido Principal: Cabecera 2x20 Compacta vs Tabla */}
+      <Box style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {viewMode === 'pinout' ? (
+          <Paper p="xs" radius="md" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+            <Stack gap={0} style={{ flex: 1, justifyContent: 'space-between' }}>
+              {PIN_ROWS.map((row) => (
+                <Group key={row.left.physical} gap={4} wrap="nowrap" justify="space-between">
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    {renderPinUnit(row.left, 'left')}
+                  </Box>
+                  <div
+                    style={{
+                      width: 1,
+                      height: 16,
+                      background: 'var(--border-subtle)',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    {renderPinUnit(row.right, 'right')}
+                  </Box>
+                </Group>
+              ))}
+            </Stack>
+          </Paper>
+        ) : (
+          /* Tabla Resumen con ScrollArea solo en modo tabla */
+          <ScrollArea style={{ flex: 1 }} scrollbarSize={6} type="hover" styles={{ viewport: { overflowX: 'hidden' } }}>
+            <Paper p="xs" radius="md" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+              <Table highlightOnHover fontSize="xs" verticalSpacing="xs">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th style={{ fontSize: 10 }}>Pin</Table.Th>
+                    <Table.Th style={{ fontSize: 10 }}>Nombre</Table.Th>
+                    <Table.Th style={{ fontSize: 10 }}>Modo</Table.Th>
+                    <Table.Th style={{ fontSize: 10 }}>Nivel</Table.Th>
+                    <Table.Th style={{ fontSize: 10 }}>Nota</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {PIN_DEFINITIONS.filter((p) => p.gpio != null).map((p) => {
+                    const line = gpioMap.get(p.gpio!)
+                    const func = (line?.func || '').toUpperCase()
+                    const modo = func.includes('INPUT')
+                      ? 'INPUT'
+                      : func.includes('OUTPUT')
+                        ? 'OUTPUT'
+                        : func || '—'
+                    const estado = line?.level == null ? '—' : line.level === 1 ? 'HIGH (1)' : 'LOW (0)'
+                    const desc = descriptions[p.gpio!] || ''
+                    return (
+                      <Table.Tr
+                        key={p.gpio}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handlePinClick(p)}
+                      >
+                        <Table.Td fw={700} style={{ fontSize: 10 }}>{p.physical}</Table.Td>
+                        <Table.Td style={{ fontSize: 10 }}>{p.name} {p.alias ? `(${p.alias})` : ''}</Table.Td>
+                        <Table.Td style={{ fontSize: 10 }}>{modo}</Table.Td>
+                        <Table.Td fw={600} style={{ fontSize: 10, color: estado.includes('HIGH') ? 'var(--success)' : 'inherit' }}>
+                          {estado}
+                        </Table.Td>
+                        <Table.Td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{desc || '—'}</Table.Td>
+                      </Table.Tr>
+                    )
+                  })}
+                </Table.Tbody>
+              </Table>
+            </Paper>
+          </ScrollArea>
         )}
-      </div>
+      </Box>
 
-      <footer className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5 text-[11px] text-secondary">
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.gpioInput }} /> Entrada
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.gpioOutput }} /> Salida
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.gpioAlt }} /> Función alternativa
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.high }} /> HIGH (1)
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.low }} /> LOW (0)
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.power5 }} /> Alimentación 5V
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.power3 }} /> Alimentación 3.3V
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded shadow-[inset_0_0_0_1px_rgba(0,0,0,0.2)]" style={{ backgroundColor: COLORS.ground }} /> Suelo
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-warning shadow-[0_0_0_1px_rgba(0,0,0,0.2)]" /> Ocupado (reservado/ALT)
-        </div>
-      </footer>
-    </div>
+      {/* Leyenda de colores compacta */}
+      <Paper p="xs" radius="md" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
+        <Group gap="xs" justify="center" wrap="wrap">
+          <Group gap={3}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: PIN_COLORS.power5 }} />
+            <Text size="xs" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>5V</Text>
+          </Group>
+          <Group gap={3}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: PIN_COLORS.power3 }} />
+            <Text size="xs" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>3.3V</Text>
+          </Group>
+          <Group gap={3}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: PIN_COLORS.ground }} />
+            <Text size="xs" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>GND</Text>
+          </Group>
+          <Group gap={3}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: PIN_COLORS.gpioInput }} />
+            <Text size="xs" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Input</Text>
+          </Group>
+          <Group gap={3}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: PIN_COLORS.gpioOutput }} />
+            <Text size="xs" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Output</Text>
+          </Group>
+          <Group gap={3}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: PIN_COLORS.gpioAlt }} />
+            <Text size="xs" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>ALT</Text>
+          </Group>
+        </Group>
+      </Paper>
+    </Stack>
   )
 }
 

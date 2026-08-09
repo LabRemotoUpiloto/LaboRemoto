@@ -1,14 +1,23 @@
 // components/raspberry/CameraGrid.tsx
 import React, { useEffect, useState } from 'react'
-import { useCameraGrid, CameraInfo } from '../../hooks/useCameraGrid'
+import { useNvrCameras, NvrCamera } from '../../hooks/useNvrCameras'
 import CameraPane from './CameraPane'
 
 interface Props {
   sessionId: string | null
   isActive?: boolean
-  /** Inicia port-forward y polling al montar (p. ej. cámaras embebidas en el chat). */
+  /** Inicia el polling del NVR al montar (p. ej. cámaras embebidas en el chat). */
   autoStart?: boolean
+  /**
+   * Group Key de Shinobi para el dispositivo de esta práctica (1 dispositivo
+   * = 1 Group, ver docs/plan-shinobi-nvr.md). Todavía no existe un mapeo
+   * real sessionId→groupKey (eso es trabajo de Fase 2/rollout) — de momento
+   * cae al group del piloto si no se pasa explícito.
+   */
+  groupKey?: string
 }
+
+const PILOT_GROUP_KEY = 'pilabpiloto'
 
 const CameraIcon = () => (
   <svg viewBox="0 0 44 44" fill="none" width="40" height="40">
@@ -33,18 +42,19 @@ function getGridCols(count: number): number {
   return Math.ceil(Math.sqrt(count))
 }
 
-const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = false }) => {
-  const { cameras, localPort, piHost, status, error, start, stop } = useCameraGrid(sessionId)
+const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = false, groupKey }) => {
+  const effectiveGroupKey = groupKey || (sessionId ? PILOT_GROUP_KEY : null)
+  const { cameras, status, error, start, stop } = useNvrCameras(effectiveGroupKey)
   const [expandedCam, setExpandedCam] = useState<string | null>(null)
   const [swapSource, setSwapSource] = useState<string | null>(null)
   const [cameraOrder, setCameraOrder] = useState<string[]>([])
 
   useEffect(() => {
-    if (!autoStart || !sessionId || !isActive) return
+    if (!autoStart || !effectiveGroupKey || !isActive) return
     if (status === 'idle') {
       void start()
     }
-  }, [autoStart, sessionId, isActive, status, start])
+  }, [autoStart, effectiveGroupKey, isActive, status, start])
 
   useEffect(() => {
     if (!autoStart) return
@@ -195,11 +205,10 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = f
       <div
         className={`flex-1 grid gap-[2px] p-[2px] min-h-0 bg-black ${expandedCam ? '[&_.camera-pane]:hidden [&_.camera-pane--expanded]:flex [&_.camera-pane--expanded]:col-span-full [&_.camera-pane--expanded]:row-span-full' : gridColClasses[cols] || 'grid-cols-1'}`}
       >
-        {activeCameras.map((cam: CameraInfo) => (
+        {activeCameras.map((cam: NvrCamera) => (
           <CameraPane
             key={cam.id}
-            streamUrl={`http://127.0.0.1:${localPort}/${cam.id}/index.m3u8`}
-            whepUrl={piHost ? `http://${piHost}:8889/${cam.id}/whep` : undefined}
+            streamUrl={cam.stream_url}
             label={cam.name}
             camId={cam.id}
             isActive={isActive}

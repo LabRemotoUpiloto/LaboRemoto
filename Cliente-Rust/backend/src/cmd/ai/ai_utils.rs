@@ -6,6 +6,18 @@ use serde::{Serialize, Deserialize};
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 
+use crate::cmd::protocol::CommandError;
+
+// Perf: un único `reqwest::Client` compartido para todas las llamadas HTTP
+// de este módulo, en vez de construir uno nuevo (y perder el pool de
+// conexiones TCP/TLS) en cada función.
+static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap_or_default()
+});
+
 // Helper centralizado para obtener la API key saneada.
 pub fn get_openai_api_key() -> Option<String> {
     // Cargar .env una vez por proceso (dotenvy es idempotente, pero evitamos ruido)
@@ -171,7 +183,7 @@ pub struct AiEnvStatus {
 }
 
 #[tauri::command]
-pub fn ai_env_status() -> Result<AiEnvStatus, String> {
+pub fn ai_env_status() -> Result<AiEnvStatus, CommandError> {
     let openai_key_opt = get_openai_api_key();
     let claude_key_opt = get_claude_api_key();
     let openrouter_key_opt = get_openrouter_api_key();
@@ -274,15 +286,18 @@ pub struct AiTestKeyResult {
 }
 
 #[tauri::command]
-pub async fn ai_test_key() -> Result<AiTestKeyResult, String> {
+pub async fn ai_test_key() -> Result<AiTestKeyResult, CommandError> {
     // Determinar qué API key probar basado en el modelo configurado
     let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "claude-sonnet-4-5".to_string());
-    
+
     if model.starts_with("claude") {
         // Probar Claude API
-        let key = get_claude_api_key().ok_or_else(|| "CLAUDE_API_KEY no encontrada".to_string())?;
+        let key = get_claude_api_key().ok_or_else(|| CommandError::permanent(
+            "MISSING_API_KEY",
+            "CLAUDE_API_KEY no encontrada",
+        ))?;
         
-        let client = reqwest::Client::new();
+        let client = &*HTTP_CLIENT;
         let test_payload = serde_json::json!({
             "model": model,
             "max_tokens": 10,
@@ -328,9 +343,12 @@ pub async fn ai_test_key() -> Result<AiTestKeyResult, String> {
         }
     } else {
         // Probar OpenAI API
-        let key = get_openai_api_key().ok_or_else(|| "OPENAI_API_KEY no encontrada".to_string())?;
+        let key = get_openai_api_key().ok_or_else(|| CommandError::permanent(
+            "MISSING_API_KEY",
+            "OPENAI_API_KEY no encontrada",
+        ))?;
         
-        let client = reqwest::Client::new();
+        let client = &*HTTP_CLIENT;
         let test_payload = serde_json::json!({
             "model": model,
             "messages": [{"role": "user", "content": "test"}],
@@ -393,8 +411,6 @@ pub async fn call_claude_file_analysis(
     sample: &str,
     debug: bool
 ) -> Result<FileAnalysisResult, String> {
-    use std::time::Duration;
-    
     let prompt = format!(
         "Analiza el siguiente código y proporciona un análisis completo en español con las siguientes secciones:\n\n\
         ## PROPÓSITO DEL PROGRAMA\n\
@@ -418,11 +434,8 @@ pub async fn call_claude_file_analysis(
         path, size, sample
     );
     
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("Error creando cliente: {}", e))?;
-    
+    let client = &*HTTP_CLIENT;
+
     let body = serde_json::json!({
         "model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "claude-sonnet-4-5".into()),
         "max_tokens": 2000,
@@ -483,8 +496,6 @@ pub async fn call_openai_file_analysis(
     sample: &str,
     debug: bool
 ) -> Result<FileAnalysisResult, String> {
-    use std::time::Duration;
-    
     let prompt = format!(
         "Analiza el siguiente código y devuelve SOLO un objeto JSON con esta estructura:\n\
         {{\n\
@@ -512,11 +523,8 @@ pub async fn call_openai_file_analysis(
         path, size, sample
     );
     
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("Error creando cliente: {}", e))?;
-    
+    let client = &*HTTP_CLIENT;
+
     let body = serde_json::json!({
         "model": model,
         "messages": [

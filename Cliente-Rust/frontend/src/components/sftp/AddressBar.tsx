@@ -202,4 +202,6 @@ const AddressBar: React.FC<AddressBarProps> = ({
   )
 }
 
-export default AddressBar
+AddressBar.displayName = 'AddressBar'
+
+export default React.memo(AddressBar)

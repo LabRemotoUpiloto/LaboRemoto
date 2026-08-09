@@ -14,6 +14,46 @@ use std::fs;
 use chrono::{DateTime, Utc};
 use regex::Regex;
 
+use crate::cmd::protocol::CommandError;
+
+// ── Migración precisa a CommandError (REFACTOR #3 FASE B, Batch 7) ──────────
+//
+// Cada fuente de error (I/O de filesystem, (de)serialización JSON, parseo de
+// timestamps RFC3339) se mapea explícitamente a la categoría de
+// `CommandError` que le corresponde, usando el `std::io::ErrorKind` /
+// `serde_json::Error` real en vez de heurísticas sobre el texto del mensaje.
+
+/// Mapea un `std::io::Error` de operaciones sobre archivos de log a un
+/// `CommandError` preciso: archivo/sesión no encontrada → permanente
+/// (`RESOURCE_NOT_FOUND`), permiso denegado → permanente (`ACCESS_DENIED`),
+/// cualquier otro fallo de E/S → transitorio (`IO_ERROR`, reintentable).
+fn io_error_to_command(e: std::io::Error, operation: &str, resource: &str) -> CommandError {
+    use std::io::ErrorKind::*;
+    let error = match e.kind() {
+        NotFound => CommandError::permanent("RESOURCE_NOT_FOUND", format!("No encontrado: {}", e)),
+        PermissionDenied => CommandError::permanent("ACCESS_DENIED", format!("Permiso denegado: {}", e)),
+        _ => CommandError::transient("IO_ERROR", format!("Error de E/S: {}", e)),
+    };
+    error.with_context(operation, resource)
+}
+
+/// Mapea un `serde_json::Error` (fallo de (de)serialización de metadatos de
+/// log) a un `CommandError` permanente (`INVALID_DATA`): un JSON corrupto o
+/// con formato inesperado no se arregla reintentando.
+fn json_error_to_command(e: serde_json::Error, operation: &str, resource: &str) -> CommandError {
+    CommandError::permanent("INVALID_DATA", format!("Error parseando datos: {}", e))
+        .with_context(operation, resource)
+}
+
+/// Mapea un fallo de parseo de timestamp RFC3339 (`start_time`/`end_time`
+/// recibidos del frontend) a un `CommandError` permanente
+/// (`INVALID_FORMAT`): el formato del argumento es inválido, no un fallo
+/// transitorio.
+fn timestamp_format_error(e: chrono::ParseError, field: &str, operation: &str, resource: &str) -> CommandError {
+    CommandError::permanent("INVALID_FORMAT", format!("Error parseando {}: {}", field, e))
+        .with_context(operation, resource)
+}
+
 /// Metadatos de una sesión SSH capturada
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionLogMetadata {
@@ -93,27 +133,97 @@ fn count_commands_in_html(html: &str) -> i32 {
     count
 }
 
+/// Comandos comunes de Linux reconocidos — puerto 1:1 de `COMMON_COMMANDS`
+/// en `frontend/src/utils/commandParser.ts`. Se usa para filtrar qué líneas
+/// con prompt son realmente comandos válidos (a diferencia de
+/// `count_commands_in_html`, que cuenta toda línea con prompt sin filtrar).
+static COMMON_COMMANDS: once_cell::sync::Lazy<std::collections::HashSet<&'static str>> = once_cell::sync::Lazy::new(|| {
+    [
+        "ls", "cd", "pwd", "cat", "echo", "rm", "cp", "mv", "mkdir", "rmdir", "touch",
+        "ln", "find", "grep", "awk", "sed", "head", "tail", "less", "more", "nano", "vim", "vi",
+        "df", "du", "free", "top", "htop", "ps", "kill", "killall", "pkill", "bg", "fg", "jobs",
+        "tar", "gzip", "gunzip", "zip", "unzip", "bzip2", "xz",
+        "chmod", "chown", "chgrp", "usermod", "useradd", "userdel", "groupadd", "passwd",
+        "su", "sudo", "apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "pacman", "zypper",
+        "systemctl", "journalctl", "service", "chkconfig",
+        "ping", "netstat", "ss", "ip", "ifconfig", "curl", "wget", "ssh", "scp", "rsync", "ftp", "sftp", "telnet", "nc", "nmap",
+        "docker", "docker-compose", "kubectl", "git", "svn", "hg",
+        "python", "python3", "pip", "pip3", "node", "npm", "yarn", "pnpm", "npx", "ruby", "gem", "go", "cargo", "rustc", "php", "composer", "java", "javac", "mvn", "gradle",
+        "bash", "sh", "zsh", "fish", "tmux", "screen", "clear", "history", "alias", "unalias", "export", "source",
+        "make", "cmake", "gcc", "g++", "clang",
+        "mysql", "psql", "sqlite3", "mongo", "redis-cli",
+        "htpasswd", "apache2ctl", "nginx",
+        "crontab", "at", "date", "cal", "uptime", "whoami", "id", "groups", "who", "w", "last",
+        "raspi-gpio", "vcgencmd", "pinout",
+    ].into_iter().collect()
+});
+
+/// Extrae la lista de comandos válidos detectados en el HTML de un log de
+/// sesión — puerto 1:1 de `extractValidCommands` en
+/// `frontend/src/utils/commandParser.ts`. Usado para el reporte PDF de
+/// comandos (a diferencia de `count_commands_in_html`, que solo cuenta
+/// líneas con prompt para los metadatos, esta función además filtra contra
+/// `COMMON_COMMANDS` para no listar basura/typos como si fueran comandos).
+fn extract_valid_commands(html: &str) -> Vec<String> {
+    let br_re = Regex::new(r"(?i)<br\s*/?>|</div>").unwrap();
+    let tag_re = Regex::new(r"<[^>]*>").unwrap();
+    let br_replaced = br_re.replace_all(html, "\n");
+    let text = tag_re.replace_all(&br_replaced, "");
+
+    let text = text
+        .replace("&nbsp;", " ")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'");
+
+    let prompt_re = Regex::new(r"[$#%]\s+(.+)$").unwrap();
+    let control_re = Regex::new(r"[\x00-\x1F\x7F-\x9F]").unwrap();
+    let mut commands: Vec<String> = Vec::new();
+
+    for line in text.lines() {
+        let Some(cap) = prompt_re.captures(line) else { continue };
+        let mut possible_command = cap[1].trim().to_string();
+        possible_command = control_re.replace_all(&possible_command, "").to_string();
+        if possible_command.is_empty() { continue; }
+
+        let Some(first_word) = possible_command.split_whitespace().next() else { continue };
+        let base_command = first_word.rsplit('/').next().unwrap_or(first_word);
+
+        let is_valid = COMMON_COMMANDS.contains(base_command)
+            || first_word.starts_with("./")
+            || first_word.starts_with('/');
+
+        if is_valid && commands.last().map(|c| c.as_str()) != Some(possible_command.as_str()) {
+            commands.push(possible_command);
+        }
+    }
+
+    commands
+}
+
 /// Trait que abstrae el almacenamiento de logs
 /// Permite migrar fácilmente de filesystem local a Azure SQL
 #[allow(dead_code)]
 pub trait LogStorage: Send + Sync {
     /// Guarda un log de sesión completo
-    fn save_log(&self, log: SessionLog) -> Result<(), String>;
-    
+    fn save_log(&self, log: SessionLog) -> Result<(), CommandError>;
+
     /// Lista todos los logs disponibles (solo metadatos)
-    fn list_logs(&self) -> Result<Vec<SessionLogMetadata>, String>;
-    
+    fn list_logs(&self) -> Result<Vec<SessionLogMetadata>, CommandError>;
+
     /// Obtiene el contenido HTML de un log específico
-    fn get_log_content(&self, session_id: &str) -> Result<String, String>;
-    
+    fn get_log_content(&self, session_id: &str) -> Result<String, CommandError>;
+
     /// Obtiene log completo (metadatos + contenido)
-    fn get_log(&self, session_id: &str) -> Result<SessionLog, String>;
-    
+    fn get_log(&self, session_id: &str) -> Result<SessionLog, CommandError>;
+
     /// Elimina un log
-    fn delete_log(&self, session_id: &str) -> Result<(), String>;
-    
+    fn delete_log(&self, session_id: &str) -> Result<(), CommandError>;
+
     /// Limpia logs antiguos (política de retención)
-    fn cleanup_old_logs(&self, days: i64) -> Result<usize, String>;
+    fn cleanup_old_logs(&self, days: i64) -> Result<usize, CommandError>;
 }
 
 /// Implementación de almacenamiento en filesystem local
@@ -150,27 +260,29 @@ impl LocalFileLogStorage {
 }
 
 impl LogStorage for LocalFileLogStorage {
-    fn save_log(&self, log: SessionLog) -> Result<(), String> {
+    fn save_log(&self, log: SessionLog) -> Result<(), CommandError> {
+        let session_id = &log.metadata.session_id;
+
         // Guardar metadatos
         let meta_json = serde_json::to_string_pretty(&log.metadata)
-            .map_err(|e| format!("Error serializando metadatos: {}", e))?;
-        
-        fs::write(self.metadata_path(&log.metadata.session_id), meta_json)
-            .map_err(|e| format!("Error guardando metadatos: {}", e))?;
-        
+            .map_err(|e| json_error_to_command(e, "save_log_metadata", session_id))?;
+
+        fs::write(self.metadata_path(session_id), meta_json)
+            .map_err(|e| io_error_to_command(e, "save_log_metadata", session_id))?;
+
         // Guardar contenido HTML
-        fs::write(self.content_path(&log.metadata.session_id), &log.html_content)
-            .map_err(|e| format!("Error guardando contenido HTML: {}", e))?;
-        
+        fs::write(self.content_path(session_id), &log.html_content)
+            .map_err(|e| io_error_to_command(e, "save_log_content", session_id))?;
+
         Ok(())
     }
-    
-    fn list_logs(&self) -> Result<Vec<SessionLogMetadata>, String> {
+
+    fn list_logs(&self) -> Result<Vec<SessionLogMetadata>, CommandError> {
         let mut logs = Vec::new();
-        
+
         let entries = fs::read_dir(&self.base_path)
-            .map_err(|e| format!("Error leyendo directorio de logs: {}", e))?;
-        
+            .map_err(|e| io_error_to_command(e, "list_logs", &self.base_path.to_string_lossy()))?;
+
         for entry in entries.flatten() {
             let path = entry.path();
             
@@ -205,47 +317,47 @@ impl LogStorage for LocalFileLogStorage {
 
     }
     
-    fn get_log_content(&self, session_id: &str) -> Result<String, String> {
+    fn get_log_content(&self, session_id: &str) -> Result<String, CommandError> {
         fs::read_to_string(self.content_path(session_id))
-            .map_err(|e| format!("Error leyendo contenido del log: {}", e))
+            .map_err(|e| io_error_to_command(e, "get_log_content", session_id))
     }
-    
-    fn get_log(&self, session_id: &str) -> Result<SessionLog, String> {
+
+    fn get_log(&self, session_id: &str) -> Result<SessionLog, CommandError> {
         // Leer metadatos
         let meta_content = fs::read_to_string(self.metadata_path(session_id))
-            .map_err(|e| format!("Error leyendo metadatos: {}", e))?;
-        
+            .map_err(|e| io_error_to_command(e, "get_log_metadata", session_id))?;
+
         let metadata: SessionLogMetadata = serde_json::from_str(&meta_content)
-            .map_err(|e| format!("Error parseando metadatos: {}", e))?;
-        
+            .map_err(|e| json_error_to_command(e, "get_log_metadata", session_id))?;
+
         // Leer contenido
         let html_content = self.get_log_content(session_id)?;
-        
+
         Ok(SessionLog {
             metadata,
             html_content,
         })
     }
-    
-    fn delete_log(&self, session_id: &str) -> Result<(), String> {
+
+    fn delete_log(&self, session_id: &str) -> Result<(), CommandError> {
         // Intentar eliminar ambos archivos
         let _ = fs::remove_file(self.metadata_path(session_id));
         let _ = fs::remove_file(self.content_path(session_id));
         Ok(())
     }
-    
-    fn cleanup_old_logs(&self, days: i64) -> Result<usize, String> {
+
+    fn cleanup_old_logs(&self, days: i64) -> Result<usize, CommandError> {
         let cutoff = Utc::now() - chrono::Duration::days(days);
         let logs = self.list_logs()?;
         let mut deleted = 0;
-        
+
         for log in logs {
             if log.start_time < cutoff {
                 self.delete_log(&log.session_id)?;
                 deleted += 1;
             }
         }
-        
+
         Ok(deleted)
     }
 }
@@ -267,13 +379,13 @@ pub async fn save_session_log(
     start_time: String, // ISO 8601
     end_time: String,   // ISO 8601
     html_content: String,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     let start_time = DateTime::parse_from_rfc3339(&start_time)
-        .map_err(|e| format!("Error parseando start_time: {}", e))?
+        .map_err(|e| timestamp_format_error(e, "start_time", "save_session_log", &session_id))?
         .with_timezone(&Utc);
-    
+
     let end_time = DateTime::parse_from_rfc3339(&end_time)
-        .map_err(|e| format!("Error parseando end_time: {}", e))?
+        .map_err(|e| timestamp_format_error(e, "end_time", "save_session_log", &session_id))?
         .with_timezone(&Utc);
     
     let duration_seconds = (end_time - start_time).num_seconds();
@@ -295,12 +407,20 @@ pub async fn save_session_log(
         metadata,
         html_content,
     };
-    
-    STORAGE.save_log(log)
+
+    tokio::task::spawn_blocking(move || STORAGE.save_log(log))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
-/// Guarda un log recibiendo SOLO el HTML del terminal (fragmento) y
-/// genera en backend el HTML completo con cabecera/estilos.
+/// Guarda un log recibiendo el buffer CRUDO del terminal (ANSI, tal como lo
+/// serializa xterm) y genera en backend tanto la conversión ANSI→HTML como
+/// el HTML completo con cabecera/estilos.
+///
+/// Antes el frontend hacía la conversión ANSI→HTML en JS (paquete
+/// `ansi-to-html`) y mandaba el HTML ya armado; ahora manda el texto crudo
+/// y `ansi_html::convert_ansi_to_html` hace la conversión acá — mismo
+/// resultado, sin depender del hilo de JS del WebView para procesarlo.
 #[tauri::command]
 pub async fn save_session_log_fragment(
     session_id: String,
@@ -309,55 +429,151 @@ pub async fn save_session_log_fragment(
     port: u16,
     start_time: String, // ISO 8601
     end_time: String,   // ISO 8601
-    html_fragment: String,
-) -> Result<(), String> {
+    raw_content: String,
+) -> Result<(), CommandError> {
     let start_time = DateTime::parse_from_rfc3339(&start_time)
-        .map_err(|e| format!("Error parseando start_time: {}", e))?
+        .map_err(|e| timestamp_format_error(e, "start_time", "save_session_log_fragment", &session_id))?
         .with_timezone(&Utc);
     let end_time = DateTime::parse_from_rfc3339(&end_time)
-        .map_err(|e| format!("Error parseando end_time: {}", e))?
+        .map_err(|e| timestamp_format_error(e, "end_time", "save_session_log_fragment", &session_id))?
         .with_timezone(&Utc);
     let duration_seconds = (end_time - start_time).num_seconds();
-    let metadata = SessionLogMetadata {
-        session_id: session_id.clone(),
-        user,
-        host,
-        port,
-        start_time,
-        end_time,
-        duration_seconds,
-        buffer_size_bytes: html_fragment.len(),
-        command_count: Some(count_commands_in_html(&html_fragment)),
-    };
-    let full_html = build_session_html(&metadata, &html_fragment);
-    let log = SessionLog {
-        metadata,
-        html_content: full_html,
-    };
-    STORAGE.save_log(log)
+
+    tokio::task::spawn_blocking(move || {
+        let html_fragment = super::ansi_html::convert_ansi_to_html(&raw_content);
+        let metadata = SessionLogMetadata {
+            session_id: session_id.clone(),
+            user,
+            host,
+            port,
+            start_time,
+            end_time,
+            duration_seconds,
+            buffer_size_bytes: html_fragment.len(),
+            command_count: Some(count_commands_in_html(&html_fragment)),
+        };
+        let full_html = build_session_html(&metadata, &html_fragment);
+        let log = SessionLog {
+            metadata,
+            html_content: full_html,
+        };
+        STORAGE.save_log(log)
+    })
+    .await
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
-pub async fn list_session_logs() -> Result<Vec<SessionLogMetadata>, String> {
-    STORAGE.list_logs()
+pub async fn list_session_logs() -> Result<Vec<SessionLogMetadata>, CommandError> {
+    // Perf: recorre y lee TODOS los .meta.json/.html guardados — potencialmente
+    // muchos archivos — así que nunca debe correr inline en el runtime async.
+    tokio::task::spawn_blocking(|| STORAGE.list_logs())
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
-pub async fn get_session_log_content(session_id: String) -> Result<String, String> {
-    STORAGE.get_log_content(&session_id)
+pub async fn get_session_log_content(session_id: String) -> Result<String, CommandError> {
+    tokio::task::spawn_blocking(move || STORAGE.get_log_content(&session_id))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
-pub async fn get_session_log(session_id: String) -> Result<SessionLog, String> {
-    STORAGE.get_log(&session_id)
+pub async fn get_session_log(session_id: String) -> Result<SessionLog, CommandError> {
+    tokio::task::spawn_blocking(move || STORAGE.get_log(&session_id))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
-pub async fn delete_session_log(session_id: String) -> Result<(), String> {
-    STORAGE.delete_log(&session_id)
+pub async fn delete_session_log(session_id: String) -> Result<(), CommandError> {
+    tokio::task::spawn_blocking(move || STORAGE.delete_log(&session_id))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 #[tauri::command]
-pub async fn cleanup_old_session_logs(days: i64) -> Result<usize, String> {
-    STORAGE.cleanup_old_logs(days)
+pub async fn cleanup_old_session_logs(days: i64) -> Result<usize, CommandError> {
+    tokio::task::spawn_blocking(move || STORAGE.cleanup_old_logs(days))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
+}
+
+/// Lee el HTML guardado de una sesión y extrae la lista de comandos
+/// válidos detectados — reemplaza `extractValidCommands` (antes en
+/// `frontend/src/utils/commandParser.ts`), usado para el reporte PDF.
+#[tauri::command]
+pub async fn extract_session_commands(session_id: String) -> Result<Vec<String>, CommandError> {
+    tokio::task::spawn_blocking(move || {
+        let html = STORAGE.get_log_content(&session_id)?;
+        Ok(extract_valid_commands(&html))
+    })
+    .await
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cmd::protocol::ErrorCategory;
+
+    #[test]
+    fn io_error_not_found_maps_to_permanent_resource_not_found() {
+        let e = std::io::Error::new(std::io::ErrorKind::NotFound, "no such file");
+        let err = io_error_to_command(e, "get_log_content", "session-1");
+        assert_eq!(err.code, "RESOURCE_NOT_FOUND");
+        assert_eq!(err.category, ErrorCategory::Permanent);
+        assert!(!err.is_retryable());
+        assert_eq!(err.context.as_ref().unwrap().operation.as_deref(), Some("get_log_content"));
+        assert_eq!(err.context.as_ref().unwrap().resource.as_deref(), Some("session-1"));
+    }
+
+    #[test]
+    fn io_error_permission_denied_maps_to_permanent_access_denied() {
+        let e = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let err = io_error_to_command(e, "save_log_metadata", "session-2");
+        assert_eq!(err.code, "ACCESS_DENIED");
+        assert_eq!(err.category, ErrorCategory::Permanent);
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn io_error_other_kind_maps_to_transient_io_error() {
+        let e = std::io::Error::new(std::io::ErrorKind::Other, "disk hiccup");
+        let err = io_error_to_command(e, "list_logs", "savedLogs");
+        assert_eq!(err.code, "IO_ERROR");
+        assert_eq!(err.category, ErrorCategory::Transient);
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn json_error_maps_to_permanent_invalid_data() {
+        let parse_err = serde_json::from_str::<SessionLogMetadata>("not json").unwrap_err();
+        let err = json_error_to_command(parse_err, "get_log_metadata", "session-3");
+        assert_eq!(err.code, "INVALID_DATA");
+        assert_eq!(err.category, ErrorCategory::Permanent);
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn timestamp_format_error_maps_to_permanent_invalid_format() {
+        let parse_err = DateTime::parse_from_rfc3339("not-a-date").unwrap_err();
+        let err = timestamp_format_error(parse_err, "start_time", "save_session_log", "session-4");
+        assert_eq!(err.code, "INVALID_FORMAT");
+        assert_eq!(err.category, ErrorCategory::Permanent);
+        assert!(!err.is_retryable());
+        assert!(err.message.contains("start_time"));
+    }
+
+    #[test]
+    fn get_log_content_on_missing_session_returns_resource_not_found() {
+        // STORAGE apunta a savedLogs/ real; un session_id inexistente debe
+        // fallar con RESOURCE_NOT_FOUND (no con un error genérico interno).
+        let err = STORAGE
+            .get_log_content("session-that-does-not-exist-xyz")
+            .unwrap_err();
+        assert_eq!(err.code, "RESOURCE_NOT_FOUND");
+        assert_eq!(err.category, ErrorCategory::Permanent);
+    }
 }

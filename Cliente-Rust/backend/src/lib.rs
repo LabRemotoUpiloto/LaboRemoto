@@ -1,18 +1,23 @@
 // src/lib.rs
 
 // Módulos públicos expuestos al resto de la app.
-pub mod error;   // Tipos de error compartidos
-pub mod ssh_core; // Cliente SSH basado en russh (para terminal) + ssh2_sftp
-pub mod cmd;     // Comandos invocables desde el frontend (Tauri commands)
-pub mod storage; // Utilidades de almacenamiento cifrado de hosts
-pub mod state_core; // Memoria efímera por sesión (AppState)
-pub mod security; // Validaciones de seguridad y backups
-pub mod api;      // REST API
+pub mod error;      // Tipos de error compartidos
+pub mod ssh_core;   // Cliente SSH basado en russh (para terminal) + ssh2_sftp
+pub mod cmd;        // Comandos invocables desde el frontend (Tauri commands)
+pub mod storage;    // Utilidades de almacenamiento cifrado de hosts
+pub mod state_core; // Memoria efímera por sesión (AppState) + AuthState JWT
+pub mod session_manager; // Store único de sesión + auth (trait SessionManager)
+pub mod security;   // Validaciones de seguridad y backups
+pub mod api;        // REST API
+pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
+pub mod ipc;        // Contrato de mensajería interna Message+ACK+backpressure (REFACTOR #5: Fase A completa + Fase B piloto auth wireado)
+
+use tauri::Manager;
 
 // Para móviles, Tauri usa esta anotación; en desktop no afecta.
 fn load_dotenv() {
   // 1. Intento estándar: caminar desde el CWD hacia arriba
-  if dotenvy::dotenv().is_ok() { /* ok */ }
+  dotenvy::dotenv().ok();
   // 2. Fallback: usar la ruta del manifest (conocida en tiempo de compilación)
   //    y subir hasta encontrar un .env. Garantiza encontrar apps/.env en dev y release.
   let mut dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -50,10 +55,27 @@ pub fn run() {
   
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
-    .manage(crate::state_core::AppState::new())
+    // Store único de sesión (SessionMem) + autenticación (JWT OAuth 2.1).
+    // Ver `session_manager` para el trait y `InMemorySessionManager` para el backend.
+    .manage(std::sync::Arc::new(crate::session_manager::InMemorySessionManager::new())
+      as std::sync::Arc<dyn crate::session_manager::SessionManager>)
     .manage(crate::state_core::AiCancelRegistry::new())
+    // IpcHub (REFACTOR #5 Fase B): cola con backpressure + registro de ACK
+    // compartida por los emisores wireados a `ipc`. El dispatcher que la
+    // consume se arranca en `.setup()` porque necesita un `AppHandle`
+    // (no disponible aún en este punto de construcción del builder).
+    .manage(crate::ipc::IpcHub::new())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
+    .setup(|app| {
+      let hub = app.state::<crate::ipc::IpcHub>().inner().clone();
+      hub.spawn_dispatcher(app.handle().clone());
+      // Intenta retomar una sesión persistida de un arranque anterior (si hay
+      // un refresh_token guardado y aún vigente) sin bloquear el arranque de
+      // la ventana. Ver `auth::token_store` y `auth::commands::try_restore_session`.
+      tauri::async_runtime::spawn(crate::auth::commands::try_restore_session(app.handle().clone()));
+      Ok(())
+    })
     .invoke_handler(tauri::generate_handler![
       // SSH
       cmd::ssh::terminal::ssh_connect,
@@ -69,21 +91,40 @@ pub fn run() {
       cmd::ssh::gpio::rpi_pin_set_pull,
       cmd::ssh::gpio::rpi_pin_write_level,
       cmd::ssh::gpio::rpi_pin_read,
+      cmd::ssh::gpio::rpi_pins_monitor_start,
+      cmd::ssh::gpio::rpi_pins_monitor_stop,
+      // Terminal local (PTY embebido)
+      cmd::terminal_local::local_term_spawn,
+      cmd::terminal_local::local_term_ui_ready,
+      cmd::terminal_local::local_term_stdin,
+      cmd::terminal_local::local_term_resize,
+      cmd::terminal_local::local_term_close,
+      cmd::terminal_local::local_term_save_paste_image,
+      cmd::terminal_local::local_term_read_clipboard,
+      cmd::terminal_local::local_term_write_clipboard,
       // SFTP
       cmd::sftp::operations::sftp_open,
       cmd::sftp::operations::sftp_home,
       cmd::sftp::operations::sftp_list,
       cmd::sftp::operations::sftp_mkdir,
+      cmd::sftp::operations::sftp_rename,
       cmd::sftp::operations::sftp_remove,
       cmd::sftp::transfers::sftp_download_start,
       cmd::sftp::transfers::sftp_upload_start,
       cmd::sftp::operations::sftp_cancel,
       cmd::sftp::transfers::sftp_upload_dir_start,
       cmd::sftp::transfers::sftp_download_dir_start,
+      cmd::sftp::operations::sftp_read_text,
       // Local FS (pane izquierdo)
       cmd::filesystem::local::local_home_dir,
       cmd::filesystem::local::local_list_dir,
       cmd::filesystem::local::local_list_drives,
+      cmd::filesystem::local::local_open_path,
+      cmd::filesystem::local::local_reveal_in_explorer,
+      cmd::filesystem::local::local_temp_dir,
+      cmd::filesystem::local::local_mkdir,
+      cmd::filesystem::local::local_rename,
+      cmd::filesystem::local::local_delete,
       cmd::filesystem::local::save_text_file,
       cmd::filesystem::local::chat_history_load,
       cmd::filesystem::local::chat_history_save,
@@ -123,6 +164,7 @@ pub fn run() {
       cmd::logs::logs::get_session_log,
       cmd::logs::logs::delete_session_log,
       cmd::logs::logs::cleanup_old_session_logs,
+      cmd::logs::logs::extract_session_commands,
       // PDF reports locales
       cmd::filesystem::pdf_reports::save_pdf_base64,
       // Escritorio gráfico remoto (VNC sobre SSH)
@@ -130,12 +172,15 @@ pub fn run() {
       cmd::vnc::vnc_stop,
       cmd::vnc::vnc_status,
       cmd::vnc::vnc_cleanup_all,
-      // Port-forwarding genérico (streaming)
+      // Port-forwarding genérico (streaming) — legacy, ver cmd::nvr abajo
       cmd::streaming::stream::stream_start,
       cmd::streaming::stream::stream_stop,
       cmd::streaming::stream::stream_list_cameras,
       cmd::streaming::stream::stream_get_host,
       cmd::streaming::stream::whep_exchange,
+      // NVR Shinobi — consumo de cámaras vía API HTTP (reemplaza stream_list_cameras)
+      cmd::nvr::shinobi::nvr_list_cameras,
+      cmd::nvr::shinobi::nvr_disconnect,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,
@@ -161,10 +206,23 @@ pub fn run() {
       cmd::hardware::arduino::arduino_bridge_status,
       cmd::hardware::arduino::arduino_send_cmd,
       cmd::hardware::arduino::arduino_read_buffer,
+      // Autenticación OAuth 2.1 con Keycloak
+      crate::auth::commands::auth_login_url,
+      crate::auth::commands::auth_status,
+      crate::auth::commands::auth_logout,
+      // Admin REST API (User Management)
+      crate::auth::commands::admin_search_users,
+      crate::auth::commands::admin_list_all_users,
+      crate::auth::commands::admin_list_users_by_role,
+      crate::auth::commands::admin_get_user_roles,
+      crate::auth::commands::admin_toggle_user_role,
     ])
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {
         crate::cmd::vnc::cleanup_all_vnc_sessions();
+        // En Windows los procesos hijos no mueren con el padre: matar las
+        // shells PTY locales para no dejar procesos huérfanos.
+        crate::cmd::terminal_local::cleanup_all_local_term_sessions();
       }
     })
     .run(tauri::generate_context!())

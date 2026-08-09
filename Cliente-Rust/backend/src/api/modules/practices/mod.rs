@@ -28,7 +28,7 @@ pub struct PracticeSummary {
 }
 
 pub async fn list_categories() -> Result<Json<Vec<PracticeCategoryResponse>>, ApiError> {
-    let cats = practicas::practicas_list_categories().map_err(|e| ApiError::internal(e.to_string()))?;
+    let cats = practicas::practicas_list_categories().map_err(|e| ApiError::internal(e.message))?;
     let result: Vec<PracticeCategoryResponse> = cats.into_iter().map(|c| PracticeCategoryResponse {
         id: c.id,
         name: c.name,
@@ -48,6 +48,6 @@ pub async fn list_categories() -> Result<Json<Vec<PracticeCategoryResponse>>, Ap
 
 pub async fn get_config(Query(q): Query<ConfigQuery>) -> Result<Json<serde_json::Value>, ApiError> {
     let id = q.practice_id.ok_or_else(|| ApiError::bad_request("practice_id es requerido"))?;
-    let cfg = practicas::practicas_get_config(id).map_err(|e| ApiError::not_found(e.to_string()))?;
+    let cfg = practicas::practicas_get_config(id).map_err(|e| ApiError::not_found(e.message))?;
     Ok(Json(serde_json::to_value(cfg).map_err(|e| ApiError::internal(e.to_string()))?))
 }

@@ -8,8 +8,10 @@ import SftpPage from '../../pages/session/SftpPage'
 import SnippetsPage from '../../pages/session/SnippetsPage'
 import PracticesPage from '../../pages/practices/PracticesPage'
 import ReservasPage from '../../pages/reservas/ReservasPage'
+import UserManagementPage from '../../pages/admin/UserManagementPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
+import { useAccessTier, canAccessPage } from '../../hooks/usePermissions'
 
 type Props = {
   tabs: Tab[]
@@ -36,16 +38,23 @@ const HomeContainer: React.FC<Props> = ({
   onOpenLog,
   onStartPractice
 }) => {
+  const tier = useAccessTier()
+  // Segunda verificación: si selectedPage llegó aquí por un deep-link/estado
+  // restaurado a una página que este rol no debería ver (la sidebar ya no
+  // ofrece el botón, pero eso no impide que selectedPage tome ese valor por
+  // otra vía), cae a landing en vez de renderizar la página restringida.
+  const effectivePage = canAccessPage(selectedPage, tier) ? selectedPage : 'landing'
+
   return (
     <div style={{ height: '100%' }}>
-      {selectedPage === 'landing' ? (
+      {effectivePage === 'landing' ? (
         <LandingPage
           onStartTutorial={() => onOpenPanel('landing')}
           onOpenPanel={onOpenPanel}
         />
-      ) : selectedPage === 'connect' ? (
+      ) : effectivePage === 'connect' ? (
         <ConnectFormPage onConnected={onConnectedFromConnect} initialPayload={pendingHost} />
-      ) : selectedPage === 'hosts' ? (
+      ) : effectivePage === 'hosts' ? (
         <SavedHostsPage
           onConnected={(sessionId: string, label: string) => {
             setSessionMeta(prev => ({ ...prev, [sessionId]: { label } }))
@@ -57,11 +66,11 @@ const HomeContainer: React.FC<Props> = ({
             onOpenPanel('connect')
           }}
         />
-      ) : selectedPage === 'themes' ? (
+      ) : effectivePage === 'themes' ? (
         <ThemesPage />
-      ) : selectedPage === 'logs' ? (
+      ) : effectivePage === 'logs' ? (
         <LogsPage onOpenLog={onOpenLog} />
-      ) : selectedPage === 'sftp' ? (
+      ) : effectivePage === 'sftp' ? (
         <SftpPage
           sessions={tabs.filter(t => t.type === 'session').map(t => t.id)}
           sessionsMeta={sessionMeta}
@@ -70,12 +79,14 @@ const HomeContainer: React.FC<Props> = ({
             return sessionTabs.length > 0 ? sessionTabs[0].id : undefined
           })()}
         />
-      ) : selectedPage === 'snippets' ? (
+      ) : effectivePage === 'snippets' ? (
         <SnippetsPage />
-      ) : selectedPage === 'practices' ? (
+      ) : effectivePage === 'practices' ? (
         <PracticesPage onStartPractice={onStartPractice} />
-      ) : selectedPage === 'reservas' ? (
+      ) : effectivePage === 'reservas' ? (
         <ReservasPage />
+      ) : effectivePage === 'admin-users' ? (
+        <UserManagementPage />
       ) : (
         <LandingPage
           onStartTutorial={() => onOpenPanel('landing')}
