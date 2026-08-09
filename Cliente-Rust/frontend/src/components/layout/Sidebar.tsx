@@ -28,7 +28,7 @@ interface SidebarProps {
   activeTabId?: string;
   onTabClick?: (id: string) => void;
   onCloseTab?: (id: string) => void;
-  onNewSession?: () => void;
+  onRenameTab?: (id: string, label: string) => void;
   onNewLocalTerminal?: () => void;
   hasSessions?: boolean;
   showSessionActions?: boolean;
@@ -82,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeTabId = '',
   onTabClick,
   onCloseTab,
-  onNewSession,
+  onRenameTab,
   onNewLocalTerminal,
   hasSessions = false,
   showSessionActions = false,
@@ -189,17 +189,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         </Tooltip>
       </Box>
 
-      {/* Sesiones y acciones de vista: en el rail se muestran como íconos
-          (no se ocultan), con tooltip del nombre — los propios componentes
-          renderizan su variante compacta según `collapsed`. */}
-      {hasSessions && onTabClick && onCloseTab && onNewSession && onNewLocalTerminal && (
+      {hasSessions && onTabClick && onCloseTab && onRenameTab && (
         <SidebarSessions
           tabs={tabs}
           activeTabId={activeTabId}
           onTabClick={onTabClick}
           onCloseTab={onCloseTab}
-          onNewSession={onNewSession}
-          onNewLocalTerminal={onNewLocalTerminal}
+          onRenameTab={onRenameTab}
           collapsed={collapsed}
         />
       )}
