@@ -3,8 +3,6 @@
 import React from 'react'
 import type { DesktopStatus, DesktopSessionInfo } from '../../hooks/useDesktopSession'
 
-const RESOLUTIONS = ['1024x768', '1280x720', '1280x800', '1920x1080'] as const
-
 const STATUS_COLOR: Record<DesktopStatus, string> = {
   idle: 'var(--text-secondary)',
   starting: '#f5a623',
@@ -23,8 +21,6 @@ const STATUS_LABEL: Record<DesktopStatus, string> = {
 
 interface Props {
   status: DesktopStatus
-  resolution: string
-  onResolutionChange: (r: string) => void
   onStop: () => void
   onCleanupAll?: () => void
   onSendAltTab?: () => void
@@ -34,8 +30,6 @@ interface Props {
 
 const DesktopToolbar: React.FC<Props> = ({
   status,
-  resolution,
-  onResolutionChange,
   onStop,
   onCleanupAll,
   onSendAltTab,
@@ -59,24 +53,6 @@ const DesktopToolbar: React.FC<Props> = ({
       </div>
 
       <div className="desktop-toolbar-right">
-        <label className="desktop-label" htmlFor="desktop-res-select">
-          Resolución:
-        </label>
-        <select
-          id="desktop-res-select"
-          className="desktop-select"
-          value={resolution}
-          onChange={e => onResolutionChange(e.target.value)}
-          disabled={status === 'connected' || status === 'starting'}
-          title="Resolución del escritorio (solo se aplica al iniciar)"
-        >
-          {RESOLUTIONS.map(r => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
-
         {status === 'connected' && (
           <button
             className="desktop-btn-stop"
