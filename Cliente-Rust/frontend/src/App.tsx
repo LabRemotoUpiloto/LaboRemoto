@@ -251,7 +251,6 @@ const AppMain: React.FC = () => {
               onTabClick={handleTabClick}
               onCloseTab={handleCloseTab}
               onRenameTab={renameTab}
-              onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
               onNewLocalTerminal={openLocalTerminalTab}
               showSessionActions={isSessionActive}
               activeView={activeView}

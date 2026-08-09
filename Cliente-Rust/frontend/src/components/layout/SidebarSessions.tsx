@@ -10,8 +10,6 @@ type Props = {
   onTabClick: (id: string) => void;
   onCloseTab: (id: string) => void;
   onRenameTab: (id: string, label: string) => void;
-  onNewSession: () => void;
-  onNewLocalTerminal: () => void;
   /** Rail de íconos: muestra cada sesión como un ícono con tooltip. */
   collapsed?: boolean;
 };
@@ -214,8 +212,6 @@ const SidebarSessions: React.FC<Props> = ({
   onTabClick,
   onCloseTab,
   onRenameTab,
-  onNewSession,
-  onNewLocalTerminal,
   collapsed = false,
 }) => {
   const sessions = tabs.filter(t => t.type === 'session');
@@ -263,43 +259,16 @@ const SidebarSessions: React.FC<Props> = ({
             {sessions.map(t => (
               <TabRow key={t.id} tab={t} isActive={activeTabId === t.id} onTabClick={onTabClick} onCloseTab={onCloseTab} onRenameTab={onRenameTab} />
             ))}
-            <UnstyledButton
-              data-no-window-drag
-              onClick={onNewSession}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md mt-0.5"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <span className="text-sm leading-none">+</span>
-              <Text size="xs" style={{ fontSize: '12px' }}>
-                Nueva conexión
-              </Text>
-            </UnstyledButton>
           </div>
         </>
       )}
 
       {localTerminals.length > 0 && (
-        <>
-          <Text size="xs" fw={600} px={8} mb={4} style={sectionLabelStyle}>
-            Terminal local
-          </Text>
-          <div className="flex flex-col gap-0.5">
-            {localTerminals.map(t => (
-              <TabRow key={t.id} tab={t} isActive={activeTabId === t.id} onTabClick={onTabClick} onCloseTab={onCloseTab} onRenameTab={onRenameTab} />
-            ))}
-            <UnstyledButton
-              data-no-window-drag
-              onClick={onNewLocalTerminal}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md mt-0.5"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <span className="text-sm leading-none">+</span>
-              <Text size="xs" style={{ fontSize: '12px' }}>
-                Nueva terminal local
-              </Text>
-            </UnstyledButton>
-          </div>
-        </>
+        <div className="flex flex-col gap-0.5">
+          {localTerminals.map(t => (
+            <TabRow key={t.id} tab={t} isActive={activeTabId === t.id} onTabClick={onTabClick} onCloseTab={onCloseTab} onRenameTab={onRenameTab} />
+          ))}
+        </div>
       )}
     </div>
   );
