@@ -56,6 +56,16 @@ export function useAppTabs() {
     });
   };
 
+  const renameTab = (id: string, label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    setTabs(prev => prev.map(t => (t.id === id ? { ...t, label: trimmed } : t)));
+    const tab = tabs.find(t => t.id === id);
+    if (tab?.type === "session") {
+      setSessionMeta(prev => ({ ...prev, [id]: { ...prev[id], label: trimmed } }));
+    }
+  };
+
   const reorderTabs = (dragID: string, dropID: string) => {
     if (dragID === dropID) return;
     setTabs(prev => {
@@ -197,6 +207,7 @@ export function useAppTabs() {
     activeTab,
     openSession,
     closeTab,
+    renameTab,
     handleNewSession,
     openLogTab,
     openLocalTerminalTab,

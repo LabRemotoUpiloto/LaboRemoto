@@ -94,7 +94,7 @@ const AppMain: React.FC = () => {
     sessionMeta, setSessionMeta,
     pendingHost, setPendingHost,
     selectedPage, activeTab,
-    openSession, closeTab,
+    openSession, closeTab, renameTab,
     handleNewSession, openLogTab, openLocalTerminalTab,
     openPanels, activePanel,
     openPanel, closePanel: closePanelTab,
@@ -229,6 +229,7 @@ const AppMain: React.FC = () => {
               activeTabId={activeTabId}
               onTabClick={handleTabClick}
               onCloseTab={handleCloseTab}
+              onRenameTab={renameTab}
               onNewSession={() => { setActiveTabId(HOME_TAB_ID); handleOpenPanel('connect') }}
               onNewLocalTerminal={openLocalTerminalTab}
               showSessionActions={isSessionActive}

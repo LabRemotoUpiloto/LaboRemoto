@@ -28,6 +28,7 @@ interface SidebarProps {
   activeTabId?: string;
   onTabClick?: (id: string) => void;
   onCloseTab?: (id: string) => void;
+  onRenameTab?: (id: string, label: string) => void;
   onNewSession?: () => void;
   onNewLocalTerminal?: () => void;
   hasSessions?: boolean;
@@ -79,6 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeTabId = '',
   onTabClick,
   onCloseTab,
+  onRenameTab,
   onNewSession,
   onNewLocalTerminal,
   hasSessions = false,
@@ -155,12 +157,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         </Text>
       </Box>
 
-      {hasSessions && onTabClick && onCloseTab && onNewSession && onNewLocalTerminal && (
+      {hasSessions && onTabClick && onCloseTab && onRenameTab && onNewSession && onNewLocalTerminal && (
         <SidebarSessions
           tabs={tabs}
           activeTabId={activeTabId}
           onTabClick={onTabClick}
           onCloseTab={onCloseTab}
+          onRenameTab={onRenameTab}
           onNewSession={onNewSession}
           onNewLocalTerminal={onNewLocalTerminal}
         />
