@@ -103,6 +103,17 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         return
       }
 
+      // Escape: siempre interceptar sin depender de si el canvas tiene foco.
+      // stopPropagation es clave — evita que la tecla siga burbujeando y sea
+      // capturada por otro handler de la app (cerrar un modal, cancelar un
+      // rename, etc.) en vez de llegar al escritorio remoto.
+      if (e.code === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        rfbRef.current.sendKey(0xFF1B, 'Escape', true)
+        return
+      }
+
       // Detectar deriva de CapsLock (WebView2 se traga el evento a veces)
       const localCaps = e.getModifierState('CapsLock')
       if (remoteCapsRef.current === null) {
@@ -145,6 +156,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         e.preventDefault()
         e.stopPropagation()
         rfbRef.current.sendKey(0xFF09, 'Tab', false)
+        return
+      }
+
+      if (e.code === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        rfbRef.current.sendKey(0xFF1B, 'Escape', false)
         return
       }
 
@@ -193,7 +211,11 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         const rfb = new RFB(container, wsUrl, { wsProtocols: ['binary'] })
         rfb.scaleViewport = true
         rfb.resizeSession = false
-        rfb.qualityLevel = 6
+        // Calidad alta (9 = casi sin pérdida): priorizamos nitidez sobre ancho
+        // de banda — el pixelado venía de qualityLevel=6 (JPEG con artefactos
+        // visibles) y de dejar compressionLevel en su default bajo (2).
+        rfb.qualityLevel = 9
+        rfb.compressionLevel = 6
         rfb.viewOnly = false
         rfb.addEventListener('connect', () => {
           const canvas = container.querySelector('canvas')

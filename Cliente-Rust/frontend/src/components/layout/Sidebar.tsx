@@ -153,20 +153,20 @@ const Sidebar: React.FC<SidebarProps> = ({
           los íconos de nav; el wordmark "LaboRemoto" se desvanece en el rail. */}
       <Box
         className="shrink-0 flex items-center border-b"
-        style={{ height: '40px', borderColor: 'var(--border-subtle)' }}
+        style={{ height: '52px', borderColor: 'var(--border-subtle)' }}
       >
         <Tooltip label={collapsed ? 'Expandir' : 'Colapsar'} position="right" withArrow openDelay={300}>
           <UnstyledButton
             onClick={onToggleCollapse}
             aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
             className="flex items-center transition-opacity duration-150 hover:opacity-80"
-            style={{ height: '100%', width: '100%', paddingLeft: '17px', gap: '10px' }}
+            style={{ height: '100%', width: '100%', paddingLeft: '11px', gap: '10px' }}
           >
             <img
-              src="/abeja1.jpeg"
+              src="/Abeja Computador.png"
               alt="LaboRemoto"
               className="shrink-0 rounded-full object-cover select-none"
-              style={{ width: '26px', height: '26px', border: '1px solid var(--border-subtle)' }}
+              style={{ width: '40px', height: '40px', border: '1px solid var(--border-subtle)' }}
               draggable={false}
             />
             <Text

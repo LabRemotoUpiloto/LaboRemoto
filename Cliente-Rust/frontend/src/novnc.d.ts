@@ -16,6 +16,7 @@ declare module '@novnc/novnc/lib/rfb' {
     scaleViewport: boolean
     resizeSession: boolean
     qualityLevel: number
+    compressionLevel: number
     viewOnly: boolean
   }
 }
