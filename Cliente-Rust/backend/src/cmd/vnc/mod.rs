@@ -1,13 +1,15 @@
 //! cmd/vnc.rs — Sesiones de escritorio gráfico remoto
 //!
 //! Ciclo de vida:
-//!   vnc_start → detecta display/puerto libre → arranca Xvfb+Openbox+x11vnc
+//!   vnc_start → detecta display/puerto libre → arranca Xvnc+Openbox
 //!             → abre bridge WS↔SSH(direct-tcpip) → devuelve ws_port al frontend
 //!   vnc_stop  → señala al bridge que pare → mata procesos remotos
 //!
 //! El bridge corre en un hilo OS dedicado. Lo inicia vnc_start y se detiene
 //! automáticamente cuando se descarta el VncSessionState (Drop).
 
+#[cfg(target_os = "windows")]
+pub mod alttab_hook;
 pub mod bridge;
 pub mod server;
 pub mod utils;
@@ -21,6 +23,21 @@ use tauri::{AppHandle, Emitter};
 use crate::cmd::state::SESSIONS;
 use crate::error::AppError;
 use crate::cmd::protocol::CommandError;
+
+/// Arranca el hilo del hook de teclado nativo (Alt+Tab). No-op fuera de
+/// Windows — en Mac/Linux, Alt+Tab no lo intercepta el SO antes de llegar
+/// al WebView de la misma forma, así que no hace falta.
+pub fn alttab_hook_init(_app: AppHandle) {
+    #[cfg(target_os = "windows")]
+    alttab_hook::init(_app);
+}
+
+/// Marca qué sesión VNC tiene el foco del canvas ahora mismo (o `None` para
+/// desactivar la captura nativa). No-op fuera de Windows.
+pub fn alttab_capture_set(_session_id: Option<String>) {
+    #[cfg(target_os = "windows")]
+    alttab_hook::set_focused_session(_session_id);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos públicos
@@ -88,7 +105,7 @@ pub async fn vnc_start(
     let p = password.clone();
     let r = res.clone();
 
-    let (display, vnc_port, ws_listener, local_fwd_port, is_virtual, home_dir) =
+    let setup_result: Result<(u32, u16, std::net::TcpListener, u16, bool, String), CommandError> =
         tokio::task::spawn_blocking(move || -> Result<(u32, u16, std::net::TcpListener, u16, bool, String), CommandError> {
             let (_tcp_setup, setup_sess) =
                 crate::ssh_core::ssh2_sftp::connect_password(&h, port, &u, &p)
@@ -96,7 +113,7 @@ pub async fn vnc_start(
 
             let home_dir = utils::get_remote_home(&setup_sess);
             utils::check_dependencies(&setup_sess, true)
-                .map_err(|e| CommandError::permanent("VALIDATION_FAILED", e))?;
+                .map_err(|e| CommandError::permanent("VNC_DEPS_MISSING", e))?;
             crate::cmd::state::run_pending_vnc_cleanups(&setup_sess);
             let display  = utils::find_free_display(&setup_sess).map_err(|e| CommandError::transient("IO_ERROR", e))?;
             let vnc_port = utils::find_free_vnc_port(&setup_sess).map_err(|e| CommandError::transient("IO_ERROR", e))?;
@@ -117,7 +134,21 @@ pub async fn vnc_start(
             Ok((display, vnc_port, ws_listener, local_fwd_port, true, home_dir))
         })
         .await
-        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("Error interno (spawn_blocking): {e}")))??;
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("Error interno (spawn_blocking): {e}")))?;
+
+    // Dependencias faltantes: además del error normal (que ya se muestra en
+    // el panel de escritorio), avisamos por el chat con la explicación y el
+    // comando sugerido — más visible/accionable que el cuadro de error.
+    if let Err(ref err) = setup_result {
+        if err.code == "VNC_DEPS_MISSING" {
+            let _ = app.emit(
+                &format!("vnc_deps_missing_{session_id}"),
+                serde_json::json!({ "message": err.message }),
+            );
+        }
+    }
+
+    let (display, vnc_port, ws_listener, local_fwd_port, is_virtual, home_dir) = setup_result?;
 
     let ws_port = ws_listener
         .local_addr()
@@ -207,12 +238,11 @@ pub async fn vnc_stop(session_id: String) -> Result<(), CommandError> {
         if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
 
         let display  = vnc.display_num;
-        let vnc_port = vnc.vnc_port_remote;
         vnc.host     = "".to_string();
 
         let kill_cmd = format!(
-            "pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; \
-             pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
+            "pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; \
+             pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n"
         );
         let _ = term_tx.send(crate::ssh_core::client::ChanCmd::Send(kill_cmd.into_bytes()));
@@ -235,21 +265,38 @@ pub async fn vnc_cleanup_all(session_id: String) -> Result<String, CommandError>
     let result = tokio::task::spawn_blocking(move || -> Result<String, CommandError> {
         let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
             .map_err(|e| CommandError::transient("SSH_ERROR", format!("SSH error: {e}")))?;
+        // Además de Xvnc/Xtigervnc, mata también Xvfb/x11vnc (el combo de
+        // antes de la migración) — red de seguridad para huérfanos de
+        // sesiones viejas que de otra forma le bloquean el display a Xvnc
+        // con "server already running" sin que este código los vea.
         let (_, out) = crate::ssh_core::exec::ssh_exec_session(
             &sess,
             "for d in $(seq 20 99); do \
-               pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 && { \
+               if pgrep -f \"Xvnc :$d \" >/dev/null 2>&1 || pgrep -f \"Xtigervnc :$d \" >/dev/null 2>&1 \
+                  || pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 || pgrep -f \"x11vnc.*:$d\" >/dev/null 2>&1; then \
+                 pkill -9 -f \"Xvnc :$d \" 2>/dev/null; \
+                 pkill -9 -f \"Xtigervnc :$d \" 2>/dev/null; \
                  pkill -9 -f \"Xvfb :$d \" 2>/dev/null; \
                  pkill -9 -f \"x11vnc.*:$d\" 2>/dev/null; \
                  rm -f /tmp/.X$d-lock /tmp/.X11-unix/X$d 2>/dev/null; \
                  echo \"killed :$d\"; \
-               }; \
+               fi; \
              done; true"
         ).map_err(|e| CommandError::transient("SSH_ERROR", e))?;
         Ok(out.trim().to_string())
     }).await.map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))??;
 
     Ok(if result.is_empty() { "No había displays activos".to_string() } else { result })
+}
+
+/// Activa o desactiva la captura nativa de Alt+Tab para una sesión: el
+/// frontend lo llama cuando el canvas del escritorio remoto gana/pierde
+/// foco (ver DesktopPane.tsx). Mientras está activa, el hook de bajo nivel
+/// (Windows) suprime el Alt+Tab físico y lo reenvía por evento en vez de
+/// dejar que Windows abra su selector de tareas. No-op fuera de Windows.
+#[tauri::command]
+pub fn vnc_alttab_capture(session_id: String, active: bool) {
+    alttab_capture_set(if active { Some(session_id) } else { None });
 }
 
 /// Consulta el estado de la sesión gráfica para un session_id dado.
@@ -290,13 +337,13 @@ pub fn cleanup_all_vnc_sessions() {
 
     if !sessions_info.is_empty() {
         std::thread::spawn(move || {
-            for (display, vnc_port, host, port, user, password, is_virtual) in sessions_info {
+            for (display, _vnc_port, host, port, user, password, is_virtual) in sessions_info {
                 if host.is_empty() { continue; }
                 if let Ok((_tcp, sess)) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password) {
                     if is_virtual {
                         let _ = crate::ssh_core::exec::ssh_exec_session(
                             &sess,
-                            &format!("pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true")
+                            &format!("pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true")
                         );
                     }
                 }

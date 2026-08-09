@@ -1,6 +1,15 @@
 use crate::ssh_core::exec::ssh_exec_session;
 
-/// Inicia Xvfb + entorno gráfico + x11vnc en el display/puerto dados.
+/// Inicia Xvnc (display virtual + servidor VNC en un solo proceso) + entorno
+/// gráfico en el display/puerto dados.
+///
+/// Antes esto eran DOS procesos (Xvfb generando el display, x11vnc
+/// "espiándolo" para exponerlo por VNC, adivinando qué cambió vía xdamage o
+/// polling completo). Xvnc de TigerVNC es el servidor X y el servidor VNC al
+/// mismo tiempo: como genera el framebuffer él mismo, sabe exactamente qué
+/// píxeles cambiaron sin polling ni extensión xdamage de por medio — más
+/// liviano en CPU y sin el problema de "regiones que quedan viejas" que
+/// tuvimos que parchear con -fixscreen en x11vnc.
 pub(crate) fn start_vnc_server(
     sess: &ssh2::Session,
     display: u32,
@@ -11,15 +20,22 @@ pub(crate) fn start_vnc_server(
     let _ = ssh_exec_session(
         sess,
         &format!(
-            "pkill -f 'Xvfb :{display} ' 2>/dev/null; pkill -f 'x11vnc.*:{display}' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
+            "pkill -f 'Xvnc :{display} ' 2>/dev/null; pkill -f 'Xtigervnc :{display} ' 2>/dev/null; \
+             pkill -f 'Xvfb :{display} ' 2>/dev/null; pkill -f 'x11vnc.*:{display}' 2>/dev/null; \
+             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
         ),
     );
 
+    // El binario puede llamarse Xvnc o Xtigervnc según la distro — se
+    // resuelve una vez y se usa esa ruta (ver check_dependencies en utils.rs,
+    // que ya validó que al menos uno de los dos existe antes de llegar acá).
     crate::ssh_core::exec::ssh_exec_session(
         sess,
         &format!(
-            "nohup Xvfb :{display} -screen 0 {resolution}x24 -ac \
-             >/tmp/xvfb{display}.log 2>&1 </dev/null & echo started"
+            "XVNC_BIN=$(command -v Xvnc || command -v Xtigervnc); \
+             nohup \"$XVNC_BIN\" :{display} -geometry {resolution} -depth 24 \
+             -rfbport {vnc_port} -SecurityTypes None -AlwaysShared -ac \
+             >/tmp/xvnc{display}.log 2>&1 </dev/null & echo started"
         ),
     )?;
 
@@ -28,12 +44,20 @@ pub(crate) fn start_vnc_server(
     let (_, out) = ssh_exec_session(
         sess,
         &format!(
-            "pgrep -f 'Xvfb :{display} ' >/dev/null && [ -S /tmp/.X11-unix/X{display} ] && echo ok || echo fail"
+            "{{ pgrep -f 'Xvnc :{display} ' >/dev/null || pgrep -f 'Xtigervnc :{display} ' >/dev/null; }} \
+             && [ -S /tmp/.X11-unix/X{display} ] \
+             && ss -tlnp 2>/dev/null | grep -q ':{vnc_port}' \
+             && echo ok || echo fail"
         ),
     )?;
     if out.trim() != "ok" {
+        let (_, log_tail) = ssh_exec_session(
+            sess,
+            &format!("tail -8 /tmp/xvnc{display}.log 2>/dev/null"),
+        ).unwrap_or((0, String::new()));
         return Err(format!(
-            "Xvfb no arrancó correctamente en el display :{display}. Revisa /tmp/xvfb{display}.log"
+            "Xvnc no arrancó correctamente en el display :{display} / puerto {vnc_port}. Log: {}",
+            log_tail.trim()
         ));
     }
 
@@ -316,33 +340,6 @@ PANEL_EOF\n\
         ),
     )?;
 
-    let _ = ssh_exec_session(
-        sess,
-        &format!(
-            "nohup x11vnc -display :{display} -rfbport {vnc_port} \
-             -nopw -shared -forever -noxdamage -xrandr resize \
-             >/tmp/x11vnc{display}.log 2>&1 </dev/null & echo started"
-        ),
-    )?;
-
-    std::thread::sleep(std::time::Duration::from_millis(500));
-
-    let (_, out_vnc) = ssh_exec_session(
-        sess,
-        &format!(
-            "ss -tlnp 2>/dev/null | grep -q ':{vnc_port}' && echo ok \
-             || (echo fail; tail -8 /tmp/x11vnc{display}.log 2>/dev/null)"
-        ),
-    )?;
-
-    if !out_vnc.trim().starts_with("ok") {
-        let log_lines: String = out_vnc.lines().skip(1).collect::<Vec<_>>().join(" | ");
-        let _ = stop_vnc_server(sess, display, vnc_port, home_dir);
-        return Err(format!(
-            "x11vnc no arrancó en el puerto {vnc_port}. Log: {log_lines}"
-        ));
-    }
-
     let xstartup_wp = wallpaper_path.replace('\'', "'\\''");
     let set_wp_cmd = if xstartup_wp.is_empty() {
         "pcmanfm --reconfigure 2>/dev/null || true".to_string()
@@ -441,7 +438,6 @@ wait\\n' \
 pub(crate) fn stop_vnc_server(
     sess: &ssh2::Session,
     display: u32,
-    vnc_port: u16,
     home_dir: &str,
 ) -> Result<(), String> {
     let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
@@ -451,15 +447,15 @@ pub(crate) fn stop_vnc_server(
     let _ = ssh_exec_session(
         sess,
         &format!(
-            "pkill -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
-             pkill -f '{xstartup_path}' 2>/dev/null; \
+            "pkill -f '{xstartup_path}' 2>/dev/null; \
              kill $(cat /tmp/openbox-{display}.pid 2>/dev/null) 2>/dev/null; \
              pkill -f 'lxpanel.*{panel_profile}' 2>/dev/null; \
              pkill -f 'pcmanfm.*{panel_profile}' 2>/dev/null; \
-             pkill -f 'Xvfb :{display} ' 2>/dev/null; \
+             pkill -f 'Xvnc :{display} ' 2>/dev/null; \
+             pkill -f 'Xtigervnc :{display} ' 2>/dev/null; \
              sleep 0.5; \
-             pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; \
-             pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
+             pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; \
+             pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} \
                    {xstartup_path} /tmp/openbox-{display}.pid \
                    {browser_desktop} {webserver_desktop} \

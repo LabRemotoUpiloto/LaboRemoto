@@ -2,13 +2,14 @@
 
 import React, { useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { useDesktopSession } from '../../hooks/useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
 import './DesktopPane.css'
 
-// Resolución fija con la que arranca Xvfb en el Pi. No es configurable por
+// Resolución fija con la que arranca Xvnc en el Pi. No es configurable por
 // el usuario: cambiarla en caliente no es posible (ver investigación en
-// server.rs — el máximo de framebuffer de Xvfb queda fijado para siempre al
+// server.rs — el máximo de framebuffer de Xvnc queda fijado para siempre al
 // arrancar el proceso) y no hace falta pedirla, porque `scaleViewport` en
 // `connectRFB` ajusta visualmente el canvas al tamaño real del contenedor
 // sin importar a qué resolución esté corriendo la X remota.
@@ -186,12 +187,25 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     }
   }, [])  // mount/unmount del componente
 
+  // Activa/desactiva el hook nativo de Alt+Tab (Windows) para esta sesión —
+  // ver backend/src/cmd/vnc/alttab_hook.rs. No-op (silencioso) fuera de
+  // Windows. Se enciende solo mientras el canvas VNC tiene foco real, y se
+  // apaga agresivamente en cualquier salida (blur, disconnect, unmount)
+  // porque es un hook GLOBAL de teclado — mejor apagarlo de más que de menos.
+  const setAltTabCapture = (active: boolean) => {
+    // Diagnóstico temporal — quitar cuando se confirme que el hook funciona.
+    console.log(`[vnc] setAltTabCapture(${active}) sessionId=${sessionId}`)
+    invoke('vnc_alttab_capture', { sessionId, active })
+      .catch(err => console.warn('[vnc] vnc_alttab_capture falló:', err))
+  }
+
   // noVNC deja un <div id="noVNC_mouse_capture_elem"> visible (z-index 10000)
   // si se desconecta mientras un botón del ratón estaba pulsado.
   // Ese proxy bloquea todos los clicks hasta que el usuario genera un mouseup,
   // lo que causa el efecto "el primer clic no hace nada, el segundo sí".
   // Lo ocultamos antes de cada disconnect para evitar ese estado corrupto.
   const disconnectClean = (rfb: any) => {
+    setAltTabCapture(false)
     const proxy = document.getElementById('noVNC_mouse_capture_elem') as HTMLElement | null
     if (proxy) proxy.style.display = 'none'
     try { rfb.disconnect() } catch { /* ignore */ }
@@ -211,11 +225,14 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         const rfb = new RFB(container, wsUrl, { wsProtocols: ['binary'] })
         rfb.scaleViewport = true
         rfb.resizeSession = false
-        // Calidad alta (9 = casi sin pérdida): priorizamos nitidez sobre ancho
-        // de banda — el pixelado venía de qualityLevel=6 (JPEG con artefactos
-        // visibles) y de dejar compressionLevel en su default bajo (2).
-        rfb.qualityLevel = 9
-        rfb.compressionLevel = 6
+        // Prioridad: fluidez sobre nitidez. qualityLevel=9 se probó y volvió
+        // el escritorio muy lento — a ese nivel el servidor VNC deja de usar
+        // JPEG y codifica casi sin pérdida, que es mucho más caro de CPU para
+        // la Pi que el JPEG comprimido. 7 sigue siendo mejor que el 6 original
+        // (menos artefactos visibles) sin cruzar ese umbral. compressionLevel
+        // bajo (2) = zlib rápido, prioriza velocidad de encode sobre tamaño.
+        rfb.qualityLevel = 7
+        rfb.compressionLevel = 2
         rfb.viewOnly = false
         rfb.addEventListener('connect', () => {
           const canvas = container.querySelector('canvas')
@@ -253,6 +270,36 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Alt+Tab físico (Windows): el hook nativo (backend/.../alttab_hook.rs)
+  // suprime el Alt+Tab del sistema y nos lo reenvía por este evento en vez
+  // de dejar que Windows abra su selector de tareas.
+  useEffect(() => {
+    const unlistenPromise = listen<{ down: boolean }>(
+      `vnc-alttab-key-${sessionId}`,
+      event => {
+        console.log('[vnc] vnc-alttab-key recibido:', event.payload)
+        if (!rfbRef.current) return
+        rfbRef.current.sendKey(0xFF09, 'Tab', event.payload.down)
+      },
+    )
+    return () => {
+      unlistenPromise.then(fn => fn())
+    }
+  }, [sessionId])
+
+  // La captura se activa/desactiva según `isActive` (esta sesión es la que
+  // se está mirando en la vista "escritorio") en vez de foco real del
+  // canvas — los logs confirmaron que Chromium/WebView2 puede desviar el
+  // foco del DOM apenas se presiona Alt, antes de que llegue el Tab, así
+  // que un gate por focusin/focusout fallaba justo en el momento que más
+  // importa. El chequeo de "ventana en primer plano" dentro del hook nativo
+  // sigue protegiendo de que esto afecte a cualquier otra app o ventana.
+  useEffect(() => {
+    setAltTabCapture(isActive && status === 'connected')
+    return () => setAltTabCapture(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, isActive, status])
 
   // Reescalado automático del canvas ante CUALQUIER cambio de tamaño del
   // contenedor (splits, toggle de sidebar, aparición de otro panel como la

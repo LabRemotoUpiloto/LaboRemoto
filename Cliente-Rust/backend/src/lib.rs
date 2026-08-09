@@ -74,6 +74,9 @@ pub fn run() {
       // un refresh_token guardado y aún vigente) sin bloquear el arranque de
       // la ventana. Ver `auth::token_store` y `auth::commands::try_restore_session`.
       tauri::async_runtime::spawn(crate::auth::commands::try_restore_session(app.handle().clone()));
+      // Hook nativo de teclado para Alt+Tab en el escritorio remoto (VNC).
+      // Se queda instalado (inerte) toda la vida de la app — ver alttab_hook.rs.
+      crate::cmd::vnc::alttab_hook_init(app.handle().clone());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -172,6 +175,7 @@ pub fn run() {
       cmd::vnc::vnc_stop,
       cmd::vnc::vnc_status,
       cmd::vnc::vnc_cleanup_all,
+      cmd::vnc::vnc_alttab_capture,
       // Port-forwarding genérico (streaming) — legacy, ver cmd::nvr abajo
       cmd::streaming::stream::stream_start,
       cmd::streaming::stream::stream_stop,
