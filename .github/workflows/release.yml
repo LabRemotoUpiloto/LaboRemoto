@@ -71,6 +71,11 @@ jobs:
 
           $signature = (Get-Content -Raw -LiteralPath $signaturePath).Trim()
           $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          # El release publica en este mismo repo (LabRemotoUpiloto/LaboRemoto,
+          # ver paso "Create Release" abajo) — de ahi leen tanto la landing de
+          # descarga (cliente-rust-nu5m.vercel.app) como el auto-updater
+          # embebido en la app (tauri.conf.json > plugins.updater), ya
+          # migrados desde el repo personal Haider2231/Releases-Cliente-SSH-Unipiloto.
           $url = "https://github.com/LabRemotoUpiloto/LaboRemoto/releases/download/v$env:VERSION/$assetName"
 
           $latest = [ordered]@{
