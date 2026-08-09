@@ -8,8 +8,6 @@
 //! El bridge corre en un hilo OS dedicado. Lo inicia vnc_start y se detiene
 //! automáticamente cuando se descarta el VncSessionState (Drop).
 
-#[cfg(target_os = "windows")]
-pub mod alttab_hook;
 pub mod bridge;
 pub mod server;
 pub mod utils;
@@ -23,21 +21,6 @@ use tauri::{AppHandle, Emitter};
 use crate::cmd::state::SESSIONS;
 use crate::error::AppError;
 use crate::cmd::protocol::CommandError;
-
-/// Arranca el hilo del hook de teclado nativo (Alt+Tab). No-op fuera de
-/// Windows — en Mac/Linux, Alt+Tab no lo intercepta el SO antes de llegar
-/// al WebView de la misma forma, así que no hace falta.
-pub fn alttab_hook_init(_app: AppHandle) {
-    #[cfg(target_os = "windows")]
-    alttab_hook::init(_app);
-}
-
-/// Marca qué sesión VNC tiene el foco del canvas ahora mismo (o `None` para
-/// desactivar la captura nativa). No-op fuera de Windows.
-pub fn alttab_capture_set(_session_id: Option<String>) {
-    #[cfg(target_os = "windows")]
-    alttab_hook::set_focused_session(_session_id);
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos públicos
@@ -287,16 +270,6 @@ pub async fn vnc_cleanup_all(session_id: String) -> Result<String, CommandError>
     }).await.map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))??;
 
     Ok(if result.is_empty() { "No había displays activos".to_string() } else { result })
-}
-
-/// Activa o desactiva la captura nativa de Alt+Tab para una sesión: el
-/// frontend lo llama cuando el canvas del escritorio remoto gana/pierde
-/// foco (ver DesktopPane.tsx). Mientras está activa, el hook de bajo nivel
-/// (Windows) suprime el Alt+Tab físico y lo reenvía por evento en vez de
-/// dejar que Windows abra su selector de tareas. No-op fuera de Windows.
-#[tauri::command]
-pub fn vnc_alttab_capture(session_id: String, active: bool) {
-    alttab_capture_set(if active { Some(session_id) } else { None });
 }
 
 /// Consulta el estado de la sesión gráfica para un session_id dado.

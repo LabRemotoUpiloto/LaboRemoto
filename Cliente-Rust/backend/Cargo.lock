@@ -146,7 +146,6 @@ dependencies = [
  "walkdir",
  "whoami",
  "wildmatch",
- "windows 0.61.3",
 ]
 
 [[package]]

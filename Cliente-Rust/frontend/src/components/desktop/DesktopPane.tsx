@@ -2,7 +2,6 @@
 
 import React, { useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import { useDesktopSession } from '../../hooks/useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
 import './DesktopPane.css'
@@ -62,6 +61,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const rfbRef = useRef<any>(null)
   const { status, sessionInfo, error, start, stop } = useDesktopSession(sessionId)
+
+  // `stop()` deja el status en 'idle' (mismo valor que el estado inicial,
+  // antes de arrancar por primera vez) — sin esta bandera, el efecto de
+  // auto-inicio no puede distinguir "recién entré a la vista" de "el
+  // usuario acaba de apretar Detener a propósito", y reconectaba solo
+  // apenas terminaba de desconectar (Detener se sentía como un retry).
+  const userStoppedRef = useRef(false)
 
   // Portapapeles: texto copiado desde el escritorio remoto (sincronización automática)
   const remoteClipboardRef = useRef<string>('')
@@ -187,25 +193,12 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     }
   }, [])  // mount/unmount del componente
 
-  // Activa/desactiva el hook nativo de Alt+Tab (Windows) para esta sesión —
-  // ver backend/src/cmd/vnc/alttab_hook.rs. No-op (silencioso) fuera de
-  // Windows. Se enciende solo mientras el canvas VNC tiene foco real, y se
-  // apaga agresivamente en cualquier salida (blur, disconnect, unmount)
-  // porque es un hook GLOBAL de teclado — mejor apagarlo de más que de menos.
-  const setAltTabCapture = (active: boolean) => {
-    // Diagnóstico temporal — quitar cuando se confirme que el hook funciona.
-    console.log(`[vnc] setAltTabCapture(${active}) sessionId=${sessionId}`)
-    invoke('vnc_alttab_capture', { sessionId, active })
-      .catch(err => console.warn('[vnc] vnc_alttab_capture falló:', err))
-  }
-
   // noVNC deja un <div id="noVNC_mouse_capture_elem"> visible (z-index 10000)
   // si se desconecta mientras un botón del ratón estaba pulsado.
   // Ese proxy bloquea todos los clicks hasta que el usuario genera un mouseup,
   // lo que causa el efecto "el primer clic no hace nada, el segundo sí".
   // Lo ocultamos antes de cada disconnect para evitar ese estado corrupto.
   const disconnectClean = (rfb: any) => {
-    setAltTabCapture(false)
     const proxy = document.getElementById('noVNC_mouse_capture_elem') as HTMLElement | null
     if (proxy) proxy.style.display = 'none'
     try { rfb.disconnect() } catch { /* ignore */ }
@@ -271,36 +264,6 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Alt+Tab físico (Windows): el hook nativo (backend/.../alttab_hook.rs)
-  // suprime el Alt+Tab del sistema y nos lo reenvía por este evento en vez
-  // de dejar que Windows abra su selector de tareas.
-  useEffect(() => {
-    const unlistenPromise = listen<{ down: boolean }>(
-      `vnc-alttab-key-${sessionId}`,
-      event => {
-        console.log('[vnc] vnc-alttab-key recibido:', event.payload)
-        if (!rfbRef.current) return
-        rfbRef.current.sendKey(0xFF09, 'Tab', event.payload.down)
-      },
-    )
-    return () => {
-      unlistenPromise.then(fn => fn())
-    }
-  }, [sessionId])
-
-  // La captura se activa/desactiva según `isActive` (esta sesión es la que
-  // se está mirando en la vista "escritorio") en vez de foco real del
-  // canvas — los logs confirmaron que Chromium/WebView2 puede desviar el
-  // foco del DOM apenas se presiona Alt, antes de que llegue el Tab, así
-  // que un gate por focusin/focusout fallaba justo en el momento que más
-  // importa. El chequeo de "ventana en primer plano" dentro del hook nativo
-  // sigue protegiendo de que esto afecte a cualquier otra app o ventana.
-  useEffect(() => {
-    setAltTabCapture(isActive && status === 'connected')
-    return () => setAltTabCapture(false)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, isActive, status])
-
   // Reescalado automático del canvas ante CUALQUIER cambio de tamaño del
   // contenedor (splits, toggle de sidebar, aparición de otro panel como la
   // cámara, cambio de vista, resize de ventana...), no solo el resize de
@@ -345,7 +308,8 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
 
   // Efecto unificado: reacciona a cambios en status, sessionInfo e isActive.
   // Cubre todos los casos:
-  //   - isActive pasa a true con status 'idle' → inicia VNC
+  //   - isActive pasa a true con status 'idle' → inicia VNC (salvo que el
+  //     usuario lo haya detenido a propósito — ver userStoppedRef)
   //   - status pasa a 'connected' con isActive true → conecta RFB
   //   - isActive pasa a true con status ya 'connected' → reconecta RFB
   //   - isActive pasa a false → desconecta WS para ahorrar ancho de banda
@@ -357,9 +321,11 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
       }
       return
     }
-    // isActive es true — iniciar VNC si aún no se ha hecho
+    // isActive es true — iniciar VNC si aún no se ha hecho (y no fue un
+    // Detener explícito: si lo fue, se queda en 'idle' hasta que el
+    // usuario haga click en "Conectar" — ver handleConnect).
     if (status === 'idle') {
-      start(DESKTOP_RESOLUTION)
+      if (!userStoppedRef.current) start(DESKTOP_RESOLUTION)
       return
     }
     // Conectar RFB cuando el backend está listo y el contenedor es visible
@@ -370,6 +336,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   }, [status, sessionInfo, isActive])
 
   const handleStop = async () => {
+    userStoppedRef.current = true
     if (rfbRef.current) {
       disconnectClean(rfbRef.current)
       rfbRef.current = null
@@ -395,6 +362,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   }
 
   const handleRetry = () => {
+    userStoppedRef.current = false
     start(DESKTOP_RESOLUTION)
   }
 
@@ -415,7 +383,15 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         }}
       />
 
-      {/* Estado idle inicial lo ocultamos porque auto-inicia automáticamente */}
+      {/* idle solo se muestra tras un Detener explícito — la primera vez que
+          se entra a la vista, userStoppedRef arranca en false y el efecto de
+          arriba auto-inicia sin pasar por acá. */}
+      {status === 'idle' && userStoppedRef.current && (
+        <div className="desktop-idle">
+          <p>Escritorio remoto detenido</p>
+          <button onClick={handleRetry}>Conectar</button>
+        </div>
+      )}
 
       {status === 'starting' && (
         <div className="desktop-loading">
