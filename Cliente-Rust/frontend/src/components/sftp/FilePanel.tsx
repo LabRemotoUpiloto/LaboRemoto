@@ -2,7 +2,6 @@ import React, { useCallback, useMemo } from 'react'
 import AddressBar from './AddressBar'
 import FilePanelToolbar from './FilePanelToolbar'
 import FileList from './FileList'
-import StatusBar from './StatusBar'
 import type { SftpEntry, LocalEntry } from '../../types'
 
 type FileEntry = SftpEntry | LocalEntry
@@ -23,9 +22,13 @@ export interface FilePanelProps {
   loading: boolean
   error?: string
 
-  // Selection
-  selectedPath?: string
-  onSelect: (path: string | undefined) => void
+  // Selection (multi)
+  selectedPaths: Set<string>
+  lastSelected?: string
+  onSelectOnly: (path: string) => void
+  onToggleSelect: (path: string) => void
+  onSelectRange: (anchor: string, to: string, orderedPaths: string[]) => void
+  onClearSelection: () => void
 
   // Sorting
   sortKey: string
@@ -55,19 +58,33 @@ export interface FilePanelProps {
   sessionId?: string
   sessionsMeta?: Record<string, { label: string }>
   onSessionChange?: (id: string | undefined) => void
-  isConnected?: boolean
   onNewFolder?: () => void
+  onRename?: () => void
+  canRename?: boolean
   onDelete?: () => void
   canDelete?: boolean
   onDownload?: () => void
   canDownload?: boolean
   disabled?: boolean
 
+  // Doble clic (o Enter) sobre un archivo (no carpeta): abre con la app
+  // predeterminada (local) o descarga-y-abre (remoto).
+  onOpenFile?: (entry: FileEntry) => void
+
   // Context menu
   onContextMenu: (entry: FileEntry, event: React.MouseEvent) => void
 
   // Entry path resolver
   getEntryPath: (entry: FileEntry) => string
+
+  // Drag & drop interno por puntero: inicia un arrastre desde una fila ya
+  // seleccionada (ver usePointerDrag en SftpPage).
+  onRowPointerDown?: (entry: FileEntry, e: React.MouseEvent) => void
+  consumeSuppressedClick?: () => boolean
+
+  // Resalta el panel como destino válido de un drop en curso (arrastre
+  // interno por puntero o drop nativo de archivos del explorador de Windows).
+  forceDragOver?: boolean
 }
 
 const FilePanel: React.FC<FilePanelProps> = ({
@@ -81,8 +98,12 @@ const FilePanel: React.FC<FilePanelProps> = ({
   entries,
   loading,
   error,
-  selectedPath,
-  onSelect,
+  selectedPaths,
+  lastSelected,
+  onSelectOnly,
+  onToggleSelect,
+  onSelectRange,
+  onClearSelection,
   sortKey,
   sortDir,
   onSort,
@@ -100,8 +121,9 @@ const FilePanel: React.FC<FilePanelProps> = ({
   sessionId,
   sessionsMeta,
   onSessionChange,
-  isConnected,
   onNewFolder,
+  onRename,
+  canRename,
   onDelete,
   canDelete,
   onDownload,
@@ -109,20 +131,31 @@ const FilePanel: React.FC<FilePanelProps> = ({
   disabled,
   onContextMenu,
   getEntryPath,
+  onRowPointerDown,
+  consumeSuppressedClick,
+  forceDragOver,
+  onOpenFile,
 }) => {
   const handleOpen = useCallback(
     (entry: FileEntry) => {
       if (entry.kind === 'dir') {
         onNavigate(getEntryPath(entry))
+      } else {
+        onOpenFile?.(entry)
       }
     },
-    [onNavigate, getEntryPath]
+    [onNavigate, getEntryPath, onOpenFile]
   )
 
-  const selectedEntry = useMemo(() => {
-    if (!selectedPath) return undefined
-    return entries.find((e) => getEntryPath(e) === selectedPath)
-  }, [entries, selectedPath, getEntryPath])
+  const selectedEntries = useMemo(() => {
+    if (selectedPaths.size === 0) return []
+    return entries.filter((e) => selectedPaths.has(getEntryPath(e)))
+  }, [entries, selectedPaths, getEntryPath])
+
+  const totalSize = useMemo(
+    () => entries.reduce((sum, e) => sum + (e.kind === 'dir' ? 0 : e.size || 0), 0),
+    [entries]
+  )
 
   return (
     <div
@@ -134,15 +167,17 @@ const FilePanel: React.FC<FilePanelProps> = ({
         minWidth: 0,
         minHeight: 0,
         borderRadius: 'var(--mantine-radius-md)',
-        border: active
-          ? '1px solid var(--accent-primary)'
-          : '1px solid var(--border-subtle)',
-        background: 'var(--surface-1)',
+        border: forceDragOver
+          ? '2px solid var(--accent-primary)'
+          : active
+            ? '1px solid var(--accent-primary)'
+            : '1px solid var(--border-subtle)',
+        background: forceDragOver ? 'var(--accent-primary-subtle)' : 'var(--surface-1)',
         overflow: 'hidden',
         boxShadow: active
           ? '0 0 0 1px rgba(16,185,129,0.15), 0 2px 8px rgba(0,0,0,0.15)'
           : '0 1px 4px rgba(0,0,0,0.1)',
-        transition: 'border-color 0.15s, box-shadow 0.15s',
+        transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
       }}
     >
       {/* Address bar */}
@@ -174,9 +209,10 @@ const FilePanel: React.FC<FilePanelProps> = ({
         sessionId={sessionId}
         sessionsMeta={sessionsMeta}
         onSessionChange={onSessionChange}
-        isConnected={isConnected}
         onRefresh={onRefresh}
         onNewFolder={onNewFolder}
+        onRename={onRename}
+        canRename={canRename}
         onUpload={onUpload}
         onDownload={onDownload}
         onDelete={onDelete}
@@ -186,6 +222,7 @@ const FilePanel: React.FC<FilePanelProps> = ({
         disabled={disabled}
         filter={filter}
         onFilterChange={onFilterChange}
+        selectedCount={selectedPaths.size}
       />
 
       {/* File list */}
@@ -194,8 +231,12 @@ const FilePanel: React.FC<FilePanelProps> = ({
           entries={entries}
           loading={loading}
           error={error}
-          selectedPath={selectedPath}
-          onSelect={onSelect}
+          selectedPaths={selectedPaths}
+          lastSelected={lastSelected}
+          onSelectOnly={onSelectOnly}
+          onToggleSelect={onToggleSelect}
+          onSelectRange={onSelectRange}
+          onClearSelection={onClearSelection}
           onOpen={handleOpen}
           onContextMenu={onContextMenu}
           sortKey={sortKey}
@@ -206,17 +247,13 @@ const FilePanel: React.FC<FilePanelProps> = ({
           }
           isRemote={side === 'remote'}
           getEntryPath={getEntryPath}
+          onRowPointerDown={onRowPointerDown}
+          consumeSuppressedClick={consumeSuppressedClick}
         />
       </div>
-
-      {/* Status bar */}
-      <StatusBar
-        totalItems={entries.length}
-        selectedEntry={selectedEntry}
-        side={side}
-      />
     </div>
   )
 }
 
 export default FilePanel
+

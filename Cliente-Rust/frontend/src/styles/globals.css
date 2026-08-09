@@ -5,28 +5,22 @@
 @import "@mantine/notifications/styles.layer.css";
 
 /* ============================================
-   🎨 GLOBALS.CSS - Sistema de Temas
-   ============================================
-   
-   ⚠️ REGLAS IMPORTANTES PARA TEMAS:
-   
-   1. NO usar animaciones con `animation` que se ejecuten continuamente
-      en componentes principales (.app-header, .app-sidebar, .nav-item)
-      
-   2. NO usar `transform: translate/scale/rotate` en estados por defecto
-      de componentes principales - solo en hover/active si es necesario
-      
-   3. NO usar `filter: brightness/blur/saturate` en animaciones continuas
-      
-   4. SÍ puedes usar:
-      - Colores estáticos y gradientes
-      - Transiciones cortas en hover/active
-      - Sombras y bordes
-      - Animaciones solo en elementos decorativos pequeños
-      
-   5. Si un tema mueve componentes de sitio, ES UN BUG que debe
-      ser corregido inmediatamente
-      
+   🎨 SISTEMA DE TEMAS DE ANTIGRAVITY - IMPORTACIONES
+   ============================================ */
+@import "./themes/unipiloto.css";
+@import "./themes/lavender-dream.css";
+@import "./themes/glass-water.css";
+@import "./themes/dracula.css";
+@import "./themes/neo-brutalist.css";
+@import "./themes/amber-night.css";
+@import "./themes/oceanic-teal.css";
+@import "./themes/sepia-paper.css";
+@import "./themes/pastel-dream.css";
+@import "./themes/sunburst-rainbow.css";
+@import "./themes/legacy-themes.css";
+
+/* ============================================
+   🎨 GLOBALS.CSS - Estilos Globales Compartidos
    ============================================ */
 
 /* SweetAlert2 — estilos globales */
@@ -135,96 +129,119 @@
   --background-tertiary: #111827; 
   --text-primary: #E5E7EB;
   --text-secondary: #9CA3AF;
-  --text-tertiary: #6B7280;         /* Nuevo: texto de apoyo */
-  --text-muted: #4B5563;            /* Mejorado: placeholders */
-  --text-disabled: #374151;         /* Nuevo: elementos deshabilitados */
-  --text-inverse: #0B1220;          /* Nuevo: texto sobre fondos claros/acentos */
+  --text-tertiary: #6B7280;
+  --text-muted: #4B5563;
+  --text-disabled: #374151;
+  --text-inverse: #0B1220;
   --accent-primary: #10B981;        
   --accent-primary-hover: #059669;
-  --accent-primary-light: #34D399;  /* Nuevo: versión suave del acento */
-  --accent-primary-dark: #047857;   /* Nuevo: versión intensa del acento */
-  --accent-primary-subtle: rgba(16, 185, 129, 0.12); /* Nuevo: fondos sutiles con acento */
-  --accent-secondary: #3B82F6;      /* Nuevo: azul complementario */
-  --accent-tertiary: #8B5CF6;       /* Nuevo: morado de apoyo */
-  --accent-warm: #F59E0B;           /* Nuevo: acento cálido */
-  --border-color: #1F2937;          
-  /* terminal-specific defaults: prefer theme text color but allow per-theme overrides */
+  --accent-primary-light: #34D399;
+  --accent-primary-dark: #047857;
+  --accent-primary-subtle: rgba(16, 185, 129, 0.12);
+  --accent-secondary: #3B82F6;
+  --accent-tertiary: #8B5CF6;
+  --accent-warm: #F59E0B;
+  --border-color: #1F2937;
+  
   --terminal-foreground: var(--text-primary);
   --terminal-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', 'Liberation Mono', monospace;
   --terminal-font-size: 13;
 
-  /* ESTÁNDAR DE ALINEACIÓN: Todas las páginas deben tener padding-top: 12px
-     para alinear sus headers con la línea divisoria del botón hamburguesa de la sidebar
-     (padding 2px + 4px + margin 6px = 12px) */
+  /* ESTÁNDAR DE ALINEACIÓN: padding-top: 12px para alinear headers */
   --page-header-alignment: 12px;
 
   --border: var(--border-subtle);
   --ring: #22D3EE;
   --accent-contrast: #061016;
   --success: #22C55E;
-  --success-bg: rgba(34, 197, 94, 0.12);    /* Nuevo: fondo de éxito */
-  --success-border: rgba(34, 197, 94, 0.3); /* Nuevo: borde de éxito */
-  --success-text: #4ADE80;                  /* Nuevo: texto de éxito */
+  --success-bg: rgba(34, 197, 94, 0.12);
+  --success-border: rgba(34, 197, 94, 0.3);
+  --success-text: #4ADE80;
   --warning: #F59E0B;
-  --warning-bg: rgba(245, 158, 11, 0.12);   /* Nuevo: fondo de advertencia */
-  --warning-border: rgba(245, 158, 11, 0.3); /* Nuevo: borde de advertencia */
-  --warning-text: #FBBF24;                  /* Nuevo: texto de advertencia */
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  --warning-text: #FBBF24;
   --danger: #EF4444;
-  --danger-bg: rgba(239, 68, 68, 0.12);     /* Nuevo: fondo de peligro */
-  --danger-border: rgba(239, 68, 68, 0.3);  /* Nuevo: borde de peligro */
-  --danger-text: #F87171;                   /* Nuevo: texto de peligro */
+  --danger-bg: rgba(239, 68, 68, 0.12);
+  --danger-border: rgba(239, 68, 68, 0.3);
+  --danger-text: #F87171;
   --info: #22D3EE;
-  --info-bg: rgba(34, 211, 238, 0.12);      /* Nuevo: fondo de información */
-  --info-border: rgba(34, 211, 238, 0.3);   /* Nuevo: borde de información */
-  --info-text: #67E8F9;                     /* Nuevo: texto de información */
-  /* surfaces */
+  --info-bg: rgba(34, 211, 238, 0.12);
+  --info-border: rgba(34, 211, 238, 0.3);
+  --info-text: #67E8F9;
+  
   --panel: var(--background-secondary);
   --panel-muted: var(--background-tertiary);
-  --surface-0: var(--background-primary);   /* Nuevo: nivel base */
-  --surface-1: var(--background-secondary); /* Nuevo: elevado 1 */
-  --surface-2: var(--background-tertiary);  /* Nuevo: elevado 2 */
-  --surface-3: #1A202E;                     /* Nuevo: elevado 3 */
-  --surface-overlay: rgba(0, 0, 0, 0.5);    /* Nuevo: modales/overlays */
+  --surface-0: var(--background-primary);
+  --surface-1: var(--background-secondary);
+  --surface-2: var(--background-tertiary);
+  --surface-3: #1A202E;
+  --surface-overlay: rgba(0, 0, 0, 0.5);
   --shadow: 0 8px 30px rgba(0,0,0,0.25);
-  /* Accessible borders */
+  
   --border-subtle: rgba(255,255,255,0.08);
   --border-strong: rgba(255,255,255,0.18);
-  /* Focus (double-ring capable) */
+  
   --focus-inner: var(--ring);
   --focus-outer: rgba(2,6,23,0.5);
-  /* Interaction states */
+  
   --interactive-bg: transparent;
   --interactive-hover: rgba(255,255,255,0.06);
   --interactive-active: rgba(255,255,255,0.09);
   --interactive-selected: rgba(255,255,255,0.10);
-  /* Inputs */
+  
   --input-bg: var(--background-tertiary);
   --input-border: var(--border-subtle);
   --input-focus-border: var(--border-strong);
   --placeholder-fg: var(--text-secondary);
-  /* Tables */
+  
   --table-header-bg: var(--panel);
   --table-row-hover: var(--interactive-hover);
   --table-row-active: var(--interactive-active);
   --table-row-selected: rgba(16,185,129,0.16);
-  /* Elevation */
+  
   --surface-1-border: var(--border-subtle);
   --surface-2-overlay: rgba(255,255,255,0.02);
   --surface-3-border: var(--border-strong);
-  /* Overlay */
+  
   --overlay-scrim: rgba(0,0,0,0.5);
-  /* Text selection */
+  
   --selection-bg: rgba(34,211,238,0.28);
   --selection-fg: var(--text-primary);
-  /* Terminal ANSI ramp */
+  
   --ansi-black: #111827;    --ansi-red: #ef4444;   --ansi-green: #22c55e;  --ansi-yellow: #eab308;  --ansi-blue: #3b82f6;  --ansi-magenta: #d946ef;  --ansi-cyan: #22d3ee;  --ansi-white: #e5e7eb;
   --ansi-bright-black: #374151; --ansi-bright-red: #f87171; --ansi-bright-green: #4ade80; --ansi-bright-yellow: #facc15; --ansi-bright-blue: #60a5fa; --ansi-bright-magenta: #e879f9; --ansi-bright-cyan: #67e8f9; --ansi-bright-white: #ffffff;
 
-  /* ═══ Patrón de Doble Header Minimalista ═══ */
   --page-header-height: 36px;
   --page-header-bg: var(--background-secondary);
   --page-header-border: var(--border-subtle);
   --page-header-shadow: none;
+
+  /* Capa 2 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
+
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 12px 30px -4px rgba(0, 0, 0, 0.25);
+
+  --card-bg: var(--background-secondary);
+  --card-bg-hover: var(--background-tertiary);
+  --card-border-width: 1px;
+  --card-border-color: var(--border-subtle);
+
+  --glass-bg: var(--card-bg);
+  --glass-blur: 0px;
+  --glass-border-color: var(--card-border-color);
+
+  --font-heading: inherit;
+  --font-body: inherit;
+
+  --transition-speed: 200ms;
+  --transition-curve: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --hover-lift: translateY(-3px);
 }
 
 /* Clases de utilidad para el Doble Header Minimalista */
@@ -296,6 +313,11 @@
   .page-header-integrated {
     padding: 0 8px;
   }
+}
+
+/* Global headings font family based on theme */
+h1, h2, h3, h4, h5, h6, .page-header-title {
+  font-family: var(--font-heading, inherit);
 }
 
 
@@ -373,7 +395,7 @@ html[data-theme="crimson-gold"] {
   --border-color: rgba(220, 20, 60, 0.15);
 }
 
-/* Obsidian Rose (dark, pink accent) */
+/* Obsidian Rose (dark, pink accent) — personality */
 html[data-theme="obsidian-rose"]{
   --background-primary: #0a0608;
   --background-secondary: #141012;
@@ -384,6 +406,18 @@ html[data-theme="obsidian-rose"]{
   --accent-primary-hover: #ff8eb1;
   --accent-strong: #ff3868;
   --border-color: rgba(255,255,255,0.03);
+  /* Capa 2 */
+  --radius-lg: 18px;
+  --shadow-card: 0 6px 24px rgba(255, 107, 154, 0.08);
+  --shadow-card-hover: 0 14px 36px rgba(255, 107, 154, 0.18);
+  --hover-lift: translateY(-4px);
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(20, 16, 18, 0.85);
+  --sidebar-border: 1px solid rgba(255, 107, 154, 0.15);
+  --sidebar-radius: 18px;
+  --header-bg: rgba(10, 6, 8, 0.85);
+  --header-border: 1px solid rgba(255, 107, 154, 0.1);
 }
 
 /* Mist Harbor (light, soft) */
@@ -419,6 +453,94 @@ html[data-theme="lavender-dream"]{
   --interactive-hover: rgba(76,29,149,0.06);
   --interactive-active: rgba(76,29,149,0.09);
   --interactive-selected: rgba(76,29,149,0.12);
+  /* Capa 2: glassmorphism + serif */
+  --glass-bg: rgba(255, 255, 255, 0.42);
+  --glass-blur: 16px;
+  --glass-border-color: rgba(196, 181, 253, 0.25);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --shadow-card: 0 8px 32px rgba(139, 92, 246, 0.08);
+  --shadow-card-hover: 0 16px 48px rgba(139, 92, 246, 0.18);
+  --font-heading: 'Cormorant Garamond', serif;
+
+  /* Sidebar & Header glass overrides */
+  --sidebar-bg: rgba(237, 233, 254, 0.45);
+  --sidebar-border: 1px solid rgba(139, 92, 246, 0.2);
+  --sidebar-radius: 18px;
+  --sidebar-blur: blur(16px);
+  --header-bg: rgba(245, 243, 255, 0.45);
+  --header-border: 1px solid rgba(139, 92, 246, 0.15);
+  --header-blur: blur(16px);
+}
+
+/* 🎀 Pastel Dream - Estilo playful pastel ultra-redondeado */
+html[data-theme="pastel-dream"]{
+  --background-primary: #fdf8f5;
+  --background-secondary: #faebf0;
+  --background-tertiary: #f0ebfa;
+  --text-primary: #503040;
+  --text-secondary: #8a6575;
+  --accent-primary: #ff8da1;
+  --accent-primary-hover: #ffadc0;
+  --accent-strong: #ff4b6b;
+  --border-color: #f3e4e9;
+  --terminal-foreground: #503040;
+  --interactive-hover: rgba(80,48,64,0.06);
+  --interactive-active: rgba(80,48,64,0.09);
+  --interactive-selected: rgba(80,48,64,0.12);
+  /* Capa 2: super rounded glass */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-blur: 20px;
+  --glass-border-color: rgba(255, 141, 161, 0.25);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --shadow-card: 0 10px 30px rgba(255, 141, 161, 0.08);
+  --shadow-card-hover: 0 20px 48px rgba(255, 141, 161, 0.18);
+  --font-heading: 'Nunito', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(250, 235, 240, 0.5);
+  --sidebar-border: 1px solid rgba(255, 141, 161, 0.2);
+  --sidebar-radius: 24px;
+  --sidebar-blur: blur(20px);
+  --header-bg: rgba(253, 248, 245, 0.5);
+  --header-border: 1px solid rgba(255, 141, 161, 0.15);
+  --header-blur: blur(20px);
+}
+
+/* 🌸 Sakura Blush - Flor de cerezo delicado */
+html[data-theme="sakura-blush"]{
+  --background-primary: #fff5f7;
+  --background-secondary: #ffe3e8;
+  --background-tertiary: #ffd1dc;
+  --text-primary: #5c0d24;
+  --text-secondary: #8f3d54;
+  --accent-primary: #ff758f;
+  --accent-primary-hover: #ff8fa3;
+  --accent-strong: #c9184a;
+  --border-color: #ffccd5;
+  --terminal-foreground: #5c0d24;
+  --interactive-hover: rgba(92,13,36,0.06);
+  --interactive-active: rgba(92,13,36,0.09);
+  --interactive-selected: rgba(92,13,36,0.12);
+  /* Capa 2: cherry glass */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-blur: 16px;
+  --glass-border-color: rgba(255, 117, 143, 0.3);
+  --radius-lg: 16px;
+  --radius-md: 10px;
+  --shadow-card: 0 8px 24px rgba(255, 117, 143, 0.08);
+  --shadow-card-hover: 0 16px 40px rgba(255, 117, 143, 0.16);
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(255, 227, 232, 0.45);
+  --sidebar-border: 1px solid rgba(255, 117, 143, 0.25);
+  --sidebar-radius: 16px;
+  --sidebar-blur: blur(16px);
+  --header-bg: rgba(255, 245, 247, 0.45);
+  --header-border: 1px solid rgba(255, 117, 143, 0.2);
+  --header-blur: blur(16px);
 }
 
 /* Aurora Coral (dark, warm colorfulness) */
@@ -445,6 +567,19 @@ html[data-theme="amber-night"]{
   --accent-primary-hover: #fbbf24;
   --accent-strong: #b45309;
   --border-color: rgba(245, 158, 11, 0.15);
+  /* Capa 2: warm glow + display font */
+  --radius-lg: 16px;
+  --shadow-card: 0 4px 20px rgba(245, 158, 11, 0.1);
+  --shadow-card-hover: 0 12px 36px rgba(245, 158, 11, 0.2);
+  --card-border-color: rgba(245, 158, 11, 0.18);
+  --font-heading: 'Playfair Display', serif;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(42, 26, 8, 0.85);
+  --sidebar-border: 1px solid rgba(245, 158, 11, 0.18);
+  --sidebar-radius: 16px;
+  --header-bg: rgba(26, 16, 3, 0.85);
+  --header-border: 1px solid rgba(245, 158, 11, 0.15);
 }
 
 /* Verdant Neon (dark, neon green) */
@@ -498,6 +633,59 @@ html[data-theme="oceanic-teal"]{
   --accent-primary-hover: #6fe8dc;
   --accent-strong: #1fb7a8;
   --border-color: rgba(255,255,255,0.02);
+  /* Capa 2: cool glassmorphism */
+  --glass-bg: rgba(6, 43, 49, 0.45);
+  --glass-blur: 12px;
+  --glass-border-color: rgba(43, 214, 200, 0.25);
+  --shadow-card: 0 4px 24px rgba(43, 214, 200, 0.05);
+  --shadow-card-hover: 0 12px 40px rgba(43, 214, 200, 0.15);
+  --radius-lg: 16px;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: rgba(6, 43, 49, 0.45);
+  --sidebar-border: 1px solid rgba(43, 214, 200, 0.18);
+  --sidebar-radius: 16px;
+  --sidebar-blur: blur(12px);
+  --header-bg: rgba(2, 25, 34, 0.45);
+  --header-border: 1px solid rgba(43, 214, 200, 0.12);
+  --header-blur: blur(12px);
+}
+
+/* 📜 Sepia Paper - Estilo vintage tipo libro */
+html[data-theme="sepia-paper"]{
+  --background-primary: #f4ecd8;
+  --background-secondary: #ebdcb9;
+  --background-tertiary: #dfcc9b;
+  --text-primary: #433422;
+  --text-secondary: #6e5b44;
+  --accent-primary: #8c6239;
+  --accent-primary-hover: #a1764e;
+  --accent-strong: #5c3a21;
+  --border-color: #d4c5a9;
+  --terminal-foreground: #433422;
+  --interactive-hover: rgba(67,52,34,0.06);
+  --interactive-active: rgba(67,52,34,0.09);
+  --interactive-selected: rgba(67,52,34,0.12);
+  /* Capa 2: paper cards (no glass, no blur) */
+  --glass-bg: #faf6eb;
+  --glass-blur: 0px;
+  --glass-border-color: #d4c5a9;
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --shadow-card: 0 2px 8px rgba(67, 52, 34, 0.08);
+  --shadow-card-hover: 0 4px 16px rgba(67, 52, 34, 0.12);
+  --hover-lift: translateY(-2px);
+  --font-heading: 'Lora', serif;
+  --font-body: 'Lora', serif;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: #ebdcb9;
+  --sidebar-border: 1px solid #d4c5a9;
+  --sidebar-radius: 8px;
+  --sidebar-blur: none;
+  --header-bg: #f4ecd8;
+  --header-border: 1px solid #d4c5a9;
+  --header-blur: none;
 }
 
 html[data-theme="ruby-night"]{
@@ -805,6 +993,15 @@ html[data-theme="pastel-dream"]{
   --interactive-hover: rgba(61,26,47,0.06);
   --interactive-active: rgba(61,26,47,0.09);
   --interactive-selected: rgba(61,26,47,0.12);
+  /* Capa 2: round + playful */
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --shadow-card: 0 6px 28px rgba(232, 121, 249, 0.08);
+  --shadow-card-hover: 0 14px 44px rgba(232, 121, 249, 0.16);
+  --glass-bg: rgba(254, 243, 247, 0.7);
+  --glass-blur: 14px;
+  --glass-border-color: rgba(232, 121, 249, 0.25);
+  --font-heading: 'Nunito', sans-serif;
 }
 
 /* Header con gradiente pastel animado */
@@ -1044,13 +1241,37 @@ html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb:hover {
 /* Right-aligned monospace-ish numeric cell for sizes */
 /* (moved above with adjusted width) */
 
-/* Context menu */
-.ctx-menu { background: var(--background-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; box-shadow: none; min-width: 180px; }
-.ctx-list { list-style: none; margin: 4px; padding: 4px; }
-.ctx-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--text-primary); }
-.ctx-item:hover { background: rgba(255,255,255,0.06); }
+/* Context menu — bordes sólidos + sombra desplazada, sin blur ni transparencias */
+.ctx-menu {
+  background: var(--surface-1, var(--background-secondary));
+  border: 1.5px solid var(--border-strong, var(--border-subtle));
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--border-strong, var(--border-subtle));
+  min-width: 190px;
+  overflow: hidden;
+}
+.ctx-list { list-style: none; margin: 0; padding: 4px; }
+.ctx-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background 0.1s, color 0.1s;
+}
+.ctx-item:hover {
+  background: var(--accent-primary-subtle, var(--interactive-hover));
+  color: var(--accent-primary, var(--text-primary));
+}
 .ctx-item.disabled { opacity: .5; pointer-events: none; }
 .ctx-item.danger { color: var(--danger); }
+.ctx-item.danger:hover { background: var(--danger-bg); color: var(--danger); }
+.ctx-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
+}
 
 
 /* ============================================
@@ -1310,24 +1531,36 @@ html[data-theme="fc-barcelona"] ::-webkit-scrollbar-thumb:hover {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--accent-primary) var(--background-secondary);
+  scrollbar-color: var(--accent-primary) transparent;
 }
-/* Chromium/WebKit */
+/* Chromium/WebKit — sin botones de flecha nativos (los dejaba sin ocultar,
+   por eso se veían las flechitas del SO encima de la barra) y con el thumb
+   "inset" vía background-clip para que se vea una píldora redondeada en vez
+   de un bloque plano pegado al borde. */
 *::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 *::-webkit-scrollbar-track {
-  background: var(--background-secondary);
+  background: transparent;
 }
 *::-webkit-scrollbar-thumb {
   background-color: var(--accent-primary);
   border-radius: 8px;
-  border: 3px solid var(--background-secondary);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   box-shadow: none;
 }
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--accent-primary-hover);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Make code/terminal panes a bit more contrasted when scrolling */
@@ -1387,6 +1620,13 @@ html[data-theme="sakura-blush"]{
   --interactive-hover: rgba(43,18,32,0.06);
   --interactive-active: rgba(43,18,32,0.09);
   --interactive-selected: rgba(43,18,32,0.12);
+  /* Capa 2: soft glassmorphism */
+  --glass-bg: rgba(255, 240, 244, 0.6);
+  --glass-blur: 12px;
+  --glass-border-color: rgba(255, 122, 166, 0.2);
+  --radius-lg: 18px;
+  --shadow-card: 0 6px 24px rgba(255, 122, 166, 0.08);
+  --shadow-card-hover: 0 14px 40px rgba(255, 122, 166, 0.16);
 }
 
 /* 🌹 Rose Quartz - Rosa cuarzo con detalles fucsia */
@@ -1484,6 +1724,14 @@ html[data-theme="sepia-paper"]{
   --accent-strong: #974e1a;
   --border-color: #eadfcf;
   --terminal-foreground: #2c231a;
+  /* Capa 2: vintage serif */
+  --radius-lg: 10px;
+  --radius-md: 6px;
+  --shadow-card: 0 3px 16px rgba(184, 115, 51, 0.08);
+  --shadow-card-hover: 0 8px 28px rgba(184, 115, 51, 0.14);
+  --card-border-color: rgba(184, 115, 51, 0.15);
+  --font-heading: 'Lora', serif;
+  --hover-lift: translateY(-2px);
 }
 
 /* ☁️ Silver Cloud - Plateado brillante con azul cielo */
@@ -1526,10 +1774,9 @@ body {
   background:
     repeating-linear-gradient(135deg, transparent 0 46px, color-mix(in srgb, var(--text-primary) 1.1%, transparent) 46px 47px),
     linear-gradient(135deg, transparent 0 63%, color-mix(in srgb, var(--background-tertiary) 24.2%, transparent) 63% 100%),
-    linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 28%, transparent) 0 1px, transparent 1px) 12% 0 / 1px 100% no-repeat,
     linear-gradient(135deg, color-mix(in srgb, var(--background-secondary) 42%, var(--background-primary)) 0 46%, var(--background-primary) 46% 100%);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
   font-size: 14px;
 }
 
@@ -1642,145 +1889,6 @@ a:hover { text-decoration-thickness: 2px; }
   opacity: 0; /* Start hidden */
 }
 
-/* ═══════════════════════════════════════════════════════
-   Universidad Piloto de Colombia — Tema Institucional
-   Colores scrapeados de unipiloto.edu.co:
-     Rojo institucional : #d51f22
-     Verde institucional: #007a33
-     Azul agua          : #00b5e2
-     Fondos claros      : #f4f4f4 / #ffffff / #f9f9f9
-     Texto oscuro       : #1c1c1c / #353535
-     Tipografía         : Open Sans, Nunito Sans
-   ═══════════════════════════════════════════════════════ */
-html[data-theme="unipiloto"] {
-  /* ── Fondos: blancos institucionales ── */
-  --background-primary:    #f4f4f4;
-  --background-secondary:  #ffffff;
-  --background-tertiary:   #eeeeee;
-
-  /* ── Texto oscuro sobre fondo claro ── */
-  --text-primary:          #1c1c1c;
-  --text-secondary:        #494949;
-  --text-tertiary:         #7c7c7c;
-  --text-muted:            #9b9b9b;
-  --text-disabled:         #b5b5b5;
-  --text-inverse:          #ffffff;
-
-  /* ── Acento principal: rojo institucional ── */
-  --accent-primary:        #d51f22;
-  --accent-primary-hover:  #b81a1d;        /* más oscuro al hover (light bg) */
-  --accent-primary-light:  #e8403d;
-  --accent-primary-dark:   #a81010;
-  --accent-primary-subtle: rgba(213, 31, 34, 0.08);
-
-  /* ── Acento secundario: azul agua ── */
-  --accent-secondary:      #00a0d2;
-  --accent-strong:         #a81010;        /* rojo más intenso para énfasis */
-  --accent-tertiary:       #007a33;        /* verde institucional */
-  --accent-warm:           #007a33;
-
-  /* ── Bordes: sutiles sobre fondo claro ── */
-  --border-color:          #d8d8d8;
-  --border-subtle:         rgba(0, 0, 0, 0.10);
-  --border-strong:         rgba(0, 0, 0, 0.22);
-
-  /* ── Superficies ── */
-  --panel:                 #ffffff;
-  --panel-muted:           #f4f4f4;
-  --surface-0:             #f4f4f4;
-  --surface-1:             #ffffff;
-  --surface-2:             #eeeeee;
-  --surface-3:             #e5e5e5;
-  --surface-overlay:       rgba(0, 0, 0, 0.4);
-
-  /* ── Sombras más suaves en fondos claros ── */
-  --shadow:                0 4px 16px rgba(0, 0, 0, 0.10);
-
-  /* ── Ring / focus: azul agua institucional ── */
-  --ring:                  #00a0d2;
-  --focus-inner:           #00a0d2;
-  --focus-outer:           #ffffff;
-
-  /* ── Interacciones sobre fondo claro ── */
-  --interactive-hover:     rgba(0, 0, 0, 0.05);
-  --interactive-active:    rgba(213, 31, 34, 0.08);
-  --interactive-selected:  rgba(213, 31, 34, 0.12);
-  --table-row-selected:    rgba(213, 31, 34, 0.08);
-  --table-row-hover:       rgba(0, 0, 0, 0.04);
-
-  /* ── Terminal: texto oscuro en fondo claro ── */
-  --terminal-foreground:   #1c1c1c;
-
-  /* ── Selección de texto ── */
-  --selection-bg:          rgba(213, 31, 34, 0.18);
-  --selection-fg:          #1c1c1c;
-
-  /* ── Estados semánticos en contexto claro ── */
-  --success:               #007a33;
-  --success-bg:            rgba(0, 122, 51, 0.10);
-  --success-border:        rgba(0, 122, 51, 0.25);
-  --success-text:          #036b38;
-  --danger:                #d51f22;
-  --danger-bg:             rgba(213, 31, 34, 0.08);
-  --danger-border:         rgba(213, 31, 34, 0.25);
-  --danger-text:           #a81010;
-  --warning:               #f59e0b;
-  --warning-bg:            rgba(245, 158, 11, 0.10);
-  --warning-border:        rgba(245, 158, 11, 0.25);
-  --warning-text:          #b45309;
-  --info:                  #00a0d2;
-  --info-bg:               rgba(0, 160, 210, 0.10);
-  --info-border:           rgba(0, 160, 210, 0.25);
-  --info-text:             #0077a8;
-
-  /* ── Inputs ── */
-  --input-bg:              #ffffff;
-  --input-border:          #d8d8d8;
-  --input-focus-border:    #d51f22;
-  --placeholder-fg:        #9b9b9b;
-
-  /* ── Tipografía institucional ── */
-  font-family: 'Open Sans', 'Nunito Sans', system-ui, sans-serif;
-}
-
-/* Header limpio sin borde visible — la diferencia de fondo #fff vs #f4f4f4 separa visualmente */
-html[data-theme="unipiloto"] .app-header {
-  background: #ffffff;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.07);
-}
-
-/* Sidebar limpio con separador */
-html[data-theme="unipiloto"] .sidebar {
-  background: #ffffff;
-  border-right: 1px solid #e0e0e0;
-}
-
-/* Ítem activo con indicador rojo */
-html[data-theme="unipiloto"] .nav-item.active {
-  background: rgba(213, 31, 34, 0.08);
-  border-left: 3px solid #d51f22;
-}
-
-html[data-theme="unipiloto"] .nav-item.active::before {
-  background: #d51f22;
-}
-
-/* SweetAlert en tema claro */
-html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-popup {
-  background: #ffffff !important;
-  border: 1px solid #e0e0e0 !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
-}
-
-html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-title {
-  color: #1c1c1c !important;
-}
-
-html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-html-container {
-  color: #494949 !important;
-}
-
-
 .sidebar-user-avatar {
   background-color: var(--accent-primary-subtle);
   border: 1px solid var(--accent-primary);
@@ -1812,4 +1920,341 @@ html[data-theme="unipiloto"] .swal2-container.swal-fullscreen .swal2-html-contai
 
 .chat-toast__message {
   line-height: 1.35;
+}
+
+/* ============================================
+   🎨 DRIBBBLE-INSPIRED PREMIUM THEME OVERRIDES
+   ============================================ */
+
+/* 1. Tarjetas Generales (Cards) */
+.dribbble-card {
+  background-color: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+  border: var(--card-border-width) solid var(--glass-border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  transition: transform var(--transition-speed) var(--transition-curve), 
+              box-shadow var(--transition-speed) var(--transition-curve), 
+              border-color var(--transition-speed) var(--transition-curve),
+              background-color var(--transition-speed) ease !important;
+  box-shadow: var(--shadow-card) !important;
+  font-family: var(--font-body);
+}
+
+.dribbble-card h1,
+.dribbble-card h2,
+.dribbble-card h3 {
+  font-family: var(--font-heading);
+}
+
+.dribbble-card-interactive {
+  cursor: pointer !important;
+}
+
+.dribbble-card-interactive:hover {
+  transform: var(--hover-lift) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: var(--shadow-card-hover), 
+              0 0 0 1px color-mix(in srgb, var(--accent-primary) 20%, transparent) !important;
+}
+
+/* 2. Botones Premium */
+.dribbble-btn-primary {
+  background-color: var(--accent-primary) !important;
+  color: var(--accent-contrast, #ffffff) !important;
+  border: none !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+  font-family: var(--font-body);
+  transition: all var(--transition-speed) var(--transition-curve) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dribbble-btn-primary:not(:disabled):hover {
+  background-color: var(--accent-primary-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent) !important;
+}
+.dribbble-btn-primary:not(:disabled):active {
+  transform: translateY(1px) !important;
+}
+
+.dribbble-btn-secondary {
+  background-color: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+  font-family: var(--font-body);
+  transition: all var(--transition-speed) ease !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dribbble-btn-secondary:not(:disabled):hover {
+  background-color: var(--interactive-hover) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 3. Inputs Integrados */
+.dribbble-input-container,
+.dribbble-toolbar-input {
+  --mantine-input-bg: var(--input-bg) !important;
+  --mantine-input-bd: var(--input-border) !important;
+  --mantine-input-color: var(--text-primary) !important;
+  --mantine-input-placeholder-color: var(--placeholder-fg) !important;
+  --mantine-input-bd-focus: var(--accent-primary) !important;
+}
+
+.dribbble-input-container .mantine-Input-input,
+.dribbble-input-container .mantine-Select-input,
+.dribbble-input-container .mantine-PasswordInput-input,
+.dribbble-input-container .mantine-PasswordInput-innerInput,
+.dribbble-input-container input,
+.dribbble-input-container select,
+.dribbble-input-container textarea {
+  background-color: var(--input-bg) !important;
+  border: 1px solid var(--input-border) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease !important;
+}
+.dribbble-input-container .mantine-Input-input:focus,
+.dribbble-input-container .mantine-Input-input:focus-within,
+.dribbble-input-container .mantine-Select-input:focus,
+.dribbble-input-container .mantine-Select-input:focus-within,
+.dribbble-input-container .mantine-PasswordInput-input:focus,
+.dribbble-input-container .mantine-PasswordInput-input:focus-within,
+.dribbble-input-container .mantine-PasswordInput-innerInput:focus,
+.dribbble-input-container .mantine-PasswordInput-innerInput:focus-within,
+.dribbble-input-container input:focus,
+.dribbble-input-container select:focus {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 1px var(--accent-primary) !important;
+}
+.dribbble-input-container .mantine-Input-wrapper,
+.dribbble-input-container .mantine-Select-wrapper,
+.dribbble-input-container .mantine-PasswordInput-wrapper {
+  border-radius: var(--radius-md) !important;
+}
+.dribbble-input-container .mantine-InputWrapper-label {
+  color: var(--text-secondary) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  margin-bottom: 6px !important;
+}
+
+/* 4. Estilos específicos para Quick Hosts */
+.dribbble-quick-host {
+  border: 1px solid var(--border-subtle) !important;
+  background-color: var(--background-tertiary) !important;
+  border-radius: var(--radius-md) !important;
+  transition: all var(--transition-speed) var(--transition-curve) !important;
+}
+.dribbble-quick-host:hover {
+  border-color: var(--border-strong) !important;
+  background-color: var(--interactive-hover) !important;
+}
+.dribbble-quick-host.active {
+  border-color: var(--accent-primary) !important;
+  background-color: var(--accent-primary-subtle) !important;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
+}
+
+/* 5. Dificultades integradas sin badges ruidosos */
+.dribbble-difficulty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dribbble-difficulty-dot.beginner {
+  background-color: var(--success, #10B981);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #10B981) 20%, transparent);
+}
+.dribbble-difficulty-dot.intermediate {
+  background-color: var(--warning, #F59E0B);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning, #F59E0B) 20%, transparent);
+}
+.dribbble-difficulty-dot.advanced {
+  background-color: var(--danger, #EF4444);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger, #EF4444) 20%, transparent);
+}
+
+/* 6. Estilos de toolbar/filtros para Logs */
+.dribbble-toolbar-input .mantine-Input-input,
+.dribbble-toolbar-input .mantine-Select-input,
+.dribbble-toolbar-input input,
+.dribbble-toolbar-input select {
+  background-color: var(--input-bg) !important;
+  border: 1px solid var(--input-border) !important;
+  color: var(--text-primary) !important;
+  border-radius: 10px !important;
+  transition: border-color 0.15s ease !important;
+}
+.dribbble-toolbar-input .mantine-Input-input:focus,
+.dribbble-toolbar-input .mantine-Select-input:focus,
+.dribbble-toolbar-input input:focus,
+.dribbble-toolbar-input select:focus {
+  border-color: var(--accent-primary) !important;
+}
+
+/* ==========================================================================
+   💬 SISTEMA SEMÁNTICO DE BURBUJAS DE CHAT TEMATIZADAS
+   ========================================================================== */
+
+.chat-bubble {
+  border-radius: var(--radius-lg, 14px);
+  font-family: var(--font-body, inherit);
+  transition: all var(--transition-speed, 150ms) ease;
+}
+
+.chat-bubble-user {
+  background-color: var(--accent-primary) !important;
+  color: var(--accent-contrast, #ffffff) !important;
+  border: var(--card-border-width, 1px) solid var(--card-border-color, transparent) !important;
+  box-shadow: var(--shadow-card, none) !important;
+}
+
+.chat-bubble-ai {
+  background-color: var(--background-secondary) !important;
+  color: var(--text-primary) !important;
+  border: var(--card-border-width, 1px) solid var(--card-border-color, var(--border-subtle)) !important;
+  box-shadow: var(--shadow-card, none) !important;
+}
+
+/* File table UX improvements */
+.file-row:hover { background: var(--table-row-hover); }
+.file-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.file-name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+.size-cell { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; display: inline-block; min-width: 54px; }
+
+/* Context menu */
+.ctx-menu { background: var(--background-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; box-shadow: none; min-width: 180px; }
+.ctx-list { list-style: none; margin: 4px; padding: 4px; }
+.ctx-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--text-primary); }
+.ctx-item:hover { background: rgba(255,255,255,0.06); }
+.ctx-item.disabled { opacity: .5; pointer-events: none; }
+.ctx-item.danger { color: var(--danger); }
+
+/* ============================================
+   🛠️ GLOBAL MANTINE THEME OVERRIDES
+   ============================================ */
+
+/* Inputs & Form Controls */
+.mantine-Input-input:not([data-variant="unstyled"]),
+.mantine-TextInput-input:not([data-variant="unstyled"]),
+.mantine-Select-input:not([data-variant="unstyled"]),
+.mantine-PasswordInput-input:not([data-variant="unstyled"]),
+.mantine-PasswordInput-innerInput:not([data-variant="unstyled"]),
+.mantine-Textarea-input:not([data-variant="unstyled"]),
+.mantine-Input-wrapper input:not([data-variant="unstyled"]),
+.mantine-Input-wrapper select:not([data-variant="unstyled"]),
+.mantine-Input-wrapper textarea:not([data-variant="unstyled"]) {
+  background-color: var(--input-bg, var(--background-secondary)) !important;
+  border: 1px solid var(--input-border, var(--border-subtle)) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md, 10px) !important;
+}
+
+.mantine-Input-input:not([data-variant="unstyled"]):focus,
+.mantine-Input-input:not([data-variant="unstyled"]):focus-within,
+.mantine-TextInput-input:not([data-variant="unstyled"]):focus,
+.mantine-PasswordInput-input:not([data-variant="unstyled"]):focus,
+.mantine-PasswordInput-input:not([data-variant="unstyled"]):focus-within,
+.mantine-PasswordInput-innerInput:not([data-variant="unstyled"]):focus {
+  border-color: var(--input-focus-border, var(--accent-primary)) !important;
+  box-shadow: 0 0 0 1px var(--input-focus-border, var(--accent-primary)) !important;
+}
+
+.mantine-InputWrapper-label {
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  margin-bottom: 6px !important;
+}
+
+/* Menu Dropdowns */
+.mantine-Menu-dropdown {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow) !important;
+  border-radius: var(--radius-md, 10px) !important;
+}
+
+.mantine-Menu-item {
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm, 6px) !important;
+}
+
+.mantine-Menu-item:hover,
+.mantine-Menu-item[data-hovered] {
+  background-color: var(--interactive-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.mantine-Menu-item[disabled] {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  background-color: transparent !important;
+}
+
+.mantine-Menu-label {
+  color: var(--text-muted) !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Popover Dropdowns */
+.mantine-Popover-dropdown {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow) !important;
+  border-radius: var(--radius-md, 10px) !important;
+}
+
+/* Tooltips */
+.mantine-Tooltip-tooltip {
+  background-color: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  font-size: 11px !important;
+}
+
+/* Modals */
+.mantine-Modal-content {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow) !important;
+  border-radius: var(--radius-lg, 14px) !important;
+}
+
+.mantine-Modal-header {
+  background-color: var(--background-secondary) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+}
+
+.mantine-Modal-title {
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+}
+
+.mantine-Modal-close {
+  color: var(--text-secondary) !important;
+}
+.mantine-Modal-close:hover {
+  background-color: var(--interactive-hover) !important;
+  color: var(--text-primary) !important;
 }

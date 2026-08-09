@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { LocalEntry } from "../types";
+import { useMultiSelection } from "./useMultiSelection";
 
 export type LocalSortKey = "name" | "mtime" | "size" | "kind";
 
@@ -14,7 +15,15 @@ export function useLocalFsBrowser() {
   const [rows, setRows] = useState<LocalEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [drives, setDrives] = useState<string[]>([]);
-  const [selectedPath, setSelectedPath] = useState<string | undefined>();
+  const {
+    selectedPaths,
+    lastSelected,
+    selectOnly,
+    toggleSelect,
+    selectRange,
+    selectAll: selectAllPaths,
+    clearSelection,
+  } = useMultiSelection();
   const [sort, setSort] = useState<LocalSort>({ key: "name", dir: "asc" });
   const [filter, setFilter] = useState<string>("");
 
@@ -42,14 +51,23 @@ export function useLocalFsBrowser() {
     [path, drives.length]
   );
 
+  // Solo al montar: resuelve el directorio home (path === "") y hace el
+  // primer listado. Antes dependía de `[refresh]`, cuya identidad cambia
+  // en cuanto `refresh()` resuelve el home y llama `setPath(root)` — eso
+  // volvía a disparar este efecto y duplicaba `local_list_drives`/
+  // `local_list_dir` en cada apertura del panel local. La navegación
+  // posterior ya la disparan explícitamente los callers (ver
+  // `handleLocalNavigate` en SftpPage), así que no hace falta reaccionar
+  // a cambios de `path` aquí.
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    setSelectedPath(undefined);
+    clearSelection();
     setFilter("");
-  }, [path]);
+  }, [path, clearSelection]);
 
   const display = useMemo(() => {
     const arr = [...rows];
@@ -86,8 +104,13 @@ export function useLocalFsBrowser() {
     display,
     loading,
     drives,
-    selectedPath,
-    setSelectedPath,
+    selectedPaths,
+    lastSelected,
+    selectOnly,
+    toggleSelect,
+    selectRange,
+    selectAll: selectAllPaths,
+    clearSelection,
     sort,
     setSort,
     filter,

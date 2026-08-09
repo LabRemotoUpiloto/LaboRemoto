@@ -71,7 +71,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   >
                     {col.sortable && onSort ? (
                       <button
-                        className="w-full px-3 py-2.5 bg-transparent border-none text-inherit text-left cursor-pointer flex items-center gap-1.5 transition-colors duration-100 hover:bg-white/5 hover:text-primary active:bg-white/10"
+                        className="w-full px-3 py-2.5 bg-transparent border-none text-inherit text-left cursor-pointer flex items-center gap-1.5 transition-colors duration-100 hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)] active:bg-[var(--interactive-active)]"
                         onClick={() => onSort(col.key)}
                         title={`Ordenar por ${col.label}`}
                       >
@@ -91,7 +91,7 @@ const DataTable: React.FC<DataTableProps> = ({
               <tr
                 key={rowIndex}
                 role="row"
-                className={`border-b border-subtle transition-colors duration-100 group cursor-default hover:bg-white/5 hover:border-color focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 focus-visible:z-10 ${selectedIndex === rowIndex ? 'bg-white/10' : ''}`}
+                className={`border-b border-[var(--border-subtle)] transition-colors duration-100 group cursor-default hover:bg-[var(--interactive-hover)] hover:border-[var(--border-strong)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 focus-visible:z-10 ${selectedIndex === rowIndex ? 'bg-[var(--interactive-selected)]' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onRowClick?.(rowIndex);

@@ -30,7 +30,7 @@ function emitPhased(eventName: string, detail: object, animationDurationMs = 320
 
 export function useSidePanels() {
   const [isPinsPanelOpen, setPinsPanelOpen] = useState(false);
-  const [isCameraOpen, setCameraOpen] = useState(false);
+  const [cameraOpenBySession, setCameraOpenBySession] = useState<Record<string, boolean>>({});
   const [isDomoticaPanelOpen, setDomoticaPanelOpen] = useState(false);
 
   // ── Pins GPIO ────────────────────────────────────────────────────────────────
@@ -53,20 +53,22 @@ export function useSidePanels() {
 
   // ── Cámara (bottom bar) ───────────────────────────────────────────────────────
 
-  const toggleCameraPanel = () => {
-    setCameraOpen(prev => {
-      const next = !prev;
-      emitPhased('app:bottombar-toggled', { isOpen: next });
-      return next;
+  const isCameraOpen = (sessionId: string | null | undefined) => Boolean(sessionId && cameraOpenBySession[sessionId]);
+
+  const setCameraPanelOpen = (sessionId: string, isOpen: boolean) => {
+    setCameraOpenBySession(prev => {
+      if (prev[sessionId] === isOpen) return prev;
+      emitPhased('app:bottombar-toggled', { isOpen });
+      return { ...prev, [sessionId]: isOpen };
     });
   };
 
-  const closeCameraPanel = () => {
-    setCameraOpen(prev => {
-      if (!prev) return prev;
-      emitPhased('app:bottombar-toggled', { isOpen: false });
-      return false;
-    });
+  const toggleCameraPanel = (sessionId: string) => {
+    setCameraPanelOpen(sessionId, !isCameraOpen(sessionId));
+  };
+
+  const closeCameraPanel = (sessionId: string) => {
+    setCameraPanelOpen(sessionId, false);
   };
 
   // ── Domótica Arduino ──────────────────────────────────────────────────────────
@@ -78,7 +80,6 @@ export function useSidePanels() {
 
   const closeAllPanels = () => {
     closePinsPanel();
-    closeCameraPanel();
     closeDomoticaPanel();
   };
 
@@ -90,6 +91,7 @@ export function useSidePanels() {
     closePinsPanel,
     toggleCameraPanel,
     closeCameraPanel,
+    setCameraPanelOpen,
     toggleDomoticaPanel,
     closeDomoticaPanel,
     closeAllPanels,

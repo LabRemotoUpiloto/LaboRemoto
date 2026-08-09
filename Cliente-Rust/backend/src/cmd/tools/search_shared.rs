@@ -22,7 +22,7 @@ fn get_or_connect_ssh2(id: &str) -> Result<std::sync::Arc<std::sync::Mutex<crate
   if let Some(existing)=map.get(id).and_then(|s| s.sftp_cached.clone()) { return Ok(existing); }
   let (host,port,user,password) = { let s = map.get(id).ok_or("Sesión no encontrada")?; (s.host.clone(), s.port, s.user.clone(), s.password.clone()) };
   let (tcp,sess) = ssh2_sftp::connect_password(&host,port,&user,&password).map_err(|e| e.to_string())?;
-  let arc = Arc::new(Mutex::new(crate::cmd::state::CachedSsh2{ tcp, sess }));
+  let arc = Arc::new(Mutex::new(crate::cmd::state::CachedSsh2::new(tcp, sess)));
   if let Some(s)=map.get_mut(id){ s.sftp_cached=Some(arc.clone()); }
   Ok(arc)
 }

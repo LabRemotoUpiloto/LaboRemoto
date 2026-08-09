@@ -18,22 +18,12 @@ export interface SshCredentials {
   password?: string;
 }
 
-export interface SftpEntry {
-  name: string;
-  path: string;
-  kind: string;
-  size?: number;
-  perms?: string;
-  mtime?: number;
-}
-
-export interface LocalEntry {
-  name: string;
-  path: string;
-  kind: string;
-  size?: number;
-  mtime?: number;
-}
+// SftpEntry y LocalEntry se generan automáticamente desde los structs Rust
+// (backend/src/cmd/state/types.rs, #[derive(TS)]) vía ts-rs. No editar estos
+// archivos manualmente — regenerar con `cargo test export_bindings --lib`
+// desde Cliente-Rust/backend. Ver bindings/ para el resto de tipos disponibles.
+export type { SftpEntry } from './bindings/SftpEntry';
+export type { LocalEntry } from './bindings/LocalEntry';
 
 // ── Sesiones y Tabs ───────────────────────────────────────────────────────────
 

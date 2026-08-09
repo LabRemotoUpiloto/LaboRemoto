@@ -13,6 +13,7 @@ interface HeaderProps {
   onTabClick: (id: string) => void;
   onCloseTab: (id: string) => void;
   onNewSession: () => void;
+  onNewLocalTerminal: () => void;
   onReorderTabs: (dragID: string, dropID: string) => void;
   onReorderPanels: (dragID: string, dropID: string) => void;
   activeView: ActiveView;
@@ -35,6 +36,7 @@ const Header: React.FC<HeaderProps> = ({
   onTabClick,
   onCloseTab,
   onNewSession,
+  onNewLocalTerminal,
   activeView,
   onViewChange,
   showViewToggle = false,
@@ -91,6 +93,7 @@ const Header: React.FC<HeaderProps> = ({
           onTabClick={onTabClick}
           onCloseTab={onCloseTab}
           onNewSession={onNewSession}
+          onNewLocalTerminal={onNewLocalTerminal}
           activePanel={activePanel}
           {...sharedDragProps}
         />

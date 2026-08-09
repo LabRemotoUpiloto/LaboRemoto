@@ -47,7 +47,7 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
     <div data-tour={dataTour}>
       <div className="flex items-center gap-2 mb-3">
         <Zap size={14} style={{ color: 'var(--accent-primary)' }} />
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--mantine-color-dimmed)]">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           Hosts rápidos
         </span>
       </div>
@@ -66,19 +66,14 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
               openDelay={400}
             >
               <UnstyledButton
-                className="group relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border transition-all duration-200 cursor-pointer"
-                style={{
-                  borderColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 50%, transparent)' : 'var(--border-color)',
-                  backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' : 'var(--mantine-color-body)',
-                  boxShadow: isActive ? '0 0 12px color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'none',
-                }}
+                className={`group flex items-center gap-2.5 px-3.5 py-2.5 dribbble-quick-host cursor-pointer ${isActive ? 'active' : ''}`}
                 onClick={() => handleHostClick(host)}
                 aria-pressed={isActive}
               >
                 <div
                   className="flex items-center justify-center w-8 h-8 rounded-md shrink-0 transition-colors duration-200"
                   style={{
-                    backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 20%, transparent)' : 'color-mix(in srgb, var(--border-color) 50%, transparent)',
+                    backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 20%, transparent)' : 'color-mix(in srgb, var(--border-subtle) 50%, transparent)',
                     color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
                   }}>
                   <IconComponent size={16} />
@@ -87,14 +82,10 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
                   <span className="text-[13px] font-medium truncate leading-tight" style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
                     {host.name}
                   </span>
-                  <span className="text-[11px] text-[var(--mantine-color-dimmed)] truncate leading-tight mt-0.5">
+                  <span className="text-[11px] text-[var(--text-secondary)] truncate leading-tight mt-0.5">
                     :{host.port}
                   </span>
                 </div>
-
-                {isActive && (
-                  <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--accent-primary)' }} />
-                )}
               </UnstyledButton>
             </Tooltip>
           );

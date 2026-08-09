@@ -17,7 +17,7 @@ export interface ChatHistoryItem {
   content: string;
 }
 
-export interface AiChatRequest {
+export interface AiChatPayload {
   user_input: string;
   mode: string;
   history: ChatHistoryItem[];
@@ -27,6 +27,14 @@ export interface AiChatRequest {
   image_media_type: string | null;
   terminal_context: string | null;
   request_id: string;
+}
+
+/** Envelope CommandRequest<AiChatPayload> que espera el backend */
+export interface AiChatRequest {
+  id: string;
+  version: string;
+  timestamp_ms: number;
+  payload: AiChatPayload;
 }
 
 export interface AiChatResponse {
@@ -44,7 +52,7 @@ export interface AiChunkEvent {
 
 /**
  * Inicia un chat con la IA. Los chunks de respuesta llegan vía el evento `ai:chunk`.
- * Usar `listenAiChunks` para subscribirse al streaming.
+ * Usa el envelope CommandRequest<AiChatPayload> que espera el backend.
  */
 export const aiChat = (req: AiChatRequest): Promise<AiChatResponse> =>
   invoke<AiChatResponse>('ai_chat', { req });

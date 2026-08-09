@@ -5,7 +5,7 @@ use tauri::Emitter;
 
 const TTL_SECS: u64 = 2 * 60 * 60; // 2h
 
-#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct SessionMem {
   pub last_file: Option<String>,
   pub last_file_hash: Option<String>,
@@ -25,7 +25,7 @@ pub struct SessionMem {
   pub updated_at_ms: Option<i64>,
 }
 
-#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct SessionMemPatch {
   pub last_file: Option<String>,
   pub last_file_hash: Option<String>,
@@ -94,6 +94,18 @@ impl AppState {
     let mut w = self.by_session.write();
     Self::gc_internal(&mut w);
   }
+
+  /// Cantidad de sesiones actualmente almacenadas (incluye potencialmente
+  /// expiradas hasta el próximo `gc`). Usado por `SessionManager::gc` para
+  /// calcular cuántas entradas fueron liberadas.
+  pub fn len(&self) -> usize {
+    self.by_session.read().len()
+  }
+
+  /// IDs de todas las sesiones actualmente almacenadas.
+  pub fn list_ids(&self) -> Vec<String> {
+    self.by_session.read().keys().cloned().collect()
+  }
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -105,38 +117,52 @@ pub struct TerminalResultPayload {
 }
 
 #[tauri::command]
-pub fn mem_put(state: tauri::State<AppState>, session_id: String, patch: SessionMemPatch) {
-  state.put_patch(&session_id, patch);
+pub async fn mem_put(
+  manager: tauri::State<'_, std::sync::Arc<dyn crate::session_manager::SessionManager>>,
+  session_id: String,
+  patch: SessionMemPatch,
+) -> Result<(), String> {
+  let manager = manager.inner().clone();
+  manager.put_session_patch(&session_id, patch).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn mem_get(state: tauri::State<AppState>, session_id: String) -> Option<SessionMem> {
-  state.get(&session_id)
+pub async fn mem_get(
+  manager: tauri::State<'_, std::sync::Arc<dyn crate::session_manager::SessionManager>>,
+  session_id: String,
+) -> Result<Option<SessionMem>, String> {
+  let manager = manager.inner().clone();
+  manager.get_session(&session_id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn mem_clear(state: tauri::State<AppState>, session_id: String) {
-  state.clear(&session_id);
+pub async fn mem_clear(
+  manager: tauri::State<'_, std::sync::Arc<dyn crate::session_manager::SessionManager>>,
+  session_id: String,
+) -> Result<(), String> {
+  let manager = manager.inner().clone();
+  manager.delete_session(&session_id).await.map_err(|e| e.to_string())
 }
 
 // Opcional: permitir que el frontend empuje resultados si el backend no puede capturarlos directamente.
 #[tauri::command]
-pub fn mem_push_terminal_result(
+pub async fn mem_push_terminal_result(
   app: tauri::AppHandle,
-  state: tauri::State<AppState>,
+  manager: tauri::State<'_, std::sync::Arc<dyn crate::session_manager::SessionManager>>,
   session_id: String,
   stdout_tail: String,
   stderr_tail: String,
   exit_code: i32,
-) {
+) -> Result<(), String> {
   let payload = TerminalResultPayload { session_id: session_id.clone(), stdout_tail: stdout_tail.clone(), stderr_tail: stderr_tail.clone(), exit_code };
   // Emitir a la UI (Tauri v2)
   let _ = app.emit("copilot/terminal-result", payload);
   // Persistir en memoria efímera
-  state.put_patch(&session_id, SessionMemPatch {
+  let manager = manager.inner().clone();
+  manager.put_session_patch(&session_id, SessionMemPatch {
     last_stdout_tail: Some(stdout_tail),
     last_stderr_tail: Some(stderr_tail),
     last_exit_code: Some(exit_code),
     ..Default::default()
-  });
+  }).await.map_err(|e| e.to_string())
 }

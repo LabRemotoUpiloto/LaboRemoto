@@ -1,10 +1,9 @@
 import React from 'react'
-import { ActionIcon, Group, Select, TextInput, Tooltip } from '@mantine/core'
+import { Group, Select, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   RefreshCw,
   FolderPlus,
-  Upload,
-  Download,
+  Pencil,
   Trash2,
   Search,
   X,
@@ -23,11 +22,12 @@ export interface FilePanelToolbarProps {
   sessionId?: string
   sessionsMeta?: Record<string, { label: string }>
   onSessionChange?: (id: string | undefined) => void
-  isConnected?: boolean
 
   // Actions
   onRefresh: () => void
   onNewFolder?: () => void
+  onRename?: () => void
+  canRename?: boolean
   onUpload?: () => void
   onDownload?: () => void
   onDelete?: () => void
@@ -39,7 +39,67 @@ export interface FilePanelToolbarProps {
   // Filter
   filter: string
   onFilterChange: (value: string) => void
+
+  // Selección múltiple: cuántos elementos están seleccionados en este panel.
+  selectedCount?: number
 }
+
+// Botón compacto con icono (14-16px) y tooltip
+const toolbarButtonBaseStyle: React.CSSProperties = {
+  all: 'unset',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 5,
+  padding: '4px 6px',
+  borderRadius: 5,
+  fontSize: 12,
+  fontWeight: 500,
+  color: 'var(--text-primary)',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  transition: 'background 0.1s, color 0.1s',
+}
+
+interface ToolbarButtonProps {
+  icon: React.ReactNode
+  label: string
+  onClick?: () => void
+  disabled?: boolean
+  danger?: boolean
+  hideLabel?: boolean
+}
+
+const ToolbarButton: React.FC<ToolbarButtonProps> = ({ icon, label, onClick, disabled, danger, hideLabel = true }) => (
+  <Tooltip label={label} withArrow position="bottom" openDelay={150}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      style={{
+        ...toolbarButtonBaseStyle,
+        opacity: disabled ? 0.4 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        color: disabled ? 'var(--text-muted)' : danger ? 'var(--danger)' : 'var(--text-primary)',
+      }}
+      onMouseEnter={(e) => {
+        if (disabled) return
+        e.currentTarget.style.background = 'var(--interactive-hover)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent'
+      }}
+    >
+      {icon}
+      {!hideLabel && <span>{label}</span>}
+    </button>
+  </Tooltip>
+)
+
+const ToolbarSeparator: React.FC = () => (
+  <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', flexShrink: 0 }} />
+)
 
 const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
   side,
@@ -50,9 +110,10 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
   sessionId,
   sessionsMeta,
   onSessionChange,
-  isConnected,
   onRefresh,
   onNewFolder,
+  onRename,
+  canRename,
   onUpload,
   onDownload,
   onDelete,
@@ -62,6 +123,7 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
   disabled,
   filter,
   onFilterChange,
+  selectedCount,
 }) => {
   const sessionOptions = (sessions || []).map((id) => ({
     value: id,
@@ -82,10 +144,29 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
       style={{
         borderBottom: '1px solid var(--border-subtle)',
         background: 'var(--surface-2)',
-        minHeight: 36,
+        minHeight: 34,
         flexShrink: 0,
       }}
     >
+      {/* Action buttons de icono con tooltip */}
+      <Group gap={2} wrap="nowrap">
+        {onNewFolder && (
+          <ToolbarButton icon={<FolderPlus size={14} />} label="Nueva carpeta" onClick={onNewFolder} disabled={disabled} />
+        )}
+
+        {onRename && (
+          <ToolbarButton icon={<Pencil size={14} />} label="Renombrar" onClick={onRename} disabled={!canRename} />
+        )}
+
+        {onDelete && (
+          <ToolbarButton icon={<Trash2 size={14} />} label="Eliminar" onClick={onDelete} disabled={!canDelete} danger />
+        )}
+
+        <ToolbarButton icon={<RefreshCw size={14} />} label="Actualizar" onClick={onRefresh} disabled={disabled} />
+      </Group>
+
+      <ToolbarSeparator />
+
       {/* Drive / Session selector */}
       {side === 'local' && drives && drives.length > 0 && (
         <Select
@@ -113,119 +194,24 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
         />
       )}
 
-      {/* Connection indicator (remote only) */}
-      {side === 'remote' && (
-        <div
+      {/* Selection count */}
+      {!!selectedCount && selectedCount > 1 && (
+        <Text
+          size="xs"
+          fw={700}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '2px 8px',
-            borderRadius: 'var(--mantine-radius-xl)',
             fontSize: 10,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: isConnected ? 'var(--success)' : 'var(--text-muted)',
-            background: isConnected ? 'var(--success-bg)' : 'var(--interactive-hover)',
-            border: `1px solid ${isConnected ? 'var(--success-border)' : 'var(--border-subtle)'}`,
+            color: 'var(--accent-primary)',
+            fontVariantNumeric: 'tabular-nums',
             flexShrink: 0,
           }}
         >
-          <span
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: '50%',
-              background: isConnected ? 'var(--success)' : 'var(--text-muted)',
-            }}
-          />
-          {isConnected ? 'Conectado' : 'Desconectado'}
-        </div>
+          {selectedCount} sel.
+        </Text>
       )}
-
-      {/* Separator */}
-      <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', flexShrink: 0 }} />
-
-      {/* Action buttons */}
-      <Group gap={2} wrap="nowrap">
-        <Tooltip label="Actualizar" withArrow position="bottom">
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="sm"
-            onClick={onRefresh}
-            disabled={disabled}
-            aria-label="Actualizar"
-          >
-            <RefreshCw size={14} />
-          </ActionIcon>
-        </Tooltip>
-
-        {side === 'remote' && onNewFolder && (
-          <Tooltip label="Nueva carpeta" withArrow position="bottom">
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              onClick={onNewFolder}
-              disabled={disabled}
-              aria-label="Nueva carpeta"
-            >
-              <FolderPlus size={14} />
-            </ActionIcon>
-          </Tooltip>
-        )}
-
-        {side === 'remote' && onDelete && (
-          <Tooltip label="Eliminar" withArrow position="bottom">
-            <ActionIcon
-              variant="subtle"
-              color="red"
-              size="sm"
-              onClick={onDelete}
-              disabled={!canDelete}
-              aria-label="Eliminar"
-            >
-              <Trash2 size={14} />
-            </ActionIcon>
-          </Tooltip>
-        )}
-      </Group>
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
-
-      {/* Transfer action */}
-      {side === 'local' && onUpload && (
-        <Tooltip label="Subir al servidor" withArrow position="bottom">
-          <ActionIcon
-            variant="filled"
-            color="teal"
-            size="sm"
-            onClick={onUpload}
-            disabled={!canUpload}
-            aria-label="Subir"
-          >
-            <Upload size={14} />
-          </ActionIcon>
-        </Tooltip>
-      )}
-
-      {side === 'remote' && onDownload && (
-        <Tooltip label="Descargar a local" withArrow position="bottom">
-          <ActionIcon
-            variant="filled"
-            color="blue"
-            size="sm"
-            onClick={onDownload}
-            disabled={!canDownload}
-            aria-label="Descargar"
-          >
-            <Download size={14} />
-          </ActionIcon>
-        </Tooltip>
-      )}
 
       {/* Search */}
       <TextInput
@@ -234,14 +220,14 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
         leftSection={<Search size={12} />}
         rightSection={
           filter ? (
-            <ActionIcon
-              variant="transparent"
-              color="gray"
-              size="xs"
+            <button
+              type="button"
               onClick={() => onFilterChange('')}
+              aria-label="Limpiar búsqueda"
+              style={{ all: 'unset', display: 'flex', cursor: 'pointer', color: 'var(--text-secondary)' }}
             >
               <X size={12} />
-            </ActionIcon>
+            </button>
           ) : null
         }
         value={filter}
@@ -256,4 +242,6 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
   )
 }
 
-export default FilePanelToolbar
+FilePanelToolbar.displayName = 'FilePanelToolbar'
+
+export default React.memo(FilePanelToolbar)

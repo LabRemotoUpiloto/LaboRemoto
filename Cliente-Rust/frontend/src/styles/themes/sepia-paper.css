@@ -1,0 +1,58 @@
+/* 📜 Sepia Paper - Estilo vintage tipo libro */
+
+html[data-theme="sepia-paper"]{
+  --background-primary: #fbf5ef;
+  --background-secondary: #f3e9de;
+  --background-tertiary: #eadfcf;
+  --text-primary: #2c231a;
+  --text-secondary: #6c5b4a;
+  --accent-primary: #b87333;
+  --accent-primary-hover: #d79a63;
+  --accent-strong: #974e1a;
+  --border-color: #eadfcf;
+  --terminal-foreground: #2c231a;
+  --interactive-hover: rgba(67,52,34,0.06);
+  --interactive-active: rgba(67,52,34,0.09);
+  --interactive-selected: rgba(67,52,34,0.12);
+  /* Capa 2: paper cards (no glass, no blur) */
+  --glass-bg: #faf6eb;
+  --glass-blur: 0px;
+  --glass-border-color: #d4c5a9;
+  --radius-lg: 10px;
+  --radius-md: 6px;
+  --shadow-card: 0 3px 16px rgba(184, 115, 51, 0.08);
+  --shadow-card-hover: 0 8px 28px rgba(184, 115, 51, 0.14);
+  --card-border-color: rgba(184, 115, 51, 0.15);
+  --hover-lift: translateY(-2px);
+  --font-heading: 'Lora', serif;
+  --font-body: 'Lora', serif;
+
+  /* Sidebar & Header overrides */
+  --sidebar-bg: #ebdcb9;
+  --sidebar-border: 1px solid #d4c5a9;
+  --sidebar-radius: 8px;
+  --sidebar-blur: none;
+  --header-bg: #f4ecd8;
+  --header-border: 1px solid #d4c5a9;
+  --header-blur: none;
+}
+
+/* Sepia Paper — fondo de papel sólido y cálido */
+html[data-theme="sepia-paper"] body {
+  background: #f4ecd8 !important;
+}
+
+/* 📜 Personalización Vintage (Sepia Paper) del Chat */
+html[data-theme="sepia-paper"] .chat-bubble-user {
+  background-color: var(--background-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 2px 2px 0px var(--border-color) !important;
+  border-radius: 4px !important;
+}
+html[data-theme="sepia-paper"] .chat-bubble-ai {
+  background-color: var(--background-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 2px 2px 0px var(--border-color) !important;
+  border-radius: 4px !important;
+}

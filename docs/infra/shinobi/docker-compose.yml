@@ -1,0 +1,41 @@
+services:
+  # ─── Base de datos de Shinobi ───
+  # Shinobi CE es compatible con MySQL/MariaDB (NO usa Mongo pese a que el
+  # plan original lo dejaba como duda sin resolver). MariaDB es la opción
+  # documentada oficialmente por Shinobi para instalaciones self-hosted.
+  shinobi-db:
+    image: mariadb:10.11
+    container_name: shinobi-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeme}
+      MYSQL_DATABASE: ${DB_NAME:-ccio}
+      MYSQL_USER: ${DB_USER:-majesticflame}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - ${NVR_DB_PATH:-./database}:/var/lib/mysql
+
+  shinobi:
+    # TODO: verificar en https://hub.docker.com/r/shinobisystems/shinobi que
+    # este tag soporte arm64/armv7 antes de desplegar en la Pi. El plan
+    # (docs/plan-shinobi-nvr.md, riesgo "Imagen Docker ARM") deja esto como
+    # verificación pendiente, no como hecho confirmado.
+    image: shinobisystems/shinobi:dev
+    container_name: shinobi
+    restart: unless-stopped
+    depends_on:
+      - shinobi-db
+    ports:
+      - "${SHINOBI_WEB_PORT:-8080}:8080"   # web + API + HLS
+      - "${SHINOBI_RTMP_PORT:-1935}:1935"  # ingesta RTMP desde los edges
+    environment:
+      MYSQL_HOST: shinobi-db
+      MYSQL_USER: ${DB_USER:-majesticflame}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+      MYSQL_DATABASE: ${DB_NAME:-ccio}
+    volumes:
+      - ${NVR_CONFIG_PATH:-./config}:/config
+      # Las grabaciones viven en un disco externo montado (NO en la SD de la
+      # Pi): la SD tiene ciclos de escritura limitados y poco espacio, y una
+      # grabación continua de varias cámaras la degradaría rápido.
+      - ${NVR_VIDEOS_PATH:-/mnt/nvr/videos}:/home/Shinobi/videos

@@ -20,6 +20,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::cmd::state::SESSIONS;
 use crate::error::AppError;
+use crate::cmd::protocol::CommandError;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos públicos
@@ -49,22 +50,22 @@ pub async fn vnc_start(
     app: AppHandle,
     session_id: String,
     resolution: Option<String>,
-) -> Result<VncSessionInfo, String> {
+) -> Result<VncSessionInfo, CommandError> {
     let res = resolution.unwrap_or_else(|| "1280x720".to_string());
 
     const VALID: &[&str] = &["1024x768", "1280x720", "1280x800", "1920x1080"];
     if !VALID.contains(&res.as_str()) {
-        return Err(format!(
-            "Resolución inválida '{res}'. Opciones: {}",
-            VALID.join(", ")
+        return Err(CommandError::permanent(
+            "VALIDATION_FAILED",
+            format!("Resolución inválida '{res}'. Opciones: {}", VALID.join(", ")),
         ));
     }
 
     let (host, port, user, password) = {
-        let map = SESSIONS.lock().map_err(|e| e.to_string())?;
+        let map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
         let sess = map
             .get(&session_id)
-            .ok_or_else(|| AppError::NotFoundSession.to_string())?;
+            .ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
 
         if let Some(vnc) = &sess.vnc_session {
             return Ok(VncSessionInfo {
@@ -88,37 +89,39 @@ pub async fn vnc_start(
     let r = res.clone();
 
     let (display, vnc_port, ws_listener, local_fwd_port, is_virtual, home_dir) =
-        tokio::task::spawn_blocking(move || -> Result<(u32, u16, std::net::TcpListener, u16, bool, String), String> {
+        tokio::task::spawn_blocking(move || -> Result<(u32, u16, std::net::TcpListener, u16, bool, String), CommandError> {
             let (_tcp_setup, setup_sess) =
                 crate::ssh_core::ssh2_sftp::connect_password(&h, port, &u, &p)
-                    .map_err(|e| format!("Conexión SSH para setup VNC falló: {e}"))?;
+                    .map_err(|e| CommandError::transient("SSH_ERROR", format!("Conexión SSH para setup VNC falló: {e}")))?;
 
             let home_dir = utils::get_remote_home(&setup_sess);
-            utils::check_dependencies(&setup_sess, true)?;
+            utils::check_dependencies(&setup_sess, true)
+                .map_err(|e| CommandError::permanent("VALIDATION_FAILED", e))?;
             crate::cmd::state::run_pending_vnc_cleanups(&setup_sess);
-            let display  = utils::find_free_display(&setup_sess)?;
-            let vnc_port = utils::find_free_vnc_port(&setup_sess)?;
-            server::start_vnc_server(&setup_sess, display, vnc_port, &r, &home_dir)?;
+            let display  = utils::find_free_display(&setup_sess).map_err(|e| CommandError::transient("IO_ERROR", e))?;
+            let vnc_port = utils::find_free_vnc_port(&setup_sess).map_err(|e| CommandError::transient("IO_ERROR", e))?;
+            server::start_vnc_server(&setup_sess, display, vnc_port, &r, &home_dir)
+                .map_err(|e| CommandError::transient("IO_ERROR", e))?;
 
             let ws_listener = std::net::TcpListener::bind("127.0.0.1:0")
-                .map_err(|e| format!("No se pudo abrir el listener WS local: {e}"))?;
+                .map_err(|e| CommandError::transient("IO_ERROR", format!("No se pudo abrir el listener WS local: {e}")))?;
 
             let fwd_listener = std::net::TcpListener::bind("127.0.0.1:0")
-                .map_err(|e| format!("No se pudo reservar puerto local para ssh -L: {e}"))?;
+                .map_err(|e| CommandError::transient("IO_ERROR", format!("No se pudo reservar puerto local para ssh -L: {e}")))?;
             let local_fwd_port = fwd_listener
                 .local_addr()
-                .map_err(|e| e.to_string())?
+                .map_err(|e| CommandError::transient("IO_ERROR", e.to_string()))?
                 .port();
             drop(fwd_listener);
 
             Ok((display, vnc_port, ws_listener, local_fwd_port, true, home_dir))
         })
         .await
-        .map_err(|e| format!("Error interno (spawn_blocking): {e}"))??;
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("Error interno (spawn_blocking): {e}")))??;
 
     let ws_port = ws_listener
         .local_addr()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| CommandError::transient("IO_ERROR", e.to_string()))?
         .port();
 
     let stop_flag  = Arc::new(AtomicBool::new(false));
@@ -131,7 +134,7 @@ pub async fn vnc_start(
     let fwd_stop = stop_flag.clone();
 
     let fwd_listener = std::net::TcpListener::bind(format!("127.0.0.1:{local_fwd_port}"))
-        .map_err(|e| format!("No se pudo abrir port-forward listener en {local_fwd_port}: {e}"))?;
+        .map_err(|e| CommandError::transient("IO_ERROR", format!("No se pudo abrir port-forward listener en {local_fwd_port}: {e}")))?;
     fwd_listener.set_nonblocking(true).ok();
 
     std::thread::Builder::new()
@@ -139,7 +142,7 @@ pub async fn vnc_start(
         .spawn(move || {
             bridge::run_port_forward(fwd_listener, fwd_h, port, fwd_u, fwd_p, vnc_port, fwd_stop);
         })
-        .map_err(|e| format!("No se pudo lanzar el hilo port-forward: {e}"))?;
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("No se pudo lanzar el hilo port-forward: {e}")))?;
 
     std::thread::sleep(std::time::Duration::from_millis(100));
 
@@ -155,13 +158,13 @@ pub async fn vnc_start(
                 app_bridge, sid_bridge, local_fwd_port,
             );
         })
-        .map_err(|e| format!("No se pudo lanzar el hilo bridge VNC: {e}"))?;
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", format!("No se pudo lanzar el hilo bridge VNC: {e}")))?;
 
     {
-        let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
+        let mut map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
         let sess = map
             .get_mut(&session_id)
-            .ok_or_else(|| AppError::NotFoundSession.to_string())?;
+            .ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
         sess.vnc_session = Some(crate::cmd::state::VncSessionState {
             display_num: display,
             vnc_port_remote: vnc_port,
@@ -192,10 +195,10 @@ pub async fn vnc_start(
 
 /// Detiene la sesión gráfica activa.
 #[tauri::command]
-pub async fn vnc_stop(session_id: String) -> Result<(), String> {
+pub async fn vnc_stop(session_id: String) -> Result<(), CommandError> {
     let (vnc_opt, term_tx) = {
-        let mut map = crate::cmd::state::SESSIONS.lock().map_err(|e| e.to_string())?;
-        let sess = map.get_mut(&session_id).ok_or("NotFoundSession")?;
+        let mut map = crate::cmd::state::SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
+        let sess = map.get_mut(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
         (sess.vnc_session.take(), sess.term.tx.clone())
     };
 
@@ -222,16 +225,16 @@ pub async fn vnc_stop(session_id: String) -> Result<(), String> {
 
 /// Limpia todos los displays VNC virtuales desde :20 en el servidor activo.
 #[tauri::command]
-pub async fn vnc_cleanup_all(session_id: String) -> Result<String, String> {
+pub async fn vnc_cleanup_all(session_id: String) -> Result<String, CommandError> {
     let (host, port, user, password) = {
-        let map = crate::cmd::state::SESSIONS.lock().map_err(|e| e.to_string())?;
-        let sess = map.get(&session_id).ok_or("NotFoundSession")?;
+        let map = crate::cmd::state::SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
+        let sess = map.get(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
         (sess.host.clone(), sess.port, sess.user.clone(), sess.password.clone())
     };
 
-    let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
+    let result = tokio::task::spawn_blocking(move || -> Result<String, CommandError> {
         let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
-            .map_err(|e| format!("SSH error: {e}"))?;
+            .map_err(|e| CommandError::transient("SSH_ERROR", format!("SSH error: {e}")))?;
         let (_, out) = crate::ssh_core::exec::ssh_exec_session(
             &sess,
             "for d in $(seq 20 99); do \
@@ -242,20 +245,20 @@ pub async fn vnc_cleanup_all(session_id: String) -> Result<String, String> {
                  echo \"killed :$d\"; \
                }; \
              done; true"
-        ).map_err(|e| e)?;
+        ).map_err(|e| CommandError::transient("SSH_ERROR", e))?;
         Ok(out.trim().to_string())
-    }).await.map_err(|e| e.to_string())??;
+    }).await.map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))??;
 
     Ok(if result.is_empty() { "No había displays activos".to_string() } else { result })
 }
 
 /// Consulta el estado de la sesión gráfica para un session_id dado.
 #[tauri::command]
-pub async fn vnc_status(session_id: String) -> Result<VncStatusResponse, String> {
-    let map = SESSIONS.lock().map_err(|e| e.to_string())?;
+pub async fn vnc_status(session_id: String) -> Result<VncStatusResponse, CommandError> {
+    let map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
     let sess = map
         .get(&session_id)
-        .ok_or_else(|| AppError::NotFoundSession.to_string())?;
+        .ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
     Ok(match &sess.vnc_session {
         None => VncStatusResponse::NotStarted,
         Some(v) => VncStatusResponse::Running {

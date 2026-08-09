@@ -2,7 +2,9 @@
 //!
 //! Este módulo contiene:
 //! - logs.rs: Almacenamiento y recuperación de logs
+//! - ansi_html.rs: Conversión de buffer de terminal (ANSI) a HTML
 
 pub mod logs;
+pub mod ansi_html;
 
-pub use logs::{save_session_log, save_session_log_fragment, list_session_logs, get_session_log_content, get_session_log, delete_session_log, cleanup_old_session_logs};
+pub use logs::{save_session_log, save_session_log_fragment, list_session_logs, get_session_log_content, get_session_log, delete_session_log, cleanup_old_session_logs, extract_session_commands};
