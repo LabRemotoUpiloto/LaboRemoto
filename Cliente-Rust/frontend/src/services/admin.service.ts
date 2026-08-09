@@ -10,6 +10,9 @@ export interface KeycloakUser {
   enabled?: boolean;
   /** Fecha de creación en Keycloak (epoch millis). */
   createdTimestamp?: number;
+  /** Atributos custom -- Keycloak siempre los representa como array de strings.
+   *  `avatar[0]` es la data URL que el usuario subió desde Perfil (ver PerfilPage). */
+  attributes?: Record<string, string[]>;
 }
 
 export interface KeycloakRole {

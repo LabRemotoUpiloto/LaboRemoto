@@ -477,3 +477,93 @@ pub async fn admin_toggle_user_role(
         client.admin_remove_role(&token, &user_id, &role).await.map_err(|e| e.to_string())
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Account API Commands (self-service — cualquier usuario autenticado edita
+// su propia cuenta, no requiere admin_lab)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// data URL base64 -- el frontend ya redimensiona/comprime la imagen antes de
+/// mandarla (ver `PerfilPage.tsx`), este límite es una segunda barrera de
+/// seguridad contra un payload gigante malformado.
+const MAX_AVATAR_DATA_URL_LEN: usize = 80_000;
+
+#[tauri::command]
+pub async fn account_get_avatar(
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<Option<String>, String> {
+    let manager = manager.inner().clone();
+    let token = manager.get_access_token().await.map_err(|e| e.to_string())?
+        .ok_or("No hay sesión activa")?;
+    let config = KeycloakConfig::from_env();
+    let client = KeycloakClient::new(config);
+
+    let account = client.account_get(&token).await.map_err(|e| e.to_string())?;
+    let avatar = account
+        .get("attributes")
+        .and_then(|a| a.get("avatar"))
+        .and_then(|v| v.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    Ok(avatar)
+}
+
+/// Guarda el avatar del usuario. Se probó primero con la Account API
+/// self-service (`POST /realms/{realm}/account`), pero este realm federa
+/// usuarios desde LDAP en modo solo-lectura -- Keycloak rechaza CUALQUIER
+/// escritura ahí con `readOnlyUserMessage`, sin importar qué campo cambie.
+/// La restricción de LDAP aplica a los campos mapeados desde el directorio
+/// (username/email/nombre), no a atributos propios de Keycloak como
+/// `avatar`, así que escribiéndolo vía la Admin API sí funciona -- por eso
+/// esto exige admin_lab (`check_admin_lab`), igual que el resto de comandos
+/// admin_* de este archivo. Limitación conocida: usuarios sin admin_lab
+/// (laboratorista/semillerista/estudiante) no pueden subir su propio avatar
+/// hoy -- solucionarlo de verdad requeriría cambiar el modo de sincronización
+/// LDAP del realm (fuera del alcance de este repo).
+#[tauri::command]
+pub async fn account_set_avatar(
+    avatar_data_url: String,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<(), String> {
+    if avatar_data_url.len() > MAX_AVATAR_DATA_URL_LEN {
+        return Err(format!(
+            "La imagen es muy grande ({} KB, máximo {} KB)",
+            avatar_data_url.len() / 1024,
+            MAX_AVATAR_DATA_URL_LEN / 1024
+        ));
+    }
+    if !avatar_data_url.starts_with("data:image/") {
+        return Err("Formato de imagen inválido".to_string());
+    }
+
+    let manager = manager.inner().clone();
+    let token = check_admin_lab(&manager).await?;
+    let config = KeycloakConfig::from_env();
+    let client = KeycloakClient::new(config);
+
+    // account_get (self-service) solo se usa para obtener el `id` propio --
+    // su respuesta no sirve como base para el PUT de la Admin API (ver doc
+    // de admin_get_user).
+    let account = client.account_get(&token).await.map_err(|e| e.to_string())?;
+    let user_id = account.get("id").and_then(|v| v.as_str())
+        .ok_or("Respuesta de Keycloak sin id de usuario")?
+        .to_string();
+
+    // Payload mínimo (solo id + attributes) en vez de reenviar el objeto
+    // completo de admin_get_user -- reenviar todo el UserRepresentation tal
+    // cual (credentials, access, federationLink, etc.) le hacía fallar el
+    // PUT con un "Could not update user!" genérico. `attributes` sí hay que
+    // traerlo completo del GET antes de tocarlo: Keycloak reemplaza el mapa
+    // entero, no lo mergea por clave, así que perder el resto de atributos
+    // custom existentes sería un efecto secundario real.
+    let existing = client.admin_get_user(&token, &user_id).await.map_err(|e| e.to_string())?;
+    let mut attributes = existing.get("attributes").cloned().unwrap_or_else(|| serde_json::json!({}));
+    if !attributes.is_object() {
+        attributes = serde_json::json!({});
+    }
+    attributes["avatar"] = serde_json::json!([avatar_data_url]);
+
+    let user = serde_json::json!({ "id": user_id, "attributes": attributes });
+    client.admin_update_user(&token, &user_id, &user).await.map_err(|e| e.to_string())
+}
