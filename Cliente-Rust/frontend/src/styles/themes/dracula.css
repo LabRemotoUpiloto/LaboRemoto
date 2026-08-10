@@ -10,4 +10,19 @@ html[data-theme="dracula"] {
   --accent-primary-hover: #ff92d0;
   --accent-strong: #bd93f9;
   --border-color: #44475a;
+
+  /* Cyberpunk Sharp Wireframe Borders & Neon Glow Shadows */
+  --radius-lg: 2px;
+  --radius-md: 2px;
+  --radius-sm: 2px;
+  --card-border-width: 2px;
+  --card-border-color: #ff79c6;
+  --shadow-card: 0 0 12px rgba(255, 121, 198, 0.3), 3px 3px 0px #bd93f9;
+  --shadow-card-hover: 0 0 20px rgba(255, 121, 198, 0.5), 5px 5px 0px #ff79c6;
+  --hover-lift: translate(-3px, -3px);
+
+  /* Typographic & Icon personality */
+  --font-heading: Consolas, 'Liberation Mono', Menlo, Monaco, 'Courier New', monospace;
+  --font-body: Consolas, 'Liberation Mono', Menlo, Monaco, 'Courier New', monospace;
+  --svg-filter: drop-shadow(0 0 3.5px rgba(255, 121, 198, 0.45));
 }

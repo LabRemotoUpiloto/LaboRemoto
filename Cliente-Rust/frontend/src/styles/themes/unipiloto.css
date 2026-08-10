@@ -88,8 +88,10 @@ html[data-theme="unipiloto"] {
   --placeholder-fg:        #9b9b9b;
 
   /* ── Tipografía institucional ── */
-  --font-heading:          'Montserrat', sans-serif;
-  --font-body:             'Open Sans', sans-serif;
+  --font-heading:          'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body:             'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --svg-stroke-width:      2px;
+  --svg-filter:            drop-shadow(0 1px 2px rgba(213, 31, 34, 0.12));
   --accent-contrast:       #ffffff;
   font-family:             var(--font-body);
 }

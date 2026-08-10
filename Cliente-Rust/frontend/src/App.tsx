@@ -38,12 +38,15 @@ import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
-// ── Mantine theme — color primario reactivo al tema CSS activo ───────────────
+// ── Mantine theme — color primario y fuentes reactivas al tema CSS activo ───────────────
 function buildMantineTheme(primaryColor: string) {
   return createTheme({
     primaryColor,
     defaultRadius: 'md',
-    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+    fontFamily: 'var(--font-body, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)',
+    headings: {
+      fontFamily: 'var(--font-heading, var(--font-body, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif))',
+    },
     colors: {
       // Escala roja institucional Unipiloto (10 pasos requeridos por Mantine)
       'unipiloto-red': [

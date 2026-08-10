@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, CircleAlert, Terminal, X } from 'lucide-react';
+import { ArrowRight, CircleAlert, CircleHelp, Terminal, X } from 'lucide-react';
 import type { ChatAppearance } from '../chat/ChatMessageList';
 import './TerminalBanners.css';
 
@@ -8,6 +8,9 @@ interface Props {
   errorBanner: { snippet: string; hint?: string } | null;
   onDismissError: () => void;
   onAnalyze: () => void;
+  promptBanner: { snippet: string } | null;
+  onDismissPrompt: () => void;
+  onAskAboutPrompt: () => void;
   terminalActivity: boolean;
   onDismissActivity: () => void;
 }
@@ -17,6 +20,9 @@ const TerminalBanners: React.FC<Props> = ({
   errorBanner,
   onDismissError,
   onAnalyze,
+  promptBanner,
+  onDismissPrompt,
+  onAskAboutPrompt,
   terminalActivity,
   onDismissActivity,
 }) => {
@@ -74,7 +80,49 @@ const TerminalBanners: React.FC<Props> = ({
         </div>
       )}
 
-      {terminalActivity && !errorBanner && (
+      {!errorBanner && promptBanner && (
+        <div
+          className={[
+            'terminal-notice terminal-notice--prompt',
+            isLanding ? 'terminal-notice--landing' : 'terminal-notice--session',
+          ].join(' ')}
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            className={[
+              'terminal-notice__status-icon terminal-notice__status-icon--prompt',
+              isLanding && 'terminal-notice__status-icon--landing',
+            ].filter(Boolean).join(' ')}
+            aria-hidden
+          >
+            <CircleHelp size={12} strokeWidth={2.5} />
+          </span>
+          <div className="terminal-notice__body">
+            <div className="terminal-notice__head">
+              <Terminal size={13} className="terminal-notice__head-icon" strokeWidth={2.25} />
+              <span className="terminal-notice__title">La terminal está esperando tu respuesta</span>
+              <button
+                type="button"
+                className="terminal-notice__dismiss"
+                onClick={onDismissPrompt}
+                aria-label="Descartar aviso"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <p className="terminal-notice__snippet" title={promptBanner.snippet}>
+              {promptBanner.snippet}
+            </p>
+            <button type="button" className="terminal-notice__action" onClick={onAskAboutPrompt}>
+              ¿Qué me está preguntando?
+              <ArrowRight size={12} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {terminalActivity && !errorBanner && !promptBanner && (
         <div
           className={[
             'terminal-notice terminal-notice--activity',

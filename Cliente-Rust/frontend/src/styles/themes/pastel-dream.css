@@ -14,18 +14,24 @@ html[data-theme="pastel-dream"]{
   --interactive-active: rgba(61,26,47,0.09);
   --interactive-selected: rgba(61,26,47,0.12);
   --terminal-foreground: #3d1a2f;
-  /* Capa 2: round + playful */
-  --radius-lg: 20px;
-  --radius-md: 14px;
-  --shadow-card: 0 6px 28px rgba(232, 121, 249, 0.08);
-  --shadow-card-hover: 0 14px 44px rgba(232, 121, 249, 0.16);
+  /* Capa 2: round + playful pill borders & soft floating shadows */
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --card-border-width: 2.5px;
+  --card-border-color: rgba(232, 121, 249, 0.45);
+  --shadow-card: 0 10px 30px rgba(232, 121, 249, 0.2);
+  --shadow-card-hover: 0 18px 45px rgba(232, 121, 249, 0.35);
+  --hover-lift: translateY(-6px) scale(1.02);
   --glass-bg: rgba(254, 243, 247, 0.7);
   --glass-blur: 14px;
   --glass-border-color: rgba(232, 121, 249, 0.25);
-  --font-heading: 'Nunito', sans-serif;
-  --font-body: 'Nunito', sans-serif;
+  --font-heading: 'Comic Sans MS', 'Chalkboard SE', 'Trebuchet MS', 'Fredoka', sans-serif;
+  --font-body: 'Trebuchet MS', 'Segoe UI', -apple-system, sans-serif;
+  --svg-stroke-width: 2.2px;
+  --svg-filter: drop-shadow(0 2px 4px rgba(232, 121, 249, 0.35));
 
-  /* Sidebar & Header overrides */
+/* Sidebar & Header overrides */
   --sidebar-bg: rgba(250, 235, 240, 0.5);
   --sidebar-border: 1px solid rgba(232, 121, 249, 0.2);
   --sidebar-radius: 24px;
@@ -33,6 +39,24 @@ html[data-theme="pastel-dream"]{
   --header-bg: rgba(253, 248, 245, 0.5);
   --header-border: 1px solid rgba(232, 121, 249, 0.15);
   --header-blur: blur(20px);
+}
+
+/* Estilo de íconos SVG en la sidebar: Soft Pastel Filled Sticker Badges */
+html[data-theme="pastel-dream"] aside svg,
+html[data-theme="pastel-dream"] nav svg {
+  fill: rgba(232, 121, 249, 0.3) !important;
+  stroke: #d946ef !important;
+  stroke-width: 2.2px !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+html[data-theme="pastel-dream"] aside button:hover svg,
+html[data-theme="pastel-dream"] nav button:hover svg {
+  fill: #f0abfc !important;
+  stroke: #3d1a2f !important;
+  transform: scale(1.18) rotate(-5deg);
 }
 
 /* Pastel Dream — orbes pastel difuminados */

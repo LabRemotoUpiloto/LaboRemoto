@@ -29,6 +29,7 @@ html[data-theme="glass-water"]{
   --shadow-card-hover: 0 24px 64px 0 rgba(0, 0, 0, 0.5);
   --font-heading: 'Plus Jakarta Sans', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
+  --svg-filter: drop-shadow(0 2px 6px rgba(0, 240, 255, 0.35));
 
   /* Surfaces & inputs translucent overrides */
   --surface-0: rgba(18, 19, 24, 0.35);

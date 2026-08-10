@@ -60,7 +60,7 @@ El tour cubre **24 pasos** organizados en el siguiente orden:
 | 13 | Panel Local (SFTP) | `[data-tour="sftp-panel-local"]` | Archivos de la PC local |
 | 14 | Panel Remoto (SFTP) | `[data-tour="sftp-panel-remote"]` | Archivos del servidor |
 | 15 | Transferir Archivos | `.sftp-icon-btn--primary` | Subir ↑ / Descargar ↓ |
-| 16 | **Escritorio Remoto VNC** | `[data-page="vnc"]` | Xvfb + LXDE + noVNC via SSH |
+| 16 | **Escritorio Remoto VNC** | `[data-page="vnc"]` | Xvnc + LXDE + noVNC via SSH |
 | 17 | **GPIO Raspberry Pi** | `[data-page="raspberry"]` | Control de pines BCM en tiempo real |
 | 18 | **Arduino — Domótica** | `[data-page="arduino"]` | Bridge HTTP→Serial sobre SSH |
 | 19 | Historial de Logs | `[data-page="logs"]` | Sesiones guardadas y exportación PDF |
