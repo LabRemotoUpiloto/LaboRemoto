@@ -1,4 +1,4 @@
-import { ERROR_PATTERNS } from '../components/chatPane/chatPane.constants';
+import { ERROR_PATTERNS, PROMPT_PATTERNS } from '../components/chatPane/chatPane.constants';
 
 /** Línea que parece prompt de shell (con o sin comando ya escrito). */
 export function isPromptLine(line: string): boolean {
@@ -131,4 +131,25 @@ export function terminalContextLooksClean(raw: string): boolean {
   if (!raw.trim() || /\x1b\[2J/.test(raw)) return true;
   const stripped = stripTerminalAnsi(raw).replace(/\r/g, '');
   return !ERROR_PATTERNS.some(p => p.test(stripped));
+}
+
+/**
+ * Detecta si la terminal quedó bloqueada esperando una respuesta interactiva
+ * (Y/n, password, un diálogo whiptail/dialog tipo "<Ok>", etc.). A diferencia
+ * de `analyzeTerminalContext` (que busca en todo el buffer), acá solo mira
+ * las últimas líneas: un prompt bloqueado es por definición lo ÚLTIMO que se
+ * imprimió — no hay un prompt de shell después porque el comando todavía no
+ * devolvió el control.
+ */
+export function analyzeTerminalPrompt(raw: string): TerminalErrorInsight | null {
+  if (!raw.trim() || /\x1b\[2J/.test(raw)) return null;
+  const lines = normalizeTerminalContext(raw);
+  const tail = lines.slice(-8);
+  for (let i = tail.length - 1; i >= 0; i--) {
+    const line = tail[i];
+    if (PROMPT_PATTERNS.some(p => p.test(line))) {
+      return { snippet: line.slice(0, 160) };
+    }
+  }
+  return null;
 }

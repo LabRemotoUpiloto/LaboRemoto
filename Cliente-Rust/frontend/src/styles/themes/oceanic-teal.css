@@ -18,6 +18,10 @@ html[data-theme="oceanic-teal"]{
   --shadow-card-hover: 0 12px 40px rgba(43, 214, 200, 0.15);
   --radius-lg: 16px;
 
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+  --svg-filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.4));
+
   /* Sidebar & Header overrides */
   --sidebar-bg: rgba(6, 43, 49, 0.45);
   --sidebar-border: 1px solid rgba(43, 214, 200, 0.18);
@@ -45,4 +49,20 @@ html[data-theme="oceanic-teal"] .chat-bubble-ai {
   -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
   border: 1px solid var(--glass-border-color) !important;
   color: var(--text-primary) !important;
+}
+
+/* Estilo de íconos SVG en la sidebar: Duotone Glass Vector */
+html[data-theme="oceanic-teal"] aside svg,
+html[data-theme="oceanic-teal"] nav svg {
+  fill: rgba(43, 214, 200, 0.28) !important;
+  stroke: #2bd6c8 !important;
+  stroke-width: 1.8px !important;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+html[data-theme="oceanic-teal"] aside button:hover svg,
+html[data-theme="oceanic-teal"] nav button:hover svg {
+  fill: rgba(43, 214, 200, 0.6) !important;
+  stroke: #ffffff !important;
+  transform: scale(1.1);
 }

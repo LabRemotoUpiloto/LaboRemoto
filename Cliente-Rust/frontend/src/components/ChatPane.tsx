@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useSessionMemory } from '../hooks/useSessionMemory';
+import { consumePendingChatMessage } from '../utils/pendingChatMessage';
 
 import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext, ModelSelection } from './chatModes/types';
 import type { CommandResponse } from '../services/command.service';
@@ -261,7 +262,7 @@ const ChatPane: React.FC<Props> = ({
   }, [sessionId, pi4ChatSessionId, pi4EmbedStillNeeded, disconnectPi4Session, setMessages]);
 
   // ── Custom Hooks ──
-  const { errorBanner, setErrorBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(terminalMonitorSessionId);
+  const { errorBanner, setErrorBanner, promptBanner, setPromptBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(terminalMonitorSessionId);
   const { handleExportMd, handleExportHtml } = useChatExport(messages, setToast);
   const { sessionTokens, setSessionTokens } = useChatStorage(sessionId, mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
   
@@ -325,6 +326,35 @@ const ChatPane: React.FC<Props> = ({
     };
     document.addEventListener('chat:system-msg', handler as any);
     return () => document.removeEventListener('chat:system-msg', handler as any);
+  }, []);
+
+  // Inyecta un mensaje YA ESCRITO como si lo hubiera dicho el asistente —
+  // sin llamar al modelo (nada de latencia/no-determinismo para un texto que
+  // ya sabemos de antemano, ej. "falta este paquete, corré este comando").
+  // Como `invokeAsk` arma el `history` que se le manda al modelo leyendo
+  // directo de `messages` (mapeando sender 'ai' → role 'assistant'), este
+  // mensaje queda como contexto real para cualquier pregunta de seguimiento
+  // sin necesidad de nada más — ver useDesktopSession.ts para el disparador
+  // de dependencias faltantes del escritorio remoto.
+  //
+  // Se consume desde `pendingChatMessage` (no un CustomEvent con el texto
+  // directo) porque abrir el panel de chat es un cambio de estado async: si
+  // el panel estaba cerrado, este componente todavía no existe en el DOM en
+  // el momento en que se dispara el aviso, así que un evento con el texto
+  // adentro se perdería antes de que este efecto llegue a registrarse. El
+  // mensaje vive afuera de React hasta que este efecto lo revisa al montar
+  // (panel recién abierto) o al recibir `chat:check-pending-msg` (panel ya
+  // estaba abierto, este efecto ya estaba registrado).
+  useEffect(() => {
+    const consume = () => {
+      const msg = consumePendingChatMessage();
+      if (!msg) return;
+      if (msg.model) setSelectedModel(msg.model as ModelSelection);
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: msg.text, timestamp: Date.now() }]);
+    };
+    consume();
+    document.addEventListener('chat:check-pending-msg', consume);
+    return () => document.removeEventListener('chat:check-pending-msg', consume);
   }, []);
 
   useEffect(() => {
@@ -647,6 +677,19 @@ const ChatPane: React.FC<Props> = ({
               setInput('hay un error en la terminal, revísalo y corrígelo');
               setTimeout(() => inputRef.current?.focus(), 50);
             }}
+            promptBanner={promptBanner}
+            onDismissPrompt={() => setPromptBanner(null)}
+            onAskAboutPrompt={() => {
+              archiveCurrentChatRef.current?.();
+              loadedHistoryIdRef.current = null;
+              messageCountAtLoadRef.current = 0;
+              setAttachedImage(null);
+              setMode('agente');
+              setPromptBanner(null);
+              setTerminalActivity(false);
+              setInput('la terminal está esperando una respuesta, ¿qué me está preguntando y qué le respondo?');
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
             terminalActivity={terminalActivity}
             onDismissActivity={() => setTerminalActivity(false)}
           />
@@ -667,6 +710,19 @@ const ChatPane: React.FC<Props> = ({
               setErrorBanner(null);
               setTerminalActivity(false);
               setInput('hay un error en la terminal, revísalo y corrígelo');
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+            promptBanner={promptBanner}
+            onDismissPrompt={() => setPromptBanner(null)}
+            onAskAboutPrompt={() => {
+              archiveCurrentChatRef.current?.();
+              loadedHistoryIdRef.current = null;
+              messageCountAtLoadRef.current = 0;
+              setAttachedImage(null);
+              setMode('agente');
+              setPromptBanner(null);
+              setTerminalActivity(false);
+              setInput('la terminal está esperando una respuesta, ¿qué me está preguntando y qué le respondo?');
               setTimeout(() => inputRef.current?.focus(), 50);
             }}
             terminalActivity={terminalActivity}

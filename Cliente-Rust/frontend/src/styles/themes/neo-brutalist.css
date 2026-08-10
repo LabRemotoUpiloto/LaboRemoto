@@ -71,9 +71,11 @@ html[data-theme="neo-brutalist"] {
   --shadow-card-hover:     8px 8px 0px #000000;
   --hover-lift:            translate(-4px, -4px);
 
-  /* ── Tipografía brutalista ── */
-  --font-heading:          'Outfit', sans-serif;
-  --font-body:             'Outfit', sans-serif;
+  /* ── Tipografía brutalista limpia y legible ── */
+  --font-heading:          'Trebuchet MS', 'Segoe UI', 'Outfit', sans-serif;
+  --font-body:             'Trebuchet MS', 'Segoe UI', 'Outfit', sans-serif;
+  --svg-stroke-width:      2px;
+  --svg-filter:            none;
 }
 
 html[data-theme="neo-brutalist"] body {

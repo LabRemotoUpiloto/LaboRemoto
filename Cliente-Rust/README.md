@@ -131,10 +131,10 @@ Los schemas MCP se almacenan en `%APPDATA%\upiloto\ssh-client\mcp_servers.json`.
 ---
 
 ### `cmd/vnc` — Escritorio Gráfico Remoto (VNC)
-Permite acceder al **entorno gráfico LXDE** de la Raspberry Pi (o cualquier Linux con Xvfb) desde la app, sin necesidad de monitor físico.
+Permite acceder al **entorno gráfico LXDE** de la Raspberry Pi (o cualquier Linux con Xvnc) desde la app, sin necesidad de monitor físico.
 
 **Ciclo de vida:**
-1. `vnc_start` → detecta display y puerto VNC libres → arranca `Xvfb + Openbox + lxpanel + pcmanfm + x11vnc` en el servidor remoto
+1. `vnc_start` → detecta display y puerto VNC libres → arranca `Xvnc + Openbox + lxpanel + pcmanfm` en el servidor remoto (Xvnc de TigerVNC es el display virtual y el servidor VNC en un solo proceso — reemplazó al combo Xvfb+x11vnc: al generar el framebuffer él mismo, no depende de polling ni de la extensión xdamage para saber qué cambió)
 2. Abre un **bridge WebSocket ↔ SSH direct-tcpip** en Rust (framing WS manual, sin perder frames por timeouts)
 3. Devuelve `ws_port` al frontend → noVNC se conecta al puerto local
 4. `vnc_stop` → señala al bridge que pare → mata SOLO los procesos de esa sesión (no afecta otras sesiones activas)
@@ -143,8 +143,9 @@ Permite acceder al **entorno gráfico LXDE** de la Raspberry Pi (o cualquier Lin
 - 🎨 Detecta automáticamente el wallpaper real del dispositivo (LXDE-pi, GNOME, XFCE)
 - 🌐 Ícono "Servidor Web Local" en el escritorio → abre `http://localhost:10000` (Apache)
 - 🔒 Aislamiento por display: cada sesión VNC tiene su Chromium, perfil y pines de proceso únicos
-- 🧹 Limpieza automática en cierre de la app (`vnc_cleanup_all`)
-- 📺 Modo físico (pantalla real con `x11vnc`) y modo virtual (Xvfb)
+- 🧹 Limpieza automática en cierre de la app (`vnc_cleanup_all`) — también limpia huérfanos `Xvfb`/`x11vnc` de antes de la migración a Xvnc
+- 📺 Modo físico (pantalla real con `x11vnc`, para adjuntarse a una sesión ya existente) y modo virtual (Xvnc)
+- 🧭 Si faltan las dependencias (Xvnc/openbox/lxpanel/pcmanfm), detecta el SO/gestor de paquetes del servidor remoto y sugiere el comando de instalación correcto (o explica que no aplica en macOS/Windows) directo en el chat
 
 | Comando | Descripción |
 |---|---|

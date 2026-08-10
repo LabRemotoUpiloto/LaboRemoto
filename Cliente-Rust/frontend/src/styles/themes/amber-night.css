@@ -15,7 +15,9 @@ html[data-theme="amber-night"]{
   --shadow-card: 0 4px 20px rgba(245, 158, 11, 0.1);
   --shadow-card-hover: 0 12px 36px rgba(245, 158, 11, 0.2);
   --card-border-color: rgba(245, 158, 11, 0.18);
-  --font-heading: 'Playfair Display', serif;
+  --font-heading: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
+  --font-body: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --svg-filter: drop-shadow(0 0 3.5px rgba(245, 158, 11, 0.4));
 
   /* Sidebar & Header overrides */
   --sidebar-bg: rgba(42, 26, 8, 0.85);

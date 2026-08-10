@@ -72,15 +72,15 @@ pub struct VncSessionState {
     pub stop_flag: Arc<AtomicBool>,
     /// Handle del hilo bridge (Some mientras corre, None tras detach)
     pub bridge_thread: Option<std::thread::JoinHandle<()>>,
-    /// Proceso `ssh -L` que mantiene el port-forward local → x11vnc
+    /// Proceso `ssh -L` que mantiene el port-forward local → Xvnc
     pub ssh_fwd_child: Option<std::process::Child>,
     // Credenciales guardadas para el cleanup remoto al descartar el estado
     pub host: String,
     pub port: u16,
     pub user: String,
     pub password: String,
-    /// true = display virtual (Xvfb + openbox, típico Pi headless)
-    /// false = display real preexistente (Jetson, Ubuntu desktop)
+    /// true = display virtual (Xvnc + openbox, típico Pi headless)
+    /// false = display real preexistente (Jetson, Ubuntu desktop) — usa x11vnc
     pub is_virtual: bool,
     /// Directorio home del usuario remoto (e.g. /home/pi, /home/labiot)
     pub home_dir: String,
@@ -122,7 +122,7 @@ impl Drop for VncSessionState {
                 crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
             {
                 if is_virtual {
-                    let _ = crate::cmd::vnc::server::stop_vnc_server(&sess, display, vnc_port, &home_dir);
+                    let _ = crate::cmd::vnc::server::stop_vnc_server(&sess, display, &home_dir);
                 } else {
                     let _ = crate::cmd::vnc::utils::stop_vnc_server_real(&sess, vnc_port);
                 }
@@ -147,21 +147,17 @@ pub fn run_pending_vnc_cleanups(sess: &Ssh2Session) {
         let name = name.to_string_lossy();
         if !name.starts_with("vnc_pending_cleanup_") || !name.ends_with(".json") { continue; }
         let path = entry.path();
-        let Ok(content) = std::fs::read_to_string(&path) else { continue; };
-        // Parsear manualmente (evitar dep extra de serde_json aquí)
+        // El display se obtiene del nombre del archivo — ya no hace falta
+        // leer el JSON (solo guardaba vnc_port, que dejó de ser necesario
+        // para matar el proceso ahora que es un único Xvnc por display).
         let display = name
             .strip_prefix("vnc_pending_cleanup_").unwrap_or("")
             .strip_suffix(".json").unwrap_or("")
             .parse::<u32>().unwrap_or(0);
         if display < 20 { let _ = std::fs::remove_file(&path); continue; }
-        // Extraer vnc_port del JSON
-        let vnc_port: u16 = content.split("\"vnc_port\":").nth(1)
-            .and_then(|s| s.split('}').next())
-            .and_then(|s| s.trim().parse().ok())
-            .unwrap_or(0);
         let cmd = format!(
-            "pkill -9 -f 'Xvfb :{display} ' 2>/dev/null; \
-             pkill -9 -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; \
+            "pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; \
+             pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
         );
         let _ = crate::ssh_core::exec::ssh_exec_session(sess, &cmd);

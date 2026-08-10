@@ -117,3 +117,20 @@ export const ERROR_PATTERNS: RegExp[] = [
   /\[error\]/i,
   /Error:/,
 ];
+
+// ── Patrones de prompt interactivo (terminal bloqueada esperando respuesta) ──
+export const PROMPT_PATTERNS: RegExp[] = [
+  /\[y\/n\]/i,
+  /\(y\/n\)/i,
+  /\[yes\/no\]/i,
+  /\(yes\/no\)/i,
+  /\(Y\/I\/N\/O\/D\/Z\)/i,          // conffile prompt de dpkg
+  /do you want to continue\?/i,
+  /\[sudo\]\s*password/i,
+  /^password:?\s*$/i,
+  /enter passphrase/i,
+  /press (enter|any key)/i,
+  /press.*to continue/i,
+  /<\s*(Ok|Yes|No|Cancel)\s*>/i,     // botones whiptail/dialog (ej. "Pending kernel upgrade")
+  /--More--/,
+];

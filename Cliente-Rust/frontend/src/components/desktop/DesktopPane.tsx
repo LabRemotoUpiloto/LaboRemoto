@@ -6,9 +6,9 @@ import { useDesktopSession } from '../../hooks/useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
 import './DesktopPane.css'
 
-// Resolución fija con la que arranca Xvfb en el Pi. No es configurable por
+// Resolución fija con la que arranca Xvnc en el Pi. No es configurable por
 // el usuario: cambiarla en caliente no es posible (ver investigación en
-// server.rs — el máximo de framebuffer de Xvfb queda fijado para siempre al
+// server.rs — el máximo de framebuffer de Xvnc queda fijado para siempre al
 // arrancar el proceso) y no hace falta pedirla, porque `scaleViewport` en
 // `connectRFB` ajusta visualmente el canvas al tamaño real del contenedor
 // sin importar a qué resolución esté corriendo la X remota.
@@ -62,6 +62,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   const rfbRef = useRef<any>(null)
   const { status, sessionInfo, error, start, stop } = useDesktopSession(sessionId)
 
+  // `stop()` deja el status en 'idle' (mismo valor que el estado inicial,
+  // antes de arrancar por primera vez) — sin esta bandera, el efecto de
+  // auto-inicio no puede distinguir "recién entré a la vista" de "el
+  // usuario acaba de apretar Detener a propósito", y reconectaba solo
+  // apenas terminaba de desconectar (Detener se sentía como un retry).
+  const userStoppedRef = useRef(false)
+
   // Portapapeles: texto copiado desde el escritorio remoto (sincronización automática)
   const remoteClipboardRef = useRef<string>('')
   // Rastrea el estado de CapsLock en el servidor remoto (null = no sincronizado aún)
@@ -100,6 +107,17 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         e.preventDefault()
         e.stopPropagation()
         rfbRef.current.sendKey(0xFF09, 'Tab', true)
+        return
+      }
+
+      // Escape: siempre interceptar sin depender de si el canvas tiene foco.
+      // stopPropagation es clave — evita que la tecla siga burbujeando y sea
+      // capturada por otro handler de la app (cerrar un modal, cancelar un
+      // rename, etc.) en vez de llegar al escritorio remoto.
+      if (e.code === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        rfbRef.current.sendKey(0xFF1B, 'Escape', true)
         return
       }
 
@@ -148,6 +166,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         return
       }
 
+      if (e.code === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        rfbRef.current.sendKey(0xFF1B, 'Escape', false)
+        return
+      }
+
       const canvas = canvasContainerRef.current?.querySelector('canvas')
       const canvasHasFocus = document.activeElement === canvas
       if (canvasHasFocus) return
@@ -193,7 +218,14 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         const rfb = new RFB(container, wsUrl, { wsProtocols: ['binary'] })
         rfb.scaleViewport = true
         rfb.resizeSession = false
-        rfb.qualityLevel = 6
+        // Prioridad: fluidez sobre nitidez. qualityLevel=9 se probó y volvió
+        // el escritorio muy lento — a ese nivel el servidor VNC deja de usar
+        // JPEG y codifica casi sin pérdida, que es mucho más caro de CPU para
+        // la Pi que el JPEG comprimido. 7 sigue siendo mejor que el 6 original
+        // (menos artefactos visibles) sin cruzar ese umbral. compressionLevel
+        // bajo (2) = zlib rápido, prioriza velocidad de encode sobre tamaño.
+        rfb.qualityLevel = 7
+        rfb.compressionLevel = 2
         rfb.viewOnly = false
         rfb.addEventListener('connect', () => {
           const canvas = container.querySelector('canvas')
@@ -276,7 +308,8 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
 
   // Efecto unificado: reacciona a cambios en status, sessionInfo e isActive.
   // Cubre todos los casos:
-  //   - isActive pasa a true con status 'idle' → inicia VNC
+  //   - isActive pasa a true con status 'idle' → inicia VNC (salvo que el
+  //     usuario lo haya detenido a propósito — ver userStoppedRef)
   //   - status pasa a 'connected' con isActive true → conecta RFB
   //   - isActive pasa a true con status ya 'connected' → reconecta RFB
   //   - isActive pasa a false → desconecta WS para ahorrar ancho de banda
@@ -288,9 +321,11 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
       }
       return
     }
-    // isActive es true — iniciar VNC si aún no se ha hecho
+    // isActive es true — iniciar VNC si aún no se ha hecho (y no fue un
+    // Detener explícito: si lo fue, se queda en 'idle' hasta que el
+    // usuario haga click en "Conectar" — ver handleConnect).
     if (status === 'idle') {
-      start(DESKTOP_RESOLUTION)
+      if (!userStoppedRef.current) start(DESKTOP_RESOLUTION)
       return
     }
     // Conectar RFB cuando el backend está listo y el contenedor es visible
@@ -301,6 +336,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   }, [status, sessionInfo, isActive])
 
   const handleStop = async () => {
+    userStoppedRef.current = true
     if (rfbRef.current) {
       disconnectClean(rfbRef.current)
       rfbRef.current = null
@@ -326,6 +362,7 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   }
 
   const handleRetry = () => {
+    userStoppedRef.current = false
     start(DESKTOP_RESOLUTION)
   }
 
@@ -346,7 +383,15 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         }}
       />
 
-      {/* Estado idle inicial lo ocultamos porque auto-inicia automáticamente */}
+      {/* idle solo se muestra tras un Detener explícito — la primera vez que
+          se entra a la vista, userStoppedRef arranca en false y el efecto de
+          arriba auto-inicia sin pasar por acá. */}
+      {status === 'idle' && userStoppedRef.current && (
+        <div className="desktop-idle">
+          <p>Escritorio remoto detenido</p>
+          <button onClick={handleRetry}>Conectar</button>
+        </div>
+      )}
 
       {status === 'starting' && (
         <div className="desktop-loading">

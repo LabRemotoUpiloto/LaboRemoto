@@ -219,3 +219,36 @@
 .desktop-error button:hover {
   opacity: 0.85;
 }
+
+/* ── Idle state (detenido a propósito) ── */
+.desktop-idle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--text-primary, #eee);
+}
+
+.desktop-idle p {
+  color: var(--text-secondary, #aaa);
+  font-weight: 500;
+  margin: 0;
+}
+
+.desktop-idle button {
+  padding: 8px 18px;
+  background: var(--accent-primary, #8b5cf6);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: opacity 0.15s ease;
+}
+
+.desktop-idle button:hover {
+  opacity: 0.85;
+}

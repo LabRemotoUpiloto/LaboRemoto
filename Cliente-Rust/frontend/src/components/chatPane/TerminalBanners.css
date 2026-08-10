@@ -54,6 +54,11 @@
   border-left: 2px solid var(--danger-border);
 }
 
+.terminal-notice--prompt {
+  padding: 10px 12px;
+  border-left: 2px solid var(--warning-border);
+}
+
 .terminal-notice--activity {
   align-items: center;
   padding: 6px 10px;
@@ -78,6 +83,16 @@
 .terminal-notice__status-icon--landing {
   background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
+}
+
+.terminal-notice__status-icon--prompt {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.terminal-notice__status-icon--prompt.terminal-notice__status-icon--landing {
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
 }
 
 .terminal-notice__body {
