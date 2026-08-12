@@ -3,12 +3,18 @@ import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { AlertTriangle, ArrowLeft, Bot, Cpu, Terminal, X } from 'lucide-react';
+import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, ThemeIcon, Title, Box, Card, Badge } from '@mantine/core';
+import { AlertTriangle, ArrowLeft, Bot, Cpu, Terminal, X, Video, ArrowRight } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
 import ExternalPracticeCard from '../../components/practicas/ExternalPracticeCard';
 import { useLabPractices } from '../../hooks/useLabPractices';
+
+// CVA Components
+import CVA_GesturesHomePage from '../cva-gestures/CVA_GesturesHomePage';
+import CVA_GesturesModulePage from '../cva-gestures/CVA_GesturesModulePage';
+import CVA_VideoVerificationPage from '../cva-gestures/CVA_VideoVerificationPage';
+import CVA_GesturePracticePage from '../cva-gestures/CVA_GesturePracticePage';
 
 const categoryIconMap: Record<string, React.ElementType> = {
     robot: Bot,
@@ -75,6 +81,10 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
+
+    // CVA State
+    const [cvaActivePage, setCvaActivePage] = useState<'home' | 'module' | 'verification' | 'practice' | null>(null);
+    const [cvaSelectedModule, setCvaSelectedModule] = useState<'robot' | 'domotica' | null>(null);
     const [startingPractice, setStartingPractice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [setupLogs, setSetupLogs] = useState<LogEntry[]>([]);
@@ -194,7 +204,37 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
     return (
         <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
             <Container size="lg" py="xl" px="xl">
-                {!selectedCategory ? (
+                {cvaActivePage === 'home' && (
+                    <CVA_GesturesHomePage
+                        onSelectModule={(mod) => {
+                            setCvaSelectedModule(mod);
+                            setCvaActivePage('module');
+                        }}
+                        onBack={() => setCvaActivePage(null)}
+                    />
+                )}
+                {cvaActivePage === 'module' && (
+                    <CVA_GesturesModulePage
+                        moduleId={cvaSelectedModule!}
+                        onBack={() => setCvaActivePage('home')}
+                        onStartPractice={() => setCvaActivePage('verification')}
+                    />
+                )}
+                {cvaActivePage === 'verification' && (
+                    <CVA_VideoVerificationPage
+                        moduleId={cvaSelectedModule!}
+                        onBack={() => setCvaActivePage('module')}
+                        onConfirm={() => setCvaActivePage('practice')}
+                    />
+                )}
+                {cvaActivePage === 'practice' && (
+                    <CVA_GesturePracticePage
+                        moduleId={cvaSelectedModule!}
+                        onBack={() => setCvaActivePage('module')}
+                    />
+                )}
+
+                {!cvaActivePage && (!selectedCategory ? (
                     <Stack gap="xl">
                         <Stack gap="sm">
                             <Title order={1}>Prácticas de Laboratorio</Title>
@@ -229,6 +269,61 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                                         onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
                                     />
                                 ))}
+
+                                {/* Card destacada para Video analítica (CVA) */}
+                                <Card
+                                    padding="lg"
+                                    className="animate-reveal dribbble-card dribbble-card-interactive group"
+                                    style={{
+                                        cursor: 'pointer',
+                                        border: '1px solid var(--mantine-color-red-light-color, #FFE3E3)',
+                                        background: 'linear-gradient(135deg, rgba(255, 240, 240, 0.6) 0%, rgba(255, 255, 255, 0.9) 100%)'
+                                    }}
+                                    onClick={() => setCvaActivePage('home')}
+                                >
+                                    <Stack gap="md" style={{ height: '100%', justifyContent: 'space-between' }}>
+                                        <Stack gap="md">
+                                            <Group justify="space-between" align="center">
+                                                <ThemeIcon
+                                                    size="xl"
+                                                    radius="md"
+                                                    style={{
+                                                        backgroundColor: 'rgba(232, 64, 61, 0.1)',
+                                                        color: 'var(--unipiloto-red-6, #e8403d)',
+                                                    }}
+                                                >
+                                                    <Video size={24} />
+                                                </ThemeIcon>
+                                                <Badge color="red" variant="filled" size="sm">
+                                                    Beta 1.0
+                                                </Badge>
+                                            </Group>
+
+                                            <div>
+                                                <Text fw={600} size="lg" mb={4}>Video analítica</Text>
+                                                <Text size="sm" c="dimmed" lineClamp={2}>
+                                                    Controla dispositivos del laboratorio remoto mediante gestos capturados por tu cámara.
+                                                </Text>
+                                            </div>
+                                        </Stack>
+
+                                        <Group justify="space-between" mt="xs" align="center">
+                                            <Text 
+                                                size="xs" 
+                                                tt="uppercase" 
+                                                fw={500} 
+                                                style={{ letterSpacing: '0.04em', color: 'var(--text-secondary)' }}
+                                            >
+                                                2 Módulos
+                                            </Text>
+                                            <ArrowRight 
+                                                size={14} 
+                                                className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200" 
+                                                style={{ color: 'var(--text-secondary)' }}
+                                            />
+                                        </Group>
+                                    </Stack>
+                                </Card>
                             </SimpleGrid>
                         ) : externalStatus === 'loading' ? (
                             <Stack align="center" gap="md" py="xl">
@@ -351,7 +446,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                             </Paper>
                         )}
                     </Stack>
-                )}
+                ))}
             </Container>
         </Box>
     );
