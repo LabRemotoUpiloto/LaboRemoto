@@ -34,8 +34,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, pr
                 <ThemeIcon
                     size="xl"
                     radius="md"
+                    variant="subtle"
                     style={{
-                        backgroundColor: isAvailable ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'color-mix(in srgb, var(--border-subtle) 30%, transparent)',
                         color: isAvailable ? 'var(--accent-primary)' : 'var(--text-secondary)',
                     }}
                 >

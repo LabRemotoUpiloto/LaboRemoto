@@ -15,6 +15,7 @@ import CVA_GesturesHomePage from '../cva-gestures/CVA_GesturesHomePage';
 import CVA_GesturesModulePage from '../cva-gestures/CVA_GesturesModulePage';
 import CVA_VideoVerificationPage from '../cva-gestures/CVA_VideoVerificationPage';
 import CVA_GesturePracticePage from '../cva-gestures/CVA_GesturePracticePage';
+import { useLocalCamera } from '../../hooks/useLocalCamera';
 
 const categoryIconMap: Record<string, React.ElementType> = {
     robot: Bot,
@@ -85,6 +86,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
     // CVA State
     const [cvaActivePage, setCvaActivePage] = useState<'home' | 'module' | 'verification' | 'practice' | null>(null);
     const [cvaSelectedModule, setCvaSelectedModule] = useState<'robot' | 'domotica' | null>(null);
+    const localCamera = useLocalCamera();
     const [startingPractice, setStartingPractice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [setupLogs, setSetupLogs] = useState<LogEntry[]>([]);
@@ -223,14 +225,22 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                 {cvaActivePage === 'verification' && (
                     <CVA_VideoVerificationPage
                         moduleId={cvaSelectedModule!}
-                        onBack={() => setCvaActivePage('module')}
+                        camera={localCamera}
+                        onBack={() => {
+                            localCamera.stopCamera();
+                            setCvaActivePage('module');
+                        }}
                         onConfirm={() => setCvaActivePage('practice')}
                     />
                 )}
                 {cvaActivePage === 'practice' && (
                     <CVA_GesturePracticePage
                         moduleId={cvaSelectedModule!}
-                        onBack={() => setCvaActivePage('module')}
+                        camera={localCamera}
+                        onBack={() => {
+                            localCamera.stopCamera();
+                            setCvaActivePage('module');
+                        }}
                     />
                 )}
 
@@ -274,11 +284,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                                 <Card
                                     padding="lg"
                                     className="animate-reveal dribbble-card dribbble-card-interactive group"
-                                    style={{
-                                        cursor: 'pointer',
-                                        border: '1px solid var(--mantine-color-red-light-color, #FFE3E3)',
-                                        background: 'linear-gradient(135deg, rgba(255, 240, 240, 0.6) 0%, rgba(255, 255, 255, 0.9) 100%)'
-                                    }}
+                                    style={{ cursor: 'pointer' }}
                                     onClick={() => setCvaActivePage('home')}
                                 >
                                     <Stack gap="md" style={{ height: '100%', justifyContent: 'space-between' }}>
@@ -287,16 +293,13 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                                                 <ThemeIcon
                                                     size="xl"
                                                     radius="md"
+                                                    variant="subtle"
                                                     style={{
-                                                        backgroundColor: 'rgba(232, 64, 61, 0.1)',
-                                                        color: 'var(--unipiloto-red-6, #e8403d)',
+                                                        color: 'var(--accent-primary)',
                                                     }}
                                                 >
                                                     <Video size={24} />
                                                 </ThemeIcon>
-                                                <Badge color="red" variant="filled" size="sm">
-                                                    Beta 1.0
-                                                </Badge>
                                             </Group>
 
                                             <div>

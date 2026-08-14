@@ -13,7 +13,6 @@ const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectMod
             <Group justify="space-between" align="center">
                 <Button
                     variant="subtle"
-                    color="gray"
                     size="sm"
                     radius="md"
                     leftSection={<ArrowLeft size={14} />}
@@ -21,9 +20,6 @@ const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectMod
                 >
                     Volver a prácticas
                 </Button>
-                <Badge color="red" variant="filled" size="sm">
-                    Beta 1.0
-                </Badge>
             </Group>
 
             <Stack gap={6}>
@@ -47,10 +43,17 @@ const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectMod
                     <Stack gap="lg" style={{ height: '100%', justifyContent: 'space-between' }}>
                         <Stack gap="md">
                             <Group justify="space-between" align="flex-start" wrap="nowrap">
-                                <ThemeIcon size={48} radius="lg" variant="light" color="blue">
+                                <ThemeIcon
+                                    size={48}
+                                    radius="lg"
+                                    variant="subtle"
+                                    style={{
+                                        color: 'var(--accent-primary)',
+                                    }}
+                                >
                                     <Home size={24} />
                                 </ThemeIcon>
-                                <Badge color="green" variant="light">Disponible</Badge>
+                                <Badge variant="subtle">Disponible</Badge>
                             </Group>
                             <div>
                                 <Text fw={600} size="xl" mb={4}>Domótica (Arduino)</Text>
@@ -59,10 +62,7 @@ const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectMod
                                 </Text>
                             </div>
                         </Stack>
-                        <Group justify="space-between" align="center">
-                            <Text size="xs" fw={500} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-                                Dificultad: Principiante
-                            </Text>
+                        <Group justify="flex-end" align="center">
                             <ArrowRight 
                                 size={16} 
                                 className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200" 
@@ -83,10 +83,17 @@ const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectMod
                     <Stack gap="lg" style={{ height: '100%', justifyContent: 'space-between' }}>
                         <Stack gap="md">
                             <Group justify="space-between" align="flex-start" wrap="nowrap">
-                                <ThemeIcon size={48} radius="lg" variant="light" color="grape">
+                                <ThemeIcon
+                                    size={48}
+                                    radius="lg"
+                                    variant="subtle"
+                                    style={{
+                                        color: 'var(--text-secondary)',
+                                    }}
+                                >
                                     <Bot size={24} />
                                 </ThemeIcon>
-                                <Badge color="blue" variant="light">Próximamente</Badge>
+                                <Badge variant="subtle" c="dimmed">Próximamente</Badge>
                             </Group>
                             <div>
                                 <Text fw={600} size="xl" mb={4}>Robot EV3</Text>
@@ -95,10 +102,7 @@ const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectMod
                                 </Text>
                             </div>
                         </Stack>
-                        <Group justify="space-between" align="center">
-                            <Text size="xs" fw={500} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-                                Dificultad: Intermedio
-                            </Text>
+                        <Group justify="flex-end" align="center">
                             <ArrowRight 
                                 size={16} 
                                 className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200" 

@@ -11,14 +11,12 @@ interface CVA_GesturesModulePageProps {
 const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleId, onBack, onStartPractice }) => {
     const isDomotica = moduleId === 'domotica';
     const titleText = isDomotica ? 'Domótica (Arduino)' : 'Robot EV3';
-    const colorTheme = isDomotica ? 'blue' : 'grape';
 
     return (
         <Stack gap="xl">
             <Group justify="space-between" align="center">
                 <Button
                     variant="subtle"
-                    color="gray"
                     size="sm"
                     radius="md"
                     leftSection={<ArrowLeft size={14} />}
@@ -26,7 +24,7 @@ const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleI
                 >
                     Volver al inicio de gestos
                 </Button>
-                <Badge color={colorTheme} variant="light" size="sm">
+                <Badge variant="subtle" size="sm">
                     {isDomotica ? 'Domótica' : 'Robot'}
                 </Badge>
             </Group>
@@ -45,12 +43,19 @@ const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleI
                 <Card
                     padding="lg"
                     radius="md"
-                    withBorder
-                    style={{ opacity: 0.7, cursor: 'not-allowed', backgroundColor: 'var(--mantine-color-default)' }}
+                    className="animate-reveal dribbble-card"
+                    style={{ opacity: 0.6, cursor: 'not-allowed' }}
                 >
                     <Group justify="space-between" align="center" wrap="nowrap">
                         <Group gap="md" align="center">
-                            <ThemeIcon size="xl" radius="md" variant="light" color="gray">
+                            <ThemeIcon
+                                size="xl"
+                                radius="md"
+                                variant="subtle"
+                                style={{
+                                    color: 'var(--text-secondary)',
+                                }}
+                            >
                                 <BookOpen size={20} />
                             </ThemeIcon>
                             <div>
@@ -60,7 +65,7 @@ const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleI
                                 </Text>
                             </div>
                         </Group>
-                        <Badge color="gray" variant="light" leftSection={<Lock size={10} />}>
+                        <Badge variant="subtle" c="dimmed" leftSection={<Lock size={10} />}>
                             Por implementar
                         </Badge>
                     </Group>
@@ -76,7 +81,14 @@ const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleI
                 >
                     <Group justify="space-between" align="center" wrap="nowrap">
                         <Group gap="md" align="center">
-                            <ThemeIcon size="xl" radius="md" variant="light" color={colorTheme}>
+                            <ThemeIcon
+                                size="xl"
+                                radius="md"
+                                variant="subtle"
+                                style={{
+                                    color: 'var(--accent-primary)',
+                                }}
+                            >
                                 <Video size={20} />
                             </ThemeIcon>
                             <div>
@@ -87,7 +99,7 @@ const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleI
                             </div>
                         </Group>
                         <Group gap="xs" align="center">
-                            <Badge color="green" variant="light">Activo</Badge>
+                            <Badge variant="subtle">Activo</Badge>
                             <ArrowRight 
                                 size={16} 
                                 className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200" 
@@ -101,12 +113,19 @@ const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleI
                 <Card
                     padding="lg"
                     radius="md"
-                    withBorder
-                    style={{ opacity: 0.7, cursor: 'not-allowed', backgroundColor: 'var(--mantine-color-default)' }}
+                    className="animate-reveal dribbble-card"
+                    style={{ opacity: 0.6, cursor: 'not-allowed' }}
                 >
                     <Group justify="space-between" align="center" wrap="nowrap">
                         <Group gap="md" align="center">
-                            <ThemeIcon size="xl" radius="md" variant="light" color="gray">
+                            <ThemeIcon
+                                size="xl"
+                                radius="md"
+                                variant="subtle"
+                                style={{
+                                    color: 'var(--text-secondary)',
+                                }}
+                            >
                                 <Compass size={20} />
                             </ThemeIcon>
                             <div>
@@ -116,7 +135,7 @@ const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleI
                                 </Text>
                             </div>
                         </Group>
-                        <Badge color="gray" variant="light" leftSection={<Lock size={10} />}>
+                        <Badge variant="subtle" c="dimmed" leftSection={<Lock size={10} />}>
                             Por implementar
                         </Badge>
                     </Group>
