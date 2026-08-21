@@ -283,11 +283,12 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   let model_selection = req_model_selection.unwrap_or_else(|| "claude-sonnet-4-6".to_string());
   // Si OPENAI_MODEL del .env contiene "/" es un modelo OpenRouter (ej: "nvidia/nemotron-3-super-120b-a12b:free")
   let env_model = std::env::var("OPENAI_MODEL").unwrap_or_default();
-  let model_id = if env_model.contains('/') { env_model } else { model_selection.clone() };
-  // Claude si el model_id empieza por "claude" y no es un modelo OpenRouter
+  let raw_model_id = if env_model.contains('/') { env_model } else { model_selection.clone() };
+
+  let model_id = raw_model_id;
   let is_claude = model_id.starts_with("claude") && !model_id.contains('/');
 
-  // Auto-detectar OpenRouter: si el modelo tiene "/" y hay OPENROUTER_API_KEY, enrutar automáticamente
+  // Auto-detectar OpenRouter y enrutar automáticamente según key disponible.
   let or_key = super::ai_utils::get_openrouter_api_key();
   let (proxy_url, proxy_auth) = if proxy_url.is_none() && model_id.contains('/') && or_key.is_some() {
     (Some("https://openrouter.ai/api/v1/chat/completions".to_string()), or_key)
@@ -302,10 +303,10 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     } else {
       super::ai_utils::get_openai_api_key()
     }
-  } else { 
-    None 
+  } else {
+    None
   };
-  
+
   if proxy_url.is_none() && api_key.is_none() {
     let key_type = if is_claude { "CLAUDE_API_KEY" } else { "OPENAI_API_KEY o OPENROUTER_API_KEY" };
     return Err(format!("{} not set", key_type));
@@ -558,15 +559,20 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   } else {
     // OpenAI API format
     let is_openrouter = proxy_url.as_deref().unwrap_or("").contains("openrouter.ai");
-    // Modelos "reasoning" (ej. nvidia/nemotron-*:free) gastan buena parte del
-    // presupuesto de tokens pensando antes de responder; con 500 tokens el
-    // stream se corta a mitad del razonamiento y el usuario nunca ve la
-    // respuesta final. Les damos más margen y le pedimos a OpenRouter que
-    // excluya el bloque de razonamiento del `content` devuelto.
+    // Modelos "reasoning" (ej. nvidia/nemotron-*:free en OpenRouter) gastan
+    // buena parte del presupuesto de tokens pensando antes de responder; con
+    // 500 tokens el stream se corta a mitad del razonamiento y el usuario
+    // nunca ve la respuesta final. Les damos más margen y le pedimos que
+    // excluya el bloque de razonamiento del `content` devuelto (campo
+    // "reasoning.exclude", formato compatible-OpenAI).
     let max_tok = if matches!(incoming_mode, ChatMode::Plan) {
       1000u32
     } else if is_openrouter {
-      1500u32
+      // 1500 se quedaba corto con modelos que narran su razonamiento en
+      // prosa cruda sin respetar "reasoning.exclude" (ver salvaguarda 2 más
+      // abajo) -- se cortaban a mitad del monólogo sin llegar nunca a
+      // escribir la respuesta con el formato pedido.
+      3000u32
     } else {
       500u32
     };
@@ -739,6 +745,31 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     }
   }
 
+  // Salvaguarda 2: algunos modelos "reasoning" gratis ni siquiera envuelven
+  // el monólogo en <think> -- narran en prosa cruda (casi siempre en inglés,
+  // ignorando la persona en español) y se quedan sin presupuesto de tokens
+  // antes de llegar a la respuesta real con el formato pedido. Se detecta
+  // por frases que solo aparecen en ese tipo de fuga (nunca en una respuesta
+  // final legítima) y se vacía el texto para que el reintento de más abajo
+  // (rama `too_short`/`assistant_text.trim().is_empty()`) pida una respuesta
+  // limpia en vez de mostrarle al usuario el razonamiento crudo.
+  if base_url.contains("openrouter.ai") {
+    let lower = assistant_text.to_lowercase();
+    let looks_like_raw_cot = [
+      "we need to respond",
+      "the user typed",
+      "let's do that",
+      "let's respond",
+      "thus we need",
+      "we should output",
+      "we need to output",
+      "we need to give",
+    ].iter().any(|marker| lower.contains(marker));
+    if looks_like_raw_cot {
+      assistant_text = String::new();
+    }
+  }
+
   // (Heurísticas desactivadas por pedido: no se hará clasificación difusa de identidad)
 
   // Evitar identidad redundante en ASK: eliminar la frase exacta si vino pegada accidentalmente
@@ -867,13 +898,53 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       .split_whitespace()
       .collect::<Vec<_>>()
       .join(" ");
+    // Heurística barata para pescar una respuesta que se coló en inglés a
+    // pesar del "Responde SIEMPRE en español" del system prompt -- pasa con
+    // modelos gratis pequeños. Ignora bloques de código/inline code, donde
+    // el inglés es normal y esperado (comandos, flags, rutas).
+    fn looks_like_english(text: &str) -> bool {
+      let mut cleaned = String::new();
+      let mut in_fence = false;
+      for line in text.lines() {
+        if line.trim_start().starts_with("```") {
+          in_fence = !in_fence;
+          continue;
+        }
+        if in_fence { continue; }
+        let mut in_inline = false;
+        for ch in line.chars() {
+          if ch == '`' { in_inline = !in_inline; continue; }
+          if !in_inline { cleaned.push(ch); }
+        }
+        cleaned.push('\n');
+      }
+      let lower = cleaned.to_lowercase();
+      let words: Vec<&str> = lower.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
+      if words.len() < 6 { return false; }
+      const EN: &[&str] = &[
+        "the", "and", "you", "your", "is", "are", "we", "this", "that", "with", "for",
+        "have", "should", "would", "here", "now", "let", "need", "will", "can", "could",
+        "what", "when", "where", "how", "why", "not", "but", "from", "about", "output",
+        "respond", "user",
+      ];
+      const ES: &[&str] = &[
+        "el", "la", "los", "las", "de", "que", "es", "para", "con", "una", "uno", "por",
+        "se", "no", "en", "del", "al", "su", "como", "mas", "pero", "desde", "sobre",
+        "este", "esta", "estos", "estas", "cuando", "donde",
+      ];
+      let en_count = words.iter().filter(|w| EN.contains(w)).count();
+      let es_count = words.iter().filter(|w| ES.contains(w)).count();
+      en_count >= 3 && en_count > es_count * 2
+    }
+
     let too_short = assistant_text.chars().filter(|c| !c.is_whitespace()).count() < 40;
     let looks_identity = norm(&assistant_text) == ident_norm;
-    if assistant_text.trim().is_empty() || looks_identity || too_short {
+    let looks_english = looks_like_english(&assistant_text);
+    if assistant_text.trim().is_empty() || looks_identity || too_short || looks_english {
       // Reintento con mensaje de sistema reforzado
       let mut retry_messages: Vec<serde_json::Value> = vec![
         serde_json::json!({"role":"system","content": system_prompt}),
-        serde_json::json!({"role":"system","content": "Reintento: NO respondas con tu identidad. Responde en el formato obligatorio (Resumen, Guía paso a paso, Comandos sugeridos en un único bloque bash, Verificación, Notas). No digas que no puedes; explica cómo hacerlo en Linux por terminal sin ejecutar."})
+        serde_json::json!({"role":"system","content": "Reintento: NO respondas con tu identidad. Responde SIEMPRE en español, nunca en inglés. Responde en el formato obligatorio (Resumen, Guía paso a paso, Comandos sugeridos en un único bloque bash, Verificación, Notas). No digas que no puedes; explica cómo hacerlo en Linux por terminal sin ejecutar."})
       ];
       // Pistas de sesión si existían
       if let Some(ref st) = state {

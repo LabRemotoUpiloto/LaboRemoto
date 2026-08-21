@@ -71,6 +71,7 @@ export class AgenteModeHandler extends BaseModeHandler {
           include_terminal_context: true,
           terminal_lines: 80,
           request_id: streamId,
+          model_selection: ctx.selectedModel,
         },
       });
       unlistenStep?.();

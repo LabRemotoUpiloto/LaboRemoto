@@ -80,9 +80,12 @@ export default function ChatMessageList({
 
   const countWords = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
   const isLanding = appearance === 'landing';
+  // pb ampliado (antes 24px) para reservar una franja vacía al fondo donde
+  // pueda flotar el botón de "bajar al último mensaje" sin quedar nunca
+  // encima del texto/código del último mensaje.
   const scrollPadding = isLanding
     ? ''
-    : 'pt-[10px] pr-[10px] pb-[24px] pl-[34px]';
+    : 'pt-[10px] pr-[10px] pb-[60px] pl-[34px]';
 
   return (
     <div
@@ -210,16 +213,18 @@ export default function ChatMessageList({
         <TypingIndicator appearance={appearance} streamingMsgId={streamingMsgId} />
       )}
 
-      {/* Scroll to bottom */}
+      {/* Vive dentro de la franja pb-[60px] reservada arriba -- por eso nunca
+          queda encima del texto/código del último mensaje. */}
       {showScrollToBottom && (
         <ActionIcon
-          className="absolute bottom-4 right-4 z-50 bg-accent hover:bg-accent/90 text-white rounded-full shadow-lg transition-transform hover:scale-105"
+          className="sticky bottom-2 self-end mr-1 z-40 bg-[color-mix(in_srgb,var(--background-secondary)_92%,transparent)] border border-[var(--border-subtle)] backdrop-blur-[10px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-colors"
           onClick={onScrollToBottom}
           size="lg"
+          radius="xl"
           title="Bajar al último mensaje"
           aria-label="Bajar al último mensaje"
         >
-          <ArrowDown size={18} />
+          <ArrowDown size={16} />
         </ActionIcon>
       )}
     </div>

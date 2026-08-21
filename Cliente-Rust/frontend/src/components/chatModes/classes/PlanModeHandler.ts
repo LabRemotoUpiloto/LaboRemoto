@@ -64,6 +64,7 @@ export class PlanModeHandler extends BaseModeHandler {
           session_id: effectiveSessionId,
           message: finalInput,
           request_id: streamId,
+          model_selection: ctx.selectedModel,
         },
       });
       unlistenStep?.();

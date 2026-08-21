@@ -1,6 +1,10 @@
 // Utilidades comunes extraídas de ChatPane
 
-export const isNearBottom = (el: HTMLElement, threshold = 4) =>
+// 4px era demasiado estricto -- cualquier reflow minimo (ej. el scroll
+// horizontal de un bloque de codigo, o el timestamp cambiando de tamaño)
+// hacia que se considerara "no estas cerca del final" y se dejara de seguir
+// el mensaje que se estaba generando.
+export const isNearBottom = (el: HTMLElement, threshold = 80) =>
   el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
 
 export const cleanText = (text: string) => {

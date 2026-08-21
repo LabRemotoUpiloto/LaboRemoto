@@ -82,6 +82,10 @@ export interface AiResponseRaw {
 
 export interface ModeHandlerContext {
   sessionId: string | null | undefined;
+  /** Modelo elegido en el selector del chat -- Agente/Plan lo mandan a
+   *  agent_chat/plan_chat para que tambien puedan usar OpenRouter,
+   *  no solo Claude (ver resolve_model_route en cmd/tools/tools.rs). */
+  selectedModel?: ModelSelection;
   /** Sesión SSH interactiva abierta en el chat (Pi4 desde .env). */
   pi4TerminalSessionId?: string | null;
   openPi4TerminalInChat?: () => Promise<string | null>;

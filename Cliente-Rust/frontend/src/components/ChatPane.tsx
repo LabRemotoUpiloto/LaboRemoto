@@ -503,6 +503,7 @@ const ChatPane: React.FC<Props> = ({
 
   const buildModeContext = (): ModeHandlerContext => ({
     sessionId,
+    selectedModel,
     pi4TerminalSessionId: pi4ChatSessionId,
     openPi4TerminalInChat,
     openPi4CamerasInChat,
