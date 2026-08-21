@@ -38,8 +38,6 @@ interface UseConnectionActionsParams {
   onConnected: (result: ConnectionSuccessResult) => void;
   onConnectionSuccess?: (info: { host: string; port: number; user: string }) => void;
   // Setters para acciones post-guardado
-  setIsEditMode?: (v: boolean) => void;
-  setOriginalHostFile?: (v: string | null) => void;
   setSaveModalOpen: (v: boolean) => void;
   setSuccessAlertMessage: (v: string) => void;
   setSuccessAlertOpen: (v: boolean) => void;
@@ -53,8 +51,6 @@ export function useConnectionActions({
   getTermSize,
   onConnected,
   onConnectionSuccess,
-  setIsEditMode,
-  setOriginalHostFile,
   setSaveModalOpen,
   setSuccessAlertMessage,
   setSuccessAlertOpen,
@@ -184,11 +180,10 @@ export function useConnectionActions({
       await saveHostWithMaster(newHostId, { host: host.trim(), port: safePort, user: user.trim(), password, name: name.trim() || undefined });
       setSaveModalOpen(false);
       setSuccessAlertMessage(isEditMode ? 'Host editado correctamente' : 'Host guardado correctamente');
+      // El reset de isEditMode/originalHostFile pasa por clearForm(), que
+      // dispara el modal de éxito de ConnectForm.tsx al confirmar/cerrar --
+      // no hace falta duplicarlo acá.
       setSuccessAlertOpen(true);
-      if (isEditMode) {
-        setIsEditMode?.(false);
-        setOriginalHostFile?.(null);
-      }
     } catch {
       push({ type: 'error', message: 'Error guardando host' });
     }
