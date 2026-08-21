@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import LandingPage from '../../pages/home/LandingPage'
 import ConnectFormPage from '../../pages/connection/ConnectFormPage'
+import GuestConnectPage from '../../pages/connection/GuestConnectPage'
 import SavedHostsPage from '../../pages/connection/SavedHostsPage'
 import ThemesPage from '../../pages/settings/ThemesPage'
 import PerfilPage from '../../pages/settings/PerfilPage'
@@ -55,6 +56,16 @@ const HomeContainer: React.FC<Props> = ({
     ? (canSeeVigilancia ? 'vigilancia' : 'landing')
     : (canAccessPage(selectedPage, tier) ? selectedPage : 'landing')
 
+  // ConnectFormPage solo lee pendingHost una vez al montarse (ver el comentario
+  // en useConnectionForm) -- lo limpiamos acá apenas se consume para que una
+  // visita posterior a "Conexión" que NO venga de "Editar" no encuentre datos
+  // viejos dando vueltas.
+  useEffect(() => {
+    if (effectivePage === 'connect' && pendingHost) {
+      setPendingHost(null)
+    }
+  }, [effectivePage])
+
   return (
     <div style={{ height: '100%' }}>
       {effectivePage === 'landing' ? (
@@ -64,6 +75,8 @@ const HomeContainer: React.FC<Props> = ({
         />
       ) : effectivePage === 'connect' ? (
         <ConnectFormPage onConnected={onConnectedFromConnect} initialPayload={pendingHost} />
+      ) : effectivePage === 'ssh-guest' ? (
+        <GuestConnectPage onConnected={onConnectedFromConnect} onBack={() => onOpenPanel('landing')} />
       ) : effectivePage === 'hosts' ? (
         <SavedHostsPage
           onConnected={(sessionId: string, label: string) => {
