@@ -206,6 +206,10 @@ pub fn run() {
       // Validador de prácticas
       cmd::practices::practice_validator::validate_practice_progress,
       cmd::practices::practice_validator::calculate_practice_grade,
+      // Control por Gestos (CVA)
+      cmd::cva_gestures::session::cva_gestures_session_start,
+      cmd::cva_gestures::session::cva_gestures_session_stop,
+      cmd::cva_gestures::session::cva_gestures_send_frame,
       // Arduino domótica (bridge HTTP en la Pi)
       cmd::hardware::arduino::arduino_bridge_status,
       cmd::hardware::arduino::arduino_send_cmd,

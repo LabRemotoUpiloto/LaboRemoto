@@ -5,12 +5,13 @@ import { UseLocalCameraResult } from '../../hooks/useLocalCamera';
 
 interface CVA_VideoVerificationPageProps {
     moduleId: 'robot' | 'domotica';
+    sessionId?: string;
     camera: UseLocalCameraResult;
     onBack: () => void;
     onConfirm: () => void;
 }
 
-const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ moduleId, camera, onBack, onConfirm }) => {
+const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ moduleId, sessionId, camera, onBack, onConfirm }) => {
     const [consented, setConsented] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
 

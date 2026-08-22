@@ -19,4 +19,5 @@ pub mod editor;      // Análisis y edición de archivos
 pub mod tools;       // Herramientas del agente AI
 pub mod filesystem;  // Operaciones de filesystem local
 pub mod hardware;    // Control de hardware (Arduino)
+pub mod cva_gestures; // Control de Video Analítica (CVA)
 pub mod protocol;    // Envelope de comandos versionado (CommandRequest/CommandResponse)

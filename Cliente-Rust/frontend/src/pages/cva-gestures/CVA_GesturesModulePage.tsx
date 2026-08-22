@@ -100,9 +100,9 @@ const CVA_GesturesModulePage: React.FC<CVA_GesturesModulePageProps> = ({ moduleI
                         </Group>
                         <Group gap="xs" align="center">
                             <Badge variant="subtle">Activo</Badge>
-                            <ArrowRight 
-                                size={16} 
-                                className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200" 
+                            <ArrowRight
+                                size={16}
+                                className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200"
                                 style={{ color: 'var(--text-secondary)' }}
                             />
                         </Group>

@@ -92,7 +92,13 @@ const HomeContainer: React.FC<Props> = ({
       ) : effectivePage === 'snippets' ? (
         <SnippetsPage />
       ) : effectivePage === 'practices' ? (
-        <PracticesPage onStartPractice={onStartPractice} />
+        <PracticesPage
+          onStartPractice={onStartPractice}
+          activeSessionId={(() => {
+            const sessionTabs = tabs.filter(t => t.type === 'session')
+            return sessionTabs.length > 0 ? sessionTabs[0].id : undefined
+          })()}
+        />
       ) : effectivePage === 'reservas' ? (
         <ReservasPage />
       ) : effectivePage === 'admin-users' ? (

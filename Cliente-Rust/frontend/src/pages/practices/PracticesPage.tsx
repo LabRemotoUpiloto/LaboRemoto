@@ -70,6 +70,7 @@ interface PracticesPageProps {
         practice: Practice;
         student: { id: number; username: string; fullname: string; email: string };
     }) => Promise<void>;
+    activeSessionId?: string;
 }
 
 interface LogEntry {
@@ -78,7 +79,14 @@ interface LogEntry {
     timestamp: string;
 }
 
-const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
+const levelColor: Record<LogEntry['level'], string> = {
+    info: 'gray',
+    success: 'green',
+    warning: 'orange',
+    error: 'red',
+};
+
+const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, activeSessionId }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
@@ -196,13 +204,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
         );
     }
 
-    const levelColor: Record<LogEntry['level'], string> = {
-        info: 'gray',
-        success: 'green',
-        warning: 'orange',
-        error: 'red',
-    };
-
     return (
         <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
             <Container size="lg" py="xl" px="xl">
@@ -225,6 +226,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                 {cvaActivePage === 'verification' && (
                     <CVA_VideoVerificationPage
                         moduleId={cvaSelectedModule!}
+                        sessionId={activeSessionId}
                         camera={localCamera}
                         onBack={() => {
                             localCamera.stopCamera();
@@ -236,6 +238,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                 {cvaActivePage === 'practice' && (
                     <CVA_GesturePracticePage
                         moduleId={cvaSelectedModule!}
+                        sessionId={activeSessionId}
                         camera={localCamera}
                         onBack={() => {
                             localCamera.stopCamera();
