@@ -299,11 +299,63 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
 
 // ─── Comandos Tauri ───
 
-/// Devuelve todas las categorías con sus prácticas (sin contraseñas)
+/// Devuelve todas las categorías con sus prácticas (sin contraseñas).
+///
+/// La categoría "linux" no sale de `.env.practicas`: se puebla en vivo desde
+/// el servicio de prácticas que corre en la Pi (ver `linux_api.rs`). Si la Pi
+/// no responde, la categoría queda vacía pero el resto de categorías sigue
+/// funcionando normalmente — no es un error fatal de este comando.
 #[tauri::command]
-pub fn practicas_list_categories() -> Result<Vec<PracticeCategory>, CommandError> {
+pub async fn practicas_list_categories() -> Result<Vec<PracticeCategory>, CommandError> {
     let vars = load_practices_env();
     let mut categories = build_categories(&vars);
+
+    if let Some(linux_cat) = categories.iter_mut().find(|c| c.id == "linux") {
+        match crate::cmd::practices::linux_api::fetch_linux_summaries().await {
+            Ok(summaries) => {
+                linux_cat.practices = summaries
+                    .into_iter()
+                    .map(|s| Practice {
+                        id: s.id,
+                        name: s.title,
+                        description: format!(
+                            "Módulo {} · ~{} min",
+                            s.order.unwrap_or(0),
+                            s.estimated_minutes.unwrap_or(0)
+                        ),
+                        difficulty: s.difficulty,
+                        moodle_assignment_id: None,
+                        connection: PracticeConnection {
+                            host: String::new(),
+                            port: 0,
+                            user: String::new(),
+                            password: String::new(),
+                            setup_commands: Vec::new(),
+                        },
+                        terminal: TerminalConfig {
+                            allowed_commands: Vec::new(),
+                            working_directory: String::new(),
+                            allow_navigation: true,
+                            allow_nano: true,
+                        },
+                        panels: PanelConfig {
+                            camera: false,
+                            chat: true,
+                            chat_context: String::new(),
+                            chat_tutorial: String::new(),
+                        },
+                    })
+                    .collect();
+            }
+            Err(e) => {
+                eprintln!(
+                    "[practicas] No se pudo listar módulos de Linux desde la Pi: {}",
+                    e.message
+                );
+                // practices queda vacío — la categoría no rompe el resto del listado.
+            }
+        }
+    }
 
     // Sanitizar: no enviar contraseñas al frontend
     for cat in &mut categories {

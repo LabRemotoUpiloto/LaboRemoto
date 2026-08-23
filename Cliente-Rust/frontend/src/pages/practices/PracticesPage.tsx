@@ -7,6 +7,7 @@ import { ActionIcon, Button, Container, Divider, Group, Loader, Paper, ScrollAre
 import { ArrowLeft, Bot, Cpu, Terminal, X } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
+import LinuxModulePage from './LinuxModulePage';
 
 const categoryIconMap: Record<string, React.ElementType> = {
     robot: Bot,
@@ -61,6 +62,8 @@ interface PracticesPageProps {
         practice: Practice;
         student: { id: number; username: string; fullname: string; email: string };
     }) => Promise<void>;
+    /** Requerido para la categoría Linux: abre la pestaña de la sesión SSH real. */
+    onNewSession?: (info: { id: string; label: string }) => void;
 }
 
 interface LogEntry {
@@ -69,13 +72,14 @@ interface LogEntry {
     timestamp: string;
 }
 
-const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
+const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
     const [startingPractice, setStartingPractice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [setupLogs, setSetupLogs] = useState<LogEntry[]>([]);
+    const [selectedLinuxPracticeId, setSelectedLinuxPracticeId] = useState<string | null>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -162,6 +166,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
     const handleBack = () => {
         setSelectedCategory(null);
         setSetupLogs([]);
+        setSelectedLinuxPracticeId(null);
     };
 
     if (loading) {
@@ -172,6 +177,16 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                     <Text c="dimmed" size="sm">Cargando prácticas...</Text>
                 </Stack>
             </Box>
+        );
+    }
+
+    if (selectedLinuxPracticeId) {
+        return (
+            <LinuxModulePage
+                practiceId={selectedLinuxPracticeId}
+                onBack={() => setSelectedLinuxPracticeId(null)}
+                onNewSession={onNewSession ?? (() => {})}
+            />
         );
     }
 
@@ -257,7 +272,11 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                                     difficulty={practice.difficulty}
                                     hasCamera={practice.panels.camera}
                                     hasChat={practice.panels.chat}
-                                    onStart={() => handleStartPractice(practice)}
+                                    onStart={() => (
+                                        selectedCategory.id === 'linux'
+                                            ? setSelectedLinuxPracticeId(practice.id)
+                                            : handleStartPractice(practice)
+                                    )}
                                     loading={startingPractice === practice.id}
                                 />
                             ))}

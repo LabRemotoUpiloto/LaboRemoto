@@ -82,7 +82,7 @@ const HomeContainer: React.FC<Props> = ({
       ) : effectivePage === 'snippets' ? (
         <SnippetsPage />
       ) : effectivePage === 'practices' ? (
-        <PracticesPage onStartPractice={onStartPractice} />
+        <PracticesPage onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} />
       ) : effectivePage === 'reservas' ? (
         <ReservasPage />
       ) : effectivePage === 'admin-users' ? (

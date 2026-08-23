@@ -318,6 +318,15 @@ PRACTICE_EVE3_P1_ALLOWED_CMDS=ls,python,cd
 PRACTICE_EVE3_P1_WORKING_DIR=/home/labiot/eve3
 PRACTICE_EVE3_P1_MOODLE_ASSIGNMENT_ID=5
 PRACTICE_EVE3_P1_CAMERA=true
+
+# Categoría Linux — servicio de contenido/validación en la Raspberry Pi
+# (ver cmd/practices/linux_api.rs). El usuario SSH NO se configura acá: se
+# resuelve en tiempo real del username de Keycloak del estudiante.
+PRACTICE_LINUX_API_HOST=192.168.1.z     # IP LAN de la Pi (no la pública)
+PRACTICE_LINUX_API_PORT=8770            # default si se omite
+PRACTICE_LINUX_API_TOKEN=...            # token bearer del servicio (.token en la Pi)
+PRACTICE_LINUX_SSH_HOST=192.168.1.z     # default: igual a PRACTICE_LINUX_API_HOST
+PRACTICE_LINUX_SSH_PORT=22              # default si se omite
 ```
 
 ### Tutoriales JSON (`practicas/<id>.json`)
