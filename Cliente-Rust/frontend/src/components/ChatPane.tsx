@@ -121,6 +121,13 @@ const ChatPane: React.FC<Props> = ({
 
   // Refs
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const scrollMessagesToBottom = useCallback(() => {
+    const el = messagesRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      setShowScrollToBottom(false);
+    }
+  }, []);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const isComposingRef = useRef<boolean>(false);
   const handleSendRef = useRef<((t?: string) => void)>(() => {});
@@ -286,11 +293,17 @@ const ChatPane: React.FC<Props> = ({
     const el = messagesRef.current;
     if (!el) return;
     const last = messages[messages.length - 1];
-    if (last?.sender === 'user' || isNearBottom(el)) {
+    // Mientras se está generando una respuesta, seguirla siempre (sin
+    // importar si el usuario estaba "cerca del final" o no) -- por UX, ver
+    // el mensaje mientras se escribe importa más que respetar un scroll
+    // manual previo. Fuera de eso, se mantiene el comportamiento anterior
+    // (solo sigue si el propio usuario acaba de mandar algo o ya estaba
+    // cerca del final).
+    if (isSending || last?.sender === 'user' || isNearBottom(el)) {
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       setShowScrollToBottom(false);
     }
-  }, [messages]);
+  }, [messages, isSending]);
 
   useEffect(() => {
     if (!pi4TerminalEmbedActive && !pi4CamerasEmbedActive && !pi4DesktopEmbedActive) return;
@@ -412,11 +425,30 @@ const ChatPane: React.FC<Props> = ({
     const reqId = crypto.randomUUID(); currentReqIdRef.current = reqId;
     setStreamingMsgId(reqId); setStreamedText('');
     setMessages(prev => [...prev, { id: reqId, sender: 'ai', text: '', timestamp: Date.now(), meta: { chat_mode: mode } }]);
-    
+
     const unlistenChunk = await listen<{ request_id: string; delta: string }>('ai:chunk', (ev) => {
       if (ev.payload.request_id !== reqId) return;
+      // Este listener sigue vivo hasta que SU PROPIO invoke() resuelva --
+      // si mientras tanto cancelaste y mandaste un pedido nuevo, seguir
+      // escribiendo acá contaminaría el streamedText (compartido) del
+      // pedido nuevo con texto del viejo ya cancelado.
+      if (currentReqIdRef.current !== reqId) return;
       setStreamedText(prev => prev + ev.payload.delta);
     });
+
+    // Modo Agente/Plan ya mandan el buffer real de la terminal (agent_chat/
+    // plan_chat, ver AgenteModeHandler/PlanModeHandler) -- este era el único
+    // camino (modo Consulta) que mandaba `terminal_context: null` fijo, así
+    // que el asistente nunca veía lo que había en pantalla al responder.
+    // Best-effort: si no hay sesión activa o falla la lectura, sigue sin
+    // contexto en vez de bloquear el envío del mensaje.
+    const contextSessionId = sessionId ?? pi4ChatSessionId;
+    let liveTerminalContext: string | null = null;
+    if (contextSessionId) {
+      try {
+        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+      } catch { /* sin contexto, no es fatal */ }
+    }
 
     try {
       const envelope = await invoke<CommandResponse<AiResponseRaw>>('ai_chat', {
@@ -427,12 +459,25 @@ const ChatPane: React.FC<Props> = ({
           payload: {
             user_input: getContent(userMsg), mode, history, state: agentState, model_selection: selectedModel,
             image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
-            terminal_context: null, request_id: reqId,
+            terminal_context: liveTerminalContext, request_id: reqId,
           },
         }
       });
-      unlistenChunk(); currentReqIdRef.current = null;
-      if (!isSendingRef.current) { setStreamedText(''); setStreamingMsgId(null); return; }
+      unlistenChunk();
+      // Chequeo por-pedido, no por bandera global: si cancelás y mandás otro
+      // mensaje antes de que ESTE pedido (ya cancelado) termine de resolver
+      // en el backend, isSendingRef.current vuelve a ser true por el pedido
+      // NUEVO -- comparar contra currentReqIdRef es lo único que distingue
+      // "este pedido en particular sigue vigente" de "ya lo superó otro".
+      const isStale = currentReqIdRef.current !== reqId;
+      if (currentReqIdRef.current === reqId) currentReqIdRef.current = null;
+      if (isStale) {
+        setMessages(prev => prev.filter(m => m.id !== reqId));
+        let wasStreamingThis = false;
+        setStreamingMsgId(prev => { if (prev === reqId) { wasStreamingThis = true; return null; } return prev; });
+        if (wasStreamingThis) setStreamedText('');
+        return;
+      }
       if (envelope.status === 'error') {
         throw new Error(envelope.error?.message || 'Error del asistente');
       }
@@ -442,9 +487,16 @@ const ChatPane: React.FC<Props> = ({
       delete cleanedMeta.code_output; delete cleanedMeta.suggestedCommands;
       setMessages(prev => prev.map(m => m.id === reqId ? { ...m, text: displayText, meta: cleanedMeta } : m));
     } catch (e) {
-      unlistenChunk(); setStreamedText(''); setStreamingMsgId(null);
+      unlistenChunk();
+      // Mismo chequeo por-pedido que el camino de éxito: si ya nos superó
+      // otro pedido, este catch (típicamente el "cancelled" que dispara el
+      // propio cancel) no debe apagarle el streaming a ESE pedido nuevo.
+      const isStale = currentReqIdRef.current !== reqId;
+      if (currentReqIdRef.current === reqId) currentReqIdRef.current = null;
       setMessages(prev => prev.filter(m => m.id !== reqId));
+      if (!isStale) { setStreamedText(''); setStreamingMsgId(null); }
       if (!String(e).toLowerCase().includes('cancelled')) throw e;
+      return;
     }
     setStreamedText(''); setStreamingMsgId(null);
   };
@@ -504,10 +556,34 @@ const ChatPane: React.FC<Props> = ({
   handleSendRef.current = handleSend;
 
   const handleCancel = useCallback(() => {
-    if (currentReqIdRef.current) invoke('cancel_ai_chat', { requestId: currentReqIdRef.current }).catch(() => {});
+    const cancelledReqId = currentReqIdRef.current;
+    // El comando Rust espera el sobre CommandRequest<CancelAiChatPayload>
+    // completo (igual que ai_chat), no un objeto suelto -- con la forma
+    // vieja Tauri rechazaba la llamada por argumentos inválidos y el catch
+    // silencioso la tragaba, así que el backend nunca se enteraba de la
+    // cancelación y el pedido seguía corriendo hasta el final igual.
+    if (cancelledReqId) {
+      invoke('cancel_ai_chat', {
+        req: {
+          id: crypto.randomUUID(),
+          version: '1.0',
+          timestamp_ms: Date.now(),
+          payload: { request_id: cancelledReqId },
+        },
+      }).catch(() => {});
+    }
     currentReqIdRef.current = null;
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     isSendingRef.current = false; setIsSending(false);
+    // Saca ya mismo la burbuja vacía en vez de dejarla colgada hasta que el
+    // backend eventualmente resuelva (el chequeo por-pedido en handleSend
+    // igual descarta esa respuesta tardía, esto es solo para que no quede
+    // un mensaje vacío pegado en pantalla mientras tanto).
+    if (cancelledReqId) {
+      setMessages(prev => prev.filter(m => m.id !== cancelledReqId));
+      setStreamingMsgId(prev => (prev === cancelledReqId ? null : prev));
+      setStreamedText('');
+    }
     setMessages(prev => [...prev, { id: String(Date.now()), sender: 'system', text: 'Respuesta cancelada por el usuario.' }]);
   }, []);
 
@@ -629,7 +705,7 @@ const ChatPane: React.FC<Props> = ({
           streamingMsgId={streamingMsgId} streamedText={streamedText}
           sessionId={sessionId} showScrollToBottom={showScrollToBottom}
           messagesRef={messagesRef} setShowScrollToBottom={setShowScrollToBottom}
-          onScrollToBottom={() => { const el = messagesRef.current; if (el) { el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); setShowScrollToBottom(false); } }}
+          onScrollToBottom={scrollMessagesToBottom}
           handleSuggestionClick={text => handleSendRef.current?.(text)}
           onDeleteMsg={handleDeleteMsg} onSaveEditMsg={handleSaveEditMsg}
           onCopyMsg={async text => { try { await navigator.clipboard.writeText(text); setToast('Copiado al portapapeles'); setTimeout(() => setToast(null), 2000); } catch {} }}

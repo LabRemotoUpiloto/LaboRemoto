@@ -24,16 +24,20 @@ export interface ConnectFormProps {
   recentConnections?: RecentConnection[];
   onQuickHostCleared?: () => void;
   onConnectionSuccess?: (connection: ConnectionToSave) => void;
+  /** Oculta "Guardar host" -- ej. en la conexión de invitado (sin sesión),
+   *  donde no tiene sentido ofrecer guardar hosts locales. */
+  hideSaveHost?: boolean;
 }
 
 const ConnectForm: React.FC<ConnectFormProps> = (props) => {
+  const { hideSaveHost } = props;
   const {
     host, port, user, password, showPassword,
     errors, isConnecting, isPulsing, isRaspberryPi,
     saveModalOpen, setSaveModalOpen,
     successAlertOpen, successAlertMessage,
     setSuccessAlertOpen, setSuccessAlertMessage,
-    isEditMode, isValid,
+    isEditMode, isValid, hostName,
     handleHostChange, handlePortChange,
     setUser, setPassword, setShowPassword,
     setErrors, clearForm, connect, handleSaveHost,
@@ -62,16 +66,18 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
     }
   }, [successAlertOpen]);
 
-  // Mantine modal: replace PromptModal for save host
+  // Mantine modal: pide el nombre solo para hosts NUEVOS. Editando uno ya
+  // guardado el nombre ya se conoce (hostName) -- pedirlo de nuevo acá se
+  // sentía como si la app no supiera que ya estaba editando algo existente.
   const openSaveModal = () => {
     let nameValue = '';
     modals.open({
-      title: isEditMode ? 'Editar host guardado' : 'Guardar host',
+      title: 'Guardar host',
       centered: true,
       children: (
         <form onSubmit={(e) => { e.preventDefault(); handleSaveHost(nameValue); modals.closeAll(); }}>
           <p style={{ fontSize: 13, opacity: 0.6, marginBottom: 12 }}>
-            {isEditMode ? 'Editar' : 'Guardar'} {user}@{host}:{port || '22'}
+            Guardar {user}@{host}:{port || '22'}
           </p>
           <TextInput
             data-autofocus
@@ -84,12 +90,19 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
               Cancelar
             </Button>
             <Button type="submit">
-              {isEditMode ? 'Guardar cambios' : 'Guardar'}
+              Guardar
             </Button>
           </Group>
         </form>
       ),
     });
+  };
+
+  // En edición, guarda directo con el nombre que ya tenía -- sin modal
+  // intermedio pidiendo confirmarlo de nuevo.
+  const handlePrimarySaveClick = () => {
+    if (isEditMode) handleSaveHost(hostName);
+    else openSaveModal();
   };
 
   return (
@@ -180,16 +193,18 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
         </Stack>
 
         {/* Acciones */}
-        <Group mt="xl" gap="sm" justify="space-between">
-          <Button
-            onClick={openSaveModal}
-            disabled={isConnecting}
-            className="dribbble-btn-secondary text-xs h-9 px-4"
-            title="Guardar host (Ctrl+S)"
-            leftSection={<Save size={14} />}
-          >
-            Guardar host
-          </Button>
+        <Group mt="xl" gap="sm" justify={hideSaveHost ? 'flex-end' : 'space-between'}>
+          {!hideSaveHost && (
+            <Button
+              onClick={handlePrimarySaveClick}
+              disabled={isConnecting}
+              className="dribbble-btn-secondary text-xs h-9 px-4"
+              title={isEditMode ? 'Finalizar edición (Ctrl+S)' : 'Guardar host (Ctrl+S)'}
+              leftSection={<Save size={14} />}
+            >
+              {isEditMode ? 'Finalizar edición' : 'Guardar host'}
+            </Button>
+          )}
           <Button
             type="submit"
             loading={isConnecting}

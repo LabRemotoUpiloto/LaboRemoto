@@ -237,6 +237,10 @@ pub struct KeycloakUser {
     /// Fecha de creación en Keycloak (epoch millis) — "Fecha Registro" en la UI.
     #[serde(rename = "createdTimestamp")]
     pub created_timestamp: Option<i64>,
+    /// Atributos custom del usuario (incluye `avatar`, ver `commands::account_set_avatar`).
+    /// Keycloak siempre representa cada atributo como array de strings.
+    #[serde(default)]
+    pub attributes: Option<std::collections::HashMap<String, Vec<String>>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
@@ -258,12 +262,16 @@ impl KeycloakClient {
     }
 
     /// GET /admin/realms/{realm}/users?search={query}
+    /// `briefRepresentation=false` es necesario para que Keycloak incluya
+    /// `attributes` (avatar, etc.) en la respuesta -- por defecto los
+    /// endpoints de LISTA (a diferencia de GET de un solo usuario) vienen en
+    /// modo "brief" y omiten ese campo.
     pub async fn admin_search_users(&self, token: &str, query: &str) -> Result<Vec<KeycloakUser>, AppError> {
         let url = format!("{}/admin/realms/{}/users", self.config.base_url, self.config.realm);
         let response = self.http
             .get(&url)
             .bearer_auth(token)
-            .query(&[("search", query)])
+            .query(&[("search", query), ("briefRepresentation", "false")])
             .send()
             .await
             .map_err(|e| AppError::Network(format!("[admin_search_users] GET falló: {}", e)))?;
@@ -289,7 +297,7 @@ impl KeycloakClient {
         let response = self.http
             .get(&url)
             .bearer_auth(token)
-            .query(&[("max", "1000")])
+            .query(&[("max", "1000"), ("briefRepresentation", "false")])
             .send()
             .await
             .map_err(|e| AppError::Network(format!("[admin_list_all_users] GET falló: {}", e)))?;
@@ -312,6 +320,7 @@ impl KeycloakClient {
         let response = self.http
             .get(&url)
             .bearer_auth(token)
+            .query(&[("briefRepresentation", "false")])
             .send()
             .await
             .map_err(|e| AppError::Network(format!("[admin_list_role_users] GET falló: {}", e)))?;
@@ -400,6 +409,127 @@ impl KeycloakClient {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             return Err(Self::keycloak_admin_error("remover rol", status, body));
+        }
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Keycloak Account REST API (self-service)
+    // ─────────────────────────────────────────────────────────────────────
+    // A diferencia del Admin REST API de arriba (requiere rol admin_lab +
+    // permisos realm-management), esto es la API de "mi propia cuenta" —
+    // cualquier usuario autenticado puede leer/editar SU PROPIO registro con
+    // su propio access_token, sin necesitar privilegios especiales. Es lo
+    // que usa la consola de cuenta de Keycloak (`/realms/{realm}/account`).
+
+    /// GET /realms/{realm}/account
+    /// `Accept: application/json` explícito -- sin esto, algunos despliegues
+    /// de Keycloak intentan negociar la consola de cuenta (SPA en HTML) en
+    /// vez de la API REST. Reintenta una vez ante un error de red: se vio
+    /// `connection closed before message completed` en pruebas reales, un
+    /// síntoma típico de reusar una conexión keep-alive que el proxy (nginx)
+    /// ya había cerrado del otro lado -- una conexión nueva del pool resuelve
+    /// esto casi siempre.
+    pub async fn account_get(&self, token: &str) -> Result<serde_json::Value, AppError> {
+        let url = format!("{}/realms/{}/account", self.config.base_url, self.config.realm);
+
+        let mut last_err = None;
+        for attempt in 0..2 {
+            let result = self.http
+                .get(&url)
+                .bearer_auth(token)
+                .header("Accept", "application/json")
+                .send()
+                .await;
+
+            match result {
+                Ok(response) => {
+                    if !response.status().is_success() {
+                        let status = response.status();
+                        let body = response.text().await.unwrap_or_default();
+                        return Err(AppError::Api(format!("Keycloak Account API error consultando cuenta ({}): {}", status, body)));
+                    }
+                    return response.json().await.map_err(|e| AppError::Serialization(e.to_string()));
+                }
+                Err(e) => {
+                    last_err = Some(e);
+                    if attempt == 0 { continue; }
+                }
+            }
+        }
+        Err(AppError::Network(format!("[account_get] GET falló tras reintentar: {}", last_err.unwrap())))
+    }
+
+    /// POST /realms/{realm}/account
+    /// Keycloak espera el objeto de cuenta completo (no soporta PATCH parcial)
+    /// — el caller debe partir de un `account_get` previo y solo pisar el
+    /// campo que quiere cambiar antes de reenviar, para no perder el resto.
+    pub async fn account_update(&self, token: &str, account: &serde_json::Value) -> Result<(), AppError> {
+        let url = format!("{}/realms/{}/account", self.config.base_url, self.config.realm);
+        let response = self.http
+            .post(&url)
+            .bearer_auth(token)
+            .header("Accept", "application/json")
+            .json(account)
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[account_update] POST falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Api(format!("Keycloak Account API error actualizando cuenta ({}): {}", status, body)));
+        }
+        Ok(())
+    }
+
+    /// GET /admin/realms/{realm}/users/{id}
+    /// Usado antes de `admin_update_user` para partir de un objeto ya en el
+    /// formato exacto que espera el PUT del Admin API -- el objeto que
+    /// devuelve `account_get` (self-service) no sirve como base para el PUT:
+    /// trae campos como `userProfileMetadata` que `UserRepresentation` (el
+    /// deserializador estricto del lado de Keycloak para el Admin API) no
+    /// reconoce y rechaza con 400.
+    pub async fn admin_get_user(&self, token: &str, user_id: &str) -> Result<serde_json::Value, AppError> {
+        let url = format!("{}/admin/realms/{}/users/{}", self.config.base_url, self.config.realm, user_id);
+        let response = self.http
+            .get(&url)
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_get_user] GET falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("consultar usuario", status, body));
+        }
+
+        response.json().await.map_err(|e| AppError::Serialization(e.to_string()))
+    }
+
+    /// PUT /admin/realms/{realm}/users/{id}
+    /// A diferencia de `account_update` (self-service), este SÍ puede escribir
+    /// atributos custom aunque el usuario venga federado de LDAP en modo
+    /// solo-lectura (`readOnlyUserMessage` que devuelve la Account API) — la
+    /// restricción de solo-lectura de LDAP aplica a los campos mapeados
+    /// (username/email/nombre), no a atributos propios de Keycloak como
+    /// `avatar`. Requiere permisos de admin (`manage-users`), por eso solo
+    /// admin_lab puede usarlo (ver `check_admin_lab` en commands.rs).
+    pub async fn admin_update_user(&self, token: &str, user_id: &str, user: &serde_json::Value) -> Result<(), AppError> {
+        let url = format!("{}/admin/realms/{}/users/{}", self.config.base_url, self.config.realm, user_id);
+        let response = self.http
+            .put(&url)
+            .bearer_auth(token)
+            .json(user)
+            .send()
+            .await
+            .map_err(|e| AppError::Network(format!("[admin_update_user] PUT falló: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::keycloak_admin_error("actualizar usuario", status, body));
         }
         Ok(())
     }

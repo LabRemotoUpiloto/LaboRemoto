@@ -8,7 +8,7 @@ import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import { User, Shield, SquareTerminal } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAccessTier, canAccessPage } from '../../hooks/usePermissions';
+import { useAccessTier, canAccessPage, useCanAccessVigilancia } from '../../hooks/usePermissions';
 import {
   MonitorIcon,
   CompassIcon,
@@ -19,6 +19,7 @@ import {
   LabIcon,
   HomeIcon,
   CalendarIcon,
+  CameraIcon,
 } from '../icons/SidebarIcons';
 
 interface SidebarProps {
@@ -59,7 +60,6 @@ const sections = [
     items: [
       { id: 'connect', label: 'Connect', icon: MonitorIcon },
       { id: 'hosts',   label: 'Hosts',   icon: CompassIcon },
-      { id: 'logs',    label: 'Logs',    icon: FileTextIcon },
       // No es una página de `onOpenPanel`: crea y abre directamente un tab
       // "Terminal local" nuevo — ver caso especial en el onClick del item.
       { id: 'local-terminal-new', label: 'Terminal local', icon: SquareTerminal },
@@ -101,6 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const showMacTitleBarZone = isMacOS();
   const { user, logout } = useAuth();
   const tier = useAccessTier();
+  const canSeeVigilancia = useCanAccessVigilancia();
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => setAppVersion(''));
@@ -230,7 +231,19 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         {[
           ...sections,
-          { label: 'Administración', items: [{ id: 'admin-users', label: 'Usuarios', icon: Shield }] },
+          {
+            label: 'Administración',
+            items: [
+              { id: 'admin-users', label: 'Usuarios', icon: Shield },
+              { id: 'logs', label: 'Logs', icon: FileTextIcon },
+              // Vigilancia se filtra por ROL directo (canSeeVigilancia), no
+              // por tier: admin_lab y laboratorista sí, semillerista no — el
+              // tier 'operativo' los agrupa a ambos, así que no alcanza con
+              // canAccessPage/PAGE_ACCESS para expresar esta regla. Debajo
+              // de "Usuarios" a propósito (mismo grupo de administración).
+              ...(canSeeVigilancia ? [{ id: 'vigilancia', label: 'Vigilancia', icon: CameraIcon }] : []),
+            ],
+          },
         ]
           .map(section => ({ ...section, items: section.items.filter(item => canAccessPage(item.id, tier)) }))
           .filter(section => section.items.length > 0)
@@ -372,8 +385,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           </Menu.Target>
           <Menu.Dropdown bg="var(--mantine-color-body)">
             <Menu.Label>Usuario</Menu.Label>
-            <Menu.Item disabled c="var(--mantine-color-text)">Perfil (Próximamente)</Menu.Item>
-            <Menu.Item disabled c="var(--mantine-color-text)">Ajustes (Próximamente)</Menu.Item>
+            <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('perfil')}>Perfil</Menu.Item>
+            <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('ajustes')}>Ajustes</Menu.Item>
             <Menu.Divider />
             <Menu.Item color="red" onClick={logout}>Cerrar Sesión</Menu.Item>
           </Menu.Dropdown>

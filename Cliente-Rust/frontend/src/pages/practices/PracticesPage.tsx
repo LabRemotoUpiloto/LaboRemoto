@@ -3,11 +3,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import { ActionIcon, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { ArrowLeft, Bot, Cpu, Terminal, X } from 'lucide-react';
+import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
+import { AlertTriangle, ArrowLeft, Bot, Cpu, Terminal, X } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
 import LinuxModulePage from './LinuxModulePage';
+import ExternalPracticeCard from '../../components/practicas/ExternalPracticeCard';
+import { useLabPractices } from '../../hooks/useLabPractices';
 
 const categoryIconMap: Record<string, React.ElementType> = {
     robot: Bot,
@@ -81,6 +83,13 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const [setupLogs, setSetupLogs] = useState<LogEntry[]>([]);
     const [selectedLinuxPracticeId, setSelectedLinuxPracticeId] = useState<string | null>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
+
+    // Catálogo externo (cmd::integration::lab_practices) — solo lectura,
+    // pestaña aparte porque es contenido importado sin entorno vinculado
+    // (ver ExternalPracticeCard). No comparte categorías con las prácticas
+    // locales: es una lista plana.
+    const [catalogTab, setCatalogTab] = useState<'local' | 'external'>('local');
+    const { practices: externalPractices, status: externalStatus, error: externalError, refetch: refetchExternal } = useLabPractices();
 
     useEffect(() => {
         loadCategories();
@@ -205,25 +214,60 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                         <Stack gap="sm">
                             <Title order={1}>Prácticas de Laboratorio</Title>
                             <Text size="md" c="dimmed" maw={580}>
-                                Selecciona una categoría para ver las prácticas disponibles.
-                                Cada práctica configura automáticamente tu entorno de trabajo.
+                                {catalogTab === 'local'
+                                    ? 'Selecciona una categoría para ver las prácticas disponibles. Cada práctica configura automáticamente tu entorno de trabajo.'
+                                    : 'Prácticas publicadas por aplicaciones de autoría externas. Contenido importado y de solo lectura — para ejecutarlas hace falta vincularlas a un entorno de laboratorio local (próxima fase).'}
                             </Text>
                         </Stack>
 
-                        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-                            {categories.map(cat => (
-                                <CategoryCard
-                                    key={cat.id}
-                                    id={cat.id}
-                                    name={cat.name}
-                                    description={cat.description}
-                                    icon={cat.icon}
-                                    color={cat.color}
-                                    practiceCount={cat.practices.length}
-                                    onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
-                                />
-                            ))}
-                        </SimpleGrid>
+                        <SegmentedControl
+                            value={catalogTab}
+                            onChange={(v) => setCatalogTab(v as 'local' | 'external')}
+                            data={[
+                                { label: 'Mis prácticas', value: 'local' },
+                                { label: 'Catálogo externo', value: 'external' },
+                            ]}
+                            style={{ alignSelf: 'flex-start' }}
+                        />
+
+                        {catalogTab === 'local' ? (
+                            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                                {categories.map(cat => (
+                                    <CategoryCard
+                                        key={cat.id}
+                                        id={cat.id}
+                                        name={cat.name}
+                                        description={cat.description}
+                                        icon={cat.icon}
+                                        color={cat.color}
+                                        practiceCount={cat.practices.length}
+                                        onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
+                                    />
+                                ))}
+                            </SimpleGrid>
+                        ) : externalStatus === 'loading' ? (
+                            <Stack align="center" gap="md" py="xl">
+                                <Loader size="md" />
+                                <Text c="dimmed" size="sm">Cargando catálogo externo...</Text>
+                            </Stack>
+                        ) : externalStatus === 'error' ? (
+                            <Alert color="red" variant="light" icon={<AlertTriangle size={16} />} title="No se pudo cargar el catálogo externo">
+                                <Stack gap="sm">
+                                    <Text size="sm">{externalError}</Text>
+                                    <Button size="xs" variant="light" color="red" onClick={() => void refetchExternal()} style={{ alignSelf: 'flex-start' }}>
+                                        Reintentar
+                                    </Button>
+                                </Stack>
+                            </Alert>
+                        ) : externalPractices.length === 0 ? (
+                            <Text c="dimmed" size="sm">No hay prácticas publicadas todavía.</Text>
+                        ) : (
+                            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                                {externalPractices.map(practice => (
+                                    <ExternalPracticeCard key={practice.id} practice={practice} />
+                                ))}
+                            </SimpleGrid>
+                        )}
                     </Stack>
                 ) : (
                     <Stack gap="xl">

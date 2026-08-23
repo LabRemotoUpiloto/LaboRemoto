@@ -181,6 +181,7 @@ pub fn run() {
       // NVR Shinobi — consumo de cámaras vía API HTTP (reemplaza stream_list_cameras)
       cmd::nvr::shinobi::nvr_list_cameras,
       cmd::nvr::shinobi::nvr_disconnect,
+      cmd::nvr::shinobi::nvr_ptz_control,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,
@@ -204,6 +205,9 @@ pub fn run() {
       cmd::integration::moodle::moodle_sync_assignment,
       cmd::integration::moodle::moodle_prepare_grade,
       cmd::integration::moodle::moodle_submit_grade_direct,
+      // Catálogo externo de prácticas (solo lectura, contenido no confiable)
+      cmd::integration::lab_practices::lab_practices_list,
+      cmd::integration::lab_practices::lab_practices_get,
       // Validador de prácticas
       cmd::practices::practice_validator::validate_practice_progress,
       cmd::practices::practice_validator::calculate_practice_grade,
@@ -221,6 +225,9 @@ pub fn run() {
       crate::auth::commands::admin_list_users_by_role,
       crate::auth::commands::admin_get_user_roles,
       crate::auth::commands::admin_toggle_user_role,
+      // Account API (self-service)
+      crate::auth::commands::account_get_avatar,
+      crate::auth::commands::account_set_avatar,
     ])
     .on_window_event(|_win, event| {
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {

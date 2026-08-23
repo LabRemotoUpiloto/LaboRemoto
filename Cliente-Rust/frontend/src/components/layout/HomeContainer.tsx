@@ -1,17 +1,21 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import LandingPage from '../../pages/home/LandingPage'
 import ConnectFormPage from '../../pages/connection/ConnectFormPage'
+import GuestConnectPage from '../../pages/connection/GuestConnectPage'
 import SavedHostsPage from '../../pages/connection/SavedHostsPage'
 import ThemesPage from '../../pages/settings/ThemesPage'
+import PerfilPage from '../../pages/settings/PerfilPage'
+import AjustesPage from '../../pages/settings/AjustesPage'
 import LogsPage from '../../pages/logs/LogsPage'
 import SftpPage from '../../pages/session/SftpPage'
 import SnippetsPage from '../../pages/session/SnippetsPage'
 import PracticesPage from '../../pages/practices/PracticesPage'
 import ReservasPage from '../../pages/reservas/ReservasPage'
 import UserManagementPage from '../../pages/admin/UserManagementPage'
+import VigilanciaPage from '../../pages/vigilancia/VigilanciaPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
-import { useAccessTier, canAccessPage } from '../../hooks/usePermissions'
+import { useAccessTier, canAccessPage, useCanAccessVigilancia } from '../../hooks/usePermissions'
 
 type Props = {
   tabs: Tab[]
@@ -39,11 +43,28 @@ const HomeContainer: React.FC<Props> = ({
   onStartPractice
 }) => {
   const tier = useAccessTier()
+  const canSeeVigilancia = useCanAccessVigilancia()
   // Segunda verificación: si selectedPage llegó aquí por un deep-link/estado
   // restaurado a una página que este rol no debería ver (la sidebar ya no
   // ofrece el botón, pero eso no impide que selectedPage tome ese valor por
   // otra vía), cae a landing en vez de renderizar la página restringida.
-  const effectivePage = canAccessPage(selectedPage, tier) ? selectedPage : 'landing'
+  // 'vigilancia' se valida por rol directo (no por tier/PAGE_ACCESS, ver
+  // usePermissions.canAccessVigilancia) — sin este caso especial, al no
+  // estar listado en PAGE_ACCESS, canAccessPage lo dejaría pasar para
+  // cualquier tier por el fallback "ids no listados quedan abiertos".
+  const effectivePage = selectedPage === 'vigilancia'
+    ? (canSeeVigilancia ? 'vigilancia' : 'landing')
+    : (canAccessPage(selectedPage, tier) ? selectedPage : 'landing')
+
+  // ConnectFormPage solo lee pendingHost una vez al montarse (ver el comentario
+  // en useConnectionForm) -- lo limpiamos acá apenas se consume para que una
+  // visita posterior a "Conexión" que NO venga de "Editar" no encuentre datos
+  // viejos dando vueltas.
+  useEffect(() => {
+    if (effectivePage === 'connect' && pendingHost) {
+      setPendingHost(null)
+    }
+  }, [effectivePage])
 
   return (
     <div style={{ height: '100%' }}>
@@ -54,6 +75,8 @@ const HomeContainer: React.FC<Props> = ({
         />
       ) : effectivePage === 'connect' ? (
         <ConnectFormPage onConnected={onConnectedFromConnect} initialPayload={pendingHost} />
+      ) : effectivePage === 'ssh-guest' ? (
+        <GuestConnectPage onConnected={onConnectedFromConnect} onBack={() => onOpenPanel('landing')} />
       ) : effectivePage === 'hosts' ? (
         <SavedHostsPage
           onConnected={(sessionId: string, label: string) => {
@@ -87,6 +110,12 @@ const HomeContainer: React.FC<Props> = ({
         <ReservasPage />
       ) : effectivePage === 'admin-users' ? (
         <UserManagementPage />
+      ) : effectivePage === 'vigilancia' ? (
+        <VigilanciaPage />
+      ) : effectivePage === 'perfil' ? (
+        <PerfilPage />
+      ) : effectivePage === 'ajustes' ? (
+        <AjustesPage onOpenPanel={onOpenPanel} />
       ) : (
         <LandingPage
           onStartTutorial={() => onOpenPanel('landing')}

@@ -1,8 +1,12 @@
 name: Build & Release
 
 on:
+  # Solo Produccion publica releases publicos -- pushes a Desarrollo/
+  # Pruebas(QA)/main tambien disparaban esto antes, generando un release
+  # publico real (visible al auto-updater) por cada merge intermedio, no
+  # solo cuando el codigo de verdad llega a produccion.
   push:
-    branches: [main, Pruebas(QA), Desarrollo, Produccion]
+    branches: [Produccion]
     tags: ['v*']
   workflow_dispatch:
 
@@ -10,11 +14,81 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  # Calcula UNA sola vez la version final y se la pasa a los jobs de build
+  # por plataforma -- si cada job la calculara por su cuenta (como antes,
+  # cuando solo existia el job de Windows) correrian en paralelo y podrian
+  # terminar publicando en tags distintos si uno ve el listado de releases
+  # publicados antes que el otro.
+  compute-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute unique release version
+        # La version comiteada en el repo (tauri.conf.json/Cargo.toml/package.json)
+        # a veces se queda atras porque alguien se olvida de subirla antes de
+        # mergear a Produccion -- eso hacia que el workflow reescribiera el
+        # release ya publicado en vez de crear uno nuevo, y el auto-updater de
+        # Tauri nunca veia una version mas alta para ofrecer (paso
+        # silenciosamente esto con v3.5.2 -> v3.5.3). Este paso compara contra
+        # el release mas alto ya publicado y, si hace falta, sube el patch
+        # automaticamente -- el valor calculado se aplica luego en cada job de
+        # build (workspace efimero del runner, nunca se comitea de vuelta,
+        # evita pelear con la proteccion de rama que exige revisor).
+        id: compute
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE_VERSION=$(node -p "require('./Cliente-Rust/backend/tauri.conf.json').version")
+
+          PUBLISHED=$(gh release list --repo LabRemotoUpiloto/LaboRemoto --limit 100 --json tagName --jq '.[].tagName' \
+            | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          HIGHEST=$(printf '%s\n' "$PUBLISHED" | sort -V | tail -1)
+
+          if [ -z "$HIGHEST" ]; then
+            FINAL_VERSION="$BASE_VERSION"
+          else
+            TOP=$(printf '%s\n%s\n' "$BASE_VERSION" "$HIGHEST" | sort -V | tail -1)
+            if [ "$TOP" = "$BASE_VERSION" ] && [ "$BASE_VERSION" != "$HIGHEST" ]; then
+              # La version del repo ya esta por delante de todo lo publicado.
+              FINAL_VERSION="$BASE_VERSION"
+            else
+              IFS='.' read -r MAJ MIN PATCH <<< "$HIGHEST"
+              FINAL_VERSION="$MAJ.$MIN.$((PATCH + 1))"
+            fi
+          fi
+
+          echo "Version en el repo: $BASE_VERSION | Release mas alto publicado: ${HIGHEST:-ninguno} | Version final: $FINAL_VERSION"
+          echo "version=$FINAL_VERSION" >> "$GITHUB_OUTPUT"
+
+  release-windows:
+    needs: compute-version
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Apply computed version
+        shell: bash
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION;
+            for (const f of ['Cliente-Rust/backend/tauri.conf.json', 'Cliente-Rust/frontend/package.json', 'Cliente-Rust/package.json']) {
+              const content = fs.readFileSync(f, 'utf8');
+              fs.writeFileSync(f, content.replace(/\"version\": \"[^\"]+\"/, '\"version\": \"' + version + '\"'));
+            }
+            const cargoPath = 'Cliente-Rust/backend/Cargo.toml';
+            const cargo = fs.readFileSync(cargoPath, 'utf8');
+            fs.writeFileSync(cargoPath, cargo.replace(/^version = \"[^\"]+\"/m, 'version = \"' + version + '\"'));
+            console.log('Version aplicada:', version);
+          "
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,18 +114,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cargo tauri build
 
-      - name: Extract version
-        id: version
-        shell: pwsh
-        run: |
-          $config = Get-Content tauri.conf.json -Raw | ConvertFrom-Json
-          echo "VERSION=$($config.version)" >> $env:GITHUB_OUTPUT
-        working-directory: Cliente-Rust/backend
-
       - name: Prepare updater metadata
         shell: pwsh
         env:
-          VERSION: ${{ steps.version.outputs.VERSION }}
+          VERSION: ${{ needs.compute-version.outputs.version }}
         run: |
           $bundleDir = "Cliente-Rust/backend/target/release/bundle/nsis"
           $assetName = "Cliente.SSH.Unipiloto_$env:VERSION`_x64-setup.exe"
@@ -90,11 +156,124 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.VERSION }}
-          name: v${{ steps.version.outputs.VERSION }}
+          tag_name: v${{ needs.compute-version.outputs.version }}
+          name: v${{ needs.compute-version.outputs.version }}
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            Cliente-Rust/backend/target/release/bundle/nsis/Cliente.SSH.Unipiloto_${{ steps.version.outputs.VERSION }}_x64-setup.exe
+            Cliente-Rust/backend/target/release/bundle/nsis/Cliente.SSH.Unipiloto_${{ needs.compute-version.outputs.version }}_x64-setup.exe
             Cliente-Rust/backend/target/release/bundle/nsis/latest.json
+
+  release-linux:
+    needs: compute-version
+    # Un binario compilado contra una glibc mas nueva no corre en sistemas
+    # con una glibc mas vieja (glibc es compatible hacia adelante, no hacia
+    # atras) -- por eso el repo viejo publicaba dos builds separados
+    # (Debian 13/glibc>=2.39 y Debian 12/glibc>=2.36). Se replica lo mismo
+    # acá: compilar en ubuntu-22.04 da un binario compatible con glibc>=2.36
+    # (corre tambien en sistemas mas nuevos), compilar en ubuntu-24.04 da uno
+    # que exige glibc>=2.39.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            glibc_label: glibc2.36
+          - runner: ubuntu-24.04
+            glibc_label: glibc2.39
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply computed version
+        shell: bash
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION;
+            for (const f of ['Cliente-Rust/backend/tauri.conf.json', 'Cliente-Rust/frontend/package.json', 'Cliente-Rust/package.json']) {
+              const content = fs.readFileSync(f, 'utf8');
+              fs.writeFileSync(f, content.replace(/\"version\": \"[^\"]+\"/, '\"version\": \"' + version + '\"'));
+            }
+            const cargoPath = 'Cliente-Rust/backend/Cargo.toml';
+            const cargo = fs.readFileSync(cargoPath, 'utf8');
+            fs.writeFileSync(cargoPath, cargo.replace(/^version = \"[^\"]+\"/m, 'version = \"' + version + '\"'));
+            console.log('Version aplicada:', version);
+          "
+
+      - name: Install system dependencies
+        # Paquetes nativos que Tauri necesita para compilar y empaquetar en
+        # Linux (webkit2gtk para el webview, libappindicator para el tray,
+        # patchelf/file para el bundler de AppImage/deb).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            file \
+            libssl-dev \
+            libgtk-3-dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: Cliente-Rust/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: Cliente-Rust/frontend
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build Tauri app
+        working-directory: Cliente-Rust/backend
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        # --bundles sobreescribe `bundle.targets` de tauri.conf.json (que solo
+        # trae "nsis", el instalador de Windows) sin tocar ese archivo -- el
+        # job de Windows sigue usando el target committeado tal cual.
+        run: cargo tauri build --bundles deb,appimage
+
+      - name: Rename assets con sufijo de compatibilidad glibc
+        # Los dos legs de la matriz producen archivos con el MISMO nombre
+        # (Tauri no mete la version de Ubuntu/glibc en el nombre) -- sin este
+        # sufijo, el que termine segundo pisaria el asset del que termino
+        # primero al subir los dos al mismo release.
+        shell: bash
+        working-directory: Cliente-Rust/backend/target/release/bundle
+        run: |
+          for f in deb/*.deb; do
+            mv "$f" "deb/$(basename "$f" .deb)-${{ matrix.glibc_label }}.deb"
+          done
+          for f in appimage/*.AppImage; do
+            mv "$f" "appimage/$(basename "$f" .AppImage)-${{ matrix.glibc_label }}.AppImage"
+          done
+
+      - name: Create Release
+        # No genera/toca latest.json (metadata del auto-updater) -- ese
+        # mecanismo hoy solo existe para Windows (unico target configurado en
+        # el plugin updater). Publicar los assets de Linux en el mismo tag no
+        # tiene ese riesgo: son archivos con nombre distinto al de Windows.
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.compute-version.outputs.version }}
+          name: v${{ needs.compute-version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            Cliente-Rust/backend/target/release/bundle/deb/*.deb
+            Cliente-Rust/backend/target/release/bundle/appimage/*.AppImage

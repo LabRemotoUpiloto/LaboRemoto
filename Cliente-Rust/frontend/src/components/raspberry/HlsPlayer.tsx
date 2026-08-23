@@ -29,8 +29,15 @@ const HlsPlayer: React.FC<Props> = ({ src, label }) => {
       // fatales. Buffer un poco más generoso + auto-recovery de errores no fatales.
       const hls = new Hls({
         lowLatencyMode: false,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 10,
+        // liveMaxLatencyDurationCount alto (era 10 = hasta 20s con segmentos
+        // de 2s) es lo que hacía sentir el PTZ con delay: hls.js tolera
+        // quedarse muy atrás del vivo antes de ponerse al día. Bajado a un
+        // rango que sigue absorbiendo jitter de red sin acumular tanto
+        // atraso, más un playback rate variable para alcanzar el vivo sin
+        // saltos bruscos quando se atrasa.
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 4,
+        maxLiveSyncPlaybackRate: 1.3,
         enableWorker: true,
         manifestLoadingMaxRetry: 6,
         manifestLoadingRetryDelay: 500,
@@ -86,8 +93,19 @@ const HlsPlayer: React.FC<Props> = ({ src, label }) => {
       video.onplaying = () => setState('playing')
       video.onerror = () => { setState('error'); setErrMsg('Error reproduciendo HLS') }
     } else {
+      // Diagnostico en el propio mensaje de error (no solo consola) porque en
+      // el build de produccion de Tauri no siempre hay devtools a mano --
+      // esto es lo que se vio en Linux/WebKitGTK con "no soportado": hace
+      // falta saber si falta MediaSource del todo o si existe pero rechaza
+      // el codec H264 especifico que usan las camaras.
+      const hasMediaSource = typeof window !== 'undefined' && ('MediaSource' in window || 'WebKitMediaSource' in window)
+      const h264Supported = hasMediaSource && typeof MediaSource !== 'undefined' && typeof MediaSource.isTypeSupported === 'function'
+        ? MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E"')
+        : false
+      const diag = `MediaSource=${hasMediaSource} h264=${h264Supported}`
+      console.error('[HlsPlayer] Hls.isSupported()=false —', diag)
       setState('error')
-      setErrMsg('HLS no soportado en este navegador')
+      setErrMsg(`HLS no soportado (${diag})`)
     }
 
     return () => {

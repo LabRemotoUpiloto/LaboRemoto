@@ -38,3 +38,19 @@ export function useAccessTier(): AccessTier {
 export function canAccessPage(pageId: string, tier: AccessTier): boolean {
   return PAGE_ACCESS[pageId]?.includes(tier) ?? true
 }
+
+/**
+ * Vigilancia (grilla de cámaras NVR de solo lectura) es un caso especial que
+ * NO encaja en el modelo de 3 tiers: la pueden ver admin_lab Y laboratorista,
+ * pero NO semillerista — y el tier 'operativo' agrupa laboratorista y
+ * semillerista juntos a propósito para todo lo demás. Se resuelve por rol
+ * directo en vez de forzar una excepción dentro de PAGE_ACCESS/AccessTier.
+ */
+export function canAccessVigilancia(roles: string[] | undefined): boolean {
+  return !!roles?.includes('admin_lab') || !!roles?.includes('laboratorista')
+}
+
+export function useCanAccessVigilancia(): boolean {
+  const { user } = useAuth()
+  return canAccessVigilancia(user?.roles)
+}
