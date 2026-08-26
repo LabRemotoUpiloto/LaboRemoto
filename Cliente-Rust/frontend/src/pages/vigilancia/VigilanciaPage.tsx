@@ -1,7 +1,7 @@
-// pages/vigilancia/VigilanciaPage.tsx — grilla de cámaras NVR de solo lectura
-// para administradores y laboratoristas. Restringida en Sidebar.tsx y
-// HomeContainer.tsx vía usePermissions.canAccessVigilancia (admin_lab o
-// laboratorista; semillerista queda afuera a propósito).
+// pages/vigilancia/VigilanciaPage.tsx — grilla de cámaras NVR con PTZ para el
+// tier 'operativo' (laboratorista + semillerista) y admin_lab. Restringida en
+// Sidebar.tsx y HomeContainer.tsx vía PAGE_ACCESS['vigilancia'] en
+// usePermissions.ts, igual que cualquier otra página del tier.
 import React from 'react';
 import { Box, Title } from '@mantine/core';
 import CameraGrid, { PILOT_GROUP_KEY } from '../../components/raspberry/CameraGrid';

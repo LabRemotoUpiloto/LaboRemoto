@@ -184,7 +184,7 @@ pub async fn nvr_disconnect() {}
 
 /// Envía un comando PTZ (mover/zoom/detener) a una cámara del Group. El
 /// backend nunca habla directo con la cámara Reolink — todo pasa por el
-/// broker, que valida rol (admin_lab/laboratorista) y traduce `mid` a la
+/// broker, que valida rol (admin_lab/laboratorista/semillerista) y traduce `mid` a la
 /// IP+credenciales reales de la cámara física (ver `PTZ_CAMERAS_JSON` en
 /// `infra/nvr-broker`). Si la cámara no está en ese mapa (no es PTZ), el
 /// broker responde 404 y este comando lo traduce a `VALIDATION_FAILED`.
