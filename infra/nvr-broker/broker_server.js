@@ -18,7 +18,7 @@
 //     (emitido por /nvr/monitor tras validar el JWT).
 //   POST /nvr/ptz/:groupKey/:mid
 //     Requiere: Authorization: Bearer <jwt de Keycloak> con rol
-//     admin_lab o laboratorista (realm_access.roles). Body JSON
+//     admin_lab, laboratorista o semillerista (realm_access.roles). Body JSON
 //     {"op": "Left"|"Right"|...|"Stop"|"ZoomInc"|"ZoomDec", "speed"?: n}.
 //     Traduce :mid a la camara Reolink real (IP+credenciales, nunca
 //     expuestas al cliente) y reenvia el comando PTZ via su API HTTP.
@@ -345,12 +345,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     // PTZ mueve hardware real -- a diferencia de /nvr/monitor (solo lectura),
-    // aca si se exige rol, igual que la restriccion de "Vigilancia" en el
-    // frontend (usePermissions.canAccessVigilancia: admin_lab o laboratorista).
+    // aca si se exige rol, igual que el acceso a "Vigilancia" en el frontend
+    // (usePermissions.PAGE_ACCESS['vigilancia']: tier 'operativo' -- admin_lab,
+    // laboratorista o semillerista).
     const roles = claims.realm_access?.roles || [];
-    if (!roles.includes('admin_lab') && !roles.includes('laboratorista')) {
+    if (!roles.includes('admin_lab') && !roles.includes('laboratorista') && !roles.includes('semillerista')) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: 'forbidden', message: 'PTZ requiere rol admin_lab o laboratorista' }));
+      return res.end(JSON.stringify({ error: 'forbidden', message: 'PTZ requiere rol admin_lab, laboratorista o semillerista' }));
     }
 
     const cam = PTZ_CAMERAS[mid];

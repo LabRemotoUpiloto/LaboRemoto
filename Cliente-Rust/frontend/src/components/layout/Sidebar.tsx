@@ -8,7 +8,7 @@ import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import { User, Shield, SquareTerminal } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAccessTier, canAccessPage, useCanAccessVigilancia } from '../../hooks/usePermissions';
+import { useAccessTier, canAccessPage } from '../../hooks/usePermissions';
 import {
   MonitorIcon,
   CompassIcon,
@@ -101,7 +101,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const showMacTitleBarZone = isMacOS();
   const { user, logout } = useAuth();
   const tier = useAccessTier();
-  const canSeeVigilancia = useCanAccessVigilancia();
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => setAppVersion(''));
@@ -236,12 +235,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             items: [
               { id: 'admin-users', label: 'Usuarios', icon: Shield },
               { id: 'logs', label: 'Logs', icon: FileTextIcon },
-              // Vigilancia se filtra por ROL directo (canSeeVigilancia), no
-              // por tier: admin_lab y laboratorista sí, semillerista no — el
-              // tier 'operativo' los agrupa a ambos, así que no alcanza con
-              // canAccessPage/PAGE_ACCESS para expresar esta regla. Debajo
-              // de "Usuarios" a propósito (mismo grupo de administración).
-              ...(canSeeVigilancia ? [{ id: 'vigilancia', label: 'Vigilancia', icon: CameraIcon }] : []),
+              // Vigilancia ya vive en PAGE_ACCESS como cualquier otra página
+              // (tier 'operativo' = laboratorista + semillerista, + admin) —
+              // se filtra abajo junto con el resto vía canAccessPage.
+              { id: 'vigilancia', label: 'Vigilancia', icon: CameraIcon },
             ],
           },
         ]

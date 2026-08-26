@@ -15,7 +15,7 @@ import UserManagementPage from '../../pages/admin/UserManagementPage'
 import VigilanciaPage from '../../pages/vigilancia/VigilanciaPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
-import { useAccessTier, canAccessPage, useCanAccessVigilancia } from '../../hooks/usePermissions'
+import { useAccessTier, canAccessPage } from '../../hooks/usePermissions'
 
 type Props = {
   tabs: Tab[]
@@ -43,18 +43,11 @@ const HomeContainer: React.FC<Props> = ({
   onStartPractice
 }) => {
   const tier = useAccessTier()
-  const canSeeVigilancia = useCanAccessVigilancia()
   // Segunda verificación: si selectedPage llegó aquí por un deep-link/estado
   // restaurado a una página que este rol no debería ver (la sidebar ya no
   // ofrece el botón, pero eso no impide que selectedPage tome ese valor por
   // otra vía), cae a landing en vez de renderizar la página restringida.
-  // 'vigilancia' se valida por rol directo (no por tier/PAGE_ACCESS, ver
-  // usePermissions.canAccessVigilancia) — sin este caso especial, al no
-  // estar listado en PAGE_ACCESS, canAccessPage lo dejaría pasar para
-  // cualquier tier por el fallback "ids no listados quedan abiertos".
-  const effectivePage = selectedPage === 'vigilancia'
-    ? (canSeeVigilancia ? 'vigilancia' : 'landing')
-    : (canAccessPage(selectedPage, tier) ? selectedPage : 'landing')
+  const effectivePage = canAccessPage(selectedPage, tier) ? selectedPage : 'landing'
 
   // ConnectFormPage solo lee pendingHost una vez al montarse (ver el comentario
   // en useConnectionForm) -- lo limpiamos acá apenas se consume para que una

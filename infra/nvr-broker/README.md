@@ -53,7 +53,7 @@ Authorization: Bearer        location /nvr/ {                  (valida JWT,
   una sesión vigente (emitida por `/nvr/monitor`, TTL 15 min). Reescribe
   además cualquier referencia a la key real dentro del manifest `.m3u8`.
 - `POST /nvr/ptz/:groupKey/:mid` — requiere `Authorization: Bearer <JWT
-  Keycloak>` **con rol `admin_lab` o `laboratorista`** (`realm_access.roles`
+  Keycloak>` **con rol `admin_lab`, `laboratorista` o `semillerista`** (`realm_access.roles`
   del token) — a diferencia de `/nvr/monitor`, que es solo lectura y no
   exige rol. Body `{"op": "Left"|"Right"|"Up"|"Down"|"LeftUp"|"LeftDown"|
   "RightUp"|"RightDown"|"ZoomInc"|"ZoomDec"|"Stop", "speed"?: 1-8}`.
