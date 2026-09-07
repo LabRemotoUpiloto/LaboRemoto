@@ -18,92 +18,61 @@ static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
         .unwrap_or_default()
 });
 
-// Helper centralizado para obtener la API key saneada.
-pub fn get_openai_api_key() -> Option<String> {
-    // Cargar .env una vez por proceso (dotenvy es idempotente, pero evitamos ruido)
+/// Helper centralizado para obtener la API key de Groq.
+pub fn get_groq_api_key() -> Option<String> {
+    // Cargar .env una vez por proceso (dotenvy es idempotente)
     static DID_DOTENV: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
     if let Ok(mut g) = DID_DOTENV.lock() { if !*g { let _ = dotenvy::dotenv(); *g = true; } }
-    
-    // Intentar múltiples nombres de variables para la API key de OpenAI
-    let possible_keys = ["OPENAI_API_KEY3P", "OPENAI_API_KEY", "OPENAI_API_KEY1", "OPENAI_API_KEY2"];
-    
-    for key_name in possible_keys.iter() {
-        if let Ok(raw) = std::env::var(key_name) {
-            let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
-            if !trimmed.is_empty() && trimmed.len() >= 40 { 
-                return Some(trimmed); 
-            }
-        }
-    }
-    
-    // 2) Fallback opcional: clave embebida en tiempo de compilación (si se proveyó)
-    if let Some(baked) = option_env!("COMPILED_OPENAI_KEY") {
-        let trimmed = baked.trim().trim_matches('\'').trim_matches('"').to_string();
-        if !trimmed.is_empty() && trimmed.len() >= 40 { return Some(trimmed); }
-    }
-    None
-}
 
-// Helper para obtener la API key de Claude
-pub fn get_claude_api_key() -> Option<String> {
-    // Cargar .env una vez por proceso
-    static DID_DOTENV: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
-    if let Ok(mut g) = DID_DOTENV.lock() { if !*g { let _ = dotenvy::dotenv(); *g = true; } }
-    
-    // Intentar múltiples nombres de variables para la API key de Claude
-    let possible_keys = ["CLAUDE_API_KEY", "ANTHROPIC_API_KEY", "CLAUDE_CODE_API_KEY"];
-    
-    for key_name in possible_keys.iter() {
-        if let Ok(raw) = std::env::var(key_name) {
-            let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
-            if !trimmed.is_empty() && trimmed.len() >= 40 { 
-                return Some(trimmed); 
-            }
-        }
-    }
-    
-    // Fallback opcional: clave embebida en tiempo de compilación (si se proveyó)
-    if let Some(baked) = option_env!("COMPILED_CLAUDE_KEY") {
-        let trimmed = baked.trim().trim_matches('\'').trim_matches('"').to_string();
-        if !trimmed.is_empty() && trimmed.len() >= 40 { return Some(trimmed); }
-    }
-    None
-}
-
-/// Helper para obtener la API key de OpenRouter
-pub fn get_openrouter_api_key() -> Option<String> {
-    static DID_DOTENV: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
-    if let Ok(mut g) = DID_DOTENV.lock() { if !*g { let _ = dotenvy::dotenv(); *g = true; } }
-    if let Ok(raw) = std::env::var("OPENROUTER_API_KEY") {
+    if let Ok(raw) = std::env::var("GROQ_API_KEY") {
         let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
+        if !trimmed.is_empty() && trimmed.len() >= 20 {
+            return Some(trimmed);
+        }
+    }
+    // Fallback a clave embebida en tiempo de compilación
+    if let Some(baked) = option_env!("COMPILED_GROQ_KEY") {
+        let trimmed = baked.trim().trim_matches('\'').trim_matches('"').to_string();
         if !trimmed.is_empty() && trimmed.len() >= 20 { return Some(trimmed); }
     }
-    // Fallback a la key horneada en tiempo de compilación
-    if let Some(baked) = option_env!("COMPILED_OPENROUTER_KEY") {
-        let trimmed = baked.trim().trim_matches('\'').trim_matches('"');
-        if !trimmed.is_empty() && trimmed.len() >= 20 { return Some(trimmed.to_string()); }
-    }
     None
 }
 
-/// Resuelve el endpoint y clave para llamadas OpenAI-compatibles.
-/// Modelos con "/" en el nombre (ej: "nvidia/nemotron-3-super-120b-a12b:free") se enrutan a OpenRouter.
-/// Retorna (url, api_key, is_openrouter)
-pub fn resolve_openai_endpoint(model: &str) -> (String, Option<String>, bool) {
-    if model.contains('/') {
-        if let Some(key) = get_openrouter_api_key() {
-            return (
-                "https://openrouter.ai/api/v1/chat/completions".to_string(),
-                Some(key),
-                true,
-            );
+/// Retorna el endpoint de Groq (compatible con OpenAI).
+/// Siempre apunta a api.groq.com — no hay enrutamiento a otros proveedores.
+pub fn resolve_groq_endpoint() -> (String, Option<String>) {
+    (
+        "https://api.groq.com/openai/v1/chat/completions".to_string(),
+        get_groq_api_key(),
+    )
+}
+
+/// Alias de compatibilidad: resuelve endpoint de chat (Groq)
+pub fn resolve_openai_endpoint(_model: &str) -> (String, Option<String>, bool) {
+    let (url, key) = resolve_groq_endpoint();
+    (url, key, false)
+}
+
+/// Alias para compatibilidad con código existente
+pub fn get_openai_api_key() -> Option<String> {
+    if let Ok(raw) = std::env::var("OPENAI_API_KEY") {
+        let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
+        if !trimmed.is_empty() && trimmed.len() >= 20 {
+            return Some(trimmed);
         }
     }
-    (
-        "https://api.openai.com/v1/chat/completions".to_string(),
-        get_openai_api_key(),
-        false,
-    )
+    get_groq_api_key()
+}
+
+/// Alias para compatibilidad con código existente
+pub fn get_claude_api_key() -> Option<String> {
+    if let Ok(raw) = std::env::var("CLAUDE_API_KEY") {
+        let trimmed = raw.trim().trim_matches('\'').trim_matches('"').to_string();
+        if !trimmed.is_empty() && trimmed.len() >= 20 {
+            return Some(trimmed);
+        }
+    }
+    get_groq_api_key()
 }
 
 /// Comprime la salida del terminal para reducir tokens al enviarse como contexto IA.
@@ -170,80 +139,48 @@ pub fn compress_terminal_context(raw: &str) -> String {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AiEnvStatus { 
-    pub has_openai_key: bool, 
-    pub has_claude_key: bool,
-    pub has_openrouter_key: bool,
-    pub model: Option<String>, 
-    pub openai_key_prefix: Option<String>, 
-    pub claude_key_prefix: Option<String>,
-    pub openai_key_length: Option<u32>,
-    pub claude_key_length: Option<u32>,
-    pub warning: Option<String> 
+pub struct AiEnvStatus {
+    pub has_groq_key: bool,
+    pub model: Option<String>,
+    pub groq_key_prefix: Option<String>,
+    pub groq_key_length: Option<u32>,
+    pub warning: Option<String>,
 }
 
 #[tauri::command]
 pub fn ai_env_status() -> Result<AiEnvStatus, CommandError> {
-    let openai_key_opt = get_openai_api_key();
-    let claude_key_opt = get_claude_api_key();
-    let openrouter_key_opt = get_openrouter_api_key();
-    
-    // Intentar obtener el modelo de env o de tiempo de compilación
+    // Cargar .env
+    static DID_DOTENV: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+    if let Ok(mut g) = DID_DOTENV.lock() { if !*g { let _ = dotenvy::dotenv(); *g = true; } }
+
+    let groq_key_opt = get_groq_api_key();
     let model = std::env::var("OPENAI_MODEL").ok()
         .or_else(|| option_env!("COMPILED_OPENAI_MODEL").map(|s| s.to_string()));
 
-    let debug = std::env::var("FILE_AI_DEBUG").ok().map(|v| v=="1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
-    
+    let debug = std::env::var("FILE_AI_DEBUG").ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
     let mut warning = None;
-    let mut openai_key_prefix = None;
-    let mut claude_key_prefix = None;
-    let mut openai_key_length = None;
-    let mut claude_key_length = None;
-    
-    if let Some(k) = openai_key_opt.as_ref() {
-        openai_key_length = Some(k.len() as u32);
-        if debug { openai_key_prefix = Some(k.chars().take(8).collect()); }
-        
-        // Verificar si la clave es de tiempo de compilación
-        let is_baked = option_env!("COMPILED_OPENAI_KEY").map(|b| b == k).unwrap_or(false);
-        if is_baked {
-            openai_key_prefix = Some("Embebida".to_string());
-        }
+    let mut groq_key_prefix = None;
+    let mut groq_key_length = None;
 
-        if !k.starts_with("sk-") { 
-            warning = Some("La clave OpenAI no empieza con 'sk-'".into()); 
+    if let Some(k) = groq_key_opt.as_ref() {
+        groq_key_length = Some(k.len() as u32);
+        if debug { groq_key_prefix = Some(k.chars().take(8).collect()); }
+        if !k.starts_with("gsk_") {
+            warning = Some("La clave Groq no empieza con 'gsk_'".into());
         }
+    } else {
+        warning = Some("No se detectó GROQ_API_KEY".into());
     }
-    
-    if let Some(k) = claude_key_opt.as_ref() {
-        claude_key_length = Some(k.len() as u32);
-        if debug { claude_key_prefix = Some(k.chars().take(8).collect()); }
 
-        // Verificar si la clave es de tiempo de compilación
-        let is_baked = option_env!("COMPILED_CLAUDE_KEY").map(|b| b == k).unwrap_or(false);
-        if is_baked {
-            claude_key_prefix = Some("Embebida".to_string());
-        }
-
-        if !k.starts_with("sk-ant-") { 
-            warning = Some("La clave Claude no empieza con 'sk-ant-'".into()); 
-        }
-    }
-    
-    if openai_key_opt.is_none() && claude_key_opt.is_none() && openrouter_key_opt.is_none() {
-        warning = Some("No se detectó ninguna API key válida (OPENAI_API_KEY, CLAUDE_API_KEY o OPENROUTER_API_KEY)".into());
-    }
-    
-    Ok(AiEnvStatus { 
-        has_openai_key: openai_key_opt.is_some(), 
-        has_claude_key: claude_key_opt.is_some(),
-        has_openrouter_key: openrouter_key_opt.is_some(),
-        model, 
-        openai_key_prefix, 
-        claude_key_prefix,
-        openai_key_length,
-        claude_key_length,
-        warning 
+    Ok(AiEnvStatus {
+        has_groq_key: groq_key_opt.is_some(),
+        model,
+        groq_key_prefix,
+        groq_key_length,
+        warning,
     })
 }
 
@@ -287,110 +224,59 @@ pub struct AiTestKeyResult {
 
 #[tauri::command]
 pub async fn ai_test_key() -> Result<AiTestKeyResult, CommandError> {
-    // Determinar qué API key probar basado en el modelo configurado
-    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "claude-sonnet-4-5".to_string());
+    let model = std::env::var("OPENAI_MODEL")
+        .unwrap_or_else(|_| "openai/gpt-oss-120b".to_string());
 
-    if model.starts_with("claude") {
-        // Probar Claude API
-        let key = get_claude_api_key().ok_or_else(|| CommandError::permanent(
-            "MISSING_API_KEY",
-            "CLAUDE_API_KEY no encontrada",
-        ))?;
-        
-        let client = &*HTTP_CLIENT;
-        let test_payload = serde_json::json!({
-            "model": model,
-            "max_tokens": 10,
-            "messages": [{"role": "user", "content": "test"}]
-        });
-        
-        match client
-            .post("https://api.anthropic.com/v1/messages")
-            .header("anthropic-version", "2023-06-01")
-            .header("x-api-key", &key)
-            .json(&test_payload)
-            .send()
-            .await
-        {
-            Ok(resp) => {
-                let status = resp.status().as_u16();
-                let body = resp.text().await.unwrap_or_default();
-                let body_snippet = if body.len() > 200 { 
-                    format!("{}...", &body[..200]) 
-                } else { 
-                    body.clone() 
-                };
-                
-                Ok(AiTestKeyResult {
-                    ok: status == 200,
-                    http_status: status,
-                    auth_error: status == 401 || status == 403,
-                    rate_limited: status == 429,
-                    body_snippet: Some(body_snippet),
-                    model_used: model,
-                    message: if status == 200 { Some("Claude API key válida".to_string()) } else { Some(format!("Error HTTP {}", status)) }
-                })
-            }
-            Err(e) => Ok(AiTestKeyResult {
-                ok: false,
-                http_status: 0,
-                auth_error: false,
-                rate_limited: false,
-                body_snippet: None,
+    let key = get_groq_api_key().ok_or_else(|| CommandError::permanent(
+        "MISSING_API_KEY",
+        "GROQ_API_KEY no encontrada en .env",
+    ))?;
+
+    let client = &*HTTP_CLIENT;
+    let test_payload = serde_json::json!({
+        "model": model,
+        "messages": [{"role": "user", "content": "test"}],
+        "max_tokens": 10
+    });
+
+    match client
+        .post("https://api.groq.com/openai/v1/chat/completions")
+        .bearer_auth(&key)
+        .json(&test_payload)
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let status = resp.status().as_u16();
+            let body = resp.text().await.unwrap_or_default();
+            let body_snippet = if body.len() > 200 {
+                format!("{}...", &body[..200])
+            } else {
+                body.clone()
+            };
+            Ok(AiTestKeyResult {
+                ok: status == 200,
+                http_status: status,
+                auth_error: status == 401 || status == 403,
+                rate_limited: status == 429,
+                body_snippet: Some(body_snippet),
                 model_used: model,
-                message: Some(format!("Error de conexión: {}", e))
+                message: if status == 200 {
+                    Some("Groq API key válida".to_string())
+                } else {
+                    Some(format!("Error HTTP {}", status))
+                },
             })
         }
-    } else {
-        // Probar OpenAI API
-        let key = get_openai_api_key().ok_or_else(|| CommandError::permanent(
-            "MISSING_API_KEY",
-            "OPENAI_API_KEY no encontrada",
-        ))?;
-        
-        let client = &*HTTP_CLIENT;
-        let test_payload = serde_json::json!({
-            "model": model,
-            "messages": [{"role": "user", "content": "test"}],
-            "max_tokens": 10
-        });
-        
-        match client
-            .post("https://api.openai.com/v1/chat/completions")
-            .bearer_auth(&key)
-            .json(&test_payload)
-            .send()
-            .await
-        {
-            Ok(resp) => {
-                let status = resp.status().as_u16();
-                let body = resp.text().await.unwrap_or_default();
-                let body_snippet = if body.len() > 200 { 
-                    format!("{}...", &body[..200]) 
-                } else { 
-                    body.clone() 
-                };
-                
-                Ok(AiTestKeyResult {
-                    ok: status == 200,
-                    http_status: status,
-                    auth_error: status == 401 || status == 403,
-                    rate_limited: status == 429,
-                    body_snippet: Some(body_snippet),
-                    model_used: model,
-                    message: if status == 200 { Some("OpenAI API key válida".to_string()) } else { Some(format!("Error HTTP {}", status)) }
-                })
-            }
-            Err(e) => Ok(AiTestKeyResult {
-                ok: false,
-                http_status: 0,
-                auth_error: false,
-                rate_limited: false,
-                body_snippet: None,
-                model_used: model,
-                message: Some(format!("Error de conexión: {}", e))
-            })
-        }
+        Err(e) => Ok(AiTestKeyResult {
+            ok: false,
+            http_status: 0,
+            auth_error: false,
+            rate_limited: false,
+            body_snippet: None,
+            model_used: model,
+            message: Some(format!("Error de conexión: {}", e)),
+        }),
     }
 }
 
@@ -403,99 +289,17 @@ pub struct FileAnalysisResult {
     pub error: Option<String>,
 }
 
-/// Llama a Claude API para análisis de archivos
-pub async fn call_claude_file_analysis(
+/// Llama a Groq API para análisis de archivos (endpoint OpenAI-compatible)
+pub async fn call_groq_file_analysis(
     api_key: &str,
     path: &str,
     size: usize,
     sample: &str,
     debug: bool
 ) -> Result<FileAnalysisResult, String> {
-    let prompt = format!(
-        "Analiza el siguiente código y proporciona un análisis completo en español con las siguientes secciones:\n\n\
-        ## PROPÓSITO DEL PROGRAMA\n\
-        [Descripción clara del propósito principal en 2-3 líneas]\n\n\
-        ## EJEMPLO DE EJECUCIÓN\n\
-        - Comando para ejecutar\n\
-        - Entradas esperadas\n\
-        - Salidas generadas\n\
-        - Ejemplo práctico\n\n\
-        ## POSIBLES MEJORAS\n\
-        - Mejora 1 con descripción detallada\n\
-        - Mejora 2 con descripción detallada\n\
-        - Mejora 3 con descripción detallada\n\n\
-        ## CONCLUSIONES\n\
-        - Conclusión 1 sobre el código\n\
-        - Conclusión 2 sobre el código\n\n\
-        Archivo: {}\n\
-        Tamaño: {} bytes\n\n\
-        CÓDIGO:\n\
-        {}",
-        path, size, sample
-    );
-    
-    let client = &*HTTP_CLIENT;
+    let model = std::env::var("OPENAI_MODEL")
+        .unwrap_or_else(|_| "openai/gpt-oss-120b".to_string());
 
-    let body = serde_json::json!({
-        "model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "claude-sonnet-4-5".into()),
-        "max_tokens": 2000,
-        "messages": [{"role": "user", "content": prompt}]
-    });
-    
-    let response = client
-        .post("https://api.anthropic.com/v1/messages")
-        .header("anthropic-version", "2023-06-01")
-        .header("x-api-key", api_key)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Error en request: {}", e))?;
-    
-    let status = response.status();
-    let text_body = response.text().await.unwrap_or_default();
-    
-    if debug {
-        let _ = (status, text_body.len());
-    }
-    
-    if !status.is_success() {
-        return Ok(FileAnalysisResult {
-            description: Some(format!("Error API Claude: HTTP {}", status)),
-            key_points: None,
-            full_analysis: None,
-            error: Some(format!("HTTP {}", status)),
-        });
-    }
-    
-    let json: serde_json::Value = serde_json::from_str(&text_body)
-        .map_err(|e| format!("Error parseando JSON: {}", e))?;
-    
-    // Extraer contenido de Claude
-    let content = json.pointer("/content/0/text")
-        .and_then(|v| v.as_str())
-        .ok_or("No se encontró texto en respuesta de Claude")?;
-    
-    if debug {
-        let _ = content.len();
-    }
-    
-    Ok(FileAnalysisResult {
-        description: None,
-        key_points: None,
-        full_analysis: Some(content.to_string()),
-        error: None,
-    })
-}
-
-/// Llama a OpenAI API para análisis de archivos
-pub async fn call_openai_file_analysis(
-    api_key: &str,
-    model: &str,
-    path: &str,
-    size: usize,
-    sample: &str,
-    debug: bool
-) -> Result<FileAnalysisResult, String> {
     let prompt = format!(
         "Analiza el siguiente código y devuelve SOLO un objeto JSON con esta estructura:\n\
         {{\n\
@@ -522,9 +326,8 @@ pub async fn call_openai_file_analysis(
         {}",
         path, size, sample
     );
-    
-    let client = &*HTTP_CLIENT;
 
+    let client = &*HTTP_CLIENT;
     let body = serde_json::json!({
         "model": model,
         "messages": [
@@ -534,79 +337,69 @@ pub async fn call_openai_file_analysis(
         "temperature": 0.15,
         "max_tokens": 1500
     });
-    
+
     let response = client
-        .post("https://api.openai.com/v1/chat/completions")
-        .header("authorization", format!("Bearer {}", api_key))
+        .post("https://api.groq.com/openai/v1/chat/completions")
+        .bearer_auth(api_key)
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Error en request: {}", e))?;
-    
+        .map_err(|e| format!("Error en request Groq: {}", e))?;
+
     let status = response.status();
     let text_body = response.text().await.unwrap_or_default();
-    
+
     if debug {
         let _ = (status, text_body.len());
     }
-    
+
     if !status.is_success() {
         return Ok(FileAnalysisResult {
-            description: Some(format!("Error API OpenAI: HTTP {}", status)),
+            description: Some(format!("Error API Groq: HTTP {}", status)),
             key_points: None,
             full_analysis: None,
             error: Some(format!("HTTP {}", status)),
         });
     }
-    
+
     let json: serde_json::Value = serde_json::from_str(&text_body)
         .map_err(|e| format!("Error parseando JSON: {}", e))?;
-    
-    // Extraer contenido de OpenAI
+
+    // Extraer contenido (formato OpenAI-compatible)
     let content = json.pointer("/choices/0/message/content")
         .and_then(|v| v.as_str())
-        .ok_or("No se encontró contenido en respuesta de OpenAI")?;
-    
+        .ok_or("No se encontró contenido en respuesta de Groq")?;
+
     if debug {
         let _ = content.len();
     }
-    
+
     // Parsear JSON de la respuesta
     let trimmed = content.trim().trim_matches('`').trim_start_matches("json").trim();
     let vj: serde_json::Value = serde_json::from_str(trimmed)
         .map_err(|e| format!("Error parseando JSON interno: {}", e))?;
-    
+
     let mut key_points = Vec::new();
-    
+
     if let Some(p) = vj.get("proposito").and_then(|x| x.as_str()) {
-        // Construir key_points estructurados
         if let Some(arr) = vj.get("ejemplo_ejecucion").and_then(|x| x.as_array()) {
             key_points.push("**▶ EJEMPLO DE EJECUCIÓN**".to_string());
             for item in arr.iter() {
-                if let Some(s) = item.as_str() {
-                    key_points.push(format!("{}", s));
-                }
+                if let Some(s) = item.as_str() { key_points.push(s.to_string()); }
             }
         }
-        
         if let Some(arr) = vj.get("mejoras").and_then(|x| x.as_array()) {
             key_points.push("**🔧 POSIBLES MEJORAS**".to_string());
             for item in arr.iter() {
-                if let Some(s) = item.as_str() {
-                    key_points.push(format!("{}", s));
-                }
+                if let Some(s) = item.as_str() { key_points.push(s.to_string()); }
             }
         }
-        
         if let Some(arr) = vj.get("conclusiones").and_then(|x| x.as_array()) {
             key_points.push("**📊 CONCLUSIONES**".to_string());
             for item in arr.iter() {
-                if let Some(s) = item.as_str() {
-                    key_points.push(format!("{}", s));
-                }
+                if let Some(s) = item.as_str() { key_points.push(s.to_string()); }
             }
         }
-        
         return Ok(FileAnalysisResult {
             description: Some(p.to_string()),
             key_points: Some(key_points),
@@ -614,7 +407,7 @@ pub async fn call_openai_file_analysis(
             error: None,
         });
     }
-    
+
     Ok(FileAnalysisResult {
         description: None,
         key_points: None,
@@ -622,6 +415,34 @@ pub async fn call_openai_file_analysis(
         error: Some("No se pudo extraer información del JSON".to_string()),
     })
 }
+
+// ── Alias de compatibilidad: las llamadas existentes a call_openai_file_analysis
+//    y call_claude_file_analysis se redirigen a Groq transparentemente.
+
+/// @deprecated — usar call_groq_file_analysis directamente
+pub async fn call_openai_file_analysis(
+    api_key: &str,
+    _model: &str,
+    path: &str,
+    size: usize,
+    sample: &str,
+    debug: bool
+) -> Result<FileAnalysisResult, String> {
+    call_groq_file_analysis(api_key, path, size, sample, debug).await
+}
+
+/// @deprecated — usar call_groq_file_analysis directamente
+pub async fn call_claude_file_analysis(
+    api_key: &str,
+    path: &str,
+    size: usize,
+    sample: &str,
+    debug: bool
+) -> Result<FileAnalysisResult, String> {
+    call_groq_file_analysis(api_key, path, size, sample, debug).await
+}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -634,5 +455,11 @@ mod tests {
         assert!(out.contains("python3 script.py"));
         assert!(out.contains("python3 -m pip install requests"));
         assert!(out.contains("#!/usr/bin/env python3"));
+    }
+
+    #[tokio::test]
+    async fn test_groq_api_connection() {
+        let res = super::ai_test_key().await.expect("ai_test_key failed");
+        assert!(res.ok, "Groq connection failed: {:?}", res);
     }
 }

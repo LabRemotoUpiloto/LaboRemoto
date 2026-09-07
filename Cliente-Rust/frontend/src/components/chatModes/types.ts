@@ -7,10 +7,10 @@ export type ChatMode = 'ask' | 'agente' | 'plan';
 export type ModelSelection = string;
 
 export const AVAILABLE_MODELS: Array<{ value: string; label: string; provider: string }> = [
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'Anthropic' },
-  { value: 'gpt-3.5-turbo', label: 'ChatGPT 3.5 Turbo', provider: 'OpenAI' },
-  { value: 'qwen/qwen3.6-plus', label: 'Qwen 3.6 Plus', provider: 'OpenRouter' },
-  { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron Nano 30B (Gratis)', provider: 'OpenRouter' },
+  { value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B (Recomendado)', provider: 'Groq' },
+  { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Rápido)', provider: 'Groq' },
+  { value: 'groq/compound', label: 'Compound (Groq)', provider: 'Groq' },
+  { value: 'qwen/qwen3.8-27b', label: 'Qwen 3.8 27B', provider: 'Groq' },
 ];
 
 export interface AgentState {
