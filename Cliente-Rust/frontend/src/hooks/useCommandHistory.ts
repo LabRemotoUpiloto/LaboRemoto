@@ -25,13 +25,9 @@ export function useCommandHistory() {
   const pushCommand = useCallback((command: string) => {
     const cmd = command.trim()
     if (!cmd) return
-    if (cmd === lastCmdRef.current) return
     lastCmdRef.current = cmd
     if (import.meta.env.DEV) console.log('[CMD] push:', JSON.stringify(cmd))
-    setCommandEntries(prev => {
-      if (prev.some(e => e.cmd === cmd && prev[prev.length - 1]?.cmd === cmd)) return prev
-      return [...prev, { cmd, time: new Date() }]
-    })
+    setCommandEntries(prev => [...prev, { cmd, time: new Date() }])
   }, [])
 
   /**

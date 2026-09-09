@@ -44,6 +44,15 @@ interface Props {
   onToggleHistory?: () => void;
   onClose?: () => void;
   onNewChat?: () => void;
+  /** True durante una práctica guiada: oculta el selector de modo/modelo (queda fijo en modo tutor). */
+  practiceLocked?: boolean;
+  /**
+   * True mientras el estudiante todavía no confirmó ("Continuar") el último
+   * lote de contenido entregado por el tutor (ver ChatPane/AiMessageBubble)
+   * -- no puede escribir nada hasta hacerlo. Distinto de `practiceLocked`
+   * (que solo oculta el selector de modo/modelo, no bloquea escribir).
+   */
+  inputLocked?: boolean;
 }
 
 const ChatInput: React.FC<Props> = ({
@@ -64,6 +73,8 @@ const ChatInput: React.FC<Props> = ({
   onToggleHistory,
   onClose,
   onNewChat,
+  practiceLocked = false,
+  inputLocked = false,
 }) => {
   const isPill = variant === 'pill';
   const pillPlaceholder = MODE_PLACEHOLDERS[mode];
@@ -197,7 +208,7 @@ const ChatInput: React.FC<Props> = ({
     </Menu>
   );
 
-  const showModeRow = !footerMinimal && onModeSwitch && selectedModel && onModelChange;
+  const showModeRow = !footerMinimal && !practiceLocked && onModeSwitch && selectedModel && onModelChange;
 
   return (
     <div
@@ -326,7 +337,8 @@ const ChatInput: React.FC<Props> = ({
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={MODE_PLACEHOLDERS[mode]}
+                placeholder={inputLocked ? 'Mirá el contenido de arriba y confirmá con "Continuar" para poder escribir…' : MODE_PLACEHOLDERS[mode]}
+                disabled={inputLocked}
                 variant="unstyled"
                 autosize
                 minRows={1}

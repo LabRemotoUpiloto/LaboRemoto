@@ -1,7 +1,8 @@
 //! cmd/practicas — Sistema de prácticas de laboratorio remoto
 //!
 //! Este módulo proporciona:
-//! - Configuración de prácticas desde .env.practicas
+//! - Configuración de prácticas Eve3 desde el .env único de la app (legacy —
+//!   las categorías nuevas van por API en la máquina de la práctica, ver linux_api.rs)
 //! - Categorías de prácticas (Eve3, Linux, Circuitos)
 //! - Comandos de setup pre-práctica (ej: levantar servidor del robot)
 //! - Configuración de terminal y paneles por práctica
@@ -76,15 +77,18 @@ pub struct PanelConfig {
     pub chat_tutorial: String,
 }
 
-// ─── Helper: leer variables del .env.practicas ───
+// ─── Helper: leer variables PRACTICE_EVE3_* del .env único de la app ───
+// (legacy: las categorías nuevas van por API corriendo en la máquina de la
+// práctica, como Linux -- ver linux_api.rs -- no por credenciales SSH sueltas
+// en variables de entorno. Se deja andando para Eve3 hasta que también migre.)
 
 fn load_practices_env() -> HashMap<String, String> {
     let mut map = HashMap::new();
 
-    // Buscar .env.practicas desde CARGO_MANIFEST_DIR hacia arriba
+    // Buscar .env desde CARGO_MANIFEST_DIR hacia arriba
     let mut dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     loop {
-        let candidate = dir.join(".env.practicas");
+        let candidate = dir.join(".env");
         if candidate.exists() {
             if let Ok(content) = std::fs::read_to_string(&candidate) {
                 for line in content.lines() {
@@ -299,11 +303,75 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
 
 // ─── Comandos Tauri ───
 
-/// Devuelve todas las categorías con sus prácticas (sin contraseñas)
+/// Devuelve todas las categorías con sus prácticas (sin contraseñas).
+///
+/// La categoría "linux" no sale de `.env.practicas`: se puebla en vivo desde
+/// el servicio de prácticas que corre en la Pi (ver `linux_api.rs`). Si la Pi
+/// no responde, la categoría queda vacía pero el resto de categorías sigue
+/// funcionando normalmente — no es un error fatal de este comando.
 #[tauri::command]
-pub fn practicas_list_categories() -> Result<Vec<PracticeCategory>, CommandError> {
+pub async fn practicas_list_categories() -> Result<Vec<PracticeCategory>, CommandError> {
     let vars = load_practices_env();
     let mut categories = build_categories(&vars);
+
+    if let Some(linux_cat) = categories.iter_mut().find(|c| c.id == "linux") {
+        // Timeout defensivo: si la Pi no responde (red caída, apagada, el
+        // túnel SSH tardando en conectar) esto NO debe colgar el listado
+        // completo de categorías -- Eve3/Circuitos deben seguir cargando
+        // igual. Sin este timeout, un simple "no responde" (no un error,
+        // un cuelgue de red real) bloqueaba la pantalla de Prácticas entera.
+        let linux_result = tokio::time::timeout(
+            std::time::Duration::from_secs(8),
+            crate::cmd::practices::linux_api::fetch_linux_summaries(),
+        ).await;
+        match linux_result {
+            Ok(Ok(summaries)) => {
+                linux_cat.practices = summaries
+                    .into_iter()
+                    .map(|s| Practice {
+                        id: s.id,
+                        name: s.title,
+                        description: format!(
+                            "Módulo {} · ~{} min",
+                            s.order.unwrap_or(0),
+                            s.estimated_minutes.unwrap_or(0)
+                        ),
+                        difficulty: s.difficulty,
+                        moodle_assignment_id: None,
+                        connection: PracticeConnection {
+                            host: String::new(),
+                            port: 0,
+                            user: String::new(),
+                            password: String::new(),
+                            setup_commands: Vec::new(),
+                        },
+                        terminal: TerminalConfig {
+                            allowed_commands: Vec::new(),
+                            working_directory: String::new(),
+                            allow_navigation: true,
+                            allow_nano: true,
+                        },
+                        panels: PanelConfig {
+                            camera: false,
+                            chat: true,
+                            chat_context: String::new(),
+                            chat_tutorial: String::new(),
+                        },
+                    })
+                    .collect();
+            }
+            Ok(Err(e)) => {
+                eprintln!(
+                    "[practicas] No se pudo listar módulos de Linux desde la Pi: {}",
+                    e.message
+                );
+                // practices queda vacío — la categoría no rompe el resto del listado.
+            }
+            Err(_) => {
+                eprintln!("[practicas] Timeout (8s) listando módulos de Linux desde la Pi -- sigue sin bloquear el resto de categorías");
+            }
+        }
+    }
 
     // Sanitizar: no enviar contraseñas al frontend
     for cat in &mut categories {

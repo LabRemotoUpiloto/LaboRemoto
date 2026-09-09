@@ -183,7 +183,7 @@ Ver `docs/arduino_domotica.md` para instalación del servicio en la Pi.
 ---
 
 ### `cmd/practicas` — Sistema de Prácticas de Laboratorio
-Gestiona un catálogo de prácticas configuradas en `.env.practicas`. Soporta múltiples categorías (Eve3 — robots, Linux, Circuitos) con configuración por práctica.
+Gestiona un catálogo de prácticas. Eve3 (robots) todavía se configura por variables de entorno en el `.env` único de la app (legacy); Linux vive en un servicio propio corriendo en la Pi (ver `cmd/practices/linux_api.rs`) — el patrón hacia el que van las próximas categorías.
 
 | Comando | Descripción |
 |---|---|
@@ -297,9 +297,9 @@ MOODLE_URL=https://moodle.universidad.edu
 MOODLE_TOKEN=abc123...         # Token de API de Moodle (requiere permisos de profesor)
 ```
 
-### `.env.practicas` (sistema de prácticas)
+### `.env` — sistema de prácticas (mismo archivo único de la app)
 ```env
-# Categoría Eve3 — Robot
+# Categoría Eve3 — Robot (legacy: config por variables de entorno)
 PRACTICE_EVE3_RPI_HOST=192.168.1.x
 PRACTICE_EVE3_RPI_PORT=22
 PRACTICE_EVE3_RPI_USER=labiot
@@ -318,6 +318,31 @@ PRACTICE_EVE3_P1_ALLOWED_CMDS=ls,python,cd
 PRACTICE_EVE3_P1_WORKING_DIR=/home/labiot/eve3
 PRACTICE_EVE3_P1_MOODLE_ASSIGNMENT_ID=5
 PRACTICE_EVE3_P1_CAMERA=true
+
+# Categoría Linux — servicio de contenido/validación en la Raspberry Pi
+# (ver cmd/practices/linux_api.rs). El usuario SSH de trabajo NO se configura
+# acá: se resuelve en tiempo real del username de Keycloak del estudiante.
+#
+# La API HTTP (8770) solo escucha en la LAN de la Pi — no está expuesta a
+# internet a propósito. El cliente le habla a través de un túnel SSH en
+# memoria (cmd/practices/linux_tunnel.rs) reusando el único puerto SSH ya
+# publicado, con una cuenta de servicio restringida en la Pi (sin shell,
+# forwarding local limitado únicamente a 127.0.0.1:8770 vía `PermitOpen` en
+# sshd_config — ver Match block en /etc/ssh/sshd_config de la Pi). En el
+# futuro se evaluará abrir el puerto directo; por ahora todo pasa por acá.
+PRACTICE_LINUX_TUNNEL_HOST=200.115.181.211   # host público con SSH abierto
+PRACTICE_LINUX_TUNNEL_PORT=9000              # puerto SSH público
+PRACTICE_LINUX_TUNNEL_USER=svc-practicas     # cuenta de servicio (sin shell)
+PRACTICE_LINUX_TUNNEL_PASSWORD=...
+PRACTICE_LINUX_API_REMOTE_PORT=8770          # puerto interno del servicio en la Pi
+PRACTICE_LINUX_API_TOKEN=...                 # token bearer del servicio (.token en la Pi)
+
+# SSH de trabajo del estudiante (terminal real) — cuenta AD personal, no la
+# de servicio del túnel. Hoy mismo host/puerto público porque es lo único
+# abierto a internet; se separa de PRACTICE_LINUX_TUNNEL_HOST para cuando
+# haya pool de Pis por curso.
+PRACTICE_LINUX_SSH_HOST=200.115.181.211
+PRACTICE_LINUX_SSH_PORT=9000
 ```
 
 ### Tutoriales JSON (`practicas/<id>.json`)
@@ -352,7 +377,7 @@ PRACTICE_EVE3_P1_CAMERA=true
 ## Flujo educativo completo
 
 ```
-Profesor configura .env.practicas + JSON de tutorial
+Profesor configura .env (categorías legacy) o el servicio de la práctica + JSON de tutorial
          ↓
 Estudiante abre la app → Página de Prácticas
          ↓

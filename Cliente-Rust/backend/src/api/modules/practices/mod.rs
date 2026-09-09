@@ -28,7 +28,7 @@ pub struct PracticeSummary {
 }
 
 pub async fn list_categories() -> Result<Json<Vec<PracticeCategoryResponse>>, ApiError> {
-    let cats = practicas::practicas_list_categories().map_err(|e| ApiError::internal(e.message))?;
+    let cats = practicas::practicas_list_categories().await.map_err(|e| ApiError::internal(e.message))?;
     let result: Vec<PracticeCategoryResponse> = cats.into_iter().map(|c| PracticeCategoryResponse {
         id: c.id,
         name: c.name,

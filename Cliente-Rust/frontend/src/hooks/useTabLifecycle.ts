@@ -46,9 +46,16 @@ interface UseTabLifecycleParams {
   tabs: Tab[];
   closeTab: (id: string) => void;
   clearPracticeMeta: (id: string) => void;
+  /**
+   * Contraparte de clearPracticeMeta para la práctica de Linux: corta el
+   * polling de revalidación de useLinuxPracticeSession (ver ese hook) cuando
+   * se cierra la pestaña de la sesión SSH. Opcional para no romper otros
+   * consumidores de este hook que no manejan prácticas de Linux.
+   */
+  stopLinuxSession?: (sessionId: string) => void;
 }
 
-export function useTabLifecycle({ tabs, closeTab, clearPracticeMeta }: UseTabLifecycleParams) {
+export function useTabLifecycle({ tabs, closeTab, clearPracticeMeta, stopLinuxSession }: UseTabLifecycleParams) {
   const handleCloseTab = useCallback(async (id: string) => {
     const tab = tabs.find(t => t.id === id);
 
@@ -90,9 +97,10 @@ export function useTabLifecycle({ tabs, closeTab, clearPracticeMeta }: UseTabLif
       // Si falla la desconexión, igual limpiamos el estado local
     } finally {
       clearPracticeMeta(id);
+      stopLinuxSession?.(id);
       closeTab(id);
     }
-  }, [tabs, closeTab, clearPracticeMeta]);
+  }, [tabs, closeTab, clearPracticeMeta, stopLinuxSession]);
 
   return { handleCloseTab };
 }

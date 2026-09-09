@@ -1,5 +1,5 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import './App.css'
 
@@ -37,7 +37,9 @@ import { useUpdateCheck } from './hooks/useUpdateCheck'
 import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
+import { useLinuxPracticeSession } from './hooks/useLinuxPracticeSession'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import type { PracticeSessionMeta } from './types'
 
 // ── Mantine theme — color primario y fuentes reactivas al tema CSS activo ───────────────
 function buildMantineTheme(primaryColor: string) {
@@ -134,11 +136,45 @@ const AppMain: React.FC = () => {
     setChatOpen: setIsChatOpen,
   })
 
+  // Práctica de Linux: mismo patrón que usePracticeSession -- se instancia
+  // una sola vez acá (nunca se desmonta, a diferencia de HomeContainer, que
+  // sí se desmonta al navegar a la pestaña de la sesión SSH) para que el
+  // polling de revalidación de progreso sobreviva esa navegación.
+  const linuxSession = useLinuxPracticeSession({
+    onNewSession: handleNewSession,
+    setChatOpen: setIsChatOpen,
+  })
+
+  // `practiceMeta` (de usePracticeSession) solo conoce prácticas del flujo
+  // viejo (Eve3, etc.) -- las de Linux mapean sessionId -> moduleId adentro
+  // de linuxSession.sessionModuleMap, un mapa aparte. SessionContainer /
+  // TerminalView solo saben leer `practiceMeta`, así que acá se fusionan en
+  // uno combinado: sin esto, practiceMeta?.[sessionId] queda `undefined`
+  // para sesiones Linux y TerminalView nunca recibe su practiceId (rompe el
+  // bloqueo de modo/modelo del chat y cualquier feature que dependa de él).
+  const combinedPracticeMeta = useMemo(() => {
+    const linuxEntries = Object.entries(linuxSession.sessionModuleMap)
+    if (linuxEntries.length === 0) return practiceMeta
+    // `student` es opcional/nullable en el tipo local PracticeMeta de
+    // SessionContainer (ver ese archivo) -- las entradas Linux solo aportan
+    // practiceId, sin inventar assignmentId/student.
+    const merged: Record<string, { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null }> = { ...(practiceMeta ?? {}) }
+    for (const [sessionId, moduleId] of linuxEntries) {
+      merged[sessionId] = { practiceId: String(moduleId) }
+    }
+    return merged
+  }, [practiceMeta, linuxSession.sessionModuleMap])
+
   // ── Sesión y Autenticación ───────────────────────────────────────────────────
   const { isAuthenticated, isLoading } = useAuth()
 
   // ── Ciclo de vida de tabs ────────────────────────────────────────────────────
-  const { handleCloseTab } = useTabLifecycle({ tabs, closeTab, clearPracticeMeta })
+  const { handleCloseTab } = useTabLifecycle({
+    tabs,
+    closeTab,
+    clearPracticeMeta,
+    stopLinuxSession: linuxSession.stopSession,
+  })
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
   const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia']
@@ -288,6 +324,8 @@ const AppMain: React.FC = () => {
                     onConnectedFromConnect={handleNewSession}
                     onOpenLog={openLogTab}
                     onStartPractice={handleStartPractice}
+                    setChatOpen={setIsChatOpen}
+                    linuxSession={linuxSession}
                   />
                 </div>
               )}
@@ -303,8 +341,9 @@ const AppMain: React.FC = () => {
                 onOpenLog={openLogTab}
                 sftpPaths={sftpPaths}
                 setSftpPaths={setSftpPaths}
-                practiceMeta={practiceMeta}
+                practiceMeta={combinedPracticeMeta}
                 onCloseTab={handleCloseTab}
+                linuxSession={linuxSession}
               />
               <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />
             </main>
