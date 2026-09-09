@@ -88,19 +88,27 @@ const ChatPane: React.FC<Props> = ({
   const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
     const saved = localStorage.getItem('chatSelectedModel');
     const deprecated: Record<string, string> = {
-      'google/gemini-2.5-pro-exp-03-25:free': 'deepseek/deepseek-v3.2:free',
-      'google/gemini-2.5-pro:free': 'deepseek/deepseek-v3.2:free',
-      'nvidia/nemotron-super-49b-v1:free': 'deepseek/deepseek-v3.2:free',
-      'nvidia/nemotron-3-super-120b-a12b:free': 'deepseek/deepseek-v3.2:free',
-      // OpenRouter retiró el tier gratis de este modelo (ver error 404
-      // "This model is unavailable for free" reportado en la práctica de Linux).
-      'nvidia/nemotron-3-nano-30b-a3b:free': 'deepseek/deepseek-v3.2:free',
-      'deepseek/deepseek-v3-0324:free': 'deepseek/deepseek-v3.2:free',
-      'qwen/qwen3.6-plus:free': 'deepseek/deepseek-v3.2:free',
-      'claude-sonnet-4-5': 'deepseek/deepseek-v3.2:free',
-      'claude-sonnet-4-6': 'deepseek/deepseek-v3.2:free',
+      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.8-27b',
+      'google/gemini-2.5-pro:free': 'qwen/qwen3.8-27b',
+      'nvidia/nemotron-super-49b-v1:free': 'openai/gpt-oss-120b',
+      'nvidia/nemotron-3-super-120b-a12b:free': 'openai/gpt-oss-120b',
+      'nvidia/nemotron-3-nano-30b-a3b:free': 'openai/gpt-oss-20b',
+      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.8-27b',
+      'qwen/qwen3.6-plus:free': 'qwen/qwen3.8-27b',
+      'qwen/qwen3.6-plus': 'qwen/qwen3.8-27b',
+      'claude-sonnet-4-5': 'openai/gpt-oss-120b',
+      'claude-sonnet-4-6': 'openai/gpt-oss-120b',
+      'gpt-3.5-turbo': 'openai/gpt-oss-120b',
+      // Migración OpenRouter -> Groq: esa cuenta bloqueaba TODO modelo
+      // :free (política de privacidad/entrenamiento de la cuenta, no un
+      // problema puntual de ningún modelo) -- se abandonó OpenRouter entero.
+      'deepseek/deepseek-v3.2:free': 'openai/gpt-oss-120b',
+      'z-ai/glm-4.6:free': 'openai/gpt-oss-120b',
+      'qwen/qwen3-235b-a22b:free': 'qwen/qwen3.8-27b',
+      'meta-llama/llama-3.3-70b-instruct:free': 'openai/gpt-oss-120b',
+      'qwen/qwen-2.5-coder-32b-instruct:free': 'qwen/qwen3.8-27b',
     };
-    return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'deepseek/deepseek-v3.2:free';
+    return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'openai/gpt-oss-120b';
   });
   
   const [agentState, setAgentState] = useState<AgentState>({ cwd: '/', lastExitCode: undefined, lastStdoutTail: undefined, lastFile: undefined });
