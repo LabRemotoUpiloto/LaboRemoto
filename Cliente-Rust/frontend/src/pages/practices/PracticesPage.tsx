@@ -10,6 +10,7 @@ import PracticeCard from '../../components/practicas/PracticeCard';
 import LinuxModulePage from './LinuxModulePage';
 import ExternalPracticeCard from '../../components/practicas/ExternalPracticeCard';
 import { useLabPractices } from '../../hooks/useLabPractices';
+import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 
 const categoryIconMap: Record<string, React.ElementType> = {
     robot: Bot,
@@ -66,6 +67,14 @@ interface PracticesPageProps {
     }) => Promise<void>;
     /** Requerido para la categoría Linux: abre la pestaña de la sesión SSH real. */
     onNewSession?: (info: { id: string; label: string }) => void;
+    /** Requerido para la categoría Linux: abre el panel de chat al conectar. */
+    setChatOpen?: (open: boolean) => void;
+    /**
+     * Instancia única de useLinuxPracticeSession (vive a nivel de App, ver
+     * App.tsx) — se threadea hasta LinuxModulePage para que el polling de
+     * revalidación sobreviva a la navegación entre pestañas.
+     */
+    linuxSession?: LinuxPracticeSessionApi;
 }
 
 interface LogEntry {
@@ -74,7 +83,7 @@ interface LogEntry {
     timestamp: string;
 }
 
-const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession }) => {
+const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, setChatOpen, linuxSession }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
@@ -190,11 +199,26 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     }
 
     if (selectedLinuxPracticeId) {
+        if (!linuxSession) {
+            // No debería pasar en la app real (App.tsx siempre instancia y pasa
+            // useLinuxPracticeSession hacia acá) — guard defensivo para no
+            // reventar si algún día PracticesPage se usa sin ese hook arriba.
+            return (
+                <Container size="sm" py="xl">
+                    <Alert color="red" title="Práctica de Linux no disponible">
+                        No se pudo inicializar la sesión de la práctica.
+                    </Alert>
+                    <Button mt="md" variant="subtle" leftSection={<ArrowLeft size={14} />} onClick={() => setSelectedLinuxPracticeId(null)}>
+                        Volver
+                    </Button>
+                </Container>
+            );
+        }
         return (
             <LinuxModulePage
                 practiceId={selectedLinuxPracticeId}
                 onBack={() => setSelectedLinuxPracticeId(null)}
-                onNewSession={onNewSession ?? (() => {})}
+                linuxSession={linuxSession}
             />
         );
     }

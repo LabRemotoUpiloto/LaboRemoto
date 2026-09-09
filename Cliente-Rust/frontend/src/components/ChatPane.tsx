@@ -44,6 +44,16 @@ type Props = {
   layout?: 'default' | 'home';
   onOpenPanel?: (panelId: string) => void;
   onStartTutorial?: () => void;
+  /** Presente cuando el chat corre dentro de una práctica guiada (ver TerminalView/SessionContainer). */
+  practiceId?: string | null;
+  /**
+   * Resultado de validación de la práctica de Linux activa (ver
+   * useLinuxPracticeSession/TerminalView). Tipo estructural mínimo, sin
+   * importar LinuxValidationResult de linuxPractice.service.ts — ChatPane es
+   * un componente genérico y no debería atarse a un tipo de una categoría
+   * de práctica específica.
+   */
+  practiceResult?: { passed: boolean; results: { rule_id: string; passed: boolean }[] } | null;
 };
 
 const ChatPane: React.FC<Props> = ({
@@ -51,8 +61,14 @@ const ChatPane: React.FC<Props> = ({
   onClose,
   layout = 'default',
   onOpenPanel,
+  practiceId = null,
+  practiceResult = null,
 }) => {
   const isHome = layout === 'home';
+  // Durante una práctica el chat queda fijo en modo tutor (Consulta) -- no se
+  // expone el selector de modo/modelo (ver punto 2 del spec: ChatHeader y
+  // ChatInput ocultan esos selectores cuando practiceLocked es true).
+  const isPracticeSession = !!practiceId;
   const displayName = useDisplayName();
   const { startTour } = useTour();
   const { isAuthenticated } = useAuth();
@@ -60,18 +76,31 @@ const ChatPane: React.FC<Props> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
+  // Reusa el AskModeHandler existente (sin crear un modo nuevo): si algo
+  // (restauración de historial, banners de "analizar error", etc.) intenta
+  // cambiar el modo durante una práctica, esto lo revierte a 'ask' apenas se
+  // detecta -- no se expone el setter de modo hacia ChatHeader/ChatInput
+  // mientras practiceLocked (ver más abajo), pero esto cubre también los
+  // caminos que llaman setMode directamente desde adentro de este componente.
+  useEffect(() => {
+    if (isPracticeSession && mode !== 'ask') setMode('ask');
+  }, [isPracticeSession, mode]);
   const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
     const saved = localStorage.getItem('chatSelectedModel');
     const deprecated: Record<string, string> = {
-      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.6-plus',
-      'google/gemini-2.5-pro:free': 'qwen/qwen3.6-plus',
-      'nvidia/nemotron-super-49b-v1:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-      'nvidia/nemotron-3-super-120b-a12b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.6-plus',
-      'qwen/qwen3.6-plus:free': 'qwen/qwen3.6-plus',
-      'claude-sonnet-4-5': 'claude-sonnet-4-6',
+      'google/gemini-2.5-pro-exp-03-25:free': 'deepseek/deepseek-v3.2:free',
+      'google/gemini-2.5-pro:free': 'deepseek/deepseek-v3.2:free',
+      'nvidia/nemotron-super-49b-v1:free': 'deepseek/deepseek-v3.2:free',
+      'nvidia/nemotron-3-super-120b-a12b:free': 'deepseek/deepseek-v3.2:free',
+      // OpenRouter retiró el tier gratis de este modelo (ver error 404
+      // "This model is unavailable for free" reportado en la práctica de Linux).
+      'nvidia/nemotron-3-nano-30b-a3b:free': 'deepseek/deepseek-v3.2:free',
+      'deepseek/deepseek-v3-0324:free': 'deepseek/deepseek-v3.2:free',
+      'qwen/qwen3.6-plus:free': 'deepseek/deepseek-v3.2:free',
+      'claude-sonnet-4-5': 'deepseek/deepseek-v3.2:free',
+      'claude-sonnet-4-6': 'deepseek/deepseek-v3.2:free',
     };
-    return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'claude-sonnet-4-6';
+    return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'deepseek/deepseek-v3.2:free';
   });
   
   const [agentState, setAgentState] = useState<AgentState>({ cwd: '/', lastExitCode: undefined, lastStdoutTail: undefined, lastFile: undefined });
@@ -617,6 +646,71 @@ const ChatPane: React.FC<Props> = ({
     } finally { setIsSending(false); }
   };
 
+  // Nudge proactivo del tutor: cuando el polling de useLinuxPracticeSession
+  // (cada 5s) detecta una regla NUEVA validada respecto a la medición
+  // anterior, el chat comenta solo -- sin que el estudiante haya escrito
+  // nada. Guarda, por practiceId, el último set de rule_id ya vistos como
+  // `passed` (más el `passed` general de esa medición) para poder
+  // diferenciar "esto es nuevo" de "esto ya estaba" y "el módulo ya estaba
+  // completo" (no repetir el nudge en ese caso).
+  const lastSeenPassedRef = useRef<{ practiceId: string | null; passedIds: Set<string>; passed: boolean }>({
+    practiceId: null,
+    passedIds: new Set<string>(),
+    passed: false,
+  });
+
+  const handleProactiveNudge = useCallback(async () => {
+    if (isSending || isSendingRef.current) return;
+    const triggerText = 'El estudiante acaba de completar un paso nuevo de la práctica. Comentalo brevemente ' +
+      'como tutor y decile cuál es el siguiente paso pendiente.';
+    // Burbuja `system`, no `user`: ningún estudiante escribió esto -- usar
+    // sender 'user' (como handleAnalyzeCandidate) aparentaría que sí lo
+    // hizo. Mismo sender que ya usa el mensaje de cancelación (línea ~603).
+    // Se muestra en pantalla, así que su texto queda corto/legible.
+    const bannerMsg: Message = { id: String(Date.now()), sender: 'system', text: 'Progreso detectado — el tutor va a comentar.' };
+    setMessages(prev => [...prev, bannerMsg]);
+    // invokeAsk arma el `user_input` real leyendo `userMsg.text` (no el
+    // `finalInput` que recibe AskModeHandler.send, que ese handler ignora) --
+    // por eso el objeto que se le pasa a `send()` es uno aparte con la
+    // instrucción real, y NUNCA se agrega a `messages` (no debe quedar
+    // como turno visible ni contaminar el historial de futuros mensajes).
+    const instructionMsg: Message = { id: `${bannerMsg.id}-instruction`, sender: 'user', text: triggerText };
+    setIsSending(true);
+    try {
+      await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
+    } catch (e) {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error comentando el progreso: ${String(e)}` }]);
+    } finally {
+      setIsSending(false);
+    }
+  }, [isSending, modeHandlers, buildModeContext]);
+
+  useEffect(() => {
+    if (!isPracticeSession || !practiceResult) return;
+
+    const currentPassedIds = new Set(practiceResult.results.filter(r => r.passed).map(r => r.rule_id));
+
+    // Primera vez que se ve este practiceId (recién conectado, o remontaje
+    // de ChatPane) -- guarda el baseline sin disparar nada. Evita un nudge
+    // sorpresa si el estudiante reconecta a una sesión con progreso previo.
+    if (lastSeenPassedRef.current.practiceId !== practiceId) {
+      lastSeenPassedRef.current = { practiceId: practiceId ?? null, passedIds: currentPassedIds, passed: practiceResult.passed };
+      return;
+    }
+
+    const previousPassedIds = lastSeenPassedRef.current.passedIds;
+    const wasPassedBefore = lastSeenPassedRef.current.passed;
+    const hasNewPassed = [...currentPassedIds].some(id => !previousPassedIds.has(id));
+
+    // Un solo disparo por transición de progreso, y nunca si el módulo ya
+    // estaba completo en la medición anterior (evita el mensaje duplicado
+    // en un módulo ya terminado).
+    lastSeenPassedRef.current = { practiceId: practiceId ?? null, passedIds: currentPassedIds, passed: practiceResult.passed };
+    if (hasNewPassed && !wasPassedBefore) {
+      void handleProactiveNudge();
+    }
+  }, [practiceResult, practiceId, isPracticeSession, handleProactiveNudge]);
+
   const handleDeleteMsg = (id: string) => setMessages(prev => prev.filter(m => m.id !== id));
   const handleSaveEditMsg = (msgId: string, draft: string) => {
     const idx = messages.findIndex(m => m.id === msgId);
@@ -653,6 +747,7 @@ const ChatPane: React.FC<Props> = ({
       onToggleHistory={() => setShowHistory(o => !o)}
       onClose={onClose}
       onNewChat={handleNewChat}
+      practiceLocked={isPracticeSession}
     />
   );
 

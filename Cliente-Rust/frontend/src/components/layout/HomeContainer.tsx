@@ -16,6 +16,7 @@ import VigilanciaPage from '../../pages/vigilancia/VigilanciaPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 import { useAccessTier, canAccessPage, useCanAccessVigilancia } from '../../hooks/usePermissions'
+import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession'
 
 type Props = {
   tabs: Tab[]
@@ -28,6 +29,9 @@ type Props = {
   onConnectedFromConnect: (info: { id: string; label?: string } | null) => void
   onOpenLog: (session: SessionLog) => void
   onStartPractice?: (practice: any) => Promise<void>
+  setChatOpen?: (open: boolean) => void
+  /** Instancia única de useLinuxPracticeSession, ver App.tsx. */
+  linuxSession?: LinuxPracticeSessionApi
 }
 
 const HomeContainer: React.FC<Props> = ({
@@ -40,7 +44,9 @@ const HomeContainer: React.FC<Props> = ({
   setPendingHost,
   onConnectedFromConnect,
   onOpenLog,
-  onStartPractice
+  onStartPractice,
+  setChatOpen,
+  linuxSession
 }) => {
   const tier = useAccessTier()
   const canSeeVigilancia = useCanAccessVigilancia()
@@ -105,7 +111,7 @@ const HomeContainer: React.FC<Props> = ({
       ) : effectivePage === 'snippets' ? (
         <SnippetsPage />
       ) : effectivePage === 'practices' ? (
-        <PracticesPage onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} />
+        <PracticesPage onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} setChatOpen={setChatOpen} linuxSession={linuxSession} />
       ) : effectivePage === 'reservas' ? (
         <ReservasPage />
       ) : effectivePage === 'admin-users' ? (

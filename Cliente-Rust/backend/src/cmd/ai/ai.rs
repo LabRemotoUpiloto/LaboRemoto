@@ -279,9 +279,11 @@ SÃ© concreto con comandos reales. No des opciones alternativas, solo el camino Ã
   let req_id = raw_req_id.filter(|s| !s.is_empty()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
   let mut cancel_rx = cancel_state.register(&req_id);
 
-  // Usar modelo seleccionado por el usuario o fallback a Claude
-  let model_selection = req_model_selection.unwrap_or_else(|| "claude-sonnet-4-6".to_string());
-  // Si OPENAI_MODEL del .env contiene "/" es un modelo OpenRouter (ej: "nvidia/nemotron-3-super-120b-a12b:free")
+  // Usar modelo seleccionado por el usuario o fallback al modelo gratuito de OpenRouter
+  // (nvidia/nemotron-3-nano-30b-a3b:free fue retirado del tier gratis por OpenRouter,
+  // ver AVAILABLE_MODELS en chatModes/types.ts para el resto de opciones)
+  let model_selection = req_model_selection.unwrap_or_else(|| "deepseek/deepseek-v3.2:free".to_string());
+  // Si OPENAI_MODEL del .env contiene "/" es un modelo OpenRouter (ej: "nvidia/nemotron-3-nano-30b-a3b:free")
   let env_model = std::env::var("OPENAI_MODEL").unwrap_or_default();
   let model_id = if env_model.contains('/') { env_model } else { model_selection.clone() };
   // Claude si el model_id empieza por "claude" y no es un modelo OpenRouter
@@ -616,7 +618,7 @@ SÃ© concreto con comandos reales. No des opciones alternativas, solo el camino Ã
   if !resp.status().is_success() {
     let status = resp.status();
     let txt = resp.text().await.unwrap_or_default();
-    let api_name = if is_claude { "Claude API" } else { "OpenAI API" };
+    let api_name = if is_claude { "Claude API" } else if base_url.contains("openrouter.ai") { "OpenRouter API" } else { "OpenAI API" };
     return Err(format!("{} error {}: {}", api_name, status, txt));
   }
 

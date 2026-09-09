@@ -1,20 +1,20 @@
 //! cmd/practices/linux_api — Cliente HTTP hacia el servicio de prácticas de
 //! Linux (`practicas-linux-api`) que corre en la Raspberry Pi.
 //!
-//! A diferencia de las demás categorías (ver `practicas.rs`, todavía basadas
-//! en `.env.practicas` + JSON local), el contenido y la validación de Linux
-//! viven en un servicio propio en la Pi — este módulo es el único punto que
+//! A diferencia de las demás categorías (ver `practicas.rs`, basadas en JSON
+//! local), el contenido y la validación de Linux viven en un servicio propio
+//! en la Pi — este módulo es el único punto que
 //! le habla por HTTP. La conexión SSH de trabajo (terminal del estudiante) no
 //! pasa por acá: usa el mismo `ssh_connect` genérico que el resto de la app,
 //! con el usuario resuelto de la sesión Keycloak y la contraseña pedida una
 //! vez en el cliente (nunca gestionada desde este módulo).
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
+use crate::cmd::practices::linux_tunnel::{self, TunnelConfig};
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
@@ -36,80 +36,68 @@ pub struct LinuxConnectionTarget {
     pub user: String,
 }
 
-// ─── Config (.env.practicas) ───
+// ─── Config (.env, raíz del repo — variables PRACTICE_LINUX_*) ───
+//
+// Antes vivía en un `.env.practicas` aparte con su propio parser manual
+// (mismo patrón que practicas.rs para Eve3/Circuitos, duplicado). Se
+// consolidó en el único `.env` de la app: `dotenvy::dotenv()` ya lo carga al
+// arrancar (ver lib.rs), así que alcanza con leer el entorno del proceso.
 
 #[derive(Debug, Clone)]
 struct LinuxApiConfig {
-    base_url: String,
+    tunnel: TunnelConfig,
     token: String,
     ssh_host: String,
     ssh_port: u16,
 }
 
-fn clean_env_value(value: &str) -> String {
-    value.trim().trim_matches('"').trim_matches('\'').trim().to_string()
-}
-
-fn load_env_vars() -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    let mut dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    loop {
-        let candidate = dir.join(".env.practicas");
-        if candidate.exists() {
-            if let Ok(content) = std::fs::read_to_string(&candidate) {
-                for line in content.lines() {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() || trimmed.starts_with('#') {
-                        continue;
-                    }
-                    if let Some((key, val)) = trimmed.split_once('=') {
-                        map.entry(key.trim().to_string()).or_insert(clean_env_value(val));
-                    }
-                }
-            }
-        }
-        match dir.parent() {
-            Some(parent) => dir = parent,
-            None => break,
-        }
-    }
-    map
+fn env_var(key: &str) -> Option<String> {
+    std::env::var(key).ok().filter(|v| !v.trim().is_empty())
 }
 
 fn load_config() -> Result<LinuxApiConfig, CommandError> {
-    let vars = load_env_vars();
+    let missing = |key: &str| {
+        CommandError::permanent("VALIDATION_FAILED", format!("{key} no configurado en .env"))
+    };
 
-    let api_host = vars.get("PRACTICE_LINUX_API_HOST").cloned().ok_or_else(|| {
-        CommandError::permanent(
-            "VALIDATION_FAILED",
-            "PRACTICE_LINUX_API_HOST no configurado en .env.practicas",
-        )
-    })?;
-    let api_port: u16 = vars
-        .get("PRACTICE_LINUX_API_PORT")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(8770);
-    let token = vars.get("PRACTICE_LINUX_API_TOKEN").cloned().ok_or_else(|| {
-        CommandError::permanent(
-            "VALIDATION_FAILED",
-            "PRACTICE_LINUX_API_TOKEN no configurado en .env.practicas",
-        )
-    })?;
+    // Cuenta de servicio restringida (sin shell, forwarding local limitado a
+    // un único puerto en la Pi vía PermitOpen) — ver linux_tunnel.rs. Es el
+    // único camino habilitado hoy hacia la API; no hay modo "HTTP directo"
+    // porque el puerto 8770 no está expuesto a internet (a propósito).
+    let tunnel_host = env_var("PRACTICE_LINUX_TUNNEL_HOST").ok_or_else(|| missing("PRACTICE_LINUX_TUNNEL_HOST"))?;
+    let tunnel_port: u16 = env_var("PRACTICE_LINUX_TUNNEL_PORT").and_then(|v| v.parse().ok()).unwrap_or(22);
+    let tunnel_user = env_var("PRACTICE_LINUX_TUNNEL_USER").ok_or_else(|| missing("PRACTICE_LINUX_TUNNEL_USER"))?;
+    let tunnel_password = env_var("PRACTICE_LINUX_TUNNEL_PASSWORD").ok_or_else(|| missing("PRACTICE_LINUX_TUNNEL_PASSWORD"))?;
+    let remote_port: u16 = env_var("PRACTICE_LINUX_API_REMOTE_PORT").and_then(|v| v.parse().ok()).unwrap_or(8770);
 
-    // El host SSH puede ser distinto del host de la API (mismo caso hoy, pero
-    // separado para cuando haya pool de Pis por curso — ver diseño de arquitectura).
-    let ssh_host = vars.get("PRACTICE_LINUX_SSH_HOST").cloned().unwrap_or_else(|| api_host.clone());
-    let ssh_port: u16 = vars
-        .get("PRACTICE_LINUX_SSH_PORT")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(22);
+    let token = env_var("PRACTICE_LINUX_API_TOKEN").ok_or_else(|| missing("PRACTICE_LINUX_API_TOKEN"))?;
+
+    // El host SSH de trabajo (terminal del estudiante) es independiente del
+    // host del túnel de servicio — separado para cuando haya pool de Pis por
+    // curso (ver diseño de arquitectura).
+    let ssh_host = env_var("PRACTICE_LINUX_SSH_HOST").unwrap_or_else(|| tunnel_host.clone());
+    let ssh_port: u16 = env_var("PRACTICE_LINUX_SSH_PORT").and_then(|v| v.parse().ok()).unwrap_or(22);
 
     Ok(LinuxApiConfig {
-        base_url: format!("http://{}:{}", api_host, api_port),
+        tunnel: TunnelConfig {
+            host: tunnel_host,
+            port: tunnel_port,
+            user: tunnel_user,
+            password: tunnel_password,
+            remote_host: "127.0.0.1".to_string(),
+            remote_port,
+        },
         token,
         ssh_host,
         ssh_port,
     })
+}
+
+async fn resolve_base_url(config: &LinuxApiConfig) -> Result<String, CommandError> {
+    let local_port = linux_tunnel::ensure_tunnel(config.tunnel.clone())
+        .await
+        .map_err(|e| CommandError::transient("LINUX_TUNNEL_ERROR", format!("No se pudo establecer el túnel hacia la Pi: {e}")))?;
+    Ok(format!("http://127.0.0.1:{local_port}"))
 }
 
 // ─── HTTP helpers ───
@@ -167,7 +155,8 @@ async fn handle_response(
 }
 
 async fn api_get(config: &LinuxApiConfig, path: &str) -> Result<serde_json::Value, CommandError> {
-    let url = format!("{}{}", config.base_url, path);
+    let base_url = resolve_base_url(config).await?;
+    let url = format!("{}{}", base_url, path);
     let resp = HTTP_CLIENT
         .get(&url)
         .header("Authorization", format!("Bearer {}", config.token))
@@ -182,7 +171,8 @@ async fn api_post(
     path: &str,
     body: &serde_json::Value,
 ) -> Result<serde_json::Value, CommandError> {
-    let url = format!("{}{}", config.base_url, path);
+    let base_url = resolve_base_url(config).await?;
+    let url = format!("{}{}", base_url, path);
     let resp = HTTP_CLIENT
         .post(&url)
         .header("Authorization", format!("Bearer {}", config.token))
@@ -261,8 +251,17 @@ pub async fn practicas_linux_connection_target(
     manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<LinuxConnectionTarget, CommandError> {
     let manager = manager.inner().clone();
-    let user = current_username(&manager).await?;
+    let username = current_username(&manager).await?;
     let config = load_config()?;
+
+    // El AD de la U exige el dominio en el login. La Pi usa sssd con
+    // use_fully_qualified_names=true (ver /etc/sssd/sssd.conf,
+    // domain/upiloto.edu) — el nombre canónico que resuelve ahí es
+    // "usuario@upiloto.edu" (verificado con getent y con una conexión real),
+    // no el formato NetBIOS "UPILOTO\usuario" que usa el resto de la app
+    // para SSH manual. El username de Keycloak (preferred_username) no trae
+    // el dominio, así que se agrega acá.
+    let user = format!("{username}@upiloto.edu");
 
     Ok(LinuxConnectionTarget {
         host: config.ssh_host,

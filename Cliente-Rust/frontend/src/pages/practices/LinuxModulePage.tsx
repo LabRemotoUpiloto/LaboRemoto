@@ -5,35 +5,41 @@
 // trabajo (usuario de Keycloak + contraseña pedida una vez), y mantiene el
 // progreso validando en vivo contra el historial real de comandos.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box, Container, Stack, Title, Text, Button, Group, Progress, Paper, Loader, Alert, ThemeIcon,
 } from '@mantine/core';
-import { ArrowLeft, CheckCircle2, PlugZap } from 'lucide-react';
+import { ArrowLeft, PlugZap, CheckCircle2 } from 'lucide-react';
 import { BlockView } from '../../components/practicas/linux/blocks/BlockRenderer';
 import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
-import { useLinuxPracticeSession } from '../../hooks/useLinuxPracticeSession';
-import { linuxGetModule, type LinuxModule, type LinuxValidationResult } from '../../services/linuxPractice.service';
+import LinuxPracticeProgressBar from '../../components/practicas/linux/LinuxPracticeProgressBar';
+import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
+import { linuxGetModule, type LinuxModule } from '../../services/linuxPractice.service';
 
 interface Props {
   practiceId: string;
   onBack: () => void;
-  onNewSession: (info: { id: string; label: string }) => void;
+  /**
+   * Instancia única del hook, vive a nivel de App (mismo patrón que
+   * usePracticeSession) — sobrevive a que esta página se desmonte cuando el
+   * estudiante navega a la pestaña de la sesión SSH recién abierta. El
+   * polling de revalidación corre adentro del hook, no acá.
+   */
+  linuxSession: LinuxPracticeSessionApi;
 }
 
-const REVALIDATE_INTERVAL_MS = 5000;
-
-const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, onNewSession }) => {
+const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) => {
   const [module, setModule] = useState<LinuxModule | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [result, setResult] = useState<LinuxValidationResult | null>(null);
-  const pollRef = useRef<number | null>(null);
 
   const {
-    connect, revalidate, connecting, connectError,
+    connect, connecting, submittingPassword, connectError,
     passwordPrompt, submitPassword, cancelPassword,
-  } = useLinuxPracticeSession({ onNewSession });
+    connectedModules, results,
+  } = linuxSession;
+
+  const connected = module ? !!connectedModules[module.id] : false;
+  const result = module ? (results[module.id] ?? null) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -45,24 +51,10 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, onNewSession }) 
     return () => { cancelled = true; };
   }, [practiceId]);
 
-  // Revalida periódicamente mientras esté conectado y el módulo no haya pasado.
-  useEffect(() => {
-    if (!connected || !module || result?.passed) return undefined;
-    pollRef.current = window.setInterval(() => {
-      revalidate(module).then((r) => { if (r) setResult(r); }).catch(() => {});
-    }, REVALIDATE_INTERVAL_MS);
-    return () => {
-      if (pollRef.current) window.clearInterval(pollRef.current);
-    };
-  }, [connected, module, result?.passed, revalidate]);
-
   const handleConnect = async () => {
     if (!module) return;
     try {
       await connect(module);
-      setConnected(true);
-      const r = await revalidate(module);
-      if (r) setResult(r);
     } catch {
       // connectError ya queda visible en el modal/panel
     }
@@ -118,7 +110,7 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, onNewSession }) 
           </Stack>
 
           {result && (
-            <Progress value={percentage} size="sm" radius="xl" color={result.passed ? 'green' : 'blue'} />
+            <LinuxPracticeProgressBar result={result} moduleTitle={module.title} />
           )}
 
           {!connected && (
@@ -153,7 +145,7 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, onNewSession }) 
       <LinuxPasswordPrompt
         opened={!!passwordPrompt}
         username={passwordPrompt?.username ?? ''}
-        loading={connecting}
+        loading={submittingPassword}
         errorMessage={connectError}
         onSubmit={submitPassword}
         onCancel={cancelPassword}

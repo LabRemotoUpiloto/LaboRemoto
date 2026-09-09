@@ -7,10 +7,15 @@ export type ChatMode = 'ask' | 'agente' | 'plan';
 export type ModelSelection = string;
 
 export const AVAILABLE_MODELS: Array<{ value: string; label: string; provider: string }> = [
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'Anthropic' },
-  { value: 'gpt-3.5-turbo', label: 'ChatGPT 3.5 Turbo', provider: 'OpenAI' },
+  // nvidia/nemotron-3-nano-30b-a3b:free fue retirado del tier gratis por
+  // OpenRouter (404 "This model is unavailable for free") -- no se lista más.
+  { value: 'deepseek/deepseek-v3.2:free', label: 'DeepSeek V3.2 (Gratis)', provider: 'OpenRouter' },
+  { value: 'z-ai/glm-4.6:free', label: 'GLM 4.6 (Gratis)', provider: 'OpenRouter' },
+  { value: 'qwen/qwen3-235b-a22b:free', label: 'Qwen3 235B (Gratis)', provider: 'OpenRouter' },
+  { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (Gratis)', provider: 'OpenRouter' },
+  { value: 'qwen/qwen-2.5-coder-32b-instruct:free', label: 'Qwen 2.5 Coder 32B (Gratis)', provider: 'OpenRouter' },
   { value: 'qwen/qwen3.6-plus', label: 'Qwen 3.6 Plus', provider: 'OpenRouter' },
-  { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron Nano 30B (Gratis)', provider: 'OpenRouter' },
+  { value: 'gpt-3.5-turbo', label: 'ChatGPT 3.5 Turbo', provider: 'OpenAI' },
 ];
 
 export interface AgentState {

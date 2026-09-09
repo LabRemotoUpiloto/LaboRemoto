@@ -116,14 +116,27 @@ pub struct TerminalResultPayload {
   pub exit_code: i32,
 }
 
+#[derive(Serialize, Clone, Debug)]
+pub struct SessionMemoryUpdatedPayload {
+  pub session_id: String,
+  pub mem: Option<SessionMem>,
+}
+
 #[tauri::command]
 pub async fn mem_put(
+  app: tauri::AppHandle,
   manager: tauri::State<'_, std::sync::Arc<dyn crate::session_manager::SessionManager>>,
   session_id: String,
   patch: SessionMemPatch,
 ) -> Result<(), String> {
   let manager = manager.inner().clone();
-  manager.put_session_patch(&session_id, patch).await.map_err(|e| e.to_string())
+  manager.put_session_patch(&session_id, patch).await.map_err(|e| e.to_string())?;
+  let mem = manager.get_session(&session_id).await.ok().flatten();
+  let _ = app.emit("session:memory-updated", SessionMemoryUpdatedPayload {
+    session_id,
+    mem,
+  });
+  Ok(())
 }
 
 #[tauri::command]

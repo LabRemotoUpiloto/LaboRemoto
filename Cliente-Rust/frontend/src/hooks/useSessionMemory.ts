@@ -36,34 +36,55 @@ type Patch = {
 
 const MAX_SNIPPET_LINES = 50;
 
+function mapSessionMem(data: any): SessionMem {
+  return {
+    lastFile: data.last_file ?? data.lastFile,
+    lastFileHash: data.last_file_hash ?? data.lastFileHash,
+    lastFileSnippet: data.last_file_snippet ?? data.lastFileSnippet,
+    lastCommand: data.last_command ?? data.lastCommand,
+    lastStdoutTail: data.last_stdout_tail ?? data.lastStdoutTail,
+    lastStderrTail: data.last_stderr_tail ?? data.lastStderrTail,
+    lastExitCode: data.last_exit_code ?? data.lastExitCode,
+    lastPath: data.last_path ?? data.lastPath,
+    lastPathKind: (data.last_path_kind ?? data.lastPathKind) as 'file' | 'dir' | undefined,
+    env: { cwd: data.env_cwd ?? data.env?.cwd, shell: data.env_shell ?? data.env?.shell, os: data.env_os ?? data.env?.os },
+    practiceContext: data.practice_context ?? data.practiceContext,
+    practiceTutorial: data.practice_tutorial ?? data.practiceTutorial
+  };
+}
+
 export function useSessionMemory(sessionId: string | null) {
   const key = useMemo(() => `ssh-copilot:${sessionId ?? "default"}`, [sessionId]);
 
   const [mem, setMem] = useState<SessionMem>({});
 
-  // Hydrate desde Rust al montar
+  // Hydrate desde Rust al montar o cambiar de sesión
   useEffect(() => {
     (async () => {
       try {
         const data = await invoke<any>("mem_get", { sessionId: sessionId ?? "default" });
         if (data) {
-          setMem({
-            lastFile: data.last_file ?? data.lastFile,
-            lastFileHash: data.last_file_hash ?? data.lastFileHash,
-            lastFileSnippet: data.last_file_snippet ?? data.lastFileSnippet,
-            lastCommand: data.last_command ?? data.lastCommand,
-            lastStdoutTail: data.last_stdout_tail ?? data.lastStdoutTail,
-            lastStderrTail: data.last_stderr_tail ?? data.lastStderrTail,
-            lastExitCode: data.last_exit_code ?? data.lastExitCode,
-            lastPath: data.last_path ?? data.lastPath,
-            lastPathKind: (data.last_path_kind ?? data.lastPathKind) as 'file' | 'dir' | undefined,
-            env: { cwd: data.env_cwd ?? data.env?.cwd, shell: data.env_shell ?? data.env?.shell, os: data.env_os ?? data.env?.os },
-            practiceContext: data.practice_context ?? data.practiceContext,
-            practiceTutorial: data.practice_tutorial ?? data.practiceTutorial
-          });
+          setMem(mapSessionMem(data));
         }
       } catch {}
     })();
+  }, [sessionId]);
+
+  // Escucha actualizaciones reactivas de memoria de sesión (Rust mem_put)
+  useEffect(() => {
+    let unlistenUpdated: (() => void) | undefined;
+    (async () => {
+      try {
+        unlistenUpdated = await listen("session:memory-updated", (e: any) => {
+          const p = e.payload || {};
+          if (p.session_id && p.session_id !== (sessionId ?? "default")) return;
+          if (p.mem) {
+            setMem(mapSessionMem(p.mem));
+          }
+        });
+      } catch {}
+    })();
+    return () => { if (unlistenUpdated) unlistenUpdated(); };
   }, [sessionId]);
 
   // Escucha resultados de terminal (evento de Rust)

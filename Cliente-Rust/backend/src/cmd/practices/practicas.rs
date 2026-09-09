@@ -1,7 +1,8 @@
 //! cmd/practicas — Sistema de prácticas de laboratorio remoto
 //!
 //! Este módulo proporciona:
-//! - Configuración de prácticas desde .env.practicas
+//! - Configuración de prácticas Eve3 desde el .env único de la app (legacy —
+//!   las categorías nuevas van por API en la máquina de la práctica, ver linux_api.rs)
 //! - Categorías de prácticas (Eve3, Linux, Circuitos)
 //! - Comandos de setup pre-práctica (ej: levantar servidor del robot)
 //! - Configuración de terminal y paneles por práctica
@@ -76,15 +77,18 @@ pub struct PanelConfig {
     pub chat_tutorial: String,
 }
 
-// ─── Helper: leer variables del .env.practicas ───
+// ─── Helper: leer variables PRACTICE_EVE3_* del .env único de la app ───
+// (legacy: las categorías nuevas van por API corriendo en la máquina de la
+// práctica, como Linux -- ver linux_api.rs -- no por credenciales SSH sueltas
+// en variables de entorno. Se deja andando para Eve3 hasta que también migre.)
 
 fn load_practices_env() -> HashMap<String, String> {
     let mut map = HashMap::new();
 
-    // Buscar .env.practicas desde CARGO_MANIFEST_DIR hacia arriba
+    // Buscar .env desde CARGO_MANIFEST_DIR hacia arriba
     let mut dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     loop {
-        let candidate = dir.join(".env.practicas");
+        let candidate = dir.join(".env");
         if candidate.exists() {
             if let Ok(content) = std::fs::read_to_string(&candidate) {
                 for line in content.lines() {
