@@ -63,15 +63,19 @@ const ChatPane: React.FC<Props> = ({
   const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
     const saved = localStorage.getItem('chatSelectedModel');
     const deprecated: Record<string, string> = {
-      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.6-plus',
-      'google/gemini-2.5-pro:free': 'qwen/qwen3.6-plus',
-      'nvidia/nemotron-super-49b-v1:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-      'nvidia/nemotron-3-super-120b-a12b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.6-plus',
-      'qwen/qwen3.6-plus:free': 'qwen/qwen3.6-plus',
-      'claude-sonnet-4-5': 'claude-sonnet-4-6',
+      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.8-27b',
+      'google/gemini-2.5-pro:free': 'qwen/qwen3.8-27b',
+      'nvidia/nemotron-super-49b-v1:free': 'openai/gpt-oss-120b',
+      'nvidia/nemotron-3-super-120b-a12b:free': 'openai/gpt-oss-120b',
+      'nvidia/nemotron-3-nano-30b-a3b:free': 'openai/gpt-oss-20b',
+      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.8-27b',
+      'qwen/qwen3.6-plus:free': 'qwen/qwen3.8-27b',
+      'qwen/qwen3.6-plus': 'qwen/qwen3.8-27b',
+      'claude-sonnet-4-5': 'openai/gpt-oss-120b',
+      'claude-sonnet-4-6': 'openai/gpt-oss-120b',
+      'gpt-3.5-turbo': 'openai/gpt-oss-120b',
     };
-    return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'claude-sonnet-4-6';
+    return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'openai/gpt-oss-120b';
   });
   
   const [agentState, setAgentState] = useState<AgentState>({ cwd: '/', lastExitCode: undefined, lastStdoutTail: undefined, lastFile: undefined });

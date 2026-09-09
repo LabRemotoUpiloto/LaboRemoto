@@ -6,9 +6,7 @@ use crate::cmd::ai::ai_utils;
 
 #[derive(Serialize)]
 pub struct AiStatusResponse {
-    pub has_openai_key: bool,
-    pub has_claude_key: bool,
-    pub has_openrouter_key: bool,
+    pub has_groq_key: bool,
     pub model: Option<String>,
 }
 
@@ -26,9 +24,7 @@ pub struct AiTestResponse {
 pub async fn status() -> Result<Json<AiStatusResponse>, ApiError> {
     let s = ai_utils::ai_env_status().map_err(|e| ApiError::internal(e.message))?;
     Ok(Json(AiStatusResponse {
-        has_openai_key: s.has_openai_key,
-        has_claude_key: s.has_claude_key,
-        has_openrouter_key: s.has_openrouter_key,
+        has_groq_key: s.has_groq_key,
         model: s.model,
     }))
 }
