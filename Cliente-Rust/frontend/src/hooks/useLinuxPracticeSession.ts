@@ -41,12 +41,22 @@ function isCommandStep(b: LinuxBlock): b is Extract<LinuxBlock, { type: 'command
   return b.type === 'command_step';
 }
 
-function isTextBlock(b: LinuxBlock): b is Extract<LinuxBlock, { type: 'text' }> {
-  return b.type === 'text';
-}
-
 function buildPracticeContext(module: LinuxModule, result: LinuxValidationResult | null): string {
   const lines: string[] = [];
+  // Persona + reglas de estilo primero, antes que nada específico del módulo
+  // -- se repite completo en cada mensaje del sistema (memPut reescribe
+  // practice_context entero en cada revalidate), así que el tono no debería
+  // ir derivando de un mensaje al siguiente durante la misma práctica.
+  lines.push(
+    'Sos un profesor experto en Linux, administración de servidores, Python y scripting, ' +
+      'dando clases a un estudiante principiante que recién está aprendiendo a usar la terminal. ' +
+      'Reglas de estilo — todo el tiempo, sin excepción, en cada mensaje de esta práctica:',
+  );
+  lines.push('- Explicá siempre en lenguaje simple: si usás un término técnico (kernel, permisos, proceso, extensión de archivo, etc.) explicalo en la misma frase, como si fuera la primera vez que el estudiante lo escucha.');
+  lines.push('- Mantené el MISMO tono y una estructura parecida de un mensaje al siguiente durante toda la práctica — nada de variar el estilo, la extensión o el nivel de formalidad de una respuesta a otra.');
+  lines.push('- Cuando expliques la salida de un comando que el estudiante YA ejecutó, andá directo a explicar qué significa lo que salió en pantalla (2-4 líneas, con los valores/nombres reales que aparecieron) — no sugieras comandos nuevos ni repitas el formato de bloque de comandos ahí.');
+  lines.push('- Conocés a fondo tipos y extensiones de archivo (.sh, .py, .conf, .log, .service, .yml, etc.), servicios típicos de un servidor Linux (systemd, ssh, cron, apt/dnf) y Python — usá ese conocimiento para dar ejemplos concretos cuando ayude a entender, sin irte del tema del módulo.');
+  lines.push('');
   lines.push(`Sos la guía de la Práctica de Linux — Módulo ${module.order}: ${module.title}`);
   lines.push(`Objetivo: ${module.objective}`);
   lines.push('');
@@ -73,22 +83,6 @@ function buildPracticeContext(module: LinuxModule, result: LinuxValidationResult
       'pida explícitamente — explicá qué hace y por qué, dejá que lo escriba él.',
   );
 
-  return lines.join('\n');
-}
-
-/**
- * Primer mensaje visible del chat al conectar. La intro narrativa del bloque
- * de texto sola no le dice al estudiante qué hacer (queja real de usuario) —
- * se le agrega un primer paso concreto y accionable.
- */
-function buildWelcomeMessage(module: LinuxModule): string {
-  const intro = module.blocks.find(isTextBlock)?.body_md ?? module.objective;
-  const firstStep = module.blocks.find(isCommandStep);
-  const lines = [intro];
-  if (firstStep) {
-    lines.push('');
-    lines.push(`Para arrancar, escribí **${firstStep.command}** en la terminal y contame qué te aparece.`);
-  }
   return lines.join('\n');
 }
 
@@ -119,6 +113,13 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
   // pestaña o al cambiar de sesión, nunca mientras la sesión Linux sigue
   // activa -- revalidate() quedaba siempre contra RESOURCE_NOT_FOUND.
   const commandHistoryBySession = useRef<Record<string, string[]>>({});
+
+  // Respuestas de quiz por módulo (no por sesión: sobreviven a un
+  // reconnect/cambio de pestaña igual que sessionByPractice). Se mandan
+  // recién cuando el estudiante aprieta "Enviar evaluación" en
+  // LinuxModulePage, no en cada tick del polling -- un quiz no es progreso
+  // continuo como el historial de comandos, es una entrega puntual.
+  const quizAnswersByModule = useRef<Record<string, Record<string, string>>>({});
 
   // Progreso por módulo (keyed por module.id, no por sessionId) — LinuxModulePage
   // solo conoce el practiceId/module, nunca el sessionId directamente.
@@ -157,7 +158,8 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
     if (!sessionId) return null;
 
     const commandHistory = commandHistoryBySession.current[sessionId] ?? [];
-    const result = await linuxValidate(module.id, commandHistory);
+    const quizAnswers = quizAnswersByModule.current[module.id];
+    const result = await linuxValidate(module.id, commandHistory, quizAnswers);
 
     await memPut(sessionId, {
       practice_context: buildPracticeContext(module, result),
@@ -166,6 +168,19 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
     setResults((prev) => ({ ...prev, [module.id]: result }));
     return result;
   }, []);
+
+  /**
+   * Guarda las respuestas de quiz elegidas por el estudiante y dispara una
+   * revalidación inmediata (no espera al próximo tick de los 5s) -- "Enviar
+   * evaluación" en LinuxModulePage debe sentirse instantáneo.
+   */
+  const submitQuizAnswers = useCallback(
+    async (module: LinuxModule, answers: Record<string, string>): Promise<LinuxValidationResult | null> => {
+      quizAnswersByModule.current[module.id] = answers;
+      return revalidate(module);
+    },
+    [revalidate],
+  );
 
   /**
    * Recibe el historial de comandos en vivo de una sesión (llamado desde
@@ -267,9 +282,12 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
         setChatOpen(true);
         setConnectedModules((prev) => ({ ...prev, [module.id]: true }));
 
+        // practice_tutorial (el viejo "primer mensaje" fijo) ya no hace
+        // falta: el contenido real del módulo (intro, video, primer comando
+        // pendiente) lo entrega ChatPane apenas detecta `linuxModule` +
+        // `practiceResult`, con contenido real en vez de un texto fijo.
         await memPut(sessionId, {
           practice_context: buildPracticeContext(module, null),
-          practice_tutorial: buildWelcomeMessage(module),
         });
 
         // Primera validación inmediata (progreso arranca en 0 pero ya
@@ -308,6 +326,15 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
    * pestaña de su sesión SSH (ver useTabLifecycle.handleCloseTab). Sin esto
    * el intervalo de revalidate() seguiría corriendo indefinidamente contra
    * una sesión ya desconectada.
+   *
+   * También REINICIA el progreso del módulo (resultado + respuestas de quiz)
+   * sin importar si estaba completo o no -- todavía no hay guardado real de
+   * progreso (queda para más adelante); por ahora, salir sin terminar
+   * significa arrancar de cero la próxima vez que se conecte a este módulo.
+   * El historial de comandos y el contenido ya entregado en el chat se
+   * reinician solos (viven en el nuevo ChatPane que se monta al reconectar),
+   * pero `results` y las respuestas de quiz viven acá, sobreviven a un
+   * remount de ChatPane, y hay que limpiarlos a mano.
    */
   const stopSession = useCallback((sessionId: string) => {
     const moduleId = moduleBySession.current[sessionId];
@@ -316,6 +343,7 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
     delete moduleBySession.current[sessionId];
     delete sessionByPractice.current[moduleId];
     delete commandHistoryBySession.current[sessionId];
+    delete quizAnswersByModule.current[moduleId];
     setSessionModuleMap((prev) => {
       if (!(sessionId in prev)) return prev;
       const next = { ...prev };
@@ -328,11 +356,18 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
       delete next[moduleId];
       return next;
     });
+    setResults((prev) => {
+      if (!(moduleId in prev)) return prev;
+      const next = { ...prev };
+      delete next[moduleId];
+      return next;
+    });
   }, [stopPolling]);
 
   return {
     connect,
     revalidate,
+    submitQuizAnswers,
     reportCommandHistory,
     stopSession,
     connectedModules,

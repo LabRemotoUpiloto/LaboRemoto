@@ -183,6 +183,44 @@ async fn api_post(
     handle_response(resp, "linux_api_post", path).await
 }
 
+/// Como `api_get`, pero para respuestas binarias (imágenes, video, diagramas
+/// de un módulo) -- `handle_response` fuerza JSON, esto no.
+async fn api_get_bytes(config: &LinuxApiConfig, path: &str) -> Result<(String, Vec<u8>), CommandError> {
+    let base_url = resolve_base_url(config).await?;
+    let url = format!("{}{}", base_url, path);
+    let resp = HTTP_CLIENT
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", config.token))
+        .send()
+        .await
+        .map_err(|e| map_reqwest_err(e, "linux_api_get_media", path))?;
+
+    let status = resp.status();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return Err(CommandError::permanent("RESOURCE_NOT_FOUND", format!("Media no encontrada en la Pi: {}", path)));
+    }
+    if status == reqwest::StatusCode::UNAUTHORIZED {
+        return Err(CommandError::permanent("AUTH_FAILED", "Token inválido para el servicio de prácticas de Linux"));
+    }
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream")
+        .to_string();
+    if !status.is_success() {
+        return Err(CommandError::transient(
+            "LINUX_API_REQUEST_ERROR",
+            format!("El servicio de prácticas respondió {} pidiendo media", status),
+        ));
+    }
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| map_reqwest_err(e, "linux_api_get_media", path))?;
+    Ok((content_type, bytes.to_vec()))
+}
+
 async fn current_username(manager: &Arc<dyn SessionManager>) -> Result<String, CommandError> {
     let info = manager
         .session_info()
@@ -219,13 +257,46 @@ pub async fn practicas_linux_get_module(practice_id: String) -> Result<serde_jso
     api_get(&config, &format!("/practices/{}", practice_id)).await
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct LinuxMedia {
+    pub mime: String,
+    /// Base64 estándar -- el frontend arma un `data:` URI directo con esto,
+    /// sin pasar por un endpoint HTTP propio del cliente (no existe uno).
+    pub base64: String,
+}
+
+/// Trae un archivo de media (imagen, video, diagrama) de un módulo. El
+/// cliente nunca le habla directo a la Pi -- pasa por el mismo túnel que
+/// `practicas_linux_get_module`, con el mismo token bearer.
+///
+/// `media_path` es el valor que ya viene en un bloque `media` del
+/// `module.json` (ej. `"diagrams/pipe.png"`) -- se valida acá igual (no solo
+/// del lado Python) por defensa en profundidad.
+#[tauri::command]
+pub async fn practicas_linux_get_media(practice_id: String, media_path: String) -> Result<LinuxMedia, CommandError> {
+    if media_path.contains("..") {
+        return Err(CommandError::permanent("INVALID_PATH", "Ruta de media inválida"));
+    }
+    let config = load_config()?;
+    let (mime, bytes) = api_get_bytes(&config, &format!("/practices/{}/media/{}", practice_id, media_path)).await?;
+    use base64::Engine as _;
+    Ok(LinuxMedia { mime, base64: base64::engine::general_purpose::STANDARD.encode(&bytes) })
+}
+
 /// Valida el progreso del estudiante autenticado contra las reglas del
 /// módulo. El `student` NO viene del cliente — se resuelve server-side desde
 /// la sesión Keycloak activa, para que no se pueda falsear.
+///
+/// `quiz_answers` (question_id -> option_id elegida) viaja igual que
+/// `command_history`: el cliente solo manda lo que el estudiante eligió, la
+/// respuesta correcta de cada pregunta vive únicamente en la Pi (mismo
+/// principio que ya aplica a las reglas de tipo comando -- acá tampoco hay
+/// forma de leer la clave de corrección abriendo devtools).
 #[tauri::command]
 pub async fn practicas_linux_validate(
     practice_id: String,
     command_history: Vec<String>,
+    quiz_answers: Option<std::collections::HashMap<String, String>>,
     manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<serde_json::Value, CommandError> {
     let manager = manager.inner().clone();
@@ -235,6 +306,7 @@ pub async fn practicas_linux_validate(
     let body = serde_json::json!({
         "student": student,
         "command_history": command_history,
+        "quiz_answers": quiz_answers.unwrap_or_default(),
     });
 
     api_post(&config, &format!("/practices/{}/validate", practice_id), &body).await

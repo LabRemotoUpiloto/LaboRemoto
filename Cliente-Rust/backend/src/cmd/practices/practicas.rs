@@ -315,8 +315,17 @@ pub async fn practicas_list_categories() -> Result<Vec<PracticeCategory>, Comman
     let mut categories = build_categories(&vars);
 
     if let Some(linux_cat) = categories.iter_mut().find(|c| c.id == "linux") {
-        match crate::cmd::practices::linux_api::fetch_linux_summaries().await {
-            Ok(summaries) => {
+        // Timeout defensivo: si la Pi no responde (red caída, apagada, el
+        // túnel SSH tardando en conectar) esto NO debe colgar el listado
+        // completo de categorías -- Eve3/Circuitos deben seguir cargando
+        // igual. Sin este timeout, un simple "no responde" (no un error,
+        // un cuelgue de red real) bloqueaba la pantalla de Prácticas entera.
+        let linux_result = tokio::time::timeout(
+            std::time::Duration::from_secs(8),
+            crate::cmd::practices::linux_api::fetch_linux_summaries(),
+        ).await;
+        match linux_result {
+            Ok(Ok(summaries)) => {
                 linux_cat.practices = summaries
                     .into_iter()
                     .map(|s| Practice {
@@ -351,12 +360,15 @@ pub async fn practicas_list_categories() -> Result<Vec<PracticeCategory>, Comman
                     })
                     .collect();
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 eprintln!(
                     "[practicas] No se pudo listar módulos de Linux desde la Pi: {}",
                     e.message
                 );
                 // practices queda vacío — la categoría no rompe el resto del listado.
+            }
+            Err(_) => {
+                eprintln!("[practicas] Timeout (8s) listando módulos de Linux desde la Pi -- sigue sin bloquear el resto de categorías");
             }
         }
     }

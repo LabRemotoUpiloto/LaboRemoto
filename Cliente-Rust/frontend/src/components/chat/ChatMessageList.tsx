@@ -62,6 +62,18 @@ interface ChatMessageListProps {
     label?: string;
     onClose?: () => void;
   } | null;
+  /** Props de la práctica de Linux activa -- ver nota de acoplamiento en ChatPane.tsx. */
+  linuxPracticeId?: string | null;
+  linuxRules?: any[];
+  linuxResult?: any | null;
+  linuxQuizAnswers?: Record<string, string>;
+  linuxQuizSubmitting?: boolean;
+  linuxQuizSubmitted?: boolean;
+  onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
+  onLinuxQuizSubmit?: () => void;
+  /** Mensajes de tipo `linuxContentBlocks` ya confirmados con "Continuar". */
+  linuxContentAckedIds?: Set<string>;
+  onLinuxContentAck?: (msgId: string) => void;
 }
 
 export default function ChatMessageList({
@@ -75,6 +87,16 @@ export default function ChatMessageList({
   embeddedTerminal = null,
   embeddedCameras = null,
   embeddedDesktop = null,
+  linuxPracticeId = null,
+  linuxRules = [],
+  linuxResult = null,
+  linuxQuizAnswers = {},
+  linuxQuizSubmitting = false,
+  linuxQuizSubmitted = false,
+  onLinuxQuizAnswer,
+  onLinuxQuizSubmit,
+  linuxContentAckedIds,
+  onLinuxContentAck,
 }: ChatMessageListProps) {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
 
@@ -146,6 +168,16 @@ export default function ChatMessageList({
                 onAnalyzeCandidate={onAnalyzeCandidate}
                 onSetInput={onSetInput}
                 wordCount={msgWordCount}
+                linuxPracticeId={linuxPracticeId}
+                linuxRules={linuxRules}
+                linuxResult={linuxResult}
+                linuxQuizAnswers={linuxQuizAnswers}
+                linuxQuizSubmitting={linuxQuizSubmitting}
+                linuxQuizSubmitted={linuxQuizSubmitted}
+                onLinuxQuizAnswer={onLinuxQuizAnswer}
+                onLinuxQuizSubmit={onLinuxQuizSubmit}
+                linuxContentAcked={linuxContentAckedIds?.has(msg.id) ?? false}
+                onLinuxContentAck={() => onLinuxContentAck?.(msg.id)}
               />
             )}
 

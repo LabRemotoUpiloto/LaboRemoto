@@ -178,7 +178,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             onMouseDown={() => setIsResizingChat(true)}
           />
           <div style={{ width: chatWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <ChatPane sessionId={sessionId} onClose={onCloseChat} practiceId={practiceId} practiceResult={linuxResult} />
+            <ChatPane sessionId={sessionId} onClose={onCloseChat} practiceId={practiceId} practiceResult={linuxResult} linuxSession={linuxSession} />
           </div>
         </>
       )}

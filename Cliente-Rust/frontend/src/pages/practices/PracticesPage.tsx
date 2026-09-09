@@ -187,17 +187,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         setSelectedLinuxPracticeId(null);
     };
 
-    if (loading) {
-        return (
-            <Box w="100%" h="100%" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Stack align="center" gap="md">
-                    <Loader size="md" />
-                    <Text c="dimmed" size="sm">Cargando prácticas...</Text>
-                </Stack>
-            </Box>
-        );
-    }
-
     if (selectedLinuxPracticeId) {
         if (!linuxSession) {
             // No debería pasar en la app real (App.tsx siempre instancia y pasa
@@ -255,20 +244,32 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                         />
 
                         {catalogTab === 'local' ? (
-                            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-                                {categories.map(cat => (
-                                    <CategoryCard
-                                        key={cat.id}
-                                        id={cat.id}
-                                        name={cat.name}
-                                        description={cat.description}
-                                        icon={cat.icon}
-                                        color={cat.color}
-                                        practiceCount={cat.practices.length}
-                                        onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
-                                    />
-                                ))}
-                            </SimpleGrid>
+                            loading ? (
+                                // Solo esta parte (las cards) muestra el loading -- el título,
+                                // la descripción y el selector de pestaña ya se ven arriba.
+                                // Antes un `if (loading) return ...` tapaba la página entera
+                                // mientras practicas_list_categories esperaba a la Pi (hasta 8s
+                                // con el timeout nuevo si no responde).
+                                <Stack align="center" gap="md" py="xl">
+                                    <Loader size="md" />
+                                    <Text c="dimmed" size="sm">Cargando prácticas...</Text>
+                                </Stack>
+                            ) : (
+                                <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                                    {categories.map(cat => (
+                                        <CategoryCard
+                                            key={cat.id}
+                                            id={cat.id}
+                                            name={cat.name}
+                                            description={cat.description}
+                                            icon={cat.icon}
+                                            color={cat.color}
+                                            practiceCount={cat.practices.length}
+                                            onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
+                                        />
+                                    ))}
+                                </SimpleGrid>
+                            )
                         ) : externalStatus === 'loading' ? (
                             <Stack align="center" gap="md" py="xl">
                                 <Loader size="md" />

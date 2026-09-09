@@ -1,18 +1,17 @@
 // pages/practices/LinuxModulePage.tsx
 //
-// Reemplaza el grid genérico de PracticeCard para la categoría Linux: trae
-// el contenido en bloques del módulo desde la Pi, conecta la sesión SSH de
-// trabajo (usuario de Keycloak + contraseña pedida una vez), y mantiene el
-// progreso validando en vivo contra el historial real de comandos.
+// Pantalla PRE-conexión de la categoría Linux: solo título, objetivo y el
+// botón para conectar. Todo el contenido del módulo (texto, analogías,
+// media, comandos a probar, quiz final) se entrega DESPUÉS de conectar, por
+// el chat de la sesión SSH recién abierta (ver ChatPane.tsx) -- no antes de
+// empezar la práctica.
 
 import React, { useEffect, useState } from 'react';
 import {
-  Box, Container, Stack, Title, Text, Button, Group, Progress, Paper, Loader, Alert, ThemeIcon,
+  Box, Container, Stack, Title, Text, Button, Group, Paper, Loader, Alert, Badge,
 } from '@mantine/core';
-import { ArrowLeft, PlugZap, CheckCircle2 } from 'lucide-react';
-import { BlockView } from '../../components/practicas/linux/blocks/BlockRenderer';
+import { ArrowLeft, PlugZap, MonitorCheck } from 'lucide-react';
 import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
-import LinuxPracticeProgressBar from '../../components/practicas/linux/LinuxPracticeProgressBar';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { linuxGetModule, type LinuxModule } from '../../services/linuxPractice.service';
 
@@ -35,11 +34,10 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) 
   const {
     connect, connecting, submittingPassword, connectError,
     passwordPrompt, submitPassword, cancelPassword,
-    connectedModules, results,
+    connectedModules,
   } = linuxSession;
 
   const connected = module ? !!connectedModules[module.id] : false;
-  const result = module ? (results[module.id] ?? null) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +54,7 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) 
     try {
       await connect(module);
     } catch {
-      // connectError ya queda visible en el modal/panel
+      // connectError ya queda visible en el panel de abajo
     }
   };
 
@@ -79,45 +77,42 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) 
     );
   }
 
-  const percentage = result?.percentage ?? 0;
-
   return (
     <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
-      <Container size="md" py="xl">
+      <Container size="sm" py="xl">
         <Stack gap="xl">
-          <Group justify="space-between" align="center">
-            <Button variant="subtle" color="gray" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack}>
-              Volver a Linux
-            </Button>
-            {result && (
-              <Group gap={8}>
-                {result.passed && (
-                  <ThemeIcon color="green" variant="light" radius="xl" size={22}>
-                    <CheckCircle2 size={14} />
-                  </ThemeIcon>
-                )}
-                <Text fz="sm" c="dimmed">{result.earned_points}/{result.total_points} pts</Text>
-              </Group>
-            )}
-          </Group>
+          <Button variant="subtle" color="gray" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start' }}>
+            Volver a Linux
+          </Button>
 
-          <Stack gap={6}>
-            <Text fz="xs" tt="uppercase" fw={700} c="teal" style={{ letterSpacing: '0.08em' }}>
-              Módulo {module.order}
-            </Text>
+          <Stack gap={10}>
+            <Group gap={8}>
+              <Text fz="xs" tt="uppercase" fw={700} c="teal" style={{ letterSpacing: '0.08em' }}>
+                Módulo {module.order}
+              </Text>
+              <Badge variant="light" color="gray" size="sm" tt="capitalize">{module.difficulty}</Badge>
+              {module.estimated_minutes && (
+                <Badge variant="light" color="gray" size="sm">~{module.estimated_minutes} min</Badge>
+              )}
+            </Group>
             <Title order={1} style={{ fontSize: '1.75rem' }}>{module.title}</Title>
-            <Text c="dimmed" maw={620}>{module.objective}</Text>
+            <Text c="dimmed" maw={520}>{module.objective}</Text>
           </Stack>
 
-          {result && (
-            <LinuxPracticeProgressBar result={result} moduleTitle={module.title} />
-          )}
-
-          {!connected && (
+          {connected ? (
+            <Paper withBorder radius="md" p="md">
+              <Group gap="sm" wrap="nowrap">
+                <MonitorCheck size={18} color="var(--success, #10b981)" />
+                <Text fz="sm" c="dimmed">
+                  Ya estás conectado a este módulo — seguí la práctica en el chat de tu pestaña de terminal.
+                </Text>
+              </Group>
+            </Paper>
+          ) : (
             <Paper withBorder radius="md" p="md">
               <Group justify="space-between" align="center" wrap="nowrap">
                 <Text fz="sm" c="dimmed">
-                  Conectate a tu espacio de trabajo para empezar a escribir los comandos.
+                  El tutor te va a guiar paso a paso por el chat una vez conectado — no hace falta leer nada antes.
                 </Text>
                 <Button leftSection={<PlugZap size={16} />} loading={connecting} onClick={handleConnect}>
                   Conectar
@@ -125,19 +120,6 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) 
               </Group>
               {connectError && <Text fz="sm" c="red" mt="sm">{connectError}</Text>}
             </Paper>
-          )}
-
-          <Stack gap="md">
-            {module.blocks.map((block) => (
-              <BlockView key={block.id} block={block} rules={module.validation_rules} result={result} />
-            ))}
-          </Stack>
-
-          {result?.passed && (
-            <Alert color="green" title="¡Módulo completo!">
-              Completaste el Módulo {module.order} con {result.earned_points}/{result.total_points} puntos
-              {' '}({result.percentage}%).
-            </Alert>
           )}
         </Stack>
       </Container>

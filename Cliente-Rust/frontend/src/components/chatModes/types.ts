@@ -61,6 +61,16 @@ export interface MessageMeta {
   embeddedPi4Terminal?: boolean;
   embeddedPi4Cameras?: boolean;
   embeddedPi4Desktop?: boolean;
+  /**
+   * Lote de bloques de contenido de una práctica de Linux (texto, analogía,
+   * anotación de terminal, media, o el siguiente command_step pendiente)
+   * entregado por el chat a medida que el estudiante avanza -- reemplaza a
+   * la vieja página de módulo con scroll. Nunca incluye bloques `quiz`
+   * (esos van en `linuxQuiz`, que es interactivo y necesita otro renderer).
+   */
+  linuxContentBlocks?: any[];
+  /** Evaluación final de una práctica de Linux, solo aparece cuando ya se completaron los comandos obligatorios. */
+  linuxQuiz?: { moduleId: string; blocks: any[] };
 }
 
 export interface Message {

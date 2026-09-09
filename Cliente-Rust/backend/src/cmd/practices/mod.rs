@@ -14,5 +14,5 @@ pub use practicas::{practicas_list_categories, practicas_get_config, practicas_r
 pub use practice_validator::{validate_practice_progress, calculate_practice_grade};
 pub use linux_api::{
     practicas_linux_list, practicas_linux_get_module, practicas_linux_validate,
-    practicas_linux_connection_target,
+    practicas_linux_connection_target, practicas_linux_get_media,
 };

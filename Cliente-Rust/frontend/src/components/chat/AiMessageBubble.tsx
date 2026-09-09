@@ -5,8 +5,9 @@ import DiffView from '../analysis/DiffView';
 import { Message, ChatMode } from '../chatModes/types';
 import { fmtTime } from '../chatPane/chatPane.constants';
 import type { ChatAppearance } from './ChatMessageList';
-import { ActionIcon } from '@mantine/core';
-import { Copy, RefreshCw, RotateCcw } from 'lucide-react';
+import { ActionIcon, Button, Group, Text } from '@mantine/core';
+import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { BlockView } from '../practicas/linux/blocks/BlockRenderer';
 
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;
@@ -23,12 +24,27 @@ interface AiMessageBubbleProps {
   onAnalyzeCandidate: (base: string, candidate: string, action: string, index?: number) => void;
   onSetInput: (text: string) => void;
   wordCount: number;
+  linuxPracticeId?: string | null;
+  linuxRules?: any[];
+  linuxResult?: any | null;
+  linuxQuizAnswers?: Record<string, string>;
+  linuxQuizSubmitting?: boolean;
+  linuxQuizSubmitted?: boolean;
+  onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
+  onLinuxQuizSubmit?: () => void;
+  /** Solo aplica a mensajes con `meta.linuxContentBlocks` -- si ya se confirmó con "Continuar". */
+  linuxContentAcked?: boolean;
+  onLinuxContentAck?: () => void;
 }
 
 export default function AiMessageBubble({
   appearance = 'session',
   msg, mode, isSending, sessionId, streamingMsgId, streamedText, setLastCommand,
-  onCopy, onRegenerate, onRetry, onAnalyzeCandidate, onSetInput, wordCount
+  onCopy, onRegenerate, onRetry, onAnalyzeCandidate, onSetInput, wordCount,
+  linuxPracticeId, linuxRules = [], linuxResult = null,
+  linuxQuizAnswers = {}, linuxQuizSubmitting = false, linuxQuizSubmitted = false,
+  onLinuxQuizAnswer, onLinuxQuizSubmit,
+  linuxContentAcked = false, onLinuxContentAck,
 }: AiMessageBubbleProps) {
   const isStreaming = streamingMsgId === msg.id;
   const isError = msg.text.startsWith('Error');
@@ -95,6 +111,60 @@ export default function AiMessageBubble({
           )}
           {msg.meta?.toolAction && (
             <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />
+          )}
+
+          {msg.meta?.linuxContentBlocks && linuxPracticeId && (
+            <div className="flex flex-col gap-2 mt-1">
+              {msg.meta.linuxContentBlocks.map((block: any) => (
+                <BlockView key={block.id} block={block} rules={linuxRules} result={linuxResult} practiceId={linuxPracticeId} />
+              ))}
+              {/* Obliga a leer/scrollear (video incluido) antes de poder escribir -- ver ChatInput.inputLocked. */}
+              {linuxContentAcked ? (
+                <Text fz="xs" c="dimmed">✓ Visto</Text>
+              ) : (
+                <Group justify="flex-end">
+                  <Button size="xs" variant="light" onClick={onLinuxContentAck}>
+                    Continuar
+                  </Button>
+                </Group>
+              )}
+            </div>
+          )}
+
+          {msg.meta?.linuxQuiz && linuxPracticeId && (
+            <div className="flex flex-col gap-2 mt-1">
+              {msg.meta.linuxQuiz.blocks.map((block: any) => (
+                <BlockView
+                  key={block.id}
+                  block={block}
+                  rules={linuxRules}
+                  result={linuxResult}
+                  practiceId={linuxPracticeId}
+                  quizAnswers={linuxQuizAnswers}
+                  onQuizAnswer={onLinuxQuizAnswer}
+                  quizLocked={linuxQuizSubmitted}
+                />
+              ))}
+              {!linuxQuizSubmitted && (
+                <Group justify="flex-end">
+                  <Button
+                    size="xs"
+                    leftSection={<ClipboardCheck size={14} />}
+                    loading={linuxQuizSubmitting}
+                    disabled={!msg.meta.linuxQuiz.blocks.every((b: any) => !!linuxQuizAnswers[b.id])}
+                    onClick={onLinuxQuizSubmit}
+                  >
+                    Enviar evaluación
+                  </Button>
+                </Group>
+              )}
+              {linuxQuizSubmitted && linuxResult && (
+                <Text fz="xs" c="dimmed">
+                  {linuxResult.earned_points}/{linuxResult.total_points} pts ({linuxResult.percentage}%)
+                  {linuxResult.passed ? ' — ¡módulo completo!' : ''}
+                </Text>
+              )}
+            </div>
           )}
 
           <div className={`flex items-center gap-1 mt-2 -ml-1 opacity-0 group-hover/ai:opacity-100 transition-opacity ${isLanding ? 'border-t pt-2' : ''}`}
