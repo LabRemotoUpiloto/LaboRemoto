@@ -320,8 +320,14 @@ pub async fn practicas_list_categories() -> Result<Vec<PracticeCategory>, Comman
         // completo de categorías -- Eve3/Circuitos deben seguir cargando
         // igual. Sin este timeout, un simple "no responde" (no un error,
         // un cuelgue de red real) bloqueaba la pantalla de Prácticas entera.
+        // 20s: cómodamente por encima del peor caso de linux_tunnel::start_tunnel
+        // (6s conectar + 6s autenticar, timeouts propios ahí adentro) -- este
+        // de acá es una red de seguridad que casi nunca debería disparar sola;
+        // si dispara ANTES de que el tunel resuelva por su cuenta, cancelarlo
+        // desde afuera es justo lo que causaba el bug de "no vuelve a buscar
+        // nunca más" (ver comentario en linux_tunnel.rs).
         let linux_result = tokio::time::timeout(
-            std::time::Duration::from_secs(8),
+            std::time::Duration::from_secs(20),
             crate::cmd::practices::linux_api::fetch_linux_summaries(),
         ).await;
         match linux_result {
@@ -368,7 +374,7 @@ pub async fn practicas_list_categories() -> Result<Vec<PracticeCategory>, Comman
                 // practices queda vacío — la categoría no rompe el resto del listado.
             }
             Err(_) => {
-                eprintln!("[practicas] Timeout (8s) listando módulos de Linux desde la Pi -- sigue sin bloquear el resto de categorías");
+                eprintln!("[practicas] Timeout (20s) listando módulos de Linux desde la Pi -- sigue sin bloquear el resto de categorías");
             }
         }
     }
