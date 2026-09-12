@@ -47,6 +47,17 @@ pub async fn ensure_tunnel(config: TunnelConfig) -> Result<u16> {
         .copied()
 }
 
+// Timeout PROPIO de cada paso de red de start_tunnel -- crítico que sea acá
+// adentro y no un timeout externo envolviendo a ensure_tunnel(): un timeout
+// externo cancela esta future desde afuera mientras está corriendo *dentro*
+// de LOCAL_PORT.get_or_try_init(), y aunque tokio libera el permit del
+// OnceCell al cancelarse (en teoría permite reintentar), en la práctica se
+// vio quedar sin volver a buscar nunca más una vez la Pi no respondía (bug
+// reportado). Con el timeout acá adentro, esta función SIEMPRE termina por
+// sí sola con Ok o Err -- nunca la cancela una future de más arriba -- que
+// es el único camino que get_or_try_init garantiza que reintenta.
+const TUNNEL_STEP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(6);
+
 async fn start_tunnel(config: TunnelConfig) -> Result<u16> {
     use std::net::ToSocketAddrs;
 
@@ -58,14 +69,22 @@ async fn start_tunnel(config: TunnelConfig) -> Result<u16> {
         .ok_or_else(|| anyhow!("sin direcciones para {}:{}", config.host, config.port))?;
 
     let russh_config = Arc::new(client::Config::default());
-    let mut handle = client::connect(russh_config, addr, RusshClient::default())
-        .await
-        .map_err(|e| anyhow!("no se pudo conectar por SSH a {}:{}: {e}", config.host, config.port))?;
+    let mut handle = tokio::time::timeout(
+        TUNNEL_STEP_TIMEOUT,
+        client::connect(russh_config, addr, RusshClient::default()),
+    )
+    .await
+    .map_err(|_| anyhow!("timeout ({}s) conectando por SSH a {}:{}", TUNNEL_STEP_TIMEOUT.as_secs(), config.host, config.port))?
+    .map_err(|e| anyhow!("no se pudo conectar por SSH a {}:{}: {e}", config.host, config.port))?;
 
-    match handle
-        .authenticate_password(config.user.clone(), config.password.clone())
-        .await?
-    {
+    let auth_result = tokio::time::timeout(
+        TUNNEL_STEP_TIMEOUT,
+        handle.authenticate_password(config.user.clone(), config.password.clone()),
+    )
+    .await
+    .map_err(|_| anyhow!("timeout ({}s) autenticando por SSH ({})", TUNNEL_STEP_TIMEOUT.as_secs(), config.user))??;
+
+    match auth_result {
         client::AuthResult::Success => {}
         client::AuthResult::Failure { .. } => {
             return Err(anyhow!(
