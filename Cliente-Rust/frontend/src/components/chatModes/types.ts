@@ -7,6 +7,9 @@ export type ChatMode = 'ask' | 'agente' | 'plan';
 export type ModelSelection = string;
 
 export const AVAILABLE_MODELS: Array<{ value: string; label: string; provider: string }> = [
+  // Groq es el único proveedor (ver ai_utils.rs) -- los .free de OpenRouter
+  // quedaron descartados: esa cuenta bloqueaba TODO modelo :free por su
+  // propia política de privacidad/entrenamiento, sin importar cuál.
   { value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B (Recomendado)', provider: 'Groq' },
   { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Rápido)', provider: 'Groq' },
   { value: 'groq/compound', label: 'Compound (Groq)', provider: 'Groq' },
@@ -58,6 +61,16 @@ export interface MessageMeta {
   embeddedPi4Terminal?: boolean;
   embeddedPi4Cameras?: boolean;
   embeddedPi4Desktop?: boolean;
+  /**
+   * Lote de bloques de contenido de una práctica de Linux (texto, analogía,
+   * anotación de terminal, media, o el siguiente command_step pendiente)
+   * entregado por el chat a medida que el estudiante avanza -- reemplaza a
+   * la vieja página de módulo con scroll. Nunca incluye bloques `quiz`
+   * (esos van en `linuxQuiz`, que es interactivo y necesita otro renderer).
+   */
+  linuxContentBlocks?: any[];
+  /** Evaluación final de una práctica de Linux, solo aparece cuando ya se completaron los comandos obligatorios. */
+  linuxQuiz?: { moduleId: string; blocks: any[] };
 }
 
 export interface Message {

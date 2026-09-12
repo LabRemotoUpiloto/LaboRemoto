@@ -196,6 +196,12 @@ pub fn run() {
       cmd::practices::practicas::practicas_list_categories,
       cmd::practices::practicas::practicas_get_config,
       cmd::practices::practicas::practicas_run_setup,
+      // Prácticas de Linux — servicio HTTP en la Raspberry Pi
+      cmd::practices::linux_api::practicas_linux_list,
+      cmd::practices::linux_api::practicas_linux_get_module,
+      cmd::practices::linux_api::practicas_linux_validate,
+      cmd::practices::linux_api::practicas_linux_connection_target,
+      cmd::practices::linux_api::practicas_linux_get_media,
       // Integración con Moodle
       cmd::integration::moodle::moodle_sync_assignment,
       cmd::integration::moodle::moodle_prepare_grade,

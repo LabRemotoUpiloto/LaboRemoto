@@ -1,6 +1,6 @@
 {
   "name": "ssh-ai-client-web",
-  "version": "3.5.3",
+  "version": "3.5.11",
   "private": true,
   "type": "module",
   "scripts": {

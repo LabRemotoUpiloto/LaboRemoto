@@ -76,57 +76,91 @@ pub fn get_claude_api_key() -> Option<String> {
 }
 
 /// Comprime la salida del terminal para reducir tokens al enviarse como contexto IA.
-/// - Elimina códigos ANSI de escape
+/// - Elimina códigos ANSI de escape (CSI, OSC, etc.) y caracteres de control
+/// - Maneja sobreescrituras por retorno de carro (\r)
 /// - Deduplica líneas consecutivas idénticas
 /// - Mantiene las últimas 40 líneas no vacías
-/// - Limita a 1200 caracteres totales (conservando las líneas más recientes)
+/// - Limita a 1500 caracteres totales (conservando las líneas más recientes)
 pub fn compress_terminal_context(raw: &str) -> String {
     const MAX_LINES: usize = 40;
-    const MAX_CHARS: usize = 1200;
+    const MAX_CHARS: usize = 1500;
 
-    // Eliminar códigos ANSI (ESC[ ... letra_final)
-    let clean = {
-        let mut out = String::with_capacity(raw.len());
-        let mut chars = raw.chars().peekable();
-        while let Some(ch) = chars.next() {
-            if ch == '\x1b' {
-                match chars.peek() {
-                    Some('[') => {
+    // 1. Eliminar secuencias ANSI y caracteres de control
+    let mut clean = String::with_capacity(raw.len());
+    let mut chars = raw.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\x1b' {
+            match chars.peek() {
+                Some('[') => {
+                    // CSI: ESC [ ... final byte (0x40-0x7E)
+                    chars.next();
+                    while let Some(&c) = chars.peek() {
                         chars.next();
-                        loop {
-                            match chars.next() {
-                                Some(c) if c.is_ascii_alphabetic() => break,
-                                None => break,
-                                _ => {}
-                            }
+                        if (0x40..=0x7E).contains(&(c as u32)) {
+                            break;
                         }
                     }
-                    Some(_) => { chars.next(); }
-                    None => {}
                 }
-            } else {
-                out.push(ch);
+                Some(']') => {
+                    // OSC: ESC ] ... BEL (\x07) o ST (ESC \)
+                    chars.next();
+                    while let Some(&c) = chars.peek() {
+                        chars.next();
+                        if c == '\x07' {
+                            break;
+                        }
+                        if c == '\x1b' && chars.peek() == Some(&'\\') {
+                            chars.next();
+                            break;
+                        }
+                    }
+                }
+                Some('(') | Some(')') | Some('*') | Some('+') => {
+                    // Charset designation
+                    chars.next();
+                    chars.next();
+                }
+                Some(_) => {
+                    // Otros escapes simples de 1 carácter
+                    chars.next();
+                }
+                None => {}
             }
-        }
-        out
-    };
-
-    // Deduplicar líneas consecutivas idénticas y filtrar líneas vacías
-    let mut deduped: Vec<&str> = Vec::new();
-    let mut prev = "";
-    for line in clean.lines() {
-        let t = line.trim();
-        if !t.is_empty() && t != prev {
-            deduped.push(t);
-            prev = t;
+        } else if ch == '\r' || ch == '\n' || ch == '\t' || (ch >= ' ' && ch != '\x7f') {
+            clean.push(ch);
         }
     }
 
-    // Tomar las últimas MAX_LINES líneas
+    // 2. Resolver líneas con \r (tomar el último segmento tras un \r dentro de la línea)
+    let mut processed_lines: Vec<String> = Vec::new();
+    for raw_line in clean.split('\n') {
+        let final_segment = if raw_line.contains('\r') {
+            raw_line.split('\r').filter(|s| !s.trim().is_empty()).last().unwrap_or("")
+        } else {
+            raw_line
+        };
+        let t = final_segment.trim();
+        if !t.is_empty() {
+            processed_lines.push(t.to_string());
+        }
+    }
+
+    // 3. Deduplicar líneas consecutivas idénticas
+    let mut deduped: Vec<String> = Vec::new();
+    let mut prev = "";
+    for line in &processed_lines {
+        if line.as_str() != prev {
+            deduped.push(line.clone());
+            prev = line.as_str();
+        }
+    }
+
+    // 4. Tomar las últimas MAX_LINES líneas
     let start = deduped.len().saturating_sub(MAX_LINES);
     let joined = deduped[start..].join("\n");
 
-    // Truncar al último MAX_CHARS conservando las líneas más recientes
+    // 5. Truncar a MAX_CHARS conservando las líneas más recientes
     if joined.len() <= MAX_CHARS {
         joined
     } else {
@@ -446,7 +480,7 @@ pub async fn call_claude_file_analysis(
 
 #[cfg(test)]
 mod tests {
-    use super::force_python3_everywhere;
+    use super::*;
 
     #[test]
     fn replaces_basic_invocations() {
@@ -455,6 +489,25 @@ mod tests {
         assert!(out.contains("python3 script.py"));
         assert!(out.contains("python3 -m pip install requests"));
         assert!(out.contains("#!/usr/bin/env python3"));
+    }
+
+    #[test]
+    fn test_compress_terminal_context_ansi_and_osc() {
+        let input = "\x1b]0;user@host:~\x07\x1b[32muser@host:~\x1b[0m$ ls\r\nfile1.txt\r\nfile2.txt\r\n";
+        let out = compress_terminal_context(input);
+        assert!(!out.contains("\x1b"));
+        assert!(!out.contains("\x07"));
+        assert!(out.contains("user@host:~$ ls"));
+        assert!(out.contains("file1.txt"));
+        assert!(out.contains("file2.txt"));
+    }
+
+    #[test]
+    fn test_compress_terminal_context_carriage_return() {
+        let input = "user@host:~$ old_cmd\ruser@host:~$ new_cmd\r\noutput line\r\n";
+        let out = compress_terminal_context(input);
+        assert!(out.contains("new_cmd"));
+        assert!(out.contains("output line"));
     }
 
     #[tokio::test]

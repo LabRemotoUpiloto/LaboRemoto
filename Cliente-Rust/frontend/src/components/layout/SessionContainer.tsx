@@ -6,11 +6,15 @@ import SnippetsPage from '../../pages/session/SnippetsPage'
 import LogsPage from '../../pages/logs/LogsPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
+import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession'
 
 type PracticeMeta = {
   practiceId: string
   assignmentId?: number
-  student: { id: number; username: string; fullname: string; email: string }
+  // Opcional/nullable: las entradas sintéticas para prácticas de Linux (ver
+  // combinedPracticeMeta en App.tsx) solo aportan practiceId, nunca student
+  // (esa práctica no viene del flujo de asignaciones con estudiante real).
+  student?: { id: number; username: string; fullname: string; email: string } | null
   robotDashboard?: boolean
 }
 
@@ -28,6 +32,8 @@ type Props = {
   sftpPaths: Record<string, string>
   setSftpPaths: React.Dispatch<React.SetStateAction<Record<string, string>>>
   onCloseTab: (id: string) => void
+  /** Instancia única de useLinuxPracticeSession (ver App.tsx) — se threadea hasta TerminalView. */
+  linuxSession?: LinuxPracticeSessionApi
 }
 
 const SessionContainer: React.FC<Props> = ({
@@ -43,7 +49,8 @@ const SessionContainer: React.FC<Props> = ({
   onOpenLog,
   sftpPaths,
   setSftpPaths,
-  onCloseTab
+  onCloseTab,
+  linuxSession
 }) => {
   return (
     <>
@@ -72,6 +79,7 @@ const SessionContainer: React.FC<Props> = ({
               assignmentId={practiceMeta?.[t.id]?.assignmentId}
               student={practiceMeta?.[t.id]?.student ?? null}
               robotDashboardEnabled={!!practiceMeta?.[t.id]?.robotDashboard}
+              linuxSession={linuxSession}
             />
           </div>
           {selectedPage === 'sftp' && activeTabId === t.id && (

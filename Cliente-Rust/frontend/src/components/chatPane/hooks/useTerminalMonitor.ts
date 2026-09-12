@@ -21,8 +21,15 @@ export function useTerminalMonitor(sessionId?: string | null) {
     const id = sessionRef.current;
     if (!id) return;
     try {
-      const ctx = await invoke<string>('get_terminal_context', { sessionId: id, lines: 80 });
-      if (/\x1b\[2J/.test(ctx)) {
+      const rawCtx = await invoke<string>('get_terminal_context', { sessionId: id, lines: 80 });
+      // Si la pantalla fue limpiada (\x1b[2J), analizar el contenido posterior a la última limpieza
+      let ctx = rawCtx;
+      const lastClearIdx = rawCtx.lastIndexOf('\x1b[2J');
+      if (lastClearIdx !== -1) {
+        ctx = rawCtx.slice(lastClearIdx + 4);
+      }
+
+      if (!ctx.trim()) {
         setErrorBanner(null);
         setPromptBanner(null);
         setTerminalActivity(false);
@@ -62,21 +69,10 @@ export function useTerminalMonitor(sessionId?: string | null) {
       return;
     }
 
-    // Chequeo inmediato del estado YA EXISTENTE del buffer, no solo de lo que
-    // llegue de acá en más: si el ChatPane se abre/monta DESPUÉS de que algo
-    // pasó en la terminal (ej. un comando ya quedó bloqueado esperando un
-    // Y/n), no va a haber ningún evento nuevo que dispare el análisis — el
-    // prompt ya está ahí, quieto, sin generar más output. Sin este chequeo
-    // inicial esos casos quedan invisibles hasta que llegue output nuevo.
+    // Chequeo inmediato del estado YA EXISTENTE del buffer
     void analyzeBuffer();
 
-    const unlistenOut = listen<string>(`ssh_out_${sessionId}`, (ev) => {
-      if (ev.payload && /\x1b\[2J/.test(ev.payload)) {
-        setErrorBanner(null);
-        setPromptBanner(null);
-        setTerminalActivity(false);
-        return;
-      }
+    const unlistenOut = listen<string>(`ssh_out_${sessionId}`, () => {
       setTerminalActivity(true);
       scheduleAnalyze();
     });

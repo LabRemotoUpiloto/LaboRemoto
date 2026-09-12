@@ -79,6 +79,10 @@ export function useTerminalLifecycle({
     term.loadAddon(serialize);
     term.loadAddon(new WebLinksAddon());
 
+    termRef.current = term;
+    fitRef.current = fit;
+    serializeRef.current = serialize;
+
     try { container.setAttribute('tabindex', '0'); container.setAttribute('role', 'textbox'); } catch {}
 
     const initializeTerminal = () => {
@@ -92,9 +96,6 @@ export function useTerminalLifecycle({
       // Hacer visible el cursor con secuencia ANSI
       term.write('\x1b[?25h');
 
-      termRef.current = term;
-      fitRef.current = fit;
-      serializeRef.current = serialize;
       try { applyXtermTheme(termRef, containerRef); } catch {}
       try { requestAnimationFrame(() => applyXtermTheme(termRef, containerRef)); } catch {}
 
