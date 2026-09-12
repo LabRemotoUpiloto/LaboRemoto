@@ -74,6 +74,10 @@ pub struct PanelConfig {
     pub chat: bool,
     pub chat_context: String,
     pub chat_tutorial: String,
+    /// Si es true, el frontend muestra el panel de control del robot EV3
+    /// (Dashboard + Gemelo 3D) consumido vía API en vez de solo terminal.
+    #[serde(default)]
+    pub robot_dashboard: bool,
 }
 
 // ─── Helper: leer variables del .env.practicas ───
@@ -216,6 +220,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
                     chat: true,
                     chat_context: if !json_ctx.is_empty() { json_ctx } else { fallback_ctx },
                     chat_tutorial: json_tut,
+                    robot_dashboard: false,
                 }
             },
         });
@@ -260,6 +265,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
                     chat: true,
                     chat_context: if !json_ctx.is_empty() { json_ctx } else { fallback_ctx },
                     chat_tutorial: json_tut,
+                    robot_dashboard: false,
                 }
             },
         });
@@ -343,8 +349,6 @@ pub fn practicas_get_config(practice_id: String) -> Result<Practice, CommandErro
 /// Devuelve el resultado de cada comando de setup.
 #[tauri::command]
 pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> Result<Vec<String>, CommandError> {
-    use tauri::Emitter;
-
     let vars = load_practices_env();
     let categories = build_categories(&vars);
 
@@ -359,15 +363,33 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
         })?
         .clone();
 
+    run_setup_commands(app, practice_id, practice.name, practice.connection.setup_commands).await
+}
+
+/// Núcleo de `practicas_run_setup`, extraído para poder reutilizarlo desde
+/// prácticas cuyo contenido pedagógico viene del catálogo externo
+/// (`cmd::integration::lab_practices`) pero cuya conexión es un
+/// `LabConnectionProfile` local (ver `cmd::practices::lab_connection`) en vez
+/// de una entrada de `.env.practicas`. La lógica de "conectar por SSH y
+/// lanzar un comando de setup" es la misma sin importar de dónde salió el
+/// texto pedagógico de la práctica.
+pub(crate) async fn run_setup_commands(
+    app: tauri::AppHandle,
+    practice_id: String,
+    practice_name: String,
+    setup_commands: Vec<SetupCommand>,
+) -> Result<Vec<String>, CommandError> {
+    use tauri::Emitter;
+
     let _ = app.emit("practice:log", serde_json::json!({
         "practice_id": practice_id,
         "level": "info",
-        "message": format!("🚀 Iniciando práctica: {}", practice.name)
+        "message": format!("🚀 Iniciando práctica: {}", practice_name)
     }));
 
     let mut results = Vec::new();
 
-    for (i, setup) in practice.connection.setup_commands.iter().enumerate() {
+    for (i, setup) in setup_commands.iter().enumerate() {
         if setup.host.is_empty() || setup.command.is_empty() {
             continue;
         }
@@ -508,13 +530,6 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
 
         results.push(result?);
     }
-
-    // Log: Now connecting to workspace (Raspberry)
-    let _ = app.emit("practice:log", serde_json::json!({
-        "practice_id": practice_id,
-        "level": "info",
-        "message": format!("🖥️ Conectando al workspace ({}@{}:{})...", practice.connection.user, practice.connection.host, practice.connection.port)
-    }));
 
     Ok(results)
 }

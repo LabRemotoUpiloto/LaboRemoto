@@ -11,6 +11,7 @@ type PracticeMeta = {
   practiceId: string
   assignmentId?: number
   student: { id: number; username: string; fullname: string; email: string }
+  robotDashboard?: boolean
 }
 
 type Props = {
@@ -70,6 +71,7 @@ const SessionContainer: React.FC<Props> = ({
               practiceId={practiceMeta?.[t.id]?.practiceId ?? null}
               assignmentId={practiceMeta?.[t.id]?.assignmentId}
               student={practiceMeta?.[t.id]?.student ?? null}
+              robotDashboardEnabled={!!practiceMeta?.[t.id]?.robotDashboard}
             />
           </div>
           {selectedPage === 'sftp' && activeTabId === t.id && (

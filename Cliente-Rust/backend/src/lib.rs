@@ -203,6 +203,10 @@ pub fn run() {
       // Catálogo externo de prácticas (solo lectura, contenido no confiable)
       cmd::integration::lab_practices::lab_practices_list,
       cmd::integration::lab_practices::lab_practices_get,
+      // Binding local catálogo externo <-> entorno real (LabConnectionProfile)
+      cmd::practices::lab_connection::lab_practices_list_runnable,
+      cmd::practices::lab_connection::lab_practices_get_runnable,
+      cmd::practices::lab_connection::lab_practices_run_setup,
       // Validador de prácticas
       cmd::practices::practice_validator::validate_practice_progress,
       cmd::practices::practice_validator::calculate_practice_grade,
@@ -210,6 +214,10 @@ pub fn run() {
       cmd::hardware::arduino::arduino_bridge_status,
       cmd::hardware::arduino::arduino_send_cmd,
       cmd::hardware::arduino::arduino_read_buffer,
+      // Robot EV3 (bridge HTTP en la Pi -> ladrillo EV3)
+      cmd::hardware::ev3::ev3_status,
+      cmd::hardware::ev3::ev3_set_motor,
+      cmd::hardware::ev3::ev3_stop_all,
       // Autenticación OAuth 2.1 con Keycloak
       crate::auth::commands::auth_login_url,
       crate::auth::commands::auth_status,

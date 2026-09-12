@@ -73,6 +73,7 @@ export function usePracticeSession({
         practiceId: practice.id,
         assignmentId: practice.moodle_assignment_id,
         student,
+        robotDashboard: !!practice.panels?.robot_dashboard,
       },
     }));
 

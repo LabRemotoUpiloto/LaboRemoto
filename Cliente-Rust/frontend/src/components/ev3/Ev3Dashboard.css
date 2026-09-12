@@ -1,0 +1,161 @@
+.ev3-dashboard {
+  padding: 16px;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Barra de estado ── */
+.ev3-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 9px 14px;
+}
+
+.ev3-status-left,
+.ev3-status-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ev3-status-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ev3-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ev3-status-dot.online  { background: var(--success); box-shadow: 0 0 7px var(--success); }
+.ev3-status-dot.offline { background: var(--text-disabled); }
+
+.ev3-ip-display {
+  color: var(--text-muted);
+  font-family: var(--terminal-font-family);
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ev3-battery {
+  font-family: var(--terminal-font-family);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Acción destructiva: legible, pero sin gritar más que la telemetría. */
+.ev3-stop-all {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--danger-text);
+  background: transparent;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-speed) var(--transition-curve);
+}
+.ev3-stop-all:hover { background: var(--danger-bg); }
+
+/* ── Secciones ── */
+.ev3-dashboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.ev3-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ev3-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* "output" / "input" — el nombre que el estudiante ve en el ladrillo. */
+.ev3-section-title > span {
+  font-family: var(--terminal-font-family);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-disabled);
+}
+
+.ev3-motor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ev3-sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 6px;
+}
+
+/* ── Alertas ── */
+.ev3-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ev3-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--warning-text);
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+/* Con el panel bajo (cámara abierta) el apilado vertical deja el control por
+   teclado fuera de vista, así que pasa a dos columnas: puertos a la izquierda,
+   control a la derecha. Pide ancho mínimo para no partirlo en algo estrecho. */
+@container ev3body (max-height: 680px) and (min-width: 720px) {
+  .ev3-dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-content: start;
+  }
+
+  .ev3-status-bar,
+  .ev3-alerts {
+    grid-column: 1 / -1;
+  }
+}

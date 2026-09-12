@@ -75,6 +75,7 @@ export interface PracticeConfig {
     chat?: boolean;
     chat_context?: string;
     chat_tutorial?: string;
+    robot_dashboard?: boolean;
   };
 }
 
@@ -82,6 +83,8 @@ export interface PracticeSessionMeta {
   practiceId: string;
   assignmentId?: number;
   student: PracticeLaunchStudent;
+  /** true si la práctica trae dashboard de robot (Eve3 vía API) — ver ev3.service.ts. */
+  robotDashboard?: boolean;
 }
 
 // ── Paneles de Vista ──────────────────────────────────────────────────────────

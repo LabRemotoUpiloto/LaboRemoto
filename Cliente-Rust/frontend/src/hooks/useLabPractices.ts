@@ -1,17 +1,17 @@
 // hooks/useLabPractices.ts
-// Catálogo externo de prácticas (cmd::integration::lab_practices), solo
-// lectura. No hay start/stop de sesión aquí — es un fetch simple con
-// refetch manual, a diferencia de useNvrCameras (que sí es una sesión con
-// polling).
+// Catálogo de prácticas (cmd::integration::lab_practices) con el binding
+// local ya resuelto (`runnable`, ver cmd::practices::lab_connection). Fetch
+// simple con refetch manual — el inicio de sesión (setup + SSH) lo maneja
+// PracticesPage a través de labPracticesRunSetup/GetRunnable, no este hook.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { labPracticesList, type ExternalLabPractice } from '../services/labPractices.service'
+import { labPracticesListRunnable, type RunnableLabPractice } from '../services/labPractices.service'
 
-export type { ExternalLabPractice }
+export type { RunnableLabPractice }
 
 type Status = 'loading' | 'ready' | 'error'
 
 export function useLabPractices() {
-  const [practices, setPractices] = useState<ExternalLabPractice[]>([])
+  const [practices, setPractices] = useState<RunnableLabPractice[]>([])
   const [status, setStatus] = useState<Status>('loading')
   const [error, setError] = useState<string | null>(null)
   const mountedRef = useRef(true)
@@ -20,7 +20,7 @@ export function useLabPractices() {
     setStatus('loading')
     setError(null)
     try {
-      const list = await labPracticesList()
+      const list = await labPracticesListRunnable()
       if (!mountedRef.current) return
       setPractices(list)
       setStatus('ready')
