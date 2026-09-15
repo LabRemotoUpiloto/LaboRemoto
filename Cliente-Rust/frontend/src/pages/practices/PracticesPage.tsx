@@ -16,6 +16,7 @@ import CVA_GesturesModulePage from '../cva-gestures/CVA_GesturesModulePage';
 import CVA_VideoVerificationPage from '../cva-gestures/CVA_VideoVerificationPage';
 import CVA_GesturePracticePage from '../cva-gestures/CVA_GesturePracticePage';
 import { useLocalCamera } from '../../hooks/useLocalCamera';
+import { useCvaAutoConnect } from '../../hooks/useCvaAutoConnect';
 
 const categoryIconMap: Record<string, React.ElementType> = {
     robot: Bot,
@@ -193,9 +194,13 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, activeSe
         setSetupLogs([]);
     };
 
+    // Hook de Auto-Conexión SSH a la Pi para Video analítica (Front 1 - AC8)
+    const cvaAutoConnect = useCvaAutoConnect(!!cvaActivePage);
+    const effectiveCvaSessionId = cvaAutoConnect.sessionId || activeSessionId;
+
     if (loading) {
         return (
-            <Box w="100%" h="100%" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box w="100%" h="100%" style={{ display: 'flex', align: 'center', justifyContent: 'center' }}>
                 <Stack align="center" gap="md">
                     <Loader size="md" />
                     <Text c="dimmed" size="sm">Cargando prácticas...</Text>
@@ -214,6 +219,11 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, activeSe
                             setCvaActivePage('module');
                         }}
                         onBack={() => setCvaActivePage(null)}
+                        sessionId={effectiveCvaSessionId}
+                        error={cvaAutoConnect.error}
+                        loading={cvaAutoConnect.loading}
+                        connect={cvaAutoConnect.connect}
+                        onRetry={() => cvaAutoConnect.connect()}
                     />
                 )}
                 {cvaActivePage === 'module' && (
@@ -226,8 +236,12 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, activeSe
                 {cvaActivePage === 'verification' && (
                     <CVA_VideoVerificationPage
                         moduleId={cvaSelectedModule!}
-                        sessionId={activeSessionId}
+                        sessionId={effectiveCvaSessionId}
                         camera={localCamera}
+                        loading={cvaAutoConnect.loading}
+                        error={cvaAutoConnect.error}
+                        connect={cvaAutoConnect.connect}
+                        onRetry={() => cvaAutoConnect.connect()}
                         onBack={() => {
                             localCamera.stopCamera();
                             setCvaActivePage('module');
@@ -238,8 +252,12 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, activeSe
                 {cvaActivePage === 'practice' && (
                     <CVA_GesturePracticePage
                         moduleId={cvaSelectedModule!}
-                        sessionId={activeSessionId}
+                        sessionId={effectiveCvaSessionId}
                         camera={localCamera}
+                        loading={cvaAutoConnect.loading}
+                        error={cvaAutoConnect.error}
+                        connect={cvaAutoConnect.connect}
+                        onRetry={() => cvaAutoConnect.connect()}
                         onBack={() => {
                             localCamera.stopCamera();
                             setCvaActivePage('module');

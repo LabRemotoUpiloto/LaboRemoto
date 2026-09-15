@@ -207,6 +207,7 @@ pub fn run() {
       cmd::practices::practice_validator::validate_practice_progress,
       cmd::practices::practice_validator::calculate_practice_grade,
       // Control por Gestos (CVA)
+      cmd::cva_gestures::session::cva_gestures_get_connection_config,
       cmd::cva_gestures::session::cva_gestures_session_start,
       cmd::cva_gestures::session::cva_gestures_session_stop,
       cmd::cva_gestures::session::cva_gestures_send_frame,

@@ -1,3 +1,24 @@
 # Material personal de planificación (spec-driven dev) — nunca se sube al repo
 JD_Instruccions/
+JD_Instruccions
 .claude/agents/cva-specialist.md
+
+# Contexto de Claude Code para el desarrollo en la Raspberry Pi — personal de esa máquina
+cva_gesture_bridge/CLAUDE.md
+
+# Segundo cerebro — Graphify/Obsidian (tooling de desarrollo local, nunca al repo)
+graphify-out/
+.agent/
+.agents/
+**/.agent/
+**/.agents/
+.mcp.json
+.graphifyignore
+SEGUNDO-CEREBRO_setup.md
+.gitattributes
+
+
+/cva-pi-repo/
+/frontend/
+*.timestamp-*.mjs
+

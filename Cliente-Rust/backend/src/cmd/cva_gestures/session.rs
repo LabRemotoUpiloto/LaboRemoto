@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex as AsyncMutex;
 use ts_rs::TS;
@@ -14,6 +15,67 @@ use crate::cmd::state::SESSIONS;
 use crate::cmd::streaming::stream::{stream_start, stream_stop};
 use crate::error::AppError;
 use super::bridge::{check_bridge_health, DEFAULT_CVA_BRIDGE_PORT};
+
+/// Configuración de conexión SSH automática para CVA desde .env.practicas
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[ts(export)]
+pub struct CvaConnectionConfig {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub password: String,
+}
+
+pub fn load_cva_connection_config() -> CvaConnectionConfig {
+    let mut map = HashMap::new();
+    let mut dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    loop {
+        let candidate = dir.join(".env.practicas");
+        if candidate.exists() {
+            if let Ok(content) = std::fs::read_to_string(&candidate) {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() || trimmed.starts_with('#') {
+                        continue;
+                    }
+                    if let Some((key, val)) = trimmed.split_once('=') {
+                        let clean_key = key.trim().to_string();
+                        let clean_val = val.trim().trim_matches('"').trim_matches('\'').to_string();
+                        map.entry(clean_key).or_insert(clean_val);
+                    }
+                }
+            }
+        }
+        match dir.parent() {
+            Some(parent) => dir = parent,
+            None => break,
+        }
+    }
+
+    let host = map.get("PRACTICE_CVA_HOST").cloned()
+        .or_else(|| map.get("PRACTICE_EVE3_RPI_HOST").cloned())
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+
+    let port = map.get("PRACTICE_CVA_PORT")
+        .or_else(|| map.get("PRACTICE_EVE3_RPI_PORT"))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(22);
+
+    let user = map.get("PRACTICE_CVA_USER").cloned()
+        .or_else(|| map.get("PRACTICE_EVE3_RPI_USER").cloned())
+        .unwrap_or_else(|| "labo".to_string());
+
+    let password = map.get("PRACTICE_CVA_PASSWORD").cloned()
+        .or_else(|| map.get("PRACTICE_EVE3_RPI_PASSWORD").cloned())
+        .unwrap_or_else(|| "labo_pass".to_string());
+
+    CvaConnectionConfig { host, port, user, password }
+}
+
+#[tauri::command]
+pub fn cva_gestures_get_connection_config() -> Result<CvaConnectionConfig, CommandError> {
+    Ok(load_cva_connection_config())
+}
 
 /// Información de la sesión activa de control por gestos
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
@@ -39,9 +101,34 @@ pub struct CvaGestureConfig {
 pub static CVA_SESSIONS: Lazy<Mutex<HashMap<String, CvaGestureSession>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-/// Registro de conexiones TCP persistentes por sesión CVA hacia el puerto del túnel
-pub static CVA_TCP_CONNECTIONS: Lazy<Mutex<HashMap<String, Arc<AsyncMutex<TcpStream>>>>> =
+/// Registro de conexiones TCP persistentes por sesión CVA hacia el puerto del túnel (mitad de escritura)
+/// Estadísticas de envío de frames de CVA
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[ts(export)]
+pub struct CvaFrameStats {
+    pub bytes_sent: usize,
+    pub latency_ms: u64,
+    pub total_frames: usize,
+    pub fps_real: f32,
+}
+
+/// Registro global en memoria para estadísticas de frames por sesión (frames, instant_inicio)
+pub static CVA_FRAME_STATS: Lazy<Mutex<HashMap<String, (usize, std::time::Instant)>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
+
+pub static CVA_TCP_CONNECTIONS: Lazy<Mutex<HashMap<String, Arc<AsyncMutex<OwnedWriteHalf>>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+/// Mutex global de sincronización de inicio/parada por `session_id` para evitar carreras concurrentes
+pub static CVA_START_LOCKS: Lazy<Mutex<HashMap<String, Arc<AsyncMutex<()>>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn get_session_start_lock(session_id: &str) -> Arc<AsyncMutex<()>> {
+    let mut map = CVA_START_LOCKS.lock().unwrap();
+    map.entry(session_id.to_string())
+        .or_insert_with(|| Arc::new(AsyncMutex::new(())))
+        .clone()
+}
+
 
 /// Valida y carga la configuración JSON del módulo desde `config/cva-gestures/{module_id}.json`
 pub fn validate_module_config(module_id: &str) -> Result<CvaGestureConfig, CommandError> {
@@ -83,6 +170,14 @@ pub async fn cva_gestures_session_start(
     session_id: String,
     module_id: String,
 ) -> Result<CvaGestureSession, CommandError> {
+    let call_id = format!("{:04x}", rand::random::<u16>());
+    println!("[cva_session_start:{call_id}] START for session_id={session_id}, module_id={module_id}");
+
+    // Adquirir el lock per-session para garantizar acceso exclusivo a toda la secuencia de inicio
+    let start_lock = get_session_start_lock(&session_id);
+    let _guard = start_lock.lock().await;
+    println!("[cva_session_start:{call_id}] Lock acquired for session_id={session_id}");
+
     // 1. Validar que exista la configuración del módulo en `config/cva-gestures/*.json`
     let _config = validate_module_config(&module_id)?;
 
@@ -91,11 +186,14 @@ pub async fn cva_gestures_session_start(
         let cva_map = CVA_SESSIONS
             .lock()
             .map_err(|_| CommandError::internal("LOCK_POISONED", "CVA_SESSIONS lock poisoned"))?;
-        if cva_map.contains_key(&session_id) {
-            return Err(CommandError::permanent(
-                "SESSION_ALREADY_ACTIVE",
-                "Ya existe una sesión de control por gestos activa para esta conexión",
-            ));
+        if let Some(existing) = cva_map.get(&session_id) {
+            if existing.active {
+                println!("[cva_session_start:{call_id}] EXIT: SESSION_ALREADY_ACTIVE");
+                return Err(CommandError::permanent(
+                    "SESSION_ALREADY_ACTIVE",
+                    "Ya existe una sesión de control por gestos activa para esta conexión",
+                ));
+            }
         }
     }
 
@@ -105,23 +203,32 @@ pub async fn cva_gestures_session_start(
             .lock()
             .map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
         if !map.contains_key(&session_id) {
+            println!("[cva_session_start:{call_id}] EXIT: NotFoundSession");
             return Err(CommandError::from(AppError::NotFoundSession));
         }
     }
 
     // 4. Realizar Health Check al bridge en el puerto 8766 de la Pi 5
-    check_bridge_health(&session_id, DEFAULT_CVA_BRIDGE_PORT).await?;
+    println!("[cva_session_start:{call_id}] Checking bridge health...");
+    if let Err(e) = check_bridge_health(&session_id, DEFAULT_CVA_BRIDGE_PORT).await {
+        println!("[cva_session_start:{call_id}] EXIT: check_bridge_health failed: {e:?}");
+        return Err(e);
+    }
+    println!("[cva_session_start:{call_id}] check_bridge_health OK");
 
     // 5. Iniciar túnel de port forwarding (reutilizando el motor de stream_start)
+    println!("[cva_session_start:{call_id}] Starting stream forward on port {DEFAULT_CVA_BRIDGE_PORT}...");
     let actual_port = match stream_start(session_id.clone(), DEFAULT_CVA_BRIDGE_PORT, DEFAULT_CVA_BRIDGE_PORT).await {
         Ok(port) => port,
         Err(err) => {
+            println!("[cva_session_start:{call_id}] EXIT: stream_start failed: {}", err.message);
             return Err(CommandError::transient(
                 "BRIDGE_UNAVAILABLE",
                 format!("Falló la apertura del túnel al bridge de CVA: {}", err.message),
             ));
         }
     };
+    println!("[cva_session_start:{call_id}] stream_start OK, actual_port={actual_port}");
 
     // 6. Registrar sesión CVA activa
     let cva_session = CvaGestureSession {
@@ -135,20 +242,29 @@ pub async fn cva_gestures_session_start(
         let mut cva_map = CVA_SESSIONS
             .lock()
             .map_err(|_| CommandError::internal("LOCK_POISONED", "CVA_SESSIONS lock poisoned"))?;
-        cva_map.insert(session_id, cva_session.clone());
+        cva_map.insert(session_id.clone(), cva_session.clone());
     }
 
+    println!("[cva_session_start:{call_id}] SUCCESS: registered CvaGestureSession in CVA_SESSIONS");
     Ok(cva_session)
 }
 
 #[tauri::command]
 pub async fn cva_gestures_session_stop(session_id: String) -> Result<(), CommandError> {
+    let call_id = format!("{:04x}", rand::random::<u16>());
+    println!("[cva_session_stop:{call_id}] START for session_id={session_id}");
+
+    let start_lock = get_session_start_lock(&session_id);
+    let _guard = start_lock.lock().await;
+    println!("[cva_session_stop:{call_id}] Lock acquired for session_id={session_id}");
+
     // 1. Validar que la sesión SSH principal exista
     {
         let map = SESSIONS
             .lock()
             .map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
         if !map.contains_key(&session_id) {
+            println!("[cva_session_stop:{call_id}] EXIT: NotFoundSession");
             return Err(CommandError::from(AppError::NotFoundSession));
         }
     }
@@ -171,6 +287,7 @@ pub async fn cva_gestures_session_stop(session_id: String) -> Result<(), Command
             .map_err(|_| CommandError::internal("LOCK_POISONED", "CVA_SESSIONS lock poisoned"))?;
         cva_map.remove(&session_id);
     }
+
     {
         let mut stats_map = CVA_FRAME_STATS
             .lock()
@@ -178,25 +295,21 @@ pub async fn cva_gestures_session_stop(session_id: String) -> Result<(), Command
         stats_map.remove(&session_id);
     }
 
+    println!("[cva_session_stop:{call_id}] SUCCESS for session_id={session_id}");
     Ok(())
 }
 
-/// Estadísticas de transmisión de un frame de video analítica
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
-#[ts(export)]
-pub struct CvaFrameStats {
-    pub bytes_sent: usize,
-    pub latency_ms: u64,
-    pub total_frames: u64,
-    pub fps_real: f32,
-}
-
-pub static CVA_FRAME_STATS: Lazy<Mutex<HashMap<String, (u64, std::time::Instant)>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
-
-/// Transmite un frame de video (JPEG en base64) por la conexión TCP persistente del túnel SSH
 #[tauri::command]
 pub async fn cva_gestures_send_frame(
+    app: tauri::AppHandle,
+    session_id: String,
+    frame_base64: String,
+) -> Result<CvaFrameStats, CommandError> {
+    cva_gestures_send_frame_internal(Some(&app), session_id, frame_base64).await
+}
+
+pub async fn cva_gestures_send_frame_internal(
+    app: Option<&tauri::AppHandle>,
     session_id: String,
     frame_base64: String,
 ) -> Result<CvaFrameStats, CommandError> {
@@ -243,12 +356,39 @@ pub async fn cva_gestures_send_frame(
                     format!("Falló la conexión TCP persistente al puerto {bridge_port} del túnel CVA: {e}"),
                 )
             })?;
-            let arc = Arc::new(AsyncMutex::new(stream));
+            let (read_half, write_half) = stream.into_split();
+            let arc = Arc::new(AsyncMutex::new(write_half));
 
             let mut conn_map = CVA_TCP_CONNECTIONS
                 .lock()
                 .map_err(|_| CommandError::internal("LOCK_POISONED", "CVA_TCP_CONNECTIONS lock poisoned"))?;
             conn_map.insert(session_id.clone(), arc.clone());
+
+            // Tarea de fondo: escuchar respuestas/instrucciones de la Pi y emitir eventos Tauri
+            let session_id_bg = session_id.clone();
+            let app_opt = app.cloned();
+            tokio::spawn(async move {
+                use tokio::io::AsyncBufReadExt;
+                let mut reader = tokio::io::BufReader::new(read_half);
+                let mut line = String::new();
+                while let Ok(n) = reader.read_line(&mut line).await {
+                    if n == 0 {
+                        break;
+                    }
+                    let trimmed = line.trim().to_string();
+                    if !trimmed.is_empty() {
+                        if let Some(ref app_h) = app_opt {
+                            use tauri::Emitter;
+                            let _ = app_h.emit("cva:pi_instruction", serde_json::json!({
+                                "session_id": session_id_bg,
+                                "message": trimmed,
+                            }));
+                        }
+                    }
+                    line.clear();
+                }
+            });
+
             arc
         }
     };
@@ -405,6 +545,16 @@ mod tests {
         assert!(err.message.contains("No se encontró o es inválida"));
     }
 
+    #[test]
+    fn test_cva_get_connection_config() {
+        let config = cva_gestures_get_connection_config();
+        assert!(config.is_ok());
+        let cfg = config.unwrap();
+        assert!(!cfg.host.is_empty());
+        assert!(cfg.port > 0);
+        assert!(!cfg.user.is_empty());
+    }
+
     #[tokio::test]
     async fn test_cva_start_session_not_found_error() {
         let res = cva_gestures_session_start("sess-inexistente-123".to_string(), "domotica".to_string()).await;
@@ -461,7 +611,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cva_send_frame_no_session_error() {
-        let res = cva_gestures_send_frame("sess-inexistente-frame".to_string(), "aGVsbG8=".to_string()).await;
+        let res = cva_gestures_send_frame_internal(None, "sess-inexistente-frame".to_string(), "aGVsbG8=".to_string()).await;
         assert!(res.is_err());
         let err = res.err().unwrap();
         assert_eq!(err.code, "SESSION_NOT_ACTIVE");
@@ -483,7 +633,7 @@ mod tests {
             );
         }
 
-        let res = cva_gestures_send_frame(session_id.clone(), "!!!invalid-base64!!!".to_string()).await;
+        let res = cva_gestures_send_frame_internal(None, session_id.clone(), "!!!invalid-base64!!!".to_string()).await;
 
         {
             let mut cva_map = CVA_SESSIONS.lock().unwrap();
@@ -517,9 +667,9 @@ mod tests {
             );
         }
 
-        // 3. Task en background que acepta el socket y recibe los bytes
+        // 3. Task en background que acepta el socket y recibe los bytes + envía una respuesta para probar la mitad de lectura
         let rx_handle = tokio::spawn(async move {
-            use tokio::io::AsyncReadExt;
+            use tokio::io::{AsyncReadExt, AsyncWriteExt};
             let (mut socket, _) = listener.accept().await.unwrap();
 
             // Leer longitud 4-bytes u32
@@ -531,11 +681,14 @@ mod tests {
             let mut payload = vec![0u8; frame_len];
             socket.read_exact(&mut payload).await.unwrap();
 
+            // Enviar un mensaje de respuesta (línea de texto) para probar la lectura en paralelo
+            let _ = socket.write_all(b"gesto: dedo anular, instruccion: mover adelante\n").await;
+
             (frame_len, payload)
         });
 
         // "aGVsbG8=" = "hello" (5 bytes)
-        let res = cva_gestures_send_frame(session_id.clone(), "aGVsbG8=".to_string()).await;
+        let res = cva_gestures_send_frame_internal(None, session_id.clone(), "aGVsbG8=".to_string()).await;
 
         // 4. Esperar que el listener haya recibido los datos reales
         let (rx_len, rx_payload) = rx_handle.await.unwrap();
@@ -558,7 +711,32 @@ mod tests {
         assert_eq!(rx_len, 5);
         assert_eq!(rx_payload, b"hello");
     }
+    #[tokio::test]
+    async fn test_cva_concurrent_session_start_race_condition() {
+        let session_id = "test-session-concurrent-start-race".to_string();
+
+        let task1 = tokio::spawn(cva_gestures_session_start(
+            session_id.clone(),
+            "domotica".to_string(),
+        ));
+        let task2 = tokio::spawn(cva_gestures_session_start(
+            session_id.clone(),
+            "domotica".to_string(),
+        ));
+
+        let (res1, res2) = tokio::join!(task1, task2);
+        let r1 = res1.unwrap();
+        let r2 = res2.unwrap();
+
+        let ok_count = [r1.is_ok(), r2.is_ok()].iter().filter(|&&x| x).count();
+        assert!(ok_count <= 1, "No pueden responder Ok ambas llamadas concurrentes para el mismo session_id");
+
+        if let Err(ref e1) = r1 {
+            assert!(e1.code == "SESSION_EXPIRED" || e1.code == "SESSION_ALREADY_ACTIVE" || e1.code == "BRIDGE_UNAVAILABLE");
+        }
+        if let Err(ref e2) = r2 {
+            assert!(e2.code == "SESSION_EXPIRED" || e2.code == "SESSION_ALREADY_ACTIVE" || e2.code == "BRIDGE_UNAVAILABLE");
+        }
+    }
+
 }
-
-
-

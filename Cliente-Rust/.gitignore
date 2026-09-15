@@ -23,6 +23,13 @@ set-api-keys.ps1
 .windsurf/
 .agents/
 skills-lock.json
+graphify-out/
+.graphifyignore
+.mcp.json
+
+# ── Instrucciones personales de JD (carpeta real o Junction/symlink hacia ella) ──
+JD_Instruccions/
+JD_Instruccions
 
 
 
@@ -41,3 +48,7 @@ Paper/build/
 # ── OS ──
 .DS_Store
 Thumbs.db
+
+test-results/
+*.timestamp-*.mjs
+

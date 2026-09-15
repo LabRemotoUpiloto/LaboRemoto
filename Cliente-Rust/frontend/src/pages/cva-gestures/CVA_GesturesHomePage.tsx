@@ -1,13 +1,27 @@
 import React from 'react';
-import { Button, Card, Container, Group, SimpleGrid, Stack, Text, ThemeIcon, Title, Badge } from '@mantine/core';
-import { ArrowLeft, Bot, Home, ArrowRight } from 'lucide-react';
+import { Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon, Title, Badge, Alert } from '@mantine/core';
+import { ArrowLeft, Bot, Home, ArrowRight, AlertTriangle, RefreshCw } from 'lucide-react';
 
-interface CVA_GesturesHomePageProps {
+export interface CVA_GesturesHomePageProps {
     onSelectModule: (module: 'robot' | 'domotica') => void;
     onBack: () => void;
+    sessionId?: string;
+    error?: string | null;
+    loading?: boolean;
+    onRetry?: () => void;
+    connect?: () => void;
 }
 
-const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectModule, onBack }) => {
+const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({
+    onSelectModule,
+    onBack,
+    sessionId,
+    error,
+    loading = false,
+    onRetry,
+    connect,
+}) => {
+    const handleRetry = connect || onRetry;
     return (
         <Stack gap="xl">
             <Group justify="space-between" align="center">
@@ -20,6 +34,11 @@ const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectMod
                 >
                     Volver a prácticas
                 </Button>
+                {loading && !error && (
+                    <Badge variant="light" color="blue" leftSection={<RefreshCw size={12} className="animate-spin" />}>
+                        Conectando SSH con laboratorio...
+                    </Badge>
+                )}
             </Group>
 
             <Stack gap={6}>
@@ -30,6 +49,33 @@ const CVA_GesturesHomePage: React.FC<CVA_GesturesHomePageProps> = ({ onSelectMod
                     Selecciona un módulo del laboratorio remoto para interactuar y controlar dispositivos físicos en tiempo real utilizando la cámara de tu computador y algoritmos de visión por computadora.
                 </Text>
             </Stack>
+
+            {/* Alerta de error en auto-conexión y botón de reintento */}
+            {error && (
+                <Alert
+                    icon={<AlertTriangle size={16} />}
+                    title="Error de conexión con el laboratorio"
+                    color="red"
+                    variant="light"
+                    radius="md"
+                >
+                    <Stack gap="xs">
+                        <Text size="sm">{error}</Text>
+                        <Group justify="flex-start">
+                            <Button
+                                size="xs"
+                                variant="light"
+                                color="red"
+                                leftSection={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
+                                loading={loading}
+                                onClick={handleRetry}
+                            >
+                                Reintentar conexión
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Alert>
+            )}
 
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg" mt="md">
                 {/* Modulo Domotica */}

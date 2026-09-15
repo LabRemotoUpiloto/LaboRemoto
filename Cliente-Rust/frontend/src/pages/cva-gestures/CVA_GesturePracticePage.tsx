@@ -4,15 +4,35 @@ import { ArrowLeft, AlertTriangle, Eye, Video, Sliders, RefreshCw, VideoOff, Act
 import { invoke } from '@tauri-apps/api/core';
 import { UseLocalCameraResult } from '../../hooks/useLocalCamera';
 import { CvaFrameStats } from '../../bindings/CvaFrameStats';
+import { useHandSkeleton } from '../../hooks/useHandSkeleton';
+import CVA_PiInstructionLog from '../../components/cva-gestures/CVA_PiInstructionLog';
+import CVA_ConfigSidebar from '../../components/cva-gestures/CVA_ConfigSidebar';
+
+// Ocultar temporalmente la cámara del laboratorio (revertible cambiando a true cuando WebRTC esté listo)
+const SHOW_LAB_CAMERA = false;
 
 interface CVA_GesturePracticePageProps {
     moduleId: 'robot' | 'domotica';
     camera: UseLocalCameraResult;
     sessionId?: string;
+    loading?: boolean;
+    error?: string | null;
+    onRetry?: () => void;
+    connect?: () => void;
     onBack: () => void;
 }
 
-const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ moduleId, camera, sessionId, onBack }) => {
+const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
+    moduleId,
+    camera,
+    sessionId,
+    loading = false,
+    error,
+    onRetry,
+    connect,
+    onBack,
+}) => {
+    const handleRetry = connect || onRetry;
     const isDomotica = moduleId === 'domotica';
     const [sensitivity, setSensitivity] = useState('balanceado');
     const [lastGesture, setLastGesture] = useState('Ninguno (Buscando...)');
@@ -26,17 +46,75 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
     const [sessionActive, setSessionActive] = useState(false);
     const [emergencyStopped, setEmergencyStopped] = useState(false);
 
+    // Estados de UI y Configuración Sidebar (AC12)
+    const [sidebarOpened, setSidebarOpened] = useState(false);
+    const [showMetrics, setShowMetrics] = useState(false);
+    const [showSkeleton, setShowSkeleton] = useState(true);
+
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const skeletonCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-    // 1. Ciclo de Vida de la Sesión CVA: Iniciar cva_gestures_session_start al entrar
+    // Hook de Esqueleto de Mano Decorativo (MediaPipe) (AC9 & AC10)
+    const { processAndDrawFrame, skeletonColor, setSkeletonColor } = useHandSkeleton(camera.active && showSkeleton);
+
+    // Loop de renderizado del esqueleto decorativo
     useEffect(() => {
-        if (!sessionId) {
-            setSessionError('Se requiere una sesión SSH activa en el laboratorio para transmitir video analítica.');
-            return;
+        let animationId: number;
+
+        const renderLoop = () => {
+            const video = videoRef.current;
+            const canvas = skeletonCanvasRef.current;
+            if (showSkeleton && camera.active && video && canvas && !video.paused && !video.ended && video.videoWidth > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    processAndDrawFrame(ctx, video, cpuLoad);
+                }
+            }
+            if (camera.active && showSkeleton) {
+                animationId = requestAnimationFrame(renderLoop);
+            }
+        };
+
+        if (camera.active && showSkeleton) {
+            renderLoop();
         }
 
-        let isMounted = true;
+        return () => {
+            if (animationId) cancelAnimationFrame(animationId);
+        };
+    }, [camera.active, showSkeleton, cpuLoad, processAndDrawFrame]);
+
+    const currentSessionIdRef = useRef<string | undefined>(sessionId);
+    useEffect(() => {
+        currentSessionIdRef.current = sessionId;
+    }, [sessionId]);
+
+    // 1. Mensaje de Estado Pre-sesión: Solo activo mientras !sessionId
+    useEffect(() => {
+        if (!sessionId) {
+            setSessionActive(false);
+            if (loading) {
+                // Caso 1: !sessionId && loading -> mensaje neutro
+                setSessionError('Conectando con el laboratorio...');
+            } else if (error) {
+                // Caso 2: !sessionId && error -> error real de cvaAutoConnect
+                setSessionError(error);
+            } else {
+                // Caso 3: !sessionId && !loading && !error -> mensaje de último recurso
+                setSessionError('Se requiere una sesión SSH activa en el laboratorio para transmitir video analítica.');
+            }
+        }
+    }, [sessionId, loading, error]);
+
+    // 2. Ciclo de Vida de la Sesión CVA: Iniciar cva_gestures_session_start al tener sessionId
+    useEffect(() => {
+        if (!sessionId) return;
+
+        let isCancelled = false;
         setSessionError(null);
 
         const startCvaSession = async () => {
@@ -45,23 +123,33 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
                     sessionId,
                     moduleId,
                 });
-                if (isMounted) {
+                if (!isCancelled && currentSessionIdRef.current === sessionId) {
                     setSessionActive(true);
+                    setSessionError(null);
                 }
             } catch (err: any) {
-                if (isMounted) {
+                if (!isCancelled) {
                     const errMsg = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
-                    setSessionError(`Error al iniciar la sesión CVA: ${errMsg}`);
-                    setSessionActive(false);
+                    // Restaurar manejo de SESSION_ALREADY_ACTIVE de Corrección #2:
+                    // Si la sesión ya estaba activa en backend, se reconoce como éxito y no se muestra error
+                    if (errMsg.includes('SESSION_ALREADY_ACTIVE')) {
+                        if (currentSessionIdRef.current === sessionId) {
+                            setSessionActive(true);
+                            setSessionError(null);
+                        }
+                    } else {
+                        setSessionError(`Error al iniciar la sesión CVA: ${errMsg}`);
+                        setSessionActive(false);
+                    }
                 }
             }
         };
 
         startCvaSession();
 
-        // Limpieza: Detener sesión CVA al desmontar el componente
+        // Limpieza: Detener sesión CVA al desmontar el componente o cambiar de sesión/módulo
         return () => {
-            isMounted = false;
+            isCancelled = true;
             if (sessionId) {
                 invoke('cva_gestures_session_stop', { sessionId }).catch(() => {});
             }
@@ -101,7 +189,7 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
             if (!video || !canvas || video.paused || video.ended) return;
 
             if (video.videoWidth > 0 && video.videoHeight > 0) {
-                const cycleStart = performance.now();
+                const encodeStart = performance.now();
 
                 // Muestreo a 320x240 JPEG
                 canvas.width = 320;
@@ -109,7 +197,6 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const encodeStart = performance.now();
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
                     const encodeDuration = performance.now() - encodeStart;
 
@@ -204,8 +291,22 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
     };
 
     return (
-        <Stack gap="lg">
-            {/* Top Navigation Bar */}
+        <Stack gap="md">
+            {/* Sidebar de Configuración */}
+            <CVA_ConfigSidebar
+                opened={sidebarOpened}
+                onClose={() => setSidebarOpened(false)}
+                showMetrics={showMetrics}
+                onToggleShowMetrics={setShowMetrics}
+                showSkeleton={showSkeleton}
+                onToggleShowSkeleton={setShowSkeleton}
+                skeletonColor={skeletonColor}
+                onChangeSkeletonColor={setSkeletonColor}
+                sensitivity={sensitivity}
+                onChangeSensitivity={setSensitivity}
+            />
+
+            {/* Top Navigation & Controls Bar */}
             <Group justify="space-between" align="center">
                 <Button
                     variant="subtle"
@@ -217,80 +318,151 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
                     Volver a opciones
                 </Button>
 
-                {/* Control de Sensibilidad / FPS (Rango 6-8 FPS) */}
                 <Group gap="xs" align="center">
-                    <Sliders size={14} style={{ color: 'var(--text-secondary)' }} />
-                    <Text size="xs" fw={500} style={{ color: 'var(--text-secondary)' }}>
-                        Sensibilidad de Muestreo:
-                    </Text>
-                    <SegmentedControl
+                    <Button
+                        variant="subtle"
                         size="xs"
                         radius="md"
-                        value={sensitivity}
-                        onChange={setSensitivity}
-                        data={[
-                            { label: 'Preciso (6 FPS)', value: 'preciso' },
-                            { label: 'Balanceado (7 FPS)', value: 'balanceado' },
-                            { label: 'Rápido (8 FPS)', value: 'rapido' },
-                        ]}
-                    />
+                        leftSection={<Sliders size={14} />}
+                        onClick={() => setSidebarOpened(true)}
+                    >
+                        Configuración
+                    </Button>
                 </Group>
             </Group>
+
+            {/* BARRA SUPERIOR COMPACTA DE MÉTRICAS (Reorganización AC12) */}
+            {showMetrics && (
+                <Card padding="xs" radius="md" className="dribbble-card" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                    <Group justify="space-between" align="center" wrap="nowrap">
+                        <Group gap="md">
+                            <Box>
+                                <Text size="xs" style={{ color: 'var(--text-secondary)' }}>Latencia IPC</Text>
+                                <Text fw={700} size="sm" style={{ color: 'var(--text-primary)' }}>{latency} ms</Text>
+                            </Box>
+                            <Box>
+                                <Text size="xs" style={{ color: 'var(--text-secondary)' }}>FPS Real</Text>
+                                <Text fw={700} size="sm" style={{ color: 'var(--text-primary)' }}>{realFps} FPS</Text>
+                            </Box>
+                            <Box>
+                                <Text size="xs" style={{ color: 'var(--text-secondary)' }}>Frames</Text>
+                                <Text fw={700} size="sm" style={{ color: 'var(--text-primary)' }}>{totalFrames}</Text>
+                            </Box>
+                            <Box>
+                                <Text size="xs" style={{ color: 'var(--text-secondary)' }}>CPU Cliente</Text>
+                                <Text fw={700} size="sm" style={{ color: 'var(--text-primary)' }}>{cpuLoad}%</Text>
+                            </Box>
+                            <Box>
+                                <Text size="xs" style={{ color: 'var(--text-secondary)' }}>Frame Size</Text>
+                                <Text fw={700} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                    {lastBytes > 0 ? (lastBytes / 1024).toFixed(1) : 0} KB
+                                </Text>
+                            </Box>
+                        </Group>
+                        <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: emergencyStopped ? 'var(--danger, #EF4444)' : sessionActive ? 'var(--accent-primary)' : 'var(--text-secondary)', background: 'transparent' }}>
+                            {emergencyStopped ? 'Detenido' : sessionActive ? 'Túnel Activo' : 'Inactivo'}
+                        </Badge>
+                    </Group>
+                </Card>
+            )}
 
             {/* Canvas Oculto para muestreo de frames */}
             <canvas ref={canvasRef} style={{ display: 'none' }} />
 
             {/* Alerta de Error de Sesión o Conexión SSH */}
             {sessionError && (
-                <Alert icon={<AlertTriangle size={16} />} title="Estado de la Sesión CVA" color="red" radius="md">
-                    <Text size="xs">{sessionError}</Text>
-                </Alert>
+                <Box
+                    p="md"
+                    style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-md)',
+                    }}
+                >
+                    <Group gap="xs" align="flex-start">
+                        {!sessionId && loading ? (
+                            <RefreshCw size={16} className="animate-spin" style={{ color: 'var(--accent-primary, #3B82F6)', marginTop: 2 }} />
+                        ) : (
+                            <AlertTriangle size={16} style={{ color: 'var(--accent-warm, #F59E0B)', marginTop: 2 }} />
+                        )}
+                        <Stack gap={2} style={{ flex: 1 }}>
+                            <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                {!sessionId && loading ? 'Conexión con el Laboratorio' : 'Estado de la Sesión CVA'}
+                            </Text>
+                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                {sessionError}
+                            </Text>
+                            {!sessionId && error && handleRetry && (
+                                <Group mt="xs">
+                                    <Button
+                                        size="xs"
+                                        variant="subtle"
+                                        leftSection={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />}
+                                        loading={loading}
+                                        onClick={handleRetry}
+                                        style={{ border: '1px solid var(--border-subtle)', width: 'fit-content' }}
+                                    >
+                                        Reintentar conexión
+                                    </Button>
+                                </Group>
+                            )}
+                        </Stack>
+                    </Group>
+                </Box>
             )}
 
             {/* Video Feeds Grid */}
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-                {/* 1. Feed del Laboratorio (Cámara Remota) */}
-                <Card padding="md" radius="md" className="dribbble-card">
-                    <Stack gap="sm" style={{ height: '100%' }}>
-                        <Group justify="space-between" align="center">
-                            <Group gap="xs" align="center">
-                                <Eye size={16} style={{ color: 'var(--text-secondary)' }} />
-                                <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                    Cámara del Laboratorio
-                                </Text>
-                            </Group>
-                        </Group>
-                        <Box
-                            style={{
-                                flex: 1,
-                                minHeight: '320px',
-                                backgroundColor: 'var(--surface-3, #1A202E)',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--border-subtle)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                overflow: 'hidden',
-                                position: 'relative'
-                            }}
-                        >
-                            <Stack align="center" gap="xs">
-                                <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
-                                    <Eye size={24} />
-                                </ThemeIcon>
-                                <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
-                                    Vista Remota del Laboratorio
-                                </Text>
-                                <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
-                                    Conectando al canal WebRTC del equipo físico...
-                                </Text>
-                            </Stack>
-                        </Box>
-                    </Stack>
-                </Card>
 
-                {/* 2. Feed del Usuario (Cámara Local) */}
-                <Card padding="md" radius="md" className="dribbble-card">
+            {/* Video Feeds */}
+            {SHOW_LAB_CAMERA ? (
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+                    {/* 1. Feed del Laboratorio (Cámara Remota) + Log de la Pi debajo (AC11) */}
+                    <Stack gap="md">
+                        <Card padding="md" radius="md" className="dribbble-card">
+                        <Stack gap="sm" style={{ height: '100%' }}>
+                            <Group justify="space-between" align="center">
+                                <Group gap="xs" align="center">
+                                    <Eye size={16} style={{ color: 'var(--text-secondary)' }} />
+                                    <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                        Cámara del Laboratorio
+                                    </Text>
+                                </Group>
+                            </Group>
+                            <Box
+                                style={{
+                                    flex: 1,
+                                    minHeight: '280px',
+                                    backgroundColor: 'var(--background-tertiary, var(--surface-3))',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--border-subtle)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    overflow: 'hidden',
+                                    position: 'relative'
+                                }}
+                            >
+                                <Stack align="center" gap="xs">
+                                    <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
+                                        <Eye size={24} />
+                                    </ThemeIcon>
+                                    <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
+                                        Vista Remota del Laboratorio
+                                    </Text>
+                                    <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                        Conectando al canal WebRTC del equipo físico...
+                                    </Text>
+                                </Stack>
+                            </Box>
+                        </Stack>
+                    </Card>
+
+                        {/* Componente de Log de Instrucciones de la Pi (Front 3) */}
+                        <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
+                    </Stack>
+
+                    {/* 2. Feed del Usuario (Cámara Local con Esqueleto Decorativo) */}
+                    <Card padding="md" radius="md" className="dribbble-card">
                     <Stack gap="sm" style={{ height: '100%' }}>
                         <Group justify="space-between" align="center">
                             <Group gap="xs" align="center">
@@ -300,7 +472,7 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
                                 </Text>
                             </Group>
                             {camera.active && sessionActive && !emergencyStopped && (
-                                <Badge size="xs" variant="dot" color="green">
+                                <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--accent-primary)', background: 'transparent' }}>
                                     Transmitiendo frames ({realFps} FPS)
                                 </Badge>
                             )}
@@ -308,8 +480,8 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
                         <Box
                             style={{
                                 flex: 1,
-                                minHeight: '320px',
-                                backgroundColor: 'var(--surface-3, #1A202E)',
+                                minHeight: '380px',
+                                backgroundColor: 'var(--background-tertiary, var(--surface-3))',
                                 borderRadius: 'var(--radius-md)',
                                 border: '1px solid var(--border-subtle)',
                                 display: 'flex',
@@ -320,17 +492,33 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
                             }}
                         >
                             {camera.active ? (
-                                <video
-                                    ref={videoRef}
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        objectFit: 'cover',
-                                        transform: 'scaleX(-1)', // Espejo
-                                    }}
-                                    playsInline
-                                    muted
-                                />
+                                <>
+                                    <video
+                                        ref={videoRef}
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                            transform: 'scaleX(-1)', // Espejo
+                                        }}
+                                        playsInline
+                                        muted
+                                    />
+                                    {showSkeleton && (
+                                        <canvas
+                                            ref={skeletonCanvasRef}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                pointerEvents: 'none',
+                                                transform: 'scaleX(-1)',
+                                            }}
+                                        />
+                                    )}
+                                </>
                             ) : (
                                 <Stack align="center" gap="xs">
                                     <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
@@ -342,68 +530,241 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
                                 </Stack>
                             )}
                         </Box>
-                    </Stack>
-                </Card>
-            </SimpleGrid>
 
-            {/* Panel de Métricas de Transmisión (Fase 4) */}
-            <Card padding="md" radius="md" className="dribbble-card">
-                <Stack gap="sm">
-                    <Group justify="space-between" align="center">
-                        <Group gap="xs" align="center">
-                            <Activity size={16} style={{ color: 'var(--text-secondary)' }} />
-                            <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                Métricas de Rendimiento y Consumo (IPC / Túnel SSH)
-                            </Text>
-                        </Group>
-                        <Badge variant="subtle" color={emergencyStopped ? 'red' : sessionActive ? 'blue' : 'gray'}>
-                            {emergencyStopped ? 'Transmisión Detenida' : sessionActive ? 'Túnel Persistente Activo' : 'Sesión Inactiva'}
-                        </Badge>
-                    </Group>
-
-                    <SimpleGrid cols={{ base: 2, sm: 5 }} spacing="md">
-                        <Box p="xs" style={{ backgroundColor: 'var(--surface-3)', borderRadius: 'var(--radius-md)' }}>
-                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>Latencia IPC</Text>
-                            <Text fw={700} size="lg" style={{ color: 'var(--text-primary)' }}>{latency} ms</Text>
-                        </Box>
-                        <Box p="xs" style={{ backgroundColor: 'var(--surface-3)', borderRadius: 'var(--radius-md)' }}>
-                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>FPS Real / Entregado</Text>
-                            <Text fw={700} size="lg" style={{ color: 'var(--text-primary)' }}>{realFps} FPS</Text>
-                        </Box>
-                        <Box p="xs" style={{ backgroundColor: 'var(--surface-3)', borderRadius: 'var(--radius-md)' }}>
-                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>Frames Enviados</Text>
-                            <Text fw={700} size="lg" style={{ color: 'var(--text-primary)' }}>{totalFrames}</Text>
-                        </Box>
-                        <Box p="xs" style={{ backgroundColor: 'var(--surface-3)', borderRadius: 'var(--radius-md)' }}>
-                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>Carga CPU Cliente</Text>
-                            <Text fw={700} size="lg" style={{ color: 'var(--text-primary)' }}>{cpuLoad}%</Text>
-                        </Box>
-                        <Box p="xs" style={{ backgroundColor: 'var(--surface-3)', borderRadius: 'var(--radius-md)' }}>
-                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>Tamaño del Frame</Text>
-                            <Text fw={700} size="lg" style={{ color: 'var(--text-primary)' }}>
-                                {lastBytes > 0 ? (lastBytes / 1024).toFixed(1) : 0} KB
-                            </Text>
-                        </Box>
-                    </SimpleGrid>
-
-                    {emergencyStopped ? (
-                        <Alert icon={<AlertTriangle size={16} />} title="Parada de Emergencia Activa" color="red" radius="md">
-                            La transmisión de frames hacia la Pi y la emisión de comandos hacia el hardware están detenidas.
-                            <Group mt="xs">
-                                <Button size="xs" color="red" variant="filled" onClick={handleReset} leftSection={<RefreshCw size={14} />}>
-                                    Reanudar Transmisión
+                        {/* Parada de Emergencia */}
+                        {emergencyStopped ? (
+                            <Box
+                                p="md"
+                                style={{
+                                    background: 'transparent',
+                                    border: '1px solid var(--border-subtle)',
+                                    borderRadius: 'var(--radius-md)',
+                                }}
+                            >
+                                <Group gap="xs" align="flex-start">
+                                    <AlertTriangle size={16} style={{ color: 'var(--danger, #EF4444)', marginTop: 2 }} />
+                                    <Stack gap="xs" style={{ flex: 1 }}>
+                                        <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                            Parada de Emergencia Activa
+                                        </Text>
+                                        <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                            La transmisión de frames hacia la Pi y la emisión de comandos hacia el hardware están detenidas.
+                                        </Text>
+                                        <Group mt="xs">
+                                            <Button
+                                                size="xs"
+                                                radius="md"
+                                                onClick={handleReset}
+                                                leftSection={<RefreshCw size={14} />}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: '1px solid var(--border-subtle)',
+                                                    color: 'var(--text-primary)',
+                                                }}
+                                            >
+                                                Reanudar Transmisión
+                                            </Button>
+                                        </Group>
+                                    </Stack>
+                                </Group>
+                            </Box>
+                        ) : (
+                            <Group justify="flex-end" mt="xs">
+                                <Button
+                                    size="xs"
+                                    radius="md"
+                                    onClick={handleEmergencyStop}
+                                    leftSection={<AlertTriangle size={14} />}
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid var(--border-subtle)',
+                                        color: 'var(--danger, #EF4444)',
+                                    }}
+                                >
+                                    ABORTAR Y DETENER EQUIPOS
                                 </Button>
                             </Group>
-                        </Alert>
-                    ) : (
-                        <Group justify="flex-end" mt="xs">
-                            <Button size="xs" color="red" variant="subtle" onClick={handleEmergencyStop} leftSection={<AlertTriangle size={14} />}>
-                                ABORTAR Y DETENER EQUIPOS
-                            </Button>
+                        )}
+                    </Stack>
+                </Card>
+                </SimpleGrid>
+            ) : (
+                <Box maw={760} mx="auto" w="100%">
+                    <Stack gap="lg">
+                        {/* Feed del Usuario (Cámara Local con Esqueleto Decorativo) centrado */}
+                        <Card padding="md" radius="md" className="dribbble-card">
+                    <Stack gap="sm" style={{ height: '100%' }}>
+                        <Group justify="space-between" align="center">
+                            <Group gap="xs" align="center">
+                                <Video size={16} style={{ color: 'var(--text-secondary)' }} />
+                                <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                    Cámara Local
+                                </Text>
+                            </Group>
+                            {camera.active && sessionActive && !emergencyStopped && (
+                                <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--accent-primary)', background: 'transparent' }}>
+                                    Transmitiendo frames ({realFps} FPS)
+                                </Badge>
+                            )}
                         </Group>
-                    )}
-                </Stack>
-            </Card>
+                        <Box
+                            style={{
+                                flex: 1,
+                                minHeight: '380px',
+                                backgroundColor: 'var(--background-tertiary, var(--surface-3))',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border-subtle)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                overflow: 'hidden',
+                                position: 'relative'
+                            }}
+                        >
+                            {camera.active ? (
+                                <>
+                                    <video
+                                        ref={videoRef}
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                            transform: 'scaleX(-1)', // Espejo
+                                        }}
+                                        playsInline
+                                        muted
+                                    />
+                                    {showSkeleton && (
+                                        <canvas
+                                            ref={skeletonCanvasRef}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                pointerEvents: 'none',
+                                                transform: 'scaleX(-1)',
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            ) : (
+                                <Stack align="center" gap="xs">
+                                    <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
+                                        <VideoOff size={24} />
+                                    </ThemeIcon>
+                                    <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
+                                        Cámara Desconectada
+                                    </Text>
+                                </Stack>
+                            )}
+                        </Box>
+
+                        {/* Parada de Emergencia */}
+                        {emergencyStopped ? (
+                            <Box
+                                p="md"
+                                style={{
+                                    background: 'transparent',
+                                    border: '1px solid var(--border-subtle)',
+                                    borderRadius: 'var(--radius-md)',
+                                }}
+                            >
+                                <Group gap="xs" align="flex-start">
+                                    <AlertTriangle size={16} style={{ color: 'var(--danger, #EF4444)', marginTop: 2 }} />
+                                    <Stack gap="xs" style={{ flex: 1 }}>
+                                        <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                            Parada de Emergencia Activa
+                                        </Text>
+                                        <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                            La transmisión de frames hacia la Pi y la emisión de comandos hacia el hardware están detenidas.
+                                        </Text>
+                                        <Group mt="xs">
+                                            <Button
+                                                size="xs"
+                                                radius="md"
+                                                onClick={handleReset}
+                                                leftSection={<RefreshCw size={14} />}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: '1px solid var(--border-subtle)',
+                                                    color: 'var(--text-primary)',
+                                                }}
+                                            >
+                                                Reanudar Transmisión
+                                            </Button>
+                                        </Group>
+                                    </Stack>
+                                </Group>
+                            </Box>
+                        ) : (
+                            <Group justify="flex-end" mt="xs">
+                                <Button
+                                    size="xs"
+                                    radius="md"
+                                    onClick={handleEmergencyStop}
+                                    leftSection={<AlertTriangle size={14} />}
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid var(--border-subtle)',
+                                        color: 'var(--danger, #EF4444)',
+                                    }}
+                                >
+                                    ABORTAR Y DETENER EQUIPOS
+                                </Button>
+                            </Group>
+                        )}
+                    </Stack>
+                </Card>
+
+                        {/* Componente de Log de Instrucciones de la Pi (Front 3) */}
+                        <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
+
+                        {/* Tarjeta Cámara del Laboratorio (preservada para fácil reversión tras SHOW_LAB_CAMERA) */}
+                        {false && (
+                            <Card padding="md" radius="md" className="dribbble-card">
+                        <Stack gap="sm" style={{ height: '100%' }}>
+                            <Group justify="space-between" align="center">
+                                <Group gap="xs" align="center">
+                                    <Eye size={16} style={{ color: 'var(--text-secondary)' }} />
+                                    <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                        Cámara del Laboratorio
+                                    </Text>
+                                </Group>
+                            </Group>
+                            <Box
+                                style={{
+                                    flex: 1,
+                                    minHeight: '280px',
+                                    backgroundColor: 'var(--background-tertiary, var(--surface-3))',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--border-subtle)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    overflow: 'hidden',
+                                    position: 'relative'
+                                }}
+                            >
+                                <Stack align="center" gap="xs">
+                                    <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
+                                        <Eye size={24} />
+                                    </ThemeIcon>
+                                    <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
+                                        Vista Remota del Laboratorio
+                                    </Text>
+                                    <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                        Conectando al canal WebRTC del equipo físico...
+                                    </Text>
+                                </Stack>
+                            </Box>
+                        </Stack>
+                    </Card>
+                        )}
+                    </Stack>
+                </Box>
+            )}
 
             {/* Botón único para terminar la práctica */}
             <Group justify="center" mt="md">
@@ -422,4 +783,5 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({ modul
 };
 
 export default CVA_GesturePracticePage;
+
 

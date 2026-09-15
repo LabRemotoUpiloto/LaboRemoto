@@ -1,22 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Card, Checkbox, Group, Stack, Text, ThemeIcon, Title, Badge, Box, Alert, Select, Center } from '@mantine/core';
-import { ArrowLeft, ShieldAlert, Video, VideoOff, Check, AlertTriangle, Settings } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, Video, VideoOff, Check, AlertTriangle, Settings, RefreshCw } from 'lucide-react';
 import { UseLocalCameraResult } from '../../hooks/useLocalCamera';
+import { useHandSkeleton } from '../../hooks/useHandSkeleton';
 
 interface CVA_VideoVerificationPageProps {
     moduleId: 'robot' | 'domotica';
     sessionId?: string;
     camera: UseLocalCameraResult;
+    loading?: boolean;
+    error?: string | null;
+    onRetry?: () => void;
+    connect?: () => void;
     onBack: () => void;
     onConfirm: () => void;
 }
 
-const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ moduleId, sessionId, camera, onBack, onConfirm }) => {
+const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({
+    moduleId,
+    sessionId,
+    camera,
+    loading = false,
+    error,
+    onRetry,
+    connect,
+    onBack,
+    onConfirm,
+}) => {
+    const handleRetry = connect || onRetry;
     const [consented, setConsented] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
+    const skeletonCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const { processAndDrawFrame } = useHandSkeleton(camera.active);
 
-    // Conectar el stream de la cámara al elemento de video de HTML5
+    // Conectar el stream de la cámara al elemento de video de HTML5 y ejecutar esqueleto decorativo
     useEffect(() => {
+        let animationFrameId: number;
+
         if (videoRef.current) {
             videoRef.current.srcObject = camera.stream;
             if (camera.stream) {
@@ -27,7 +47,32 @@ const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ m
                 videoRef.current.pause();
             }
         }
-    }, [camera.stream]);
+
+        const renderSkeletonLoop = () => {
+            const video = videoRef.current;
+            const canvas = skeletonCanvasRef.current;
+            if (video && canvas && !video.paused && !video.ended && video.videoWidth > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    processAndDrawFrame(ctx, video, 0);
+                }
+            }
+            if (camera.active) {
+                animationFrameId = requestAnimationFrame(renderSkeletonLoop);
+            }
+        };
+
+        if (camera.active) {
+            renderSkeletonLoop();
+        }
+
+        return () => {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        };
+    }, [camera.stream, camera.active, processAndDrawFrame]);
 
     const handleToggleCamera = async () => {
         if (camera.active) {
@@ -66,7 +111,7 @@ const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ m
     if (!camera.active) {
         return (
             <Stack gap="md" style={{ height: '100%' }}>
-                <Group>
+                <Group justify="space-between" align="center">
                     <Button
                         variant="subtle"
                         size="sm"
@@ -76,6 +121,11 @@ const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ m
                     >
                         Volver a opciones
                     </Button>
+                    {loading && !error && (
+                        <Badge variant="light" color="blue" leftSection={<RefreshCw size={12} className="animate-spin" />}>
+                            Conectando SSH con laboratorio...
+                        </Badge>
+                    )}
                 </Group>
 
                 <Center style={{ flex: 1, minHeight: '55vh' }}>
@@ -101,19 +151,65 @@ const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ m
                                 </Text>
                             </Stack>
 
-                            {camera.error && (
-                                <Alert
-                                    variant="subtle"
-                                    icon={<AlertTriangle size={16} />}
-                                    title="Error de Cámara"
+                            {error && (
+                                <Box
+                                    p="md"
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid var(--border-subtle)',
+                                        borderRadius: 'var(--radius-md)',
+                                    }}
                                 >
-                                    <Text size="xs" style={{ lineHeight: 1.4 }} mb="xs">
-                                        {camera.error}
-                                    </Text>
-                                    <Button size="xs" variant="subtle" onClick={() => camera.startCamera()}>
-                                        Reintentar conexión
-                                    </Button>
-                                </Alert>
+                                    <Group gap="xs" align="flex-start">
+                                        <AlertTriangle size={16} style={{ color: 'var(--accent-warm, #F59E0B)', marginTop: 2 }} />
+                                        <Stack gap="xs" style={{ flex: 1 }}>
+                                            <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                                Error de conexión con el laboratorio
+                                            </Text>
+                                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                                {error}
+                                            </Text>
+                                            {handleRetry && (
+                                                <Button
+                                                    size="xs"
+                                                    variant="subtle"
+                                                    onClick={handleRetry}
+                                                    leftSection={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />}
+                                                    loading={loading}
+                                                    style={{ border: '1px solid var(--border-subtle)', width: 'fit-content' }}
+                                                >
+                                                    Reintentar conexión
+                                                </Button>
+                                            )}
+                                        </Stack>
+                                    </Group>
+                                </Box>
+                            )}
+
+                            {camera.error && (
+                                <Box
+                                    p="md"
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid var(--border-subtle)',
+                                        borderRadius: 'var(--radius-md)',
+                                    }}
+                                >
+                                    <Group gap="xs" align="flex-start">
+                                        <AlertTriangle size={16} style={{ color: 'var(--accent-warm, #F59E0B)', marginTop: 2 }} />
+                                        <Stack gap="xs" style={{ flex: 1 }}>
+                                            <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                                Error de Cámara
+                                            </Text>
+                                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                                {camera.error}
+                                            </Text>
+                                            <Button size="xs" variant="subtle" onClick={() => camera.startCamera()} style={{ border: '1px solid var(--border-subtle)' }}>
+                                                Reintentar conexión
+                                            </Button>
+                                        </Stack>
+                                    </Group>
+                                </Box>
                             )}
 
                             <Card
@@ -173,9 +269,16 @@ const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ m
                 >
                     Volver a opciones
                 </Button>
-                <Badge variant="subtle" size="sm">
-                    Verificación de Cámara
-                </Badge>
+                <Group gap="xs">
+                    {loading && !error && (
+                        <Badge variant="light" color="blue" leftSection={<RefreshCw size={12} className="animate-spin" />}>
+                            Conectando SSH con laboratorio...
+                        </Badge>
+                    )}
+                    <Badge variant="outline" size="sm" style={{ border: '1px solid var(--border-subtle)', background: 'transparent' }}>
+                        Verificación de Cámara
+                    </Badge>
+                </Group>
             </Group>
 
             <Stack gap={6}>
@@ -187,19 +290,65 @@ const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ m
                 </Text>
             </Stack>
 
-            {camera.error && (
-                <Alert
-                    variant="subtle"
-                    icon={<AlertTriangle size={16} />}
-                    title="Error de Cámara"
+            {error && (
+                <Box
+                    p="md"
+                    style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-md)',
+                    }}
                 >
-                    <Stack gap="xs" align="flex-start">
-                        <Text size="sm">{camera.error}</Text>
-                        <Button size="xs" variant="subtle" onClick={() => camera.startCamera()}>
-                            Reintentar
-                        </Button>
-                    </Stack>
-                </Alert>
+                    <Group gap="xs" align="flex-start">
+                        <AlertTriangle size={16} style={{ color: 'var(--accent-warm, #F59E0B)', marginTop: 2 }} />
+                        <Stack gap="xs" style={{ flex: 1 }}>
+                            <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                Error de conexión con el laboratorio
+                            </Text>
+                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                {error}
+                            </Text>
+                            {handleRetry && (
+                                <Button
+                                    size="xs"
+                                    variant="subtle"
+                                    onClick={handleRetry}
+                                    leftSection={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />}
+                                    loading={loading}
+                                    style={{ border: '1px solid var(--border-subtle)', width: 'fit-content' }}
+                                >
+                                    Reintentar conexión
+                                </Button>
+                            )}
+                        </Stack>
+                    </Group>
+                </Box>
+            )}
+
+            {camera.error && (
+                <Box
+                    p="md"
+                    style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-md)',
+                    }}
+                >
+                    <Group gap="xs" align="flex-start">
+                        <AlertTriangle size={16} style={{ color: 'var(--accent-warm, #F59E0B)', marginTop: 2 }} />
+                        <Stack gap="xs" style={{ flex: 1 }}>
+                            <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                Error de Cámara
+                            </Text>
+                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                {camera.error}
+                            </Text>
+                            <Button size="xs" variant="subtle" onClick={() => camera.startCamera()} style={{ border: '1px solid var(--border-subtle)' }}>
+                                Reintentar
+                            </Button>
+                        </Stack>
+                    </Group>
+                </Box>
             )}
 
             <Group gap="xl" align="stretch" mt="md" wrap="wrap">
@@ -266,7 +415,8 @@ const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ m
                             maxWidth: '420px',
                             aspectRatio: '4/3',
                             position: 'relative',
-                            backgroundColor: 'var(--surface-3, #1A202E)',
+                            backgroundColor: 'var(--background-tertiary, var(--surface-3))',
+                            border: '1px solid var(--border-subtle)',
                             overflow: 'hidden',
                             display: 'flex',
                             alignItems: 'center',
@@ -283,6 +433,18 @@ const CVA_VideoVerificationPage: React.FC<CVA_VideoVerificationPageProps> = ({ m
                             }}
                             playsInline
                             muted
+                        />
+                        <canvas
+                            ref={skeletonCanvasRef}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                pointerEvents: 'none',
+                                transform: 'scaleX(-1)', // Espejo alineado con el video
+                            }}
                         />
                     </Card>
                 </Box>
