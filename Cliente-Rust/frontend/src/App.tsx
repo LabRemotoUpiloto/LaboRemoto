@@ -27,6 +27,7 @@ import DomoticaPanel from './components/arduino/DomoticaPanel'
 // Contexts
 import { LoadingProvider } from './contexts/LoadingContext'
 import GlobalLoader from './components/modals/GlobalLoader'
+import UpdateProgressOverlay from './components/modals/UpdateProgressOverlay'
 import { ToastProvider } from './contexts/ToastContext'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 
@@ -58,14 +59,16 @@ function buildMantineTheme(primaryColor: string) {
 }
 
 // ── Modal de actualización con Mantine ────────────────────────────────────────
+// Solo pregunta si instalar -- una vez confirmado, se cierra y en su lugar se
+// muestra UpdateProgressOverlay (pantalla completa) con el estado real de
+// descarga/instalación en vez de un spinner metido en el botón sin decir nada.
 const UpdateModal: React.FC<{
   open: boolean
   version?: string
   notes?: string
-  loading: boolean
   onConfirm: () => void
   onCancel: () => void
-}> = ({ open, version, notes, loading, onConfirm, onCancel }) => (
+}> = ({ open, version, notes, onConfirm, onCancel }) => (
   <Modal
     opened={open}
     onClose={onCancel}
@@ -78,10 +81,10 @@ const UpdateModal: React.FC<{
       {notes || 'Hay una actualización disponible. ¿Deseas instalarla ahora?'}
     </Text>
     <Group justify="flex-end" gap="sm">
-      <Button variant="subtle" color="gray" onClick={onCancel} disabled={loading}>
+      <Button variant="subtle" color="gray" onClick={onCancel}>
         Ahora no
       </Button>
-      <Button color="blue" onClick={onConfirm} loading={loading}>
+      <Button color="blue" onClick={onConfirm}>
         Instalar y reiniciar
       </Button>
     </Group>
@@ -111,7 +114,7 @@ const AppMain: React.FC = () => {
   } = useAppTabs()
 
   // ── Actualizaciones ──────────────────────────────────────────────────────────
-  const { updateInfo, updating, confirmInstallUpdate, dismissUpdate } = useUpdateCheck()
+  const { updateInfo, updating, updateProgress, confirmInstallUpdate, cancelUpdate, dismissUpdate } = useUpdateCheck()
 
   // ── Paneles laterales ────────────────────────────────────────────────────────
   const {
@@ -138,7 +141,7 @@ const AppMain: React.FC = () => {
   const { handleCloseTab } = useTabLifecycle({ tabs, closeTab, clearPracticeMeta })
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users']
+  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia']
   const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {
@@ -321,13 +324,15 @@ const AppMain: React.FC = () => {
         </div>
 
         <UpdateModal
-          open={!!updateInfo}
+          open={!!updateInfo && !updating}
           version={updateInfo?.version}
           notes={updateInfo?.notes}
-          loading={updating}
           onConfirm={confirmInstallUpdate}
           onCancel={dismissUpdate}
         />
+        {updating && updateProgress && (
+          <UpdateProgressOverlay progress={updateProgress} onCancel={cancelUpdate} />
+        )}
       </ModalsProvider>
     </MantineProvider>
   )

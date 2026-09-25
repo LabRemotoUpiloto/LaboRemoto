@@ -1,5 +1,4 @@
 import React from 'react';
-import AssistantActivityTimeline, { buildAssistantTimeline } from './AssistantActivityTimeline';
 import AskRenderer from './AskRenderer';
 import ToolResultRenderer from './ToolResultRenderer';
 import DiffView from '../analysis/DiffView';
@@ -7,7 +6,7 @@ import { Message, ChatMode } from '../chatModes/types';
 import { fmtTime } from '../chatPane/chatPane.constants';
 import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon } from '@mantine/core';
-import { Copy, RefreshCw, RotateCcw, Terminal } from 'lucide-react';
+import { Copy, RefreshCw, RotateCcw } from 'lucide-react';
 
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;
@@ -36,13 +35,6 @@ export default function AiMessageBubble({
   const isLanding = appearance === 'landing';
   const answerText = isStreaming ? streamedText : msg.text;
   const hasAnswerContent = answerText.trim().length > 0;
-  const showActivityTimeline = !isError;
-  const timelineEntries = buildAssistantTimeline({
-    mode,
-    isActive: isStreaming,
-    hasStreamedText: hasAnswerContent,
-    toolSteps: msg.meta?.toolSteps,
-  });
 
   const actionBtnClass = 'text-[var(--text-secondary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]';
 
@@ -61,9 +53,13 @@ export default function AiMessageBubble({
         }
       >
         {!isLanding && (
-          <div className="absolute -left-8 bottom-0 w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center shadow-sm">
-            <Terminal size={12} className="text-[var(--accent-contrast)]" strokeWidth={2.5} />
-          </div>
+          <img
+            src="/abeja-Profesor.jpeg"
+            alt=""
+            aria-hidden
+            className="absolute -left-9 bottom-0 w-8 h-8 rounded-full object-contain bg-white shadow-sm"
+            style={{ border: '1.5px solid var(--border-subtle)' }}
+          />
         )}
 
         {isLanding && msg.timestamp && (
@@ -82,38 +78,20 @@ export default function AiMessageBubble({
         )}
 
         <div className="flex flex-col gap-2 overflow-hidden max-w-full">
-          {showActivityTimeline && (
-            <AssistantActivityTimeline
-              appearance={appearance}
-              entries={timelineEntries}
-            />
+          {isStreaming && !hasAnswerContent && (
+            <span className="text-[12px] animate-pulse" style={{ color: 'var(--text-secondary)' }}>
+              Analizando la mejor respuesta…
+            </span>
           )}
 
-          {!msg.meta?.fileAnalysisDisambiguation && (hasAnswerContent || !showActivityTimeline) && (
-            <div className={showActivityTimeline ? 'assistant-answer-block' : undefined}>
-              {showActivityTimeline && (
-                <div
-                  className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mt-2.5 mb-1.5 pt-2.5 border-t border-[var(--border-subtle)]"
-                >
-                  Respuesta
-                </div>
-              )}
-              {hasAnswerContent ? (
-                <AskRenderer
-                  content={answerText}
-                  sessionId={sessionId || undefined}
-                  setLastCommand={setLastCommand}
-                  mode={mode}
-                  appearance={appearance}
-                />
-              ) : showActivityTimeline ? (
-                <p
-                  className="m-0 text-[12px] text-[var(--text-muted)] italic"
-                >
-                  La respuesta aparecerá aquí cuando esté lista.
-                </p>
-              ) : null}
-            </div>
+          {!msg.meta?.fileAnalysisDisambiguation && hasAnswerContent && (
+            <AskRenderer
+              content={answerText}
+              sessionId={sessionId || undefined}
+              setLastCommand={setLastCommand}
+              mode={mode}
+              appearance={appearance}
+            />
           )}
           {msg.meta?.toolAction && (
             <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />

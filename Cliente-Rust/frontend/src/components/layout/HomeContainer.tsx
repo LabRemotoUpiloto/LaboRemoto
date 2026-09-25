@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import LandingPage from '../../pages/home/LandingPage'
 import ConnectFormPage from '../../pages/connection/ConnectFormPage'
+import GuestConnectPage from '../../pages/connection/GuestConnectPage'
 import SavedHostsPage from '../../pages/connection/SavedHostsPage'
 import ThemesPage from '../../pages/settings/ThemesPage'
 import PerfilPage from '../../pages/settings/PerfilPage'
@@ -14,7 +15,7 @@ import UserManagementPage from '../../pages/admin/UserManagementPage'
 import VigilanciaPage from '../../pages/vigilancia/VigilanciaPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
-import { useAccessTier, canAccessPage, useCanAccessVigilancia } from '../../hooks/usePermissions'
+import { useAccessTier, canAccessPage } from '../../hooks/usePermissions'
 
 type Props = {
   tabs: Tab[]
@@ -42,18 +43,21 @@ const HomeContainer: React.FC<Props> = ({
   onStartPractice
 }) => {
   const tier = useAccessTier()
-  const canSeeVigilancia = useCanAccessVigilancia()
   // Segunda verificación: si selectedPage llegó aquí por un deep-link/estado
   // restaurado a una página que este rol no debería ver (la sidebar ya no
   // ofrece el botón, pero eso no impide que selectedPage tome ese valor por
   // otra vía), cae a landing en vez de renderizar la página restringida.
-  // 'vigilancia' se valida por rol directo (no por tier/PAGE_ACCESS, ver
-  // usePermissions.canAccessVigilancia) — sin este caso especial, al no
-  // estar listado en PAGE_ACCESS, canAccessPage lo dejaría pasar para
-  // cualquier tier por el fallback "ids no listados quedan abiertos".
-  const effectivePage = selectedPage === 'vigilancia'
-    ? (canSeeVigilancia ? 'vigilancia' : 'landing')
-    : (canAccessPage(selectedPage, tier) ? selectedPage : 'landing')
+  const effectivePage = canAccessPage(selectedPage, tier) ? selectedPage : 'landing'
+
+  // ConnectFormPage solo lee pendingHost una vez al montarse (ver el comentario
+  // en useConnectionForm) -- lo limpiamos acá apenas se consume para que una
+  // visita posterior a "Conexión" que NO venga de "Editar" no encuentre datos
+  // viejos dando vueltas.
+  useEffect(() => {
+    if (effectivePage === 'connect' && pendingHost) {
+      setPendingHost(null)
+    }
+  }, [effectivePage])
 
   return (
     <div style={{ height: '100%' }}>
@@ -64,6 +68,8 @@ const HomeContainer: React.FC<Props> = ({
         />
       ) : effectivePage === 'connect' ? (
         <ConnectFormPage onConnected={onConnectedFromConnect} initialPayload={pendingHost} />
+      ) : effectivePage === 'ssh-guest' ? (
+        <GuestConnectPage onConnected={onConnectedFromConnect} onBack={() => onOpenPanel('landing')} />
       ) : effectivePage === 'hosts' ? (
         <SavedHostsPage
           onConnected={(sessionId: string, label: string) => {

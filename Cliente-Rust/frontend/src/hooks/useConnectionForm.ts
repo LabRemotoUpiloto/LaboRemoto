@@ -41,6 +41,7 @@ export function useConnectionForm({
   const [isPulsing, setIsPulsing] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [originalHostFile, setOriginalHostFile] = useState<string | null>(null);
+  const [hostName, setHostName] = useState('');
 
   // ── Detección de tipo de dispositivo ─────────────────────────────────────────
 
@@ -89,6 +90,16 @@ export function useConnectionForm({
   }, [recentConnection, triggerPulse]);
 
   // ── Auto-relleno desde initialPayload (edición de host guardado) ─────────────
+  //
+  // Deps vacías a propósito: initialPayload viene de un estado que vive en el
+  // padre (pendingHost en useAppTabs) y NO se limpia solo al consumirse -- si
+  // este efecto reaccionara a cada cambio de initialPayload, volver a "Conexión"
+  // después de una edición (sin pasar de nuevo por "Editar") reaplicaría los
+  // datos viejos y dejaría el formulario pegado en modo edición, con riesgo de
+  // borrar sin querer el host editado la última vez al guardar uno nuevo
+  // encima. Como esta página se remonta entera en cada cambio de sección (ver
+  // HomeContainer), leer initialPayload solo una vez al montar alcanza y evita
+  // ese arrastre de estado stale entre visitas.
 
   useEffect(() => {
     if (initialPayload) {
@@ -106,6 +117,7 @@ export function useConnectionForm({
       const isEdit = !!p.host && !p.autoConnect;
       setIsEditMode(isEdit);
       if (isEdit && p._originalFile) setOriginalHostFile(p._originalFile);
+      setHostName(isEdit && p.name ? p.name : '');
     } else {
       setHost('');
       setPort('22');
@@ -115,8 +127,10 @@ export function useConnectionForm({
       setErrors({});
       setIsEditMode(false);
       setOriginalHostFile(null);
+      setHostName('');
     }
-  }, [initialPayload]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Validadores ───────────────────────────────────────────────────────────────
 
@@ -186,6 +200,7 @@ export function useConnectionForm({
     setErrors({});
     setIsEditMode(false);
     setOriginalHostFile(null);
+    setHostName('');
     onQuickHostCleared?.();
   }, [onQuickHostCleared]);
 
@@ -204,7 +219,7 @@ export function useConnectionForm({
     // Handlers con validación
     handleHostChange, handlePortChange,
     // Estado derivado
-    errors, isValid, isPulsing, isEditMode, originalHostFile, isRaspberryPi: isRaspberryPiConnection,
+    errors, isValid, isPulsing, isEditMode, originalHostFile, hostName, isRaspberryPi: isRaspberryPiConnection,
     // Acciones de formulario
     validateForm, clearForm,
     // Helpers para acciones de conexión

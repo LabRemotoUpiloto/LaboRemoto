@@ -10,12 +10,10 @@ export default function TypingIndicator({ appearance = 'session', streamingMsgId
   const isLanding = appearance === 'landing';
   const label = streamingMsgId ? 'Generando…' : 'Pensando…';
 
-  const dot = isLanding ? 'bg-[var(--accent-primary)]' : 'bg-accent/80';
-
   return (
     <div
       className={[
-        'typing-indicator flex items-center gap-2.5 text-xs rounded-2xl py-2.5 px-3.5 mt-1 mb-2',
+        'typing-indicator flex items-center gap-2.5 text-xs rounded-2xl py-2 px-3 mt-1 mb-2',
         'animate-in fade-in slide-in-from-bottom-2 border',
         isLanding
           ? 'typing-indicator--landing w-full max-w-[min(720px,100%)] mx-auto shadow-sm'
@@ -30,15 +28,13 @@ export default function TypingIndicator({ appearance = 'session', streamingMsgId
       aria-live="polite"
       aria-label={label}
     >
-      {!streamingMsgId ? (
-        <div className="flex gap-1 shrink-0" aria-hidden>
-          <div className={`w-1.5 h-1.5 ${dot} rounded-full animate-bounce [animation-delay:-0.3s]`} />
-          <div className={`w-1.5 h-1.5 ${dot} rounded-full animate-bounce [animation-delay:-0.15s]`} />
-          <div className={`w-1.5 h-1.5 ${dot} rounded-full animate-bounce`} />
-        </div>
-      ) : (
-        <span className={`w-2 h-2 ${dot} rounded-full animate-pulse shrink-0`} aria-hidden />
-      )}
+      <img
+        src="/abeja-Profesor.jpeg"
+        alt=""
+        aria-hidden
+        className="w-6 h-6 rounded-full object-contain bg-white shrink-0"
+        style={{ border: '1.5px solid var(--border-subtle)', boxShadow: '0 0 0 2px var(--background-secondary)' }}
+      />
       <span className="font-medium tracking-wide truncate" style={{ color: 'var(--text-primary)' }}>
         {label}
       </span>
