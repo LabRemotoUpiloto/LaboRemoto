@@ -38,6 +38,7 @@ import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
 import { useLinuxPracticeSession } from './hooks/useLinuxPracticeSession'
+import { usePracticeActivityReporter, type PracticaAbierta } from './hooks/usePracticeActivityReporter'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import type { PracticeSessionMeta } from './types'
 
@@ -168,6 +169,18 @@ const AppMain: React.FC = () => {
   // ── Sesión y Autenticación ───────────────────────────────────────────────────
   const { isAuthenticated, isLoading } = useAuth()
 
+  // Registro central de sesiones: solo prácticas cuya pestaña ya existe (de
+  // ahí sale el nombre que se reporta).
+  const practicasAbiertas = useMemo(() => {
+    const abiertas: Record<string, PracticaAbierta> = {}
+    for (const [sessionId, meta] of Object.entries(combinedPracticeMeta ?? {})) {
+      const tab = tabs.find(t => t.id === sessionId)
+      if (tab) abiertas[sessionId] = { practiceId: meta.practiceId, nombre: tab.label }
+    }
+    return abiertas
+  }, [combinedPracticeMeta, tabs])
+  usePracticeActivityReporter(practicasAbiertas, isAuthenticated)
+
   // ── Ciclo de vida de tabs ────────────────────────────────────────────────────
   const { handleCloseTab } = useTabLifecycle({
     tabs,
@@ -177,7 +190,7 @@ const AppMain: React.FC = () => {
   })
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia']
+  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia', 'dashboard']
   const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {

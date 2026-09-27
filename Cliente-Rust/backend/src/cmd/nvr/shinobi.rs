@@ -23,12 +23,12 @@ use crate::session_manager::SessionManager;
 /// Host público del broker (Pi vía túnel inverso + nginx en AWS, mismo
 /// mecanismo que expone Keycloak). No es un secreto — es una URL pública,
 /// igual que `KEYCLOAK_BASE_URL`.
-const NVR_BROKER_HOST: &str = "http://52.14.162.232";
+pub(crate) const NVR_BROKER_HOST: &str = "http://52.14.162.232";
 
 // Perf: cliente HTTP compartido — `nvr_list_cameras` se sondea
 // periódicamente desde el panel de cámaras; reconstruir el cliente (y su
 // pool TCP/TLS) en cada poll era puro desperdicio.
-static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
+pub(crate) static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(8))
         .build()
@@ -184,7 +184,7 @@ pub async fn nvr_disconnect() {}
 
 /// Envía un comando PTZ (mover/zoom/detener) a una cámara del Group. El
 /// backend nunca habla directo con la cámara Reolink — todo pasa por el
-/// broker, que valida rol (admin_lab/laboratorista/semillerista) y traduce `mid` a la
+/// broker, que valida rol (roles de personal, `PTZ_ROLES`) y traduce `mid` a la
 /// IP+credenciales reales de la cámara física (ver `PTZ_CAMERAS_JSON` en
 /// `infra/nvr-broker`). Si la cámara no está en ese mapa (no es PTZ), el
 /// broker responde 404 y este comando lo traduce a `VALIDATION_FAILED`.

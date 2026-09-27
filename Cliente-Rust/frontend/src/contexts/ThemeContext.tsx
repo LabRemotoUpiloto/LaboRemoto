@@ -5,6 +5,8 @@
  */
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { MantineColorScheme } from '@mantine/core'
+import { useAppStore } from '../store/app'
+import { getEffectiveRole, usaTemaInstitucional } from '../hooks/usePermissions'
 
 export type Theme =
   // Oscuros
@@ -71,9 +73,12 @@ export function getMantineScheme(theme: Theme): MantineColorScheme {
 }
 
 type ThemeContextType = {
+  /** Tema efectivo (el institucional si el rol lo exige). */
   theme: Theme
   setTheme: (t: Theme) => void
   mantineColorScheme: MantineColorScheme
+  /** true para roles administrativos: el tema no se puede cambiar. */
+  temaFijo: boolean
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
@@ -88,9 +93,19 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
     } catch { return 'unipiloto' }
   })
 
+  // El store de auth es global (Zustand), así que se puede leer aunque
+  // ThemeProvider envuelva a AuthProvider. La preferencia guardada no se toca:
+  // quien use el mismo equipo con otro rol conserva su tema.
+  const roles = useAppStore((s) => s.user?.roles)
+  const temaFijo = usaTemaInstitucional(getEffectiveRole(roles))
+  const efectivo: Theme = temaFijo ? 'unipiloto' : theme
+
   useEffect(() => {
     try { localStorage.setItem('theme', theme) } catch {}
-    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', efectivo)
 
     // Lazy-load Google Font for personality themes
     const THEME_FONTS: Partial<Record<Theme, string>> = {
@@ -108,7 +123,7 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
       'sunburst-rainbow':'https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700;800&display=swap',
       'glass-water':     'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
     }
-    const fontUrl = THEME_FONTS[theme]
+    const fontUrl = THEME_FONTS[efectivo]
     const existingLink = document.getElementById('theme-font') as HTMLLinkElement | null
     if (fontUrl) {
       if (!existingLink) {
@@ -123,13 +138,13 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
     } else if (existingLink) {
       existingLink.remove()
     }
-  }, [theme])
+  }, [efectivo])
 
   const setTheme = (t: Theme) => setThemeState(t)
-  const mantineColorScheme = getMantineScheme(theme)
+  const mantineColorScheme = getMantineScheme(efectivo)
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, mantineColorScheme }}>
+    <ThemeContext.Provider value={{ theme: efectivo, setTheme, mantineColorScheme, temaFijo }}>
       {children}
     </ThemeContext.Provider>
   )
