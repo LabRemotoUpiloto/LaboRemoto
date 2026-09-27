@@ -70,7 +70,7 @@ export interface MessageMeta {
    */
   linuxContentBlocks?: any[];
   /** Evaluación final de una práctica de Linux, solo aparece cuando ya se completaron los comandos obligatorios. */
-  linuxQuiz?: { moduleId: string; blocks: any[] };
+  linuxQuiz?: { moduleId: string; moduleTitle?: string; blocks: any[] };
 }
 
 export interface Message {
