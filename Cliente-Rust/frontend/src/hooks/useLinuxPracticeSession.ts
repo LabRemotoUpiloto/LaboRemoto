@@ -105,6 +105,16 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
   // desde useTabLifecycle cuando se cierra la pestaña (solo tenemos el
   // sessionId ahí, no el LinuxModule completo).
   const moduleBySession = useRef<Record<string, string>>({});
+  // Cache por moduleId del LinuxModule completo -- reportCommandHistory solo
+  // recibe sessionId (viene de TerminalView, que no conoce el módulo), así
+  // que necesita este + moduleBySession para poder llamar revalidate() sin
+  // esperar al próximo tick de polling. Se refresca en cada revalidate().
+  const modulesById = useRef<Record<string, LinuxModule>>({});
+  // Snapshot del último cómputo de revalidate(), por moduleId -- para poder
+  // diferenciar "no pasó nada porque no ejecutó nada" de "ejecutó algo nuevo
+  // y no pasó nada" (ver mistakeSignal en revalidate()).
+  const lastPassedRuleIdsRef = useRef<Record<string, Set<string>>>({});
+  const lastCommandCountRef = useRef<Record<string, number>>({});
   const pollTimers = useRef<Record<string, number>>({});
   // Historial de comandos EN VIVO por sesión, alimentado en tiempo real por
   // useCommandHistory (vía TerminalView -> reportCommandHistory) mientras la
@@ -125,6 +135,11 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
   // solo conoce el practiceId/module, nunca el sessionId directamente.
   const [connectedModules, setConnectedModules] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, LinuxValidationResult | null>>({});
+  // Se pisa (no se acumula en lista) cada vez que revalidate() detecta un
+  // comando nuevo que no destrabó ningún paso -- ChatPane lo escucha por
+  // referencia (`nonce` cambia siempre, incluso si el comando se repite) para
+  // disparar la explicación del error. Ver revalidate().
+  const [mistakeSignal, setMistakeSignal] = useState<{ moduleId: string; command: string; nonce: number } | null>(null);
 
   // Espejo en estado (no solo ref) del mapa inverso sessionId -> moduleId.
   // moduleBySession.current existe desde antes pero al ser un ref no dispara
@@ -154,12 +169,35 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
 
   /** Re-valida contra el historial real de comandos y actualiza el contexto del chat. */
   const revalidate = useCallback(async (module: LinuxModule): Promise<LinuxValidationResult | null> => {
+    modulesById.current[module.id] = module;
     const sessionId = sessionByPractice.current[module.id];
     if (!sessionId) return null;
 
     const commandHistory = commandHistoryBySession.current[sessionId] ?? [];
     const quizAnswers = quizAnswersByModule.current[module.id];
     const result = await linuxValidate(module.id, commandHistory, quizAnswers);
+
+    // Detección de "el estudiante escribió algo y no pasó nada" (typo, comando
+    // equivocado, comando que no era el esperado en este paso): si el
+    // historial de comandos creció pero ninguna regla nueva pasó a `true`,
+    // el último comando ejecutado no destrabó el paso pendiente. No es lo
+    // mismo que "todavía no ejecutó nada" -- acá SÍ ejecutó algo, solo que no
+    // era lo que hacía falta. `mistakeSignal` dispara la explicación en
+    // ChatPane (ver explainLinuxMistake) en vez de dejar la práctica
+    // esperando en silencio (lo que se percibe como que "se congeló").
+    const newlyPassedIds = new Set(result.results.filter((r) => r.passed).map((r) => r.rule_id));
+    const previouslyPassedIds = lastPassedRuleIdsRef.current[module.id] ?? new Set<string>();
+    const gotNewPass = [...newlyPassedIds].some((id) => !previouslyPassedIds.has(id));
+    lastPassedRuleIdsRef.current[module.id] = newlyPassedIds;
+
+    const prevCommandCount = lastCommandCountRef.current[module.id] ?? commandHistory.length;
+    const grewByNewCommand = commandHistory.length > prevCommandCount;
+    lastCommandCountRef.current[module.id] = commandHistory.length;
+
+    if (grewByNewCommand && !gotNewPass) {
+      const lastCommand = commandHistory[commandHistory.length - 1];
+      setMistakeSignal({ moduleId: module.id, command: lastCommand, nonce: Date.now() });
+    }
 
     await memPut(sessionId, {
       practice_context: buildPracticeContext(module, result),
@@ -189,7 +227,20 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
    */
   const reportCommandHistory = useCallback((sessionId: string, commands: string[]) => {
     commandHistoryBySession.current[sessionId] = commands;
-  }, []);
+    // Revalida apenas se ejecuta un comando nuevo, sin esperar el próximo
+    // tick del polling (hasta REVALIDATE_INTERVAL_MS de rezago) -- el chat
+    // tiene que reaccionar al toque, no unos segundos después. `commands`
+    // solo cambia una vez por comando completo (Enter), nunca por tecla
+    // suelta (ver useCommandHistory.pushCommand), así que esto no satura la
+    // validación contra la Pi.
+    const moduleId = moduleBySession.current[sessionId];
+    const module = moduleId ? modulesById.current[moduleId] : undefined;
+    if (module) {
+      revalidate(module).catch((e) =>
+        console.warn('[linux-practice] revalidate inmediato tras comando falló, el polling reintentará', e),
+      );
+    }
+  }, [revalidate]);
 
   const stopPolling = useCallback((moduleId: string) => {
     const timer = pollTimers.current[moduleId];
@@ -344,6 +395,9 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
     delete sessionByPractice.current[moduleId];
     delete commandHistoryBySession.current[sessionId];
     delete quizAnswersByModule.current[moduleId];
+    delete modulesById.current[moduleId];
+    delete lastPassedRuleIdsRef.current[moduleId];
+    delete lastCommandCountRef.current[moduleId];
     setSessionModuleMap((prev) => {
       if (!(sessionId in prev)) return prev;
       const next = { ...prev };
@@ -372,6 +426,7 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
     stopSession,
     connectedModules,
     results,
+    mistakeSignal,
     sessionModuleMap,
     connecting,
     submittingPassword,

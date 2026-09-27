@@ -157,17 +157,6 @@ const ChatPane: React.FC<Props> = ({
   const [linuxQuizSubmitted, setLinuxQuizSubmitted] = useState(false);
   useEffect(() => { setLinuxQuizAnswers({}); setLinuxQuizSubmitted(false); }, [practiceId]);
 
-  // Mensajes de contenido (`linuxContentBlocks`) ya confirmados con
-  // "Continuar" -- mientras un mensaje de estos quede sin confirmar, el
-  // estudiante no puede escribir nada en el chat (ver ChatInput.inputLocked).
-  // Obliga a leer/scrollear el contenido (video incluido) antes de seguir.
-  const [linuxContentAckedIds, setLinuxContentAckedIds] = useState<Set<string>>(new Set());
-  useEffect(() => { setLinuxContentAckedIds(new Set()); }, [practiceId]);
-  const handleLinuxContentAck = useCallback((msgId: string) => {
-    setLinuxContentAckedIds((prev) => { const next = new Set(prev); next.add(msgId); return next; });
-  }, []);
-  const linuxInputLocked = isPracticeSession && messages.some((m) => m.meta?.linuxContentBlocks && !linuxContentAckedIds.has(m.id));
-
   const handleLinuxQuizAnswer = useCallback((questionId: string, optionId: string) => {
     setLinuxQuizAnswers((prev) => ({ ...prev, [questionId]: optionId }));
   }, []);
@@ -187,9 +176,10 @@ const ChatPane: React.FC<Props> = ({
 
   // Determina el próximo lote de bloques a mostrar: recorre module.blocks en
   // orden, siempre agrega texto/analogía/anotación/media apenas se alcanzan,
-  // pero se DETIENE en el primer command_step todavía no resuelto (una tarea
-  // a la vez -- ver decisión de diseño) y nunca revela el quiz hasta que
-  // todos los command_step obligatorios estén aprobados.
+  // y se DETIENE en el primer command_step todavía no resuelto (una tarea a
+  // la vez -- ver decisión de diseño). Un quiz no revelado (todavía no
+  // terminó la práctica) se SALTEA sin frenar el recorrido -- solo bloquea
+  // command_step lo hace, nunca un quiz de por medio.
   const computeNextLinuxBatch = useCallback((module: LinuxModule, result: LinuxValidationResult | null): LinuxBlock[] => {
     const rules = module.validation_rules;
     const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
@@ -209,7 +199,13 @@ const ChatPane: React.FC<Props> = ({
         continue;
       }
       if (block.type === 'quiz') {
-        if (!practiceDone) break; // no revelar el quiz (ni seguir mirando bloques después) hasta terminar la práctica
+        // `continue`, NUNCA `break`: un quiz que todavía no se puede revelar
+        // no debe frenar la entrega de lo que venga DESPUÉS en module.blocks
+        // (ej. un command_step más adelante) -- antes cortaba acá con
+        // `break` asumiendo que todo quiz vive al final del módulo, y
+        // bastaba con reubicar uno solo a mitad de camino para que la
+        // práctica quedara congelada para siempre en ese punto.
+        if (!practiceDone) continue;
         if (!delivered.has(block.id)) batch.push(block);
         continue;
       }
@@ -690,7 +686,7 @@ const ChatPane: React.FC<Props> = ({
           sender: 'ai',
           text: '¡Terminaste la parte práctica! Antes de cerrar el módulo, una evaluación corta:',
           timestamp: Date.now(),
-          meta: { linuxQuiz: { moduleId: module.id, blocks: quizBlocks } },
+          meta: { linuxQuiz: { moduleId: module.id, moduleTitle: module.title, blocks: quizBlocks } },
         });
       }
       return next;
@@ -730,6 +726,70 @@ const ChatPane: React.FC<Props> = ({
       setIsSending(false);
     }
   }, [sessionId, pi4ChatSessionId, modeHandlers, buildModeContext]);
+
+  /**
+   * Simétrico a `explainLinuxCommandOutput`, pero para el caso contrario: el
+   * estudiante ejecutó un comando NUEVO que no destrabó el paso pendiente
+   * (typo, error de sintaxis, o un comando válido pero que no era el que
+   * pedía este paso). Sin esto, la práctica se queda esperando en silencio
+   * -- se percibe como que "se congeló" aunque en realidad solo está
+   * esperando el comando correcto.
+   */
+  const explainLinuxMistake = useCallback(async (wrongCommand: string, expectedCommand?: string) => {
+    const contextSessionId = sessionId ?? pi4ChatSessionId;
+    let liveTerminalContext: string | null = null;
+    if (contextSessionId) {
+      try {
+        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+      } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
+    }
+    const triggerText =
+      `El estudiante ejecutó \`${wrongCommand}\` en la terminal, pero eso no era lo que este paso de la práctica necesitaba` +
+      (expectedCommand ? ` (el paso pendiente pide \`${expectedCommand}\`)` : '') +
+      `. Esta es la salida real reciente de la terminal:\n\n` +
+      `${liveTerminalContext ?? '(no se pudo leer la salida de la terminal)'}\n\n` +
+      `Mirá la salida real: si fue un typo o un error de sintaxis, decile EXACTAMENTE qué escribió mal (comparando con lo ` +
+      `que se esperaba); si el comando existe pero no era el de este paso, explicale amablemente que no era ese y cuál sí. ` +
+      `En 2-4 líneas, tono de profesor paciente (nunca de regaño ni de "error", es parte normal de aprender), y cerrá ` +
+      `pidiéndole que lo intente de nuevo` + (expectedCommand ? ` con \`${expectedCommand}\`.` : '.');
+    const instructionMsg: Message = { id: `linux-mistake-${Date.now()}`, sender: 'user', text: triggerText };
+    setIsSending(true);
+    try {
+      await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
+    } catch (e) {
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando el error: ${String(e)}` }]);
+    } finally {
+      setIsSending(false);
+    }
+  }, [sessionId, pi4ChatSessionId, modeHandlers, buildModeContext]);
+
+  // Cada mistakeSignal trae un `nonce` propio (ver useLinuxPracticeSession) --
+  // se recuerda el último ya atendido para no re-disparar la misma
+  // explicación en re-renders donde el objeto de la señal no cambió de nonce.
+  const lastHandledMistakeNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    const signal = linuxSession?.mistakeSignal;
+    if (!signal || !isPracticeSession || !linuxModule) return;
+    if (signal.moduleId !== linuxModule.id) return;
+    if (lastHandledMistakeNonceRef.current === signal.nonce) return;
+    lastHandledMistakeNonceRef.current = signal.nonce;
+    // Si ya hay una explicación en curso (de éxito o de otro mensaje), se
+    // resigna esta vez en vez de encolar -- no bloquea el resto del flujo, y
+    // el próximo comando (correcto o no) va a volver a disparar la señal.
+    if (linuxExplainRunningRef.current || isSendingRef.current) return;
+
+    const rules = linuxModule.validation_rules;
+    const result = (practiceResult as unknown as LinuxValidationResult) ?? null;
+    const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
+    const passedTargets = new Set(rules.filter((r) => passedRuleIds.has(r.id)).map((r) => r.target ?? ''));
+    const pendingStep = linuxModule.blocks.find((b): b is Extract<LinuxBlock, { type: 'command_step' }> => {
+      if (b.type !== 'command_step') return false;
+      const rule = rules.find((r) => r.target === b.command);
+      return rule ? !passedTargets.has(rule.target ?? '\0') : true;
+    });
+
+    explainLinuxMistake(signal.command, pendingStep?.command);
+  }, [linuxSession?.mistakeSignal, isPracticeSession, linuxModule, practiceResult, explainLinuxMistake]);
 
   useEffect(() => {
     if (!isPracticeSession || !linuxModule || linuxExplainRunningRef.current) return;
@@ -796,6 +856,17 @@ const ChatPane: React.FC<Props> = ({
     try {
       setIsSending(true);
       await handler.send(trimmed, userMsg, buildModeContext());
+      // El estudiante puede escribir algo suelto (una pregunta libre) en medio
+      // de la práctica -- eso NO cambia `practiceResult`, así que el efecto de
+      // arriba (que solo reacciona a practiceResult) nunca se re-dispara y la
+      // práctica queda "congelada" hasta el próximo ciclo de polling. Se
+      // reintenta la entrega acá mismo, justo después de responder: si ya no
+      // queda nada nuevo por mostrar, `deliverLinuxBatch` es un no-op (dedup
+      // por `deliveredLinuxBlockIdsRef`), así que no duplica mensajes cuando
+      // el polling sí llega a disparar el efecto más tarde.
+      if (isPracticeSession && linuxModule) {
+        deliverLinuxBatch(linuxModule, (practiceResult as unknown as LinuxValidationResult) ?? null);
+      }
     } catch (e: any) {
       setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
     } finally { isSendingRef.current = false; setIsSending(false); }
@@ -883,8 +954,7 @@ const ChatPane: React.FC<Props> = ({
   const chatInputEl = (
     <ChatInput
       input={input} setInput={setInput} mode={mode} isSending={isSending}
-      onSend={handleSend} onCancel={handleCancel} canSend={(modeHandlers[mode]?.canSend() ?? false) && !linuxInputLocked}
-      inputLocked={linuxInputLocked}
+      onSend={handleSend} onCancel={handleCancel} canSend={modeHandlers[mode]?.canSend() ?? false}
       attachedImage={attachedImage} setAttachedImage={setAttachedImage}
       attachedFile={attachedFile} setAttachedFile={setAttachedFile}
       inputRef={inputRef} isComposingRef={isComposingRef} messages={messages}
@@ -968,8 +1038,6 @@ const ChatPane: React.FC<Props> = ({
           linuxQuizSubmitted={linuxQuizSubmitted}
           onLinuxQuizAnswer={handleLinuxQuizAnswer}
           onLinuxQuizSubmit={handleLinuxQuizSubmit}
-          linuxContentAckedIds={linuxContentAckedIds}
-          onLinuxContentAck={handleLinuxContentAck}
           embeddedTerminal={pi4TerminalEmbedActive ? {
             sessionId: pi4ChatSessionId,
             sshCommandLine: pi4SshCommandLine,

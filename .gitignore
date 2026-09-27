@@ -1,0 +1,4 @@
+# ── Agente e insumos de RAI (investigación) -- personal, no versionado ──
+.claude/agents/rai-investigador.md
+.claude/agents/rai-verificador.md
+ROI/
