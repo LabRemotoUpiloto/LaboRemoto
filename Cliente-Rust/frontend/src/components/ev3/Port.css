@@ -1,0 +1,285 @@
+/* Panel de puertos EV3 — motores como filas (consola) y sensores como fichas.
+   Regla de color: el estado NO tiñe el fondo; lo señalan el chip y el riel
+   izquierdo. Así cuatro puertos juntos no se leen como un mosaico. */
+
+/* ── Chip de puerto ── */
+.ev3-chip {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-family: var(--terminal-font-family);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ev3-chip-motor {
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  color: var(--success);
+}
+
+.ev3-chip-sensor {
+  background: color-mix(in srgb, var(--info) 16%, transparent);
+  border-color: color-mix(in srgb, var(--info) 40%, transparent);
+  color: var(--info);
+}
+
+/* ── Lecturas numéricas ──
+   Tabular: el polling refresca cada segundo y sin esto los dígitos bailan. */
+.ev3-readout {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 74px;
+}
+
+.ev3-readout-main {
+  font-family: var(--terminal-font-family);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.ev3-readout-sub {
+  font-family: var(--terminal-font-family);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.ev3-unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 3px;
+}
+
+/* ── Fila de motor ── */
+.ev3-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-speed) var(--transition-curve);
+}
+
+.ev3-row-motor { border-left-color: var(--success); }
+.ev3-row-motor:hover { border-color: var(--border-color); border-left-color: var(--success); }
+
+.ev3-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Puertos vacíos: presentes pero callados. Sin controles ni altura de sobra. */
+.ev3-row-empty {
+  padding: 7px 12px;
+  border-style: dashed;
+  background: transparent;
+}
+
+.ev3-row-empty-text,
+.ev3-tile-empty-text {
+  font-size: 11px;
+  color: var(--text-disabled);
+}
+
+/* ── Barra bipolar de rpm medidas (0 al centro) ── */
+.ev3-meter {
+  position: relative;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.ev3-meter-zero {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-strong);
+}
+
+.ev3-meter-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--success);
+  border-radius: var(--radius-pill);
+  transition: left 0.25s var(--transition-curve), width 0.25s var(--transition-curve);
+}
+
+/* ── Slider de consigna ── */
+.ev3-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ev3-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+}
+
+.ev3-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  border: 2px solid var(--surface-1);
+  transition: background var(--transition-speed) var(--transition-curve);
+}
+
+.ev3-range:hover::-webkit-slider-thumb { background: var(--accent-primary); }
+
+.ev3-range:focus-visible::-webkit-slider-thumb {
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+}
+
+/* ── Botón de parada ── */
+.ev3-stop {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all var(--transition-speed) var(--transition-curve);
+}
+
+.ev3-stop > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  background: var(--danger);
+  transition: background var(--transition-speed) var(--transition-curve);
+}
+
+.ev3-stop:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+
+.ev3-stop:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+.ev3-stop:disabled > span { background: var(--text-disabled); }
+
+/* ── Ficha de sensor ── */
+.ev3-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.ev3-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ev3-tile-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ev3-tile-value {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ev3-tile-empty {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  border-style: dashed;
+  background: transparent;
+}
+
+/* ── Barra de sensor ── */
+.ev3-bar {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.ev3-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.25s var(--transition-curve);
+}
+
+/* ── Sensor táctil ── */
+.ev3-touch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ev3-touch::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-disabled);
+  transition: all var(--transition-speed) var(--transition-curve);
+}
+
+.ev3-touch.is-pressed {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+.ev3-touch.is-pressed::before {
+  background: var(--danger);
+  box-shadow: 0 0 6px var(--danger);
+}

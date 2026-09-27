@@ -309,6 +309,35 @@ fn mock_catalog() -> Vec<ExternalLabPractice> {
             source: PracticeSource { application: "lab-practices-mock".to_string(), external_id: "control-robot-eve3".to_string() },
             updated_at: "2026-07-15T00:00:00Z".to_string(),
         },
+        ExternalLabPractice {
+            id: "control-robot-eve3-api".to_string(),
+            version: 1,
+            title: "Panel de control EV3 (API)".to_string(),
+            description: "Práctica de robótica: controlar el robot Eve3 desde un dashboard visual (motores, sensores y gemelo digital 3D) que consume una API HTTP, sin escribir scripts. Basada en investigacion_ev3 (rama luisa-tauri).".to_string(),
+            area: "Robótica".to_string(),
+            level: "Principiante".to_string(),
+            objectives: vec![
+                "Controlar motores y leer sensores del robot Eve3 a través de una API REST".to_string(),
+                "Relacionar la interfaz visual con las peticiones HTTP que la sustentan (GET /api/status, POST /api/motor, POST /api/stop_all)".to_string(),
+            ],
+            materials: vec![],
+            procedure: vec![
+                ProcedureStep { order: 1, instruction: "Iniciar la práctica: se levantan automáticamente el servidor del robot y el puente HTTP.".to_string() },
+                ProcedureStep { order: 2, instruction: "Mover los motores desde los sliders del dashboard y observar la velocidad medida (rpm).".to_string() },
+                ProcedureStep { order: 3, instruction: "Leer los sensores conectados (ultrasónico, táctil, etc.) en tiempo real.".to_string() },
+                ProcedureStep { order: 4, instruction: "Abrir la pestaña 'Gemelo 3D' para ver la réplica virtual del robot moverse en sincronía.".to_string() },
+            ],
+            safety_measures: vec!["No acercar las manos al robot mientras los motores están activos".to_string()],
+            estimated_duration_minutes: 25,
+            status: "published".to_string(),
+            execution_requirements: ExecutionRequirements {
+                connection_type: "ssh".to_string(),
+                capabilities: vec!["linux".to_string(), "http-api".to_string()],
+            },
+            author: PracticeAuthor { id: "docente-mock-2".to_string(), name: "Docente responsable (mock)".to_string() },
+            source: PracticeSource { application: "lab-practices-mock".to_string(), external_id: "control-robot-eve3-api".to_string() },
+            updated_at: "2026-08-25T00:00:00Z".to_string(),
+        },
     ]
 }
 

@@ -21,11 +21,25 @@ use anyhow::{anyhow, Result};
 use russh::{client, ChannelMsg};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{Mutex, OnceCell};
+use tokio::sync::Mutex;
 
 use crate::ssh_core::client::RusshClient;
 
-static LOCAL_PORT: OnceCell<u16> = OnceCell::const_new();
+/// Túnel vigente: puerto local, conexión SSH y la tarea que acepta
+/// conexiones locales sobre ella.
+struct Tunel {
+    local_port: u16,
+    handle: Arc<Mutex<client::Handle<RusshClient>>>,
+    accept_task: tokio::task::JoinHandle<()>,
+}
+
+static TUNEL: Mutex<Option<Tunel>> = Mutex::const_new(None);
+
+// Sin keepalive, una conexión que muere en silencio (cambio de IP en red
+// móvil, la Pi se reinicia) nunca se marca como cerrada y el túnel queda
+// inservible hasta reiniciar la app. Con esto russh la cierra en ~45 s.
+const KEEPALIVE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
+const KEEPALIVE_MAX: usize = 3;
 
 #[derive(Debug, Clone)]
 pub struct TunnelConfig {
@@ -38,27 +52,32 @@ pub struct TunnelConfig {
 }
 
 /// Devuelve el puerto local (127.0.0.1) que reenvía al servicio de
-/// prácticas en la Pi, estableciendo el túnel la primera vez que se
-/// necesita. Llamadas concurrentes esperan la misma inicialización.
+/// prácticas en la Pi. Abre el túnel la primera vez y lo vuelve a abrir si la
+/// conexión SSH se cerró. Llamadas concurrentes esperan al mismo intento.
 pub async fn ensure_tunnel(config: TunnelConfig) -> Result<u16> {
-    LOCAL_PORT
-        .get_or_try_init(|| start_tunnel(config))
-        .await
-        .copied()
+    let mut actual = TUNEL.lock().await;
+    if let Some(t) = actual.as_ref() {
+        if !t.handle.lock().await.is_closed() {
+            return Ok(t.local_port);
+        }
+        eprintln!("[linux_tunnel] la conexión SSH del túnel se cerró; reconectando");
+        t.accept_task.abort();
+        *actual = None;
+    }
+    let nuevo = start_tunnel(config).await?;
+    let local_port = nuevo.local_port;
+    *actual = Some(nuevo);
+    Ok(local_port)
 }
 
 // Timeout PROPIO de cada paso de red de start_tunnel -- crítico que sea acá
-// adentro y no un timeout externo envolviendo a ensure_tunnel(): un timeout
-// externo cancela esta future desde afuera mientras está corriendo *dentro*
-// de LOCAL_PORT.get_or_try_init(), y aunque tokio libera el permit del
-// OnceCell al cancelarse (en teoría permite reintentar), en la práctica se
-// vio quedar sin volver a buscar nunca más una vez la Pi no respondía (bug
-// reportado). Con el timeout acá adentro, esta función SIEMPRE termina por
-// sí sola con Ok o Err -- nunca la cancela una future de más arriba -- que
-// es el único camino que get_or_try_init garantiza que reintenta.
+// adentro y no un timeout externo envolviendo a ensure_tunnel(): si una
+// future de más arriba cancela ensure_tunnel() mientras espera la red, el
+// intento se pierde a medias. Con el timeout acá adentro esta función SIEMPRE
+// termina por sí sola con Ok o Err, y la próxima llamada vuelve a intentar.
 const TUNNEL_STEP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(6);
 
-async fn start_tunnel(config: TunnelConfig) -> Result<u16> {
+async fn start_tunnel(config: TunnelConfig) -> Result<Tunel> {
     use std::net::ToSocketAddrs;
 
     let mut addrs = (config.host.as_str(), config.port)
@@ -68,7 +87,11 @@ async fn start_tunnel(config: TunnelConfig) -> Result<u16> {
         .next()
         .ok_or_else(|| anyhow!("sin direcciones para {}:{}", config.host, config.port))?;
 
-    let russh_config = Arc::new(client::Config::default());
+    let russh_config = Arc::new(client::Config {
+        keepalive_interval: Some(KEEPALIVE_INTERVAL),
+        keepalive_max: KEEPALIVE_MAX,
+        ..Default::default()
+    });
     let mut handle = tokio::time::timeout(
         TUNNEL_STEP_TIMEOUT,
         client::connect(russh_config, addr, RusshClient::default()),
@@ -103,7 +126,9 @@ async fn start_tunnel(config: TunnelConfig) -> Result<u16> {
     let remote_host = config.remote_host;
     let remote_port = config.remote_port;
 
-    tokio::spawn(async move {
+    let handle_tarea = handle.clone();
+    let accept_task = tokio::spawn(async move {
+        let handle = handle_tarea;
         loop {
             let (stream, peer) = match listener.accept().await {
                 Ok(v) => v,
@@ -122,7 +147,7 @@ async fn start_tunnel(config: TunnelConfig) -> Result<u16> {
         }
     });
 
-    Ok(local_port)
+    Ok(Tunel { local_port, handle, accept_task })
 }
 
 /// Copia bidireccional entre la conexión TCP local (el cliente HTTP) y un

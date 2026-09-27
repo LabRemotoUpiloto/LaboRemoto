@@ -1,20 +1,22 @@
 import React from 'react';
-import { Badge, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { BookOpen, Clock, ShieldAlert, TerminalSquare } from 'lucide-react';
-import type { ExternalLabPractice } from '../../services/labPractices.service';
+import { Badge, Button, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { BookOpen, Clock, Play, ShieldAlert, TerminalSquare } from 'lucide-react';
+import type { RunnableLabPractice } from '../../services/labPractices.service';
 
 interface ExternalPracticeCardProps {
-    practice: ExternalLabPractice;
+    practice: RunnableLabPractice;
+    onStart?: () => void;
+    loading?: boolean;
 }
 
 /**
- * Práctica del catálogo externo. Solo lectura: no tiene botón de "Iniciar"
- * porque no existe (todavía) un binding local a un entorno de laboratorio
- * real (host/credenciales) — mostrar contenido importado nunca debe sugerir
- * que ya se puede ejecutar. Ver cmd::integration::lab_practices para la
- * razón de diseño (contenido no confiable vs. conexión local).
+ * Práctica del catálogo (`cmd::integration::lab_practices`, contenido no
+ * confiable: nunca trae host/credenciales). El botón "Iniciar" solo aparece
+ * si `practice.runnable` — o sea, si existe un `LabConnectionProfile` local
+ * para este id (ver cmd::practices::lab_connection). Sin binding local, la
+ * práctica se ve pero es de solo lectura, igual que antes.
  */
-const ExternalPracticeCard: React.FC<ExternalPracticeCardProps> = ({ practice }) => {
+const ExternalPracticeCard: React.FC<ExternalPracticeCardProps> = ({ practice, onStart, loading }) => {
     const needsConnection = practice.execution_requirements.connection_type !== 'none';
 
     return (
@@ -24,11 +26,17 @@ const ExternalPracticeCard: React.FC<ExternalPracticeCardProps> = ({ practice })
                     <Badge variant="light" color="gray" size="sm" radius="sm" tt="none">
                         {practice.area} · {practice.level}
                     </Badge>
-                    <Tooltip label="Contenido importado, sin entorno de laboratorio vinculado todavía" withArrow position="top">
-                        <Badge variant="outline" color="orange" size="sm" radius="sm" tt="none" leftSection={<ShieldAlert size={11} />}>
-                            Importada
+                    {practice.runnable ? (
+                        <Badge variant="light" color="green" size="sm" radius="sm" tt="none">
+                            Disponible aquí
                         </Badge>
-                    </Tooltip>
+                    ) : (
+                        <Tooltip label="Contenido importado, sin entorno de laboratorio vinculado en este equipo" withArrow position="top">
+                            <Badge variant="outline" color="orange" size="sm" radius="sm" tt="none" leftSection={<ShieldAlert size={11} />}>
+                                Importada
+                            </Badge>
+                        </Tooltip>
+                    )}
                 </Group>
 
                 <div style={{ flex: 1 }}>
@@ -62,6 +70,19 @@ const ExternalPracticeCard: React.FC<ExternalPracticeCardProps> = ({ practice })
                 <Text size="xs" c="dimmed" style={{ opacity: 0.7 }}>
                     Publicado por {practice.author.name} · {practice.source.application}
                 </Text>
+
+                {practice.runnable && (
+                    <Button
+                        size="sm"
+                        radius="md"
+                        leftSection={<Play size={14} />}
+                        onClick={onStart}
+                        loading={loading}
+                        fullWidth
+                    >
+                        Iniciar práctica
+                    </Button>
+                )}
             </Stack>
         </Card>
     );

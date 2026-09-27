@@ -53,7 +53,7 @@ Authorization: Bearer        location /nvr/ {                  (valida JWT,
   una sesión vigente (emitida por `/nvr/monitor`, TTL 15 min). Reescribe
   además cualquier referencia a la key real dentro del manifest `.m3u8`.
 - `POST /nvr/ptz/:groupKey/:mid` — requiere `Authorization: Bearer <JWT
-  Keycloak>` **con rol `admin_lab`, `laboratorista` o `semillerista`** (`realm_access.roles`
+  Keycloak>` **con un rol de personal (`admin_lab`, `jefe_laboratorio`, `coordinador_laboratorio`, `laboratorista` o `semillerista`)** (`realm_access.roles`
   del token) — a diferencia de `/nvr/monitor`, que es solo lectura y no
   exige rol. Body `{"op": "Left"|"Right"|"Up"|"Down"|"LeftUp"|"LeftDown"|
   "RightUp"|"RightDown"|"ZoomInc"|"ZoomDec"|"Stop", "speed"?: 1-8}`.
@@ -63,6 +63,17 @@ Authorization: Bearer        location /nvr/ {                  (valida JWT,
   salen de la Pi. Si `:mid` no está en el mapa, responde 404
   `ptz_not_supported` (no todas las cámaras del NVR son PTZ, y de las que
   sí, no todas tienen su API HTTP alcanzable en la red — ver nota abajo).
+- `POST /nvr/sesiones/evento` y `GET /nvr/sesiones/resumen?dias=N` —
+  registro central de sesiones de práctica (módulo `sesiones.js`). La app
+  reporta inicio, latido (cada 60 s) y fin de cada práctica; la identidad
+  sale del JWT, la IP de `X-Forwarded-For` y la ciudad de ipinfo.io. El
+  resumen exige `admin_lab`, `jefe_laboratorio`, `coordinador_laboratorio`
+  o `laboratorista`. Datos en `sesiones.jsonl` (env `SESIONES_FILE`), solo
+  los últimos 90 días; con `SESIONES_WEBHOOK_URL` reenvía cada inicio/fin al
+  mismo flujo de Power Automate de `RegistroExcel.sh`, y el Excel queda como
+  registro permanente (campos y cambios del flujo en
+  `infra/registro-excel/README.md`).
+  Se despliega copiando `broker_server.js` y `sesiones.js` juntos.
 
 **Importante:** el token de sesión se reutiliza mientras esté vigente para
 el mismo `usuario+groupKey` (`getOrCreateSessionToken`) — el cliente hace

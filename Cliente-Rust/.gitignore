@@ -18,6 +18,10 @@ gen/
 set-api-keys.ps1
 **/set-api-keys.ps1
 
+# ── LabConnectionProfile: host/credenciales locales de prácticas (secretos) ──
+config/lab_connections/
+**/config/lab_connections/
+
 # ── IDE / Tooling ──
 .vscode/
 .windsurf/
