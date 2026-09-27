@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import AskRenderer from './AskRenderer';
 import ToolResultRenderer from './ToolResultRenderer';
 import DiffView from '../analysis/DiffView';
@@ -8,6 +8,8 @@ import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon, Button, Group, Text } from '@mantine/core';
 import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
 import { BlockView } from '../practicas/linux/blocks/BlockRenderer';
+import { ModuleCompleteCelebration } from '../practicas/linux/ModuleCompleteCelebration';
+import { markModuleBadgeEarned } from '../../services/badges.service';
 
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;
@@ -32,9 +34,6 @@ interface AiMessageBubbleProps {
   linuxQuizSubmitted?: boolean;
   onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
   onLinuxQuizSubmit?: () => void;
-  /** Solo aplica a mensajes con `meta.linuxContentBlocks` -- si ya se confirmó con "Continuar". */
-  linuxContentAcked?: boolean;
-  onLinuxContentAck?: () => void;
 }
 
 export default function AiMessageBubble({
@@ -44,7 +43,6 @@ export default function AiMessageBubble({
   linuxPracticeId, linuxRules = [], linuxResult = null,
   linuxQuizAnswers = {}, linuxQuizSubmitting = false, linuxQuizSubmitted = false,
   onLinuxQuizAnswer, onLinuxQuizSubmit,
-  linuxContentAcked = false, onLinuxContentAck,
 }: AiMessageBubbleProps) {
   const isStreaming = streamingMsgId === msg.id;
   const isError = msg.text.startsWith('Error');
@@ -53,6 +51,20 @@ export default function AiMessageBubble({
   const hasAnswerContent = answerText.trim().length > 0;
 
   const actionBtnClass = 'text-[var(--text-secondary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]';
+
+  // Fuegos artificiales + insignia: una sola vez por módulo (persistido vía
+  // services/badges.service.ts -- misma fuente que lee la Sala de Trofeos
+  // del Perfil) -- nunca de nuevo en re-renders o remounts posteriores una
+  // vez que ya se ganó la insignia.
+  const [showCelebration, setShowCelebration] = useState(false);
+  const celebratedRef = useRef(false);
+  const linuxQuizModuleId = msg.meta?.linuxQuiz?.moduleId;
+  useEffect(() => {
+    if (!linuxQuizSubmitted || !linuxResult?.passed || !linuxQuizModuleId || celebratedRef.current) return;
+    celebratedRef.current = true;
+    const { alreadyEarned } = markModuleBadgeEarned(linuxQuizModuleId);
+    setShowCelebration(!alreadyEarned);
+  }, [linuxQuizSubmitted, linuxResult?.passed, linuxQuizModuleId]);
 
   return (
     <div className={`relative flex flex-col group/ai items-start w-full`}>
@@ -118,16 +130,6 @@ export default function AiMessageBubble({
               {msg.meta.linuxContentBlocks.map((block: any) => (
                 <BlockView key={block.id} block={block} rules={linuxRules} result={linuxResult} practiceId={linuxPracticeId} />
               ))}
-              {/* Obliga a leer/scrollear (video incluido) antes de poder escribir -- ver ChatInput.inputLocked. */}
-              {linuxContentAcked ? (
-                <Text fz="xs" c="dimmed">✓ Visto</Text>
-              ) : (
-                <Group justify="flex-end">
-                  <Button size="xs" variant="light" onClick={onLinuxContentAck}>
-                    Continuar
-                  </Button>
-                </Group>
-              )}
             </div>
           )}
 
@@ -163,6 +165,15 @@ export default function AiMessageBubble({
                   {linuxResult.earned_points}/{linuxResult.total_points} pts ({linuxResult.percentage}%)
                   {linuxResult.passed ? ' — ¡módulo completo!' : ''}
                 </Text>
+              )}
+              {showCelebration && linuxResult && linuxQuizModuleId && (
+                <ModuleCompleteCelebration
+                  moduleId={linuxQuizModuleId}
+                  moduleTitle={msg.meta?.linuxQuiz?.moduleTitle}
+                  earnedPoints={linuxResult.earned_points}
+                  totalPoints={linuxResult.total_points}
+                  onClose={() => setShowCelebration(false)}
+                />
               )}
             </div>
           )}

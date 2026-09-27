@@ -1,0 +1,252 @@
+.mcc-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 6, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  overflow: hidden;
+  animation: mcc-overlay-in 0.2s ease;
+}
+
+@keyframes mcc-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Ambiente: confeti + fuegos artificiales de fondo ── */
+
+.mcc-ambient-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mcc-confetti-piece {
+  position: absolute;
+  top: -5%;
+  border-radius: 1px;
+  opacity: 0.95;
+  animation-name: mcc-confetti-fall;
+  animation-timing-function: cubic-bezier(0.4, 0.0, 0.6, 1);
+  animation-iteration-count: infinite;
+}
+
+@keyframes mcc-confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg);       opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(115vh) rotate(360deg); opacity: 0; }
+}
+
+.mcc-firework {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+}
+
+.mcc-firework::before,
+.mcc-firework::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #f7cd3d;
+  transform: scale(0);
+  opacity: 0;
+  animation: mcc-firework-ring 2.2s ease-out infinite;
+}
+
+.mcc-firework::after {
+  border-color: #e21f19;
+  animation-delay: 0.15s;
+}
+
+@keyframes mcc-firework-ring {
+  0%   { transform: scale(0);   opacity: 1; }
+  70%  { opacity: 0.5; }
+  100% { transform: scale(7);   opacity: 0; }
+}
+
+/* ── Modal ── */
+
+.mcc-modal {
+  position: relative;
+  background: var(--background-secondary, #1e2030);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: 20px;
+  padding: 28px 44px 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 340px;
+  max-width: 420px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  animation: mcc-modal-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: center;
+  --mcc-badge-fill: rgba(226, 31, 25, 0.18);
+  --mcc-badge-stroke: #e21f19;
+  --mcc-stand-fill: rgba(247, 205, 61, 0.1);
+  --mcc-stand-stroke: #f7cd3d;
+}
+
+@keyframes mcc-modal-in {
+  from { transform: scale(0.8) translateY(10px); opacity: 0; }
+  to   { transform: scale(1) translateY(0);       opacity: 1; }
+}
+
+/* ── Escenario: anillo + insignia girando + pedestal ── */
+
+.mcc-stage {
+  position: relative;
+  width: 100%;
+  height: 176px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  perspective: 700px;
+}
+
+.mcc-glow {
+  position: absolute;
+  top: 22px;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(247, 205, 61, 0.9) 0%, rgba(247, 205, 61, 0) 70%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.mcc-badge {
+  position: relative;
+  width: 76px;
+  height: 88px;
+  margin-bottom: 6px;
+  transform-style: preserve-3d;
+}
+
+.mcc-ring-svg {
+  position: absolute;
+  inset: -8px;
+  transform: rotate(-90deg);
+}
+
+.mcc-ring-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 4;
+}
+
+.mcc-ring-fill {
+  fill: none;
+  stroke: #f7cd3d;
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(247, 205, 61, 0.7));
+}
+
+.mcc-shield-svg {
+  position: absolute;
+  inset: 8px;
+}
+
+.mcc-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.mcc-stand {
+  width: 118px;
+  color: var(--mcc-stand-stroke);
+}
+
+.mcc-stand svg {
+  width: 100%;
+  height: auto;
+}
+
+/* ── Texto + acciones ── */
+
+.mcc-eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.mcc-rank {
+  margin: 2px 0 12px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--mcc-badge-stroke);
+}
+
+.mcc-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #f0f0f0);
+}
+
+.mcc-score {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-secondary, #9ca3af);
+  font-variant-numeric: tabular-nums;
+}
+
+.mcc-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.mcc-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.mcc-close-btn {
+  background: var(--mcc-badge-stroke);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 34px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+
+.mcc-close-btn:hover {
+  filter: brightness(1.1);
+}
+
+.mcc-close-btn:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcc-confetti-piece,
+  .mcc-firework::before,
+  .mcc-firework::after,
+  .mcc-overlay,
+  .mcc-modal {
+    animation: none !important;
+  }
+}

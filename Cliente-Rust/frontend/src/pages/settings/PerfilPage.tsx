@@ -16,6 +16,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAccessTier } from '../../hooks/usePermissions';
 import { authService } from '../../services/auth.service';
 import { resizeImageToDataUrl } from '../../utils/resizeImage';
+import { TrophyRoom } from '../../components/practicas/linux/TrophyRoom';
 
 function formatRoleLabel(roles: string[] | undefined): string {
   if (roles?.includes('admin_lab')) return 'Administrador';
@@ -138,6 +139,14 @@ export default function PerfilPage() {
               {user?.email && <InfoRow icon={<Mail size={15} />} label="Correo" value={user.email} />}
               <InfoRow icon={<ShieldCheck size={15} />} label="Rol" value={roleLabel} />
             </Stack>
+          </Card>
+
+          <Card padding="lg" radius="md" withBorder mt="lg">
+            <Title order={5} mb={4}>Sala de trofeos</Title>
+            <Text size="xs" c="dimmed" mb="lg">
+              Las insignias que vas ganando en la práctica de Linux — personales, nadie más las ve.
+            </Text>
+            <TrophyRoom />
           </Card>
         </div>
       </div>

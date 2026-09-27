@@ -72,8 +72,6 @@ interface ChatMessageListProps {
   onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
   onLinuxQuizSubmit?: () => void;
   /** Mensajes de tipo `linuxContentBlocks` ya confirmados con "Continuar". */
-  linuxContentAckedIds?: Set<string>;
-  onLinuxContentAck?: (msgId: string) => void;
 }
 
 export default function ChatMessageList({
@@ -95,8 +93,6 @@ export default function ChatMessageList({
   linuxQuizSubmitted = false,
   onLinuxQuizAnswer,
   onLinuxQuizSubmit,
-  linuxContentAckedIds,
-  onLinuxContentAck,
 }: ChatMessageListProps) {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
 
@@ -176,8 +172,6 @@ export default function ChatMessageList({
                 linuxQuizSubmitted={linuxQuizSubmitted}
                 onLinuxQuizAnswer={onLinuxQuizAnswer}
                 onLinuxQuizSubmit={onLinuxQuizSubmit}
-                linuxContentAcked={linuxContentAckedIds?.has(msg.id) ?? false}
-                onLinuxContentAck={() => onLinuxContentAck?.(msg.id)}
               />
             )}
 
