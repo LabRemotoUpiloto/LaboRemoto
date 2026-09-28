@@ -10,6 +10,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { gsap } from 'gsap';
 import { RANKS, rankForModule } from '../../../services/badges.service';
+import { MedalIcon } from './MedalIcon';
 import './ModuleCompleteCelebration.css';
 
 const RING_RADIUS = 42;
@@ -174,22 +175,13 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
                 strokeDasharray={RING_CIRCUMFERENCE}
               />
             </svg>
-            <svg viewBox="0 0 44 50" className="mcc-shield-svg" role="img" aria-label={`Insignia: ${rank.title}`}>
-              <path
-                d="M22 2 L40 10 V24 C40 36 32 45 22 48 C12 45 4 36 4 24 V10 Z"
-                fill="var(--mcc-badge-fill)"
-                stroke="var(--mcc-badge-stroke)"
-                strokeWidth="2"
-              />
-              <path
-                d="M14 24.5 L19.5 30 L30 17.5"
-                fill="none"
-                stroke="var(--mcc-badge-stroke)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <MedalIcon
+              ringColor="var(--mcc-badge-stroke)"
+              discColor="var(--mcc-badge-disc)"
+              code={rank.code}
+              className="mcc-medal-svg"
+              ariaLabel={`Insignia: ${rank.title}`}
+            />
 
             {sparks.map((s, i) => (
               <span

@@ -86,8 +86,8 @@
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
   animation: mcc-modal-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
   text-align: center;
-  --mcc-badge-fill: rgba(226, 31, 25, 0.18);
   --mcc-badge-stroke: #e21f19;
+  --mcc-badge-disc: #f7cd3d;
   --mcc-stand-fill: rgba(247, 205, 61, 0.1);
   --mcc-stand-stroke: #f7cd3d;
 }
@@ -150,9 +150,9 @@
   filter: drop-shadow(0 0 4px rgba(247, 205, 61, 0.7));
 }
 
-.mcc-shield-svg {
+.mcc-medal-svg {
   position: absolute;
-  inset: 8px;
+  inset: 4px;
 }
 
 .mcc-spark {
