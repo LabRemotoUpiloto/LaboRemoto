@@ -3,7 +3,7 @@ import AskRenderer from './AskRenderer';
 import ToolResultRenderer from './ToolResultRenderer';
 import DiffView from '../analysis/DiffView';
 import { Message, ChatMode } from '../chatModes/types';
-import { fmtTime } from '../chatPane/chatPane.constants';
+import { RelativeTime } from './RelativeTime';
 import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon, Button, Group, Text } from '@mantine/core';
 import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
@@ -95,13 +95,13 @@ export default function AiMessageBubble({
             className="block text-[10px] mb-2 tabular-nums text-right"
             style={{ color: 'var(--text-muted)' }}
           >
-            {fmtTime(msg.timestamp)}
+            <RelativeTime timestamp={msg.timestamp} />
           </span>
         )}
 
         {!isLanding && msg.timestamp && (
           <span className="block text-[9.5px] opacity-50 mb-1 font-mono tracking-wide">
-            {fmtTime(msg.timestamp)}
+            <RelativeTime timestamp={msg.timestamp} />
           </span>
         )}
 

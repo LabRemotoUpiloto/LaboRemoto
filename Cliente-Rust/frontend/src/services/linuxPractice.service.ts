@@ -48,6 +48,12 @@ export type LinuxBlock =
   // opciones. La corrección vive server-side en la Pi (mismo patrón que ya
   // usa command_step: el "target" de la regla es opaco para el cliente).
   | { type: 'quiz'; id: string; question_md: string; options: LinuxQuizOption[] }
+  // Widget de exploración libre (sin validation_rule propia -- lo que se
+  // valida es el `chmod` real que el estudiante corre después en la
+  // terminal, este bloque es solo para que entienda de dónde sale el
+  // número). `initial_octal` arranca el grillado de checkboxes en ese
+  // valor (default "644" si se omite).
+  | { type: 'permissions_calculator'; id: string; initial_octal?: string; prompt_md?: string }
   | { type: 'checkpoint'; id: string; rule_id?: string; rule_ids?: string[] };
 
 export interface LinuxValidationRule {

@@ -5,7 +5,7 @@
 // LinuxModulePage para saber cuándo mostrar la pantalla de cierre.
 
 import React, { useEffect, useState } from 'react';
-import { Paper, Text, Stack, Group, Badge, Checkbox, Radio, Loader, Alert, ActionIcon } from '@mantine/core';
+import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon } from '@mantine/core';
 import { AlertTriangle, X } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia } from '../../../../services/linuxPractice.service';
@@ -136,7 +136,9 @@ function CommandStepBlock({
           </Stack>
         </Group>
         {typeof points === 'number' && (
-          <Badge variant="light" color={passed ? 'green' : 'gray'}>{points} pts</Badge>
+          <Text fz="xs" fw={700} c={passed ? 'green' : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>
+            {points} pts
+          </Text>
         )}
       </Group>
     </Paper>
@@ -283,7 +285,9 @@ function QuizBlock({
       <Group justify="space-between" align="flex-start" mb={8}>
         <Text fz="sm" fw={600} style={{ lineHeight: 1.5 }}>{renderInline(block.question_md)}</Text>
         {typeof points === 'number' && (
-          <Badge variant="light" color={showFeedback ? (passed ? 'green' : 'red') : 'gray'}>{points} pts</Badge>
+          <Text fz="xs" fw={700} c={showFeedback ? (passed ? 'green' : 'red') : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>
+            {points} pts
+          </Text>
         )}
       </Group>
       <Radio.Group value={selected ?? null} onChange={onSelect}>
@@ -298,6 +302,78 @@ function QuizBlock({
           {passed ? 'Correcto.' : 'Incorrecto — revisá el bloque de arriba antes de la evaluación final.'}
         </Text>
       )}
+    </Paper>
+  );
+}
+
+const PERMISSION_GROUPS = ['Dueño', 'Grupo', 'Otros'] as const;
+const PERMISSION_BITS = [
+  { key: 'r', label: 'Leer', value: 4 },
+  { key: 'w', label: 'Escribir', value: 2 },
+  { key: 'x', label: 'Ejecutar', value: 1 },
+] as const;
+
+function parseOctalDigit(digit: string): boolean[] {
+  const n = parseInt(digit, 8) || 0;
+  return [!!(n & 4), !!(n & 2), !!(n & 1)];
+}
+
+/**
+ * Exploración libre, sin validation_rule propia -- lo que valida el progreso
+ * es el `chmod` real que el estudiante corre después en la terminal (bloque
+ * `command_step` aparte). Esto es solo para que entienda de dónde sale el
+ * número antes de escribirlo a ciegas: toca los 9 checkboxes y ve en vivo
+ * cómo cambian el octal y la notación simbólica.
+ */
+function PermissionsCalculatorBlock({ block }: { block: Extract<LinuxBlock, { type: 'permissions_calculator' }> }) {
+  const initial = (block.initial_octal ?? '644').padStart(3, '0').slice(-3);
+  const [bits, setBits] = useState<boolean[][]>(() => initial.split('').map(parseOctalDigit));
+
+  const toggle = (groupIdx: number, bitIdx: number) => {
+    setBits((prev) => {
+      const next = prev.map((row) => [...row]);
+      next[groupIdx][bitIdx] = !next[groupIdx][bitIdx];
+      return next;
+    });
+  };
+
+  const digits = bits.map((row) => row.reduce((sum, on, i) => sum + (on ? PERMISSION_BITS[i].value : 0), 0));
+  const octal = digits.join('');
+  const symbolic = bits.map((row) => row.map((on, i) => (on ? PERMISSION_BITS[i].key : '-')).join('')).join('');
+
+  return (
+    <Paper withBorder radius="md" p="md">
+      {block.prompt_md && (
+        <Text fz="sm" mb="sm">{renderInline(block.prompt_md)}</Text>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: '64px repeat(3, 1fr)', gap: 8, alignItems: 'center' }}>
+        <div />
+        {PERMISSION_BITS.map((b) => (
+          <Text key={b.key} fz="xs" c="dimmed" ta="center" tt="uppercase" fw={600}>
+            {b.label}
+          </Text>
+        ))}
+        {PERMISSION_GROUPS.map((group, gi) => (
+          <React.Fragment key={group}>
+            <Text fz="xs" fw={600}>{group}</Text>
+            {PERMISSION_BITS.map((b, bi) => (
+              <Group key={b.key} justify="center">
+                <Checkbox checked={bits[gi][bi]} onChange={() => toggle(gi, bi)} />
+              </Group>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+      <Stack gap={6} mt="md" p="sm" style={{ background: 'var(--background-tertiary, rgba(255,255,255,0.04))', borderRadius: 8 }}>
+        <Group gap="xs">
+          <Text fz="xs" c="dimmed" style={{ minWidth: 78 }}>Simbólico</Text>
+          <Text ff="monospace" fz="sm" fw={700}>{symbolic}</Text>
+        </Group>
+        <Group gap="xs">
+          <Text fz="xs" c="dimmed" style={{ minWidth: 78 }}>Comando</Text>
+          <Text ff="monospace" fz="sm" fw={700}>chmod {octal} archivo</Text>
+        </Group>
+      </Stack>
     </Paper>
   );
 }
@@ -344,6 +420,8 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
         />
       );
     }
+    case 'permissions_calculator':
+      return <PermissionsCalculatorBlock block={block} />;
     case 'checkpoint':
       return null;
     default:
