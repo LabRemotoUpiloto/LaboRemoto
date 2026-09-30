@@ -205,6 +205,7 @@ pub fn run() {
       cmd::practices::linux_api::practicas_linux_validate,
       cmd::practices::linux_api::practicas_linux_connection_target,
       cmd::practices::linux_api::practicas_linux_get_media,
+      cmd::practices::linux_media_proxy::practicas_linux_media_url,
       // Integración con Moodle
       cmd::integration::moodle::moodle_sync_assignment,
       cmd::integration::moodle::moodle_prepare_grade,
