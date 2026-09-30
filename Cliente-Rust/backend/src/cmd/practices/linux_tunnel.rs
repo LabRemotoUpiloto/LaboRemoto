@@ -166,6 +166,20 @@ async fn bridge(
             .await?
     };
 
+    let resultado = copiar(&mut channel, &mut stream).await;
+
+    // Hay que cerrar el canal SIEMPRE. Sin esto, cuando el servicio termina la
+    // respuesta y cierra su lado, el sshd de la Pi deja su socket hacia el
+    // puerto 8770 en CLOSE-WAIT esperando el cierre del cliente: cada request
+    // HTTP filtraba un descriptor y, tras ~1000 requests (validaciones tras cada
+    // comando + polling), el sshd del túnel se quedaba sin archivos abiertos
+    // ("Too many open files") y todo el servicio de prácticas dejaba de responder
+    // aunque la conexión SSH siguiera viva y el keepalive no lo detectara.
+    let _ = channel.close().await;
+    resultado
+}
+
+async fn copiar(channel: &mut russh::Channel<client::Msg>, stream: &mut TcpStream) -> Result<()> {
     let mut buf = vec![0u8; 65536];
     let mut stream_closed = false;
     loop {
@@ -183,7 +197,7 @@ async fn bridge(
             msg = channel.wait() => {
                 match msg {
                     Some(ChannelMsg::Data { data }) => stream.write_all(&data).await?,
-                    Some(ChannelMsg::Eof) | None => break,
+                    Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => break,
                     _ => {}
                 }
             }

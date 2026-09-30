@@ -149,6 +149,17 @@ function CommandStepBlock({
   );
 }
 
+// `invoke` rechaza con el payload del backend ({ code, message, ... }), no con un Error:
+// String(e) daba "[object Object]" en pantalla.
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string') return e;
+  if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+    return (e as { message: string }).message;
+  }
+  try { return JSON.stringify(e); } catch { return String(e); }
+}
+
 function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 'media' }>; practiceId: string }) {
   const [state, setState] = useState<{ status: 'loading' } | { status: 'ok'; url: string } | { status: 'error'; message: string }>({ status: 'loading' });
   const [expanded, setExpanded] = useState(false);
@@ -164,7 +175,7 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
       })
       .catch((e) => {
         if (cancelled) return;
-        setState({ status: 'error', message: e instanceof Error ? e.message : String(e) });
+        setState({ status: 'error', message: errorMessage(e) });
       });
     return () => { cancelled = true; };
   }, [practiceId, block.file]);
