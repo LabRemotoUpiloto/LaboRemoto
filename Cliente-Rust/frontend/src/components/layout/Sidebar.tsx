@@ -5,10 +5,10 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
-import { User, Shield, SquareTerminal } from 'lucide-react';
+import { User, Shield, SquareTerminal, Activity } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAccessTier, canAccessPage } from '../../hooks/usePermissions';
+import { useEffectiveRole, canAccessPage, ROLE_LABELS } from '../../hooks/usePermissions';
 import {
   MonitorIcon,
   CompassIcon,
@@ -100,21 +100,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [appVersion, setAppVersion] = useState<string>('');
   const showMacTitleBarZone = isMacOS();
   const { user, logout } = useAuth();
-  const tier = useAccessTier();
+  const role = useEffectiveRole();
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => setAppVersion(''));
   }, []);
-
-  // Un solo rol efectivo visible (no la lista cruda de claims): el de mayor
-  // privilegio gana — mismo orden de precedencia que usePermissions.
-  const formatRoles = () => {
-    const roles = user?.roles ?? [];
-    if (roles.includes('admin_lab')) return 'Administrador ';
-    if (roles.includes('laboratorista')) return 'Laboratorista ';
-    if (roles.includes('semillerista')) return 'Semillerista ';
-    return 'Estudiante ';
-  };
 
   return (
     <Box
@@ -233,16 +223,14 @@ const Sidebar: React.FC<SidebarProps> = ({
           {
             label: 'Administración',
             items: [
+              { id: 'dashboard', label: 'Actividad', icon: Activity },
               { id: 'admin-users', label: 'Usuarios', icon: Shield },
               { id: 'logs', label: 'Logs', icon: FileTextIcon },
-              // Vigilancia ya vive en PAGE_ACCESS como cualquier otra página
-              // (tier 'operativo' = laboratorista + semillerista, + admin) —
-              // se filtra abajo junto con el resto vía canAccessPage.
               { id: 'vigilancia', label: 'Vigilancia', icon: CameraIcon },
             ],
           },
         ]
-          .map(section => ({ ...section, items: section.items.filter(item => canAccessPage(item.id, tier)) }))
+          .map(section => ({ ...section, items: section.items.filter(item => canAccessPage(item.id, role)) }))
           .filter(section => section.items.length > 0)
           .map((section, si, arr) => (
           <Box key={section.label} mb={si < arr.length - 1 ? 8 : 0}>
@@ -370,7 +358,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   {user?.preferred_username || 'Usuario'}
                 </Text>
                 <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>
-                  {formatRoles()}
+                  {ROLE_LABELS[role]}
                 </Text>
                 {appVersion && (
                   <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>

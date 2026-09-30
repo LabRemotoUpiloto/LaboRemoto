@@ -14,7 +14,7 @@ import { ArrowLeft, PlugZap, MonitorCheck, RotateCcw, Eye } from 'lucide-react';
 import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { linuxGetModule, type LinuxModule } from '../../services/linuxPractice.service';
-import { useAccessTier } from '../../hooks/usePermissions';
+import { useEffectiveRole } from '../../hooks/usePermissions';
 import { useEarnedBadges } from '../../services/badges.service';
 
 interface Props {
@@ -54,12 +54,12 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession, on
   } = linuxSession;
 
   const connected = module ? !!connectedModules[module.id] : false;
-  const tier = useAccessTier();
+  const role = useEffectiveRole();
   const earnedBadges = useEarnedBadges();
   const alreadyCompleted = module ? module.id in earnedBadges : false;
-  // Por ahora exclusivo de `admin` -- acá es donde se engancha la lista de
-  // roles configurable a futuro que se mencionó al pedir esta feature.
-  const showAdminChooser = tier === 'admin' && alreadyCompleted && adminChoice === null;
+  // Por ahora exclusivo de `admin_lab` -- acá es donde se engancha la lista
+  // de roles configurable a futuro que se mencionó al pedir esta feature.
+  const showAdminChooser = role === 'admin_lab' && alreadyCompleted && adminChoice === null;
 
   useEffect(() => {
     let cancelled = false;

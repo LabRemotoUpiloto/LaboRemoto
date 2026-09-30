@@ -34,6 +34,7 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
   totalPoints,
   onClose,
 }) => {
+  // AiMessageBubble solo monta esto si el módulo tiene insignia; RANKS[0] es solo red de seguridad.
   const rank = rankForModule(moduleId) ?? RANKS[0];
 
   const stageRef = useRef<HTMLDivElement>(null);

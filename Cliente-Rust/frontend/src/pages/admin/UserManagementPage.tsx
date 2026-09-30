@@ -4,32 +4,15 @@ import { Container, Title, Text, TextInput, Stack, Group, ActionIcon, Loader, Bo
 import { X, Search, Users } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import Swal from 'sweetalert2';
+import { ASSIGNABLE_ROLES, ROLE_LABELS, ROLE_ORDER, getEffectiveRole, type EffectiveRole } from '../../hooks/usePermissions';
 
 // ─── Modelo: UN rol por persona ──────────────────────────────────────────────
 // Keycloak permite múltiples realm roles, pero aquí cada persona tiene un
-// rol efectivo (el de mayor privilegio). Cambiarlo asigna el nuevo y quita
+// rol efectivo (el de mayor precedencia). Cambiarlo asigna el nuevo y quita
 // los demás; "Estudiante" = no tener ninguno de los especiales.
 
-const specialRoles = ['admin_lab', 'semillerista', 'laboratorista'];
-
-const ROLE_LABELS: Record<string, string> = {
-    estudiante: 'Estudiante',
-    semillerista: 'Semillerista',
-    laboratorista: 'Laboratorista',
-    admin_lab: 'Administrador',
-};
-
-// Mayor privilegio primero.
-const roleOrder = ['admin_lab', 'laboratorista', 'semillerista', 'estudiante'];
-const ROLE_SELECT_OPTIONS = roleOrder.map(r => ({ value: r, label: ROLE_LABELS[r] }));
+const ROLE_SELECT_OPTIONS = ROLE_ORDER.map(r => ({ value: r, label: ROLE_LABELS[r] }));
 const FILTER_OPTIONS = [{ value: 'all', label: 'Todos los roles' }, ...ROLE_SELECT_OPTIONS];
-
-function effectiveRole(activeSpecialRoles: string[]): string {
-    if (activeSpecialRoles.includes('admin_lab')) return 'admin_lab';
-    if (activeSpecialRoles.includes('laboratorista')) return 'laboratorista';
-    if (activeSpecialRoles.includes('semillerista')) return 'semillerista';
-    return 'estudiante';
-}
 
 function fullNameOf(user: KeycloakUser) {
     return user.firstName || user.lastName
@@ -66,13 +49,13 @@ function tintOf(user: KeycloakUser) {
     return AVATAR_TINTS[h % AVATAR_TINTS.length];
 }
 
-interface Row { user: KeycloakUser; role: string; }
+interface Row { user: KeycloakUser; role: EffectiveRole; }
 
 // ─── Fila ────────────────────────────────────────────────────────────────────
 
 interface PersonRowProps {
     row: Row;
-    onChangeRole: (user: KeycloakUser, currentRole: string, newRole: string) => void;
+    onChangeRole: (user: KeycloakUser, currentRole: EffectiveRole, newRole: EffectiveRole) => void;
     last: boolean;
 }
 
@@ -127,10 +110,10 @@ const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
                     aria-label={`Cambiar rol de ${user.username}`}
                     data={ROLE_SELECT_OPTIONS}
                     value={role}
-                    onChange={(newRole) => { if (newRole && newRole !== role) onChangeRole(user, role, newRole); }}
+                    onChange={(newRole) => { if (newRole && newRole !== role) onChangeRole(user, role, newRole as EffectiveRole); }}
                     allowDeselect={false}
                     size="sm"
-                    w={168}
+                    w={210}
                     comboboxProps={{ withinPortal: true }}
                     styles={{
                         input: {
@@ -163,7 +146,7 @@ export default function UserManagementPage() {
         setLoading(true);
         try {
             const [special, all] = await Promise.all([
-                Promise.all(specialRoles.map(r => adminService.listUsersByRole(r).then(us => [r, us] as const))),
+                Promise.all(ASSIGNABLE_ROLES.map(r => adminService.listUsersByRole(r).then(us => [r, us] as const))),
                 adminService.listAllUsers(),
             ]);
             setRoleMembers(Object.fromEntries(special));
@@ -181,12 +164,12 @@ export default function UserManagementPage() {
 
     // Lista plana: cada usuario con su rol efectivo, ordenada por privilegio.
     const rows: Row[] = useMemo(() => {
-        const roleById = new Map<string, string>();
-        for (const r of specialRoles) {
+        const roleById = new Map<string, EffectiveRole>();
+        for (const r of ASSIGNABLE_ROLES) {
             for (const u of roleMembers[r] || []) {
                 // Si ya tiene uno más alto asignado, no lo pises (precedencia).
                 if (!roleById.has(u.id)) roleById.set(u.id, r);
-                else roleById.set(u.id, effectiveRole([roleById.get(u.id)!, r]));
+                else roleById.set(u.id, getEffectiveRole([roleById.get(u.id)!, r]));
             }
         }
         const all = allUsers.length > 0 ? allUsers : Object.values(roleMembers).flat();
@@ -199,7 +182,7 @@ export default function UserManagementPage() {
             list.push({ user: u, role: roleById.get(u.id) || 'estudiante' });
         }
         list.sort((a, b) => {
-            const ra = roleOrder.indexOf(a.role), rb = roleOrder.indexOf(b.role);
+            const ra = ROLE_ORDER.indexOf(a.role), rb = ROLE_ORDER.indexOf(b.role);
             if (ra !== rb) return ra - rb;
             return (fullNameOf(a.user) || a.user.username).localeCompare(fullNameOf(b.user) || b.user.username);
         });
@@ -208,7 +191,7 @@ export default function UserManagementPage() {
 
     const counts = useMemo(() => {
         const c: Record<string, number> = { all: rows.length };
-        for (const r of roleOrder) c[r] = 0;
+        for (const r of ROLE_ORDER) c[r] = 0;
         for (const row of rows) c[row.role]++;
         return c;
     }, [rows]);
@@ -228,7 +211,7 @@ export default function UserManagementPage() {
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
-    const changeRole = async (user: KeycloakUser, currentRole: string, newRole: string) => {
+    const changeRole = async (user: KeycloakUser, currentRole: EffectiveRole, newRole: EffectiveRole) => {
         const userLabel = user.username || user.email || 'este usuario';
         const result = await Swal.fire({
             html: `
@@ -269,7 +252,7 @@ export default function UserManagementPage() {
 
         try {
             if (newRole !== 'estudiante') await adminService.toggleUserRole(user.id, newRole, true);
-            for (const roleName of specialRoles) {
+            for (const roleName of ASSIGNABLE_ROLES) {
                 if (roleName !== newRole && (roleMembers[roleName] || []).some(u => u.id === user.id)) {
                     await adminService.toggleUserRole(user.id, roleName, false);
                 }
@@ -335,7 +318,7 @@ export default function UserManagementPage() {
                         <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ flex: 2.4, letterSpacing: '.05em' }}>Usuario</Text>
                         <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ flex: 1.1, letterSpacing: '.05em' }}>Rol</Text>
                         <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ flex: 1, letterSpacing: '.05em' }} visibleFrom="sm">Fecha registro</Text>
-                        <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ width: 168, textAlign: 'right', letterSpacing: '.05em' }}>Acciones</Text>
+                        <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ width: 210, textAlign: 'right', letterSpacing: '.05em' }}>Acciones</Text>
                     </Group>
 
                     {loading ? (

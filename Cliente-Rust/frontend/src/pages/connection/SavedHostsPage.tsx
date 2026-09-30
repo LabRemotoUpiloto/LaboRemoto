@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listHostEntries, deleteHostFile } from '../../services/storage.service'
+import { listHostEntries, deleteHostFile, type SavedHostFileEntry } from '../../services/storage.service'
 import { useLoading } from '../../contexts/LoadingContext'
 import { useToasts } from '../../contexts/ToastContext'
 import { Card, Text, Badge, ActionIcon, Menu, Button, Box, Container, SimpleGrid, Stack, Title, Loader, Tooltip } from '@mantine/core'
@@ -8,15 +8,13 @@ import { Monitor, MoreVertical, Pencil, Trash2, Plus, Server, Cpu, ArrowRight } 
 import { sshConnect } from '../../services/ssh.service'
 import { isRaspberryPi4, getDeviceLabel } from '../../constants/devices'
 
-type HostEntry = { file: string; payload: { host: string; port: number | string; user?: string; password?: string; name?: string } }
-
 interface SavedHostsPageProps {
   onConnected?: (sessionId: string, label: string) => void;
-  onEdit?: (hostData: HostEntry['payload'], originalFile: string) => void;
+  onEdit?: (hostData: SavedHostFileEntry['payload'], originalFile: string) => void;
 }
 
 export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPageProps) {
-  const [entries, setEntries] = useState<HostEntry[]>([])
+  const [entries, setEntries] = useState<SavedHostFileEntry[]>([])
   const [loadingLocal, setLoadingLocal] = useState(false)
   const { setLoading } = useLoading()
   const { push } = useToasts()

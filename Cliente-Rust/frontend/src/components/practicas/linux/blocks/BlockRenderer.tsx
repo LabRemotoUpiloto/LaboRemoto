@@ -131,7 +131,11 @@ function CommandStepBlock({
         <Group align="flex-start" gap="sm" wrap="nowrap">
           <Checkbox checked={passed} readOnly mt={2} />
           <Stack gap={4}>
-            <Text ff="monospace" fz="sm" fw={600}>{block.command}</Text>
+            {block.goal_md ? (
+              <Text fz="sm">{renderInline(block.goal_md)}</Text>
+            ) : (
+              <Text ff="monospace" fz="sm" fw={600}>{block.command}</Text>
+            )}
             <Text fz="xs" c="dimmed">{renderInline(block.explain_md)}</Text>
           </Stack>
         </Group>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActionIcon, Menu, Text, Tooltip, UnstyledButton } from '@mantine/core';
-import { Monitor, Pencil, SquareTerminal } from 'lucide-react';
+import { Monitor, Pencil, SquareTerminal, type LucideIcon } from 'lucide-react';
 import type { Tab } from '../../hooks/useAppTabs';
 import { CloseIcon } from './header/HeaderConstants';
 
@@ -133,7 +133,7 @@ const TabRow: React.FC<{
  *  varios, despliega un menú para elegir cuál — así no se apilan N íconos
  *  por cada sesión abierta. */
 const GroupButton: React.FC<{
-  icon: React.ElementType;
+  icon: LucideIcon;
   activeTab?: Tab;
   isGroupActive: boolean;
   tabsInGroup: Tab[];

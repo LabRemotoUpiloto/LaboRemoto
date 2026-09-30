@@ -4,6 +4,7 @@ import TerminalPane from './TerminalPane';
 import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
+import Ev3Panel from '../ev3/Ev3Panel';
 import LinuxPracticeProgressBar from '../practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
@@ -18,6 +19,8 @@ interface TerminalViewProps {
   practiceId?: string | null;
   assignmentId?: number;
   student?: { id: number; username: string; fullname: string; email: string } | null;
+  /** true si la práctica activa trae panel de control de robot (Eve3 vía API) — ver usePracticeSession. */
+  robotDashboardEnabled?: boolean;
   /** Instancia única de useLinuxPracticeSession (ver App.tsx), para leer progreso/conexión de la práctica Linux activa. */
   linuxSession?: LinuxPracticeSessionApi;
 }
@@ -32,8 +35,12 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   practiceId = null,
   assignmentId,
   student = null,
+  robotDashboardEnabled = false,
   linuxSession,
 }) => {
+  // La práctica arranca mostrando el dashboard del robot (si aplica); el
+  // estudiante puede alternar a la terminal SSH cruda sin perder la sesión.
+  const [showEv3Panel, setShowEv3Panel] = useState(robotDashboardEnabled);
   const [chatWidth, setChatWidth] = useState(420);
   const [cameraHeight, setCameraHeight] = useState(450);
   const [isResizingChat, setIsResizingChat] = useState(false);
@@ -166,9 +173,36 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             <DesktopPane sessionId={sessionId} isActive={activeView === 'escritorio' && isTabActive} />
           </div>
 
+          {/* Capa 3: Panel de control EV3 (práctica Eve3 vía API) — se superpone
+              a terminal/VNC, no depende de `activeView` sino de su propio toggle. */}
+          {robotDashboardEnabled && (
+            <div style={{
+              gridArea: '1 / 1',
+              display: 'flex',
+              flexDirection: 'column',
+              visibility: showEv3Panel ? 'visible' : 'hidden',
+              zIndex: showEv3Panel ? 2 : 0,
+              minWidth: 0,
+              minHeight: 0,
+            }}>
+              <Ev3Panel sessionId={sessionId} onIrATerminal={() => setShowEv3Panel(false)} />
+            </div>
+          )}
+
         </div>
 
       </div>
+
+      {robotDashboardEnabled && (
+        <button
+          type="button"
+          onClick={() => setShowEv3Panel(v => !v)}
+          className="ev3-view-toggle"
+          title={showEv3Panel ? 'Ver terminal SSH' : 'Ver panel de control EV3'}
+        >
+          {showEv3Panel ? 'Terminal' : 'Panel EV3'}
+        </button>
+      )}
 
       {/* ── Right: Chat Side Panel ── */}
       {isChatOpen && (

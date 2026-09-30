@@ -36,7 +36,7 @@ export interface RankDef {
   code?: string;
 }
 
-/** Ranks según §4 de la investigación de diseño -- solo linux-m1 existe hoy. */
+/** Ranks según §4 de la investigación de diseño -- linux-m1, m2 y m3 existen hoy; M4 y M5 son "próximamente". */
 export const RANKS: RankDef[] = [
   {
     id: 'acceso-basico',
@@ -46,10 +46,18 @@ export const RANKS: RankDef[] = [
     code: 'M1',
   },
   {
-    id: 'operador',
-    title: 'Operador',
-    description: 'Explorar archivos, permisos, el editor y las tuberías.',
-    code: 'M2-3',
+    id: 'explorador',
+    title: 'Explorador',
+    description: 'Moverte por el sistema de archivos, crear archivos y entender los permisos.',
+    moduleId: 'linux-m2',
+    code: 'M2',
+  },
+  {
+    id: 'editor',
+    title: 'Editor',
+    description: 'Editar archivos con nano y encadenar comandos con tuberías.',
+    moduleId: 'linux-m3',
+    code: 'M3',
   },
   {
     id: 'administrador-jr',

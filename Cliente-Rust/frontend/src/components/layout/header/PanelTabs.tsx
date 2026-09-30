@@ -65,11 +65,11 @@ const PanelTabs: React.FC<PanelTabsProps> = ({
         variant="outline"
         classNames={{
           root: '!border-0',
-          tabsList: '!border-0 !border-b-0',
+          list: '!border-0 !border-b-0',
         }}
         styles={{
           root: { border: 0, borderBottom: 0, height: '100%' },
-          tabsList: { border: 0, borderBottom: 0, height: '100%', paddingLeft: rem(12), flexWrap: 'nowrap' },
+          list: { border: 0, borderBottom: 0, height: '100%', paddingLeft: rem(12), flexWrap: 'nowrap' },
           tab: {
             height: rem(44),
             fontSize: rem(12),

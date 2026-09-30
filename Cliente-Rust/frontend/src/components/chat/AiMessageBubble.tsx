@@ -9,7 +9,7 @@ import { ActionIcon, Button, Group, Text } from '@mantine/core';
 import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
 import { BlockView } from '../practicas/linux/blocks/BlockRenderer';
 import { ModuleCompleteCelebration } from '../practicas/linux/ModuleCompleteCelebration';
-import { markModuleBadgeEarned } from '../../services/badges.service';
+import { markModuleBadgeEarned, rankForModule } from '../../services/badges.service';
 
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;
@@ -63,6 +63,8 @@ export default function AiMessageBubble({
   useEffect(() => {
     if (!linuxQuizSubmitted || !linuxResult?.passed || !linuxQuizModuleId || celebratedRef.current) return;
     celebratedRef.current = true;
+    // Módulo sin insignia en el catálogo: nada que ganar ni celebrar.
+    if (!rankForModule(linuxQuizModuleId)) return;
     const { alreadyEarned } = markModuleBadgeEarned(linuxQuizModuleId);
     if (alreadyEarned) {
       // Ya se había ganado antes (ej. el estudiante vuelve a un módulo que

@@ -40,6 +40,7 @@ import { usePracticeSession } from './hooks/usePracticeSession'
 import { useLinuxPracticeSession } from './hooks/useLinuxPracticeSession'
 import { requestPracticesFocus } from './services/practiceNavigation.service'
 import { clearModuleBadge } from './services/badges.service'
+import { usePracticeActivityReporter, type PracticaAbierta } from './hooks/usePracticeActivityReporter'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import type { PracticeSessionMeta } from './types'
 
@@ -166,13 +167,20 @@ const AppMain: React.FC = () => {
   // uno combinado: sin esto, practiceMeta?.[sessionId] queda `undefined`
   // para sesiones Linux y TerminalView nunca recibe su practiceId (rompe el
   // bloqueo de modo/modelo del chat y cualquier feature que dependa de él).
-  const combinedPracticeMeta = useMemo(() => {
+  // Tipo explícito (no inferido): sin esto, las dos ramas del useMemo abajo
+  // devuelven tipos distintos (PracticeSessionMeta vs. el shape local con
+  // student opcional) y TS infiere la unión de ambos -- lo que hace que
+  // `Object.entries(combinedPracticeMeta ?? {})` más abajo (ver
+  // practicasAbiertas) caiga en el overload genérico de Object.entries y
+  // tipe cada valor como `unknown` en vez de la forma real.
+  type CombinedPracticeMeta = { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null };
+  const combinedPracticeMeta = useMemo<Record<string, CombinedPracticeMeta>>(() => {
     const linuxEntries = Object.entries(linuxSession.sessionModuleMap)
     if (linuxEntries.length === 0) return practiceMeta
     // `student` es opcional/nullable en el tipo local PracticeMeta de
     // SessionContainer (ver ese archivo) -- las entradas Linux solo aportan
     // practiceId, sin inventar assignmentId/student.
-    const merged: Record<string, { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null }> = { ...(practiceMeta ?? {}) }
+    const merged: Record<string, CombinedPracticeMeta> = { ...(practiceMeta ?? {}) }
     for (const [sessionId, moduleId] of linuxEntries) {
       merged[sessionId] = { practiceId: String(moduleId) }
     }
@@ -181,6 +189,18 @@ const AppMain: React.FC = () => {
 
   // ── Sesión y Autenticación ───────────────────────────────────────────────────
   const { isAuthenticated, isLoading } = useAuth()
+
+  // Registro central de sesiones: solo prácticas cuya pestaña ya existe (de
+  // ahí sale el nombre que se reporta).
+  const practicasAbiertas = useMemo(() => {
+    const abiertas: Record<string, PracticaAbierta> = {}
+    for (const [sessionId, meta] of Object.entries(combinedPracticeMeta ?? {})) {
+      const tab = tabs.find(t => t.id === sessionId)
+      if (tab) abiertas[sessionId] = { practiceId: meta.practiceId, nombre: tab.label }
+    }
+    return abiertas
+  }, [combinedPracticeMeta, tabs])
+  usePracticeActivityReporter(practicasAbiertas, isAuthenticated)
 
   // ── Ciclo de vida de tabs ────────────────────────────────────────────────────
   const { handleCloseTab } = useTabLifecycle({
@@ -207,7 +227,7 @@ const AppMain: React.FC = () => {
   }, [linuxSession.sessionModuleMap, handleCloseTab])
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia']
+  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia', 'dashboard']
   const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {

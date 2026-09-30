@@ -25,6 +25,19 @@ export interface HostEntry {
   name?: string;
 }
 
+/**
+ * Forma real de `list_hosts_entries` (ver storage.rs::list_hosts_entries) --
+ * el comando arma a mano `{"file": name, "payload": payload_val}` con el
+ * contenido YA descifrado (incluye password), no el `HostEntry` plano de
+ * arriba (ese es de otro comando). `file` es el nombre de archivo dentro del
+ * directorio de storage (ej. "abcd1234.json.enc") -- también sirve como el
+ * `id` que espera `deleteHostFile`.
+ */
+export interface SavedHostFileEntry {
+  file: string;
+  payload: HostPayload;
+}
+
 // ── Hosts guardados ───────────────────────────────────────────────────────────
 
 /** Guarda un host con cifrado maestro. */
@@ -48,8 +61,8 @@ export const loadHostEncrypted = (id: string): Promise<string> =>
   invoke<string>('load_host_encrypted', { id });
 
 /** Lista todas las entradas de hosts guardados. */
-export const listHostEntries = (): Promise<HostEntry[]> =>
-  invoke<HostEntry[]>('list_hosts_entries');
+export const listHostEntries = (): Promise<SavedHostFileEntry[]> =>
+  invoke<SavedHostFileEntry[]>('list_hosts_entries');
 
 /** Lista los archivos de hosts disponibles. */
 export const listHostFiles = (): Promise<string[]> =>

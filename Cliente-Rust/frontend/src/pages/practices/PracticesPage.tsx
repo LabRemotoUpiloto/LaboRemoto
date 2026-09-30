@@ -4,54 +4,29 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
 import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { AlertTriangle, ArrowLeft, Bot, Cpu, Terminal, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Bot, Cpu, Terminal, X, type LucideIcon } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
 import LinuxModulePage from './LinuxModulePage';
 import ExternalPracticeCard from '../../components/practicas/ExternalPracticeCard';
 import { useLabPractices } from '../../hooks/useLabPractices';
+import {
+    labPracticesRunSetup,
+    labPracticesGetRunnable,
+    type Practice,
+    type RunnableLabPractice,
+} from '../../services/labPractices.service';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { useEarnedBadges } from '../../services/badges.service';
 import { consumePendingPracticesFocus } from '../../services/practiceNavigation.service';
 
-const categoryIconMap: Record<string, React.ElementType> = {
+export type { Practice };
+
+const categoryIconMap: Record<string, LucideIcon> = {
     robot: Bot,
     terminal: Terminal,
     circuit: Cpu,
 };
-
-interface PanelConfig {
-    camera: boolean;
-    chat: boolean;
-    chat_context: string;
-    chat_tutorial: string;
-}
-
-interface TerminalConfig {
-    allowed_commands: string[];
-    working_directory: string;
-    allow_navigation: boolean;
-    allow_nano: boolean;
-}
-
-interface PracticeConnection {
-    host: string;
-    port: number;
-    user: string;
-    password: string;
-    setup_commands: any[];
-}
-
-interface Practice {
-    id: string;
-    name: string;
-    description: string;
-    difficulty: string;
-    moodle_assignment_id?: number;
-    connection: PracticeConnection;
-    terminal: TerminalConfig;
-    panels: PanelConfig;
-}
 
 interface PracticeCategory {
     id: string;
@@ -203,6 +178,52 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         setStartingPractice(null);
     };
 
+    // Igual que handleStartPractice, pero para una práctica del catálogo
+    // (cmd::integration::lab_practices) con LabConnectionProfile local — ver
+    // cmd::practices::lab_connection. Mismo flujo (setup -> config completa
+    // -> onStartPractice), solo cambia de dónde sale el nombre/descripción.
+    const handleStartExternalPractice = async (practice: RunnableLabPractice) => {
+        if (startingPractice) return;
+        setStartingPractice(practice.id);
+        setSetupLogs([]);
+        setError(null);
+
+        const addLog = (level: LogEntry['level'], message: string) => {
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            setSetupLogs(prev => [...prev, { level, message, timestamp }]);
+        };
+
+        try {
+            await labPracticesRunSetup(practice.id);
+
+            addLog('info', 'Obteniendo configuración de la práctica...');
+            const fullConfig = await labPracticesGetRunnable(practice.id);
+            addLog('success', 'Configuración obtenida');
+
+            await onStartPractice?.({
+                practice: fullConfig,
+                student: { id: 0, username: '', fullname: 'Estudiante', email: '' },
+            });
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            addLog('error', `Práctica detenida por error — ${errMsg}`);
+            Swal.fire({
+                title: 'Error al iniciar práctica',
+                text: errMsg,
+                icon: 'error',
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: 'var(--danger, #EF4444)',
+                position: 'center',
+                customClass: { container: 'swal-fullscreen' },
+            });
+            setStartingPractice(null);
+            return;
+        }
+
+        setStartingPractice(null);
+    };
+
     const handleBack = () => {
         setSelectedCategory(null);
         setSetupLogs([]);
@@ -252,7 +273,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                             <Text size="md" c="dimmed" maw={580}>
                                 {catalogTab === 'local'
                                     ? 'Selecciona una categoría para ver las prácticas disponibles. Cada práctica configura automáticamente tu entorno de trabajo.'
-                                    : 'Prácticas publicadas por aplicaciones de autoría externas. Contenido importado y de solo lectura — para ejecutarlas hace falta vincularlas a un entorno de laboratorio local (próxima fase).'}
+                                    : 'Prácticas publicadas por aplicaciones de autoría externas. Las que tienen un entorno de laboratorio vinculado en este equipo muestran "Iniciar práctica"; el resto es solo contenido de lectura.'}
                             </Text>
                         </Stack>
 
@@ -312,9 +333,24 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                         ) : (
                             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
                                 {externalPractices.map(practice => (
-                                    <ExternalPracticeCard key={practice.id} practice={practice} />
+                                    <ExternalPracticeCard
+                                        key={practice.id}
+                                        practice={practice}
+                                        onStart={() => handleStartExternalPractice(practice)}
+                                        loading={startingPractice === practice.id}
+                                    />
                                 ))}
                             </SimpleGrid>
+                        )}
+
+                        {catalogTab === 'external' && setupLogs.length > 0 && (
+                            <SetupLogPanel
+                                logs={setupLogs}
+                                levelColor={levelColor}
+                                isRunning={!!startingPractice}
+                                onClear={() => setSetupLogs([])}
+                                logEndRef={logEndRef}
+                            />
                         )}
                     </Stack>
                 ) : (
@@ -376,47 +412,13 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                         </SimpleGrid>
 
                         {setupLogs.length > 0 && (
-                            <Paper withBorder radius="md">
-                                <Group
-                                    px="md"
-                                    py="xs"
-                                    justify="space-between"
-                                    style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-                                >
-                                    <Text size="xs" fw={600} c="dimmed">Log de Inicialización</Text>
-                                    {!startingPractice && (
-                                        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setSetupLogs([])}>
-                                            <X size={14} />
-                                        </ActionIcon>
-                                    )}
-                                </Group>
-                                <ScrollArea h={280} p="md">
-                                    <Stack gap={4}>
-                                        {setupLogs.map((log, i) => (
-                                            <Group key={i} gap="sm" align="flex-start" wrap="nowrap">
-                                                <Text
-                                                    size="xs"
-                                                    c="dimmed"
-                                                    style={{ minWidth: 65, flexShrink: 0, fontFamily: 'monospace' }}
-                                                >
-                                                    {log.timestamp}
-                                                </Text>
-                                                <Text
-                                                    size="xs"
-                                                    c={levelColor[log.level]}
-                                                    style={{ fontFamily: 'monospace', wordBreak: 'break-word' }}
-                                                >
-                                                    {log.message}
-                                                </Text>
-                                            </Group>
-                                        ))}
-                                        {startingPractice && (
-                                            <Text size="xs" c="green" style={{ fontFamily: 'monospace' }}>▌</Text>
-                                        )}
-                                        <div ref={logEndRef} />
-                                    </Stack>
-                                </ScrollArea>
-                            </Paper>
+                            <SetupLogPanel
+                                logs={setupLogs}
+                                levelColor={levelColor}
+                                isRunning={!!startingPractice}
+                                onClear={() => setSetupLogs([])}
+                                logEndRef={logEndRef}
+                            />
                         )}
                     </Stack>
                 )}
@@ -424,5 +426,48 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         </Box>
     );
 };
+
+/** Panel de log de inicialización — compartido entre prácticas locales y las del catálogo. */
+const SetupLogPanel: React.FC<{
+    logs: LogEntry[];
+    levelColor: Record<LogEntry['level'], string>;
+    isRunning: boolean;
+    onClear: () => void;
+    logEndRef: React.RefObject<HTMLDivElement>;
+}> = ({ logs, levelColor, isRunning, onClear, logEndRef }) => (
+    <Paper withBorder radius="md">
+        <Group
+            px="md"
+            py="xs"
+            justify="space-between"
+            style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
+        >
+            <Text size="xs" fw={600} c="dimmed">Log de Inicialización</Text>
+            {!isRunning && (
+                <ActionIcon variant="subtle" color="gray" size="sm" onClick={onClear}>
+                    <X size={14} />
+                </ActionIcon>
+            )}
+        </Group>
+        <ScrollArea h={280} p="md">
+            <Stack gap={4}>
+                {logs.map((log, i) => (
+                    <Group key={i} gap="sm" align="flex-start" wrap="nowrap">
+                        <Text size="xs" c="dimmed" style={{ minWidth: 65, flexShrink: 0, fontFamily: 'monospace' }}>
+                            {log.timestamp}
+                        </Text>
+                        <Text size="xs" c={levelColor[log.level]} style={{ fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                            {log.message}
+                        </Text>
+                    </Group>
+                ))}
+                {isRunning && (
+                    <Text size="xs" c="green" style={{ fontFamily: 'monospace' }}>▌</Text>
+                )}
+                <div ref={logEndRef} />
+            </Stack>
+        </ScrollArea>
+    </Paper>
+);
 
 export default PracticesPage;

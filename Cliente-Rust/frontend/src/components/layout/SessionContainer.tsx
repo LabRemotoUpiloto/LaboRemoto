@@ -15,6 +15,7 @@ type PracticeMeta = {
   // combinedPracticeMeta en App.tsx) solo aportan practiceId, nunca student
   // (esa práctica no viene del flujo de asignaciones con estudiante real).
   student?: { id: number; username: string; fullname: string; email: string } | null
+  robotDashboard?: boolean
 }
 
 type Props = {
@@ -77,6 +78,7 @@ const SessionContainer: React.FC<Props> = ({
               practiceId={practiceMeta?.[t.id]?.practiceId ?? null}
               assignmentId={practiceMeta?.[t.id]?.assignmentId}
               student={practiceMeta?.[t.id]?.student ?? null}
+              robotDashboardEnabled={!!practiceMeta?.[t.id]?.robotDashboard}
               linuxSession={linuxSession}
             />
           </div>

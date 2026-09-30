@@ -17,20 +17,24 @@
 //     solo si :token es un token de sesion valido y no vencido
 //     (emitido por /nvr/monitor tras validar el JWT).
 //   POST /nvr/ptz/:groupKey/:mid
-//     Requiere: Authorization: Bearer <jwt de Keycloak> con rol
-//     admin_lab, laboratorista o semillerista (realm_access.roles). Body JSON
+//     Requiere: Authorization: Bearer <jwt de Keycloak> con alguno de
+//     PTZ_ROLES (realm_access.roles). Body JSON
 //     {"op": "Left"|"Right"|...|"Stop"|"ZoomInc"|"ZoomDec", "speed"?: n}.
 //     Traduce :mid a la camara Reolink real (IP+credenciales, nunca
 //     expuestas al cliente) y reenvia el comando PTZ via su API HTTP.
 //
+//   POST /nvr/sesiones/evento, GET /nvr/sesiones/resumen
+//     Registro de sesiones de práctica — ver sesiones.js.
+//
 // Config: variables de entorno SHINOBI_API_KEY, SHINOBI_LOCAL_PORT (8082),
 // PORT (puerto donde escucha este broker, default 8091),
 // KEYCLOAK_JWKS_URL, KEYCLOAK_ISSUER, PTZ_CAMERAS_JSON (mapa mid -> camara
-// Reolink real, ver seccion PTZ mas abajo).
+// Reolink real, ver seccion PTZ mas abajo). Las de sesiones.js van aparte.
 
 const http = require('node:http');
 const https = require('node:https');
 const crypto = require('node:crypto');
+const sesiones = require('./sesiones');
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8091;
 const SHINOBI_API_KEY = process.env.SHINOBI_API_KEY;
@@ -155,6 +159,12 @@ const PTZ_OPS = new Set([
   'LeftUp', 'LeftDown', 'RightUp', 'RightDown',
   'ZoomInc', 'ZoomDec', 'Stop',
 ]);
+
+// Debe coincidir con los roles de personal de usePermissions.ts (STAFF).
+const PTZ_ROLES = [
+  'admin_lab', 'jefe_laboratorio', 'coordinador_laboratorio',
+  'laboratorista', 'semillerista',
+];
 
 const ptzTokens = new Map(); // mid -> { token, expiresAt }
 
@@ -346,12 +356,11 @@ const server = http.createServer(async (req, res) => {
 
     // PTZ mueve hardware real -- a diferencia de /nvr/monitor (solo lectura),
     // aca si se exige rol, igual que el acceso a "Vigilancia" en el frontend
-    // (usePermissions.PAGE_ACCESS['vigilancia']: tier 'operativo' -- admin_lab,
-    // laboratorista o semillerista).
+    // (usePermissions.PAGE_ACCESS['vigilancia']: todos los roles de personal).
     const roles = claims.realm_access?.roles || [];
-    if (!roles.includes('admin_lab') && !roles.includes('laboratorista') && !roles.includes('semillerista')) {
+    if (!PTZ_ROLES.some((r) => roles.includes(r))) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: 'forbidden', message: 'PTZ requiere rol admin_lab, laboratorista o semillerista' }));
+      return res.end(JSON.stringify({ error: 'forbidden', message: `PTZ requiere uno de estos roles: ${PTZ_ROLES.join(', ')}` }));
     }
 
     const cam = PTZ_CAMERAS[mid];
@@ -383,6 +392,9 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
+
+  // /nvr/sesiones/* — registro de sesiones de práctica (ver sesiones.js)
+  if (await sesiones.handle(req, res, url, parts, verifyJwt)) return;
 
   res.writeHead(req.method === 'GET' || req.method === 'POST' ? 404 : 405);
   res.end();
