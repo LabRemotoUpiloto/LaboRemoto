@@ -31,6 +31,9 @@ export interface RankDef {
    * nunca como ganable.
    */
   moduleId?: string;
+  /** Código corto grabado DENTRO de la medalla (ver MedalIcon) -- liga la
+   * insignia a qué práctica puntual se ganó, ej. "M1". */
+  code?: string;
 }
 
 /** Ranks según §4 de la investigación de diseño -- solo linux-m1 existe hoy. */
@@ -40,21 +43,25 @@ export const RANKS: RankDef[] = [
     title: 'Acceso básico',
     description: '¿Dónde estoy? — identidad, prompt y las 4 piezas de un sistema Linux.',
     moduleId: 'linux-m1',
+    code: 'M1',
   },
   {
     id: 'operador',
     title: 'Operador',
     description: 'Explorar archivos, permisos, el editor y las tuberías.',
+    code: 'M2-3',
   },
   {
     id: 'administrador-jr',
     title: 'Administrador jr.',
     description: 'Crear, copiar, mover y borrar tu propio espacio de trabajo.',
+    code: 'M4',
   },
   {
     id: 'operador-jr',
     title: 'Operador Jr.',
     description: 'Tu primer incidente, resuelto sin andamiaje.',
+    code: 'M5',
   },
 ];
 

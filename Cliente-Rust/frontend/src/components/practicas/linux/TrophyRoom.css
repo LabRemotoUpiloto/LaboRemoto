@@ -5,9 +5,8 @@
 }
 
 .tr-stand {
-  --tr-shield-fill: rgba(226, 31, 25, 0.12);
-  --tr-shield-stroke: #e21f19;
-  --tr-locked-stroke: var(--text-secondary, #6b7280);
+  --tr-medal-ring: #e21f19;
+  --tr-medal-disc: #f7cd3d;
 
   display: flex;
   flex-direction: column;
@@ -31,13 +30,14 @@
   box-shadow: 0 8px 20px rgba(226, 31, 25, 0.15);
 }
 
-.tr-shield {
-  width: 40px;
-  height: 46px;
+.tr-medal {
+  width: 48px;
+  height: 48px;
   margin-bottom: 2px;
+  color: var(--text-secondary, #6b7280);
 }
 
-.tr-stand:not(.tr-stand--earned) .tr-shield {
+.tr-stand:not(.tr-stand--earned) .tr-medal {
   opacity: 0.55;
 }
 
@@ -67,7 +67,7 @@
 }
 
 .tr-stand-status--earned {
-  color: var(--tr-shield-stroke);
+  color: var(--tr-medal-ring);
 }
 
 .tr-stand-status--soon {
