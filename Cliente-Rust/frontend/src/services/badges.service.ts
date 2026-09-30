@@ -109,6 +109,22 @@ export function markModuleBadgeEarned(moduleId: string): { alreadyEarned: boolea
   return { alreadyEarned };
 }
 
+/**
+ * Borra la insignia de un módulo -- usado por el flujo de "Repetir" del
+ * administrador (ver LinuxModulePage): un rol operativo necesita poder
+ * volver a hacer una práctica ya completa para revisar comportamientos, sin
+ * que quede marcada como completa para siempre. Reusa el mismo evento que
+ * `markModuleBadgeEarned` (`useEarnedBadges` solo necesita saber "el store
+ * cambió", no si fue un alta o una baja).
+ */
+export function clearModuleBadge(moduleId: string): void {
+  const store = readStore();
+  if (!(moduleId in store)) return;
+  delete store[moduleId];
+  writeStore(store);
+  window.dispatchEvent(new CustomEvent(BADGE_EARNED_EVENT, { detail: { moduleId } }));
+}
+
 export function rankForModule(moduleId: string): RankDef | undefined {
   return RANKS.find((r) => r.moduleId === moduleId);
 }

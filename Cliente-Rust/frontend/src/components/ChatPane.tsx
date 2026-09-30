@@ -167,12 +167,24 @@ const ChatPane: React.FC<Props> = ({
     try {
       await linuxSession.submitQuizAnswers(linuxModule, linuxQuizAnswers);
       setLinuxQuizSubmitted(true);
-    } catch (e) {
-      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error enviando la evaluación: ${String(e)}` }]);
+    } catch (e: any) {
+      // Los comandos practicas_linux_* rechazan con el CommandError plano
+      // ({ code, message, ... }) tal cual lo serializa Tauri, no con un
+      // Error de JS -- `String(e)` sobre ese objeto da "[object Object]".
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error enviando la evaluación: ${e?.message ?? String(e)}` }]);
     } finally {
       setLinuxQuizSubmitting(false);
     }
   }, [linuxModule, linuxSession, linuxQuizSubmitting, linuxQuizAnswers]);
+
+  // Convención de "fin de práctica" para toda la app (ver
+  // frontend/docs/practice-completion.md) -- AiMessageBubble llama a esto
+  // apenas termina de mostrar la celebración del módulo (o de inmediato si
+  // ya estaba completo de antes), y acá solo reenviamos al hook, que a su
+  // vez dispara la navegación real (App.tsx: volver a Inicio + Prácticas).
+  const handleLinuxModuleComplete = useCallback((moduleId: string) => {
+    linuxSession?.notifyModuleComplete(moduleId);
+  }, [linuxSession]);
 
   // Determina el próximo lote de bloques a mostrar: recorre module.blocks en
   // orden, siempre agrega texto/analogía/anotación/media apenas se alcanzan,
@@ -720,8 +732,8 @@ const ChatPane: React.FC<Props> = ({
     setIsSending(true);
     try {
       await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
-    } catch (e) {
-      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando la salida: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando la salida: ${e?.message ?? String(e)}` }]);
     } finally {
       setIsSending(false);
     }
@@ -756,8 +768,8 @@ const ChatPane: React.FC<Props> = ({
     setIsSending(true);
     try {
       await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
-    } catch (e) {
-      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando el error: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando el error: ${e?.message ?? String(e)}` }]);
     } finally {
       setIsSending(false);
     }
@@ -868,7 +880,7 @@ const ChatPane: React.FC<Props> = ({
         deliverLinuxBatch(linuxModule, (practiceResult as unknown as LinuxValidationResult) ?? null);
       }
     } catch (e: any) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
     } finally { isSendingRef.current = false; setIsSending(false); }
   };
   handleSendRef.current = handleSend;
@@ -915,8 +927,8 @@ const ChatPane: React.FC<Props> = ({
     try {
       setIsSending(true); isSendingRef.current = true;
       await modeHandlers[mode].send(userMsg.text, userMsg, buildModeContext());
-    } catch (e) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
     } finally { isSendingRef.current = false; setIsSending(false); }
   };
   const handleRetry = useCallback((id: string) => re_send_wrapper(id, false), [messages, mode, isSending]); /* eslint-disable-line */
@@ -930,8 +942,8 @@ const ChatPane: React.FC<Props> = ({
       const userMsg: Message = { id: String(Date.now()), sender: 'user', text: command };
       setMessages(prev => [...prev, userMsg]);
       await modeHandlers['ask'].send(command, userMsg, buildModeContext());
-    } catch (e) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error ${action === 'optimize' ? 'optimizando' : 'analizando'} ${candidate}: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error ${action === 'optimize' ? 'optimizando' : 'analizando'} ${candidate}: ${e?.message ?? String(e)}` }]);
     } finally { setIsSending(false); }
   };
 
@@ -944,7 +956,7 @@ const ChatPane: React.FC<Props> = ({
     if (modeHandlers[mode]?.canSend()) {
       setIsSending(true); isSendingRef.current = true;
       modeHandlers[mode].send(draft, updatedMsg, buildModeContext()).catch((e: any) => {
-        setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+        setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
       }).finally(() => { isSendingRef.current = false; setIsSending(false); });
     }
   };
@@ -1038,6 +1050,7 @@ const ChatPane: React.FC<Props> = ({
           linuxQuizSubmitted={linuxQuizSubmitted}
           onLinuxQuizAnswer={handleLinuxQuizAnswer}
           onLinuxQuizSubmit={handleLinuxQuizSubmit}
+          onLinuxModuleComplete={handleLinuxModuleComplete}
           embeddedTerminal={pi4TerminalEmbedActive ? {
             sessionId: pi4ChatSessionId,
             sshCommandLine: pi4SshCommandLine,

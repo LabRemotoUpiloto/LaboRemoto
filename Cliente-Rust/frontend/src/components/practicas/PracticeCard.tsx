@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActionIcon, Button, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { Camera, MessageSquare, ArrowRight } from 'lucide-react';
+import { MedalIcon } from './linux/MedalIcon';
 
 interface PracticeCardProps {
     id: string;
@@ -11,6 +12,9 @@ interface PracticeCardProps {
     hasChat: boolean;
     onStart: () => void;
     loading?: boolean;
+    /** Insignia ganada para esta práctica puntual (ver services/badges.service.ts) -- se
+     * muestra como medalla en la esquina de la tarjeta, sin bloquear ninguna acción. */
+    completed?: boolean;
 }
 
 const difficultyConfig: Record<string, { label: string; dot: string; className: string }> = {
@@ -19,15 +23,22 @@ const difficultyConfig: Record<string, { label: string; dot: string; className: 
     advanced: { label: 'Avanzado', dot: 'var(--danger, #EF4444)', className: 'advanced' },
 };
 
-const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficulty, hasCamera, hasChat, onStart, loading = false }) => {
+const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficulty, hasCamera, hasChat, onStart, loading = false, completed = false }) => {
     const diff = difficultyConfig[difficulty] || difficultyConfig.beginner;
 
     return (
         <Card
             padding="lg"
             className="animate-reveal dribbble-card dribbble-card-interactive group flex flex-col justify-between"
-            style={{ minHeight: '100%' }}
+            style={{ minHeight: '100%', position: 'relative' }}
         >
+            {completed && (
+                <Tooltip label="Módulo completo" withArrow position="top">
+                    <div style={{ position: 'absolute', top: -10, right: -10, width: 34, height: 34, zIndex: 1 }}>
+                        <MedalIcon ariaLabel="Módulo completo" />
+                    </div>
+                </Tooltip>
+            )}
             <Stack gap="md" h="100%" style={{ flex: 1, justifyContent: 'space-between' }}>
                 <Group justify="space-between" align="center" wrap="nowrap">
                     <Group gap={8} align="center">

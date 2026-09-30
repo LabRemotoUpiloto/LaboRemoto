@@ -71,6 +71,8 @@ interface ChatMessageListProps {
   linuxQuizSubmitted?: boolean;
   onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
   onLinuxQuizSubmit?: () => void;
+  /** Ver docs/practice-completion.md -- se llama cuando el módulo llega al 100%. */
+  onLinuxModuleComplete?: (moduleId: string) => void;
   /** Mensajes de tipo `linuxContentBlocks` ya confirmados con "Continuar". */
 }
 
@@ -93,6 +95,7 @@ export default function ChatMessageList({
   linuxQuizSubmitted = false,
   onLinuxQuizAnswer,
   onLinuxQuizSubmit,
+  onLinuxModuleComplete,
 }: ChatMessageListProps) {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
 
@@ -172,6 +175,7 @@ export default function ChatMessageList({
                 linuxQuizSubmitted={linuxQuizSubmitted}
                 onLinuxQuizAnswer={onLinuxQuizAnswer}
                 onLinuxQuizSubmit={onLinuxQuizSubmit}
+                onLinuxModuleComplete={onLinuxModuleComplete}
               />
             )}
 

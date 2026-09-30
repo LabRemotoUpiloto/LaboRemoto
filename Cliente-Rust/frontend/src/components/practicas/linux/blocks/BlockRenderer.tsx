@@ -263,7 +263,7 @@ function QuizBlock({
   points,
   selected,
   onSelect,
-  locked,
+  attempted,
 }: {
   block: Extract<LinuxBlock, { type: 'quiz' }>;
   passed: boolean;
@@ -271,10 +271,14 @@ function QuizBlock({
   points?: number;
   selected?: string;
   onSelect: (optionId: string) => void;
-  /** Una vez que llegó un resultado validado (correcto o no), la pregunta deja de poder cambiarse. */
-  locked: boolean;
+  /** Ya se envió la evaluación al menos una vez -- antes de eso no hay feedback que mostrar. */
+  attempted: boolean;
 }) {
-  const showFeedback = locked && answered;
+  const showFeedback = attempted && answered;
+  // La evaluación completa exige el 100% (ver validation.py) -- una pregunta
+  // CORRECTA se bloquea (ya no tiene sentido tocarla), pero una INCORRECTA
+  // queda editable a propósito, para que el estudiante la corrija y reenvíe.
+  const locked = passed;
   return (
     <Paper
       withBorder
@@ -299,7 +303,7 @@ function QuizBlock({
       </Radio.Group>
       {showFeedback && (
         <Text fz="xs" mt={8} c={passed ? 'green' : 'red'}>
-          {passed ? 'Correcto.' : 'Incorrecto — revisá el bloque de arriba antes de la evaluación final.'}
+          {passed ? 'Correcto.' : 'Te equivocaste en esta pregunta — corregí tu respuesta y volvé a enviar la evaluación.'}
         </Text>
       )}
     </Paper>
@@ -416,7 +420,7 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
           points={rule?.points}
           selected={quizAnswers?.[block.id]}
           onSelect={(optionId) => onQuizAnswer?.(block.id, optionId)}
-          locked={!!quizLocked}
+          attempted={!!quizLocked}
         />
       );
     }

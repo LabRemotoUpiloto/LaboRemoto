@@ -11,6 +11,8 @@ import LinuxModulePage from './LinuxModulePage';
 import ExternalPracticeCard from '../../components/practicas/ExternalPracticeCard';
 import { useLabPractices } from '../../hooks/useLabPractices';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
+import { useEarnedBadges } from '../../services/badges.service';
+import { consumePendingPracticesFocus } from '../../services/practiceNavigation.service';
 
 const categoryIconMap: Record<string, React.ElementType> = {
     robot: Bot,
@@ -75,6 +77,8 @@ interface PracticesPageProps {
      * revalidación sobreviva a la navegación entre pestañas.
      */
     linuxSession?: LinuxPracticeSessionApi;
+    /** "Repetir" del administrador en LinuxModulePage -- ver App.tsx. */
+    onRestartLinuxModule?: (moduleId: string) => Promise<void>;
 }
 
 interface LogEntry {
@@ -83,7 +87,7 @@ interface LogEntry {
     timestamp: string;
 }
 
-const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, setChatOpen, linuxSession }) => {
+const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, setChatOpen, linuxSession, onRestartLinuxModule }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
@@ -100,9 +104,27 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const [catalogTab, setCatalogTab] = useState<'local' | 'external'>('local');
     const { practices: externalPractices, status: externalStatus, error: externalError, refetch: refetchExternal } = useLabPractices();
 
+    // Insignias ganadas -- keyed por el mismo id de práctica que usa la Pi
+    // (ej. "linux-m1"), ver services/badges.service.ts. Reactivo: si el
+    // estudiante termina un módulo y vuelve acá (ver App.tsx:
+    // onModuleCompleted), la tarjeta ya muestra la medalla sin recargar.
+    const earnedBadges = useEarnedBadges();
+
     useEffect(() => {
         loadCategories();
     }, []);
+
+    // Ver services/practiceNavigation.service.ts -- al volver de terminar un
+    // módulo (App.tsx: onModuleCompleted), aterriza directo en su categoría
+    // en vez de en la grilla de categorías, así el estudiante ve de una la
+    // tarjeta con la medalla nueva.
+    useEffect(() => {
+        if (categories.length === 0) return;
+        const pendingCategoryId = consumePendingPracticesFocus();
+        if (!pendingCategoryId) return;
+        const cat = categories.find(c => c.id === pendingCategoryId);
+        if (cat) setSelectedCategory(cat);
+    }, [categories]);
 
     // Auto-scroll logs
     useEffect(() => {
@@ -208,6 +230,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                 practiceId={selectedLinuxPracticeId}
                 onBack={() => setSelectedLinuxPracticeId(null)}
                 linuxSession={linuxSession}
+                onRestartModule={onRestartLinuxModule}
             />
         );
     }
@@ -347,6 +370,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                             : handleStartPractice(practice)
                                     )}
                                     loading={startingPractice === practice.id}
+                                    completed={practice.id in earnedBadges}
                                 />
                             ))}
                         </SimpleGrid>

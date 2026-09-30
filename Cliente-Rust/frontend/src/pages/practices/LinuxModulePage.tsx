@@ -10,10 +10,12 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Container, Stack, Title, Text, Button, Group, Paper, Loader, Alert, Badge,
 } from '@mantine/core';
-import { ArrowLeft, PlugZap, MonitorCheck } from 'lucide-react';
+import { ArrowLeft, PlugZap, MonitorCheck, RotateCcw, Eye } from 'lucide-react';
 import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { linuxGetModule, type LinuxModule } from '../../services/linuxPractice.service';
+import { useAccessTier } from '../../hooks/usePermissions';
+import { useEarnedBadges } from '../../services/badges.service';
 
 interface Props {
   practiceId: string;
@@ -25,11 +27,25 @@ interface Props {
    * polling de revalidación corre adentro del hook, no acá.
    */
   linuxSession: LinuxPracticeSessionApi;
+  /**
+   * Reinicia por completo el progreso de un módulo ya completo (cierra la
+   * sesión SSH real si sigue abierta y borra la insignia) -- ver App.tsx
+   * (handleRestartLinuxModule). Por ahora solo se ofrece al rol `admin`
+   * (ver usePermissions.ts): a futuro se abre a una lista de roles
+   * configurable, pero el mecanismo ya queda armado para reusarlo tal cual.
+   */
+  onRestartModule?: (moduleId: string) => Promise<void>;
 }
 
-const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) => {
+const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession, onRestartModule }) => {
   const [module, setModule] = useState<LinuxModule | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Elección del administrador cuando reabre un módulo ya completo (ver
+  // abajo) -- 'view' salta directo al flujo normal de conectar/seguir sin
+  // tocar nada; 'repeat' dispara el reinicio real y, apenas la insignia se
+  // borra (useEarnedBadges es reactivo), el chooser desaparece solo.
+  const [adminChoice, setAdminChoice] = useState<'view' | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   const {
     connect, connecting, submittingPassword, connectError,
@@ -38,16 +54,33 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) 
   } = linuxSession;
 
   const connected = module ? !!connectedModules[module.id] : false;
+  const tier = useAccessTier();
+  const earnedBadges = useEarnedBadges();
+  const alreadyCompleted = module ? module.id in earnedBadges : false;
+  // Por ahora exclusivo de `admin` -- acá es donde se engancha la lista de
+  // roles configurable a futuro que se mencionó al pedir esta feature.
+  const showAdminChooser = tier === 'admin' && alreadyCompleted && adminChoice === null;
 
   useEffect(() => {
     let cancelled = false;
     setModule(null);
     setLoadError(null);
+    setAdminChoice(null);
     linuxGetModule(practiceId)
       .then((m) => { if (!cancelled) setModule(m); })
       .catch((e) => { if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
   }, [practiceId]);
+
+  const handleRestart = async () => {
+    if (!module || restarting) return;
+    setRestarting(true);
+    try {
+      await onRestartModule?.(module.id);
+    } finally {
+      setRestarting(false);
+    }
+  };
 
   const handleConnect = async () => {
     if (!module) return;
@@ -73,6 +106,57 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) 
     return (
       <Box w="100%" h="100%" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader size="md" />
+      </Box>
+    );
+  }
+
+  // Ya completaste este módulo: como admin, elegí qué hacer antes de entrar
+  // (salir, repetirlo de cero para observar comportamientos, o solo verlo
+  // como quedó). Reemplaza el flujo normal de conectar -- se vuelve a
+  // mostrar el chooser cada vez que se reabre este módulo, mientras siga
+  // completo.
+  if (showAdminChooser) {
+    return (
+      <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+        <Container size="sm" py="xl">
+          <Stack gap="xl">
+            <Button variant="subtle" color="gray" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start' }}>
+              Volver a Linux
+            </Button>
+
+            <Stack gap={10}>
+              <Group gap={8}>
+                <Text fz="xs" tt="uppercase" fw={700} c="teal" style={{ letterSpacing: '0.08em' }}>
+                  Módulo {module.order}
+                </Text>
+                <Badge variant="light" color="green" size="sm">Completo</Badge>
+              </Group>
+              <Title order={1} style={{ fontSize: '1.75rem' }}>{module.title}</Title>
+              <Text c="dimmed" maw={520}>
+                Ya completaste este módulo. Como administrador, elegí qué hacer para revisar comportamientos.
+              </Text>
+            </Stack>
+
+            <Paper withBorder radius="md" p="md">
+              <Group justify="flex-end" gap="sm">
+                <Button variant="subtle" color="gray" onClick={onBack}>
+                  Salir
+                </Button>
+                <Button variant="light" leftSection={<Eye size={16} />} onClick={() => setAdminChoice('view')}>
+                  Ver
+                </Button>
+                <Button
+                  color="red"
+                  leftSection={<RotateCcw size={16} />}
+                  loading={restarting}
+                  onClick={handleRestart}
+                >
+                  Repetir
+                </Button>
+              </Group>
+            </Paper>
+          </Stack>
+        </Container>
       </Box>
     );
   }

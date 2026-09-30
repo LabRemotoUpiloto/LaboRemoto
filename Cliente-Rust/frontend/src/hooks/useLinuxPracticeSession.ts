@@ -22,6 +22,16 @@ import {
 interface UseLinuxPracticeSessionParams {
   onNewSession: (info: { id: string; label: string }) => void;
   setChatOpen: (open: boolean) => void;
+  /**
+   * Se llama cuando un módulo llega al 100% (todas las reglas requeridas +
+   * TODO el quiz correcto, ver validation.py en la Pi) y el estudiante ya
+   * vio la celebración (o, si el módulo ya estaba completo de antes, de
+   * inmediato). Documentado en frontend/docs/practice-completion.md — toda
+   * práctica nueva (no solo Linux) debe llamar a este mismo mecanismo al
+   * terminar, para que el comportamiento de "volver a la lista de módulos"
+   * sea consistente en toda la app.
+   */
+  onModuleCompleted?: (moduleId: string) => void;
 }
 
 interface PasswordPromptState {
@@ -86,7 +96,7 @@ function buildPracticeContext(module: LinuxModule, result: LinuxValidationResult
   return lines.join('\n');
 }
 
-export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxPracticeSessionParams) {
+export function useLinuxPracticeSession({ onNewSession, setChatOpen, onModuleCompleted }: UseLinuxPracticeSessionParams) {
   const [connecting, setConnecting] = useState(false);
   // Distinto de `connecting`: ese arranca en true apenas se hace click en
   // "Conectar" (antes de que el modal siquiera aparezca, mientras se resuelve
@@ -434,6 +444,9 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
     passwordPrompt,
     submitPassword,
     cancelPassword,
+    /** Ver UseLinuxPracticeSessionParams.onModuleCompleted -- lo llama el chat
+     * (ChatPane) cuando termina de mostrar la celebración del módulo. */
+    notifyModuleComplete: (moduleId: string) => onModuleCompleted?.(moduleId),
   };
 }
 

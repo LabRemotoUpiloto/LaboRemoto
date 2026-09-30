@@ -34,6 +34,7 @@ interface AiMessageBubbleProps {
   linuxQuizSubmitted?: boolean;
   onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
   onLinuxQuizSubmit?: () => void;
+  onLinuxModuleComplete?: (moduleId: string) => void;
 }
 
 export default function AiMessageBubble({
@@ -42,7 +43,7 @@ export default function AiMessageBubble({
   onCopy, onRegenerate, onRetry, onAnalyzeCandidate, onSetInput, wordCount,
   linuxPracticeId, linuxRules = [], linuxResult = null,
   linuxQuizAnswers = {}, linuxQuizSubmitting = false, linuxQuizSubmitted = false,
-  onLinuxQuizAnswer, onLinuxQuizSubmit,
+  onLinuxQuizAnswer, onLinuxQuizSubmit, onLinuxModuleComplete,
 }: AiMessageBubbleProps) {
   const isStreaming = streamingMsgId === msg.id;
   const isError = msg.text.startsWith('Error');
@@ -63,8 +64,15 @@ export default function AiMessageBubble({
     if (!linuxQuizSubmitted || !linuxResult?.passed || !linuxQuizModuleId || celebratedRef.current) return;
     celebratedRef.current = true;
     const { alreadyEarned } = markModuleBadgeEarned(linuxQuizModuleId);
-    setShowCelebration(!alreadyEarned);
-  }, [linuxQuizSubmitted, linuxResult?.passed, linuxQuizModuleId]);
+    if (alreadyEarned) {
+      // Ya se había ganado antes (ej. el estudiante vuelve a un módulo que
+      // ya tenía completo) -- no repetimos la animación, pero igual cerramos
+      // el flujo de "fin de práctica" (ver docs/practice-completion.md).
+      onLinuxModuleComplete?.(linuxQuizModuleId);
+    } else {
+      setShowCelebration(true);
+    }
+  }, [linuxQuizSubmitted, linuxResult?.passed, linuxQuizModuleId, onLinuxModuleComplete]);
 
   return (
     <div className={`relative flex flex-col group/ai items-start w-full`}>
@@ -147,7 +155,11 @@ export default function AiMessageBubble({
                   quizLocked={linuxQuizSubmitted}
                 />
               ))}
-              {!linuxQuizSubmitted && (
+              {/* La evaluación solo se da por terminada al 100% (ver validation.py
+                  en la Pi) -- mientras quede alguna pregunta incorrecta, el botón
+                  sigue disponible para corregir y reenviar, nunca se bloquea para
+                  siempre como antes. */}
+              {!(linuxQuizSubmitted && linuxResult?.passed) && (
                 <Group justify="flex-end">
                   <Button
                     size="xs"
@@ -156,14 +168,14 @@ export default function AiMessageBubble({
                     disabled={!msg.meta.linuxQuiz.blocks.every((b: any) => !!linuxQuizAnswers[b.id])}
                     onClick={onLinuxQuizSubmit}
                   >
-                    Enviar evaluación
+                    {linuxQuizSubmitted ? 'Reenviar evaluación' : 'Enviar evaluación'}
                   </Button>
                 </Group>
               )}
               {linuxQuizSubmitted && linuxResult && (
                 <Text fz="xs" c="dimmed">
                   {linuxResult.earned_points}/{linuxResult.total_points} pts ({linuxResult.percentage}%)
-                  {linuxResult.passed ? ' — ¡módulo completo!' : ''}
+                  {linuxResult.passed ? ' — ¡módulo completo!' : ' — corregí las preguntas marcadas en rojo y reenviá.'}
                 </Text>
               )}
               {showCelebration && linuxResult && linuxQuizModuleId && (
@@ -172,7 +184,10 @@ export default function AiMessageBubble({
                   moduleTitle={msg.meta?.linuxQuiz?.moduleTitle}
                   earnedPoints={linuxResult.earned_points}
                   totalPoints={linuxResult.total_points}
-                  onClose={() => setShowCelebration(false)}
+                  onClose={() => {
+                    setShowCelebration(false);
+                    onLinuxModuleComplete?.(linuxQuizModuleId);
+                  }}
                 />
               )}
             </div>

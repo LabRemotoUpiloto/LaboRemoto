@@ -1,5 +1,5 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import './App.css'
 
@@ -38,6 +38,8 @@ import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
 import { useLinuxPracticeSession } from './hooks/useLinuxPracticeSession'
+import { requestPracticesFocus } from './services/practiceNavigation.service'
+import { clearModuleBadge } from './services/badges.service'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import type { PracticeSessionMeta } from './types'
 
@@ -106,7 +108,7 @@ const AppMain: React.FC = () => {
     isSidebarOpen, setIsSidebarOpen,
     sessionMeta, setSessionMeta,
     pendingHost, setPendingHost,
-    selectedPage, activeTab,
+    selectedPage, setSelectedPage, activeTab,
     openSession, closeTab, renameTab,
     handleNewSession, openLogTab, openLocalTerminalTab,
     openPanels, activePanel,
@@ -143,6 +145,18 @@ const AppMain: React.FC = () => {
   const linuxSession = useLinuxPracticeSession({
     onNewSession: handleNewSession,
     setChatOpen: setIsChatOpen,
+    // Convención de "fin de práctica" para TODA la app (ver
+    // frontend/docs/practice-completion.md) -- al terminar un módulo,
+    // volvemos a la pestaña de Inicio y a la vista de Prácticas, donde el
+    // estudiante ve el módulo recién completado marcado con su insignia.
+    // Cualquier práctica nueva (no solo Linux) que agregue su propio "flujo
+    // de completar" debe reusar este mismo patrón: setActiveTabId(HOME_TAB_ID)
+    // + setSelectedPage('practices').
+    onModuleCompleted: () => {
+      requestPracticesFocus('linux')
+      setActiveTabId(HOME_TAB_ID)
+      setSelectedPage('practices')
+    },
   })
 
   // `practiceMeta` (de usePracticeSession) solo conoce prácticas del flujo
@@ -175,6 +189,22 @@ const AppMain: React.FC = () => {
     clearPracticeMeta,
     stopLinuxSession: linuxSession.stopSession,
   })
+
+  // "Repetir" del administrador en LinuxModulePage (ver ese archivo): un rol
+  // operativo necesita poder rehacer un módulo ya completo para revisar
+  // comportamientos -- por ahora es exclusivo de `admin` (ver
+  // usePermissions.ts), a futuro se abre a una lista de roles configurable.
+  // Reusa el mismo cierre de sesión "real" que ya existe para el botón de
+  // cerrar pestaña (desconecta el SSH, corta el polling, limpia
+  // resultados/respuestas de quiz de ese módulo) y borra la insignia para
+  // que vuelva a verse como no completado.
+  const handleRestartLinuxModule = useCallback(async (moduleId: string) => {
+    const existingSessionId = Object.entries(linuxSession.sessionModuleMap).find(([, mid]) => mid === moduleId)?.[0]
+    if (existingSessionId) {
+      await handleCloseTab(existingSessionId)
+    }
+    clearModuleBadge(moduleId)
+  }, [linuxSession.sessionModuleMap, handleCloseTab])
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
   const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia']
@@ -326,6 +356,7 @@ const AppMain: React.FC = () => {
                     onStartPractice={handleStartPractice}
                     setChatOpen={setIsChatOpen}
                     linuxSession={linuxSession}
+                    onRestartLinuxModule={handleRestartLinuxModule}
                   />
                 </div>
               )}
