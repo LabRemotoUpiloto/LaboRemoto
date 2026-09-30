@@ -38,7 +38,9 @@ export type LinuxBlock =
   | { type: 'text'; id: string; body_md: string }
   | { type: 'terminal_annotation'; id: string; prompt_example: string; labels: LinuxLabel[] }
   | { type: 'analogy'; id: string; term: string; everyday: string; windows: string; linux: string }
-  | { type: 'command_step'; id: string; command: string; explain_md: string }
+  // `goal_md` (opcional): para desafíos abiertos -- la tarjeta muestra el
+  // objetivo en lugar de `command`, que es la respuesta y no debe verse.
+  | { type: 'command_step'; id: string; command: string; explain_md: string; goal_md?: string }
   // `file` es una ruta relativa dentro de content/<practice_id>/media/ en la
   // Pi (ej. "diagrams/pipe.png", "videos/demo.mp4") -- nunca una URL. El
   // cliente la pide vía practicas_linux_get_media, nunca le habla a la Pi
