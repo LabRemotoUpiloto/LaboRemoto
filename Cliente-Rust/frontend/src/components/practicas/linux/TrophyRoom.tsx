@@ -1,6 +1,6 @@
 // components/practicas/linux/TrophyRoom.tsx
 //
-// "Sala de trofeos" del Perfil: lista los 4 rangos de la práctica de Linux
+// "Sala de trofeos" del Perfil: lista los rangos de la práctica de Linux
 // (ver services/badges.service.ts, RANKS) -- ganados (insignia sólida +
 // fecha), bloqueados (el módulo existe pero todavía no se completó) o
 // "próximamente" (el módulo todavía no existe en la Pi). Sin Mantine
