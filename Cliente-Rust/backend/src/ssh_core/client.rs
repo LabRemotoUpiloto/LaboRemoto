@@ -76,6 +76,9 @@ impl Session {
         let mut ch: Channel<_> = handle.channel_open_session().await?;
         ch.request_pty(true, "xterm-256color", cols, rows, 0, 0, &[])
             .await?;
+        // Sin LANG la Pi deja la sesión en locale POSIX y nano (y otros) muestran mal las tildes y la ñ.
+        // sshd acepta LANG y LC_* por defecto (AcceptEnv). Si el servidor lo rechaza no es fatal.
+        let _ = ch.set_env(false, "LANG", "C.UTF-8").await;
         ch.request_shell(true).await?;
 
         // Enviar un marcador para saber cuándo la shell está lista y descartar el banner/MOTD inicial

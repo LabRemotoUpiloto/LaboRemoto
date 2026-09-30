@@ -177,8 +177,8 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, onModuleCom
     setPasswordPrompt(null);
   }, []);
 
-  /** Re-valida contra el historial real de comandos y actualiza el contexto del chat. */
-  const revalidate = useCallback(async (module: LinuxModule): Promise<LinuxValidationResult | null> => {
+  /** Una validación real contra la Pi. Usar `revalidate`, que evita solaparlas. */
+  const revalidateNow = useCallback(async (module: LinuxModule): Promise<LinuxValidationResult | null> => {
     modulesById.current[module.id] = module;
     const sessionId = sessionByPractice.current[module.id];
     if (!sessionId) return null;
@@ -216,6 +216,39 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, onModuleCom
     setResults((prev) => ({ ...prev, [module.id]: result }));
     return result;
   }, []);
+
+  // Coalescing: un mismo comando dispara varias revalidaciones casi a la vez
+  // (Enter, polling, reportes de historial) y cada una es un POST por el
+  // túnel. Con ~35 alumnos en simultáneo eso multiplica la carga en la Pi sin
+  // aportar nada. Regla: máximo UNA validación en vuelo por módulo y UNA
+  // pendiente; todas las llamadas que llegan mientras hay una en vuelo
+  // comparten esa pendiente, que arranca al terminar la actual y lee el
+  // historial/respuestas más recientes (así nunca se devuelve un resultado
+  // anterior al último comando o quiz enviado).
+  const revalidateInFlight = useRef<Record<string, Promise<LinuxValidationResult | null>>>({});
+  const revalidateQueued = useRef<Record<string, Promise<LinuxValidationResult | null>>>({});
+
+  const revalidate = useCallback((module: LinuxModule): Promise<LinuxValidationResult | null> => {
+    const id = module.id;
+    const run = (): Promise<LinuxValidationResult | null> => {
+      const p: Promise<LinuxValidationResult | null> = revalidateNow(module).finally(() => {
+        if (revalidateInFlight.current[id] === p) delete revalidateInFlight.current[id];
+      });
+      revalidateInFlight.current[id] = p;
+      return p;
+    };
+    const enVuelo = revalidateInFlight.current[id];
+    if (!enVuelo) return run();
+    let pendiente = revalidateQueued.current[id];
+    if (!pendiente) {
+      pendiente = enVuelo.catch(() => null).then(() => {
+        delete revalidateQueued.current[id];
+        return run();
+      });
+      revalidateQueued.current[id] = pendiente;
+    }
+    return pendiente;
+  }, [revalidateNow]);
 
   /**
    * Guarda las respuestas de quiz elegidas por el estudiante y dispara una
@@ -408,6 +441,8 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, onModuleCom
     delete modulesById.current[moduleId];
     delete lastPassedRuleIdsRef.current[moduleId];
     delete lastCommandCountRef.current[moduleId];
+    delete revalidateInFlight.current[moduleId];
+    delete revalidateQueued.current[moduleId];
     setSessionModuleMap((prev) => {
       if (!(sessionId in prev)) return prev;
       const next = { ...prev };
