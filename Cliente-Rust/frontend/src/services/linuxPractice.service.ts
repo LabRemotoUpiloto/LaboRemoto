@@ -128,5 +128,19 @@ export interface LinuxMedia {
 }
 
 /** Trae un archivo de media (imagen/video) de un módulo, vía el mismo túnel que el resto de la práctica. */
-export const linuxGetMedia = (practiceId: string, mediaPath: string): Promise<LinuxMedia> =>
-  invoke<LinuxMedia>('practicas_linux_get_media', { practiceId, mediaPath });
+// Caché en memoria por (módulo, archivo): el mismo video/imagen se pedía de nuevo
+// cada vez que el bloque se remontaba (navegar entre pestañas, re-render del
+// chat) y cada pedido es un archivo completo por el túnel de la Pi. Se guarda
+// la promesa, así varios bloques que piden lo mismo a la vez comparten un solo
+// pedido; si falla no se cachea el error, el siguiente intento reintenta.
+const mediaCache = new Map<string, Promise<LinuxMedia>>();
+
+export const linuxGetMedia = (practiceId: string, mediaPath: string): Promise<LinuxMedia> => {
+  const key = `${practiceId}/${mediaPath}`;
+  const cached = mediaCache.get(key);
+  if (cached) return cached;
+  const pedido = invoke<LinuxMedia>('practicas_linux_get_media', { practiceId, mediaPath });
+  mediaCache.set(key, pedido);
+  pedido.catch(() => { if (mediaCache.get(key) === pedido) mediaCache.delete(key); });
+  return pedido;
+};
