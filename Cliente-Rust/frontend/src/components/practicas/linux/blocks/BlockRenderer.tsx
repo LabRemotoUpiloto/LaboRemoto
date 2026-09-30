@@ -5,8 +5,8 @@
 // LinuxModulePage para saber cuándo mostrar la pantalla de cierre.
 
 import React, { useEffect, useState } from 'react';
-import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon } from '@mantine/core';
-import { AlertTriangle, X } from 'lucide-react';
+import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, Button } from '@mantine/core';
+import { AlertTriangle, Play, X } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia } from '../../../../services/linuxPractice.service';
 
@@ -161,10 +161,20 @@ function errorMessage(e: unknown): string {
 }
 
 function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 'media' }>; practiceId: string }) {
+  // Los videos pesan varios MB y cada alumno los baja completos por el túnel de la
+  // Pi: con un curso entero abriendo la práctica a la vez saturan el enlace. Por eso
+  // el video solo se pide cuando el estudiante lo pide (botón); las imágenes, que son
+  // chicas, se siguen cargando de inmediato.
+  const [requested, setRequested] = useState(block.kind !== 'video');
   const [state, setState] = useState<{ status: 'loading' } | { status: 'ok'; url: string } | { status: 'error'; message: string }>({ status: 'loading' });
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
+    setRequested(block.kind !== 'video');
+  }, [practiceId, block.file, block.kind]);
+
+  useEffect(() => {
+    if (!requested) return;
     let cancelled = false;
     setState({ status: 'loading' });
     setExpanded(false);
@@ -178,11 +188,19 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
         setState({ status: 'error', message: errorMessage(e) });
       });
     return () => { cancelled = true; };
-  }, [practiceId, block.file]);
+  }, [practiceId, block.file, requested]);
 
   return (
     <Paper withBorder radius="md" p="md">
-      {state.status === 'loading' && (
+      {!requested && (
+        <Stack align="center" py="lg" gap="xs">
+          <Button leftSection={<Play size={16} />} onClick={() => setRequested(true)}>
+            Ver video
+          </Button>
+          {block.caption && <Text fz="xs" c="dimmed" ta="center">{block.caption}</Text>}
+        </Stack>
+      )}
+      {requested && state.status === 'loading' && (
         <Stack align="center" py="lg" gap="xs">
           <Loader size="sm" />
           <Text fz="xs" c="dimmed">Cargando media…</Text>
@@ -244,6 +262,7 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
             <video
               src={state.url}
               controls
+              autoPlay
               onPlay={() => setExpanded(true)}
               style={{
                 width: expanded ? 'auto' : '100%',
