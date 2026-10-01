@@ -24,6 +24,8 @@ import { useEarnedBadges } from '../../services/badges.service';
 
 interface Props {
   practiceId: string;
+  /** Nombre de la categoría del módulo (Linux, Eve3...), para el botón de volver. */
+  categoryName: string;
   onBack: () => void;
   /**
    * Instancia única del hook, vive a nivel de App (mismo patrón que
@@ -42,7 +44,7 @@ interface Props {
   onRestartModule?: (moduleId: string) => Promise<void>;
 }
 
-const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession, onRestartModule }) => {
+const LinuxModulePage: React.FC<Props> = ({ practiceId, categoryName, onBack, linuxSession, onRestartModule }) => {
   const [module, setModule] = useState<LinuxModule | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Elección del administrador cuando reabre un módulo ya completo (ver
@@ -178,7 +180,7 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession, on
       <Container size="sm" py="xl">
         <Stack gap="xl">
           <Button variant="subtle" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)' }}>
-            Volver a Linux
+            Volver a {categoryName}
           </Button>
 
           <Stack gap={10}>

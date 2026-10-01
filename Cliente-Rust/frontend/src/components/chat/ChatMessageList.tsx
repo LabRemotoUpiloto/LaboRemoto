@@ -240,17 +240,25 @@ export default function ChatMessageList({
         <TypingIndicator appearance={appearance} streamingMsgId={streamingMsgId} />
       )}
 
-      {/* Scroll to bottom */}
+      {/* Scroll to bottom.
+          Antes era `absolute bottom-4 right-4` DENTRO del contenedor con scroll: un `absolute` se ancla al
+          inicio del contenido, no a lo que se ve, así que al bajar por el chat el botón quedaba flotando
+          a media pantalla encima de los mensajes. Con un contenedor `sticky` de alto 0 al final del
+          contenido, el botón se pega siempre al borde inferior visible. */}
       {showScrollToBottom && (
-        <ActionIcon
-          className="absolute bottom-4 right-4 z-50 bg-accent hover:bg-accent/90 text-white rounded-full shadow-lg transition-transform hover:scale-105"
-          onClick={onScrollToBottom}
-          size="lg"
-          title="Bajar al último mensaje"
-          aria-label="Bajar al último mensaje"
-        >
-          <ArrowDown size={18} />
-        </ActionIcon>
+        <div className="sticky bottom-3 z-50 h-0 w-full pointer-events-none">
+          <ActionIcon
+            variant="default"
+            radius="xl"
+            size={34}
+            className="pointer-events-auto absolute right-4 bottom-0 shadow-md border border-[var(--border-subtle)] bg-[var(--background-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-90 hover:opacity-100 transition-opacity"
+            onClick={onScrollToBottom}
+            title="Bajar al último mensaje"
+            aria-label="Bajar al último mensaje"
+          >
+            <ArrowDown size={16} />
+          </ActionIcon>
+        </div>
       )}
     </div>
   );

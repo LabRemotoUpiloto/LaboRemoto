@@ -5,23 +5,50 @@
 // LinuxModulePage para saber cuándo mostrar la pantalla de cierre.
 
 import React, { useEffect, useState } from 'react';
-import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon } from '@mantine/core';
-import { AlertTriangle, X } from 'lucide-react';
+import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, Button } from '@mantine/core';
+import { AlertTriangle, Play, X } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
-import { linuxGetMedia } from '../../../../services/linuxPractice.service';
+import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
 import { ZoomableImage } from '../ZoomableImage';
+import WheelsSimBlock from './widgets/WheelsSim';
+import CalculatorBlock from './widgets/CalculatorBlock';
+import SensorDemoBlock from './widgets/SensorDemo';
+import StateMachineBlock from './widgets/StateMachineBlock';
+import ChecklistBlock from './widgets/ChecklistBlock';
 
 const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
 
-/** Soporte mínimo de **negrita** — no se agrega una librería de markdown para esto. */
+/** Soporte mínimo de **negrita** y `código` — no se agrega una librería de markdown para esto. */
 function renderInline(md: string): React.ReactNode {
-  const parts = md.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') ? (
-      <strong key={i}>{part.slice(2, -2)}</strong>
-    ) : (
-      <React.Fragment key={i}>{part}</React.Fragment>
-    ),
+  const parts = md.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code key={i} style={{ fontFamily: 'monospace', fontSize: '0.92em', padding: '1px 5px', borderRadius: 4, background: 'rgba(127,127,127,0.18)' }}>
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
+}
+
+/** Fragmento de código (hoy Python para los módulos de EV3). Solo se muestra: no se ejecuta. */
+function CodeBlockView({ block }: { block: Extract<LinuxBlock, { type: 'code_block' }> }) {
+  return (
+    <Paper withBorder radius="md" p="md" style={{ background: '#14150F' }}>
+      <Text component="pre" ff="monospace" fz="sm" m={0} style={{ color: '#E5E9DE', whiteSpace: 'pre-wrap', overflowX: 'auto' }}>
+        {block.code}
+      </Text>
+      {block.caption && (
+        <Text fz="xs" mt="xs" style={{ color: '#9AA38F' }}>
+          {block.caption}
+        </Text>
+      )}
+    </Paper>
   );
 }
 
@@ -163,28 +190,51 @@ function errorMessage(e: unknown): string {
 }
 
 function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 'media' }>; practiceId: string }) {
+  // Los videos pesan varios MB y cada alumno los baja completos por el túnel de la
+  // Pi: con un curso entero abriendo la práctica a la vez saturan el enlace. Por eso
+  // el video solo se pide cuando el estudiante lo pide (botón); las imágenes, que son
+  // chicas, se siguen cargando de inmediato.
+  const [requested, setRequested] = useState(block.kind !== 'video');
   const [state, setState] = useState<{ status: 'loading' } | { status: 'ok'; url: string } | { status: 'error'; message: string }>({ status: 'loading' });
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
+    setRequested(block.kind !== 'video');
+  }, [practiceId, block.file, block.kind]);
+
+  useEffect(() => {
+    if (!requested) return;
     let cancelled = false;
     setState({ status: 'loading' });
     setExpanded(false);
-    linuxGetMedia(practiceId, block.file)
-      .then((media) => {
+    // Video: URL del puente local -> streaming con Range (arranca en segundos). Imagen: archivo
+    // chico, se trae completo como data: URI.
+    const cargar = block.kind === 'video'
+      ? linuxGetMediaUrl(practiceId, block.file)
+      : linuxGetMedia(practiceId, block.file).then((media) => `data:${media.mime};base64,${media.base64}`);
+    cargar
+      .then((url) => {
         if (cancelled) return;
-        setState({ status: 'ok', url: `data:${media.mime};base64,${media.base64}` });
+        setState({ status: 'ok', url });
       })
       .catch((e) => {
         if (cancelled) return;
         setState({ status: 'error', message: errorMessage(e) });
       });
     return () => { cancelled = true; };
-  }, [practiceId, block.file]);
+  }, [practiceId, block.file, requested]);
 
   return (
     <Paper withBorder radius="md" p="md">
-      {state.status === 'loading' && (
+      {!requested && (
+        <Stack align="center" py="lg" gap="xs">
+          <Button leftSection={<Play size={16} />} onClick={() => setRequested(true)}>
+            Ver video
+          </Button>
+          {block.caption && <Text fz="xs" c="dimmed" ta="center">{block.caption}</Text>}
+        </Stack>
+      )}
+      {requested && state.status === 'loading' && (
         <Stack align="center" py="lg" gap="xs">
           <Loader size="sm" />
           <Text fz="xs" c="dimmed">Cargando media…</Text>
@@ -253,6 +303,9 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
             <video
               src={state.url}
               controls
+              autoPlay
+              preload="metadata"
+              onError={() => setState({ status: 'error', message: 'No se pudo reproducir el video (¿sin conexión con la Pi?). Probá de nuevo en un momento.' })}
               onPlay={() => setExpanded(true)}
               style={{
                 width: expanded ? 'auto' : '100%',
@@ -419,6 +472,18 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
       return <TextBlockView block={block} />;
     case 'terminal_annotation':
       return <TerminalAnnotationBlock block={block} />;
+    case 'code_block':
+      return <CodeBlockView block={block} />;
+    case 'wheels_sim':
+      return <WheelsSimBlock block={block} />;
+    case 'calculator':
+      return <CalculatorBlock block={block} />;
+    case 'sensor_demo':
+      return <SensorDemoBlock block={block} />;
+    case 'state_machine':
+      return <StateMachineBlock block={block} />;
+    case 'checklist':
+      return <ChecklistBlock block={block} />;
     case 'analogy':
       return <AnalogyBlock block={block} />;
     case 'media':

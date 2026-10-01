@@ -69,10 +69,19 @@
   container: ev3body / size;
 }
 
-/* Aprendizaje viene de investigacion_ev3, donde su contenedor padre era un
-   bloque: sus raíces no declaran ancho y acá, como flex-item, se encogerían
-   al ancho del contenido. Dashboard y Gemelo 3D ya traen width:100% propio. */
+/* Las vistas vienen de investigacion_ev3, donde su contenedor padre era un
+   bloque: sus raíces no siempre declaran ancho y acá, como flex-item, se
+   encogerían al ancho del contenido. */
 .ev3-panel-body > * {
   flex: 1;
   min-width: 0;
 }
+
+/* La Consola queda montada aunque esté oculta (ver Ev3Panel.tsx). */
+.ev3-panel-pane {
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.ev3-panel-pane > .ev3-console { flex: 1; }

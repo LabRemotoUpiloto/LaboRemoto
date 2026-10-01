@@ -1,0 +1,391 @@
+{
+  "id": "ev3-m4",
+  "order": 4,
+  "title": "Comportamientos reactivos",
+  "difficulty": "intermediate",
+  "estimated_minutes": 25,
+  "sequential": false,
+  "objective": "Entender el bucle de control y combinar sensores y motores en comportamientos continuos: seguir una línea, evitar obstáculos y alternar entre ellos con una máquina de estados.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "sudo -n -u pi /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "sudo -n -u pi /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "**El bucle de control.** En el módulo 2 leíste un sensor **una vez** y tomaste una decisión. Un comportamiento de verdad (seguir una línea, esquivar algo) necesita leer el sensor **todo el tiempo**, cientos de veces por segundo, y ajustar el movimiento en cada vuelta. Eso es un bucle de control."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-bucle",
+      "language": "python",
+      "code": "while True:\n    valor = sensor.value()\n    # decidir algo con \"valor\"\n    # mover los motores según lo decidido"
+    },
+    {
+      "type": "text",
+      "id": "b-sin-sleep",
+      "body_md": "No hace falta un sleep() entre vueltas: el bucle corre tan rápido como el procesador lo permita, así que el robot reacciona casi al instante a cualquier cambio."
+    },
+    {
+      "type": "quiz",
+      "id": "q-bucle",
+      "question_md": "¿Por qué un comportamiento reactivo necesita un **bucle** en vez de un solo if?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Porque el entorno cambia todo el tiempo y hay que releer el sensor una y otra vez"
+        },
+        {
+          "id": "b",
+          "label": "Porque Python obliga a usar while True siempre"
+        },
+        {
+          "id": "c",
+          "label": "Porque los motores solo funcionan dentro de un bucle"
+        },
+        {
+          "id": "d",
+          "label": "No es necesario, un solo if alcanza"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-linea",
+      "body_md": "**Seguir una línea.** En el módulo 2 corregiste el rumbo con un umbral fijo (\"si es menor a 30, gira para un lado\"). Un seguidor más suave no salta bruscamente entre dos comportamientos: corrige **proporcionalmente** a qué tan lejos está la lectura de un valor objetivo, que es el borde entre la línea y el piso, más o menos a mitad de camino entre negro (0) y blanco (100): 50."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-linea",
+      "language": "python",
+      "code": "error = color.reflected_light_intensity - 50\ncorreccion = error * 0.5\nmotor_izq.on(40 + correccion)\nmotor_der.on(40 - correccion)"
+    },
+    {
+      "type": "calculator",
+      "id": "w-linea",
+      "title": "Simulador: seguidor de línea proporcional",
+      "inputs": [
+        {
+          "id": "lectura",
+          "label": "Lectura del sensor de color (0 negro, 100 blanco)",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "default": 50
+        },
+        {
+          "id": "objetivo",
+          "label": "Valor objetivo (borde de la línea)",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "default": 50
+        },
+        {
+          "id": "ganancia",
+          "label": "Ganancia",
+          "min": 0,
+          "max": 2,
+          "step": 0.1,
+          "default": 0.5
+        },
+        {
+          "id": "base",
+          "label": "Potencia base",
+          "unit": "%",
+          "min": 10,
+          "max": 80,
+          "step": 1,
+          "default": 40
+        }
+      ],
+      "outputs": [
+        {
+          "id": "error",
+          "label": "Error",
+          "expr": "lectura - objetivo",
+          "decimals": 1
+        },
+        {
+          "id": "correccion",
+          "label": "Corrección",
+          "expr": "error * ganancia",
+          "decimals": 1
+        },
+        {
+          "id": "izq",
+          "label": "Motor izquierdo",
+          "expr": "base + correccion",
+          "decimals": 0,
+          "unit": "%"
+        },
+        {
+          "id": "der",
+          "label": "Motor derecho",
+          "expr": "base - correccion",
+          "decimals": 0,
+          "unit": "%"
+        }
+      ],
+      "code_template": "error = color.reflected_light_intensity - {objetivo}\ncorreccion = error * {ganancia}\nmotor_izq.on({base} + correccion)   # {izq}\nmotor_der.on({base} - correccion)   # {der}",
+      "note_md": "Prueba una ganancia muy alta y mira cómo las potencias se disparan: así se ve el zigzag."
+    },
+    {
+      "type": "text",
+      "id": "b-ganancia",
+      "body_md": "El número 0,5 se llama **ganancia**. Con una ganancia muy baja el robot corrige tarde y se sale de la línea en las curvas cerradas; con una muy alta corrige de más y termina zigzagueando. Encontrar un buen valor es, en la práctica, prueba y error. Ejemplo: si el sensor lee 70, el error es 20, la corrección es 10 y las ruedas quedan en 50 % y 30 %."
+    },
+    {
+      "type": "quiz",
+      "id": "q-proporcional",
+      "question_md": "En el control proporcional para seguir línea, ¿qué determina **cuánto se corrige**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Un número al azar"
+        },
+        {
+          "id": "b",
+          "label": "El error: qué tan lejos está la lectura del valor objetivo"
+        },
+        {
+          "id": "c",
+          "label": "La batería restante"
+        },
+        {
+          "id": "d",
+          "label": "El color del robot"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-ganancia-alta",
+      "question_md": "¿Qué pasa si la **ganancia** de la corrección es demasiado alta?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El robot no se mueve"
+        },
+        {
+          "id": "b",
+          "label": "El sensor se rompe"
+        },
+        {
+          "id": "c",
+          "label": "El robot corrige de más y zigzaguea"
+        },
+        {
+          "id": "d",
+          "label": "No pasa nada, siempre conviene una ganancia alta"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-obstaculos",
+      "body_md": "**Evitar obstáculos.** Un comportamiento más prolijo que un solo umbral separa la distancia en **zonas**, cada una con su propia reacción, para empezar a reaccionar antes de estar a punto de chocar. Aquí: menos de 15 cm es peligro, entre 15 y 40 cm es precaución y más de 40 cm es libre."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-obstaculos",
+      "language": "python",
+      "code": "distancia = ultrasonico.distance_centimeters\nif distancia < 15:\n    motor_izq.off(); motor_der.off()\n    girar(90)\nelif distancia < 40:\n    motor_izq.on(15); motor_der.on(15)\nelse:\n    motor_izq.on(40); motor_der.on(40)"
+    },
+    {
+      "type": "sensor_demo",
+      "id": "w-zonas",
+      "sensor": "ultrasonic",
+      "title": "Prueba las zonas de distancia",
+      "zones": [
+        {
+          "max_cm": 15,
+          "label": "PELIGRO",
+          "action": "Detenerse y girar para buscar otro camino."
+        },
+        {
+          "max_cm": 40,
+          "label": "PRECAUCIÓN",
+          "action": "Reducir la potencia: hay algo cerca, pero todavía hay margen."
+        },
+        {
+          "label": "LIBRE",
+          "action": "Avanzar a potencia normal."
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-zonas",
+      "question_md": "¿Para qué sirve dividir la distancia en **zonas** en vez de un solo umbral?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Para que el código sea más largo"
+        },
+        {
+          "id": "b",
+          "label": "No sirve de nada, un umbral alcanza siempre"
+        },
+        {
+          "id": "c",
+          "label": "Porque el sensor ultrasónico lo exige"
+        },
+        {
+          "id": "d",
+          "label": "Para reaccionar de forma gradual y no solo \"chocar o no chocar\""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-estados",
+      "body_md": "**Combinando comportamientos.** Seguir línea y evitar obstáculos son dos comportamientos separados: el robot solo puede estar haciendo uno a la vez. Una **máquina de estados** es una lista de situaciones posibles (estados) y qué evento hace pasar de una a otra. Aquí: \"buscando línea\" pasa a \"siguiendo línea\" al encontrarla; \"siguiendo\" pasa a \"esquivando\" si detecta un obstáculo o vuelve a \"buscando\" si pierde la línea; \"esquivando\" vuelve a \"buscando\" cuando el obstáculo se despeja."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-estados",
+      "language": "python",
+      "code": "estado = \"buscando\"\n\nwhile True:\n    if estado == \"buscando\":\n        # girar en el lugar hasta encontrar la línea\n        if color.reflected_light_intensity < 50:\n            estado = \"siguiendo\"\n\n    elif estado == \"siguiendo\":\n        seguir_linea()\n        if ultrasonico.distance_centimeters < 15:\n            estado = \"esquivando\"\n\n    elif estado == \"esquivando\":\n        esquivar()\n        if ultrasonico.distance_centimeters > 40:\n            estado = \"buscando\""
+    },
+    {
+      "type": "state_machine",
+      "id": "w-estados",
+      "title": "Prueba la máquina de estados",
+      "initial": "buscando",
+      "states": [
+        {
+          "id": "buscando",
+          "label": "Buscando línea"
+        },
+        {
+          "id": "siguiendo",
+          "label": "Siguiendo línea"
+        },
+        {
+          "id": "esquivando",
+          "label": "Evitando obstáculo"
+        }
+      ],
+      "events": [
+        {
+          "id": "encontro",
+          "label": "Encontró la línea",
+          "from": "buscando",
+          "to": "siguiendo"
+        },
+        {
+          "id": "perdio",
+          "label": "Perdió la línea",
+          "from": "siguiendo",
+          "to": "buscando"
+        },
+        {
+          "id": "obstaculo",
+          "label": "Detectó un obstáculo",
+          "from": "siguiendo",
+          "to": "esquivando"
+        },
+        {
+          "id": "despejado",
+          "label": "Obstáculo despejado",
+          "from": "esquivando",
+          "to": "buscando"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-estados-nota",
+      "body_md": "Fíjate en que el bucle principal no cambió de forma: sigue siendo un while True. Lo único nuevo es una variable **estado** que decide qué bloque de código correr en cada vuelta."
+    },
+    {
+      "type": "quiz",
+      "id": "q-estado",
+      "question_md": "En una máquina de estados, ¿qué decide qué bloque de código se ejecuta en cada vuelta del bucle?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El valor de una variable de estado"
+        },
+        {
+          "id": "b",
+          "label": "El orden en que se escribieron los if"
+        },
+        {
+          "id": "c",
+          "label": "El azar"
+        },
+        {
+          "id": "d",
+          "label": "La hora del día"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** En la pestaña **Consola** del Panel EV3 ejecuta el ejemplo \"Frenar si algo está cerca (ultrasónico)\" y cambia el umbral de 15 cm. Después prueba escribir tu propio bucle con el sensor de color."
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-bucle",
+        "quiz-proporcional",
+        "quiz-ganancia-alta",
+        "quiz-zonas",
+        "quiz-estado"
+      ]
+    }
+  ],
+  "hints": [
+    "Un comportamiento reactivo lee el sensor todo el tiempo, no una sola vez.",
+    "Si el robot zigzaguea al seguir la línea, la ganancia es demasiado alta.",
+    "Cada estado de una máquina de estados es un comportamiento ya probado por separado."
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-bucle",
+      "rule_type": "quiz",
+      "target": "q-bucle",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-proporcional",
+      "rule_type": "quiz",
+      "target": "q-proporcional",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-ganancia-alta",
+      "rule_type": "quiz",
+      "target": "q-ganancia-alta",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-zonas",
+      "rule_type": "quiz",
+      "target": "q-zonas",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-estado",
+      "rule_type": "quiz",
+      "target": "q-estado",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

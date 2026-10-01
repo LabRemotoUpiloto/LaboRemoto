@@ -12,7 +12,7 @@
 //     reescritas para usar un token opaco de sesion en vez de la
 //     SHINOBI_API_KEY real. Cada monitor trae ademas `ptz: true/false`
 //     segun si esta en PTZ_CAMERAS (ver mas abajo).
-//   GET /nvr/hls/:token/*    
+//   GET /nvr/hls/:token/*      
 //     Proxya hacia Shinobi real usando la SHINOBI_API_KEY real,
 //     solo si :token es un token de sesion valido y no vencido
 //     (emitido por /nvr/monitor tras validar el JWT).
@@ -25,6 +25,9 @@
 //
 //   POST /nvr/sesiones/evento, GET /nvr/sesiones/resumen
 //     Registro de sesiones de práctica — ver sesiones.js.
+//   POST /nvr/whep/:path
+//     Negociación WebRTC hacia MediaMTX (video de baja latencia) — ver webrtc.js.
+//     /nvr/monitor marca cada cámara con `webrtc` (path de MediaMTX o null).
 //
 // Config: variables de entorno SHINOBI_API_KEY, SHINOBI_LOCAL_PORT (8082),
 // PORT (puerto donde escucha este broker, default 8091),
@@ -35,6 +38,7 @@ const http = require('node:http');
 const https = require('node:https');
 const crypto = require('node:crypto');
 const sesiones = require('./sesiones');
+const webrtc = require('./webrtc');
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8091;
 const SHINOBI_API_KEY = process.env.SHINOBI_API_KEY;
@@ -312,6 +316,7 @@ const server = http.createServer(async (req, res) => {
         const rewritten = monitors.map((m) => ({
           ...m,
           ptz: Object.prototype.hasOwnProperty.call(PTZ_CAMERAS, m.mid),
+          webrtc: webrtc.rutaDe(m.mid),
           streams: (m.streams || []).map((s) => s.replace(`/${SHINOBI_API_KEY}/`, `/nvr/hls/${token}/`)),
         }));
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -395,6 +400,9 @@ const server = http.createServer(async (req, res) => {
 
   // /nvr/sesiones/* — registro de sesiones de práctica (ver sesiones.js)
   if (await sesiones.handle(req, res, url, parts, verifyJwt)) return;
+
+  // POST /nvr/whep/:path — negociación WebRTC hacia MediaMTX (ver webrtc.js)
+  if (await webrtc.handle(req, res, parts, verifyJwt)) return;
 
   res.writeHead(req.method === 'GET' || req.method === 'POST' ? 404 : 405);
   res.end();

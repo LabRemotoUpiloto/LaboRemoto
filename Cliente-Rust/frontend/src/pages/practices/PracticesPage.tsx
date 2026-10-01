@@ -3,20 +3,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { AlertTriangle, ArrowLeft, Bot, Cpu, Terminal, X, type LucideIcon } from 'lucide-react';
+import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
+import { ArrowLeft, Bot, Cpu, Terminal, X, type LucideIcon } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
 import { getInsigniaForPractice } from '../../components/practicas/badges/insigniaRegistry';
 import LinuxModulePage from './LinuxModulePage';
-import ExternalPracticeCard from '../../components/practicas/ExternalPracticeCard';
-import { useLabPractices } from '../../hooks/useLabPractices';
-import {
-    labPracticesRunSetup,
-    labPracticesGetRunnable,
-    type Practice,
-    type RunnableLabPractice,
-} from '../../services/labPractices.service';
+import type { Practice } from '../../types';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { useEarnedBadges } from '../../services/badges.service';
 import { consumePendingPracticesFocus } from '../../services/practiceNavigation.service';
@@ -43,14 +36,15 @@ interface PracticesPageProps {
         practice: Practice;
         student: { id: number; username: string; fullname: string; email: string };
     }) => Promise<void>;
-    /** Requerido para la categoría Linux: abre la pestaña de la sesión SSH real. */
+    /** Requerido para los módulos de la Pi (Linux y EV3): abre la pestaña de la sesión SSH real. */
     onNewSession?: (info: { id: string; label: string }) => void;
-    /** Requerido para la categoría Linux: abre el panel de chat al conectar. */
+    /** Requerido para los módulos de la Pi (Linux y EV3): abre el panel de chat al conectar. */
     setChatOpen?: (open: boolean) => void;
     /**
      * Instancia única de useLinuxPracticeSession (vive a nivel de App, ver
      * App.tsx) — se threadea hasta LinuxModulePage para que el polling de
-     * revalidación sobreviva a la navegación entre pestañas.
+     * revalidación sobreviva a la navegación entre pestañas. Sirve a los
+     * módulos de Linux y de EV3.
      */
     linuxSession?: LinuxPracticeSessionApi;
     /** "Repetir" del administrador en LinuxModulePage -- ver App.tsx. */
@@ -70,15 +64,9 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const [startingPractice, setStartingPractice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [setupLogs, setSetupLogs] = useState<LogEntry[]>([]);
-    const [selectedLinuxPracticeId, setSelectedLinuxPracticeId] = useState<string | null>(null);
+    // Módulo del servicio de la Pi (Linux o EV3) abierto en pantalla.
+    const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
-
-    // Catálogo externo (cmd::integration::lab_practices) — solo lectura,
-    // pestaña aparte porque es contenido importado sin entorno vinculado
-    // (ver ExternalPracticeCard). No comparte categorías con las prácticas
-    // locales: es una lista plana.
-    const [catalogTab, setCatalogTab] = useState<'local' | 'external'>('local');
-    const { practices: externalPractices, status: externalStatus, error: externalError, refetch: refetchExternal } = useLabPractices();
 
     // Insignias ganadas -- keyed por el mismo id de práctica que usa la Pi
     // (ej. "linux-m1"), ver services/badges.service.ts. Reactivo: si el
@@ -179,69 +167,29 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         setStartingPractice(null);
     };
 
-    // Igual que handleStartPractice, pero para una práctica del catálogo
-    // (cmd::integration::lab_practices) con LabConnectionProfile local — ver
-    // cmd::practices::lab_connection. Mismo flujo (setup -> config completa
-    // -> onStartPractice), solo cambia de dónde sale el nombre/descripción.
-    const handleStartExternalPractice = async (practice: RunnableLabPractice) => {
-        if (startingPractice) return;
-        setStartingPractice(practice.id);
-        setSetupLogs([]);
-        setError(null);
-
-        const addLog = (level: LogEntry['level'], message: string) => {
-            const now = new Date();
-            const timestamp = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            setSetupLogs(prev => [...prev, { level, message, timestamp }]);
-        };
-
-        try {
-            await labPracticesRunSetup(practice.id);
-
-            addLog('info', 'Obteniendo configuración de la práctica...');
-            const fullConfig = await labPracticesGetRunnable(practice.id);
-            addLog('success', 'Configuración obtenida');
-
-            await onStartPractice?.({
-                practice: fullConfig,
-                student: { id: 0, username: '', fullname: 'Estudiante', email: '' },
-            });
-        } catch (err) {
-            const errMsg = err instanceof Error ? err.message : String(err);
-            addLog('error', `Práctica detenida por error — ${errMsg}`);
-            Swal.fire({
-                title: 'Error al iniciar práctica',
-                text: errMsg,
-                icon: 'error',
-                confirmButtonText: 'Cerrar',
-                confirmButtonColor: 'var(--danger, #EF4444)',
-                position: 'center',
-                customClass: { container: 'swal-fullscreen' },
-            });
-            setStartingPractice(null);
-            return;
-        }
-
-        setStartingPractice(null);
-    };
-
     const handleBack = () => {
         setSelectedCategory(null);
         setSetupLogs([]);
-        setSelectedLinuxPracticeId(null);
+        setSelectedModuleId(null);
     };
 
-    if (selectedLinuxPracticeId) {
+    // Los módulos que sirve la Pi (todos los de Linux y los ev3-*) se abren en
+    // la pantalla de módulo; las demás prácticas (legacy, desde .env) arrancan
+    // con el flujo de setup + sesión compartida.
+    const isServiceModule = (categoryId: string, practiceId: string) =>
+        categoryId === 'linux' || practiceId.startsWith('ev3-');
+
+    if (selectedModuleId) {
         if (!linuxSession) {
             // No debería pasar en la app real (App.tsx siempre instancia y pasa
             // useLinuxPracticeSession hacia acá) — guard defensivo para no
             // reventar si algún día PracticesPage se usa sin ese hook arriba.
             return (
                 <Container size="sm" py="xl">
-                    <Alert color="red" title="Práctica de Linux no disponible">
+                    <Alert color="red" title="Práctica no disponible">
                         No se pudo inicializar la sesión de la práctica.
                     </Alert>
-                    <Button mt="md" variant="subtle" leftSection={<ArrowLeft size={14} />} onClick={() => setSelectedLinuxPracticeId(null)}>
+                    <Button mt="md" variant="subtle" leftSection={<ArrowLeft size={14} />} onClick={() => setSelectedModuleId(null)}>
                         Volver
                     </Button>
                 </Container>
@@ -249,8 +197,9 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         }
         return (
             <LinuxModulePage
-                practiceId={selectedLinuxPracticeId}
-                onBack={() => setSelectedLinuxPracticeId(null)}
+                practiceId={selectedModuleId}
+                categoryName={selectedCategory?.name ?? 'Prácticas'}
+                onBack={() => setSelectedModuleId(null)}
                 linuxSession={linuxSession}
                 onRestartModule={onRestartLinuxModule}
             />
@@ -272,92 +221,34 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                         <Stack gap="sm">
                             <Title order={1}>Prácticas de Laboratorio</Title>
                             <Text size="md" c="dimmed" maw={580}>
-                                {catalogTab === 'local'
-                                    ? 'Selecciona una categoría para ver las prácticas disponibles. Cada práctica configura automáticamente tu entorno de trabajo.'
-                                    : 'Prácticas publicadas por aplicaciones de autoría externas. Las que tienen un entorno de laboratorio vinculado en este equipo muestran "Iniciar práctica"; el resto es solo contenido de lectura.'}
+                                Selecciona una categoría para ver las prácticas disponibles. Cada práctica configura automáticamente tu entorno de trabajo.
                             </Text>
                         </Stack>
 
-                        <SegmentedControl
-                            value={catalogTab}
-                            onChange={(v) => setCatalogTab(v as 'local' | 'external')}
-                            data={[
-                                { label: 'Mis prácticas', value: 'local' },
-                                { label: 'Catálogo externo', value: 'external' },
-                            ]}
-                            style={{ alignSelf: 'flex-start' }}
-                            styles={{
-                                root: { backgroundColor: 'var(--background-tertiary)', border: '1px solid var(--border-subtle)' },
-                                indicator: { backgroundColor: 'var(--accent-primary)' },
-                                label: { color: 'var(--text-secondary)' },
-                                innerLabel: { color: 'var(--accent-contrast, #fff)' },
-                            }}
-                        />
-
-                        {catalogTab === 'local' ? (
-                            loading ? (
-                                // Solo esta parte (las cards) muestra el loading -- el título,
-                                // la descripción y el selector de pestaña ya se ven arriba.
-                                // Antes un `if (loading) return ...` tapaba la página entera
-                                // mientras practicas_list_categories esperaba a la Pi (hasta 8s
-                                // con el timeout nuevo si no responde).
-                                <Stack align="center" gap="md" py="xl">
-                                    <Loader size="md" />
-                                    <Text c="dimmed" size="sm">Cargando prácticas...</Text>
-                                </Stack>
-                            ) : (
-                                <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-                                    {categories.map(cat => (
-                                        <CategoryCard
-                                            key={cat.id}
-                                            id={cat.id}
-                                            name={cat.name}
-                                            description={cat.description}
-                                            icon={cat.icon}
-                                            color={cat.color}
-                                            practiceCount={cat.practices.length}
-                                            onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
-                                        />
-                                    ))}
-                                </SimpleGrid>
-                            )
-                        ) : externalStatus === 'loading' ? (
+                        {loading ? (
+                            // Solo esta parte (las cards) muestra el loading -- el título y la
+                            // descripción ya se ven arriba. Antes un `if (loading) return ...`
+                            // tapaba la página entera mientras practicas_list_categories
+                            // esperaba a la Pi (hasta 20s si no responde).
                             <Stack align="center" gap="md" py="xl">
                                 <Loader size="md" />
-                                <Text c="dimmed" size="sm">Cargando catálogo externo...</Text>
+                                <Text c="dimmed" size="sm">Cargando prácticas...</Text>
                             </Stack>
-                        ) : externalStatus === 'error' ? (
-                            <Alert color="red" variant="light" icon={<AlertTriangle size={16} />} title="No se pudo cargar el catálogo externo">
-                                <Stack gap="sm">
-                                    <Text size="sm">{externalError}</Text>
-                                    <Button size="xs" variant="light" color="red" onClick={() => void refetchExternal()} style={{ alignSelf: 'flex-start' }}>
-                                        Reintentar
-                                    </Button>
-                                </Stack>
-                            </Alert>
-                        ) : externalPractices.length === 0 ? (
-                            <Text c="dimmed" size="sm">No hay prácticas publicadas todavía.</Text>
                         ) : (
                             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-                                {externalPractices.map(practice => (
-                                    <ExternalPracticeCard
-                                        key={practice.id}
-                                        practice={practice}
-                                        onStart={() => handleStartExternalPractice(practice)}
-                                        loading={startingPractice === practice.id}
+                                {categories.map(cat => (
+                                    <CategoryCard
+                                        key={cat.id}
+                                        id={cat.id}
+                                        name={cat.name}
+                                        description={cat.description}
+                                        icon={cat.icon}
+                                        color={cat.color}
+                                        practiceCount={cat.practices.length}
+                                        onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
                                     />
                                 ))}
                             </SimpleGrid>
-                        )}
-
-                        {catalogTab === 'external' && setupLogs.length > 0 && (
-                            <SetupLogPanel
-                                logs={setupLogs}
-                                levelColor={levelColor}
-                                isRunning={!!startingPractice}
-                                onClear={() => setSetupLogs([])}
-                                logEndRef={logEndRef}
-                            />
                         )}
                     </Stack>
                 ) : (
@@ -407,8 +298,8 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                     hasCamera={practice.panels.camera}
                                     hasChat={practice.panels.chat}
                                     onStart={() => (
-                                        selectedCategory.id === 'linux'
-                                            ? setSelectedLinuxPracticeId(practice.id)
+                                        isServiceModule(selectedCategory.id, practice.id)
+                                            ? setSelectedModuleId(practice.id)
                                             : handleStartPractice(practice)
                                     )}
                                     loading={startingPractice === practice.id}
@@ -433,7 +324,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     );
 };
 
-/** Panel de log de inicialización — compartido entre prácticas locales y las del catálogo. */
+/** Panel de log de inicialización de las prácticas que arrancan con setup (legacy, desde .env). */
 const SetupLogPanel: React.FC<{
     logs: LogEntry[];
     levelColor: Record<LogEntry['level'], string>;

@@ -139,13 +139,15 @@ const AppMain: React.FC = () => {
     setChatOpen: setIsChatOpen,
   })
 
-  // Práctica de Linux: mismo patrón que usePracticeSession -- se instancia
-  // una sola vez acá (nunca se desmonta, a diferencia de HomeContainer, que
-  // sí se desmonta al navegar a la pestaña de la sesión SSH) para que el
-  // polling de revalidación de progreso sobreviva esa navegación.
+  // Módulos de práctica de la Pi (Linux y EV3): mismo patrón que
+  // usePracticeSession -- se instancia una sola vez acá (nunca se desmonta, a
+  // diferencia de HomeContainer, que sí se desmonta al navegar a la pestaña de
+  // la sesión SSH) para que el polling de revalidación de progreso sobreviva
+  // esa navegación.
   const linuxSession = useLinuxPracticeSession({
     onNewSession: handleNewSession,
     setChatOpen: setIsChatOpen,
+    setCameraOpen: setCameraPanelOpen,
     // Convención de "fin de práctica" para TODA la app (ver
     // frontend/docs/practice-completion.md) -- al terminar un módulo,
     // volvemos a la pestaña de Inicio y a la vista de Prácticas, donde el
@@ -179,7 +181,7 @@ const AppMain: React.FC = () => {
   // `Object.entries(combinedPracticeMeta ?? {})` más abajo (ver
   // practicasAbiertas) caiga en el overload genérico de Object.entries y
   // tipe cada valor como `unknown` en vez de la forma real.
-  type CombinedPracticeMeta = { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null };
+  type CombinedPracticeMeta = { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null; robotDashboard?: boolean };
   const combinedPracticeMeta = useMemo<Record<string, CombinedPracticeMeta>>(() => {
     const linuxEntries = Object.entries(linuxSession.sessionModuleMap)
     if (linuxEntries.length === 0) return practiceMeta
@@ -188,10 +190,15 @@ const AppMain: React.FC = () => {
     // practiceId, sin inventar assignmentId/student.
     const merged: Record<string, CombinedPracticeMeta> = { ...(practiceMeta ?? {}) }
     for (const [sessionId, moduleId] of linuxEntries) {
-      merged[sessionId] = { practiceId: String(moduleId) }
+      // `robotDashboard`: los módulos con `environment.panels.robot_dashboard`
+      // (EV3) piden el panel del robot dentro de la pestaña de su terminal.
+      merged[sessionId] = {
+        practiceId: String(moduleId),
+        robotDashboard: !!linuxSession.sessionPanels[sessionId]?.robot_dashboard,
+      }
     }
     return merged
-  }, [practiceMeta, linuxSession.sessionModuleMap])
+  }, [practiceMeta, linuxSession.sessionModuleMap, linuxSession.sessionPanels])
 
   // ── Sesión y Autenticación ───────────────────────────────────────────────────
   const { isAuthenticated, isLoading } = useAuth()

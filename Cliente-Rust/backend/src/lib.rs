@@ -183,6 +183,7 @@ pub fn run() {
       cmd::nvr::shinobi::nvr_list_cameras,
       cmd::nvr::shinobi::nvr_disconnect,
       cmd::nvr::shinobi::nvr_ptz_control,
+      cmd::nvr::shinobi::nvr_whep,
       // Registro central de sesiones de práctica (dashboard del personal)
       cmd::sesiones::sesiones_reportar_evento,
       cmd::sesiones::sesiones_resumen,
@@ -200,23 +201,17 @@ pub fn run() {
       cmd::practices::practicas::practicas_list_categories,
       cmd::practices::practicas::practicas_get_config,
       cmd::practices::practicas::practicas_run_setup,
-      // Prácticas de Linux — servicio HTTP en la Raspberry Pi
+      // Módulos de práctica (Linux y EV3) — servicio HTTP en la Raspberry Pi
       cmd::practices::linux_api::practicas_linux_list,
       cmd::practices::linux_api::practicas_linux_get_module,
       cmd::practices::linux_api::practicas_linux_validate,
       cmd::practices::linux_api::practicas_linux_connection_target,
       cmd::practices::linux_api::practicas_linux_get_media,
+      cmd::practices::linux_media_proxy::practicas_linux_media_url,
       // Integración con Moodle
       cmd::integration::moodle::moodle_sync_assignment,
       cmd::integration::moodle::moodle_prepare_grade,
       cmd::integration::moodle::moodle_submit_grade_direct,
-      // Catálogo externo de prácticas (solo lectura, contenido no confiable)
-      cmd::integration::lab_practices::lab_practices_list,
-      cmd::integration::lab_practices::lab_practices_get,
-      // Binding local catálogo externo <-> entorno real (LabConnectionProfile)
-      cmd::practices::lab_connection::lab_practices_list_runnable,
-      cmd::practices::lab_connection::lab_practices_get_runnable,
-      cmd::practices::lab_connection::lab_practices_run_setup,
       // Validador de prácticas
       cmd::practices::practice_validator::validate_practice_progress,
       cmd::practices::practice_validator::calculate_practice_grade,
@@ -228,6 +223,9 @@ pub fn run() {
       cmd::hardware::ev3::ev3_status,
       cmd::hardware::ev3::ev3_set_motor,
       cmd::hardware::ev3::ev3_stop_all,
+      cmd::hardware::ev3_console::ev3_run_start,
+      cmd::hardware::ev3_console::ev3_run_output,
+      cmd::hardware::ev3_console::ev3_run_stop,
       // Autenticación OAuth 2.1 con Keycloak
       crate::auth::commands::auth_login_url,
       crate::auth::commands::auth_status,

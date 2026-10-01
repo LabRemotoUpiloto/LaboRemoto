@@ -34,9 +34,78 @@ export interface LinuxQuizOption {
   label: string;
 }
 
+// ── Bloques interactivos de los módulos de EV3 ──
+// Son widgets de exploración libre, sin regla de validación: la app trae el
+// componente y el módulo (en la API) solo lo configura con estos datos.
+
+export interface CalcInput {
+  id: string;
+  label: string;
+  unit?: string;
+  min: number;
+  max: number;
+  step?: number;
+  default: number;
+}
+
+export interface CalcOutput {
+  id: string;
+  label: string;
+  /** Fórmula aritmética sobre los ids de `inputs` y de `outputs` anteriores (ver utils/mathExpr). */
+  expr: string;
+  decimals?: number;
+  unit?: string;
+}
+
+/** Zona de distancia del sensor ultrasónico: aplica hasta `max_cm` (la última puede omitirlo). */
+export interface SensorZone {
+  max_cm?: number;
+  label: string;
+  action: string;
+}
+
+export interface MachineState {
+  id: string;
+  label: string;
+}
+
+export interface MachineEvent {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+}
+
 export type LinuxBlock =
   | { type: 'text'; id: string; body_md: string }
+  // Simulador de dos ruedas (potencia izquierda/derecha -> qué hace el robot).
+  | { type: 'wheels_sim'; id: string; title?: string }
+  // Calculadora configurable; `code_template` usa {id} de entradas y salidas.
+  | {
+      type: 'calculator';
+      id: string;
+      title?: string;
+      inputs: CalcInput[];
+      outputs: CalcOutput[];
+      code_template?: string;
+      note_md?: string;
+    }
+  // Simulación de un sensor; si hay uno real conectado se muestra su valor.
+  // `code_template` usa {value} y {threshold}.
+  | {
+      type: 'sensor_demo';
+      id: string;
+      sensor: 'touch' | 'ultrasonic' | 'color';
+      title?: string;
+      threshold_cm?: number;
+      zones?: SensorZone[];
+      code_template?: string;
+    }
+  | { type: 'state_machine'; id: string; title?: string; states: MachineState[]; events: MachineEvent[]; initial: string }
+  | { type: 'checklist'; id: string; title?: string; items: string[]; done_md?: string }
   | { type: 'terminal_annotation'; id: string; prompt_example: string; labels: LinuxLabel[] }
+  // Fragmento de código solo para leer (módulos de EV3: Python). No tiene regla de validación.
+  | { type: 'code_block'; id: string; language?: string; code: string; caption?: string }
   // `title` (opcional): encabezado explicativo a mostrar en vez del `term`
   // pelado (ej. "¿Qué es el kernel?" en vez de solo "KERNEL").
   | { type: 'analogy'; id: string; term: string; title?: string; everyday: string; windows: string; linux: string }
@@ -76,6 +145,19 @@ export interface LinuxValidationRule {
   step_id?: string;
 }
 
+/**
+ * Entorno que un módulo necesita además de la terminal y el chat (hoy: el
+ * robot de EV3). Todo opcional: los módulos de Linux no traen `environment`.
+ * Nunca lleva credenciales -- las comandos de arranque usan scripts que ya
+ * tienen sus claves del lado de la Pi.
+ */
+export interface LinuxModuleEnvironment {
+  /** Paneles que se abren junto a la terminal al conectar. */
+  panels?: { robot_dashboard?: boolean; camera?: boolean };
+  /** Pasos de arranque; el backend los valida y los ejecuta por la sesión SSH del estudiante. */
+  setup_commands?: string[];
+}
+
 export interface LinuxModule {
   id: string;
   order: number;
@@ -87,7 +169,11 @@ export interface LinuxModule {
   blocks: LinuxBlock[];
   hints: string[];
   validation_rules: LinuxValidationRule[];
+  environment?: LinuxModuleEnvironment;
 }
+
+/** Los módulos de EV3 usan el prefijo `ev3-` (mismo criterio que `module_category` en Rust). */
+export const isEv3Module = (moduleId: string): boolean => moduleId.startsWith('ev3-');
 
 export interface LinuxValidationRuleResult {
   rule_id: string;
@@ -182,11 +268,27 @@ export const linuxValidate = (
 export const linuxConnectionTarget = (): Promise<LinuxConnectionTarget> =>
   invoke<LinuxConnectionTarget>('practicas_linux_connection_target');
 
+/**
+ * Prepara el entorno del módulo (ej. levanta el servidor del robot y su
+ * puente) por la sesión SSH ya abierta. Devuelve una línea por paso. El
+ * backend trae los comandos él mismo: acá solo se dice qué módulo es.
+ */
+export const practicasModuleSetup = (sessionId: string, practiceId: string): Promise<string[]> =>
+  invoke<string[]>('practicas_module_setup', { sessionId, practiceId });
+
 export interface LinuxMedia {
   mime: string;
   /** Base64 estándar -- armar un `data:` URI con esto, ver useLinuxMedia. */
   base64: string;
 }
+
+/**
+ * URL local (puente del backend, loopback + token aleatorio) desde la que un `<video>` lee el archivo
+ * por streaming con `Range`: arranca en segundos y no baja lo que el estudiante no mira. Se usa para
+ * video; las imágenes, que son chicas, siguen yendo por `linuxGetMedia`.
+ */
+export const linuxGetMediaUrl = (practiceId: string, mediaPath: string): Promise<string> =>
+  invoke<string>('practicas_linux_media_url', { practiceId, mediaPath });
 
 /** Trae un archivo de media (imagen/video) de un módulo, vía el mismo túnel que el resto de la práctica. */
 // Caché en memoria por (módulo, archivo): el mismo video/imagen se pedía de nuevo

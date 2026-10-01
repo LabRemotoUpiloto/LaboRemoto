@@ -1,0 +1,351 @@
+{
+  "id": "ev3-m3",
+  "order": 3,
+  "title": "Movimiento preciso y trayectorias",
+  "difficulty": "intermediate",
+  "estimated_minutes": 30,
+  "sequential": false,
+  "objective": "Pasar de \"avanza con tal potencia\" a \"avanza exactamente 30 cm\": convertir distancias y giros en grados de motor usando el diámetro de la rueda y el ancho de vía.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "sudo -n -u pi /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "sudo -n -u pi /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "**De potencia a distancia.** Hasta ahora controlaste el robot por **potencia**: \"ve al 40 %\" hasta que alguien lo pare. Eso sirve para manejarlo a mano, pero no para tareas como \"avanza exactamente 30 cm\". Para eso hace falta otra herramienta."
+    },
+    {
+      "type": "text",
+      "id": "b-comandos",
+      "body_md": "La librería ev3dev2 tiene comandos que mueven el motor una cantidad exacta y se detienen solos. La pregunta natural es: si le pido \"180 grados\", **¿cuánto avanza el robot en centímetros?** Depende de un solo dato físico: el diámetro de la rueda."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-exacto",
+      "language": "python",
+      "code": "motor.on_for_rotations(speed=30, rotations=2)   # 2 vueltas completas\nmotor.on_for_degrees(speed=30, degrees=180)     # media vuelta"
+    },
+    {
+      "type": "text",
+      "id": "b-formula",
+      "body_md": "**Grados por centímetro.** La rueda es un círculo: en una vuelta completa (360°) avanza exactamente su circunferencia, π · D. Por regla de tres, los grados de motor que hacen falta por cada cm son 360 / (π · D). Con una rueda de **5,6 cm** de diámetro son unos **20,5° por cm**: para avanzar 10 cm hacen falta unos 205°, y para 30 cm unos 614°."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-avanzar",
+      "language": "python",
+      "code": "import math\n\ndiametro = 5.6   # cm\ngrados = 30 * (360 / (math.pi * diametro))   # unos 614 grados\nmotor.on_for_degrees(speed=30, degrees=grados)"
+    },
+    {
+      "type": "calculator",
+      "id": "w-grados",
+      "title": "Calculadora: grados para avanzar",
+      "inputs": [
+        {
+          "id": "diametro",
+          "label": "Diámetro de la rueda (D)",
+          "unit": "cm",
+          "min": 2,
+          "max": 12,
+          "step": 0.1,
+          "default": 5.6
+        },
+        {
+          "id": "distancia",
+          "label": "Distancia a avanzar",
+          "unit": "cm",
+          "min": 1,
+          "max": 100,
+          "step": 1,
+          "default": 30
+        }
+      ],
+      "outputs": [
+        {
+          "id": "grados",
+          "label": "Grados de motor necesarios",
+          "expr": "distancia * 360 / (pi * diametro)",
+          "decimals": 1,
+          "unit": "°"
+        }
+      ],
+      "code_template": "motor.on_for_degrees(speed=30, degrees={grados})",
+      "note_md": "Con una rueda más chica hacen falta más grados para la misma distancia."
+    },
+    {
+      "type": "quiz",
+      "id": "q-grados-por-cm",
+      "question_md": "¿Qué determina cuántos **grados** hay que girar el motor para avanzar 1 cm?",
+      "options": [
+        {
+          "id": "a",
+          "label": "La potencia configurada"
+        },
+        {
+          "id": "b",
+          "label": "El color del robot"
+        },
+        {
+          "id": "c",
+          "label": "El ancho de vía (E)"
+        },
+        {
+          "id": "d",
+          "label": "El diámetro de la rueda (D)"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-formula-rueda",
+      "body_md": "Con una rueda **más chica** hacen falta **más grados** para la misma distancia, porque da más vueltas para recorrer lo mismo. Con una rueda más grande pasa lo contrario."
+    },
+    {
+      "type": "text",
+      "id": "b-encoders",
+      "body_md": "**Encoders: cómo el robot sabe cuánto giró.** En el módulo 2 viste sensores que leen el entorno. Los motores traen algo parecido pero mirando hacia adentro: un **encoder**, que cuenta cuántos grados giró el motor desde que se prendió el robot. Ese conteo no se pierde entre comandos: sigue acumulando."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-encoder",
+      "language": "python",
+      "code": "print(motor.position)   # grados acumulados, sigue sumando mientras el motor gire"
+    },
+    {
+      "type": "text",
+      "id": "b-encoders-uso",
+      "body_md": "El encoder permite comparar **lo que el robot debería haber hecho** contra **lo que hizo de verdad**: si pediste 614° y el encoder marca 590°, algo patinó o se atascó."
+    },
+    {
+      "type": "quiz",
+      "id": "q-encoder",
+      "question_md": "¿Qué es el **encoder** de un motor?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Un contador interno que acumula cuánto giró el motor"
+        },
+        {
+          "id": "b",
+          "label": "Un tipo de sensor de color"
+        },
+        {
+          "id": "c",
+          "label": "La batería que lo alimenta"
+        },
+        {
+          "id": "d",
+          "label": "El cable que lo conecta al puerto"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-girar",
+      "body_md": "**Girar un ángulo exacto.** Girar no depende solo del diámetro de la rueda sino también del **ancho de vía (E)**, la distancia entre las dos ruedas. Cuanto más separadas están, más tienen que girar para lograr el mismo giro del robot completo. La fórmula es: grados de cada rueda = ángulo del robot · (E / D). Con E = 12 cm y D = 5,6 cm, girar 90° son unos **193° por rueda**."
+    },
+    {
+      "type": "quiz",
+      "id": "q-ancho-de-via",
+      "question_md": "¿Qué mide el **ancho de vía (E)**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El diámetro de la rueda"
+        },
+        {
+          "id": "b",
+          "label": "La distancia entre las dos ruedas"
+        },
+        {
+          "id": "c",
+          "label": "La potencia máxima del motor"
+        },
+        {
+          "id": "d",
+          "label": "El largo total del robot"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-signos",
+      "body_md": "Para girar sobre el propio centro, los signos son **opuestos**: mientras una rueda avanza, la otra retrocede la misma cantidad. Así el robot gira en su lugar en vez de desplazarse hacia un lado."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-girar",
+      "language": "python",
+      "code": "motor_izq.on_for_degrees(speed=30, degrees=-193)   # retrocede\nmotor_der.on_for_degrees(speed=30, degrees=193)    # avanza"
+    },
+    {
+      "type": "calculator",
+      "id": "w-giro",
+      "title": "Calculadora: girar un ángulo exacto",
+      "inputs": [
+        {
+          "id": "angulo",
+          "label": "Ángulo a girar",
+          "unit": "°",
+          "min": -180,
+          "max": 180,
+          "step": 1,
+          "default": 90
+        },
+        {
+          "id": "diametro",
+          "label": "Diámetro de la rueda (D)",
+          "unit": "cm",
+          "min": 2,
+          "max": 12,
+          "step": 0.1,
+          "default": 5.6
+        },
+        {
+          "id": "ancho",
+          "label": "Ancho de vía (E)",
+          "unit": "cm",
+          "min": 4,
+          "max": 30,
+          "step": 0.5,
+          "default": 12
+        }
+      ],
+      "outputs": [
+        {
+          "id": "izq",
+          "label": "Motor izquierdo",
+          "expr": "-angulo * ancho / diametro",
+          "decimals": 1,
+          "unit": "°"
+        },
+        {
+          "id": "der",
+          "label": "Motor derecho",
+          "expr": "angulo * ancho / diametro",
+          "decimals": 1,
+          "unit": "°"
+        }
+      ],
+      "code_template": "motor_izq.on_for_degrees(speed=30, degrees={izq})\nmotor_der.on_for_degrees(speed=30, degrees={der})",
+      "note_md": "Los signos son opuestos: una rueda avanza y la otra retrocede la misma cantidad."
+    },
+    {
+      "type": "quiz",
+      "id": "q-signos-giro",
+      "question_md": "Al girar el robot **sobre su propio eje**, ¿qué signos tienen las dos ruedas?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Los dos positivos"
+        },
+        {
+          "id": "b",
+          "label": "Los dos negativos"
+        },
+        {
+          "id": "c",
+          "label": "Opuestos: una avanza y la otra retrocede"
+        },
+        {
+          "id": "d",
+          "label": "Da igual, no importa el signo"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-planear",
+      "body_md": "**Planear una ruta.** Una ruta es una lista de comandos \"girar\" y \"avanzar\" que combinan estas dos cuentas. Antes de mover el robot de verdad conviene calcular (o simular) la ruta completa: un giro de más en el papel es gratis, en el mundo real puede tirar algo al piso."
+    },
+    {
+      "type": "quiz",
+      "id": "q-para-que-simular",
+      "question_md": "¿Para qué sirve simular o calcular una ruta **antes** de ejecutarla en el robot real?",
+      "options": [
+        {
+          "id": "a",
+          "label": "No sirve, es solo estético"
+        },
+        {
+          "id": "b",
+          "label": "Para que el robot se mueva más rápido después"
+        },
+        {
+          "id": "c",
+          "label": "Porque la app no deja ejecutar sin simular"
+        },
+        {
+          "id": "d",
+          "label": "Para detectar errores sin arriesgar al robot físico"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** En la pestaña **Consola** del Panel EV3 ejecuta el ejemplo \"Avanzar una distancia exacta (grados)\". Cambia CM y DIAMETRO y compara los grados que calculaste con lo que marca el encoder al final."
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-grados-por-cm",
+        "quiz-encoder",
+        "quiz-ancho-de-via",
+        "quiz-signos-giro",
+        "quiz-para-que-simular"
+      ]
+    }
+  ],
+  "hints": [
+    "Grados por cm = 360 / (π · D). Con una rueda más chica hacen falta más grados para la misma distancia.",
+    "Para girar sobre el eje, una rueda avanza y la otra retrocede la misma cantidad.",
+    "Con D = 5,6 cm y E = 12 cm: avanzar 30 cm son unos 614° y girar 90° son unos 193° por rueda."
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-grados-por-cm",
+      "rule_type": "quiz",
+      "target": "q-grados-por-cm",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-encoder",
+      "rule_type": "quiz",
+      "target": "q-encoder",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-ancho-de-via",
+      "rule_type": "quiz",
+      "target": "q-ancho-de-via",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-signos-giro",
+      "rule_type": "quiz",
+      "target": "q-signos-giro",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-para-que-simular",
+      "rule_type": "quiz",
+      "target": "q-para-que-simular",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

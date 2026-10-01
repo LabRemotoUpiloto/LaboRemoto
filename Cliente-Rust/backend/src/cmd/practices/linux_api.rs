@@ -44,9 +44,9 @@ pub struct LinuxConnectionTarget {
 // arrancar (ver lib.rs), así que alcanza con leer el entorno del proceso.
 
 #[derive(Debug, Clone)]
-struct LinuxApiConfig {
+pub(crate) struct LinuxApiConfig {
     tunnel: TunnelConfig,
-    token: String,
+    pub(crate) token: String,
     ssh_host: String,
     ssh_port: u16,
 }
@@ -55,7 +55,7 @@ fn env_var(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.trim().is_empty())
 }
 
-fn load_config() -> Result<LinuxApiConfig, CommandError> {
+pub(crate) fn load_config() -> Result<LinuxApiConfig, CommandError> {
     let missing = |key: &str| {
         CommandError::permanent("VALIDATION_FAILED", format!("{key} no configurado en .env"))
     };
@@ -93,7 +93,7 @@ fn load_config() -> Result<LinuxApiConfig, CommandError> {
     })
 }
 
-async fn resolve_base_url(config: &LinuxApiConfig) -> Result<String, CommandError> {
+pub(crate) async fn resolve_base_url(config: &LinuxApiConfig) -> Result<String, CommandError> {
     let local_port = linux_tunnel::ensure_tunnel(config.tunnel.clone())
         .await
         .map_err(|e| CommandError::transient("LINUX_TUNNEL_ERROR", format!("No se pudo establecer el túnel hacia la Pi: {e}")))?;
@@ -340,4 +340,177 @@ pub async fn practicas_linux_connection_target(
         port: config.ssh_port,
         user,
     })
+}
+
+// ─── Categorías y entorno de los módulos ───
+
+/// Categoría (`PracticeCategory.id`) a la que pertenece un módulo, según el
+/// prefijo de su id: `ev3-*` van a Eve3 y todo lo demás a Linux. El servicio de
+/// la Pi no distingue categorías (la lista `/practices` mezcla todos los
+/// módulos), así que la separación vive acá, sin tocar su código.
+pub fn module_category(practice_id: &str) -> &'static str {
+    if practice_id.starts_with("ev3-") {
+        "eve3"
+    } else {
+        "linux"
+    }
+}
+
+/// Únicos comandos que el entorno de un módulo puede pedir ejecutar: los
+/// scripts de salto que levantan el robot y su puente (desplegados a mano en
+/// la Pi, con sus credenciales adentro). Defensa en profundidad: aunque el
+/// contenido del servicio cambie, la app no ejecuta nada más con esto.
+///
+/// La forma vigente es `sudo -n -u pi <script>`: los scripts quedan legibles
+/// solo por `pi` y las cuentas de estudiantes los ejecutan por una regla de
+/// sudoers. Se acepta también la forma antigua (`bash <script>`) mientras
+/// haya módulos desplegados que la usen.
+const SETUP_ALLOWED_PREFIXES: &[&str] = &[
+    "sudo -n -u pi /home/pi/ev3-hop-robot.sh ",
+    "sudo -n -u pi /home/pi/ev3-hop-pi5.sh ",
+    "bash /home/pi/ev3-hop-robot.sh ",
+    "bash /home/pi/ev3-hop-pi5.sh ",
+];
+
+const SETUP_STEP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// Lee `environment.setup_commands` (lista de textos) de un módulo y valida
+/// cada comando. Sin esa clave, el módulo no necesita preparar nada.
+fn setup_commands_from(module: &serde_json::Value) -> Result<Vec<String>, CommandError> {
+    let Some(list) = module.pointer("/environment/setup_commands") else {
+        return Ok(Vec::new());
+    };
+    let invalid = |msg: String| CommandError::permanent("INVALID_DATA", msg);
+    let list = list
+        .as_array()
+        .ok_or_else(|| invalid("environment.setup_commands debe ser una lista de textos".into()))?;
+
+    let mut commands = Vec::with_capacity(list.len());
+    for (i, item) in list.iter().enumerate() {
+        let cmd = item
+            .as_str()
+            .ok_or_else(|| invalid(format!("environment.setup_commands[{i}] no es un texto")))?;
+        if cmd.chars().any(|c| c == '\n' || c == '\r' || c == '\0') {
+            return Err(invalid(format!("environment.setup_commands[{i}] tiene saltos de línea")));
+        }
+        if !SETUP_ALLOWED_PREFIXES.iter().any(|p| cmd.starts_with(p)) {
+            return Err(invalid(format!("environment.setup_commands[{i}] no es un comando de arranque permitido")));
+        }
+        commands.push(cmd.to_string());
+    }
+    Ok(commands)
+}
+
+fn truncate_output(s: &str) -> String {
+    let t = s.trim();
+    if t.chars().count() > 300 {
+        format!("{}…", t.chars().take(300).collect::<String>())
+    } else {
+        t.to_string()
+    }
+}
+
+/// Prepara el entorno de un módulo (ej. levantar el servidor del robot y su
+/// puente) ejecutando sus `environment.setup_commands` por la sesión SSH del
+/// propio estudiante. El backend trae los comandos él mismo desde el servicio:
+/// el frontend solo dice qué módulo es, así que no puede pedir comandos
+/// arbitrarios. Devuelve una línea por paso. Un paso que sale con error NO
+/// aborta (el panel del robot ya avisa si el puente no responde); solo un fallo
+/// de conexión o un tiempo agotado devuelve error.
+#[tauri::command]
+pub async fn practicas_module_setup(session_id: String, practice_id: String) -> Result<Vec<String>, CommandError> {
+    if practice_id.is_empty() || !practice_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Id de práctica inválido: {practice_id}")));
+    }
+    let config = load_config()?;
+    let module = api_get(&config, &format!("/practices/{}", practice_id)).await?;
+    let commands = setup_commands_from(&module)?;
+
+    let mut report = Vec::with_capacity(commands.len());
+    for (i, cmd) in commands.into_iter().enumerate() {
+        let step = i + 1;
+        let sid = session_id.clone();
+        let task = tokio::task::spawn_blocking(move || crate::ssh_core::exec::ssh_exec(&sid, &cmd));
+        let result = tokio::time::timeout(SETUP_STEP_TIMEOUT, task)
+            .await
+            .map_err(|_| {
+                CommandError::transient(
+                    "OPERATION_TIMEOUT",
+                    format!("El paso {step} del arranque tardó más de {} s", SETUP_STEP_TIMEOUT.as_secs()),
+                )
+                .with_context("practicas_module_setup", &practice_id)
+            })?
+            .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?;
+
+        match result {
+            Ok((0, out)) => report.push(format!("paso {step}: ok {}", truncate_output(&out)).trim().to_string()),
+            Ok((code, out)) => report.push(format!("paso {step}: terminó con código {code} {}", truncate_output(&out)).trim().to_string()),
+            Err(e) => {
+                return Err(CommandError::transient("COMMUNICATION_ERROR", format!("Paso {step} del arranque: {e}"))
+                    .with_context("practicas_module_setup", &practice_id))
+            }
+        }
+    }
+    Ok(report)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn category_by_prefix() {
+        assert_eq!(module_category("ev3-m1"), "eve3");
+        assert_eq!(module_category("linux-m3"), "linux");
+        // Cualquier otro id cae en Linux: es lo que pasaba antes de existir EV3.
+        assert_eq!(module_category("m1"), "linux");
+        assert_eq!(module_category("eve3-p1"), "linux");
+    }
+
+    #[test]
+    fn setup_without_environment_is_empty() {
+        assert!(setup_commands_from(&json!({ "id": "linux-m1" })).unwrap().is_empty());
+        assert!(setup_commands_from(&json!({ "environment": {} })).unwrap().is_empty());
+    }
+
+    #[test]
+    fn setup_accepts_the_known_hop_scripts() {
+        let m = json!({ "environment": { "setup_commands": [
+            "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+            "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && ./arrancar.sh'",
+            "sudo -n -u pi /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+            "sudo -n -u pi /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && ./arrancar.sh'",
+        ] } });
+        assert_eq!(setup_commands_from(&m).unwrap().len(), 4);
+    }
+
+    #[test]
+    fn setup_rejects_anything_else() {
+        for bad in [
+            "rm -rf /",
+            "bash /tmp/otro.sh 'x'",
+            "bash /home/pi/ev3-hop-robot.shx 'x'",
+            "sudo -n -u pi /tmp/otro.sh 'x'",
+            "sudo -u root /home/pi/ev3-hop-robot.sh 'x'",
+            "sudo -n -u pi /home/pi/ev3-hop-robot.shx 'x'",
+            "bash /home/pi/ev3-hop-robot.sh 'ok'\nrm -rf ~",
+            "echo bash /home/pi/ev3-hop-robot.sh ",
+        ] {
+            let m = json!({ "environment": { "setup_commands": [bad] } });
+            assert!(setup_commands_from(&m).is_err(), "debió rechazar: {bad:?}");
+        }
+    }
+
+    #[test]
+    fn setup_rejects_wrong_shapes() {
+        assert!(setup_commands_from(&json!({ "environment": { "setup_commands": "bash x" } })).is_err());
+        assert!(setup_commands_from(&json!({ "environment": { "setup_commands": [42] } })).is_err());
+    }
+
+    #[test]
+    fn truncate_keeps_short_and_cuts_long() {
+        assert_eq!(truncate_output("  hola \n"), "hola");
+        assert!(truncate_output(&"x".repeat(1000)).chars().count() <= 301);
+    }
 }

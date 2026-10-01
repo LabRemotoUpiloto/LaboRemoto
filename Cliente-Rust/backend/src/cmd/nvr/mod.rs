@@ -7,4 +7,4 @@
 
 pub mod shinobi;
 
-pub use shinobi::{nvr_list_cameras, nvr_disconnect, nvr_ptz_control};
+pub use shinobi::{nvr_list_cameras, nvr_disconnect, nvr_ptz_control, nvr_whep};

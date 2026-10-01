@@ -1,0 +1,270 @@
+{
+  "id": "ev3-m1",
+  "order": 1,
+  "title": "Conociendo el EV3",
+  "difficulty": "beginner",
+  "estimated_minutes": 25,
+  "sequential": false,
+  "objective": "Entender qué es el robot EV3, cuáles son sus sensores y actuadores, para qué sirven sus puertos y cómo se combinan dos ruedas para producir cualquier movimiento.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "sudo -n -u pi /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "sudo -n -u pi /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "**¿Qué es el EV3?** El LEGO Mindstorms EV3 es un kit de robótica educativa. Su pieza central es el **ladrillo** (en inglés, brick): una computadora pequeña con procesador propio, pantalla, botones, altavoz y batería, que se programa para leer sensores y mover motores."
+    },
+    {
+      "type": "text",
+      "id": "b-ev3dev",
+      "body_md": "En este laboratorio el ladrillo no corre el software original de LEGO: corre **ev3dev**, una distribución de Linux, con un programa en **Python** escuchando pedidos por red. La app le manda esos pedidos, y por eso puedes controlar el robot aunque esté en otro lugar físico. A eso se le llama **laboratorio remoto**."
+    },
+    {
+      "type": "text",
+      "id": "b-que-haras",
+      "body_md": "**Qué harás con la app:** ver en vivo el estado de los motores y sensores conectados (pestaña Dashboard), mover el robot con el teclado y ver una réplica 3D que se mueve igual que el robot real (pestaña Gemelo 3D). Este módulo es conceptual: lo importante es entender las piezas antes de programarlas."
+    },
+    {
+      "type": "text",
+      "id": "b-sensores",
+      "body_md": "**Sensores (los \"sentidos\").** Perciben algo del entorno (luz, distancia, contacto, giro) y lo convierten en un número que el programa puede leer. Se conectan a los puertos de **entrada**: in1, in2, in3 e in4."
+    },
+    {
+      "type": "text",
+      "id": "b-actuadores",
+      "body_md": "**Actuadores (los \"músculos\").** Reciben una orden del programa y producen un efecto físico, normalmente girar. Se conectan a los puertos de **salida**: outA, outB, outC y outD."
+    },
+    {
+      "type": "text",
+      "id": "b-piezas",
+      "body_md": "Las piezas que vas a encontrar: **motor grande** y **motor mediano** (actuadores); **sensor de contacto**, **sensor de color**, **sensor ultrasónico** (mide distancia) y **sensor giroscópico** (mide giro) son sensores."
+    },
+    {
+      "type": "quiz",
+      "id": "q-actuador",
+      "question_md": "¿Cuál de estas piezas es un **actuador**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Motor grande"
+        },
+        {
+          "id": "b",
+          "label": "Sensor de color"
+        },
+        {
+          "id": "c",
+          "label": "Sensor ultrasónico"
+        },
+        {
+          "id": "d",
+          "label": "Sensor de contacto"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-puertos",
+      "body_md": "El EV3 tiene **4 puertos de salida** (outA a outD, para motores) y **4 de entrada** (in1 a in4, para sensores). No son nombres inventados por la app: son los mismos que usa el sistema operativo del robot y los que verás en el Dashboard."
+    },
+    {
+      "type": "text",
+      "id": "b-puerto-motor",
+      "body_md": "**Puerto de salida (motor).** El programa le manda una velocidad de -100 % a 100 %: el signo define el sentido de giro y la magnitud la fuerza. Nunca adivines el puerto por el nombre del motor: es literalmente el cable físico que está enchufado ahí."
+    },
+    {
+      "type": "text",
+      "id": "b-puerto-sensor",
+      "body_md": "**Puerto de entrada (sensor).** El programa lee su valor (una distancia en cm, si está presionado, un color) para decidir qué hacer. A diferencia de un motor, un sensor nunca recibe órdenes: solo informa."
+    },
+    {
+      "type": "text",
+      "id": "b-practica-puertos",
+      "body_md": "**Míralo en vivo.** Abre el Panel EV3 y entra a la pestaña **Dashboard**. En \"Motores\" verás los puertos de A a D (los vacíos dicen \"sin motor\") y en \"Sensores\" los puertos 1 a 4 (los vacíos dicen \"vacío\"). ¿Cuáles están conectados ahora mismo en el robot?"
+    },
+    {
+      "type": "quiz",
+      "id": "q-puerto-sensor",
+      "question_md": "¿A qué puerto se conecta un **sensor de distancia**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "outA (salida)"
+        },
+        {
+          "id": "b",
+          "label": "in2 (entrada)"
+        },
+        {
+          "id": "c",
+          "label": "outC (salida)"
+        },
+        {
+          "id": "d",
+          "label": "outD (salida)"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-movimientos",
+      "body_md": "**Movimientos básicos.** Cada motor gira por separado a una potencia de -100 % a 100 %. No existe un comando especial para \"girar\" o \"avanzar\": todos los movimientos salen de combinar dos números, uno por rueda."
+    },
+    {
+      "type": "text",
+      "id": "b-casos",
+      "body_md": "Los cuatro casos clásicos: **avanzar** (las dos ruedas giran igual, hacia adelante); **retroceder** (las dos igual, hacia atrás); **girar en el lugar** (misma fuerza pero en sentidos opuestos); **curva** (mismo sentido con distinta fuerza: la rueda más lenta marca hacia dónde se curva)."
+    },
+    {
+      "type": "wheels_sim",
+      "id": "w-ruedas",
+      "title": "Prueba: dos ruedas, dos potencias"
+    },
+    {
+      "type": "quiz",
+      "id": "q-avanzar",
+      "question_md": "Si las dos ruedas giran con la **misma potencia positiva**, el robot...",
+      "options": [
+        {
+          "id": "a",
+          "label": "Gira en el lugar"
+        },
+        {
+          "id": "b",
+          "label": "Retrocede"
+        },
+        {
+          "id": "c",
+          "label": "Avanza en línea recta"
+        },
+        {
+          "id": "d",
+          "label": "Se queda detenido"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-dos-formas",
+      "body_md": "**Dos formas de controlar el robot.** Desde el Dashboard mandas un comando por vez, desde afuera del robot. Un programa en Python, en cambio, corre **adentro** del robot y no depende de la red para cada paso: lo escribes en la pestaña Consola del panel y la app lo manda al robot. Un primer programa típico mueve el motor del puerto A al 30 % durante 2 segundos y luego imprime un mensaje:"
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-primero",
+      "language": "python",
+      "code": "from ev3dev2.motor import LargeMotor, OUTPUT_A\n\nmotor = LargeMotor(OUTPUT_A)\nmotor.on_for_seconds(speed=30, seconds=2)\nprint(\"Listo\")"
+    },
+    {
+      "type": "quiz",
+      "id": "q-sistema-operativo",
+      "question_md": "¿Qué corre **dentro del EV3** en este laboratorio?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El software original de LEGO"
+        },
+        {
+          "id": "b",
+          "label": "Windows IoT"
+        },
+        {
+          "id": "c",
+          "label": "Nada: todo ocurre en la nube"
+        },
+        {
+          "id": "d",
+          "label": "ev3dev (Linux) con un programa en Python"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-control-desde-afuera",
+      "question_md": "¿Cuál es la diferencia entre controlar el robot desde el Dashboard y un programa Python que corre dentro de él?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El Dashboard manda un comando por vez desde afuera; el programa corre dentro y no depende de la red en cada paso"
+        },
+        {
+          "id": "b",
+          "label": "No hay diferencia"
+        },
+        {
+          "id": "c",
+          "label": "El Dashboard solo funciona sin robot conectado"
+        },
+        {
+          "id": "d",
+          "label": "El programa Python solo sirve para leer sensores"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** Abre el Panel EV3 (el botón junto a la terminal). En el **Dashboard** mira qué puertos tienen algo conectado y mueve un motor con su control deslizante. En la pestaña **Consola** ejecuta los ejemplos \"Hola, robot\" y \"Mover el motor A\" y mira lo que imprimen."
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-actuador",
+        "quiz-puerto-sensor",
+        "quiz-avanzar",
+        "quiz-sistema-operativo",
+        "quiz-control-desde-afuera"
+      ]
+    }
+  ],
+  "hints": [
+    "Si no recuerdas qué puerto es de qué: out (salida) son motores; in (entrada) son sensores.",
+    "Abre el Panel EV3 y mira el Dashboard: las tarjetas muestran qué puertos tienen algo conectado.",
+    "Con las dos ruedas a la misma potencia positiva, el robot avanza recto."
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-actuador",
+      "rule_type": "quiz",
+      "target": "q-actuador",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-puerto-sensor",
+      "rule_type": "quiz",
+      "target": "q-puerto-sensor",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-avanzar",
+      "rule_type": "quiz",
+      "target": "q-avanzar",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-sistema-operativo",
+      "rule_type": "quiz",
+      "target": "q-sistema-operativo",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-control-desde-afuera",
+      "rule_type": "quiz",
+      "target": "q-control-desde-afuera",
+      "required": true,
+      "points": 2
+    }
+  ]
+}
