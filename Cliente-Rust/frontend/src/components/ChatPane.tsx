@@ -185,7 +185,11 @@ const ChatPane: React.FC<Props> = ({
     const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
     const passedTargets = new Set(rules.filter((r) => passedRuleIds.has(r.id)).map((r) => r.target ?? ''));
     const requiredNonQuiz = rules.filter((r) => r.rule_type !== 'quiz' && r.required);
-    const practiceDone = requiredNonQuiz.length > 0 && requiredNonQuiz.every((r) => passedTargets.has(r.target ?? '\0'));
+    // Un módulo sin reglas de comando (EV3: se maneja con el panel del robot,
+    // no con la terminal) no tiene "parte práctica" que esperar: su quiz se
+    // entrega junto con el resto del contenido. `every` sobre una lista vacía
+    // ya da true; antes se exigía `length > 0` y ese quiz nunca aparecía.
+    const practiceDone = requiredNonQuiz.every((r) => passedTargets.has(r.target ?? '\0'));
 
     const delivered = deliveredLinuxBlockIdsRef.current;
     const batch: LinuxBlock[] = [];

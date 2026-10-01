@@ -17,6 +17,8 @@ import { linuxGetModule, type LinuxModule } from '../../services/linuxPractice.s
 
 interface Props {
   practiceId: string;
+  /** Nombre de la categoría del módulo (Linux, Eve3...), para el botón de volver. */
+  categoryName: string;
   onBack: () => void;
   /**
    * Instancia única del hook, vive a nivel de App (mismo patrón que
@@ -27,7 +29,7 @@ interface Props {
   linuxSession: LinuxPracticeSessionApi;
 }
 
-const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) => {
+const LinuxModulePage: React.FC<Props> = ({ practiceId, categoryName, onBack, linuxSession }) => {
   const [module, setModule] = useState<LinuxModule | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -82,7 +84,7 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession }) 
       <Container size="sm" py="xl">
         <Stack gap="xl">
           <Button variant="subtle" color="gray" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start' }}>
-            Volver a Linux
+            Volver a {categoryName}
           </Button>
 
           <Stack gap={10}>

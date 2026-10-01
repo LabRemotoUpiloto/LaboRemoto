@@ -137,13 +137,15 @@ const AppMain: React.FC = () => {
     setChatOpen: setIsChatOpen,
   })
 
-  // Práctica de Linux: mismo patrón que usePracticeSession -- se instancia
-  // una sola vez acá (nunca se desmonta, a diferencia de HomeContainer, que
-  // sí se desmonta al navegar a la pestaña de la sesión SSH) para que el
-  // polling de revalidación de progreso sobreviva esa navegación.
+  // Módulos de práctica de la Pi (Linux y EV3): mismo patrón que
+  // usePracticeSession -- se instancia una sola vez acá (nunca se desmonta, a
+  // diferencia de HomeContainer, que sí se desmonta al navegar a la pestaña de
+  // la sesión SSH) para que el polling de revalidación de progreso sobreviva
+  // esa navegación.
   const linuxSession = useLinuxPracticeSession({
     onNewSession: handleNewSession,
     setChatOpen: setIsChatOpen,
+    setCameraOpen: setCameraPanelOpen,
   })
 
   // `practiceMeta` (de usePracticeSession) solo conoce prácticas del flujo
@@ -159,12 +161,17 @@ const AppMain: React.FC = () => {
     // `student` es opcional/nullable en el tipo local PracticeMeta de
     // SessionContainer (ver ese archivo) -- las entradas Linux solo aportan
     // practiceId, sin inventar assignmentId/student.
-    const merged: Record<string, { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null }> = { ...(practiceMeta ?? {}) }
+    const merged: Record<string, { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null; robotDashboard?: boolean }> = { ...(practiceMeta ?? {}) }
     for (const [sessionId, moduleId] of linuxEntries) {
-      merged[sessionId] = { practiceId: String(moduleId) }
+      // `robotDashboard`: los módulos con `environment.panels.robot_dashboard`
+      // (EV3) piden el panel del robot dentro de la pestaña de su terminal.
+      merged[sessionId] = {
+        practiceId: String(moduleId),
+        robotDashboard: !!linuxSession.sessionPanels[sessionId]?.robot_dashboard,
+      }
     }
     return merged
-  }, [practiceMeta, linuxSession.sessionModuleMap])
+  }, [practiceMeta, linuxSession.sessionModuleMap, linuxSession.sessionPanels])
 
   // ── Sesión y Autenticación ───────────────────────────────────────────────────
   const { isAuthenticated, isLoading } = useAuth()

@@ -17,9 +17,9 @@ interface Ev3DashboardProps {
 /**
  * Puerto a puerto igual que el Dashboard de investigacion_ev3 (rama
  * luisa-tauri), sin el selector de modo simulado/real ni el campo de IP: en
- * la práctica de LaboRemoto la conexión ya la fija el LabConnectionProfile
- * del lado del servidor (ver cmd::practices::lab_connection), el estudiante
- * no la edita.
+ * la práctica de LaboRemoto la conexión del robot la fijan los comandos de
+ * arranque del módulo (`environment.setup_commands`, ver
+ * cmd::practices::linux_api::practicas_module_setup); el estudiante no la edita.
  */
 const Ev3Dashboard: React.FC<Ev3DashboardProps> = ({ status, onSetSpeed, onStopAll }) => {
   return (

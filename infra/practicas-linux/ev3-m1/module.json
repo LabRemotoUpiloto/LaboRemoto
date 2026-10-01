@@ -1,0 +1,112 @@
+{
+  "id": "ev3-m1",
+  "order": 1,
+  "title": "Panel de control EV3 (API)",
+  "difficulty": "beginner",
+  "estimated_minutes": 25,
+  "sequential": false,
+  "objective": "Controlar los motores y leer los sensores del robot EV3 desde un panel visual, y relacionar cada acción del panel con la petición HTTP que se envía a la API por detrás.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "## Qué vas a hacer\n\nVas a manejar un **robot LEGO EV3 real** desde un panel en pantalla. En esta práctica **no escribes código ni comandos**: mueves controles y observas lo que pasa en el robot.\n\nLo interesante es lo que ocurre por detrás: cada control del panel envía una **petición** a una **API**. Al final podrás decir cuál petición corresponde a cada cosa que hiciste."
+    },
+    {
+      "type": "text",
+      "id": "b-como-funciona",
+      "body_md": "## Cómo llega tu orden al robot\n\nUna **API** es una forma ordenada de pedirle cosas a otro sistema. Aquí, tu panel no habla directo con el robot: se lo pide a un programa intermediario (un *puente*), y este se lo traduce al robot.\n\n**Panel (tu pantalla)** → **Puente HTTP** → **Robot EV3**\n\nCuando conectaste, la práctica ya encendió el robot y el puente por ti."
+    },
+    {
+      "type": "text",
+      "id": "b-paso-motores",
+      "body_md": "## Paso 1 · Mueve los motores\n\nAbre el **Panel EV3** (el botón de arriba a la derecha de tu terminal) y entra a la pestaña **Dashboard**.\n\n- Mueve los *sliders* de los motores **A, B, C y D** y observa la velocidad medida (en rpm, vueltas por minuto).\n- Empieza con valores bajos y sube de a poco.\n- El botón de **parada** detiene todos los motores a la vez."
+    },
+    {
+      "type": "text",
+      "id": "b-paso-sensores",
+      "body_md": "## Paso 2 · Lee los sensores\n\nEn el mismo Dashboard verás los sensores conectados (por ejemplo el **ultrasónico**, que mide distancia, y el **táctil**, que detecta un toque). Los valores se actualizan solos, cerca de una vez por segundo.\n\nAcerca un objeto al sensor ultrasónico y mira cómo cambia el número."
+    },
+    {
+      "type": "text",
+      "id": "b-paso-gemelo",
+      "body_md": "## Paso 3 · Mira el gemelo digital\n\nAbre la pestaña **Gemelo 3D**. Es una réplica virtual del robot que se mueve **en sincronía** con el robot real: lo que haces en el panel se ve en ambos.\n\nSi aparece la cámara del laboratorio, compara lo que ves en el robot real con su réplica en pantalla."
+    },
+    {
+      "type": "text",
+      "id": "b-paso-api",
+      "body_md": "## Paso 4 · Qué petición hay detrás de cada cosa\n\n| Lo que haces en el panel | Petición que se envía |\n|---|---|\n| El panel se actualiza solo (estado y sensores) | `GET /api/status` |\n| Mueves el slider de un motor | `POST /api/motor` con el puerto y la velocidad |\n| Pulsas el botón de parada | `POST /api/stop_all` |\n\n`GET` significa *pedir información*; `POST` significa *enviar una orden*."
+    },
+    {
+      "type": "text",
+      "id": "b-seguridad",
+      "body_md": "## Seguridad\n\n**No acerques las manos al robot mientras los motores estén activos.** Si necesitas tocarlo, primero detén todos los motores con el botón de parada."
+    },
+    {
+      "type": "quiz",
+      "id": "q1-que-es-api",
+      "question_md": "¿Qué es una **API** en esta práctica?",
+      "options": [
+        { "id": "a", "label": "El cable que conecta físicamente el robot al computador" },
+        { "id": "b", "label": "El programa que dibuja el gemelo digital 3D" },
+        { "id": "c", "label": "Una forma ordenada de pedirle cosas a otro sistema (mover un motor, leer un sensor) mediante peticiones" }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q2-leer-estado",
+      "question_md": "El panel muestra los sensores casi en tiempo real. ¿Qué petición usa para **leer** el estado del robot?",
+      "options": [
+        { "id": "a", "label": "GET /api/status" },
+        { "id": "b", "label": "POST /api/motor" },
+        { "id": "c", "label": "POST /api/stop_all" }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q3-mover-motor",
+      "question_md": "Mueves el slider de un motor al 50 %. ¿Qué viaja en la petición `POST /api/motor`?",
+      "options": [
+        { "id": "a", "label": "Solo la palabra «mover», sin más datos" },
+        { "id": "b", "label": "El puerto del motor y la velocidad pedida (por ejemplo, puerto A y velocidad 50)" },
+        { "id": "c", "label": "El video de la cámara del laboratorio" }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q4-seguridad",
+      "question_md": "Antes de acercar las manos al robot mientras los motores están activos, ¿qué debes hacer?",
+      "options": [
+        { "id": "a", "label": "Nada: los motores son lo bastante lentos" },
+        { "id": "b", "label": "Cerrar el panel de control" },
+        { "id": "c", "label": "Detener todos los motores con el botón de parada" }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": ["quiz-que-es-api", "quiz-leer-estado", "quiz-mover-motor", "quiz-seguridad"]
+    }
+  ],
+  "hints": [
+    "Si el panel dice que el puente no responde, espera unos segundos: el robot tarda en arrancar.",
+    "Empieza con velocidades bajas en los motores y sube de a poco.",
+    "Si no recuerdas cuál petición lee y cuál manda una orden: GET pide información, POST envía una orden."
+  ],
+  "validation_rules": [
+    { "id": "quiz-que-es-api", "rule_type": "quiz", "target": "q1-que-es-api", "required": true, "points": 2 },
+    { "id": "quiz-leer-estado", "rule_type": "quiz", "target": "q2-leer-estado", "required": true, "points": 2 },
+    { "id": "quiz-mover-motor", "rule_type": "quiz", "target": "q3-mover-motor", "required": true, "points": 2 },
+    { "id": "quiz-seguridad", "rule_type": "quiz", "target": "q4-seguridad", "required": true, "points": 2 }
+  ]
+}

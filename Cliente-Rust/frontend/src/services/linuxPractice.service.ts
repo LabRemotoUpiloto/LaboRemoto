@@ -66,6 +66,19 @@ export interface LinuxValidationRule {
   points: number;
 }
 
+/**
+ * Entorno que un módulo necesita además de la terminal y el chat (hoy: el
+ * robot de EV3). Todo opcional: los módulos de Linux no traen `environment`.
+ * Nunca lleva credenciales -- las comandos de arranque usan scripts que ya
+ * tienen sus claves del lado de la Pi.
+ */
+export interface LinuxModuleEnvironment {
+  /** Paneles que se abren junto a la terminal al conectar. */
+  panels?: { robot_dashboard?: boolean; camera?: boolean };
+  /** Pasos de arranque; el backend los valida y los ejecuta por la sesión SSH del estudiante. */
+  setup_commands?: string[];
+}
+
 export interface LinuxModule {
   id: string;
   order: number;
@@ -77,7 +90,11 @@ export interface LinuxModule {
   blocks: LinuxBlock[];
   hints: string[];
   validation_rules: LinuxValidationRule[];
+  environment?: LinuxModuleEnvironment;
 }
+
+/** Los módulos de EV3 usan el prefijo `ev3-` (mismo criterio que `module_category` en Rust). */
+export const isEv3Module = (moduleId: string): boolean => moduleId.startsWith('ev3-');
 
 export interface LinuxValidationRuleResult {
   rule_id: string;
@@ -120,6 +137,14 @@ export const linuxValidate = (
 /** Host/puerto/usuario para abrir la sesión SSH — la contraseña se pide aparte. */
 export const linuxConnectionTarget = (): Promise<LinuxConnectionTarget> =>
   invoke<LinuxConnectionTarget>('practicas_linux_connection_target');
+
+/**
+ * Prepara el entorno del módulo (ej. levanta el servidor del robot y su
+ * puente) por la sesión SSH ya abierta. Devuelve una línea por paso. El
+ * backend trae los comandos él mismo: acá solo se dice qué módulo es.
+ */
+export const practicasModuleSetup = (sessionId: string, practiceId: string): Promise<string[]> =>
+  invoke<string[]>('practicas_module_setup', { sessionId, practiceId });
 
 export interface LinuxMedia {
   mime: string;

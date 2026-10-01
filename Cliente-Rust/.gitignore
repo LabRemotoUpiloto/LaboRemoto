@@ -18,7 +18,8 @@ gen/
 set-api-keys.ps1
 **/set-api-keys.ps1
 
-# ── LabConnectionProfile: host/credenciales locales de prácticas (secretos) ──
+# ── Ya no se usa (el catálogo externo se eliminó), pero puede haber archivos ──
+# ── locales viejos con host/credenciales: se siguen ignorando por seguridad ──
 config/lab_connections/
 **/config/lab_connections/
 
