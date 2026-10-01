@@ -9,6 +9,7 @@ import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon }
 import { AlertTriangle, X } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia } from '../../../../services/linuxPractice.service';
+import { ZoomableImage } from '../ZoomableImage';
 
 const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
 
@@ -90,9 +91,15 @@ function TerminalAnnotationBlock({ block }: { block: Extract<LinuxBlock, { type:
 function AnalogyBlock({ block }: { block: Extract<LinuxBlock, { type: 'analogy' }> }) {
   return (
     <Paper withBorder radius="md" p="md">
-      <Text fz="xs" tt="uppercase" fw={700} c="teal" mb={8} style={{ letterSpacing: '0.06em' }}>
-        {block.term}
-      </Text>
+      {block.title ? (
+        <Text fz="sm" fw={700} c="teal" mb={8}>
+          {block.title}
+        </Text>
+      ) : (
+        <Text fz="xs" tt="uppercase" fw={700} c="teal" mb={8} style={{ letterSpacing: '0.06em' }}>
+          {block.term}
+        </Text>
+      )}
       <Group grow align="flex-start" gap="md">
         <Stack gap={4}>
           <Text fz="xs" c="dimmed" tt="uppercase">Objeto cotidiano</Text>
@@ -139,11 +146,6 @@ function CommandStepBlock({
             <Text fz="xs" c="dimmed">{renderInline(block.explain_md)}</Text>
           </Stack>
         </Group>
-        {typeof points === 'number' && (
-          <Text fz="xs" fw={700} c={passed ? 'green' : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>
-            {points} pts
-          </Text>
-        )}
       </Group>
     </Paper>
   );
@@ -228,18 +230,25 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
             </ActionIcon>
           )}
           {block.kind === 'image' ? (
-            <img
-              src={state.url}
-              alt={block.caption ?? block.file}
-              onClick={() => setExpanded(true)}
-              style={{
-                maxWidth: '100%',
-                maxHeight: expanded ? '85vh' : undefined,
-                borderRadius: expanded ? 8 : 6,
-                display: 'block',
-                cursor: 'zoom-in',
-              }}
-            />
+            expanded ? (
+              <ZoomableImage
+                src={state.url}
+                alt={block.caption ?? block.file}
+                style={{ maxWidth: '92vw', maxHeight: '85vh', borderRadius: 8 }}
+              />
+            ) : (
+              <img
+                src={state.url}
+                alt={block.caption ?? block.file}
+                onClick={() => setExpanded(true)}
+                style={{
+                  maxWidth: '100%',
+                  borderRadius: 6,
+                  display: 'block',
+                  cursor: 'zoom-in',
+                }}
+              />
+            )
           ) : (
             <video
               src={state.url}
@@ -303,11 +312,6 @@ function QuizBlock({
     >
       <Group justify="space-between" align="flex-start" mb={8}>
         <Text fz="sm" fw={600} style={{ lineHeight: 1.5 }}>{renderInline(block.question_md)}</Text>
-        {typeof points === 'number' && (
-          <Text fz="xs" fw={700} c={showFeedback ? (passed ? 'green' : 'red') : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>
-            {points} pts
-          </Text>
-        )}
       </Group>
       <Radio.Group value={selected ?? null} onChange={onSelect}>
         <Stack gap={6}>

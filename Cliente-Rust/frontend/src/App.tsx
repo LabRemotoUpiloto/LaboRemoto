@@ -151,12 +151,18 @@ const AppMain: React.FC = () => {
     // volvemos a la pestaña de Inicio y a la vista de Prácticas, donde el
     // estudiante ve el módulo recién completado marcado con su insignia.
     // Cualquier práctica nueva (no solo Linux) que agregue su propio "flujo
-    // de completar" debe reusar este mismo patrón: setActiveTabId(HOME_TAB_ID)
-    // + setSelectedPage('practices').
+    // de completar" debe reusar este mismo patrón: handleOpenPanel('practices').
+    //
+    // OJO: acá NO alcanza con setActiveTabId(HOME_TAB_ID) + setSelectedPage
+    // a mano (bug real encontrado en producción) -- useAppTabs tiene un
+    // efecto ("Auto-switch to first connected session when entering
+    // terminal view") que, si `activePanel` se queda en 'terminal' mientras
+    // `activeTabId` pasa a home, rebota de inmediato de vuelta a la sesión.
+    // `handleOpenPanel` actualiza `activePanel` y `activeTabId` juntos (vía
+    // `openPanel`), así que ese efecto nunca llega a dispararse.
     onModuleCompleted: () => {
       requestPracticesFocus('linux')
-      setActiveTabId(HOME_TAB_ID)
-      setSelectedPage('practices')
+      handleOpenPanel('practices')
     },
   })
 

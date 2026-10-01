@@ -5,11 +5,16 @@
 // media, comandos a probar, quiz final) se entrega DESPUÉS de conectar, por
 // el chat de la sesión SSH recién abierta (ver ChatPane.tsx) -- no antes de
 // empezar la práctica.
+//
+// Sin Badge de Mantine en ningún lado (regla del proyecto) y sin props de
+// color de Mantine (`color="red"`, `c="teal"`, etc. -- son la paleta fija
+// de Mantine, no cambian con los 22 temas CSS del proyecto). Todo lo que
+// necesita color usa las variables del tema (`var(--accent-primary)`,
+// `var(--danger)`, `var(--text-secondary)`...), igual que el resto de los
+// bloques de la práctica de Linux (ver BlockRenderer.tsx).
 
 import React, { useEffect, useState } from 'react';
-import {
-  Box, Container, Stack, Title, Text, Button, Group, Paper, Loader, Alert, Badge,
-} from '@mantine/core';
+import { Box, Container, Stack, Title, Text, Button, Group, Paper, Loader, Alert } from '@mantine/core';
 import { ArrowLeft, PlugZap, MonitorCheck, RotateCcw, Eye } from 'lucide-react';
 import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
@@ -120,39 +125,46 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession, on
       <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
         <Container size="sm" py="xl">
           <Stack gap="xl">
-            <Button variant="subtle" color="gray" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start' }}>
+            <Button variant="subtle" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)' }}>
               Volver a Linux
             </Button>
 
             <Stack gap={10}>
-              <Group gap={8}>
-                <Text fz="xs" tt="uppercase" fw={700} c="teal" style={{ letterSpacing: '0.08em' }}>
-                  Módulo {module.order}
-                </Text>
-                <Badge variant="light" color="green" size="sm">Completo</Badge>
-              </Group>
+              <Text fz="xs" tt="uppercase" fw={700} style={{ letterSpacing: '0.08em', color: 'var(--accent-primary)' }}>
+                Módulo {module.order}
+              </Text>
               <Title order={1} style={{ fontSize: '1.75rem' }}>{module.title}</Title>
-              <Text c="dimmed" maw={520}>
+              <Text maw={520} style={{ color: 'var(--text-secondary)' }}>
                 Ya completaste este módulo. Como administrador, elegí qué hacer para revisar comportamientos.
               </Text>
             </Stack>
 
             <Paper withBorder radius="md" p="md">
               <Group justify="flex-end" gap="sm">
-                <Button variant="subtle" color="gray" onClick={onBack}>
-                  Salir
-                </Button>
-                <Button variant="light" leftSection={<Eye size={16} />} onClick={() => setAdminChoice('view')}>
-                  Ver
-                </Button>
-                <Button
-                  color="red"
-                  leftSection={<RotateCcw size={16} />}
-                  loading={restarting}
-                  onClick={handleRestart}
+                <button
+                  onClick={onBack}
+                  className="rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-[var(--interactive-hover)]"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
-                  Repetir
-                </Button>
+                  Salir
+                </button>
+                <button
+                  onClick={() => setAdminChoice('view')}
+                  className="flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition hover:bg-[var(--interactive-hover)]"
+                  style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+                >
+                  <Eye size={16} />
+                  Ver
+                </button>
+                <button
+                  onClick={handleRestart}
+                  disabled={restarting}
+                  className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition hover:brightness-110 disabled:cursor-default disabled:opacity-60"
+                  style={{ backgroundColor: 'var(--accent-primary)', color: 'var(--accent-contrast, #fff)' }}
+                >
+                  <RotateCcw size={16} className={restarting ? 'animate-spin' : undefined} />
+                  {restarting ? 'Repitiendo…' : 'Repetir'}
+                </button>
               </Group>
             </Paper>
           </Stack>
@@ -165,29 +177,28 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession, on
     <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
       <Container size="sm" py="xl">
         <Stack gap="xl">
-          <Button variant="subtle" color="gray" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start' }}>
+          <Button variant="subtle" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)' }}>
             Volver a Linux
           </Button>
 
           <Stack gap={10}>
-            <Group gap={8}>
-              <Text fz="xs" tt="uppercase" fw={700} c="teal" style={{ letterSpacing: '0.08em' }}>
-                Módulo {module.order}
-              </Text>
-              <Badge variant="light" color="gray" size="sm" tt="capitalize">{module.difficulty}</Badge>
+            <Text fz="xs" tt="uppercase" fw={700} style={{ letterSpacing: '0.08em', color: 'var(--accent-primary)' }}>
+              Módulo {module.order}
               {module.estimated_minutes && (
-                <Badge variant="light" color="gray" size="sm">~{module.estimated_minutes} min</Badge>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {' · '}~{module.estimated_minutes} min
+                </span>
               )}
-            </Group>
+            </Text>
             <Title order={1} style={{ fontSize: '1.75rem' }}>{module.title}</Title>
-            <Text c="dimmed" maw={520}>{module.objective}</Text>
+            <Text maw={520} style={{ color: 'var(--text-secondary)' }}>{module.objective}</Text>
           </Stack>
 
           {connected ? (
             <Paper withBorder radius="md" p="md">
               <Group gap="sm" wrap="nowrap">
-                <MonitorCheck size={18} color="var(--success, #10b981)" />
-                <Text fz="sm" c="dimmed">
+                <MonitorCheck size={18} style={{ color: 'var(--success)' }} />
+                <Text fz="sm" style={{ color: 'var(--text-secondary)' }}>
                   Ya estás conectado a este módulo — seguí la práctica en el chat de tu pestaña de terminal.
                 </Text>
               </Group>
@@ -195,14 +206,14 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, onBack, linuxSession, on
           ) : (
             <Paper withBorder radius="md" p="md">
               <Group justify="space-between" align="center" wrap="nowrap">
-                <Text fz="sm" c="dimmed">
+                <Text fz="sm" style={{ color: 'var(--text-secondary)' }}>
                   El tutor te va a guiar paso a paso por el chat una vez conectado — no hace falta leer nada antes.
                 </Text>
                 <Button leftSection={<PlugZap size={16} />} loading={connecting} onClick={handleConnect}>
                   Conectar
                 </Button>
               </Group>
-              {connectError && <Text fz="sm" c="red" mt="sm">{connectError}</Text>}
+              {connectError && <Text fz="sm" mt="sm" style={{ color: 'var(--danger)' }}>{connectError}</Text>}
             </Paper>
           )}
         </Stack>

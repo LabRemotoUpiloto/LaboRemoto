@@ -2101,26 +2101,6 @@ a:hover { text-decoration-thickness: 2px; }
   box-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
 }
 
-/* 5. Dificultades integradas sin badges ruidosos */
-.dribbble-difficulty-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-.dribbble-difficulty-dot.beginner {
-  background-color: var(--success, #10B981);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #10B981) 20%, transparent);
-}
-.dribbble-difficulty-dot.intermediate {
-  background-color: var(--warning, #F59E0B);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning, #F59E0B) 20%, transparent);
-}
-.dribbble-difficulty-dot.advanced {
-  background-color: var(--danger, #EF4444);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger, #EF4444) 20%, transparent);
-}
-
 /* 6. Estilos de toolbar/filtros para Logs */
 .dribbble-toolbar-input .mantine-Input-input,
 .dribbble-toolbar-input .mantine-Select-input,

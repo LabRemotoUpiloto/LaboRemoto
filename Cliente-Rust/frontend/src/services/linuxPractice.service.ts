@@ -37,7 +37,9 @@ export interface LinuxQuizOption {
 export type LinuxBlock =
   | { type: 'text'; id: string; body_md: string }
   | { type: 'terminal_annotation'; id: string; prompt_example: string; labels: LinuxLabel[] }
-  | { type: 'analogy'; id: string; term: string; everyday: string; windows: string; linux: string }
+  // `title` (opcional): encabezado explicativo a mostrar en vez del `term`
+  // pelado (ej. "¿Qué es el kernel?" en vez de solo "KERNEL").
+  | { type: 'analogy'; id: string; term: string; title?: string; everyday: string; windows: string; linux: string }
   // `goal_md` (opcional): para desafíos abiertos -- la tarjeta muestra el
   // objetivo en lugar de `command`, que es la respuesta y no debe verse.
   | { type: 'command_step'; id: string; command: string; explain_md: string; goal_md?: string }

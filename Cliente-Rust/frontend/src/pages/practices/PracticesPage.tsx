@@ -7,6 +7,7 @@ import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, Sc
 import { AlertTriangle, ArrowLeft, Bot, Cpu, Terminal, X, type LucideIcon } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
+import { getInsigniaForPractice } from '../../components/practicas/badges/insigniaRegistry';
 import LinuxModulePage from './LinuxModulePage';
 import ExternalPracticeCard from '../../components/practicas/ExternalPracticeCard';
 import { useLabPractices } from '../../hooks/useLabPractices';
@@ -285,6 +286,12 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                 { label: 'Catálogo externo', value: 'external' },
                             ]}
                             style={{ alignSelf: 'flex-start' }}
+                            styles={{
+                                root: { backgroundColor: 'var(--background-tertiary)', border: '1px solid var(--border-subtle)' },
+                                indicator: { backgroundColor: 'var(--accent-primary)' },
+                                label: { color: 'var(--text-secondary)' },
+                                innerLabel: { color: 'var(--accent-contrast, #fff)' },
+                            }}
                         />
 
                         {catalogTab === 'local' ? (
@@ -397,7 +404,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                     id={practice.id}
                                     name={practice.name}
                                     description={practice.description}
-                                    difficulty={practice.difficulty}
                                     hasCamera={practice.panels.camera}
                                     hasChat={practice.panels.chat}
                                     onStart={() => (
@@ -406,7 +412,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                             : handleStartPractice(practice)
                                     )}
                                     loading={startingPractice === practice.id}
-                                    completed={practice.id in earnedBadges}
+                                    badge={practice.id in earnedBadges ? getInsigniaForPractice(practice.id) : undefined}
                                 />
                             ))}
                         </SimpleGrid>
