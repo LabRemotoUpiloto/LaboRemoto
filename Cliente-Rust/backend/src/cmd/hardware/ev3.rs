@@ -36,6 +36,12 @@ const BRIDGE_URL: &str = "http://127.0.0.1:8000";
 /// ahí a mano).
 const HOP_SCRIPT: &str = "/home/pi/ev3-hop-pi5.sh";
 
+/// Cómo se invoca un script de salto: como `pi` por sudo (regla de sudoers
+/// en el bastión), para que el script no tenga que ser legible por las cuentas
+/// de los estudiantes -- lleva las claves de la Pi5 y del robot adentro.
+/// `-n`: nunca pedir contraseña, fallar de inmediato.
+pub(super) const HOP_RUNNER: &str = "sudo -n -u pi";
+
 /// Escapa un argumento para uso seguro dentro de comillas simples en bash.
 pub(super) fn bash_quote(s: &str) -> String {
     let escaped = s.replace('\'', r"'\''");
@@ -45,7 +51,7 @@ pub(super) fn bash_quote(s: &str) -> String {
 /// Envuelve un comando para que se ejecute en la Pi5 en vez del bastión
 /// (donde realmente aterriza la sesión SSH de esta práctica).
 fn hop(cmd: &str) -> String {
-    format!("bash {} {}", HOP_SCRIPT, bash_quote(cmd))
+    format!("{} {} {}", HOP_RUNNER, HOP_SCRIPT, bash_quote(cmd))
 }
 
 pub(super) fn map_ssh_transport_error(id: &str, operation: &str, e: String) -> CommandError {

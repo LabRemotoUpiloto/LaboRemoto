@@ -24,7 +24,7 @@
 use base64::Engine;
 use serde::Serialize;
 
-use super::ev3::{bash_quote, map_ssh_transport_error};
+use super::ev3::{bash_quote, map_ssh_transport_error, HOP_RUNNER};
 use crate::cmd::protocol::CommandError;
 
 const HOP_ROBOT: &str = "/home/pi/ev3-hop-robot.sh";
@@ -36,7 +36,7 @@ const POLL_CHUNK_BYTES: usize = 8192;
 
 /// Envuelve un comando para que corra en el robot (vía Pi4 → Pi5 → EV3).
 fn hop_robot(cmd: &str) -> String {
-    format!("bash {} {}", HOP_ROBOT, bash_quote(cmd))
+    format!("{} {} {}", HOP_RUNNER, HOP_ROBOT, bash_quote(cmd))
 }
 
 /// Id de ejecución: 8 a 32 caracteres hexadecimales en minúscula.
@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn el_comando_envuelto_usa_solo_el_script_de_salto_al_robot() {
         let c = hop_robot(&start_command("0123456789ab", "AAAA"));
-        assert!(c.starts_with("bash /home/pi/ev3-hop-robot.sh '"));
+        assert!(c.starts_with("sudo -n -u pi /home/pi/ev3-hop-robot.sh '"));
         assert!(!c.contains('\n'));
     }
 
