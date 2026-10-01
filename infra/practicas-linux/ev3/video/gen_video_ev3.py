@@ -18,6 +18,7 @@ ffmpeg/ffprobe en el PATH. La mascota se toma de Cliente-Rust/frontend/public.
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import subprocess
 import sys
@@ -296,6 +297,82 @@ def draw_bridge(c, cx, cy, s, alpha=1.0):
 
 
 # --- escenas -----------------------------------------------------------------
+# --- robot 3D (Gemelo 3D del cliente, renderizado por twin/capture.mjs) --------
+class Twin:
+    """Fotogramas PNG del robot 3D por escena, con la posición en pantalla de sus partes."""
+
+    def __init__(self):
+        self.root: Path | None = None
+        self._meta: dict = {}
+
+    def meta(self, scene: int):
+        if self.root is None:
+            return None
+        if scene not in self._meta:
+            p = self.root / str(scene) / "meta.json"
+            self._meta[scene] = json.loads(p.read_text()) if p.exists() else None
+        return self._meta[scene]
+
+    def frame(self, scene: int, t: float):
+        m = self.meta(scene)
+        if not m:
+            return None, None
+        f = min(m["frames"] - 1, max(0, int(t * FPS)))
+        return Image.open(self.root / str(scene) / f"{f:04d}.png").convert("RGB"), m["points"][f]
+
+
+TWIN = Twin()
+
+
+def twin_card(c: Canvas, scene: int, t: float, box, alpha=1.0, label="GEMELO 3D"):
+    """Tarjeta con el robot 3D. Devuelve {parte: (x, y)} en coordenadas del video."""
+    x0, y0, x1, y1 = box
+    c.rrect((x0 + 6, y0 + 10, x1 + 6, y1 + 10), 22, fill=(0, 0, 0), alpha=0.25 * alpha)
+    img, pts = TWIN.frame(scene, t)
+    if img is None:
+        c.rrect(box, 22, fill=(20, 20, 34), outline=(90, 90, 130), alpha=alpha)
+        c.text(((x0 + x1) / 2, (y0 + y1) / 2), "(sin robot 3D)", F("reg", 20), WHITE, anchor="mm", alpha=alpha)
+        return None
+    w, h = int((x1 - x0) * SS), int((y1 - y0) * SS)
+    # recorte "cover": llena la tarjeta sin deformar la imagen
+    scale = max(w / img.width, h / img.height)
+    nw, nh = int(img.width * scale), int(img.height * scale)
+    ox, oy = (nw - w) // 2, (nh - h) // 2
+    im = img.resize((nw, nh), Image.LANCZOS).crop((ox, oy, ox + w, oy + h))
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], int(22 * SS), fill=int(255 * clamp(alpha)))
+    c.img.paste(im, (int(x0 * SS), int(y0 * SS)), mask)
+    c.rrect(box, 22, outline=(96, 96, 140), width=3, alpha=alpha)
+    c.rrect((x0 + 16, y0 + 14, x0 + 160, y0 + 48), 17, fill=(0, 0, 0), alpha=0.55 * alpha)
+    c.ellipse((x0 + 28, y0 + 26, x0 + 40, y0 + 38), fill=(90, 220, 120), alpha=alpha)
+    c.text((x0 + 50, y0 + 31), label, F("sb", 16), WHITE, anchor="lm", alpha=alpha)
+    return {k: (x0 + (v[0] * nw - ox) / SS, y0 + (v[1] * nh - oy) / SS) for k, v in pts.items()}
+
+
+def callout(c: Canvas, pt, label, pill, color, alpha=1.0, size=22, fg=WHITE, side="r"):
+    """Píldora con `label` en `pill`=(x, y de la esquina sup. izq.) unida por una línea al punto `pt`."""
+    if alpha <= 0 or pt is None:
+        return
+    w = c.text_width(label, F("sb", size)) + 34
+    h = size + 20
+    px, py = pill
+    ex = px if side == "r" else px + w
+    c.line([pt, (ex, py + h / 2)], color, 3, alpha)
+    c.ellipse((pt[0] - 7, pt[1] - 7, pt[0] + 7, pt[1] + 7), fill=color, outline=WHITE, width=2, alpha=alpha)
+    c.rrect((px, py, px + w, py + h), h / 2, fill=color, alpha=alpha)
+    c.text((px + w / 2, py + h / 2), label, F("sb", size), fg, anchor="mm", alpha=alpha)
+
+
+def ring(c: Canvas, pt, r, color, t, alpha=1.0):
+    """Anillo que late alrededor de un punto del robot."""
+    if alpha <= 0 or pt is None:
+        return
+    k = 1 + 0.12 * math.sin(t * 6)
+    c.ellipse((pt[0] - r * k, pt[1] - r * k, pt[0] + r * k, pt[1] + r * k), outline=color, width=4, alpha=alpha)
+
+
+
+
 def sc_hero(c: Canvas, t, cues, d):
     a = anim(t, 0.15, 0.6)
     c.text((88 - (1 - a) * 40, 212), "MÓDULO · ROBÓTICA CON EL EV3", F("b", 18), RED, alpha=a)
@@ -310,30 +387,22 @@ def sc_hero(c: Canvas, t, cues, d):
 def sc_brick(c: Canvas, t, cues, d):
     title(c, "¿Qué es el EV3?", t, YELLOW)
     a = anim(t, 0.2, 0.7)
-    draw_brick(c, 70 - (1 - a) * 60, 170, 520, 340, alpha=a)
-    # etiquetas con línea guía (frase 1); se van cuando entra la frase 2
+    pts = twin_card(c, 1, t, (56, 100, 776, 570), alpha=a)
     gone = 1 - anim(t, cues[1] - 0.1, 0.4)
-    labels = [("Pantalla", (330, 255), (690, 190)), ("Botones", (330, 430), (690, 285)), ("Procesador y batería", (250, 485), (690, 380))]
-    for i, (name, tip, pos) in enumerate(labels):
-        la = anim(t, cues[0] + 0.5 + i * 0.9, 0.4) * gone
-        if la <= 0:
-            continue
-        c.line([tip, (pos[0] - 10, pos[1] + 22)], YELLOW, 2, la)
-        c.ellipse((tip[0] - 6, tip[1] - 6, tip[0] + 6, tip[1] + 6), fill=YELLOW, alpha=la)
-        w = c.text_width(name, F("sb", 24)) + 36
-        c.rrect((pos[0] - 10, pos[1], pos[0] - 10 + w, pos[1] + 46), 23, fill=(60, 56, 44), outline=YELLOW, width=2, alpha=la)
-        c.text((pos[0] - 10 + w / 2, pos[1] + 23), name, F("sb", 24), WHITE, anchor="mm", alpha=la)
-    # Linux + Python (frase 2)
+    if pts:
+        for i, (key, name, y) in enumerate([("screen", "Pantalla", 160), ("buttons", "Botones", 270), ("battery", "Batería", 380)]):
+            la = anim(t, cues[0] + 0.5 + i * 0.9, 0.4) * gone
+            callout(c, pts[key], name, (822, y), (60, 56, 44), la, size=26, fg=YELLOW)
     ca = anim(t, cues[1], 0.5)
     if ca > 0:
         dx = (1 - ca) * 60
-        c.rrect((680 + dx, 170, 1230 + dx, 470), 24, fill=(48, 44, 34), outline=(90, 82, 60), width=2, alpha=ca)
-        c.text((716 + dx, 196), "Dentro del ladrillo", F("b", 26), YELLOW, alpha=ca)
-        w1 = chip(c, 716, 262, "Linux", GREEN_C, t, cues[1] + 0.3, size=26)
-        c.text((716 + w1 + 18, 281), "el sistema", F("reg", 22), (214, 208, 190), anchor="lm", alpha=anim(t, cues[1] + 0.3, 0.4))
-        w2 = chip(c, 716, 340, "Python", BLUE_C, t, cues[1] + 0.9, size=26)
-        c.text((716 + w2 + 18, 359), "el programa que escucha", F("reg", 22), (214, 208, 190), anchor="lm", alpha=anim(t, cues[1] + 0.9, 0.4))
-        c.text((716 + w2 + 18, 387), "pedidos por la red", F("reg", 22), (214, 208, 190), anchor="lm", alpha=anim(t, cues[1] + 0.9, 0.4))
+        c.rrect((806 + dx, 140, 1240 + dx, 500), 24, fill=(48, 44, 34), outline=(90, 82, 60), width=2, alpha=ca)
+        c.text((838 + dx, 170), "Dentro del ladrillo", F("b", 28), YELLOW, alpha=ca)
+        w1 = chip(c, 838, 250, "Linux", GREEN_C, t, cues[1] + 0.3, size=28)
+        c.text((838 + w1 + 16, 269), "el sistema", F("reg", 22), (214, 208, 190), anchor="lm", alpha=anim(t, cues[1] + 0.3, 0.4))
+        w2 = chip(c, 838, 350, "Python", BLUE_C, t, cues[1] + 0.9, size=28)
+        c.text((838 + w2 + 16, 358), "el programa que escucha", F("reg", 21), (214, 208, 190), anchor="lm", alpha=anim(t, cues[1] + 0.9, 0.4))
+        c.text((838 + w2 + 16, 386), "pedidos por la red", F("reg", 21), (214, 208, 190), anchor="lm", alpha=anim(t, cues[1] + 0.9, 0.4))
 
 
 def sc_remote(c: Canvas, t, cues, d):
@@ -341,21 +410,22 @@ def sc_remote(c: Canvas, t, cues, d):
     y0 = 215
     nodes = [(190, "Tu panel", GREEN_C, draw_laptop), (640, "Puente", BLUE_C, draw_bridge), (1090, "Robot EV3", OCRE_C, None)]
     for i, (x, name, color, fn) in enumerate(nodes):
-        if i == 1:
-            na = anim(t, cues[1] + 0.2, 0.5)
-        elif i == 2:
-            na = anim(t, cues[0] + 1.4, 0.5)
-        else:
-            na = anim(t, cues[0] + 0.2, 0.5)
+        na = anim(t, cues[0] + 0.2, 0.5) if i == 0 else anim(t, cues[1] + 0.2, 0.5) if i == 1 else anim(t, cues[0] + 1.4, 0.5)
         if na <= 0:
             continue
         c.rrect((x - 150, y0 - 30 + (1 - na) * 30, x + 150, y0 + 250 + (1 - na) * 30), 24, fill=color, alpha=na)
         if fn:
             fn(c, x, y0 + 85 + (1 - na) * 30, 78, na)
         else:
-            draw_brick(c, x - 80, y0 + 30 + (1 - na) * 30, 160, 106, alpha=na)
-        c.text((x, y0 + 200 + (1 - na) * 30), name, F("b", 32), WHITE, anchor="mm", alpha=na)
-    # flechas
+            img, _ = TWIN.frame(2, 0)
+            if img is not None:
+                crop = img.crop((190, 40, 770, 410)).resize((int(250 * SS), int(160 * SS)), Image.LANCZOS)
+                mask = Image.new("L", crop.size, 0)
+                ImageDraw.Draw(mask).rounded_rectangle([0, 0, crop.width - 1, crop.height - 1], int(14 * SS), fill=int(255 * na))
+                c.img.paste(crop, (int((x - 125) * SS), int((y0 + 4 + (1 - na) * 30) * SS)), mask)
+            else:
+                draw_brick(c, x - 80, y0 + 30 + (1 - na) * 30, 160, 106, alpha=na)
+        c.text((x, y0 + 208 + (1 - na) * 30), name, F("b", 32), WHITE, anchor="mm", alpha=na)
     for (xa, xb, tt) in [(350, 480, cues[1] + 0.6), (800, 930, cues[1] + 1.0)]:
         fa = anim(t, tt, 0.4)
         if fa <= 0:
@@ -363,7 +433,6 @@ def sc_remote(c: Canvas, t, cues, d):
         c.line([(xa, y0 + 90), (xa + (xb - xa) * fa, y0 + 90)], INK, 6, 1)
         if fa > 0.95:
             c.poly([(xb, y0 + 90), (xb - 18, y0 + 78), (xb - 18, y0 + 102)], INK)
-    # paquete "orden"
     pk = clamp((t - (cues[1] + 1.6)) / 2.2)
     if 0 < pk < 1:
         px = 350 + (930 - 350) * pk
@@ -376,36 +445,57 @@ def sc_remote(c: Canvas, t, cues, d):
 def sc_sensors(c: Canvas, t, cues, d):
     title(c, "Sensores y actuadores", t, YELLOW)
     a = anim(t, cues[0], 0.5)
-    for i, (x, head, sub, color) in enumerate([(70, "Sensores", "los sentidos · perciben", BLUE_C), (680, "Actuadores", "los músculos · actúan", OCRE_C)]):
-        c.rrect((x, 130 + (1 - a) * 40, x + 530, 590 + (1 - a) * 40), 24, fill=color, alpha=a)
+    pts = twin_card(c, 3, t, (56, 100, 636, 560), alpha=a)
+    # tarjetas de la derecha
+    for i, (y, h, head, sub, color, tcue) in enumerate([(100, 218, "Sensores", "los sentidos · perciben", BLUE_C, 0), (338, 190, "Actuadores", "los músculos · actúan", OCRE_C, 1)]):
+        c.rrect((668 + (1 - a) * 50, y, 1236 + (1 - a) * 50, y + h), 22, fill=color, alpha=a)
         if i == 0:
-            draw_eye(c, x + 76, 205 + (1 - a) * 40, 38, WHITE, a)
+            draw_eye(c, 724 + (1 - a) * 50, y + 44, 30, WHITE, a)
         else:
-            draw_gear(c, x + 76, 205 + (1 - a) * 40, 36, WHITE, rot=t * 0.8, alpha=a)
-        c.text((x + 140, 172 + (1 - a) * 40), head, F("black", 40), WHITE, alpha=a)
-        c.text((x + 140, 224 + (1 - a) * 40), sub, F("reg", 22), (225, 225, 230), alpha=a)
-    for i, name in enumerate(["Contacto", "Ultrasónico (distancia)", "Color", "Giroscópico"]):
-        chip(c, 100, 285 + i * 64, name, (30, 40, 70), t, cues[1] + 0.3 + i * 0.7, size=24)
-    c.text((100, 552), "→ un número que el programa lee", F("sb", 22), (225, 225, 230), anchor="lm", alpha=anim(t, cues[1] + 3.4, 0.5))
+            draw_gear(c, 724 + (1 - a) * 50, y + 44, 28, WHITE, rot=t * 0.8, alpha=a)
+        c.text((776 + (1 - a) * 50, y + 20), head, F("black", 34), WHITE, alpha=a)
+        c.text((776 + (1 - a) * 50, y + 62), sub, F("reg", 20), (225, 225, 230), alpha=a)
+    for i, name in enumerate(["Contacto", "Ultrasónico", "Color", "Giroscópico"]):
+        chip(c, 690 + (i % 2) * 270, 200 + (i // 2) * 48, name, (30, 40, 70), t, cues[1] + 0.3 + i * 0.6, size=20)
     for i, name in enumerate(["Motor grande", "Motor mediano"]):
-        chip(c, 710, 285 + i * 64, name, (110, 84, 24), t, cues[2] + 0.5 + i * 0.9, size=24)
-    c.text((710, 552), "→ una orden: girar", F("sb", 22), (240, 232, 210), anchor="lm", alpha=anim(t, cues[2] + 2.6, 0.5))
+        chip(c, 690 + i * 270, 440, name, (110, 84, 24), t, cues[2] + 0.5 + i * 0.9, size=20)
+    c.text((690, 498), "→ una orden: girar", F("sb", 20), (240, 232, 210), anchor="lm", alpha=anim(t, cues[2] + 2.4, 0.5))
+    c.text((690, 298), "→ un número que el programa lee", F("sb", 20), (225, 225, 230), anchor="lm", alpha=anim(t, cues[1] + 3.2, 0.5))
+    # anillos sobre el robot
+    if pts:
+        sa = anim(t, cues[1] + 0.2, 0.4) * (1 - anim(t, cues[2] - 0.2, 0.4))
+        for k in ("sensor1", "sensor2", "sensor3", "sensor4"):
+            ring(c, pts[k], 22, (90, 170, 255), t, sa)
+        ma = anim(t, cues[2] + 0.2, 0.4)
+        for k in ("wheelL", "wheelR", "armL", "armR"):
+            ring(c, pts[k], 28, (255, 170, 60), t, ma)
 
 
 def sc_ports(c: Canvas, t, cues, d):
     title(c, "Los 8 puertos del ladrillo", t, RED)
     a = anim(t, 0.2, 0.7)
-    top = anim(t, cues[0] + 0.3, 0.5)
-    bot = anim(t, cues[1] + 0.3, 0.5)
-    draw_brick(c, 340, 215, 600, 270, alpha=a, ports=True, hl_top=top, hl_bottom=bot)
-    ta = anim(t, cues[0] + 0.6, 0.5)
-    c.text((640, 118), "SALIDAS · out · motores", F("b", 30), (170, 100, 20), anchor="mm", alpha=ta)
-    ba = anim(t, cues[1] + 0.6, 0.5)
-    c.text((640, 586), "ENTRADAS · in · sensores", F("b", 30), (30, 100, 160), anchor="mm", alpha=ba)
+    pts = twin_card(c, 4, t, (300, 96, 980, 510), alpha=a)
+    if pts:
+        orange, sky = (214, 120, 20), (40, 120, 190)
+        motors = [("armL", "Motor A", (96, 130)), ("wheelL", "Motor B", (96, 360)), ("armR", "Motor C", (1020, 130)), ("wheelR", "Motor D", (1020, 360))]
+        for i, (key, name, pill) in enumerate(motors):
+            la = anim(t, cues[0] + 0.5 + i * 0.7, 0.4)
+            callout(c, pts[key], name, pill, orange, la, size=26, side="l" if pill[0] < 500 else "r")
+        for i, key in enumerate(("sensor1", "sensor2", "sensor3", "sensor4")):
+            la = anim(t, cues[1] + 0.4 + i * 0.5, 0.4)
+            if la > 0:
+                px, py = 400 + i * 160, 548
+                c.line([pts[key], (px + 46, py)], sky, 3, la)
+                c.ellipse((pts[key][0] - 7, pts[key][1] - 7, pts[key][0] + 7, pts[key][1] + 7), fill=sky, outline=WHITE, width=2, alpha=la)
+                c.rrect((px, py, px + 92, py + 52), 26, fill=sky, alpha=la)
+                c.text((px + 46, py + 26), f"in {i + 1}", F("b", 24), WHITE, anchor="mm", alpha=la)
+    ta = anim(t, cues[0] + 0.3, 0.5)
+    c.text((170, 250), "SALIDAS\nmotores\nA · B · C · D", F("b", 24), (170, 100, 20), anchor="mm", alpha=ta)
+    c.text((1110, 250), "ENTRADAS\nsensores\n1 · 2 · 3 · 4", F("b", 24), (30, 100, 160), anchor="mm", alpha=anim(t, cues[1] + 0.2, 0.5))
     ca = anim(t, cues[1] + 3.2, 0.5)
     if ca > 0:
-        c.text((170, 350), "Un motor\nrecibe órdenes", F("b", 28), (170, 100, 20), anchor="mm", alpha=ca)
-        c.text((1110, 350), "Un sensor\nsolo informa", F("b", 28), (30, 100, 160), anchor="mm", alpha=ca)
+        c.text((170, 465), "Un motor\nrecibe órdenes", F("b", 24), (170, 100, 20), anchor="mm", alpha=ca)
+        c.text((1110, 465), "Un sensor\nsolo informa", F("b", 24), (30, 100, 160), anchor="mm", alpha=ca)
 
 
 CASES = [("Avanzar", 50, 50), ("Girar en su sitio", -50, 50), ("Curva", 30, 60)]
@@ -413,63 +503,28 @@ CASES = [("Avanzar", 50, 50), ("Girar en su sitio", -50, 50), ("Curva", 30, 60)]
 
 def sc_wheels(c: Canvas, t, cues, d):
     title(c, "Dos ruedas, cualquier movimiento", t, YELLOW)
-    # arena
-    ax0, ay0, ax1, ay1 = 70, 120, 700, 600
-    c.rrect((ax0, ay0, ax1, ay1), 20, fill=(44, 41, 32), outline=(90, 82, 60), width=3)
-    # barras de potencia (frase 0 las hace oscilar de -100 a 100; frase 1 muestra cada caso)
+    a = anim(t, 0.2, 0.7)
+    twin_card(c, 5, t, (56, 100, 716, 570), alpha=a)
     t1 = cues[1]
     if t < t1:
         s = math.sin((t - cues[0]) * 1.6)
-        left, right, case_name, k = 100 * s, 100 * math.sin((t - cues[0]) * 1.6 + 1.2), "De -100 % a 100 %", None
-        local = 0.0
+        left, right, case_name = 100 * s, 100 * math.sin((t - cues[0]) * 1.6 + 1.2), "De -100 % a 100 %"
     else:
         seg = (d - t1) / 3
         k = min(2, int((t - t1) / seg))
-        local = (t - t1 - k * seg)
         case_name, left, right = CASES[k]
-    # panel derecho
     pa = anim(t, 0.4, 0.5)
     for i, (lab, v) in enumerate([("Rueda izquierda", left), ("Rueda derecha", right)]):
-        y = 190 + i * 140
-        c.text((760, y), lab, F("sb", 26), WHITE, alpha=pa)
-        c.rrect((760, y + 38, 1220, y + 76), 12, fill=(52, 48, 38), alpha=pa)
-        c.rect((990, y + 38, 992, y + 76), fill=(120, 112, 90), alpha=pa)
-        wv = abs(v) / 100 * 230
+        y = 150 + i * 140
+        c.text((740, y), lab, F("sb", 26), WHITE, alpha=pa)
+        c.rrect((740, y + 38, 1230, y + 76), 12, fill=(52, 48, 38), alpha=pa)
+        c.rect((985, y + 38, 987, y + 76), fill=(120, 112, 90), alpha=pa)
+        wv = abs(v) / 100 * 240
         col = (90, 200, 120) if v >= 0 else (230, 110, 80)
-        x0, x1 = (990, 990 + wv) if v >= 0 else (990 - wv, 990)
+        x0, x1 = (985, 985 + wv) if v >= 0 else (985 - wv, 985)
         c.rrect((x0, y + 40, max(x1, x0 + 4), y + 74), 10, fill=col, alpha=pa)
-        c.text((1220, y), f"{v:+.0f} %", F("monob", 26), col, anchor="ra", alpha=pa)
-    c.text((760, 470), case_name, F("black", 40), YELLOW, alpha=pa)
-    # robot
-    cx, cy = (ax0 + ax1) / 2, (ay0 + ay1) / 2 + 20
-    if k is None:
-        x, y, th = cx, cy, -90.0
-    else:
-        # integración sencilla con la potencia de cada rueda (solo ilustrativa)
-        steps = max(1, int(local * 60))
-        x, y, th = cx, cy, -90.0
-        for _ in range(steps):
-            v_ = (left + right) / 2 * 2.2
-            w_ = (right - left) / 100 * 70
-            rad = math.radians(th)
-            x += v_ / 60 * math.cos(rad)
-            y += v_ / 60 * math.sin(rad)
-            th += w_ / 60
-    x = min(max(x, ax0 + 90), ax1 - 90)
-    y = min(max(y, ay0 + 90), ay1 - 90)
-    rad = math.radians(th + 90)
-
-    def rot(px, py):
-        return (x + px * math.cos(rad) - py * math.sin(rad), y + px * math.sin(rad) + py * math.cos(rad))
-
-    K = 1.9
-    body = [rot(-26 * K, -34 * K), rot(26 * K, -34 * K), rot(26 * K, 34 * K), rot(-26 * K, 34 * K)]
-    for sgn in (-1, 1):
-        wheel = [rot(sgn * 34 * K - 7 * K, -22 * K), rot(sgn * 34 * K + 7 * K, -22 * K), rot(sgn * 34 * K + 7 * K, 22 * K), rot(sgn * 34 * K - 7 * K, 22 * K)]
-        c.poly(wheel, (20, 20, 20))
-    c.poly(body, (206, 207, 209))
-    c.poly([rot(0, -46 * K), rot(-10 * K, -30 * K), rot(10 * K, -30 * K)], (90, 200, 120))
-    c.text((x, y), "EV3", F("monob", 24), (60, 70, 60), anchor="mm")
+        c.text((1230, y), f"{v:+.0f} %", F("monob", 26), col, anchor="ra", alpha=pa)
+    c.text((740, 440), case_name, F("black", 40), YELLOW, alpha=pa)
 
 
 def sc_closing(c: Canvas, t, cues, d):
@@ -573,7 +628,7 @@ def prepare_audio(audio_dir: Path, workdir: Path) -> tuple[list[float], list[Pat
     """Recorta silencios de cada NN.mp3 y devuelve duraciones y wavs 48 kHz mono."""
     wavs, durs = [], []
     for i in range(1, len(PHRASES) + 1):
-        src = next((p for p in [audio_dir / f"{i:02d}.mp3", audio_dir / f"{i:02d}.wav"] if p.exists()), None)
+        src = next((p for p in [audio_dir / f"{i:02d}.mp3", audio_dir / f"{i}.mp3", audio_dir / f"{i:02d}.wav", audio_dir / f"{i}.wav"] if p.exists()), None)
         if src is None:
             sys.exit(f"falta el audio {i:02d}.mp3 en {audio_dir}")
         out = workdir / f"{i:02d}.wav"
@@ -603,12 +658,34 @@ def mix_audio(wavs: list[Path], starts: list[float], total: float, out: Path):
 
 
 # --- salida ------------------------------------------------------------------
+def emit_shots(starts, scenes, path: Path):
+    """Calendario de planos del robot 3D (duraciones reales de las escenas) para twin/capture.mjs."""
+    shots = []
+    for si, name in [(1, "brick"), (3, "parts"), (4, "ports"), (5, "drive")]:
+        a, b, idx = scenes[si]
+        d = b - a
+        params: dict = {}
+        if name == "drive":
+            c0, t1 = starts[idx[0]] - a, starts[idx[1]] - a
+            seg = (d - t1) / 3
+            cases = [(100, 100, 0, -3.2, 0), (-100, 100, 0, -0.5, 0), (60, 120, -3.0, -2.6, 0)]  # rpm izq/der y pose inicial
+            params = {"c0": c0, "segments": [
+                {"t0": t1 + k * seg, "t1": t1 + (k + 1) * seg, "B": B, "D": D, "x": x, "z": z, "yaw": yaw}
+                for k, (B, D, x, z, yaw) in enumerate(cases)]}
+        shots.append({"name": name, "scene": si, "duration": round(d, 2), "params": params})
+    shots.append({"name": "still", "scene": 2, "duration": 0.1, "params": {"az": 14}})
+    path.write_text(json.dumps(shots, indent=2))
+    print("calendario de planos 3D escrito en", path)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--audio-dir", type=Path)
     ap.add_argument("--out", type=Path)
     ap.add_argument("--sheet", type=Path, help="hoja de contacto con fotogramas de cada escena")
     ap.add_argument("--export-script", type=Path)
+    ap.add_argument("--twin-dir", type=Path, help="carpeta con los fotogramas del robot 3D (twin/capture.mjs)")
+    ap.add_argument("--emit-shots", type=Path, help="escribe el calendario de planos 3D y termina")
     args = ap.parse_args()
 
     if args.export_script:
@@ -629,6 +706,11 @@ def main():
     else:
         durations = [estimate(p[1]) for p in PHRASES]
     starts, scenes, total = build_timeline(durations)
+    if args.twin_dir:
+        TWIN.root = args.twin_dir
+    if args.emit_shots:
+        emit_shots(starts, scenes, args.emit_shots)
+        return
     print(f"duración total: {total:.1f} s ({'con voz' if wavs else 'estimada, sin voz'})")
 
     if args.sheet:
@@ -652,7 +734,7 @@ def main():
         cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-"]
         if audio:
             cmd += ["-i", str(audio)]
-        cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+        cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "26", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
         cmd += (["-c:a", "aac", "-b:a", "128k", "-shortest"] if audio else ["-an"]) + [str(args.out)]
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         n = int(total * FPS)
