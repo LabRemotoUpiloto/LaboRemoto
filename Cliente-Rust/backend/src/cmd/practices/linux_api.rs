@@ -44,9 +44,9 @@ pub struct LinuxConnectionTarget {
 // arrancar (ver lib.rs), así que alcanza con leer el entorno del proceso.
 
 #[derive(Debug, Clone)]
-struct LinuxApiConfig {
+pub(crate) struct LinuxApiConfig {
     tunnel: TunnelConfig,
-    token: String,
+    pub(crate) token: String,
     ssh_host: String,
     ssh_port: u16,
 }
@@ -55,7 +55,7 @@ fn env_var(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.trim().is_empty())
 }
 
-fn load_config() -> Result<LinuxApiConfig, CommandError> {
+pub(crate) fn load_config() -> Result<LinuxApiConfig, CommandError> {
     let missing = |key: &str| {
         CommandError::permanent("VALIDATION_FAILED", format!("{key} no configurado en .env"))
     };
@@ -93,7 +93,7 @@ fn load_config() -> Result<LinuxApiConfig, CommandError> {
     })
 }
 
-async fn resolve_base_url(config: &LinuxApiConfig) -> Result<String, CommandError> {
+pub(crate) async fn resolve_base_url(config: &LinuxApiConfig) -> Result<String, CommandError> {
     let local_port = linux_tunnel::ensure_tunnel(config.tunnel.clone())
         .await
         .map_err(|e| CommandError::transient("LINUX_TUNNEL_ERROR", format!("No se pudo establecer el túnel hacia la Pi: {e}")))?;

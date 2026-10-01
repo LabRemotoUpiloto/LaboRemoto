@@ -152,6 +152,14 @@ export interface LinuxMedia {
   base64: string;
 }
 
+/**
+ * URL local (puente del backend, loopback + token aleatorio) desde la que un `<video>` lee el archivo
+ * por streaming con `Range`: arranca en segundos y no baja lo que el estudiante no mira. Se usa para
+ * video; las imágenes, que son chicas, siguen yendo por `linuxGetMedia`.
+ */
+export const linuxGetMediaUrl = (practiceId: string, mediaPath: string): Promise<string> =>
+  invoke<string>('practicas_linux_media_url', { practiceId, mediaPath });
+
 /** Trae un archivo de media (imagen/video) de un módulo, vía el mismo túnel que el resto de la práctica. */
 // Caché en memoria por (módulo, archivo): el mismo video/imagen se pedía de nuevo
 // cada vez que el bloque se remontaba (navegar entre pestañas, re-render del
