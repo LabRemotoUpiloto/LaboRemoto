@@ -23,11 +23,6 @@
       "body_md": "**Leer un error de Python.** Cuando un programa se cae, Python imprime un **traceback**. Da miedo la primera vez, pero se lee **de abajo hacia arriba**: la última línea es el error real y las de arriba son el camino que siguió el programa hasta llegar ahí."
     },
     {
-      "type": "text",
-      "id": "b-panel",
-      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 6, hay ejercicios para clasificar errores y un checklist. En la pestaña **Consola** puedes provocar un error a propósito (por ejemplo, escribe print(touch.is_pressed()) con paréntesis) y practicar su lectura de abajo hacia arriba."
-    },
-    {
       "type": "code_block",
       "id": "b-codigo-traceback",
       "language": "python",
@@ -182,7 +177,20 @@
     {
       "type": "text",
       "id": "b-checklist",
-      "body_md": "**Checklist: el motor no gira.** Antes de sospechar del código, revisa en orden: ¿el Dashboard muestra \"Conectado\" en verde arriba a la izquierda? ¿El motor aparece conectado en su tarjeta, o dice \"sin motor\"? ¿El puerto que usa tu código (outA, outB...) es el mismo cable que está enchufado? ¿Probaste mover ese motor a mano desde el Dashboard antes de correr tu script? La mayoría de las veces el problema está en uno de los primeros puntos, no en la lógica del programa."
+      "body_md": "**Checklist: el motor no gira.** Antes de sospechar del código, revisa esto en orden. La mayoría de las veces el problema está en uno de los primeros puntos, no en la lógica del programa:"
+    },
+    {
+      "type": "checklist",
+      "id": "w-diagnostico",
+      "title": "Checklist de diagnóstico",
+      "items": [
+        "¿El Dashboard muestra \"Conectado\" en verde, arriba a la izquierda?",
+        "¿El Dashboard muestra la IP del robot? Si dice \"Sin conexión\", vuelve a conectar la práctica.",
+        "¿El motor aparece conectado en su tarjeta, o dice \"sin motor\"?",
+        "¿El puerto que usa tu código (outA, outB...) es el mismo cable que está enchufado?",
+        "¿Probaste mover ese motor a mano desde el Dashboard antes de correr tu programa?",
+        "¿El puente HTTP está funcionando? La práctica lo arranca al conectar: si el panel dice \"Sin conexión\", reconecta la práctica."
+      ]
     },
     {
       "type": "quiz",
@@ -206,6 +214,11 @@
           "label": "Nada, siempre es un error de código"
         }
       ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** En la pestaña **Consola** del Panel EV3 provoca un error a propósito (por ejemplo print(touch.is_pressed()) con paréntesis) y practica leer el traceback de abajo hacia arriba. Antes de culpar al código de un motor que no gira, mira en el Dashboard si aparece conectado."
     },
     {
       "type": "checkpoint",

@@ -24,11 +24,6 @@
     },
     {
       "type": "text",
-      "id": "b-panel",
-      "body_md": "**Practica en el panel.** Arma el proyecto en la pestaña **Consola** (un comportamiento a la vez) y usa la pestaña **Aprendizaje**, módulo 8, para repasar el plan de trabajo y marcar tu autoevaluación."
-    },
-    {
-      "type": "text",
       "id": "b-objetivo",
       "body_md": "**Objetivo:** haz que el robot recorra un circuito simple que incluya **al menos** un tramo con una línea a seguir (sensor de color), un obstáculo en algún punto del recorrido (sensor ultrasónico) y un tramo final con una ruta planeada con precisión, sin depender de sensores (usando las cuentas de grados del módulo 3)."
     },
@@ -96,7 +91,21 @@
     {
       "type": "text",
       "id": "b-autoevaluacion",
-      "body_md": "**Autoevaluación.** No hay una corrección automática para este proyecto: es una guía para ti, no un examen. Revisa honestamente si lograste lo siguiente. El robot completa el recorrido de punta a punta. Sigue la línea en el tramo correspondiente sin perderla en las curvas. Detecta el obstáculo y reacciona antes de chocarlo. El tramo de ruta planeada llega a destino sin depender de sensores. El código maneja al menos un caso de error posible (sensor desconectado, lectura fuera de rango). Dejaste el robot detenido y sin programas corriendo al terminar (módulo 7)."
+      "body_md": "**Autoevaluación.** No hay una corrección automática para este proyecto: es una guía para ti, no un examen. Marca honestamente qué lograste:"
+    },
+    {
+      "type": "checklist",
+      "id": "w-autoevaluacion",
+      "title": "Autoevaluación",
+      "done_md": "Lograste todos los criterios: ya puedes empezar a resolver problemas nuevos con el EV3 por tu cuenta.",
+      "items": [
+        "El robot completa el recorrido de punta a punta.",
+        "Sigue la línea en el tramo correspondiente sin perderla en las curvas.",
+        "Detecta el obstáculo y reacciona antes de chocarlo.",
+        "El tramo de ruta planeada llega a destino sin depender de sensores.",
+        "El código maneja al menos un caso de error posible (sensor desconectado, lectura fuera de rango).",
+        "Dejaste el robot detenido y sin programas corriendo al terminar (módulo 7)."
+      ]
     },
     {
       "type": "text",
@@ -125,6 +134,11 @@
           "label": "No hace falta dejar el robot detenido al terminar"
         }
       ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** Arma el proyecto en la pestaña **Consola** del Panel EV3, un comportamiento a la vez, y usa el Dashboard para revisar sensores y motores si algo no responde."
     },
     {
       "type": "checkpoint",

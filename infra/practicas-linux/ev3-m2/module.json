@@ -23,11 +23,6 @@
       "body_md": "En el módulo 1 viste que un sensor se conecta a un puerto de entrada (in1 a in4). Para leerlo desde un programa, cada tipo de sensor tiene su propia clase en **ev3dev2.sensor.lego**: se crea indicando el puerto y después se consulta su valor cuando haga falta."
     },
     {
-      "type": "text",
-      "id": "b-panel",
-      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 2, hay simuladores del sensor de contacto, del ultrasónico y del de color (con el valor real si tienes un sensor conectado). En la pestaña **Consola** prueba los ejemplos \"Leer el sensor de contacto\" y \"Avanzar hasta presionar el sensor\"."
-    },
-    {
       "type": "code_block",
       "id": "b-codigo-leer",
       "language": "python",
@@ -48,6 +43,13 @@
       "id": "b-codigo-tacto",
       "language": "python",
       "code": "if touch.is_pressed:\n    motor.off()\nelse:\n    motor.on(30)"
+    },
+    {
+      "type": "sensor_demo",
+      "id": "w-tacto",
+      "sensor": "touch",
+      "title": "Prueba el sensor de contacto",
+      "code_template": "touch.is_pressed  ->  {value}"
     },
     {
       "type": "quiz",
@@ -82,6 +84,14 @@
       "id": "b-codigo-ultra",
       "language": "python",
       "code": "if ultrasonico.distance_centimeters < 10:\n    motor_izq.off()\n    motor_der.off()\nelse:\n    motor_izq.on(30)\n    motor_der.on(30)"
+    },
+    {
+      "type": "sensor_demo",
+      "id": "w-ultra",
+      "sensor": "ultrasonic",
+      "title": "Prueba el sensor ultrasónico",
+      "threshold_cm": 10,
+      "code_template": "if ultrasonico.distance_centimeters < {threshold}:\n    motor_izq.off()\n    motor_der.off()\nelse:\n    motor_izq.on(30)\n    motor_der.on(30)"
     },
     {
       "type": "text",
@@ -121,6 +131,12 @@
       "id": "b-codigo-color",
       "language": "python",
       "code": "if color.reflected_light_intensity < 30:\n    # está sobre la línea negra: corregir hacia la izquierda\n    motor_izq.on(20)\n    motor_der.on(40)\nelse:\n    # está sobre el piso claro: corregir hacia la derecha\n    motor_izq.on(40)\n    motor_der.on(20)"
+    },
+    {
+      "type": "sensor_demo",
+      "id": "w-color",
+      "sensor": "color",
+      "title": "Prueba el sensor de color"
     },
     {
       "type": "quiz",
@@ -224,6 +240,11 @@
           "label": "Programar sin bucles"
         }
       ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** En el Dashboard del Panel EV3 mira el valor de los sensores conectados mientras los activas: presiona el de contacto y acerca la mano al ultrasónico. Luego, en la pestaña **Consola**, ejecuta los ejemplos \"Leer el sensor de contacto\" y \"Avanzar hasta presionar el sensor\"."
     },
     {
       "type": "checkpoint",

@@ -77,7 +77,7 @@
   min-width: 0;
 }
 
-/* Aprendizaje y Consola quedan montadas aunque estén ocultas (ver Ev3Panel.tsx). */
+/* La Consola queda montada aunque esté oculta (ver Ev3Panel.tsx). */
 .ev3-panel-pane {
   min-height: 0;
   overflow: auto;

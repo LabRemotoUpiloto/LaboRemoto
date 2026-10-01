@@ -9,6 +9,11 @@ import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, 
 import { AlertTriangle, Play, X } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
+import WheelsSimBlock from './widgets/WheelsSim';
+import CalculatorBlock from './widgets/CalculatorBlock';
+import SensorDemoBlock from './widgets/SensorDemo';
+import StateMachineBlock from './widgets/StateMachineBlock';
+import ChecklistBlock from './widgets/ChecklistBlock';
 
 const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
 
@@ -461,6 +466,16 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
       return <TerminalAnnotationBlock block={block} />;
     case 'code_block':
       return <CodeBlockView block={block} />;
+    case 'wheels_sim':
+      return <WheelsSimBlock block={block} />;
+    case 'calculator':
+      return <CalculatorBlock block={block} />;
+    case 'sensor_demo':
+      return <SensorDemoBlock block={block} />;
+    case 'state_machine':
+      return <StateMachineBlock block={block} />;
+    case 'checklist':
+      return <ChecklistBlock block={block} />;
     case 'analogy':
       return <AnalogyBlock block={block} />;
     case 'media':
