@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, Button } from '@mantine/core';
 import { AlertTriangle, Play, X } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
-import { linuxGetMedia } from '../../../../services/linuxPractice.service';
+import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
 
 const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
 
@@ -178,10 +178,15 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
     let cancelled = false;
     setState({ status: 'loading' });
     setExpanded(false);
-    linuxGetMedia(practiceId, block.file)
-      .then((media) => {
+    // Video: URL del puente local -> streaming con Range (arranca en segundos). Imagen: archivo
+    // chico, se trae completo como data: URI.
+    const cargar = block.kind === 'video'
+      ? linuxGetMediaUrl(practiceId, block.file)
+      : linuxGetMedia(practiceId, block.file).then((media) => `data:${media.mime};base64,${media.base64}`);
+    cargar
+      .then((url) => {
         if (cancelled) return;
-        setState({ status: 'ok', url: `data:${media.mime};base64,${media.base64}` });
+        setState({ status: 'ok', url });
       })
       .catch((e) => {
         if (cancelled) return;
@@ -263,6 +268,8 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
               src={state.url}
               controls
               autoPlay
+              preload="metadata"
+              onError={() => setState({ status: 'error', message: 'No se pudo reproducir el video (¿sin conexión con la Pi?). Probá de nuevo en un momento.' })}
               onPlay={() => setExpanded(true)}
               style={{
                 width: expanded ? 'auto' : '100%',
