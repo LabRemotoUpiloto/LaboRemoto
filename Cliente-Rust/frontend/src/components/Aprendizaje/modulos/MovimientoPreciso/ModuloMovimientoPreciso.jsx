@@ -3,7 +3,6 @@ import PasoPotenciaADistancia from './PasoPotenciaADistancia.jsx';
 import PasoFormulaGrados from './PasoFormulaGrados.jsx';
 import PasoEncoders from './PasoEncoders.jsx';
 import PasoGirarAngulo from './PasoGirarAngulo.jsx';
-import PasoEditorTrayectorias from './PasoEditorTrayectorias.jsx';
 import PasoQuiz from './PasoQuiz.jsx';
 
 const COMPONENTE_POR_PASO = {
@@ -11,7 +10,6 @@ const COMPONENTE_POR_PASO = {
   'formula-grados-cm': PasoFormulaGrados,
   encoders: PasoEncoders,
   'girar-angulo': PasoGirarAngulo,
-  'editor-trayectorias': PasoEditorTrayectorias,
   quiz: PasoQuiz,
 };
 

@@ -37,6 +37,8 @@ export interface LinuxQuizOption {
 export type LinuxBlock =
   | { type: 'text'; id: string; body_md: string }
   | { type: 'terminal_annotation'; id: string; prompt_example: string; labels: LinuxLabel[] }
+  // Fragmento de código solo para leer (módulos de EV3: Python). No tiene regla de validación.
+  | { type: 'code_block'; id: string; language?: string; code: string; caption?: string }
   | { type: 'analogy'; id: string; term: string; everyday: string; windows: string; linux: string }
   // `goal_md` (opcional): para desafíos abiertos -- la tarjeta muestra el
   // objetivo en lugar de `command`, que es la respuesta y no debe verse.

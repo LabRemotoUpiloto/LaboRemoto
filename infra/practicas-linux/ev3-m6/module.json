@@ -1,0 +1,272 @@
+{
+  "id": "ev3-m6",
+  "order": 6,
+  "title": "Depuración y diagnóstico",
+  "difficulty": "intermediate",
+  "estimated_minutes": 20,
+  "sequential": false,
+  "objective": "Saber qué hacer cuando el robot no responde: leer un error de Python, usar print() para ver qué ocurre y separar los problemas de conexión de los de código.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "**Leer un error de Python.** Cuando un programa se cae, Python imprime un **traceback**. Da miedo la primera vez, pero se lee **de abajo hacia arriba**: la última línea es el error real y las de arriba son el camino que siguió el programa hasta llegar ahí."
+    },
+    {
+      "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 6, hay ejercicios para clasificar errores y un checklist. En la pestaña **Consola** puedes provocar un error a propósito (por ejemplo, escribe print(touch.is_pressed()) con paréntesis) y practicar su lectura de abajo hacia arriba."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-traceback",
+      "language": "python",
+      "code": "Traceback (most recent call last):\n  File \"programa.py\", line 8, in <module>\n    if touch.is_pressed():\nTypeError: 'bool' object is not callable"
+    },
+    {
+      "type": "text",
+      "id": "b-traceback-lectura",
+      "body_md": "La línea 8 (if touch.is_pressed():) es donde pasó; es el mismo error del módulo 2. La última línea dice que se intentó \"llamar como función\" (con paréntesis) algo que ya es un valor booleano: is_pressed ya es verdadero o falso, no se puede llamar con ()."
+    },
+    {
+      "type": "quiz",
+      "id": "q-orden-traceback",
+      "question_md": "¿En qué orden conviene leer un **traceback** de Python?",
+      "options": [
+        {
+          "id": "a",
+          "label": "De arriba hacia abajo"
+        },
+        {
+          "id": "b",
+          "label": "Del medio hacia los costados"
+        },
+        {
+          "id": "c",
+          "label": "El orden no importa"
+        },
+        {
+          "id": "d",
+          "label": "De abajo hacia arriba"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-error-bool",
+      "question_md": "¿Qué significa el error **TypeError: 'bool' object is not callable** en ese programa?",
+      "options": [
+        {
+          "id": "a",
+          "label": "is_pressed ya es un valor (verdadero o falso) y no se puede llamar con ()"
+        },
+        {
+          "id": "b",
+          "label": "El sensor de contacto no está conectado"
+        },
+        {
+          "id": "c",
+          "label": "Falta importar TouchSensor"
+        },
+        {
+          "id": "d",
+          "label": "El puerto in1 está mal escrito"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-print",
+      "body_md": "**print() como herramienta de diagnóstico.** No hace falta un depurador sofisticado para entender por qué un programa no hace lo esperado: imprimir los valores intermedios, en los puntos donde algo podría fallar, suele alcanzar. La lógica es la misma con y sin prints; la diferencia es que con ellos sabes **qué está pasando de verdad** en vez de adivinar."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-print",
+      "language": "python",
+      "code": "distancia = ultrasonico.distance_centimeters\nprint(\"distancia leída:\", distancia)   # <- esto\n\nif distancia < umbral:\n    print(\"Frenando: distancia menor al umbral\", umbral)   # <- y esto\n    motor.off()\nelse:\n    motor.on(30)\n\n# Salida: distancia leída: 47\n# (el motor sigue andando, y ahora SABES por qué)"
+    },
+    {
+      "type": "text",
+      "id": "b-print-donde",
+      "body_md": "**Dónde poner los prints:** justo después de leer un sensor, para descartar que lea algo raro; antes de cada rama de un if importante, para saber cuál se ejecutó; y al entrar y salir de una función, para confirmar que se llamó. Cuando el problema esté resuelto, quita los que ya no aportan para que la consola no se llene de ruido."
+    },
+    {
+      "type": "quiz",
+      "id": "q-para-que-print",
+      "question_md": "¿Para qué sirve agregar **print()** al depurar?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Para que el programa corra más rápido"
+        },
+        {
+          "id": "b",
+          "label": "Para ver valores intermedios y confirmar qué está pasando de verdad"
+        },
+        {
+          "id": "c",
+          "label": "Es obligatorio en todo programa de Python"
+        },
+        {
+          "id": "d",
+          "label": "Para arreglar el error automáticamente"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-conexion-codigo",
+      "body_md": "**¿Conexión o código?** Cuando algo no funciona, la primera pregunta útil es separar el problema en dos categorías, porque se arreglan en lugares distintos. Un problema de **conexión** es cuando el puente, el robot o un cable no están donde el programa espera, y tu código podría estar perfecto. Un problema de **código** es cuando todo está conectado pero el programa hace algo distinto de lo que querías."
+    },
+    {
+      "type": "text",
+      "id": "b-sintomas",
+      "body_md": "Ejemplos reales. De **conexión:** \"Sin conexión\" en la barra roja del Panel, o \"motor desconectado\" en la lista de alertas. De **código:** \"NameError: name motor_izq is not defined\", o que el robot corra pero gire para el lado contrario al esperado."
+    },
+    {
+      "type": "quiz",
+      "id": "q-tipo-error-conexion",
+      "question_md": "\"**Sin conexión**\" en la barra de estado del Panel EV3 es un problema de...",
+      "options": [
+        {
+          "id": "a",
+          "label": "Código"
+        },
+        {
+          "id": "b",
+          "label": "Batería del robot"
+        },
+        {
+          "id": "c",
+          "label": "Conexión"
+        },
+        {
+          "id": "d",
+          "label": "Sintaxis de Python"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-tipo-error-codigo",
+      "question_md": "\"**NameError: name motor_izq is not defined**\" es un problema de...",
+      "options": [
+        {
+          "id": "a",
+          "label": "Conexión"
+        },
+        {
+          "id": "b",
+          "label": "Red"
+        },
+        {
+          "id": "c",
+          "label": "Hardware"
+        },
+        {
+          "id": "d",
+          "label": "Código"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-checklist",
+      "body_md": "**Checklist: el motor no gira.** Antes de sospechar del código, revisa en orden: ¿el Dashboard muestra \"Conectado\" en verde arriba a la izquierda? ¿El motor aparece conectado en su tarjeta, o dice \"sin motor\"? ¿El puerto que usa tu código (outA, outB...) es el mismo cable que está enchufado? ¿Probaste mover ese motor a mano desde el Dashboard antes de correr tu script? La mayoría de las veces el problema está en uno de los primeros puntos, no en la lógica del programa."
+    },
+    {
+      "type": "quiz",
+      "id": "q-checklist",
+      "question_md": "Si un motor no gira, ¿qué conviene revisar **antes** de sospechar del código?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Si el Dashboard lo muestra conectado y el puerto coincide con el cable"
+        },
+        {
+          "id": "b",
+          "label": "Reescribir todo el programa de cero"
+        },
+        {
+          "id": "c",
+          "label": "Cambiar de computadora"
+        },
+        {
+          "id": "d",
+          "label": "Nada, siempre es un error de código"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-orden-traceback",
+        "quiz-error-bool",
+        "quiz-para-que-print",
+        "quiz-tipo-error-conexion",
+        "quiz-tipo-error-codigo",
+        "quiz-checklist"
+      ]
+    }
+  ],
+  "hints": [
+    "Un traceback se lee de abajo hacia arriba: la última línea es el error real.",
+    "Si el Panel dice \"Sin conexión\", el problema es de conexión, no de tu código.",
+    "Antes de sospechar del código, revisa el Dashboard: ¿el motor aparece conectado y es el puerto correcto?"
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-orden-traceback",
+      "rule_type": "quiz",
+      "target": "q-orden-traceback",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-error-bool",
+      "rule_type": "quiz",
+      "target": "q-error-bool",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-para-que-print",
+      "rule_type": "quiz",
+      "target": "q-para-que-print",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-tipo-error-conexion",
+      "rule_type": "quiz",
+      "target": "q-tipo-error-conexion",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-tipo-error-codigo",
+      "rule_type": "quiz",
+      "target": "q-tipo-error-codigo",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-checklist",
+      "rule_type": "quiz",
+      "target": "q-checklist",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

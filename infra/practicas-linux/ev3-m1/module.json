@@ -1,11 +1,11 @@
 {
   "id": "ev3-m1",
   "order": 1,
-  "title": "Panel de control EV3 (API)",
+  "title": "Conociendo el EV3",
   "difficulty": "beginner",
   "estimated_minutes": 25,
   "sequential": false,
-  "objective": "Controlar los motores y leer los sensores del robot EV3 desde un panel visual, y relacionar cada acción del panel con la petición HTTP que se envía a la API por detrás.",
+  "objective": "Entender qué es el robot EV3, cuáles son sus sensores y actuadores, para qué sirven sus puertos y cómo se combinan dos ruedas para producir cualquier movimiento.",
   "environment": {
     "panels": {
       "robot_dashboard": true,
@@ -20,93 +20,246 @@
     {
       "type": "text",
       "id": "b-intro",
-      "body_md": "## Qué vas a hacer\n\nVas a manejar un **robot LEGO EV3 real** desde un panel en pantalla. En esta práctica **no escribes código ni comandos**: mueves controles y observas lo que pasa en el robot.\n\nLo interesante es lo que ocurre por detrás: cada control del panel envía una **petición** a una **API**. Al final podrás decir cuál petición corresponde a cada cosa que hiciste."
+      "body_md": "**¿Qué es el EV3?** El LEGO Mindstorms EV3 es un kit de robótica educativa. Su pieza central es el **ladrillo** (en inglés, brick): una computadora pequeña con procesador propio, pantalla, botones, altavoz y batería, que se programa para leer sensores y mover motores."
     },
     {
       "type": "text",
-      "id": "b-como-funciona",
-      "body_md": "## Cómo llega tu orden al robot\n\nUna **API** es una forma ordenada de pedirle cosas a otro sistema. Aquí, tu panel no habla directo con el robot: se lo pide a un programa intermediario (un *puente*), y este se lo traduce al robot.\n\n**Panel (tu pantalla)** → **Puente HTTP** → **Robot EV3**\n\nCuando conectaste, la práctica ya encendió el robot y el puente por ti."
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** Abre el Panel EV3 y entra a la pestaña **Aprendizaje**, módulo 1: ahí hay un diagrama del ladrillo en el que puedes tocar cada puerto y un simulador de ruedas para ver cómo se combinan. En la pestaña **Consola** puedes ejecutar programas en el robot; prueba los ejemplos \"Hola, robot\" y \"Mover el motor A\"."
     },
     {
       "type": "text",
-      "id": "b-paso-motores",
-      "body_md": "## Paso 1 · Mueve los motores\n\nAbre el **Panel EV3** (el botón de arriba a la derecha de tu terminal) y entra a la pestaña **Dashboard**.\n\n- Mueve los *sliders* de los motores **A, B, C y D** y observa la velocidad medida (en rpm, vueltas por minuto).\n- Empieza con valores bajos y sube de a poco.\n- El botón de **parada** detiene todos los motores a la vez."
+      "id": "b-ev3dev",
+      "body_md": "En este laboratorio el ladrillo no corre el software original de LEGO: corre **ev3dev**, una distribución de Linux, con un programa en **Python** escuchando pedidos por red. La app le manda esos pedidos, y por eso puedes controlar el robot aunque esté en otro lugar físico. A eso se le llama **laboratorio remoto**."
     },
     {
       "type": "text",
-      "id": "b-paso-sensores",
-      "body_md": "## Paso 2 · Lee los sensores\n\nEn el mismo Dashboard verás los sensores conectados (por ejemplo el **ultrasónico**, que mide distancia, y el **táctil**, que detecta un toque). Los valores se actualizan solos, cerca de una vez por segundo.\n\nAcerca un objeto al sensor ultrasónico y mira cómo cambia el número."
+      "id": "b-que-haras",
+      "body_md": "**Qué harás con la app:** ver en vivo el estado de los motores y sensores conectados (pestaña Dashboard), mover el robot con el teclado y ver una réplica 3D que se mueve igual que el robot real (pestaña Gemelo 3D). Este módulo es conceptual: lo importante es entender las piezas antes de programarlas."
     },
     {
       "type": "text",
-      "id": "b-paso-gemelo",
-      "body_md": "## Paso 3 · Mira el gemelo digital\n\nAbre la pestaña **Gemelo 3D**. Es una réplica virtual del robot que se mueve **en sincronía** con el robot real: lo que haces en el panel se ve en ambos.\n\nSi aparece la cámara del laboratorio, compara lo que ves en el robot real con su réplica en pantalla."
+      "id": "b-sensores",
+      "body_md": "**Sensores (los \"sentidos\").** Perciben algo del entorno (luz, distancia, contacto, giro) y lo convierten en un número que el programa puede leer. Se conectan a los puertos de **entrada**: in1, in2, in3 e in4."
     },
     {
       "type": "text",
-      "id": "b-paso-api",
-      "body_md": "## Paso 4 · Qué petición hay detrás de cada cosa\n\n| Lo que haces en el panel | Petición que se envía |\n|---|---|\n| El panel se actualiza solo (estado y sensores) | `GET /api/status` |\n| Mueves el slider de un motor | `POST /api/motor` con el puerto y la velocidad |\n| Pulsas el botón de parada | `POST /api/stop_all` |\n\n`GET` significa *pedir información*; `POST` significa *enviar una orden*."
+      "id": "b-actuadores",
+      "body_md": "**Actuadores (los \"músculos\").** Reciben una orden del programa y producen un efecto físico, normalmente girar. Se conectan a los puertos de **salida**: outA, outB, outC y outD."
     },
     {
       "type": "text",
-      "id": "b-seguridad",
-      "body_md": "## Seguridad\n\n**No acerques las manos al robot mientras los motores estén activos.** Si necesitas tocarlo, primero detén todos los motores con el botón de parada."
+      "id": "b-piezas",
+      "body_md": "Las piezas que vas a encontrar: **motor grande** y **motor mediano** (actuadores); **sensor de contacto**, **sensor de color**, **sensor ultrasónico** (mide distancia) y **sensor giroscópico** (mide giro) son sensores."
     },
     {
       "type": "quiz",
-      "id": "q1-que-es-api",
-      "question_md": "¿Qué es una **API** en esta práctica?",
+      "id": "q-actuador",
+      "question_md": "¿Cuál de estas piezas es un **actuador**?",
       "options": [
-        { "id": "a", "label": "El cable que conecta físicamente el robot al computador" },
-        { "id": "b", "label": "El programa que dibuja el gemelo digital 3D" },
-        { "id": "c", "label": "Una forma ordenada de pedirle cosas a otro sistema (mover un motor, leer un sensor) mediante peticiones" }
+        {
+          "id": "a",
+          "label": "Motor grande"
+        },
+        {
+          "id": "b",
+          "label": "Sensor de color"
+        },
+        {
+          "id": "c",
+          "label": "Sensor ultrasónico"
+        },
+        {
+          "id": "d",
+          "label": "Sensor de contacto"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-puertos",
+      "body_md": "El EV3 tiene **4 puertos de salida** (outA a outD, para motores) y **4 de entrada** (in1 a in4, para sensores). No son nombres inventados por la app: son los mismos que usa el sistema operativo del robot y los que verás en el Dashboard."
+    },
+    {
+      "type": "text",
+      "id": "b-puerto-motor",
+      "body_md": "**Puerto de salida (motor).** El programa le manda una velocidad de -100 % a 100 %: el signo define el sentido de giro y la magnitud la fuerza. Nunca adivines el puerto por el nombre del motor: es literalmente el cable físico que está enchufado ahí."
+    },
+    {
+      "type": "text",
+      "id": "b-puerto-sensor",
+      "body_md": "**Puerto de entrada (sensor).** El programa lee su valor (una distancia en cm, si está presionado, un color) para decidir qué hacer. A diferencia de un motor, un sensor nunca recibe órdenes: solo informa."
+    },
+    {
+      "type": "text",
+      "id": "b-practica-puertos",
+      "body_md": "**Míralo en vivo.** Abre el Panel EV3 y entra a la pestaña **Dashboard**. En \"Motores\" verás los puertos de A a D (los vacíos dicen \"sin motor\") y en \"Sensores\" los puertos 1 a 4 (los vacíos dicen \"vacío\"). ¿Cuáles están conectados ahora mismo en el robot?"
+    },
+    {
+      "type": "quiz",
+      "id": "q-puerto-sensor",
+      "question_md": "¿A qué puerto se conecta un **sensor de distancia**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "outA (salida)"
+        },
+        {
+          "id": "b",
+          "label": "in2 (entrada)"
+        },
+        {
+          "id": "c",
+          "label": "outC (salida)"
+        },
+        {
+          "id": "d",
+          "label": "outD (salida)"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-movimientos",
+      "body_md": "**Movimientos básicos.** Cada motor gira por separado a una potencia de -100 % a 100 %. No existe un comando especial para \"girar\" o \"avanzar\": todos los movimientos salen de combinar dos números, uno por rueda."
+    },
+    {
+      "type": "text",
+      "id": "b-casos",
+      "body_md": "Los cuatro casos clásicos: **avanzar** (las dos ruedas giran igual, hacia adelante); **retroceder** (las dos igual, hacia atrás); **girar en el lugar** (misma fuerza pero en sentidos opuestos); **curva** (mismo sentido con distinta fuerza: la rueda más lenta marca hacia dónde se curva)."
+    },
+    {
+      "type": "quiz",
+      "id": "q-avanzar",
+      "question_md": "Si las dos ruedas giran con la **misma potencia positiva**, el robot...",
+      "options": [
+        {
+          "id": "a",
+          "label": "Gira en el lugar"
+        },
+        {
+          "id": "b",
+          "label": "Retrocede"
+        },
+        {
+          "id": "c",
+          "label": "Avanza en línea recta"
+        },
+        {
+          "id": "d",
+          "label": "Se queda detenido"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-dos-formas",
+      "body_md": "**Dos formas de controlar el robot.** Desde el Dashboard mandas un comando por vez, desde afuera del robot. Un programa en Python, en cambio, corre **adentro** del robot y no depende de la red para cada paso: lo escribes en la pestaña Consola del panel y la app lo manda al robot. Un primer programa típico mueve el motor del puerto A al 30 % durante 2 segundos y luego imprime un mensaje:"
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-primero",
+      "language": "python",
+      "code": "from ev3dev2.motor import LargeMotor, OUTPUT_A\n\nmotor = LargeMotor(OUTPUT_A)\nmotor.on_for_seconds(speed=30, seconds=2)\nprint(\"Listo\")"
+    },
+    {
+      "type": "quiz",
+      "id": "q-sistema-operativo",
+      "question_md": "¿Qué corre **dentro del EV3** en este laboratorio?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El software original de LEGO"
+        },
+        {
+          "id": "b",
+          "label": "Windows IoT"
+        },
+        {
+          "id": "c",
+          "label": "Nada: todo ocurre en la nube"
+        },
+        {
+          "id": "d",
+          "label": "ev3dev (Linux) con un programa en Python"
+        }
       ]
     },
     {
       "type": "quiz",
-      "id": "q2-leer-estado",
-      "question_md": "El panel muestra los sensores casi en tiempo real. ¿Qué petición usa para **leer** el estado del robot?",
+      "id": "q-control-desde-afuera",
+      "question_md": "¿Cuál es la diferencia entre controlar el robot desde el Dashboard y un programa Python que corre dentro de él?",
       "options": [
-        { "id": "a", "label": "GET /api/status" },
-        { "id": "b", "label": "POST /api/motor" },
-        { "id": "c", "label": "POST /api/stop_all" }
-      ]
-    },
-    {
-      "type": "quiz",
-      "id": "q3-mover-motor",
-      "question_md": "Mueves el slider de un motor al 50 %. ¿Qué viaja en la petición `POST /api/motor`?",
-      "options": [
-        { "id": "a", "label": "Solo la palabra «mover», sin más datos" },
-        { "id": "b", "label": "El puerto del motor y la velocidad pedida (por ejemplo, puerto A y velocidad 50)" },
-        { "id": "c", "label": "El video de la cámara del laboratorio" }
-      ]
-    },
-    {
-      "type": "quiz",
-      "id": "q4-seguridad",
-      "question_md": "Antes de acercar las manos al robot mientras los motores están activos, ¿qué debes hacer?",
-      "options": [
-        { "id": "a", "label": "Nada: los motores son lo bastante lentos" },
-        { "id": "b", "label": "Cerrar el panel de control" },
-        { "id": "c", "label": "Detener todos los motores con el botón de parada" }
+        {
+          "id": "a",
+          "label": "El Dashboard manda un comando por vez desde afuera; el programa corre dentro y no depende de la red en cada paso"
+        },
+        {
+          "id": "b",
+          "label": "No hay diferencia"
+        },
+        {
+          "id": "c",
+          "label": "El Dashboard solo funciona sin robot conectado"
+        },
+        {
+          "id": "d",
+          "label": "El programa Python solo sirve para leer sensores"
+        }
       ]
     },
     {
       "type": "checkpoint",
       "id": "b-checkpoint",
-      "rule_ids": ["quiz-que-es-api", "quiz-leer-estado", "quiz-mover-motor", "quiz-seguridad"]
+      "rule_ids": [
+        "quiz-actuador",
+        "quiz-puerto-sensor",
+        "quiz-avanzar",
+        "quiz-sistema-operativo",
+        "quiz-control-desde-afuera"
+      ]
     }
   ],
   "hints": [
-    "Si el panel dice que el puente no responde, espera unos segundos: el robot tarda en arrancar.",
-    "Empieza con velocidades bajas en los motores y sube de a poco.",
-    "Si no recuerdas cuál petición lee y cuál manda una orden: GET pide información, POST envía una orden."
+    "Si no recuerdas qué puerto es de qué: out (salida) son motores; in (entrada) son sensores.",
+    "Abre el Panel EV3 y mira el Dashboard: las tarjetas muestran qué puertos tienen algo conectado.",
+    "Con las dos ruedas a la misma potencia positiva, el robot avanza recto."
   ],
   "validation_rules": [
-    { "id": "quiz-que-es-api", "rule_type": "quiz", "target": "q1-que-es-api", "required": true, "points": 2 },
-    { "id": "quiz-leer-estado", "rule_type": "quiz", "target": "q2-leer-estado", "required": true, "points": 2 },
-    { "id": "quiz-mover-motor", "rule_type": "quiz", "target": "q3-mover-motor", "required": true, "points": 2 },
-    { "id": "quiz-seguridad", "rule_type": "quiz", "target": "q4-seguridad", "required": true, "points": 2 }
+    {
+      "id": "quiz-actuador",
+      "rule_type": "quiz",
+      "target": "q-actuador",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-puerto-sensor",
+      "rule_type": "quiz",
+      "target": "q-puerto-sensor",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-avanzar",
+      "rule_type": "quiz",
+      "target": "q-avanzar",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-sistema-operativo",
+      "rule_type": "quiz",
+      "target": "q-sistema-operativo",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-control-desde-afuera",
+      "rule_type": "quiz",
+      "target": "q-control-desde-afuera",
+      "required": true,
+      "points": 2
+    }
   ]
 }

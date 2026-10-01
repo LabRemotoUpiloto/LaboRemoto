@@ -8,7 +8,7 @@ const ANTES = [
 
 const DESPUES = [
   'Dejá todos los motores detenidos — no asumas que la próxima persona los va a frenar por vos.',
-  'Si dejaste un script corriendo en la Terminal (por ejemplo un while True), cortalo antes de desconectarte.',
+  'Si dejaste un programa corriendo en la Consola (por ejemplo un while True), detenelo antes de desconectarte.',
   'Si vas a subir una versión nueva de un archivo con el mismo nombre en el robot, asegurate de que la versión vieja no siga corriendo en paralelo — dos procesos usando el mismo puerto van a chocar entre sí.',
 ];
 

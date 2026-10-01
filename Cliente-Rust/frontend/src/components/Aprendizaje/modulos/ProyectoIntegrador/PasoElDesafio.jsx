@@ -11,7 +11,7 @@ export default function PasoElDesafio() {
       <ul>
         <li>Un tramo con una línea a seguir (sensor de color).</li>
         <li>Un obstáculo en algún punto del recorrido (sensor ultrasónico).</li>
-        <li>Un tramo final donde uses una ruta planeada con precisión, sin depender de sensores — dibujada en la pestaña Trayectoria.</li>
+        <li>Un tramo final donde uses una ruta planeada con precisión, sin depender de sensores — con las cuentas de grados del Módulo 3.</li>
       </ul>
 
       <p>
@@ -20,7 +20,7 @@ export default function PasoElDesafio() {
         decisiones de diseño son parte del ejercicio.
       </p>
 
-      <p>Si no tenés un circuito físico armado, también vale simular el recorrido completo en la pestaña Trayectoria y describir en palabras dónde y cómo intervendría cada sensor.</p>
+      <p>Si no tenés un circuito físico armado, también vale calcular el recorrido completo en papel y describir en palabras dónde y cómo intervendría cada sensor.</p>
     </div>
   );
 }

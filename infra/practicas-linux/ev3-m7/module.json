@@ -1,0 +1,224 @@
+{
+  "id": "ev3-m7",
+  "order": 7,
+  "title": "Usar el laboratorio remoto con criterio",
+  "difficulty": "beginner",
+  "estimated_minutes": 15,
+  "sequential": false,
+  "objective": "Entender que el EV3 es un robot físico y compartido, saber cómo frenarlo de inmediato y qué revisar antes y después de cada sesión.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "**Un robot físico, compartido.** Todo lo anterior se probó contra un robot de verdad, en otro lugar físico, al que te conectas por red. Eso cambia algunas reglas respecto a programar en tu propia computadora."
+    },
+    {
+      "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 7, hay checklists de buenas prácticas. En la pestaña **Consola** el botón **Detener** corta tu programa y frena los motores: pruébalo con uno de los ejemplos."
+    },
+    {
+      "type": "text",
+      "id": "b-reglas",
+      "body_md": "**No hay \"deshacer\":** si el robot choca o se cae de una mesa, eso pasó de verdad. **Puede que no seas el único usándolo:** si alguien dejó un motor girando o un programa corriendo, eso afecta lo que veas al conectarte. **No lo ves en persona:** no puedes estirar la mano y sostenerlo; la única herramienta que tienes es la que te da esta app."
+    },
+    {
+      "type": "quiz",
+      "id": "q-diferencia-simulador",
+      "question_md": "¿Qué diferencia clave hay entre programar el EV3 remoto y un simulador en tu computadora?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Ninguna, es exactamente igual"
+        },
+        {
+          "id": "b",
+          "label": "En el robot real no hay \"deshacer\" y puede haber otros usuarios"
+        },
+        {
+          "id": "c",
+          "label": "El robot remoto es más lento a propósito"
+        },
+        {
+          "id": "d",
+          "label": "El simulador es más difícil de usar"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-paro",
+      "body_md": "**El paro de emergencia.** La app tiene varias formas de frenar el robot ya, sin esperar a que termine un programa. Conocerlas antes de necesitarlas es la diferencia entre un susto y un problema real. Desde el Dashboard: el botón **Detener todo** corta todos los motores; el panel de **control por teclado** frena con la barra **Espacio** las dos ruedas configuradas ahí; y cada tarjeta de motor tiene su propio botón de parada, que frena solo ese motor."
+    },
+    {
+      "type": "quiz",
+      "id": "q-espacio",
+      "question_md": "En el panel de control por teclado del Dashboard, ¿qué tecla **frena** las dos ruedas configuradas?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Enter"
+        },
+        {
+          "id": "b",
+          "label": "Escape"
+        },
+        {
+          "id": "c",
+          "label": "Espacio"
+        },
+        {
+          "id": "d",
+          "label": "Ctrl+C"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-detener-todo",
+      "question_md": "¿Qué hace el botón **Detener todo** del Dashboard?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Cierra la práctica"
+        },
+        {
+          "id": "b",
+          "label": "Apaga el robot"
+        },
+        {
+          "id": "c",
+          "label": "Reinicia el puente"
+        },
+        {
+          "id": "d",
+          "label": "Frena todos los motores a la vez"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-programas",
+      "body_md": "Un programa que corre **dentro** del robot (con un while True, por ejemplo) no lo controla el Dashboard: sigue corriendo hasta que termine solo o alguien lo corte. Si lo lanzaste desde la pestaña **Consola**, el botón **Detener** lo corta y frena los motores; además la Consola lo corta sola a los 2 minutos y solo deja correr un programa a la vez en el robot. Por eso, cuando pruebes un programa nuevo, hazlo primero a **potencia baja**."
+    },
+    {
+      "type": "text",
+      "id": "b-antes",
+      "body_md": "**Antes de empezar:** revisa el Dashboard: ¿está \"Conectado\" y la batería tiene carga razonable? ¿Algún motor quedó girando de una sesión anterior? Frénalo antes de programar nada nuevo. Si vas a correr un programa propio, prueba primero un movimiento chico y a potencia baja."
+    },
+    {
+      "type": "quiz",
+      "id": "q-antes-de-empezar",
+      "question_md": "¿Qué conviene revisar **antes** de empezar a programar algo nuevo?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Que algún motor no haya quedado girando de una sesión anterior"
+        },
+        {
+          "id": "b",
+          "label": "Nada, se puede empezar directamente"
+        },
+        {
+          "id": "c",
+          "label": "Solo el color del robot"
+        },
+        {
+          "id": "d",
+          "label": "La hora exacta del sistema"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-despues",
+      "body_md": "**Al terminar:** deja todos los motores detenidos (no asumas que la próxima persona los va a frenar por ti); si dejaste un programa corriendo con un while True, córtalo antes de desconectarte; y si subes una versión nueva de un archivo con el mismo nombre, asegúrate de que la vieja no siga corriendo en paralelo: dos procesos usando el mismo puerto chocan entre sí. Un robot compartido se porta bien si cada sesión lo deja como esperarías encontrarlo."
+    },
+    {
+      "type": "quiz",
+      "id": "q-al-terminar",
+      "question_md": "¿Qué debes hacer **al terminar** tu sesión con el robot?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Dejar los motores girando para la próxima persona"
+        },
+        {
+          "id": "b",
+          "label": "Dejar los motores detenidos y sin programas corriendo"
+        },
+        {
+          "id": "c",
+          "label": "Apagar el computador sin más"
+        },
+        {
+          "id": "d",
+          "label": "Nada, el sistema lo hace solo"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-diferencia-simulador",
+        "quiz-espacio",
+        "quiz-detener-todo",
+        "quiz-antes-de-empezar",
+        "quiz-al-terminar"
+      ]
+    }
+  ],
+  "hints": [
+    "En el Panel EV3, el botón \"Detener todo\" frena todos los motores a la vez.",
+    "En el panel de control por teclado, la barra Espacio frena las dos ruedas.",
+    "Deja siempre los motores detenidos al terminar: la próxima persona los encontrará como los dejaste."
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-diferencia-simulador",
+      "rule_type": "quiz",
+      "target": "q-diferencia-simulador",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-espacio",
+      "rule_type": "quiz",
+      "target": "q-espacio",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-detener-todo",
+      "rule_type": "quiz",
+      "target": "q-detener-todo",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-antes-de-empezar",
+      "rule_type": "quiz",
+      "target": "q-antes-de-empezar",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-al-terminar",
+      "rule_type": "quiz",
+      "target": "q-al-terminar",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

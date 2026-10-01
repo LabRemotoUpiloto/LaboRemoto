@@ -2,11 +2,11 @@ import { useState } from 'react';
 
 const ITEMS = [
   '¿El Dashboard muestra "Conectado" en verde, arriba a la izquierda?',
-  '¿El modo (Simulador Local vs. Hardware Real) y la IP son los que corresponden ahora mismo?',
+  '¿El Dashboard muestra la IP del robot junto a "Conectado"? Si dice "Sin conexión", vuelve a conectar la práctica.',
   '¿El motor aparece "conectado" en su tarjeta del Dashboard, o dice "vacío"?',
   '¿El puerto que usa tu código (outA, outB...) es el mismo cable que está enchufado?',
   '¿Probaste mover ese motor a mano desde el Dashboard antes de correr tu script?',
-  '¿El backend (ev3_bridge.py) está corriendo? Revisá la consola donde lo lanzaste.',
+  '¿El puente HTTP está funcionando? La práctica lo arranca al conectar: si el panel dice "Sin conexión", reconecta la práctica.',
 ];
 
 /**

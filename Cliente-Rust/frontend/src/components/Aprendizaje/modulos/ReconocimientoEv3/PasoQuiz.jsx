@@ -34,7 +34,7 @@ const PREGUNTAS = [
     id: 'ejecutar-programa',
     texto: '¿Cómo se ejecuta un programa Python en el robot desde esta app?',
     opciones: [
-      'Se sube por la pestaña Terminal y se corre por SSH',
+      'Se escribe en la pestaña Consola y se ejecuta en el robot',
       'Se copia a mano con un pendrive',
       'Se pega el código directamente en el Dashboard',
       'No se puede, solo comandos sueltos',

@@ -20,10 +20,10 @@ const PREGUNTAS = [
   },
   {
     id: 'script-corriendo',
-    texto: 'Si un script con while True se está ejecutando en el EV3 vía la pestaña Terminal, ¿cómo lo cortás?',
+    texto: 'Si un script con while True se está ejecutando en el EV3 vía la pestaña Consola, ¿cómo lo cortás?',
     opciones: [
       'Cerrando la pestaña del navegador alcanza',
-      'Con Ctrl+C en la sesión SSH de la Terminal (si sigue abierta)',
+      'Con el botón Detener de la pestaña Consola',
       'No hay forma de cortarlo una vez que arrancó',
       'Apagando la computadora',
     ],

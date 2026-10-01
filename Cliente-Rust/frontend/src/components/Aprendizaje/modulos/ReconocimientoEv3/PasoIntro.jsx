@@ -20,8 +20,7 @@ export default function PasoIntro() {
       <ul>
         <li>Ver en vivo el estado de los motores y sensores conectados (pestaña Dashboard).</li>
         <li>Mover el robot manualmente con el teclado.</li>
-        <li>Escribir o subir un programa en Python y ejecutarlo en el EV3 (pestaña Terminal).</li>
-        <li>Diseñar una trayectoria gráficamente y simularla antes de correrla en el robot real.</li>
+        <li>Escribir o subir un programa en Python y ejecutarlo en el EV3 (pestaña Consola).</li>
       </ul>
 
       <p>

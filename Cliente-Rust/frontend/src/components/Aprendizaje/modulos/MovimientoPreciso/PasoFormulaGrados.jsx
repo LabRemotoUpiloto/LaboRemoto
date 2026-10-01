@@ -4,7 +4,7 @@ import { CONFIG_POR_DEFECTO } from '../../../../lib/trayectoria/config.js';
 
 /**
  * Esta calculadora usa `calcularAvance` de verdad — el mismo módulo que
- * convierte un comando "Avanzar" de la pestaña Trayectoria en grados de
+ * convierte un comando "Avanzar" en grados de
  * motor. No es una versión simplificada para el módulo: es la fórmula real.
  */
 export default function PasoFormulaGrados() {
@@ -42,9 +42,8 @@ export default function PasoFormulaGrados() {
 
       <p>
         Con una rueda más chica hacen falta más grados para la misma distancia (da más vueltas más rápido).
-        Es exactamente la cuenta que hace la pestaña <strong>Trayectoria</strong> cada vez que agregás un
-        comando "Avanzar" — probá cambiar el diámetro ahí en el panel de configuración y vas a ver el mismo
-        efecto.
+        Es la cuenta que tenés que hacer cada vez que quieras que el robot avance una distancia exacta:
+        probá cambiar el diámetro arriba y mirá cómo cambian los grados.
       </p>
     </div>
   );

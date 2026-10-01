@@ -20,19 +20,19 @@ export default function PasoParoDeEmergencia() {
         </li>
       </ul>
 
-      <h3>Si estás corriendo un script desde la Terminal</h3>
+      <h3>Si estás corriendo un programa desde la Consola</h3>
       <p>
-        Un programa que subiste y ejecutaste con "▶ Ejecutar en EV3" sigue corriendo <strong>dentro</strong>{' '}
+        Un programa que ejecutaste con "▶ Ejecutar en EV3" sigue corriendo <strong>dentro</strong>{' '}
         del robot, no lo controla el Dashboard. Si necesitás cortarlo:
       </p>
       <ul>
-        <li>Si la sesión SSH sigue abierta en la pestaña Terminal, <code>Ctrl+C</code> ahí corta el programa en ejecución.</li>
-        <li>Si perdiste esa sesión, un motor puede seguir girando hasta que el programa termine solo o alguien lo mate por SSH.</li>
+        <li>Pulsá <strong>■ Detener</strong> en la pestaña Consola: corta el programa y frena los motores.</li>
+        <li>Si te desconectás con un programa corriendo, el robot lo corta solo al cumplirse el tiempo máximo (2 minutos) y frena los motores.</li>
       </ul>
 
       <p>
         Por eso, cuando estés probando un script nuevo — sobre todo uno con un <code>while True</code> — es
-        buena idea probarlo primero a potencia baja, y dejar la sesión de Terminal abierta y a mano mientras
+        buena idea probarlo primero a potencia baja, y dejar la pestaña Consola abierta y el botón Detener a mano mientras
         corre.
       </p>
     </div>

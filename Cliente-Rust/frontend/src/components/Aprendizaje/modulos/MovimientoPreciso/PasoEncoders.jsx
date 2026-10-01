@@ -34,9 +34,8 @@ export default function PasoEncoders({ status }) {
 
       <p>
         Esto es lo que hace posible comparar "lo que el robot debería haber hecho" contra{' '}
-        <strong>lo que hizo de verdad</strong>: en la pestaña Trayectoria, el botón "Grabar trayectoria real"
-        lee este mismo valor de encoder mientras movés el robot, y reconstruye la ruta recorrida para
-        superponerla con la planeada.
+        <strong>lo que hizo de verdad</strong>: si pediste 614° y el encoder marca 590°, algo patinó o se
+        atascó. En la pestaña Consola podés imprimir este valor mientras tu programa mueve el robot.
       </p>
 
       <h3>Encoders de tu robot ahora mismo</h3>

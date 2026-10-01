@@ -1,0 +1,193 @@
+{
+  "id": "ev3-m9",
+  "order": 9,
+  "title": "Panel de control EV3 (API)",
+  "difficulty": "beginner",
+  "estimated_minutes": 25,
+  "sequential": false,
+  "objective": "Controlar los motores y leer los sensores del robot EV3 desde un panel visual, y relacionar cada acción del panel con la petición HTTP que se envía a la API por detrás.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "**Qué vas a hacer.** Vas a manejar un **robot LEGO EV3 real** desde un panel en pantalla. En esta práctica no escribes código ni comandos: mueves controles y observas lo que pasa en el robot. Lo interesante es lo que ocurre por detrás: cada control del panel envía una **petición** a una **API**. Al final podrás decir cuál petición corresponde a cada cosa que hiciste."
+    },
+    {
+      "type": "text",
+      "id": "b-como-funciona",
+      "body_md": "**Cómo llega tu orden al robot.** Una API es una forma ordenada de pedirle cosas a otro sistema. Tu panel no habla directo con el robot: se lo pide a un programa intermediario (un puente), y este se lo traduce al robot. El camino es: panel (tu pantalla), puente HTTP y robot EV3. Cuando conectaste, la práctica ya encendió el robot y el puente por ti."
+    },
+    {
+      "type": "text",
+      "id": "b-motores",
+      "body_md": "**Paso 1 · Mueve los motores.** En el Panel EV3 entra a la pestaña **Dashboard**. Mueve los controles deslizantes de los motores A, B, C y D y observa la velocidad medida (en rpm, vueltas por minuto). Empieza con valores bajos y sube de a poco. El botón **Detener todo** frena todos los motores a la vez."
+    },
+    {
+      "type": "text",
+      "id": "b-sensores",
+      "body_md": "**Paso 2 · Lee los sensores.** En el mismo Dashboard verás los sensores conectados (por ejemplo el ultrasónico, que mide distancia, y el de contacto, que detecta un toque). Los valores se actualizan solos cerca de una vez por segundo. Acerca un objeto al sensor ultrasónico y mira cómo cambia el número."
+    },
+    {
+      "type": "text",
+      "id": "b-gemelo",
+      "body_md": "**Paso 3 · Mira el gemelo digital.** Abre la pestaña **Gemelo 3D**: es una réplica virtual del robot que se mueve en sincronía con el robot real. Si aparece la cámara del laboratorio, compara lo que ves en el robot real con su réplica en pantalla."
+    },
+    {
+      "type": "text",
+      "id": "b-api",
+      "body_md": "**Paso 4 · Qué petición hay detrás de cada cosa.** El panel se actualiza solo (estado y sensores) con la petición GET /api/status. Cuando mueves el control de un motor se envía POST /api/motor con el puerto y la velocidad. Cuando pulsas Detener todo se envía POST /api/stop_all. GET significa pedir información; POST significa enviar una orden."
+    },
+    {
+      "type": "text",
+      "id": "b-seguridad",
+      "body_md": "**Seguridad.** No acerques las manos al robot mientras los motores estén activos. Si necesitas tocarlo, primero detén todos los motores con el botón Detener todo."
+    },
+    {
+      "type": "quiz",
+      "id": "q-que-es-api",
+      "question_md": "¿Qué es una **API** en esta práctica?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El cable que conecta físicamente el robot al computador"
+        },
+        {
+          "id": "b",
+          "label": "Una forma ordenada de pedirle cosas a otro sistema (mover un motor, leer un sensor) mediante peticiones"
+        },
+        {
+          "id": "c",
+          "label": "El programa que dibuja el gemelo digital 3D"
+        },
+        {
+          "id": "d",
+          "label": "La batería del robot"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-leer-estado",
+      "question_md": "El panel muestra los sensores casi en tiempo real. ¿Qué petición usa para **leer** el estado del robot?",
+      "options": [
+        {
+          "id": "a",
+          "label": "POST /api/motor"
+        },
+        {
+          "id": "b",
+          "label": "POST /api/stop_all"
+        },
+        {
+          "id": "c",
+          "label": "GET /api/status"
+        },
+        {
+          "id": "d",
+          "label": "DELETE /api/robot"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-mover-motor",
+      "question_md": "Mueves el control de un motor al 50 %. ¿Qué viaja en la petición **POST /api/motor**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Solo la palabra \"mover\", sin más datos"
+        },
+        {
+          "id": "b",
+          "label": "El video de la cámara del laboratorio"
+        },
+        {
+          "id": "c",
+          "label": "La contraseña de tu cuenta"
+        },
+        {
+          "id": "d",
+          "label": "El puerto del motor y la velocidad pedida (por ejemplo, puerto A y velocidad 50)"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-seguridad",
+      "question_md": "Antes de acercar las manos al robot mientras los motores están activos, ¿qué debes hacer?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Detener todos los motores con el botón Detener todo"
+        },
+        {
+          "id": "b",
+          "label": "Nada: los motores son lo bastante lentos"
+        },
+        {
+          "id": "c",
+          "label": "Cerrar el panel de control"
+        },
+        {
+          "id": "d",
+          "label": "Apagar la cámara"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-que-es-api",
+        "quiz-leer-estado",
+        "quiz-mover-motor",
+        "quiz-seguridad"
+      ]
+    }
+  ],
+  "hints": [
+    "Si el panel dice que no hay conexión, espera unos segundos: el robot tarda en arrancar.",
+    "Empieza con velocidades bajas en los motores y sube de a poco.",
+    "GET pide información; POST envía una orden."
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-que-es-api",
+      "rule_type": "quiz",
+      "target": "q-que-es-api",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-leer-estado",
+      "rule_type": "quiz",
+      "target": "q-leer-estado",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-mover-motor",
+      "rule_type": "quiz",
+      "target": "q-mover-motor",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-seguridad",
+      "rule_type": "quiz",
+      "target": "q-seguridad",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

@@ -121,7 +121,7 @@ export default function PasoMovimientos() {
       </ul>
       <p>
         Esta misma idea, formalizada con las medidas reales del robot (diámetro de rueda, distancia entre
-        ruedas), es la que arma rutas completas en la pestaña <strong>Trayectoria</strong>.
+        ruedas), es la que permite armar rutas completas en el Módulo 3.
       </p>
     </div>
   );

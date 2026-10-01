@@ -6,8 +6,8 @@ export default function PasoPlanDeTrabajo() {
 
       <ol>
         <li>
-          <strong>Dibujá el recorrido aproximado</strong> en la pestaña Trayectoria, aunque después una parte
-          la reemplaces por comportamiento reactivo — te da una referencia visual de distancias y giros.
+          <strong>Dibujá el recorrido aproximado</strong> en papel, aunque después una parte
+          la reemplaces por comportamiento reactivo — te da una referencia de distancias y giros.
         </li>
         <li>
           <strong>Identificá qué tramos necesitan sensores</strong> (seguir línea, esquivar) y cuáles pueden
