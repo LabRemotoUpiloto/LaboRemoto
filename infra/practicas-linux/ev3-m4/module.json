@@ -12,8 +12,8 @@
       "camera": true
     },
     "setup_commands": [
-      "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
-      "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+      "sudo -n -u pi /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "sudo -n -u pi /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
     ]
   },
   "blocks": [

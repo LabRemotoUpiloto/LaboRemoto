@@ -360,7 +360,14 @@ pub fn module_category(practice_id: &str) -> &'static str {
 /// scripts de salto que levantan el robot y su puente (desplegados a mano en
 /// la Pi, con sus credenciales adentro). Defensa en profundidad: aunque el
 /// contenido del servicio cambie, la app no ejecuta nada más con esto.
+///
+/// La forma vigente es `sudo -n -u pi <script>`: los scripts quedan legibles
+/// solo por `pi` y las cuentas de estudiantes los ejecutan por una regla de
+/// sudoers. Se acepta también la forma antigua (`bash <script>`) mientras
+/// haya módulos desplegados que la usen.
 const SETUP_ALLOWED_PREFIXES: &[&str] = &[
+    "sudo -n -u pi /home/pi/ev3-hop-robot.sh ",
+    "sudo -n -u pi /home/pi/ev3-hop-pi5.sh ",
     "bash /home/pi/ev3-hop-robot.sh ",
     "bash /home/pi/ev3-hop-pi5.sh ",
 ];
@@ -472,8 +479,10 @@ mod tests {
         let m = json!({ "environment": { "setup_commands": [
             "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
             "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && ./arrancar.sh'",
+            "sudo -n -u pi /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+            "sudo -n -u pi /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && ./arrancar.sh'",
         ] } });
-        assert_eq!(setup_commands_from(&m).unwrap().len(), 2);
+        assert_eq!(setup_commands_from(&m).unwrap().len(), 4);
     }
 
     #[test]
@@ -482,6 +491,9 @@ mod tests {
             "rm -rf /",
             "bash /tmp/otro.sh 'x'",
             "bash /home/pi/ev3-hop-robot.shx 'x'",
+            "sudo -n -u pi /tmp/otro.sh 'x'",
+            "sudo -u root /home/pi/ev3-hop-robot.sh 'x'",
+            "sudo -n -u pi /home/pi/ev3-hop-robot.shx 'x'",
             "bash /home/pi/ev3-hop-robot.sh 'ok'\nrm -rf ~",
             "echo bash /home/pi/ev3-hop-robot.sh ",
         ] {
