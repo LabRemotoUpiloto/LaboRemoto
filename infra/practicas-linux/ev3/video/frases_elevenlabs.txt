@@ -1,0 +1,45 @@
+# Guion del video del módulo 1 de EV3 para ElevenLabs.
+# Genera un audio por frase y guárdalos como 01.mp3 ... 14.mp3 en una carpeta.
+# Las palabras en inglés ya están escritas como suenan (Línux, Páiton, Dáshbord, E-V tres).
+
+01
+Bienvenido al primer módulo de robótica. Aquí vas a conocer al robot con el que vas a trabajar: el E-V tres.
+
+02
+El E-V tres es un robot de LEGO para aprender robótica. Su pieza central es el ladrillo: una computadora pequeña con pantalla, botones y batería.
+
+03
+Dentro del ladrillo corre Línux, con un programa en Páiton que escucha pedidos por la red.
+
+04
+Por eso puedes controlarlo desde esta aplicación, aunque el robot esté en otro lugar. A eso se le llama laboratorio remoto.
+
+05
+Tu orden sale del panel, pasa por un puente y llega al robot.
+
+06
+Todo robot necesita dos cosas: una forma de percibir el mundo y una forma de actuar sobre él.
+
+07
+Los sensores son sus sentidos: miden el contacto, la distancia, el color o el giro, y lo convierten en un número.
+
+08
+Los actuadores son sus músculos: reciben una orden y producen un movimiento. En el E-V tres, son los motores.
+
+09
+Todo se conecta al ladrillo por ocho puertos. Los cuatro de arriba, de la A a la D, son para los motores.
+
+10
+Los cuatro de abajo, del uno al cuatro, son para los sensores. Un motor recibe órdenes; un sensor solo informa.
+
+11
+Cada rueda tiene su propia potencia, desde menos cien hasta cien por ciento.
+
+12
+Si las dos giran igual, el robot avanza recto. Si giran en sentidos opuestos, gira en su sitio. Y si una es más lenta, traza una curva.
+
+13
+Ahora abre el panel del E-V tres: en el Dáshbord mueve un motor y mira cómo cambian los sensores.
+
+14
+Después responde las preguntas del módulo. ¡Vamos a practicar!
