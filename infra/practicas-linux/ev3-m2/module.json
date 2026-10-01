@@ -23,11 +23,6 @@
       "body_md": "En el módulo 1 viste que un sensor se conecta a un puerto de entrada (in1 a in4). Para leerlo desde un programa, cada tipo de sensor tiene su propia clase en **ev3dev2.sensor.lego**: se crea indicando el puerto y después se consulta su valor cuando haga falta."
     },
     {
-      "type": "text",
-      "id": "b-panel",
-      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 2, hay simuladores del sensor de contacto, del ultrasónico y del de color (con el valor real si tienes un sensor conectado). En la pestaña **Consola** prueba los ejemplos \"Leer el sensor de contacto\" y \"Avanzar hasta presionar el sensor\"."
-    },
-    {
       "type": "code_block",
       "id": "b-codigo-leer",
       "language": "python",
@@ -224,6 +219,11 @@
           "label": "Programar sin bucles"
         }
       ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** En el Dashboard del Panel EV3 mira el valor de los sensores conectados mientras los activas: presiona el de contacto y acerca la mano al ultrasónico. Luego, en la pestaña **Consola**, ejecuta los ejemplos \"Leer el sensor de contacto\" y \"Avanzar hasta presionar el sensor\"."
     },
     {
       "type": "checkpoint",

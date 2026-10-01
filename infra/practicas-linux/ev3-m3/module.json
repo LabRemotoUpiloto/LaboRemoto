@@ -24,11 +24,6 @@
     },
     {
       "type": "text",
-      "id": "b-panel",
-      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 3, hay calculadoras de grados por centímetro y de giro: cambia el diámetro de la rueda y mira cómo cambian los grados. En la pestaña **Consola** prueba el ejemplo \"Avanzar una distancia exacta (grados)\" y compara lo que calculaste con lo que marca el encoder."
-    },
-    {
-      "type": "text",
       "id": "b-comandos",
       "body_md": "La librería ev3dev2 tiene comandos que mueven el motor una cantidad exacta y se detienen solos. La pregunta natural es: si le pido \"180 grados\", **¿cuánto avanza el robot en centímetros?** Depende de un solo dato físico: el diámetro de la rueda."
     },
@@ -205,6 +200,11 @@
           "label": "Para detectar errores sin arriesgar al robot físico"
         }
       ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** En la pestaña **Consola** del Panel EV3 ejecuta el ejemplo \"Avanzar una distancia exacta (grados)\". Cambia CM y DIAMETRO y compara los grados que calculaste con lo que marca el encoder al final."
     },
     {
       "type": "checkpoint",

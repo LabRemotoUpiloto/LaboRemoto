@@ -8,7 +8,7 @@
 export interface Ev3Example {
   id: string;
   title: string;
-  /** Módulo de Aprendizaje al que acompaña (solo para ordenarlos y rotularlos). */
+  /** Módulo de teoría (ev3-mN) al que acompaña; solo sirve para ordenarlos y rotularlos. */
   module: number;
   code: string;
 }

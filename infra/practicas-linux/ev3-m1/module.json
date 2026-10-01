@@ -24,11 +24,6 @@
     },
     {
       "type": "text",
-      "id": "b-panel",
-      "body_md": "**Practica en el panel.** Abre el Panel EV3 y entra a la pestaña **Aprendizaje**, módulo 1: ahí hay un diagrama del ladrillo en el que puedes tocar cada puerto y un simulador de ruedas para ver cómo se combinan. En la pestaña **Consola** puedes ejecutar programas en el robot; prueba los ejemplos \"Hola, robot\" y \"Mover el motor A\"."
-    },
-    {
-      "type": "text",
       "id": "b-ev3dev",
       "body_md": "En este laboratorio el ladrillo no corre el software original de LEGO: corre **ev3dev**, una distribución de Linux, con un programa en **Python** escuchando pedidos por red. La app le manda esos pedidos, y por eso puedes controlar el robot aunque esté en otro lugar físico. A eso se le llama **laboratorio remoto**."
     },
@@ -207,6 +202,11 @@
           "label": "El programa Python solo sirve para leer sensores"
         }
       ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** Abre el Panel EV3 (el botón junto a la terminal). En el **Dashboard** mira qué puertos tienen algo conectado y mueve un motor con su control deslizante. En la pestaña **Consola** ejecuta los ejemplos \"Hola, robot\" y \"Mover el motor A\" y mira lo que imprimen."
     },
     {
       "type": "checkpoint",
