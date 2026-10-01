@@ -52,6 +52,9 @@ pub struct NvrCamera {
     /// (`PTZ_CAMERAS_JSON` en la Pi) según qué modelos exponen la API HTTP
     /// de Reolink en la red. El frontend solo muestra el control si es true.
     pub ptz: bool,
+    /// Path de MediaMTX para ver esta cámara por WebRTC (baja latencia), o
+    /// `None` si el broker no la tiene mapeada — entonces solo HLS.
+    pub webrtc: Option<String>,
 }
 
 // Forma cruda de la respuesta del broker: GET /nvr/monitor/{groupKey}
@@ -65,6 +68,8 @@ struct ShinobiMonitorRaw {
     streams: Vec<String>,
     #[serde(default)]
     ptz: bool,
+    #[serde(default)]
+    webrtc: Option<String>,
 }
 
 /// Resultado de un comando PTZ — solo confirma que el broker lo aceptó y lo
@@ -171,9 +176,62 @@ pub async fn nvr_list_cameras(
                 id: m.mid,
                 name: m.name,
                 ptz: m.ptz,
+                webrtc: m.webrtc,
             }
         })
         .collect())
+}
+
+/// Negocia una conexión WebRTC (WHEP) con MediaMTX a través del broker:
+/// recibe la oferta SDP del reproductor y devuelve la respuesta SDP. El broker
+/// valida el token de Keycloak; el video en sí NO pasa por aquí, va directo al
+/// puerto que anuncia MediaMTX. `path` es el `webrtc` de `NvrCamera`.
+#[tauri::command]
+pub async fn nvr_whep(
+    path: String,
+    sdp_offer: String,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<String, CommandError> {
+    // Va dentro de la URL: solo caracteres de un nombre de path de MediaMTX.
+    if path.is_empty() || !path.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Path WebRTC inválido: {path}"))
+            .with_context("nvr_whep", &path));
+    }
+
+    let access_token = manager
+        .get_access_token()
+        .await
+        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
+        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión para ver las cámaras"))?;
+
+    let response = HTTP_CLIENT
+        .post(format!("{NVR_BROKER_HOST}/nvr/whep/{path}"))
+        .bearer_auth(&access_token)
+        .header("Content-Type", "application/sdp")
+        .body(sdp_offer)
+        .send()
+        .await
+        .map_err(|e| {
+            let err = if e.is_timeout() {
+                CommandError::transient("OPERATION_TIMEOUT", format!("Timeout negociando WebRTC: {e}"))
+            } else {
+                CommandError::transient("COMMUNICATION_ERROR", format!("Error negociando WebRTC: {e}"))
+            };
+            err.with_retry_after(2000).with_context("nvr_whep", &path)
+        })?;
+
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        let err = match status.as_u16() {
+            401 | 403 => CommandError::permanent("AUTH_FAILED", "Sesión inválida o expirada para ver la cámara"),
+            404 => CommandError::permanent("VALIDATION_FAILED", "Esta cámara no tiene WebRTC disponible"),
+            _ => CommandError::transient("COMMUNICATION_ERROR", format!("Broker WebRTC respondió {status}: {text}"))
+                .with_retry_after(2000),
+        };
+        return Err(err.with_context("nvr_whep", &path));
+    }
+    Ok(text)
 }
 
 /// No-op: ya no hay túnel SSH propio que cerrar (el broker gestiona sus
