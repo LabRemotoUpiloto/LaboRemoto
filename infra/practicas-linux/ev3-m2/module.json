@@ -23,6 +23,11 @@
       "body_md": "En el módulo 1 viste que un sensor se conecta a un puerto de entrada (in1 a in4). Para leerlo desde un programa, cada tipo de sensor tiene su propia clase en **ev3dev2.sensor.lego**: se crea indicando el puerto y después se consulta su valor cuando haga falta."
     },
     {
+      "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 2, hay simuladores del sensor de contacto, del ultrasónico y del de color (con el valor real si tienes un sensor conectado). En la pestaña **Consola** prueba los ejemplos \"Leer el sensor de contacto\" y \"Avanzar hasta presionar el sensor\"."
+    },
+    {
       "type": "code_block",
       "id": "b-codigo-leer",
       "language": "python",

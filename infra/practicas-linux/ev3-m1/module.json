@@ -24,6 +24,11 @@
     },
     {
       "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** Abre el Panel EV3 y entra a la pestaña **Aprendizaje**, módulo 1: ahí hay un diagrama del ladrillo en el que puedes tocar cada puerto y un simulador de ruedas para ver cómo se combinan. En la pestaña **Consola** puedes ejecutar programas en el robot; prueba los ejemplos \"Hola, robot\" y \"Mover el motor A\"."
+    },
+    {
+      "type": "text",
       "id": "b-ev3dev",
       "body_md": "En este laboratorio el ladrillo no corre el software original de LEGO: corre **ev3dev**, una distribución de Linux, con un programa en **Python** escuchando pedidos por red. La app le manda esos pedidos, y por eso puedes controlar el robot aunque esté en otro lugar físico. A eso se le llama **laboratorio remoto**."
     },
@@ -149,7 +154,7 @@
     {
       "type": "text",
       "id": "b-dos-formas",
-      "body_md": "**Dos formas de controlar el robot.** Desde el Dashboard mandas un comando por vez, desde afuera del robot. Un programa en Python, en cambio, corre **adentro** del robot y no depende de la red para cada paso. Un primer programa típico mueve el motor del puerto A al 30 % durante 2 segundos y luego imprime un mensaje:"
+      "body_md": "**Dos formas de controlar el robot.** Desde el Dashboard mandas un comando por vez, desde afuera del robot. Un programa en Python, en cambio, corre **adentro** del robot y no depende de la red para cada paso: lo escribes en la pestaña Consola del panel y la app lo manda al robot. Un primer programa típico mueve el motor del puerto A al 30 % durante 2 segundos y luego imprime un mensaje:"
     },
     {
       "type": "code_block",

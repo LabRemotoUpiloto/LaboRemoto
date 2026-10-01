@@ -23,6 +23,11 @@
       "body_md": "**El bucle de control.** En el módulo 2 leíste un sensor **una vez** y tomaste una decisión. Un comportamiento de verdad (seguir una línea, esquivar algo) necesita leer el sensor **todo el tiempo**, cientos de veces por segundo, y ajustar el movimiento en cada vuelta. Eso es un bucle de control."
     },
     {
+      "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 4, hay simuladores del seguidor de línea, de las zonas de distancia y de la máquina de estados. En la pestaña **Consola** prueba el ejemplo \"Frenar si algo está cerca (ultrasónico)\" y modifica el umbral."
+    },
+    {
       "type": "code_block",
       "id": "b-codigo-bucle",
       "language": "python",

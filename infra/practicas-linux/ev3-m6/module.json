@@ -23,6 +23,11 @@
       "body_md": "**Leer un error de Python.** Cuando un programa se cae, Python imprime un **traceback**. Da miedo la primera vez, pero se lee **de abajo hacia arriba**: la última línea es el error real y las de arriba son el camino que siguió el programa hasta llegar ahí."
     },
     {
+      "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 6, hay ejercicios para clasificar errores y un checklist. En la pestaña **Consola** puedes provocar un error a propósito (por ejemplo, escribe print(touch.is_pressed()) con paréntesis) y practicar su lectura de abajo hacia arriba."
+    },
+    {
       "type": "code_block",
       "id": "b-codigo-traceback",
       "language": "python",

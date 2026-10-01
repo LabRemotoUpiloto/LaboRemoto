@@ -24,6 +24,11 @@
     },
     {
       "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 7, hay checklists de buenas prácticas. En la pestaña **Consola** el botón **Detener** corta tu programa y frena los motores: pruébalo con uno de los ejemplos."
+    },
+    {
+      "type": "text",
       "id": "b-reglas",
       "body_md": "**No hay \"deshacer\":** si el robot choca o se cae de una mesa, eso pasó de verdad. **Puede que no seas el único usándolo:** si alguien dejó un motor girando o un programa corriendo, eso afecta lo que veas al conectarte. **No lo ves en persona:** no puedes estirar la mano y sostenerlo; la única herramienta que tienes es la que te da esta app."
     },
@@ -104,7 +109,7 @@
     {
       "type": "text",
       "id": "b-programas",
-      "body_md": "Un programa que corre **dentro** del robot (con un while True, por ejemplo) no lo controla el Dashboard: sigue corriendo hasta que termine solo o alguien lo corte. Por eso, cuando pruebes un programa nuevo, hazlo primero a **potencia baja** y con la forma de frenarlo a mano."
+      "body_md": "Un programa que corre **dentro** del robot (con un while True, por ejemplo) no lo controla el Dashboard: sigue corriendo hasta que termine solo o alguien lo corte. Si lo lanzaste desde la pestaña **Consola**, el botón **Detener** lo corta y frena los motores; además la Consola lo corta sola a los 2 minutos y solo deja correr un programa a la vez en el robot. Por eso, cuando pruebes un programa nuevo, hazlo primero a **potencia baja**."
     },
     {
       "type": "text",

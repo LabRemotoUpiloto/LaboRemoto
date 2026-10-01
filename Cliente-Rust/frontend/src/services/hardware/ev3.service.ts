@@ -44,6 +44,34 @@ export const getEv3Status = (sessionId: string): Promise<Ev3Status> =>
 export const setEv3Motor = (sessionId: string, port: string, speed: number): Promise<Ev3ApiResult> =>
   invoke<Ev3ApiResult>('ev3_set_motor', { id: sessionId, port, speed });
 
+// ── Consola de Python (cmd::hardware::ev3_console) ──
+
+export interface Ev3RunStarted {
+  run_id: string;
+}
+
+export interface Ev3RunOutput {
+  /** Texto nuevo desde el `offset` pedido (puede venir vacío). */
+  chunk: string;
+  /** Offset a pedir en la próxima consulta. */
+  next_offset: number;
+  /** "running" mientras corre; "done" al terminar; "gone" si el robot ya no la conoce. */
+  state: 'running' | 'done' | 'gone';
+  exit_code: number | null;
+}
+
+/** Sube el programa al robot y lo ejecuta (un solo programa a la vez en el robot). */
+export const startEv3Program = (sessionId: string, code: string): Promise<Ev3RunStarted> =>
+  invoke<Ev3RunStarted>('ev3_run_start', { id: sessionId, code });
+
+/** Salida nueva y estado de una ejecución. */
+export const getEv3RunOutput = (sessionId: string, runId: string, offset: number): Promise<Ev3RunOutput> =>
+  invoke<Ev3RunOutput>('ev3_run_output', { id: sessionId, runId, offset });
+
+/** Corta la ejecución y frena los motores del robot. */
+export const stopEv3Program = (sessionId: string, runId: string): Promise<void> =>
+  invoke<void>('ev3_run_stop', { id: sessionId, runId });
+
 /** Detiene todos los motores, o uno solo si se pasa `port`. */
 export const stopEv3Motors = (sessionId: string, port?: string): Promise<Ev3ApiResult> =>
   invoke<Ev3ApiResult>('ev3_stop_all', { id: sessionId, port: port ?? null });

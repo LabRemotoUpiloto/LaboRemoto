@@ -23,6 +23,11 @@
       "body_md": "**Bucles: while y for.** Ya usaste **while True** para un comportamiento que corre \"para siempre\" hasta que algo lo interrumpa con break. Cuando sabes de antemano **cuántas veces** quieres repetir algo, **for** es más directo:"
     },
     {
+      "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** En la pestaña **Aprendizaje**, módulo 5, hay ejercicios de bucles, funciones y estados. En la pestaña **Consola** escribe tus propios programas: prueba un for con range, una función avanzar_cm y un try/except alrededor de la lectura de un sensor."
+    },
+    {
       "type": "code_block",
       "id": "b-codigo-for",
       "language": "python",

@@ -24,6 +24,11 @@
     },
     {
       "type": "text",
+      "id": "b-panel",
+      "body_md": "**Practica en el panel.** Arma el proyecto en la pestaña **Consola** (un comportamiento a la vez) y usa la pestaña **Aprendizaje**, módulo 8, para repasar el plan de trabajo y marcar tu autoevaluación."
+    },
+    {
+      "type": "text",
       "id": "b-objetivo",
       "body_md": "**Objetivo:** haz que el robot recorra un circuito simple que incluya **al menos** un tramo con una línea a seguir (sensor de color), un obstáculo en algún punto del recorrido (sensor ultrasónico) y un tramo final con una ruta planeada con precisión, sin depender de sensores (usando las cuentas de grados del módulo 3)."
     },

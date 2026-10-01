@@ -16,8 +16,25 @@ La app los muestra en la tarjeta **Eve3** porque su id empieza por `ev3-`
 | `ev3-m8` | Proyecto integrador |
 | `ev3-m9` | Panel de control EV3 (API) |
 
-Los módulos 1 a 8 vienen del antiguo visor "Aprendizaje" del panel (componentes React,
-ya eliminados); el 9 es la práctica de uso del panel.
+La **teoría** de los módulos 1 a 8 vive aquí, en la API (texto, código y quiz). Lo
+**interactivo** (simuladores, calculadoras, ejercicios) sigue en la pestaña *Aprendizaje* del
+Panel EV3, y cada módulo de la API apunta a ella (`b-panel`). El módulo 9 es la práctica de
+uso del panel.
+
+Además, la pestaña *Consola* del panel ejecuta programas de Python en el robot (ver abajo).
+
+## Consola de Python (pestaña "Consola" del Panel EV3)
+
+La app sube el programa al robot y lo corre allá con el script de salto
+`/home/pi/ev3-hop-robot.sh` (Pi4 → Pi5 → EV3, como usuario `robot`), sin pasar por el puente
+HTTP. Detalles en `backend/src/cmd/hardware/ev3_console.rs`:
+
+- El código viaja en base64; el comando es una plantilla fija.
+- Archivos en `/home/robot/estudiantes/` (`prog_*.py`, `out_*.log`, `exit_*`; se borran los de
+  más de 1 h). Candado en `/tmp/ev3run.lock`: un programa a la vez.
+- Tiempo máximo 120 s (`timeout`). Al terminar, por tiempo o con Detener, se frenan los motores
+  desde el propio robot (`/sys/class/tacho-motor`).
+- Python 3.5 en el robot (sin f-strings).
 
 ## Archivos
 

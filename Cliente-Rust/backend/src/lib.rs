@@ -222,6 +222,9 @@ pub fn run() {
       cmd::hardware::ev3::ev3_status,
       cmd::hardware::ev3::ev3_set_motor,
       cmd::hardware::ev3::ev3_stop_all,
+      cmd::hardware::ev3_console::ev3_run_start,
+      cmd::hardware::ev3_console::ev3_run_output,
+      cmd::hardware::ev3_console::ev3_run_stop,
       // Autenticación OAuth 2.1 con Keycloak
       crate::auth::commands::auth_login_url,
       crate::auth::commands::auth_status,

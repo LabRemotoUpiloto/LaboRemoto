@@ -37,7 +37,7 @@ const BRIDGE_URL: &str = "http://127.0.0.1:8000";
 const HOP_SCRIPT: &str = "/home/pi/ev3-hop-pi5.sh";
 
 /// Escapa un argumento para uso seguro dentro de comillas simples en bash.
-fn bash_quote(s: &str) -> String {
+pub(super) fn bash_quote(s: &str) -> String {
     let escaped = s.replace('\'', r"'\''");
     format!("'{}'", escaped)
 }
@@ -48,7 +48,7 @@ fn hop(cmd: &str) -> String {
     format!("bash {} {}", HOP_SCRIPT, bash_quote(cmd))
 }
 
-fn map_ssh_transport_error(id: &str, operation: &str, e: String) -> CommandError {
+pub(super) fn map_ssh_transport_error(id: &str, operation: &str, e: String) -> CommandError {
     let lower = e.to_lowercase();
     if lower.contains("session") && (lower.contains("not found") || lower.contains("notfoundsession")) {
         return CommandError::session_expired();
