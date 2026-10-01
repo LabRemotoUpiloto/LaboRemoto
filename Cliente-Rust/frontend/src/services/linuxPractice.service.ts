@@ -106,10 +106,15 @@ export type LinuxBlock =
   | { type: 'terminal_annotation'; id: string; prompt_example: string; labels: LinuxLabel[] }
   // Fragmento de código solo para leer (módulos de EV3: Python). No tiene regla de validación.
   | { type: 'code_block'; id: string; language?: string; code: string; caption?: string }
-  | { type: 'analogy'; id: string; term: string; everyday: string; windows: string; linux: string }
+  // `title` (opcional): encabezado explicativo a mostrar en vez del `term`
+  // pelado (ej. "¿Qué es el kernel?" en vez de solo "KERNEL").
+  | { type: 'analogy'; id: string; term: string; title?: string; everyday: string; windows: string; linux: string }
   // `goal_md` (opcional): para desafíos abiertos -- la tarjeta muestra el
   // objetivo en lugar de `command`, que es la respuesta y no debe verse.
-  | { type: 'command_step'; id: string; command: string; explain_md: string; goal_md?: string }
+  // `rule_id` lo completa `linuxGetModule` (nunca viene de la Pi): la regla
+  // de validation_rules que a ESTE paso en particular le corresponde, ya
+  // resuelta -- ver `resolveLinuxModule` más abajo.
+  | { type: 'command_step'; id: string; command: string; explain_md: string; goal_md?: string; rule_id?: string }
   // `file` es una ruta relativa dentro de content/<practice_id>/media/ en la
   // Pi (ej. "diagrams/pipe.png", "videos/demo.mp4") -- nunca una URL. El
   // cliente la pide vía practicas_linux_get_media, nunca le habla a la Pi
@@ -133,6 +138,11 @@ export interface LinuxValidationRule {
   target?: string;
   required: boolean;
   points: number;
+  /** Id del command_step/quiz que esta regla valida -- desambigua cuando dos
+   * pasos distintos piden el MISMO comando (ej. dos "pwd" en puntos distintos
+   * del módulo). Si falta (módulos viejos), el cliente cae de vuelta a
+   * emparejar por `target === command`. */
+  step_id?: string;
 }
 
 /**
@@ -187,8 +197,59 @@ export interface LinuxValidationResult {
 export const linuxListModules = (): Promise<LinuxPracticeSummary[]> =>
   invoke<LinuxPracticeSummary[]>('practicas_linux_list');
 
+/**
+ * Dos (o más) command_step pueden pedir el MISMO comando en puntos distintos
+ * de un módulo (ej. dos "pwd" para que el estudiante confirme dónde quedó
+ * después de moverse). Sin esto, cualquier código que empareje un bloque con
+ * su regla buscando `target === command` encuentra siempre la MISMA regla
+ * para los dos pasos -- apenas se aprueba el primer "pwd", el segundo
+ * aparece tildado solo, sin que el estudiante lo haya vuelto a escribir.
+ *
+ * Se resuelve UNA sola vez acá, al traer el módulo, así ningún consumidor
+ * (BlockRenderer, ChatPane) tiene que repetir la lógica de desambiguación:
+ *  1. Si una regla trae `step_id` apuntando a este bloque, es inambiguo.
+ *  2. Si no, se reparte por posición: la Nª vez que aparece un command_step
+ *     con este comando se empareja con la Nª regla (sin step_id ya tomado)
+ *     que pide ese mismo comando, en el mismo orden en que aparecen en
+ *     `validation_rules`. Un módulo nuevo que se olvide de poner `step_id`
+ *     en comandos repetidos sigue quedando bien emparejado solo.
+ */
+function resolveLinuxModule(module: LinuxModule): LinuxModule {
+  const stepIdToRuleId = new Map<string, string>();
+  for (const r of module.validation_rules) {
+    if (r.step_id) stepIdToRuleId.set(r.step_id, r.id);
+  }
+  const claimedRuleIds = new Set(stepIdToRuleId.values());
+
+  // Candidatos restantes por comando, en el mismo orden que validation_rules,
+  // ya sin los que un step_id explícito dejó reservados para otro bloque.
+  const remainingByCommand = new Map<string, string[]>();
+  for (const r of module.validation_rules) {
+    if (r.rule_type !== 'command_executed' || !r.target || claimedRuleIds.has(r.id)) continue;
+    const list = remainingByCommand.get(r.target) ?? [];
+    list.push(r.id);
+    remainingByCommand.set(r.target, list);
+  }
+  const consumedByCommand = new Map<string, number>();
+
+  const blocks = module.blocks.map((b) => {
+    if (b.type !== 'command_step') return b;
+
+    const viaStepId = stepIdToRuleId.get(b.id);
+    if (viaStepId) return { ...b, rule_id: viaStepId };
+
+    const candidates = remainingByCommand.get(b.command);
+    if (!candidates || candidates.length === 0) return b;
+    const idx = consumedByCommand.get(b.command) ?? 0;
+    consumedByCommand.set(b.command, idx + 1);
+    return { ...b, rule_id: candidates[Math.min(idx, candidates.length - 1)] };
+  });
+
+  return { ...module, blocks };
+}
+
 export const linuxGetModule = (practiceId: string): Promise<LinuxModule> =>
-  invoke<LinuxModule>('practicas_linux_get_module', { practiceId });
+  invoke<LinuxModule>('practicas_linux_get_module', { practiceId }).then(resolveLinuxModule);
 
 /**
  * `quizAnswers`: mapa question_id -> option_id elegida. Opcional -- los

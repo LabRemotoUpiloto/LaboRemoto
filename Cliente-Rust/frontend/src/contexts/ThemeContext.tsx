@@ -4,7 +4,6 @@
  * Agrega `mantineColorScheme` para que MantineProvider sepa si es dark/light.
  */
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import type { MantineColorScheme } from '@mantine/core'
 import { useAppStore } from '../store/app'
 import { getEffectiveRole, usaTemaInstitucional } from '../hooks/usePermissions'
 
@@ -68,7 +67,7 @@ const LIGHT_THEMES = new Set<Theme>([
   'pastel-dream'
 ])
 
-export function getMantineScheme(theme: Theme): MantineColorScheme {
+export function getMantineScheme(theme: Theme): 'light' | 'dark' {
   return LIGHT_THEMES.has(theme) ? 'light' : 'dark'
 }
 
@@ -76,7 +75,9 @@ type ThemeContextType = {
   /** Tema efectivo (el institucional si el rol lo exige). */
   theme: Theme
   setTheme: (t: Theme) => void
-  mantineColorScheme: MantineColorScheme
+  /** Siempre resuelto a un valor concreto -- nunca 'auto' (MantineProvider's
+   * forceColorScheme tampoco lo acepta). */
+  mantineColorScheme: 'light' | 'dark'
   /** true para roles administrativos: el tema no se puede cambiar. */
   temaFijo: boolean
 }

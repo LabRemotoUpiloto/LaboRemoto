@@ -7,17 +7,45 @@
 // App.tsx / SessionTabs.tsx). Se muestra una única vez por módulo -- ver
 // `markModuleBadgeEarned` en services/badges.service.ts, misma fuente de
 // verdad que lee la Sala de Trofeos del Perfil.
+//
+// Estilos en Tailwind inline (mismo criterio que el resto del proyecto,
+// keyframes compartidos en tailwind.config.js) -- lo único animado fuera de
+// GSAP (ambiente de fondo + entrada del modal) usa `motion-reduce:` para
+// respetar prefers-reduced-motion sin un media query a mano.
 import React, { useEffect, useMemo, useRef } from 'react';
 import { gsap } from 'gsap';
 import { RANKS, rankForModule } from '../../../services/badges.service';
 import { MedalIcon } from './MedalIcon';
-import './ModuleCompleteCelebration.css';
 
 const RING_RADIUS = 42;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 const CONFETTI_COLORS = ['#E21F19', '#F7CD3D', '#2B6E6E', '#6B4FA0', '#FFFFFF'];
 const SPARK_COLORS = ['#F7CD3D', '#E21F19', '#FFFFFF'];
 const SPARK_COUNT = 12;
+const MEDAL_RING = '#e21f19';
+const MEDAL_DISC = '#f7cd3d';
+const STAND_STROKE = '#f7cd3d';
+
+const FIREWORKS = [
+  { left: '18%', top: '28%', delay: '0.1s' },
+  { left: '82%', top: '22%', delay: '0.9s' },
+  { left: '50%', top: '15%', delay: '1.6s' },
+];
+
+function Firework({ left, top, delay }: { left: string; top: string; delay: string }) {
+  return (
+    <span className="absolute h-2.5 w-2.5" style={{ left, top }}>
+      <span
+        className="animate-fireworkRing motion-reduce:animate-none absolute inset-0 rounded-full border-2 border-[#f7cd3d] opacity-0 [transform:scale(0)]"
+        style={{ animationDelay: delay }}
+      />
+      <span
+        className="animate-fireworkRing motion-reduce:animate-none absolute inset-0 rounded-full border-2 border-[#e21f19] opacity-0 [transform:scale(0)]"
+        style={{ animationDelay: `calc(${delay} + 0.15s)` }}
+      />
+    </span>
+  );
+}
 
 interface ModuleCompleteCelebrationProps {
   moduleId: string;
@@ -137,13 +165,19 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
   }, []);
 
   return (
-    <div className="mcc-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Módulo completo">
+    <div
+      className="animate-fadeIn motion-reduce:animate-none fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-[rgba(10,8,6,0.72)] backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Módulo completo"
+    >
       {/* Ambiente: confeti cayendo + fuegos artificiales de fondo, corren todo el tiempo que el modal está abierto */}
-      <div className="mcc-ambient-layer" aria-hidden="true">
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         {confetti.map((c, i) => (
           <span
             key={`c-${i}`}
-            className="mcc-confetti-piece"
+            className="animate-confettiFall motion-reduce:animate-none absolute -top-[5%] rounded-[1px] opacity-95"
             style={{
               left: `${c.left}%`,
               width: c.size,
@@ -155,32 +189,43 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
             }}
           />
         ))}
-        <span className="mcc-firework" style={{ left: '18%', top: '28%', animationDelay: '0.1s' }} />
-        <span className="mcc-firework" style={{ left: '82%', top: '22%', animationDelay: '0.9s' }} />
-        <span className="mcc-firework" style={{ left: '50%', top: '15%', animationDelay: '1.6s' }} />
+        {FIREWORKS.map((f, i) => (
+          <Firework key={i} {...f} />
+        ))}
       </div>
 
-      <div className="mcc-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="mcc-stage" ref={stageRef}>
-          <div className="mcc-glow" ref={glowRef} />
+      <div
+        className="animate-popIn motion-reduce:animate-none relative flex min-w-[340px] max-w-[420px] flex-col items-center gap-1 rounded-[20px] border px-11 pb-[34px] pt-7 text-center shadow-[0_30px_80px_rgba(0,0,0,0.55)]"
+        style={{ background: 'var(--background-secondary, #1e2030)', borderColor: 'var(--border-subtle, rgba(255,255,255,0.1))' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative flex h-[176px] w-full flex-col items-center justify-end [perspective:700px]" ref={stageRef}>
+          <div
+            ref={glowRef}
+            className="pointer-events-none absolute top-[22px] h-[130px] w-[130px] rounded-full opacity-0 [background:radial-gradient(circle,rgba(247,205,61,0.9)_0%,rgba(247,205,61,0)_70%)] [mix-blend-mode:screen]"
+          />
 
-          <div className="mcc-badge" ref={badgeRef}>
-            <svg viewBox="0 0 100 100" className="mcc-ring-svg" aria-hidden="true">
-              <circle cx="50" cy="50" r={RING_RADIUS} className="mcc-ring-track" />
+          <div ref={badgeRef} className="relative mb-1.5 h-[88px] w-[76px] [transform-style:preserve-3d]">
+            <svg viewBox="0 0 100 100" className="absolute -inset-2 [transform:rotate(-90deg)]" aria-hidden="true">
+              <circle cx="50" cy="50" r={RING_RADIUS} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="4" />
               <circle
                 ref={ringRef}
                 cx="50"
                 cy="50"
                 r={RING_RADIUS}
-                className="mcc-ring-fill"
+                fill="none"
+                stroke="#f7cd3d"
+                strokeWidth="4"
+                strokeLinecap="round"
                 strokeDasharray={RING_CIRCUMFERENCE}
+                className="[filter:drop-shadow(0_0_4px_rgba(247,205,61,0.7))]"
               />
             </svg>
             <MedalIcon
-              ringColor="var(--mcc-badge-stroke)"
-              discColor="var(--mcc-badge-disc)"
+              ringColor={MEDAL_RING}
+              discColor={MEDAL_DISC}
               code={rank.code}
-              className="mcc-medal-svg"
+              className="absolute inset-1"
               ariaLabel={`Insignia: ${rank.title}`}
             />
 
@@ -188,33 +233,43 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
               <span
                 key={i}
                 ref={(el) => { sparksRef.current[i] = el; }}
-                className="mcc-spark"
+                className="absolute left-1/2 top-1/2 -m-[3px] h-1.5 w-1.5 rounded-full opacity-0"
                 style={{ background: s.color }}
               />
             ))}
           </div>
 
-          <div className="mcc-stand" aria-hidden="true">
-            <svg viewBox="0 0 120 34">
-              <path d="M20 4 H100 L112 30 H8 Z" fill="var(--mcc-stand-fill)" stroke="var(--mcc-stand-stroke)" strokeWidth="1.5" />
-              <line x1="30" y1="4" x2="30" y2="30" stroke="var(--mcc-stand-stroke)" strokeOpacity="0.4" />
-              <line x1="90" y1="4" x2="90" y2="30" stroke="var(--mcc-stand-stroke)" strokeOpacity="0.4" />
+          <div className="w-[118px] text-[#f7cd3d]" aria-hidden="true">
+            <svg viewBox="0 0 120 34" className="h-auto w-full">
+              <path d="M20 4 H100 L112 30 H8 Z" fill="rgba(247,205,61,0.1)" stroke={STAND_STROKE} strokeWidth="1.5" />
+              <line x1="30" y1="4" x2="30" y2="30" stroke={STAND_STROKE} strokeOpacity="0.4" />
+              <line x1="90" y1="4" x2="90" y2="30" stroke={STAND_STROKE} strokeOpacity="0.4" />
             </svg>
           </div>
         </div>
 
         <div ref={detailsRef}>
-          <div className="mcc-eyebrow">Insignia desbloqueada</div>
-          <h2 className="mcc-rank">{rank.title}</h2>
-          <h3 className="mcc-title">¡Completaste el {moduleTitle ?? 'módulo'}!</h3>
-          <p className="mcc-score">
+          <div className="text-[11.5px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary, #9ca3af)' }}>
+            Insignia desbloqueada
+          </div>
+          <h2 className="mb-3 mt-0.5 text-[22px] font-extrabold text-[#e21f19]">{rank.title}</h2>
+          <h3 className="mb-1.5 mt-0 text-base font-bold" style={{ color: 'var(--text-primary, #f0f0f0)' }}>
+            ¡Completaste el {moduleTitle ?? 'módulo'}!
+          </h3>
+          <p className="m-0 text-[13.5px] [font-variant-numeric:tabular-nums]" style={{ color: 'var(--text-secondary, #9ca3af)' }}>
             {earnedPoints}/{totalPoints} pts — 100%
           </p>
         </div>
 
-        <div ref={actionsRef} className="mcc-actions">
-          <p className="mcc-hint">Ya la podés ver en tu Sala de Trofeos, en tu Perfil.</p>
-          <button className="mcc-close-btn" onClick={onClose} autoFocus>
+        <div ref={actionsRef} className="mt-[18px] flex flex-col items-center gap-2.5">
+          <p className="m-0 text-xs" style={{ color: 'var(--text-secondary, #9ca3af)' }}>
+            Ya la podés ver en tu Sala de Trofeos, en tu Perfil.
+          </p>
+          <button
+            className="rounded-[10px] bg-[#e21f19] px-[34px] py-2.5 text-sm font-bold text-white transition hover:brightness-110 active:scale-[0.97]"
+            onClick={onClose}
+            autoFocus
+          >
             Genial
           </button>
         </div>

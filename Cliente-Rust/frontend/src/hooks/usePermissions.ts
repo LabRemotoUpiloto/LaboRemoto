@@ -48,8 +48,14 @@ const TECHNICAL: EffectiveRole[] = ['admin_lab', 'semillerista']
 // Debe coincidir con RESUMEN_ROLES en infra/nvr-broker/sesiones.js.
 const SUPERVISION: EffectiveRole[] = ['admin_lab', 'jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista']
 
-/** Los roles administrativos usan siempre el tema institucional (UniPiloto). */
-export const usaTemaInstitucional = (role: EffectiveRole) => SUPERVISION.includes(role)
+// Jefe, coordinador y laboratorista usan siempre el tema institucional
+// (UniPiloto) -- admin_lab es el rol de mayor jerarquía (sin nada por
+// encima) y tiene acceso a todo, tema incluido, así que queda afuera de
+// esta restricción a propósito (no es lo mismo que SUPERVISION, que sigue
+// incluyendo a admin_lab para dashboard/logs/vigilancia).
+const INSTITUTIONAL_THEME_ONLY: EffectiveRole[] = ['jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista']
+
+export const usaTemaInstitucional = (role: EffectiveRole) => INSTITUTIONAL_THEME_ONLY.includes(role)
 
 // Mapa page id -> roles que pueden verla. Consumido por Sidebar (qué mostrar)
 // y por HomeContainer (segunda verificación antes de renderizar, cierra el

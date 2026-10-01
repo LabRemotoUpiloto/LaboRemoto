@@ -1,5 +1,5 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import './App.css'
 
@@ -38,6 +38,8 @@ import { useSidePanels } from './hooks/useSidePanels'
 import { useTabLifecycle } from './hooks/useTabLifecycle'
 import { usePracticeSession } from './hooks/usePracticeSession'
 import { useLinuxPracticeSession } from './hooks/useLinuxPracticeSession'
+import { requestPracticesFocus } from './services/practiceNavigation.service'
+import { clearModuleBadge } from './services/badges.service'
 import { usePracticeActivityReporter, type PracticaAbierta } from './hooks/usePracticeActivityReporter'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import type { PracticeSessionMeta } from './types'
@@ -107,7 +109,7 @@ const AppMain: React.FC = () => {
     isSidebarOpen, setIsSidebarOpen,
     sessionMeta, setSessionMeta,
     pendingHost, setPendingHost,
-    selectedPage, activeTab,
+    selectedPage, setSelectedPage, activeTab,
     openSession, closeTab, renameTab,
     handleNewSession, openLogTab, openLocalTerminalTab,
     openPanels, activePanel,
@@ -146,6 +148,24 @@ const AppMain: React.FC = () => {
     onNewSession: handleNewSession,
     setChatOpen: setIsChatOpen,
     setCameraOpen: setCameraPanelOpen,
+    // Convención de "fin de práctica" para TODA la app (ver
+    // frontend/docs/practice-completion.md) -- al terminar un módulo,
+    // volvemos a la pestaña de Inicio y a la vista de Prácticas, donde el
+    // estudiante ve el módulo recién completado marcado con su insignia.
+    // Cualquier práctica nueva (no solo Linux) que agregue su propio "flujo
+    // de completar" debe reusar este mismo patrón: handleOpenPanel('practices').
+    //
+    // OJO: acá NO alcanza con setActiveTabId(HOME_TAB_ID) + setSelectedPage
+    // a mano (bug real encontrado en producción) -- useAppTabs tiene un
+    // efecto ("Auto-switch to first connected session when entering
+    // terminal view") que, si `activePanel` se queda en 'terminal' mientras
+    // `activeTabId` pasa a home, rebota de inmediato de vuelta a la sesión.
+    // `handleOpenPanel` actualiza `activePanel` y `activeTabId` juntos (vía
+    // `openPanel`), así que ese efecto nunca llega a dispararse.
+    onModuleCompleted: () => {
+      requestPracticesFocus('linux')
+      handleOpenPanel('practices')
+    },
   })
 
   // `practiceMeta` (de usePracticeSession) solo conoce prácticas del flujo
@@ -155,13 +175,20 @@ const AppMain: React.FC = () => {
   // uno combinado: sin esto, practiceMeta?.[sessionId] queda `undefined`
   // para sesiones Linux y TerminalView nunca recibe su practiceId (rompe el
   // bloqueo de modo/modelo del chat y cualquier feature que dependa de él).
-  const combinedPracticeMeta = useMemo(() => {
+  // Tipo explícito (no inferido): sin esto, las dos ramas del useMemo abajo
+  // devuelven tipos distintos (PracticeSessionMeta vs. el shape local con
+  // student opcional) y TS infiere la unión de ambos -- lo que hace que
+  // `Object.entries(combinedPracticeMeta ?? {})` más abajo (ver
+  // practicasAbiertas) caiga en el overload genérico de Object.entries y
+  // tipe cada valor como `unknown` en vez de la forma real.
+  type CombinedPracticeMeta = { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null; robotDashboard?: boolean };
+  const combinedPracticeMeta = useMemo<Record<string, CombinedPracticeMeta>>(() => {
     const linuxEntries = Object.entries(linuxSession.sessionModuleMap)
     if (linuxEntries.length === 0) return practiceMeta
     // `student` es opcional/nullable en el tipo local PracticeMeta de
     // SessionContainer (ver ese archivo) -- las entradas Linux solo aportan
     // practiceId, sin inventar assignmentId/student.
-    const merged: Record<string, { practiceId: string; assignmentId?: number; student?: PracticeSessionMeta['student'] | null; robotDashboard?: boolean }> = { ...(practiceMeta ?? {}) }
+    const merged: Record<string, CombinedPracticeMeta> = { ...(practiceMeta ?? {}) }
     for (const [sessionId, moduleId] of linuxEntries) {
       // `robotDashboard`: los módulos con `environment.panels.robot_dashboard`
       // (EV3) piden el panel del robot dentro de la pestaña de su terminal.
@@ -195,6 +222,22 @@ const AppMain: React.FC = () => {
     clearPracticeMeta,
     stopLinuxSession: linuxSession.stopSession,
   })
+
+  // "Repetir" del administrador en LinuxModulePage (ver ese archivo): un rol
+  // operativo necesita poder rehacer un módulo ya completo para revisar
+  // comportamientos -- por ahora es exclusivo de `admin` (ver
+  // usePermissions.ts), a futuro se abre a una lista de roles configurable.
+  // Reusa el mismo cierre de sesión "real" que ya existe para el botón de
+  // cerrar pestaña (desconecta el SSH, corta el polling, limpia
+  // resultados/respuestas de quiz de ese módulo) y borra la insignia para
+  // que vuelva a verse como no completado.
+  const handleRestartLinuxModule = useCallback(async (moduleId: string) => {
+    const existingSessionId = Object.entries(linuxSession.sessionModuleMap).find(([, mid]) => mid === moduleId)?.[0]
+    if (existingSessionId) {
+      await handleCloseTab(existingSessionId)
+    }
+    clearModuleBadge(moduleId)
+  }, [linuxSession.sessionModuleMap, handleCloseTab])
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
   const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia', 'dashboard']
@@ -346,6 +389,7 @@ const AppMain: React.FC = () => {
                     onStartPractice={handleStartPractice}
                     setChatOpen={setIsChatOpen}
                     linuxSession={linuxSession}
+                    onRestartLinuxModule={handleRestartLinuxModule}
                   />
                 </div>
               )}

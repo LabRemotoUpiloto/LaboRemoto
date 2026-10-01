@@ -9,6 +9,7 @@ import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, 
 import { AlertTriangle, Play, X } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
+import { ZoomableImage } from '../ZoomableImage';
 import WheelsSimBlock from './widgets/WheelsSim';
 import CalculatorBlock from './widgets/CalculatorBlock';
 import SensorDemoBlock from './widgets/SensorDemo';
@@ -117,9 +118,15 @@ function TerminalAnnotationBlock({ block }: { block: Extract<LinuxBlock, { type:
 function AnalogyBlock({ block }: { block: Extract<LinuxBlock, { type: 'analogy' }> }) {
   return (
     <Paper withBorder radius="md" p="md">
-      <Text fz="xs" tt="uppercase" fw={700} c="teal" mb={8} style={{ letterSpacing: '0.06em' }}>
-        {block.term}
-      </Text>
+      {block.title ? (
+        <Text fz="sm" fw={700} c="teal" mb={8}>
+          {block.title}
+        </Text>
+      ) : (
+        <Text fz="xs" tt="uppercase" fw={700} c="teal" mb={8} style={{ letterSpacing: '0.06em' }}>
+          {block.term}
+        </Text>
+      )}
       <Group grow align="flex-start" gap="md">
         <Stack gap={4}>
           <Text fz="xs" c="dimmed" tt="uppercase">Objeto cotidiano</Text>
@@ -166,11 +173,6 @@ function CommandStepBlock({
             <Text fz="xs" c="dimmed">{renderInline(block.explain_md)}</Text>
           </Stack>
         </Group>
-        {typeof points === 'number' && (
-          <Text fz="xs" fw={700} c={passed ? 'green' : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>
-            {points} pts
-          </Text>
-        )}
       </Group>
     </Paper>
   );
@@ -278,18 +280,25 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
             </ActionIcon>
           )}
           {block.kind === 'image' ? (
-            <img
-              src={state.url}
-              alt={block.caption ?? block.file}
-              onClick={() => setExpanded(true)}
-              style={{
-                maxWidth: '100%',
-                maxHeight: expanded ? '85vh' : undefined,
-                borderRadius: expanded ? 8 : 6,
-                display: 'block',
-                cursor: 'zoom-in',
-              }}
-            />
+            expanded ? (
+              <ZoomableImage
+                src={state.url}
+                alt={block.caption ?? block.file}
+                style={{ maxWidth: '92vw', maxHeight: '85vh', borderRadius: 8 }}
+              />
+            ) : (
+              <img
+                src={state.url}
+                alt={block.caption ?? block.file}
+                onClick={() => setExpanded(true)}
+                style={{
+                  maxWidth: '100%',
+                  borderRadius: 6,
+                  display: 'block',
+                  cursor: 'zoom-in',
+                }}
+              />
+            )
           ) : (
             <video
               src={state.url}
@@ -331,7 +340,7 @@ function QuizBlock({
   points,
   selected,
   onSelect,
-  locked,
+  attempted,
 }: {
   block: Extract<LinuxBlock, { type: 'quiz' }>;
   passed: boolean;
@@ -339,10 +348,14 @@ function QuizBlock({
   points?: number;
   selected?: string;
   onSelect: (optionId: string) => void;
-  /** Una vez que llegó un resultado validado (correcto o no), la pregunta deja de poder cambiarse. */
-  locked: boolean;
+  /** Ya se envió la evaluación al menos una vez -- antes de eso no hay feedback que mostrar. */
+  attempted: boolean;
 }) {
-  const showFeedback = locked && answered;
+  const showFeedback = attempted && answered;
+  // La evaluación completa exige el 100% (ver validation.py) -- una pregunta
+  // CORRECTA se bloquea (ya no tiene sentido tocarla), pero una INCORRECTA
+  // queda editable a propósito, para que el estudiante la corrija y reenvíe.
+  const locked = passed;
   return (
     <Paper
       withBorder
@@ -352,11 +365,6 @@ function QuizBlock({
     >
       <Group justify="space-between" align="flex-start" mb={8}>
         <Text fz="sm" fw={600} style={{ lineHeight: 1.5 }}>{renderInline(block.question_md)}</Text>
-        {typeof points === 'number' && (
-          <Text fz="xs" fw={700} c={showFeedback ? (passed ? 'green' : 'red') : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>
-            {points} pts
-          </Text>
-        )}
       </Group>
       <Radio.Group value={selected ?? null} onChange={onSelect}>
         <Stack gap={6}>
@@ -367,7 +375,7 @@ function QuizBlock({
       </Radio.Group>
       {showFeedback && (
         <Text fz="xs" mt={8} c={passed ? 'green' : 'red'}>
-          {passed ? 'Correcto.' : 'Incorrecto — revisá el bloque de arriba antes de la evaluación final.'}
+          {passed ? 'Correcto.' : 'Te equivocaste en esta pregunta — corregí tu respuesta y volvé a enviar la evaluación.'}
         </Text>
       )}
     </Paper>
@@ -481,7 +489,7 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
     case 'media':
       return <MediaBlock block={block} practiceId={practiceId} />;
     case 'command_step': {
-      const rule = rules.find((r) => r.target === block.command);
+      const rule = rules.find((r) => r.id === block.rule_id) ?? rules.find((r) => r.target === block.command);
       const ruleResult = rule ? result?.results.find((r) => r.rule_id === rule.id) : undefined;
       return <CommandStepBlock block={block} passed={!!ruleResult?.passed} points={rule?.points} />;
     }
@@ -496,7 +504,7 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
           points={rule?.points}
           selected={quizAnswers?.[block.id]}
           onSelect={(optionId) => onQuizAnswer?.(block.id, optionId)}
-          locked={!!quizLocked}
+          attempted={!!quizLocked}
         />
       );
     }

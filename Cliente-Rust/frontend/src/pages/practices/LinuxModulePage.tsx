@@ -5,15 +5,22 @@
 // media, comandos a probar, quiz final) se entrega DESPUÉS de conectar, por
 // el chat de la sesión SSH recién abierta (ver ChatPane.tsx) -- no antes de
 // empezar la práctica.
+//
+// Sin Badge de Mantine en ningún lado (regla del proyecto) y sin props de
+// color de Mantine (`color="red"`, `c="teal"`, etc. -- son la paleta fija
+// de Mantine, no cambian con los 22 temas CSS del proyecto). Todo lo que
+// necesita color usa las variables del tema (`var(--accent-primary)`,
+// `var(--danger)`, `var(--text-secondary)`...), igual que el resto de los
+// bloques de la práctica de Linux (ver BlockRenderer.tsx).
 
 import React, { useEffect, useState } from 'react';
-import {
-  Box, Container, Stack, Title, Text, Button, Group, Paper, Loader, Alert, Badge,
-} from '@mantine/core';
-import { ArrowLeft, PlugZap, MonitorCheck } from 'lucide-react';
+import { Box, Container, Stack, Title, Text, Button, Group, Paper, Loader, Alert } from '@mantine/core';
+import { ArrowLeft, PlugZap, MonitorCheck, RotateCcw, Eye } from 'lucide-react';
 import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { linuxGetModule, type LinuxModule } from '../../services/linuxPractice.service';
+import { useEffectiveRole } from '../../hooks/usePermissions';
+import { useEarnedBadges } from '../../services/badges.service';
 
 interface Props {
   practiceId: string;
@@ -27,11 +34,25 @@ interface Props {
    * polling de revalidación corre adentro del hook, no acá.
    */
   linuxSession: LinuxPracticeSessionApi;
+  /**
+   * Reinicia por completo el progreso de un módulo ya completo (cierra la
+   * sesión SSH real si sigue abierta y borra la insignia) -- ver App.tsx
+   * (handleRestartLinuxModule). Por ahora solo se ofrece al rol `admin`
+   * (ver usePermissions.ts): a futuro se abre a una lista de roles
+   * configurable, pero el mecanismo ya queda armado para reusarlo tal cual.
+   */
+  onRestartModule?: (moduleId: string) => Promise<void>;
 }
 
-const LinuxModulePage: React.FC<Props> = ({ practiceId, categoryName, onBack, linuxSession }) => {
+const LinuxModulePage: React.FC<Props> = ({ practiceId, categoryName, onBack, linuxSession, onRestartModule }) => {
   const [module, setModule] = useState<LinuxModule | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Elección del administrador cuando reabre un módulo ya completo (ver
+  // abajo) -- 'view' salta directo al flujo normal de conectar/seguir sin
+  // tocar nada; 'repeat' dispara el reinicio real y, apenas la insignia se
+  // borra (useEarnedBadges es reactivo), el chooser desaparece solo.
+  const [adminChoice, setAdminChoice] = useState<'view' | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   const {
     connect, connecting, submittingPassword, connectError,
@@ -40,16 +61,33 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, categoryName, onBack, li
   } = linuxSession;
 
   const connected = module ? !!connectedModules[module.id] : false;
+  const role = useEffectiveRole();
+  const earnedBadges = useEarnedBadges();
+  const alreadyCompleted = module ? module.id in earnedBadges : false;
+  // Por ahora exclusivo de `admin_lab` -- acá es donde se engancha la lista
+  // de roles configurable a futuro que se mencionó al pedir esta feature.
+  const showAdminChooser = role === 'admin_lab' && alreadyCompleted && adminChoice === null;
 
   useEffect(() => {
     let cancelled = false;
     setModule(null);
     setLoadError(null);
+    setAdminChoice(null);
     linuxGetModule(practiceId)
       .then((m) => { if (!cancelled) setModule(m); })
       .catch((e) => { if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
   }, [practiceId]);
+
+  const handleRestart = async () => {
+    if (!module || restarting) return;
+    setRestarting(true);
+    try {
+      await onRestartModule?.(module.id);
+    } finally {
+      setRestarting(false);
+    }
+  };
 
   const handleConnect = async () => {
     if (!module) return;
@@ -79,33 +117,90 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, categoryName, onBack, li
     );
   }
 
+  // Ya completaste este módulo: como admin, elegí qué hacer antes de entrar
+  // (salir, repetirlo de cero para observar comportamientos, o solo verlo
+  // como quedó). Reemplaza el flujo normal de conectar -- se vuelve a
+  // mostrar el chooser cada vez que se reabre este módulo, mientras siga
+  // completo.
+  if (showAdminChooser) {
+    return (
+      <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+        <Container size="sm" py="xl">
+          <Stack gap="xl">
+            <Button variant="subtle" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)' }}>
+              Volver a Linux
+            </Button>
+
+            <Stack gap={10}>
+              <Text fz="xs" tt="uppercase" fw={700} style={{ letterSpacing: '0.08em', color: 'var(--accent-primary)' }}>
+                Módulo {module.order}
+              </Text>
+              <Title order={1} style={{ fontSize: '1.75rem' }}>{module.title}</Title>
+              <Text maw={520} style={{ color: 'var(--text-secondary)' }}>
+                Ya completaste este módulo. Como administrador, elegí qué hacer para revisar comportamientos.
+              </Text>
+            </Stack>
+
+            <Paper withBorder radius="md" p="md">
+              <Group justify="flex-end" gap="sm">
+                <button
+                  onClick={onBack}
+                  className="rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-[var(--interactive-hover)]"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Salir
+                </button>
+                <button
+                  onClick={() => setAdminChoice('view')}
+                  className="flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition hover:bg-[var(--interactive-hover)]"
+                  style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+                >
+                  <Eye size={16} />
+                  Ver
+                </button>
+                <button
+                  onClick={handleRestart}
+                  disabled={restarting}
+                  className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition hover:brightness-110 disabled:cursor-default disabled:opacity-60"
+                  style={{ backgroundColor: 'var(--accent-primary)', color: 'var(--accent-contrast, #fff)' }}
+                >
+                  <RotateCcw size={16} className={restarting ? 'animate-spin' : undefined} />
+                  {restarting ? 'Repitiendo…' : 'Repetir'}
+                </button>
+              </Group>
+            </Paper>
+          </Stack>
+        </Container>
+      </Box>
+    );
+  }
+
   return (
     <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
       <Container size="sm" py="xl">
         <Stack gap="xl">
-          <Button variant="subtle" color="gray" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start' }}>
+          <Button variant="subtle" size="sm" leftSection={<ArrowLeft size={14} />} onClick={onBack} style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)' }}>
             Volver a {categoryName}
           </Button>
 
           <Stack gap={10}>
-            <Group gap={8}>
-              <Text fz="xs" tt="uppercase" fw={700} c="teal" style={{ letterSpacing: '0.08em' }}>
-                Módulo {module.order}
-              </Text>
-              <Badge variant="light" color="gray" size="sm" tt="capitalize">{module.difficulty}</Badge>
+            <Text fz="xs" tt="uppercase" fw={700} style={{ letterSpacing: '0.08em', color: 'var(--accent-primary)' }}>
+              Módulo {module.order}
               {module.estimated_minutes && (
-                <Badge variant="light" color="gray" size="sm">~{module.estimated_minutes} min</Badge>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {' · '}~{module.estimated_minutes} min
+                </span>
               )}
-            </Group>
+            </Text>
             <Title order={1} style={{ fontSize: '1.75rem' }}>{module.title}</Title>
-            <Text c="dimmed" maw={520}>{module.objective}</Text>
+            <Text maw={520} style={{ color: 'var(--text-secondary)' }}>{module.objective}</Text>
           </Stack>
 
           {connected ? (
             <Paper withBorder radius="md" p="md">
               <Group gap="sm" wrap="nowrap">
-                <MonitorCheck size={18} color="var(--success, #10b981)" />
-                <Text fz="sm" c="dimmed">
+                <MonitorCheck size={18} style={{ color: 'var(--success)' }} />
+                <Text fz="sm" style={{ color: 'var(--text-secondary)' }}>
                   Ya estás conectado a este módulo — seguí la práctica en el chat de tu pestaña de terminal.
                 </Text>
               </Group>
@@ -113,14 +208,14 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, categoryName, onBack, li
           ) : (
             <Paper withBorder radius="md" p="md">
               <Group justify="space-between" align="center" wrap="nowrap">
-                <Text fz="sm" c="dimmed">
+                <Text fz="sm" style={{ color: 'var(--text-secondary)' }}>
                   El tutor te va a guiar paso a paso por el chat una vez conectado — no hace falta leer nada antes.
                 </Text>
                 <Button leftSection={<PlugZap size={16} />} loading={connecting} onClick={handleConnect}>
                   Conectar
                 </Button>
               </Group>
-              {connectError && <Text fz="sm" c="red" mt="sm">{connectError}</Text>}
+              {connectError && <Text fz="sm" mt="sm" style={{ color: 'var(--danger)' }}>{connectError}</Text>}
             </Paper>
           )}
         </Stack>

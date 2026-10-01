@@ -9,7 +9,9 @@ import { ActionIcon, Button, Group, Text } from '@mantine/core';
 import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
 import { BlockView } from '../practicas/linux/blocks/BlockRenderer';
 import { ModuleCompleteCelebration } from '../practicas/linux/ModuleCompleteCelebration';
+import { PosterUnlockCelebration } from '../practicas/linux/PosterUnlockCelebration';
 import { markModuleBadgeEarned, rankForModule } from '../../services/badges.service';
+import { posterForModule, markPosterUnlocked, downloadPoster } from '../../services/posters.service';
 
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;
@@ -34,6 +36,7 @@ interface AiMessageBubbleProps {
   linuxQuizSubmitted?: boolean;
   onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
   onLinuxQuizSubmit?: () => void;
+  onLinuxModuleComplete?: (moduleId: string) => void;
 }
 
 export default function AiMessageBubble({
@@ -42,7 +45,7 @@ export default function AiMessageBubble({
   onCopy, onRegenerate, onRetry, onAnalyzeCandidate, onSetInput, wordCount,
   linuxPracticeId, linuxRules = [], linuxResult = null,
   linuxQuizAnswers = {}, linuxQuizSubmitting = false, linuxQuizSubmitted = false,
-  onLinuxQuizAnswer, onLinuxQuizSubmit,
+  onLinuxQuizAnswer, onLinuxQuizSubmit, onLinuxModuleComplete,
 }: AiMessageBubbleProps) {
   const isStreaming = streamingMsgId === msg.id;
   const isError = msg.text.startsWith('Error');
@@ -56,17 +59,63 @@ export default function AiMessageBubble({
   // services/badges.service.ts -- misma fuente que lee la Sala de Trofeos
   // del Perfil) -- nunca de nuevo en re-renders o remounts posteriores una
   // vez que ya se ganó la insignia.
-  const [showCelebration, setShowCelebration] = useState(false);
+  // Encadenado: medalla -> (si el módulo tiene póster) póster -> redirect.
+  // 'medal' y 'poster' son pasos EXCLUYENTES (nunca los dos overlays a la
+  // vez) -- cada uno se cierra antes de que aparezca el siguiente.
+  const [celebrationStep, setCelebrationStep] = useState<'medal' | 'poster' | null>(null);
+  const [posterDownloading, setPosterDownloading] = useState(false);
+  const [posterDownloadDone, setPosterDownloadDone] = useState(false);
   const celebratedRef = useRef(false);
   const linuxQuizModuleId = msg.meta?.linuxQuiz?.moduleId;
+  const poster = linuxQuizModuleId ? posterForModule(linuxQuizModuleId) : undefined;
+
   useEffect(() => {
     if (!linuxQuizSubmitted || !linuxResult?.passed || !linuxQuizModuleId || celebratedRef.current) return;
     celebratedRef.current = true;
     // Módulo sin insignia en el catálogo: nada que ganar ni celebrar.
     if (!rankForModule(linuxQuizModuleId)) return;
     const { alreadyEarned } = markModuleBadgeEarned(linuxQuizModuleId);
-    setShowCelebration(!alreadyEarned);
-  }, [linuxQuizSubmitted, linuxResult?.passed, linuxQuizModuleId]);
+    if (alreadyEarned) {
+      // Ya se había ganado antes (ej. el estudiante vuelve a un módulo que
+      // ya tenía completo) -- no repetimos ninguna animación, pero igual
+      // cerramos el flujo de "fin de práctica" (ver docs/practice-completion.md).
+      onLinuxModuleComplete?.(linuxQuizModuleId);
+    } else {
+      setCelebrationStep('medal');
+    }
+  }, [linuxQuizSubmitted, linuxResult?.passed, linuxQuizModuleId, onLinuxModuleComplete]);
+
+  const handleMedalClose = () => {
+    if (poster) {
+      // Se desbloquea en este momento (no antes): recién cuando el
+      // estudiante YA vio la insignia es que pasa al póster -- ver
+      // services/posters.service.ts.
+      markPosterUnlocked(poster.id);
+      setCelebrationStep('poster');
+    } else {
+      setCelebrationStep(null);
+      onLinuxModuleComplete?.(linuxQuizModuleId!);
+    }
+  };
+
+  const handlePosterDownload = async () => {
+    if (!poster || posterDownloading) return;
+    setPosterDownloading(true);
+    try {
+      const saved = await downloadPoster(poster);
+      if (saved) setPosterDownloadDone(true);
+    } catch {
+      // Silencioso -- una descarga fallida no debe trabar el festejo; el
+      // póster de todos modos queda disponible en la Sala de Trofeos.
+    } finally {
+      setPosterDownloading(false);
+    }
+  };
+
+  const handlePosterClose = () => {
+    setCelebrationStep(null);
+    onLinuxModuleComplete?.(linuxQuizModuleId!);
+  };
 
   return (
     <div className={`relative flex flex-col group/ai items-start w-full`}>
@@ -149,7 +198,11 @@ export default function AiMessageBubble({
                   quizLocked={linuxQuizSubmitted}
                 />
               ))}
-              {!linuxQuizSubmitted && (
+              {/* La evaluación solo se da por terminada al 100% (ver validation.py
+                  en la Pi) -- mientras quede alguna pregunta incorrecta, el botón
+                  sigue disponible para corregir y reenviar, nunca se bloquea para
+                  siempre como antes. */}
+              {!(linuxQuizSubmitted && linuxResult?.passed) && (
                 <Group justify="flex-end">
                   <Button
                     size="xs"
@@ -158,23 +211,32 @@ export default function AiMessageBubble({
                     disabled={!msg.meta.linuxQuiz.blocks.every((b: any) => !!linuxQuizAnswers[b.id])}
                     onClick={onLinuxQuizSubmit}
                   >
-                    Enviar evaluación
+                    {linuxQuizSubmitted ? 'Reenviar evaluación' : 'Enviar evaluación'}
                   </Button>
                 </Group>
               )}
               {linuxQuizSubmitted && linuxResult && (
                 <Text fz="xs" c="dimmed">
                   {linuxResult.earned_points}/{linuxResult.total_points} pts ({linuxResult.percentage}%)
-                  {linuxResult.passed ? ' — ¡módulo completo!' : ''}
+                  {linuxResult.passed ? ' — ¡módulo completo!' : ' — corregí las preguntas marcadas en rojo y reenviá.'}
                 </Text>
               )}
-              {showCelebration && linuxResult && linuxQuizModuleId && (
+              {celebrationStep === 'medal' && linuxResult && linuxQuizModuleId && (
                 <ModuleCompleteCelebration
                   moduleId={linuxQuizModuleId}
                   moduleTitle={msg.meta?.linuxQuiz?.moduleTitle}
                   earnedPoints={linuxResult.earned_points}
                   totalPoints={linuxResult.total_points}
-                  onClose={() => setShowCelebration(false)}
+                  onClose={handleMedalClose}
+                />
+              )}
+              {celebrationStep === 'poster' && poster && (
+                <PosterUnlockCelebration
+                  poster={poster}
+                  onClose={handlePosterClose}
+                  onDownload={handlePosterDownload}
+                  downloading={posterDownloading}
+                  downloadDone={posterDownloadDone}
                 />
               )}
             </div>

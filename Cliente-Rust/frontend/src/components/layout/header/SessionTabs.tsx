@@ -91,7 +91,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
           variant="pills"
           styles={{
             root: { height: '100%' },
-            tabsList: { height: '100%', gap: rem(6), padding: `0 ${rem(4)}`, border: 0, flexWrap: 'nowrap' },
+            list: { height: '100%', gap: rem(6), padding: `0 ${rem(4)}`, border: 0, flexWrap: 'nowrap' },
             tab: {
               height: rem(28),
               alignSelf: 'center',

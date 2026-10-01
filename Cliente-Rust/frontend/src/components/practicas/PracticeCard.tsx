@@ -6,39 +6,39 @@ interface PracticeCardProps {
     id: string;
     name: string;
     description: string;
-    difficulty: string;
     hasCamera: boolean;
     hasChat: boolean;
     onStart: () => void;
     loading?: boolean;
+    /** Insignia ya resuelta para esta práctica puntual (ver
+     * badges/insigniaRegistry.tsx) -- `null` si todavía no se ganó o la
+     * práctica no tiene una propia. PracticeCard no sabe nada de insignias
+     * concretas, solo la pinta como hermana de la card (nunca como hija:
+     * Mantine le pone `overflow: hidden` a Card por defecto, y cualquier
+     * insignia que sobresalga de la esquina quedaría recortada). */
+    badge?: React.ReactNode | null;
 }
 
-const difficultyConfig: Record<string, { label: string; dot: string; className: string }> = {
-    beginner: { label: 'Principiante', dot: 'var(--success, #10B981)', className: 'beginner' },
-    intermediate: { label: 'Intermedio', dot: 'var(--warning, #F59E0B)', className: 'intermediate' },
-    advanced: { label: 'Avanzado', dot: 'var(--danger, #EF4444)', className: 'advanced' },
-};
-
-const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficulty, hasCamera, hasChat, onStart, loading = false }) => {
-    const diff = difficultyConfig[difficulty] || difficultyConfig.beginner;
+const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, hasCamera, hasChat, onStart, loading = false, badge = null }) => {
+    // El backend compone la descripción como "Módulo X · ~Y min" (ver
+    // practicas.rs) -- el nivel de dificultad no se muestra más (no aportaba
+    // nada); en su lugar, arriba va el módulo y abajo queda solo el tiempo.
+    const [moduleLabel, ...rest] = description.split(' · ');
+    const timeLabel = rest.join(' · ');
 
     return (
-        <Card
-            padding="lg"
-            className="animate-reveal dribbble-card dribbble-card-interactive group flex flex-col justify-between"
-            style={{ minHeight: '100%' }}
-        >
-            <Stack gap="md" h="100%" style={{ flex: 1, justifyContent: 'space-between' }}>
+        <div className="relative h-full">
+            {badge}
+            <Card
+                padding="lg"
+                className="animate-reveal dribbble-card flex flex-col justify-between"
+                style={{ minHeight: '100%' }}
+            >
+                <Stack gap="md" h="100%" style={{ flex: 1, justifyContent: 'space-between' }}>
                 <Group justify="space-between" align="center" wrap="nowrap">
-                    <Group gap={8} align="center">
-                        <div 
-                            className={`dribbble-difficulty-dot ${diff.className}`}
-                            style={{ flexShrink: 0 }} 
-                        />
-                        <Text size="xs" style={{ color: 'var(--text-secondary)', letterSpacing: '0.06em', fontSize: 10.5 }} tt="uppercase" fw={600}>
-                            {diff.label}
-                        </Text>
-                    </Group>
+                    <Text size="xs" style={{ color: 'var(--text-secondary)', letterSpacing: '0.06em', fontSize: 10.5 }} tt="uppercase" fw={600}>
+                        {moduleLabel}
+                    </Text>
                     <Group gap={4}>
                         {hasCamera && (
                             <Tooltip label="Cámara del laboratorio" withArrow position="top">
@@ -61,15 +61,17 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
                     <Text fw={600} size="md" mb={6} lineClamp={2} style={{ lineHeight: 1.35, letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
                         {name}
                     </Text>
-                    <Text size="sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }} lineClamp={3}>
-                        {description}
-                    </Text>
+                    {timeLabel && (
+                        <Text size="sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                            {timeLabel}
+                        </Text>
+                    )}
                 </div>
 
                 <Button
                     loading={loading}
                     onClick={onStart}
-                    className="dribbble-btn-primary h-9 text-xs w-full"
+                    className="dribbble-btn-primary h-9 text-xs w-full group"
                     rightSection={
                         <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
                     }
@@ -77,8 +79,9 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, difficul
                 >
                     {loading ? 'Preparando...' : 'Iniciar Práctica'}
                 </Button>
-            </Stack>
-        </Card>
+                </Stack>
+            </Card>
+        </div>
     );
 };
 

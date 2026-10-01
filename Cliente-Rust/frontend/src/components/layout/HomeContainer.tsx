@@ -33,6 +33,8 @@ type Props = {
   setChatOpen?: (open: boolean) => void
   /** Instancia única de useLinuxPracticeSession, ver App.tsx. */
   linuxSession?: LinuxPracticeSessionApi
+  /** "Repetir" del administrador en LinuxModulePage -- ver App.tsx. */
+  onRestartLinuxModule?: (moduleId: string) => Promise<void>
 }
 
 const HomeContainer: React.FC<Props> = ({
@@ -47,7 +49,8 @@ const HomeContainer: React.FC<Props> = ({
   onOpenLog,
   onStartPractice,
   setChatOpen,
-  linuxSession
+  linuxSession,
+  onRestartLinuxModule
 }) => {
   const role = useEffectiveRole()
   // Segunda verificación: si selectedPage llegó aquí por un deep-link/estado
@@ -105,7 +108,7 @@ const HomeContainer: React.FC<Props> = ({
       ) : effectivePage === 'snippets' ? (
         <SnippetsPage />
       ) : effectivePage === 'practices' ? (
-        <PracticesPage onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} setChatOpen={setChatOpen} linuxSession={linuxSession} />
+        <PracticesPage onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} setChatOpen={setChatOpen} linuxSession={linuxSession} onRestartLinuxModule={onRestartLinuxModule} />
       ) : effectivePage === 'reservas' ? (
         <ReservasPage />
       ) : effectivePage === 'admin-users' ? (

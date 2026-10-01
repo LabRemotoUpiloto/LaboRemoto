@@ -1,6 +1,6 @@
 import React from 'react';
 import { UnstyledButton, Tooltip } from '@mantine/core';
-import { Server, Cpu, Monitor, Zap } from 'lucide-react';
+import { Server, Cpu, Monitor, Zap, type LucideIcon } from 'lucide-react';
 
 export interface QuickHost {
   id: string;
@@ -16,7 +16,7 @@ interface QuickHostsPanelProps {
   'data-tour'?: string;
 }
 
-const HOST_ICONS: Record<string, React.ElementType> = {
+const HOST_ICONS: Record<string, LucideIcon> = {
   pi4: Cpu,
   default: Server,
 };

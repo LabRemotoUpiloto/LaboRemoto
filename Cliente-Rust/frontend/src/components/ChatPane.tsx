@@ -44,8 +44,19 @@ import { useAuth } from '../hooks/useAuth';
 // contenido rico. Si el día de mañana otra categoría necesita lo mismo, ahí
 // vale la pena extraer una interfaz genérica; hoy sería abstraer sin un
 // segundo caso real que la valide.
-import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult } from '../services/linuxPractice.service';
+import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult, type LinuxValidationRule } from '../services/linuxPractice.service';
 import type { LinuxPracticeSessionApi } from '../hooks/useLinuxPracticeSession';
+
+// `rule_id` ya viene resuelto por `linuxGetModule` (ver resolveLinuxModule en
+// linuxPractice.service.ts) -- desambigua cuando dos command_step piden el
+// MISMO comando en puntos distintos del módulo. El fallback por target es
+// solo por si algún caller pasara un bloque sin pasar por ese resolver.
+function ruleForLinuxBlock(
+  rules: LinuxValidationRule[],
+  block: Extract<LinuxBlock, { type: 'command_step' }>,
+): LinuxValidationRule | undefined {
+  return rules.find((r) => r.id === block.rule_id) ?? rules.find((r) => r.target === block.command);
+}
 
 type Props = {
   sessionId?: string | null;
@@ -167,12 +178,24 @@ const ChatPane: React.FC<Props> = ({
     try {
       await linuxSession.submitQuizAnswers(linuxModule, linuxQuizAnswers);
       setLinuxQuizSubmitted(true);
-    } catch (e) {
-      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error enviando la evaluación: ${String(e)}` }]);
+    } catch (e: any) {
+      // Los comandos practicas_linux_* rechazan con el CommandError plano
+      // ({ code, message, ... }) tal cual lo serializa Tauri, no con un
+      // Error de JS -- `String(e)` sobre ese objeto da "[object Object]".
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error enviando la evaluación: ${e?.message ?? String(e)}` }]);
     } finally {
       setLinuxQuizSubmitting(false);
     }
   }, [linuxModule, linuxSession, linuxQuizSubmitting, linuxQuizAnswers]);
+
+  // Convención de "fin de práctica" para toda la app (ver
+  // frontend/docs/practice-completion.md) -- AiMessageBubble llama a esto
+  // apenas termina de mostrar la celebración del módulo (o de inmediato si
+  // ya estaba completo de antes), y acá solo reenviamos al hook, que a su
+  // vez dispara la navegación real (App.tsx: volver a Inicio + Prácticas).
+  const handleLinuxModuleComplete = useCallback((moduleId: string) => {
+    linuxSession?.notifyModuleComplete(moduleId);
+  }, [linuxSession]);
 
   // Determina el próximo lote de bloques a mostrar: recorre module.blocks en
   // orden, siempre agrega texto/analogía/anotación/media apenas se alcanzan,
@@ -183,21 +206,20 @@ const ChatPane: React.FC<Props> = ({
   const computeNextLinuxBatch = useCallback((module: LinuxModule, result: LinuxValidationResult | null): LinuxBlock[] => {
     const rules = module.validation_rules;
     const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
-    const passedTargets = new Set(rules.filter((r) => passedRuleIds.has(r.id)).map((r) => r.target ?? ''));
     const requiredNonQuiz = rules.filter((r) => r.rule_type !== 'quiz' && r.required);
     // Un módulo sin reglas de comando (EV3: se maneja con el panel del robot,
     // no con la terminal) no tiene "parte práctica" que esperar: su quiz se
     // entrega junto con el resto del contenido. `every` sobre una lista vacía
     // ya da true; antes se exigía `length > 0` y ese quiz nunca aparecía.
-    const practiceDone = requiredNonQuiz.every((r) => passedTargets.has(r.target ?? '\0'));
+    const practiceDone = requiredNonQuiz.every((r) => passedRuleIds.has(r.id));
 
     const delivered = deliveredLinuxBlockIdsRef.current;
     const batch: LinuxBlock[] = [];
     for (const block of module.blocks) {
       if (block.type === 'checkpoint') continue;
       if (block.type === 'command_step') {
-        const rule = rules.find((r) => r.target === block.command);
-        const passed = rule ? passedTargets.has(rule.target ?? '\0') : false;
+        const rule = ruleForLinuxBlock(rules, block);
+        const passed = rule ? passedRuleIds.has(rule.id) : false;
         if (!delivered.has(block.id)) batch.push(block);
         if (!passed) break; // frena acá -- una tarea a la vez, ya esté recién agregada o ya entregada antes
         continue;
@@ -218,12 +240,14 @@ const ChatPane: React.FC<Props> = ({
     return batch;
   }, []);
 
-  // rule.target de los command_step ya explicados por la IA -- una sola vez
-  // por comando, sin importar cuántos ticks de polling pasen después. (La
-  // lógica que USA estos refs vive más abajo, después de `buildModeContext`
-  // -- ver el bloque "Entrega de contenido de Linux, parte 2".)
-  const linuxExplainedTargetsRef = useRef<Set<string>>(new Set());
-  useEffect(() => { linuxExplainedTargetsRef.current = new Set(); }, [practiceId]);
+  // id de los command_step ya explicados por la IA -- una sola vez por paso
+  // (por id de bloque, no por texto de comando: dos pasos distintos pueden
+  // pedir el mismo comando, ej. dos "pwd"), sin importar cuántos ticks de
+  // polling pasen después. (La lógica que USA estos refs vive más abajo,
+  // después de `buildModeContext` -- ver el bloque "Entrega de contenido de
+  // Linux, parte 2".)
+  const linuxExplainedStepIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => { linuxExplainedStepIdsRef.current = new Set(); }, [practiceId]);
   const linuxExplainRunningRef = useRef(false);
 
   const [agentState, setAgentState] = useState<AgentState>({ cwd: '/', lastExitCode: undefined, lastStdoutTail: undefined, lastFile: undefined });
@@ -764,8 +788,8 @@ const ChatPane: React.FC<Props> = ({
     setIsSending(true);
     try {
       await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
-    } catch (e) {
-      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando la salida: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando la salida: ${e?.message ?? String(e)}` }]);
     } finally {
       setIsSending(false);
     }
@@ -779,7 +803,7 @@ const ChatPane: React.FC<Props> = ({
    * -- se percibe como que "se congeló" aunque en realidad solo está
    * esperando el comando correcto.
    */
-  const explainLinuxMistake = useCallback(async (wrongCommand: string, expectedCommand?: string) => {
+  const explainLinuxMistake = useCallback(async (wrongCommand: string, expectedCommand?: string, isKnownFutureCommand?: boolean) => {
     const contextSessionId = sessionId ?? pi4ChatSessionId;
     let liveTerminalContext: string | null = null;
     if (contextSessionId) {
@@ -787,21 +811,33 @@ const ChatPane: React.FC<Props> = ({
         liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
       } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
     }
+    // Si `wrongCommand` coincide EXACTO con el comando de otro command_step
+    // del mismo módulo (ej. el estudiante se adelantó y probó `ls` cuando
+    // este paso todavía pide `echo "hola linux"`), no es un typo ni un error
+    // -- es un comando real que va a usar más adelante. Se lo marcamos
+    // explícito al modelo para que no invente una explicación de "escribiste
+    // mal" sobre un comando que en realidad escribió perfecto.
     const triggerText =
       `El estudiante ejecutó \`${wrongCommand}\` en la terminal, pero eso no era lo que este paso de la práctica necesitaba` +
       (expectedCommand ? ` (el paso pendiente pide \`${expectedCommand}\`)` : '') +
       `. Esta es la salida real reciente de la terminal:\n\n` +
       `${liveTerminalContext ?? '(no se pudo leer la salida de la terminal)'}\n\n` +
-      `Mirá la salida real: si fue un typo o un error de sintaxis, decile EXACTAMENTE qué escribió mal (comparando con lo ` +
-      `que se esperaba); si el comando existe pero no era el de este paso, explicale amablemente que no era ese y cuál sí. ` +
-      `En 2-4 líneas, tono de profesor paciente (nunca de regaño ni de "error", es parte normal de aprender), y cerrá ` +
+      (isKnownFutureCommand
+        ? `IMPORTANTE: \`${wrongCommand}\` es un comando real y válido, escrito correctamente -- NO es un typo ni un error. ` +
+          `Lo que pasa es que corresponde a un paso MÁS ADELANTE de este mismo módulo. Decile eso explícitamente (que ese ` +
+          `comando lo van a ver más adelante en la práctica), sin explicarle todavía qué hace, y`
+        : `Mirá la salida real: si fue un typo o un error de sintaxis, decile EXACTAMENTE qué escribió mal (comparando con lo ` +
+          `que se esperaba); si el comando existe pero no era el de este paso, explicale amablemente que no era ese y cuál sí. ` +
+          `Después,`) +
+      ` recordale` + (expectedCommand ? ` que el paso actual de la práctica pide \`${expectedCommand}\`` : ' cuál es el paso actual de la práctica') +
+      `. En 2-4 líneas, tono de profesor paciente (nunca de regaño ni de "error", es parte normal de aprender), y cerrá ` +
       `pidiéndole que lo intente de nuevo` + (expectedCommand ? ` con \`${expectedCommand}\`.` : '.');
     const instructionMsg: Message = { id: `linux-mistake-${Date.now()}`, sender: 'user', text: triggerText };
     setIsSending(true);
     try {
       await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
-    } catch (e) {
-      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando el error: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando el error: ${e?.message ?? String(e)}` }]);
     } finally {
       setIsSending(false);
     }
@@ -825,14 +861,18 @@ const ChatPane: React.FC<Props> = ({
     const rules = linuxModule.validation_rules;
     const result = (practiceResult as unknown as LinuxValidationResult) ?? null;
     const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
-    const passedTargets = new Set(rules.filter((r) => passedRuleIds.has(r.id)).map((r) => r.target ?? ''));
     const pendingStep = linuxModule.blocks.find((b): b is Extract<LinuxBlock, { type: 'command_step' }> => {
       if (b.type !== 'command_step') return false;
-      const rule = rules.find((r) => r.target === b.command);
-      return rule ? !passedTargets.has(rule.target ?? '\0') : true;
+      const rule = ruleForLinuxBlock(rules, b);
+      return rule ? !passedRuleIds.has(rule.id) : true;
     });
 
-    explainLinuxMistake(signal.command, pendingStep?.command);
+    const normalizeCmd = (s: string) => s.trim().toLowerCase();
+    const isKnownFutureCommand = linuxModule.blocks.some(
+      (b) => b.type === 'command_step' && b.id !== pendingStep?.id && normalizeCmd(b.command) === normalizeCmd(signal.command),
+    );
+
+    explainLinuxMistake(signal.command, pendingStep?.command, isKnownFutureCommand);
   }, [linuxSession?.mistakeSignal, isPracticeSession, linuxModule, practiceResult, explainLinuxMistake]);
 
   useEffect(() => {
@@ -843,7 +883,6 @@ const ChatPane: React.FC<Props> = ({
     // (intro, video, el primer comando pendiente), por eso no se exige acá.
     const result = (practiceResult as unknown as LinuxValidationResult) ?? null;
     const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
-    const passedTargets = new Set(rules.filter((r) => passedRuleIds.has(r.id)).map((r) => r.target ?? ''));
 
     // Un command_step ya entregado (el estudiante ya vio la instrucción) +
     // ya aprobado + todavía sin explicar -> hay que explicar su salida ANTES
@@ -851,13 +890,13 @@ const ChatPane: React.FC<Props> = ({
     const toExplain = linuxModule.blocks.find((b): b is Extract<LinuxBlock, { type: 'command_step' }> => {
       if (b.type !== 'command_step') return false;
       if (!deliveredLinuxBlockIdsRef.current.has(b.id)) return false;
-      if (linuxExplainedTargetsRef.current.has(b.command)) return false;
-      const rule = rules.find((r) => r.target === b.command);
-      return rule ? passedTargets.has(rule.target ?? '\0') : false;
+      if (linuxExplainedStepIdsRef.current.has(b.id)) return false;
+      const rule = ruleForLinuxBlock(rules, b);
+      return rule ? passedRuleIds.has(rule.id) : false;
     });
 
     if (toExplain) {
-      linuxExplainedTargetsRef.current.add(toExplain.command);
+      linuxExplainedStepIdsRef.current.add(toExplain.id);
       linuxExplainRunningRef.current = true;
       explainLinuxCommandOutput(toExplain.command).finally(() => {
         linuxExplainRunningRef.current = false;
@@ -912,7 +951,7 @@ const ChatPane: React.FC<Props> = ({
         deliverLinuxBatch(linuxModule, (practiceResult as unknown as LinuxValidationResult) ?? null);
       }
     } catch (e: any) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
     } finally { isSendingRef.current = false; setIsSending(false); }
   };
   handleSendRef.current = handleSend;
@@ -959,8 +998,8 @@ const ChatPane: React.FC<Props> = ({
     try {
       setIsSending(true); isSendingRef.current = true;
       await modeHandlers[mode].send(userMsg.text, userMsg, buildModeContext());
-    } catch (e) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
     } finally { isSendingRef.current = false; setIsSending(false); }
   };
   const handleRetry = useCallback((id: string) => re_send_wrapper(id, false), [messages, mode, isSending]); /* eslint-disable-line */
@@ -974,8 +1013,8 @@ const ChatPane: React.FC<Props> = ({
       const userMsg: Message = { id: String(Date.now()), sender: 'user', text: command };
       setMessages(prev => [...prev, userMsg]);
       await modeHandlers['ask'].send(command, userMsg, buildModeContext());
-    } catch (e) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error ${action === 'optimize' ? 'optimizando' : 'analizando'} ${candidate}: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error ${action === 'optimize' ? 'optimizando' : 'analizando'} ${candidate}: ${e?.message ?? String(e)}` }]);
     } finally { setIsSending(false); }
   };
 
@@ -988,7 +1027,7 @@ const ChatPane: React.FC<Props> = ({
     if (modeHandlers[mode]?.canSend()) {
       setIsSending(true); isSendingRef.current = true;
       modeHandlers[mode].send(draft, updatedMsg, buildModeContext()).catch((e: any) => {
-        setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+        setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
       }).finally(() => { isSendingRef.current = false; setIsSending(false); });
     }
   };
@@ -1082,6 +1121,7 @@ const ChatPane: React.FC<Props> = ({
           linuxQuizSubmitted={linuxQuizSubmitted}
           onLinuxQuizAnswer={handleLinuxQuizAnswer}
           onLinuxQuizSubmit={handleLinuxQuizSubmit}
+          onLinuxModuleComplete={handleLinuxModuleComplete}
           embeddedTerminal={pi4TerminalEmbedActive ? {
             sessionId: pi4ChatSessionId,
             sshCommandLine: pi4SshCommandLine,

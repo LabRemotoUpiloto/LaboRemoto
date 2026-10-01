@@ -4,16 +4,19 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
 import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { ArrowLeft, Bot, Cpu, Terminal, X } from 'lucide-react';
+import { ArrowLeft, Bot, Cpu, Terminal, X, type LucideIcon } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
+import { getInsigniaForPractice } from '../../components/practicas/badges/insigniaRegistry';
 import LinuxModulePage from './LinuxModulePage';
 import type { Practice } from '../../types';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
+import { useEarnedBadges } from '../../services/badges.service';
+import { consumePendingPracticesFocus } from '../../services/practiceNavigation.service';
 
 export type { Practice };
 
-const categoryIconMap: Record<string, React.ElementType> = {
+const categoryIconMap: Record<string, LucideIcon> = {
     robot: Bot,
     terminal: Terminal,
     circuit: Cpu,
@@ -44,6 +47,8 @@ interface PracticesPageProps {
      * módulos de Linux y de EV3.
      */
     linuxSession?: LinuxPracticeSessionApi;
+    /** "Repetir" del administrador en LinuxModulePage -- ver App.tsx. */
+    onRestartLinuxModule?: (moduleId: string) => Promise<void>;
 }
 
 interface LogEntry {
@@ -52,7 +57,7 @@ interface LogEntry {
     timestamp: string;
 }
 
-const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, setChatOpen, linuxSession }) => {
+const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, setChatOpen, linuxSession, onRestartLinuxModule }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
@@ -63,9 +68,27 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
 
+    // Insignias ganadas -- keyed por el mismo id de práctica que usa la Pi
+    // (ej. "linux-m1"), ver services/badges.service.ts. Reactivo: si el
+    // estudiante termina un módulo y vuelve acá (ver App.tsx:
+    // onModuleCompleted), la tarjeta ya muestra la medalla sin recargar.
+    const earnedBadges = useEarnedBadges();
+
     useEffect(() => {
         loadCategories();
     }, []);
+
+    // Ver services/practiceNavigation.service.ts -- al volver de terminar un
+    // módulo (App.tsx: onModuleCompleted), aterriza directo en su categoría
+    // en vez de en la grilla de categorías, así el estudiante ve de una la
+    // tarjeta con la medalla nueva.
+    useEffect(() => {
+        if (categories.length === 0) return;
+        const pendingCategoryId = consumePendingPracticesFocus();
+        if (!pendingCategoryId) return;
+        const cat = categories.find(c => c.id === pendingCategoryId);
+        if (cat) setSelectedCategory(cat);
+    }, [categories]);
 
     // Auto-scroll logs
     useEffect(() => {
@@ -178,6 +201,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                 categoryName={selectedCategory?.name ?? 'Prácticas'}
                 onBack={() => setSelectedModuleId(null)}
                 linuxSession={linuxSession}
+                onRestartModule={onRestartLinuxModule}
             />
         );
     }
@@ -271,7 +295,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                     id={practice.id}
                                     name={practice.name}
                                     description={practice.description}
-                                    difficulty={practice.difficulty}
                                     hasCamera={practice.panels.camera}
                                     hasChat={practice.panels.chat}
                                     onStart={() => (
@@ -280,6 +303,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                             : handleStartPractice(practice)
                                     )}
                                     loading={startingPractice === practice.id}
+                                    badge={practice.id in earnedBadges ? getInsigniaForPractice(practice.id) : undefined}
                                 />
                             ))}
                         </SimpleGrid>
