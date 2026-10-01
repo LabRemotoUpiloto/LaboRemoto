@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getEv3Status, setEv3Motor, stopEv3Motors, type Ev3Status } from '../../services/hardware/ev3.service';
+import { publishEv3Status } from '../../services/hardware/ev3Telemetry';
 import Ev3Dashboard from './Ev3Dashboard';
 import Ev3Twin from './Ev3Twin';
 import Ev3Console from './Ev3Console';
@@ -52,6 +53,10 @@ const Ev3Panel: React.FC<Ev3PanelProps> = ({ sessionId }) => {
       }
     }
   }, [sessionId]);
+
+  // La telemetría también la leen los bloques interactivos del chat.
+  useEffect(() => { publishEv3Status(status); }, [status]);
+  useEffect(() => () => publishEv3Status(null), []);
 
   useEffect(() => {
     cancelledRef.current = false;

@@ -177,7 +177,20 @@
     {
       "type": "text",
       "id": "b-checklist",
-      "body_md": "**Checklist: el motor no gira.** Antes de sospechar del código, revisa en orden: ¿el Dashboard muestra \"Conectado\" en verde arriba a la izquierda? ¿El motor aparece conectado en su tarjeta, o dice \"sin motor\"? ¿El puerto que usa tu código (outA, outB...) es el mismo cable que está enchufado? ¿Probaste mover ese motor a mano desde el Dashboard antes de correr tu script? La mayoría de las veces el problema está en uno de los primeros puntos, no en la lógica del programa."
+      "body_md": "**Checklist: el motor no gira.** Antes de sospechar del código, revisa esto en orden. La mayoría de las veces el problema está en uno de los primeros puntos, no en la lógica del programa:"
+    },
+    {
+      "type": "checklist",
+      "id": "w-diagnostico",
+      "title": "Checklist de diagnóstico",
+      "items": [
+        "¿El Dashboard muestra \"Conectado\" en verde, arriba a la izquierda?",
+        "¿El Dashboard muestra la IP del robot? Si dice \"Sin conexión\", vuelve a conectar la práctica.",
+        "¿El motor aparece conectado en su tarjeta, o dice \"sin motor\"?",
+        "¿El puerto que usa tu código (outA, outB...) es el mismo cable que está enchufado?",
+        "¿Probaste mover ese motor a mano desde el Dashboard antes de correr tu programa?",
+        "¿El puente HTTP está funcionando? La práctica lo arranca al conectar: si el panel dice \"Sin conexión\", reconecta la práctica."
+      ]
     },
     {
       "type": "quiz",

@@ -124,6 +124,11 @@
       "body_md": "Los cuatro casos clásicos: **avanzar** (las dos ruedas giran igual, hacia adelante); **retroceder** (las dos igual, hacia atrás); **girar en el lugar** (misma fuerza pero en sentidos opuestos); **curva** (mismo sentido con distinta fuerza: la rueda más lenta marca hacia dónde se curva)."
     },
     {
+      "type": "wheels_sim",
+      "id": "w-ruedas",
+      "title": "Prueba: dos ruedas, dos potencias"
+    },
+    {
       "type": "quiz",
       "id": "q-avanzar",
       "question_md": "Si las dos ruedas giran con la **misma potencia positiva**, el robot...",

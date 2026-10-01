@@ -34,8 +34,75 @@ export interface LinuxQuizOption {
   label: string;
 }
 
+// ── Bloques interactivos de los módulos de EV3 ──
+// Son widgets de exploración libre, sin regla de validación: la app trae el
+// componente y el módulo (en la API) solo lo configura con estos datos.
+
+export interface CalcInput {
+  id: string;
+  label: string;
+  unit?: string;
+  min: number;
+  max: number;
+  step?: number;
+  default: number;
+}
+
+export interface CalcOutput {
+  id: string;
+  label: string;
+  /** Fórmula aritmética sobre los ids de `inputs` y de `outputs` anteriores (ver utils/mathExpr). */
+  expr: string;
+  decimals?: number;
+  unit?: string;
+}
+
+/** Zona de distancia del sensor ultrasónico: aplica hasta `max_cm` (la última puede omitirlo). */
+export interface SensorZone {
+  max_cm?: number;
+  label: string;
+  action: string;
+}
+
+export interface MachineState {
+  id: string;
+  label: string;
+}
+
+export interface MachineEvent {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+}
+
 export type LinuxBlock =
   | { type: 'text'; id: string; body_md: string }
+  // Simulador de dos ruedas (potencia izquierda/derecha -> qué hace el robot).
+  | { type: 'wheels_sim'; id: string; title?: string }
+  // Calculadora configurable; `code_template` usa {id} de entradas y salidas.
+  | {
+      type: 'calculator';
+      id: string;
+      title?: string;
+      inputs: CalcInput[];
+      outputs: CalcOutput[];
+      code_template?: string;
+      note_md?: string;
+    }
+  // Simulación de un sensor; si hay uno real conectado se muestra su valor.
+  // `code_template` usa {value} y {threshold}.
+  | {
+      type: 'sensor_demo';
+      id: string;
+      sensor: 'touch' | 'ultrasonic' | 'color';
+      title?: string;
+      threshold_cm?: number;
+      zones?: SensorZone[];
+      code_template?: string;
+    }
+  | { type: 'state_machine'; id: string; title?: string; states: MachineState[]; events: MachineEvent[]; initial: string }
+  | { type: 'checklist'; id: string; title?: string; items: string[]; done_md?: string }
   | { type: 'terminal_annotation'; id: string; prompt_example: string; labels: LinuxLabel[] }
   // Fragmento de código solo para leer (módulos de EV3: Python). No tiene regla de validación.
   | { type: 'code_block'; id: string; language?: string; code: string; caption?: string }

@@ -68,6 +68,76 @@
       "code": "error = color.reflected_light_intensity - 50\ncorreccion = error * 0.5\nmotor_izq.on(40 + correccion)\nmotor_der.on(40 - correccion)"
     },
     {
+      "type": "calculator",
+      "id": "w-linea",
+      "title": "Simulador: seguidor de línea proporcional",
+      "inputs": [
+        {
+          "id": "lectura",
+          "label": "Lectura del sensor de color (0 negro, 100 blanco)",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "default": 50
+        },
+        {
+          "id": "objetivo",
+          "label": "Valor objetivo (borde de la línea)",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "default": 50
+        },
+        {
+          "id": "ganancia",
+          "label": "Ganancia",
+          "min": 0,
+          "max": 2,
+          "step": 0.1,
+          "default": 0.5
+        },
+        {
+          "id": "base",
+          "label": "Potencia base",
+          "unit": "%",
+          "min": 10,
+          "max": 80,
+          "step": 1,
+          "default": 40
+        }
+      ],
+      "outputs": [
+        {
+          "id": "error",
+          "label": "Error",
+          "expr": "lectura - objetivo",
+          "decimals": 1
+        },
+        {
+          "id": "correccion",
+          "label": "Corrección",
+          "expr": "error * ganancia",
+          "decimals": 1
+        },
+        {
+          "id": "izq",
+          "label": "Motor izquierdo",
+          "expr": "base + correccion",
+          "decimals": 0,
+          "unit": "%"
+        },
+        {
+          "id": "der",
+          "label": "Motor derecho",
+          "expr": "base - correccion",
+          "decimals": 0,
+          "unit": "%"
+        }
+      ],
+      "code_template": "error = color.reflected_light_intensity - {objetivo}\ncorreccion = error * {ganancia}\nmotor_izq.on({base} + correccion)   # {izq}\nmotor_der.on({base} - correccion)   # {der}",
+      "note_md": "Prueba una ganancia muy alta y mira cómo las potencias se disparan: así se ve el zigzag."
+    },
+    {
       "type": "text",
       "id": "b-ganancia",
       "body_md": "El número 0,5 se llama **ganancia**. Con una ganancia muy baja el robot corrige tarde y se sale de la línea en las curvas cerradas; con una muy alta corrige de más y termina zigzagueando. Encontrar un buen valor es, en la práctica, prueba y error. Ejemplo: si el sensor lee 70, el error es 20, la corrección es 10 y las ruedas quedan en 50 % y 30 %."
@@ -130,6 +200,28 @@
       "code": "distancia = ultrasonico.distance_centimeters\nif distancia < 15:\n    motor_izq.off(); motor_der.off()\n    girar(90)\nelif distancia < 40:\n    motor_izq.on(15); motor_der.on(15)\nelse:\n    motor_izq.on(40); motor_der.on(40)"
     },
     {
+      "type": "sensor_demo",
+      "id": "w-zonas",
+      "sensor": "ultrasonic",
+      "title": "Prueba las zonas de distancia",
+      "zones": [
+        {
+          "max_cm": 15,
+          "label": "PELIGRO",
+          "action": "Detenerse y girar para buscar otro camino."
+        },
+        {
+          "max_cm": 40,
+          "label": "PRECAUCIÓN",
+          "action": "Reducir la potencia: hay algo cerca, pero todavía hay margen."
+        },
+        {
+          "label": "LIBRE",
+          "action": "Avanzar a potencia normal."
+        }
+      ]
+    },
+    {
       "type": "quiz",
       "id": "q-zonas",
       "question_md": "¿Para qué sirve dividir la distancia en **zonas** en vez de un solo umbral?",
@@ -162,6 +254,52 @@
       "id": "b-codigo-estados",
       "language": "python",
       "code": "estado = \"buscando\"\n\nwhile True:\n    if estado == \"buscando\":\n        # girar en el lugar hasta encontrar la línea\n        if color.reflected_light_intensity < 50:\n            estado = \"siguiendo\"\n\n    elif estado == \"siguiendo\":\n        seguir_linea()\n        if ultrasonico.distance_centimeters < 15:\n            estado = \"esquivando\"\n\n    elif estado == \"esquivando\":\n        esquivar()\n        if ultrasonico.distance_centimeters > 40:\n            estado = \"buscando\""
+    },
+    {
+      "type": "state_machine",
+      "id": "w-estados",
+      "title": "Prueba la máquina de estados",
+      "initial": "buscando",
+      "states": [
+        {
+          "id": "buscando",
+          "label": "Buscando línea"
+        },
+        {
+          "id": "siguiendo",
+          "label": "Siguiendo línea"
+        },
+        {
+          "id": "esquivando",
+          "label": "Evitando obstáculo"
+        }
+      ],
+      "events": [
+        {
+          "id": "encontro",
+          "label": "Encontró la línea",
+          "from": "buscando",
+          "to": "siguiendo"
+        },
+        {
+          "id": "perdio",
+          "label": "Perdió la línea",
+          "from": "siguiendo",
+          "to": "buscando"
+        },
+        {
+          "id": "obstaculo",
+          "label": "Detectó un obstáculo",
+          "from": "siguiendo",
+          "to": "esquivando"
+        },
+        {
+          "id": "despejado",
+          "label": "Obstáculo despejado",
+          "from": "esquivando",
+          "to": "buscando"
+        }
+      ]
     },
     {
       "type": "text",

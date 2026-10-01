@@ -91,7 +91,21 @@
     {
       "type": "text",
       "id": "b-autoevaluacion",
-      "body_md": "**Autoevaluación.** No hay una corrección automática para este proyecto: es una guía para ti, no un examen. Revisa honestamente si lograste lo siguiente. El robot completa el recorrido de punta a punta. Sigue la línea en el tramo correspondiente sin perderla en las curvas. Detecta el obstáculo y reacciona antes de chocarlo. El tramo de ruta planeada llega a destino sin depender de sensores. El código maneja al menos un caso de error posible (sensor desconectado, lectura fuera de rango). Dejaste el robot detenido y sin programas corriendo al terminar (módulo 7)."
+      "body_md": "**Autoevaluación.** No hay una corrección automática para este proyecto: es una guía para ti, no un examen. Marca honestamente qué lograste:"
+    },
+    {
+      "type": "checklist",
+      "id": "w-autoevaluacion",
+      "title": "Autoevaluación",
+      "done_md": "Lograste todos los criterios: ya puedes empezar a resolver problemas nuevos con el EV3 por tu cuenta.",
+      "items": [
+        "El robot completa el recorrido de punta a punta.",
+        "Sigue la línea en el tramo correspondiente sin perderla en las curvas.",
+        "Detecta el obstáculo y reacciona antes de chocarlo.",
+        "El tramo de ruta planeada llega a destino sin depender de sensores.",
+        "El código maneja al menos un caso de error posible (sensor desconectado, lectura fuera de rango).",
+        "Dejaste el robot detenido y sin programas corriendo al terminar (módulo 7)."
+      ]
     },
     {
       "type": "text",

@@ -109,7 +109,17 @@
     {
       "type": "text",
       "id": "b-antes",
-      "body_md": "**Antes de empezar:** revisa el Dashboard: ¿está \"Conectado\" y la batería tiene carga razonable? ¿Algún motor quedó girando de una sesión anterior? Frénalo antes de programar nada nuevo. Si vas a correr un programa propio, prueba primero un movimiento chico y a potencia baja."
+      "body_md": "**Antes de empezar.** Revisa esto antes de programar algo nuevo:"
+    },
+    {
+      "type": "checklist",
+      "id": "w-antes",
+      "title": "Antes de empezar",
+      "items": [
+        "Revisa el Dashboard: ¿está \"Conectado\" y la batería tiene carga razonable?",
+        "¿Algún motor quedó girando de una sesión anterior? Frénalo antes de programar nada nuevo.",
+        "Si vas a correr un programa propio, prueba primero un movimiento chico y a potencia baja."
+      ]
     },
     {
       "type": "quiz",
@@ -137,7 +147,17 @@
     {
       "type": "text",
       "id": "b-despues",
-      "body_md": "**Al terminar:** deja todos los motores detenidos (no asumas que la próxima persona los va a frenar por ti); si dejaste un programa corriendo con un while True, córtalo antes de desconectarte; y si subes una versión nueva de un archivo con el mismo nombre, asegúrate de que la vieja no siga corriendo en paralelo: dos procesos usando el mismo puerto chocan entre sí. Un robot compartido se porta bien si cada sesión lo deja como esperarías encontrarlo."
+      "body_md": "**Al terminar.** Un robot compartido se porta bien si cada sesión lo deja como esperarías encontrarlo:"
+    },
+    {
+      "type": "checklist",
+      "id": "w-despues",
+      "title": "Al terminar",
+      "items": [
+        "Deja todos los motores detenidos: no asumas que la próxima persona los va a frenar por ti.",
+        "Si dejaste un programa corriendo (por ejemplo un while True), detenlo antes de desconectarte.",
+        "Si subes una versión nueva de un archivo con el mismo nombre, asegúrate de que la vieja no siga corriendo en paralelo: dos procesos usando el mismo puerto chocan entre sí."
+      ]
     },
     {
       "type": "quiz",
