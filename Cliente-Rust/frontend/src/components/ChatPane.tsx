@@ -280,6 +280,30 @@ const ChatPane: React.FC<Props> = ({
       setShowScrollToBottom(false);
     }
   }, []);
+  // Práctica de Linux: id del mensaje con el contenido recién entregado (siguiente tarea). Cuando
+  // llega, el chat se desplaza suavemente hasta él para que se note que avanzó -- ver
+  // `scrollToLinuxContent` y el efecto de auto-scroll.
+  const linuxScrollTargetRef = useRef<string | null>(null);
+  const scrollToLinuxContent = useCallback((messageId: string) => {
+    const reducir = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const ir = () => {
+      const el = messagesRef.current;
+      const msgEl = document.getElementById(`msg-${messageId}`);
+      if (!el || !msgEl) return;
+      const cRect = el.getBoundingClientRect();
+      const mRect = msgEl.getBoundingClientRect();
+      const arribaDelMensaje = el.scrollTop + (mRect.top - cRect.top) - 12;
+      const alFinal = el.scrollHeight - el.clientHeight;
+      // Si el contenido nuevo entra completo en pantalla, se baja hasta el final (se ve entero); si es más
+      // alto que la pantalla, se alinea su INICIO arriba para empezar a leerlo desde el principio y no
+      // quedar mirando el final de la tarea.
+      el.scrollTo({ top: Math.max(0, Math.min(alFinal, arribaDelMensaje)), behavior: reducir ? 'auto' : 'smooth' });
+      setShowScrollToBottom(false);
+    };
+    requestAnimationFrame(ir);
+    // Imágenes y video terminan de cargar después del primer render y cambian la altura: se reajusta una vez.
+    window.setTimeout(ir, 700);
+  }, []);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const isComposingRef = useRef<boolean>(false);
   const handleSendRef = useRef<((t?: string) => void)>(() => {});
@@ -444,6 +468,14 @@ const ChatPane: React.FC<Props> = ({
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
+    // Siguiente tarea de la práctica de Linux recién entregada: se desplaza hasta ella aunque el
+    // estudiante estuviera arriba releyendo (es lo que indica que el módulo avanzó).
+    const objetivo = linuxScrollTargetRef.current;
+    if (objetivo && document.getElementById(`msg-${objetivo}`)) {
+      linuxScrollTargetRef.current = null;
+      scrollToLinuxContent(objetivo);
+      return;
+    }
     const last = messages[messages.length - 1];
     // Mientras se está generando una respuesta, seguirla siempre (sin
     // importar si el usuario estaba "cerca del final" o no) -- por UX, ver
@@ -455,7 +487,7 @@ const ChatPane: React.FC<Props> = ({
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       setShowScrollToBottom(false);
     }
-  }, [messages, isSending]);
+  }, [messages, isSending, scrollToLinuxContent]);
 
   useEffect(() => {
     if (!pi4TerminalEmbedActive && !pi4CamerasEmbedActive && !pi4DesktopEmbedActive) return;
@@ -679,14 +711,19 @@ const ChatPane: React.FC<Props> = ({
     const quizBlocks = batch.filter((b): b is Extract<LinuxBlock, { type: 'quiz' }> => b.type === 'quiz');
     const contentBlocks = batch.filter((b) => b.type !== 'quiz');
 
+    const sello = Date.now();
+    const contentId = `linux-content-${sello}`;
+    const quizId = `linux-quiz-${sello}`;
+    linuxScrollTargetRef.current = contentBlocks.length > 0 ? contentId : quizId;
+
     setMessages((prev) => {
       const next = [...prev];
       if (contentBlocks.length > 0) {
-        next.push({ id: `linux-content-${Date.now()}`, sender: 'ai', text: '', timestamp: Date.now(), meta: { linuxContentBlocks: contentBlocks } });
+        next.push({ id: contentId, sender: 'ai', text: '', timestamp: sello, meta: { linuxContentBlocks: contentBlocks } });
       }
       if (quizBlocks.length > 0) {
         next.push({
-          id: `linux-quiz-${Date.now()}`,
+          id: quizId,
           sender: 'ai',
           text: '¡Terminaste la parte práctica! Antes de cerrar el módulo, una evaluación corta:',
           timestamp: Date.now(),
