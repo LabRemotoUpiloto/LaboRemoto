@@ -2,33 +2,27 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getEv3Status, setEv3Motor, stopEv3Motors, type Ev3Status } from '../../services/hardware/ev3.service';
 import Ev3Dashboard from './Ev3Dashboard';
 import Ev3Twin from './Ev3Twin';
-// @ts-expect-error - módulo .jsx portado tal cual de investigacion_ev3, sin tipos
-import Aprendizaje from '../Aprendizaje/Aprendizaje.jsx';
 import './Ev3Panel.css';
 
 const POLL_MS = 1000;
 
 interface Ev3PanelProps {
   sessionId: string;
-  /** Cambia a la terminal SSH de la sesión (botón "Terminal" de TerminalView). */
-  onIrATerminal?: () => void;
 }
 
 /**
- * Contenedor de la práctica "Panel de control EV3 (API)": arma el polling
- * de telemetría y las acciones de motor sobre `ev3.service.ts` (que a su vez
- * tuneliza `curl` por la sesión SSH ya autenticada, ver cmd::hardware::ev3
- * en el backend), y las reparte entre las dos vistas portadas de
- * investigacion_ev3 (Dashboard y Gemelo 3D). No se portó la pestaña
- * "Terminal" del proyecto original: LaboRemoto ya tiene su propia terminal
- * SSH para la sesión.
+ * Contenedor del panel del robot EV3: arma el polling de telemetría y las
+ * acciones de motor sobre `ev3.service.ts` (que a su vez tuneliza `curl` por
+ * la sesión SSH ya autenticada, ver cmd::hardware::ev3 en el backend), y las
+ * reparte entre las dos vistas portadas de investigacion_ev3 (Dashboard y
+ * Gemelo 3D). Los módulos de aprendizaje ya no viven acá: son módulos de la
+ * API de prácticas (`ev3-m1`..`ev3-m9`) que se leen en el chat. Tampoco se
+ * portó la pestaña "Terminal" del proyecto original: LaboRemoto ya tiene su
+ * propia terminal SSH para la sesión.
  */
-const Ev3Panel: React.FC<Ev3PanelProps> = ({ sessionId, onIrATerminal }) => {
+const Ev3Panel: React.FC<Ev3PanelProps> = ({ sessionId }) => {
   const [status, setStatus] = useState<Ev3Status | null>(null);
-  // Arranca en "Aprendizaje": mismo criterio que investigacion_ev3 (rama
-  // version_api) — es lo primero que ve un estudiante nuevo, antes de tocar
-  // el robot de verdad.
-  const [view, setView] = useState<'aprendizaje' | 'dashboard' | 'twin'>('aprendizaje');
+  const [view, setView] = useState<'dashboard' | 'twin'>('dashboard');
   const cancelledRef = useRef(false);
 
   const refreshStatus = useCallback(async () => {
@@ -73,9 +67,6 @@ const Ev3Panel: React.FC<Ev3PanelProps> = ({ sessionId, onIrATerminal }) => {
           Control EV3
         </div>
         <div className="ev3-nav-tabs">
-          <button className={`ev3-nav-tab ${view === 'aprendizaje' ? 'active' : ''}`} onClick={() => setView('aprendizaje')}>
-            Aprendizaje
-          </button>
           <button className={`ev3-nav-tab ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
             Dashboard
           </button>
@@ -86,9 +77,6 @@ const Ev3Panel: React.FC<Ev3PanelProps> = ({ sessionId, onIrATerminal }) => {
       </div>
 
       <div className="ev3-panel-body">
-        {view === 'aprendizaje' && (
-          <Aprendizaje status={status} onIrATerminal={onIrATerminal} />
-        )}
         {view === 'dashboard' && (
           <Ev3Dashboard status={status} onSetSpeed={handleSetSpeed} onStopAll={handleStopAll} />
         )}

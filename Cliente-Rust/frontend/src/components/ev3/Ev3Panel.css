@@ -69,9 +69,9 @@
   container: ev3body / size;
 }
 
-/* Aprendizaje viene de investigacion_ev3, donde su contenedor padre era un
-   bloque: sus raíces no declaran ancho y acá, como flex-item, se encogerían
-   al ancho del contenido. Dashboard y Gemelo 3D ya traen width:100% propio. */
+/* Las vistas vienen de investigacion_ev3, donde su contenedor padre era un
+   bloque: sus raíces no siempre declaran ancho y acá, como flex-item, se
+   encogerían al ancho del contenido. */
 .ev3-panel-body > * {
   flex: 1;
   min-width: 0;

@@ -185,7 +185,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
               minWidth: 0,
               minHeight: 0,
             }}>
-              <Ev3Panel sessionId={sessionId} onIrATerminal={() => setShowEv3Panel(false)} />
+              <Ev3Panel sessionId={sessionId} />
             </div>
           )}
 

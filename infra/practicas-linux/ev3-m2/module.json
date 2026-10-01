@@ -1,0 +1,285 @@
+{
+  "id": "ev3-m2",
+  "order": 2,
+  "title": "Sensores en acción",
+  "difficulty": "beginner",
+  "estimated_minutes": 25,
+  "sequential": false,
+  "objective": "Saber qué tipo de valor devuelve cada sensor (contacto, ultrasónico, color) y usarlo para tomar decisiones con un if en un programa.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "En el módulo 1 viste que un sensor se conecta a un puerto de entrada (in1 a in4). Para leerlo desde un programa, cada tipo de sensor tiene su propia clase en **ev3dev2.sensor.lego**: se crea indicando el puerto y después se consulta su valor cuando haga falta."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-leer",
+      "language": "python",
+      "code": "from ev3dev2.sensor.lego import TouchSensor\nfrom ev3dev2.sensor import INPUT_1\n\ntouch = TouchSensor(INPUT_1)\nprint(touch.is_pressed)   # True o False"
+    },
+    {
+      "type": "text",
+      "id": "b-tipos",
+      "body_md": "Cada sensor devuelve un **tipo de valor distinto**, y hay que saber cuál es antes de compararlo en un if. **Contacto:** is_pressed, verdadero o falso. **Ultrasónico:** distance_centimeters, un número en cm. **Color:** reflected_light_intensity, de 0 (negro) a 100 (blanco). **Giroscópico:** angle, grados acumulados desde que se prendió."
+    },
+    {
+      "type": "text",
+      "id": "b-tacto",
+      "body_md": "**Sensor de contacto.** Es el sensor más simple: solo informa si algo lo está presionando. Su valor no es un número cualquiera sino **verdadero o falso**, así que no hace falta compararlo contra un umbral. Uso típico: parachoques (detectar un choque) o un botón de confirmación."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-tacto",
+      "language": "python",
+      "code": "if touch.is_pressed:\n    motor.off()\nelse:\n    motor.on(30)"
+    },
+    {
+      "type": "quiz",
+      "id": "q-valor-tacto",
+      "question_md": "¿Qué tipo de valor devuelve un **sensor de contacto**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Un número de 0 a 100"
+        },
+        {
+          "id": "b",
+          "label": "Verdadero o falso (presionado o no)"
+        },
+        {
+          "id": "c",
+          "label": "Una distancia en cm"
+        },
+        {
+          "id": "d",
+          "label": "Un código de color"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-ultra",
+      "body_md": "**Sensor ultrasónico.** Mide qué tan lejos está el objeto más cercano, en centímetros, mandando un pulso de ultrasonido y cronometrando el eco: el mismo principio de un sonar. Con un umbral de 10 cm, el programa de abajo frena cuando algo está más cerca que eso."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-ultra",
+      "language": "python",
+      "code": "if ultrasonico.distance_centimeters < 10:\n    motor_izq.off()\n    motor_der.off()\nelse:\n    motor_izq.on(30)\n    motor_der.on(30)"
+    },
+    {
+      "type": "text",
+      "id": "b-practica-ultra",
+      "body_md": "**Míralo en vivo.** Abre el Panel EV3 y entra al Dashboard: si hay un sensor ultrasónico conectado, aparece en la sección \"Sensores\" con su valor actualizándose. Acerca y aleja un objeto para ver cómo cambia."
+    },
+    {
+      "type": "quiz",
+      "id": "q-unidad-ultra",
+      "question_md": "¿En qué unidad mide el **sensor ultrasónico**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Grados"
+        },
+        {
+          "id": "b",
+          "label": "Porcentaje"
+        },
+        {
+          "id": "c",
+          "label": "Centímetros"
+        },
+        {
+          "id": "d",
+          "label": "Voltios"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-color",
+      "body_md": "**Sensor de color.** En modo \"luz reflejada\" no identifica el color exacto: mide qué tan clara u oscura es la superficie que tiene debajo, de 0 (negro) a 100 (blanco). Valores típicos: blanco cerca de 90, gris claro cerca de 55, gris oscuro cerca de 25 y negro cerca de 5. Ese único número alcanza para seguir una línea negra sobre piso claro."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-color",
+      "language": "python",
+      "code": "if color.reflected_light_intensity < 30:\n    # está sobre la línea negra: corregir hacia la izquierda\n    motor_izq.on(20)\n    motor_der.on(40)\nelse:\n    # está sobre el piso claro: corregir hacia la derecha\n    motor_izq.on(40)\n    motor_der.on(20)"
+    },
+    {
+      "type": "quiz",
+      "id": "q-luz-reflejada",
+      "question_md": "En modo luz reflejada, ¿qué significa un **valor bajo** (cercano a 0)?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Superficie muy clara"
+        },
+        {
+          "id": "b",
+          "label": "El sensor está roto"
+        },
+        {
+          "id": "c",
+          "label": "No hay superficie debajo"
+        },
+        {
+          "id": "d",
+          "label": "Superficie muy oscura"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-reactivo",
+      "body_md": "**Tu primer programa reactivo.** El robot avanza hasta que se presiona el sensor de contacto, y ahí se detiene. Falta la línea que decide cuándo parar:"
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-reactivo",
+      "language": "python",
+      "code": "from ev3dev2.motor import LargeMotor, OUTPUT_A\nfrom ev3dev2.sensor.lego import TouchSensor\nfrom ev3dev2.sensor import INPUT_1\n\nmotor = LargeMotor(OUTPUT_A)\ntouch = TouchSensor(INPUT_1)\n\nmotor.on(40)\nwhile True:\n    ________________________\n        motor.off()\n        break"
+    },
+    {
+      "type": "quiz",
+      "id": "q-completar-reactivo",
+      "question_md": "¿Qué línea completa el programa para que el robot se detenga al presionar el sensor?",
+      "options": [
+        {
+          "id": "a",
+          "label": "if touch.is_pressed:"
+        },
+        {
+          "id": "b",
+          "label": "if touch.is_pressed():"
+        },
+        {
+          "id": "c",
+          "label": "while touch.is_pressed:"
+        },
+        {
+          "id": "d",
+          "label": "if touch.value == 1:"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-is-pressed",
+      "question_md": "¿Por qué **if touch.is_pressed():** (con paréntesis) es un error típico?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Python no permite usar if con sensores"
+        },
+        {
+          "id": "b",
+          "label": "is_pressed es una propiedad, no un método: no se llama con ()"
+        },
+        {
+          "id": "c",
+          "label": "Falta importar la librería random"
+        },
+        {
+          "id": "d",
+          "label": "El puerto está mal escrito"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-reactivo",
+      "question_md": "¿Cuál es la idea central de un programa **reactivo**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Ejecutar todo de una vez, sin condiciones"
+        },
+        {
+          "id": "b",
+          "label": "Usar solo motores, nunca sensores"
+        },
+        {
+          "id": "c",
+          "label": "Leer un sensor y decidir una acción según su valor"
+        },
+        {
+          "id": "d",
+          "label": "Programar sin bucles"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-valor-tacto",
+        "quiz-unidad-ultra",
+        "quiz-luz-reflejada",
+        "quiz-completar-reactivo",
+        "quiz-is-pressed",
+        "quiz-reactivo"
+      ]
+    }
+  ],
+  "hints": [
+    "Antes de comparar un valor en un if, pregúntate qué tipo devuelve el sensor: verdadero/falso o un número.",
+    "is_pressed es una propiedad: se escribe sin paréntesis.",
+    "En el Dashboard, acerca un objeto al sensor ultrasónico y mira cómo cambia su valor."
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-valor-tacto",
+      "rule_type": "quiz",
+      "target": "q-valor-tacto",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-unidad-ultra",
+      "rule_type": "quiz",
+      "target": "q-unidad-ultra",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-luz-reflejada",
+      "rule_type": "quiz",
+      "target": "q-luz-reflejada",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-completar-reactivo",
+      "rule_type": "quiz",
+      "target": "q-completar-reactivo",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-is-pressed",
+      "rule_type": "quiz",
+      "target": "q-is-pressed",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-reactivo",
+      "rule_type": "quiz",
+      "target": "q-reactivo",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

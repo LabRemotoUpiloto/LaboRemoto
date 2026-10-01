@@ -12,15 +12,37 @@ import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPract
 
 const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
 
-/** Soporte mínimo de **negrita** — no se agrega una librería de markdown para esto. */
+/** Soporte mínimo de **negrita** y `código` — no se agrega una librería de markdown para esto. */
 function renderInline(md: string): React.ReactNode {
-  const parts = md.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') ? (
-      <strong key={i}>{part.slice(2, -2)}</strong>
-    ) : (
-      <React.Fragment key={i}>{part}</React.Fragment>
-    ),
+  const parts = md.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code key={i} style={{ fontFamily: 'monospace', fontSize: '0.92em', padding: '1px 5px', borderRadius: 4, background: 'rgba(127,127,127,0.18)' }}>
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
+}
+
+/** Fragmento de código (hoy Python para los módulos de EV3). Solo se muestra: no se ejecuta. */
+function CodeBlockView({ block }: { block: Extract<LinuxBlock, { type: 'code_block' }> }) {
+  return (
+    <Paper withBorder radius="md" p="md" style={{ background: '#14150F' }}>
+      <Text component="pre" ff="monospace" fz="sm" m={0} style={{ color: '#E5E9DE', whiteSpace: 'pre-wrap', overflowX: 'auto' }}>
+        {block.code}
+      </Text>
+      {block.caption && (
+        <Text fz="xs" mt="xs" style={{ color: '#9AA38F' }}>
+          {block.caption}
+        </Text>
+      )}
+    </Paper>
   );
 }
 
@@ -437,6 +459,8 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
       return <TextBlockView block={block} />;
     case 'terminal_annotation':
       return <TerminalAnnotationBlock block={block} />;
+    case 'code_block':
+      return <CodeBlockView block={block} />;
     case 'analogy':
       return <AnalogyBlock block={block} />;
     case 'media':

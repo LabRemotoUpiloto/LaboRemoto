@@ -688,7 +688,10 @@ const ChatPane: React.FC<Props> = ({
         next.push({
           id: `linux-quiz-${Date.now()}`,
           sender: 'ai',
-          text: '¡Terminaste la parte práctica! Antes de cerrar el módulo, una evaluación corta:',
+          // Sin reglas de comando (EV3) no hay "parte práctica" que haber terminado.
+          text: module.validation_rules.some((r) => r.rule_type !== 'quiz')
+            ? '¡Terminaste la parte práctica! Antes de cerrar el módulo, una evaluación corta:'
+            : 'Cuando hayas leído el módulo y probado el Panel EV3, responde esta evaluación corta para cerrarlo:',
           timestamp: Date.now(),
           meta: { linuxQuiz: { moduleId: module.id, moduleTitle: module.title, blocks: quizBlocks } },
         });

@@ -1,0 +1,285 @@
+{
+  "id": "ev3-m5",
+  "order": 5,
+  "title": "Python para robots",
+  "difficulty": "intermediate",
+  "estimated_minutes": 25,
+  "sequential": false,
+  "objective": "Usar bucles, funciones, variables de estado y manejo de errores en Python aplicados al control del EV3.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "bash /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "bash /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "**Bucles: while y for.** Ya usaste **while True** para un comportamiento que corre \"para siempre\" hasta que algo lo interrumpa con break. Cuando sabes de antemano **cuántas veces** quieres repetir algo, **for** es más directo:"
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-for",
+      "language": "python",
+      "code": "for i in range(5):\n    motor.on_for_rotations(speed=30, rotations=1)\n    print(i)"
+    },
+    {
+      "type": "text",
+      "id": "b-range",
+      "body_md": "range(5) genera 5 números, empezando en 0. Esto hace que el motor dé 5 vueltas, e imprime en qué vuelta va: 0, 1, 2, 3 y 4. Nunca llega al 5."
+    },
+    {
+      "type": "quiz",
+      "id": "q-range",
+      "question_md": "¿Cuántas veces se ejecuta el cuerpo de **for i in range(3):**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "2 veces"
+        },
+        {
+          "id": "b",
+          "label": "3 veces"
+        },
+        {
+          "id": "c",
+          "label": "4 veces"
+        },
+        {
+          "id": "d",
+          "label": "Infinitas veces"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-break",
+      "body_md": "**break y continue.** Dentro de un while True, **break** corta el bucle por completo (por ejemplo, al detectar el sensor de contacto); **continue** salta directo a la siguiente vuelta sin ejecutar el resto del cuerpo."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-break",
+      "language": "python",
+      "code": "while True:\n    if touch.is_pressed:\n        break      # sale del bucle\n    if ultrasonico.distance_centimeters > 200:\n        continue   # lectura rara: ignorarla y volver a leer\n    motor.on(30)"
+    },
+    {
+      "type": "quiz",
+      "id": "q-break-continue",
+      "question_md": "¿Qué diferencia hay entre **break** y **continue**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Son lo mismo, da igual cuál usar"
+        },
+        {
+          "id": "b",
+          "label": "break salta a la siguiente vuelta; continue sale del bucle"
+        },
+        {
+          "id": "c",
+          "label": "break sale del bucle entero; continue salta a la siguiente vuelta"
+        },
+        {
+          "id": "d",
+          "label": "Ninguno funciona dentro de un while"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-funciones",
+      "body_md": "**Funciones reutilizables.** En el módulo 3 calculaste a mano cuántos grados hacen falta para avanzar una distancia exacta. Si esa cuenta se repite en varios lugares del programa, conviene empaquetarla en una **función**: se escribe una vez y se usa las veces que haga falta. Falta la línea que realmente mueve el motor:"
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-funcion",
+      "language": "python",
+      "code": "def avanzar_cm(motor, cm, diametro_rueda):\n    grados = cm * (360 / (3.1416 * diametro_rueda))\n    ______________________________________\n\navanzar_cm(motor_izq, 20, 5.6)"
+    },
+    {
+      "type": "quiz",
+      "id": "q-completar-funcion",
+      "question_md": "¿Qué línea completa la función para que el motor realmente gire?",
+      "options": [
+        {
+          "id": "a",
+          "label": "return grados"
+        },
+        {
+          "id": "b",
+          "label": "print(grados)"
+        },
+        {
+          "id": "c",
+          "label": "motor.on(grados)"
+        },
+        {
+          "id": "d",
+          "label": "motor.on_for_degrees(speed=30, degrees=grados)"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-funcion",
+      "question_md": "¿Cuál es la principal ventaja de empaquetar código repetido en una **función**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Si hay que corregir algo, se corrige en un solo lugar"
+        },
+        {
+          "id": "b",
+          "label": "El programa corre más rápido"
+        },
+        {
+          "id": "c",
+          "label": "El robot usa menos batería"
+        },
+        {
+          "id": "d",
+          "label": "Es obligatorio en Python"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-estados",
+      "body_md": "**Máquinas de estado en código.** En el módulo 4 viste la idea de estados. En código, \"el estado\" no es nada especial de Python: es una **variable de texto común**, y un if/elif decide qué bloque correr según su valor actual. Esa variable se lee al principio de cada vuelta del bucle y se actualiza cuando pasa algo (un evento)."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-estado",
+      "language": "python",
+      "code": "estado = \"buscando\"\n\nif estado == \"buscando\":\n    buscar_linea()\nelif estado == \"siguiendo\":\n    seguir_linea()\nelif estado == \"esquivando\":\n    esquivar()"
+    },
+    {
+      "type": "quiz",
+      "id": "q-estado-variable",
+      "question_md": "En una máquina de estados, ¿qué es \"el estado\" en términos de código?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Una función especial de ev3dev2"
+        },
+        {
+          "id": "b",
+          "label": "Una variable común que se lee y se actualiza"
+        },
+        {
+          "id": "c",
+          "label": "Un archivo aparte"
+        },
+        {
+          "id": "d",
+          "label": "Un tipo de sensor"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-errores",
+      "body_md": "**Manejo de errores.** En este laboratorio ya viste sensores que se desconectan o un panel que dice \"Sin conexión\". Un programa que no contempla esos casos se cae entero apenas algo no está como se esperaba. **try/except** deja seguir corriendo aunque una parte falle."
+    },
+    {
+      "type": "code_block",
+      "id": "b-codigo-try",
+      "language": "python",
+      "code": "try:\n    presionado = touch.is_pressed\n    print(\"Sensor OK:\", presionado)\nexcept Exception as error:\n    print(\"No pude leer el sensor:\", error)\n\n# Con el sensor conectado:   Sensor OK: False\n# Con el sensor desconectado: No pude leer el sensor: [Errno 19] No such device"
+    },
+    {
+      "type": "text",
+      "id": "b-errores-nota",
+      "body_md": "Sin el try/except, el segundo caso terminaría el programa entero con un traceback. Con él, el programa se entera del problema, lo informa y puede decidir qué hacer (frenar, avisar, reintentar). No hace falta envolver **todo** el programa: solo las partes que dependen de algo que puede fallar de verdad."
+    },
+    {
+      "type": "quiz",
+      "id": "q-try-except",
+      "question_md": "¿Qué logra un **try/except** que no lograría el código sin él?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Que el programa corra más rápido"
+        },
+        {
+          "id": "b",
+          "label": "Que los sensores nunca se desconecten"
+        },
+        {
+          "id": "c",
+          "label": "Que el programa siga corriendo (o reaccione) aunque una parte falle"
+        },
+        {
+          "id": "d",
+          "label": "Nada, es solo decoración"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-range",
+        "quiz-break-continue",
+        "quiz-completar-funcion",
+        "quiz-funcion",
+        "quiz-estado-variable",
+        "quiz-try-except"
+      ]
+    }
+  ],
+  "hints": [
+    "range(5) genera 0, 1, 2, 3, 4: empieza en 0 y no llega al 5.",
+    "break sale del bucle; continue salta a la siguiente vuelta.",
+    "Envuelve en try/except solo lo que puede fallar de verdad: un sensor, una conexión."
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-range",
+      "rule_type": "quiz",
+      "target": "q-range",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-break-continue",
+      "rule_type": "quiz",
+      "target": "q-break-continue",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-completar-funcion",
+      "rule_type": "quiz",
+      "target": "q-completar-funcion",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-funcion",
+      "rule_type": "quiz",
+      "target": "q-funcion",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-estado-variable",
+      "rule_type": "quiz",
+      "target": "q-estado-variable",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-try-except",
+      "rule_type": "quiz",
+      "target": "q-try-except",
+      "required": true,
+      "points": 2
+    }
+  ]
+}
