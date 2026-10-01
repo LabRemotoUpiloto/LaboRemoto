@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Card, Group, Stack, Text, Badge, Button, ScrollArea } from '@mantine/core';
-import { Terminal, Trash2, Activity } from 'lucide-react';
+import { Terminal, Trash2 } from 'lucide-react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 export interface PiInstructionEntry {
     id: string;
     timestamp: string;
     message: string;
-    isSimulated?: boolean;
 }
 
 interface CVA_PiInstructionLogProps {
@@ -15,18 +14,8 @@ interface CVA_PiInstructionLogProps {
     isPracticeActive?: boolean;
 }
 
-const MOCK_SIMULATED_MESSAGES = [
-    'gesto: dedo_indice, instruccion: avanzar, confianza: 0.92',
-    'gesto: dos_dedos, instruccion: retroceder, confianza: 0.88',
-    'gesto: puno_cerrado, instruccion: detener, confianza: 0.95',
-    'gesto: palma_abierta, instruccion: encender_luces, confianza: 0.91',
-    'gesto: pulgar_arriba, instruccion: velocidad_alta, confianza: 0.86',
-];
-
 export const CVA_PiInstructionLog: React.FC<CVA_PiInstructionLogProps> = ({ sessionId, isPracticeActive = true }) => {
     const [logs, setLogs] = useState<PiInstructionEntry[]>([]);
-    const [hasReceivedRealEvent, setHasReceivedRealEvent] = useState(false);
-    const hasReceivedRealRef = useRef(false);
     const viewportRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll al final cuando llega una nueva línea
@@ -36,7 +25,7 @@ export const CVA_PiInstructionLog: React.FC<CVA_PiInstructionLogProps> = ({ sess
         }
     }, [logs]);
 
-    // 1. Escuchar eventos reales del backend Rust (cva:pi_instruction)
+    // Escuchar eventos reales del backend Rust (cva:pi_instruction)
     useEffect(() => {
         let unlisten: UnlistenFn | null = null;
 
@@ -44,13 +33,10 @@ export const CVA_PiInstructionLog: React.FC<CVA_PiInstructionLogProps> = ({ sess
             try {
                 unlisten = await listen<{ session_id: string; message: string }>('cva:pi_instruction', (event) => {
                     if (!sessionId || event.payload.session_id === sessionId) {
-                        hasReceivedRealRef.current = true;
-                        setHasReceivedRealEvent(true);
                         const newEntry: PiInstructionEntry = {
                             id: Math.random().toString(36).substring(2, 9),
                             timestamp: new Date().toLocaleTimeString(),
                             message: event.payload.message,
-                            isSimulated: false,
                         };
                         setLogs((prev) => [...prev.slice(-99), newEntry]);
                     }
@@ -66,29 +52,6 @@ export const CVA_PiInstructionLog: React.FC<CVA_PiInstructionLogProps> = ({ sess
             if (unlisten) unlisten();
         };
     }, [sessionId]);
-
-    // 2. Simulación de mensajes de la Pi mientras no exista bridge real (se desactiva inmediatamente al llegar el primer evento real)
-    useEffect(() => {
-        if (!isPracticeActive || hasReceivedRealEvent || hasReceivedRealRef.current) return;
-
-        // Intervalo aleatorio para emitir mensaje simulado
-        const interval = setInterval(() => {
-            if (hasReceivedRealRef.current) {
-                clearInterval(interval);
-                return;
-            }
-            const randomMsg = MOCK_SIMULATED_MESSAGES[Math.floor(Math.random() * MOCK_SIMULATED_MESSAGES.length)];
-            const simEntry: PiInstructionEntry = {
-                id: Math.random().toString(36).substring(2, 9),
-                timestamp: new Date().toLocaleTimeString(),
-                message: `[Simulación Pi] ${randomMsg}`,
-                isSimulated: true,
-            };
-            setLogs((prev) => [...prev.slice(-99), simEntry]);
-        }, 4000);
-
-        return () => clearInterval(interval);
-    }, [isPracticeActive, hasReceivedRealEvent]);
 
     const handleClear = () => {
         setLogs([]);
@@ -146,7 +109,7 @@ export const CVA_PiInstructionLog: React.FC<CVA_PiInstructionLogProps> = ({ sess
                                     <span style={{ color: 'var(--text-tertiary, #6B7280)', marginRight: '8px' }}>
                                         [{log.timestamp}]
                                     </span>
-                                    <span style={{ color: log.isSimulated ? 'var(--accent-warm, #F59E0B)' : 'var(--accent-primary, #10B981)' }}>
+                                    <span style={{ color: 'var(--accent-primary, #10B981)' }}>
                                         {log.message}
                                     </span>
                                 </Box>
