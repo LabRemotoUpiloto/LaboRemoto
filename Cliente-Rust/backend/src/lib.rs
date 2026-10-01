@@ -199,7 +199,7 @@ pub fn run() {
       cmd::practices::practicas::practicas_list_categories,
       cmd::practices::practicas::practicas_get_config,
       cmd::practices::practicas::practicas_run_setup,
-      // Prácticas de Linux — servicio HTTP en la Raspberry Pi
+      // Módulos de práctica (Linux y EV3) — servicio HTTP en la Raspberry Pi
       cmd::practices::linux_api::practicas_linux_list,
       cmd::practices::linux_api::practicas_linux_get_module,
       cmd::practices::linux_api::practicas_linux_validate,
@@ -210,13 +210,6 @@ pub fn run() {
       cmd::integration::moodle::moodle_sync_assignment,
       cmd::integration::moodle::moodle_prepare_grade,
       cmd::integration::moodle::moodle_submit_grade_direct,
-      // Catálogo externo de prácticas (solo lectura, contenido no confiable)
-      cmd::integration::lab_practices::lab_practices_list,
-      cmd::integration::lab_practices::lab_practices_get,
-      // Binding local catálogo externo <-> entorno real (LabConnectionProfile)
-      cmd::practices::lab_connection::lab_practices_list_runnable,
-      cmd::practices::lab_connection::lab_practices_get_runnable,
-      cmd::practices::lab_connection::lab_practices_run_setup,
       // Validador de prácticas
       cmd::practices::practice_validator::validate_practice_progress,
       cmd::practices::practice_validator::calculate_practice_grade,

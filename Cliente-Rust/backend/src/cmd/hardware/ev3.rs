@@ -9,20 +9,20 @@
 //! misma caché ssh2), en vez de abrir una conexión TCP nueva desde el cliente.
 //!
 //! La Pi5 (workspace real) no es alcanzable directo desde el cliente — solo
-//! vía un bastión público que sí lo es (ver
-//! `config/lab_connections/control-robot-eve3-api.json`: la sesión SSH de
-//! esta práctica aterriza en ese bastión, no en la Pi5). Por eso cada curl se
-//! reenvía con un script de salto (`HOP_SCRIPT`, `sshpass`+`ssh` desplegado a
-//! mano en el bastión) en vez de pegarle directo a `127.0.0.1:8000`.
+//! vía un bastión público que sí lo es (la Pi4: la sesión SSH del estudiante
+//! aterriza ahí, no en la Pi5). Por eso cada curl se reenvía con un script de
+//! salto (`HOP_SCRIPT`, `sshpass`+`ssh` desplegado a mano en el bastión) en vez
+//! de pegarle directo a `127.0.0.1:8000`.
 //!
 //! Arquitectura (ver `investigacion_ev3/README.md`, rama `luisa-tauri`):
 //! ```text
 //!   Cliente Tauri →(SSH)→ bastión →(SSH anidado, HOP_SCRIPT)→ ev3_bridge.py :8000 (Pi5) →(HTTP)→ api_simulador :8080 (ladrillo EV3)
 //! ```
 //!
-//! El despliegue de ambos scripts en la Pi/ladrillo lo hace
-//! `practicas_run_setup` (ver `cmd/practices/practicas.rs`) al iniciar la
-//! práctica, vía sus `setup_commands` (también reenviados por el bastión).
+//! El arranque de ambos scripts en la Pi/ladrillo lo hace
+//! `practicas_module_setup` (ver `cmd/practices/linux_api.rs`) al conectar el
+//! módulo EV3, con los `environment.setup_commands` que declara el propio
+//! módulo (también reenviados por el bastión).
 
 use serde::{Deserialize, Serialize};
 
@@ -30,10 +30,10 @@ use crate::cmd::protocol::CommandError;
 
 const BRIDGE_URL: &str = "http://127.0.0.1:8000";
 
-/// El bridge corre en la Pi5, no alcanzable directo desde el cliente (ver
-/// `config/lab_connections/control-robot-eve3-api.json`): la sesión SSH real
-/// aterriza en el bastión público, así que cada comando se reenvía a la Pi5
-/// mediante este script (`sshpass` + `ssh` ya desplegados ahí a mano).
+/// El bridge corre en la Pi5, no alcanzable directo desde el cliente: la
+/// sesión SSH real aterriza en el bastión público, así que cada comando se
+/// reenvía a la Pi5 mediante este script (`sshpass` + `ssh` ya desplegados
+/// ahí a mano).
 const HOP_SCRIPT: &str = "/home/pi/ev3-hop-pi5.sh";
 
 /// Escapa un argumento para uso seguro dentro de comillas simples en bash.

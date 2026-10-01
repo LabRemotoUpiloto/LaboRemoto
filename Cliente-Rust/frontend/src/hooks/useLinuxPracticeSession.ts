@@ -1,19 +1,25 @@
 /**
  * useLinuxPracticeSession.ts
  *
- * Orquesta la práctica de Linux: resuelve host/usuario desde el backend
- * (que a su vez lo resuelve de la sesión Keycloak activa), pide la
- * contraseña de Active Directory UNA vez por un diálogo nativo (nunca el
- * navegador, nunca se persiste), abre la sesión SSH real, y mantiene el
- * chat como "profesor" — inyecta practice_context/practice_tutorial en la
+ * Orquesta los módulos de práctica que sirve la Pi (Linux y EV3): resuelve
+ * host/usuario desde el backend (que a su vez lo resuelve de la sesión
+ * Keycloak activa), pide la contraseña de Active Directory UNA vez por un
+ * diálogo nativo (nunca el navegador, nunca se persiste), abre la sesión SSH
+ * real, y mantiene el chat como "profesor" — inyecta practice_context en la
  * memoria de sesión y lo reconstruye cada vez que se valida progreso.
+ *
+ * El nombre del hook es histórico (nació con Linux); lo único que cambia entre
+ * categorías es el tutor, el rótulo de la pestaña y el entorno del módulo
+ * (`environment`: panel del robot, cámara y arranque del robot en EV3).
  */
 
 import { useCallback, useRef, useState } from 'react';
 import { sshConnect, waitForConnection, memPut } from '../services/ssh.service';
 import {
+  isEv3Module,
   linuxConnectionTarget,
   linuxValidate,
+  practicasModuleSetup,
   type LinuxBlock,
   type LinuxModule,
   type LinuxValidationResult,
@@ -22,6 +28,14 @@ import {
 interface UseLinuxPracticeSessionParams {
   onNewSession: (info: { id: string; label: string }) => void;
   setChatOpen: (open: boolean) => void;
+  /** Abre/cierra el panel de cámara de una sesión (módulos con `environment.panels.camera`). */
+  setCameraOpen: (sessionId: string, open: boolean) => void;
+}
+
+/** Paneles que un módulo pidió para su sesión (`environment.panels`). */
+export interface SessionPanels {
+  robot_dashboard: boolean;
+  camera: boolean;
 }
 
 interface PasswordPromptState {
@@ -41,23 +55,37 @@ function isCommandStep(b: LinuxBlock): b is Extract<LinuxBlock, { type: 'command
   return b.type === 'command_step';
 }
 
+// Persona + reglas de estilo: van primero, antes que nada específico del
+// módulo -- se repiten completas en cada mensaje del sistema (memPut reescribe
+// practice_context entero en cada revalidate), así que el tono no debería ir
+// derivando de un mensaje al siguiente durante la misma práctica.
+const LINUX_PERSONA: string[] = [
+  'Sos un profesor experto en Linux, administración de servidores, Python y scripting, ' +
+    'dando clases a un estudiante principiante que recién está aprendiendo a usar la terminal. ' +
+    'Reglas de estilo — todo el tiempo, sin excepción, en cada mensaje de esta práctica:',
+  '- Explicá siempre en lenguaje simple: si usás un término técnico (kernel, permisos, proceso, extensión de archivo, etc.) explicalo en la misma frase, como si fuera la primera vez que el estudiante lo escucha.',
+  '- Mantené el MISMO tono y una estructura parecida de un mensaje al siguiente durante toda la práctica — nada de variar el estilo, la extensión o el nivel de formalidad de una respuesta a otra.',
+  '- Cuando expliques la salida de un comando que el estudiante YA ejecutó, andá directo a explicar qué significa lo que salió en pantalla (2-4 líneas, con los valores/nombres reales que aparecieron) — no sugieras comandos nuevos ni repitas el formato de bloque de comandos ahí.',
+  '- Conocés a fondo tipos y extensiones de archivo (.sh, .py, .conf, .log, .service, .yml, etc.), servicios típicos de un servidor Linux (systemd, ssh, cron, apt/dnf) y Python — usá ese conocimiento para dar ejemplos concretos cuando ayude a entender, sin irte del tema del módulo.',
+];
+
+const EV3_PERSONA: string[] = [
+  'Sos un profesor de robótica dando clases a un estudiante principiante que controla un robot LEGO EV3 ' +
+    'desde un panel (dashboard) en pantalla, sin escribir código. El panel le habla a una API HTTP ' +
+    '(GET /api/status, POST /api/motor, POST /api/stop_all) y tiene un gemelo digital 3D del robot. ' +
+    'Reglas de estilo — todo el tiempo, sin excepción, en cada mensaje de esta práctica:',
+  '- Explicá siempre en lenguaje simple: si usás un término técnico (API, petición HTTP, sensor, rpm, gemelo digital, etc.) explicalo en la misma frase, como si fuera la primera vez que el estudiante lo escucha.',
+  '- Mantené el MISMO tono y una estructura parecida de un mensaje al siguiente durante toda la práctica — nada de variar el estilo, la extensión o el nivel de formalidad de una respuesta a otra.',
+  '- Cuando el estudiante cuente qué hizo en el panel (movió un motor, leyó un sensor), relacionalo con la petición HTTP que se envió por detrás, usando los valores reales que mencione.',
+  '- Seguridad primero: si habla de acercar las manos al robot mientras los motores están activos, recordale detenerlos antes con el botón de parada.',
+];
+
 function buildPracticeContext(module: LinuxModule, result: LinuxValidationResult | null): string {
+  const ev3 = isEv3Module(module.id);
   const lines: string[] = [];
-  // Persona + reglas de estilo primero, antes que nada específico del módulo
-  // -- se repite completo en cada mensaje del sistema (memPut reescribe
-  // practice_context entero en cada revalidate), así que el tono no debería
-  // ir derivando de un mensaje al siguiente durante la misma práctica.
-  lines.push(
-    'Sos un profesor experto en Linux, administración de servidores, Python y scripting, ' +
-      'dando clases a un estudiante principiante que recién está aprendiendo a usar la terminal. ' +
-      'Reglas de estilo — todo el tiempo, sin excepción, en cada mensaje de esta práctica:',
-  );
-  lines.push('- Explicá siempre en lenguaje simple: si usás un término técnico (kernel, permisos, proceso, extensión de archivo, etc.) explicalo en la misma frase, como si fuera la primera vez que el estudiante lo escucha.');
-  lines.push('- Mantené el MISMO tono y una estructura parecida de un mensaje al siguiente durante toda la práctica — nada de variar el estilo, la extensión o el nivel de formalidad de una respuesta a otra.');
-  lines.push('- Cuando expliques la salida de un comando que el estudiante YA ejecutó, andá directo a explicar qué significa lo que salió en pantalla (2-4 líneas, con los valores/nombres reales que aparecieron) — no sugieras comandos nuevos ni repitas el formato de bloque de comandos ahí.');
-  lines.push('- Conocés a fondo tipos y extensiones de archivo (.sh, .py, .conf, .log, .service, .yml, etc.), servicios típicos de un servidor Linux (systemd, ssh, cron, apt/dnf) y Python — usá ese conocimiento para dar ejemplos concretos cuando ayude a entender, sin irte del tema del módulo.');
+  lines.push(...(ev3 ? EV3_PERSONA : LINUX_PERSONA));
   lines.push('');
-  lines.push(`Sos la guía de la Práctica de Linux — Módulo ${module.order}: ${module.title}`);
+  lines.push(`Sos la guía de la Práctica de ${ev3 ? 'EV3' : 'Linux'} — Módulo ${module.order}: ${module.title}`);
   lines.push(`Objetivo: ${module.objective}`);
   lines.push('');
   lines.push('Progreso actual:');
@@ -67,7 +95,12 @@ function buildPracticeContext(module: LinuxModule, result: LinuxValidationResult
   for (const rule of module.validation_rules) {
     const ruleResult = result?.results.find((r) => r.rule_id === rule.id);
     const step = commandSteps.find((s) => s.command === rule.target);
-    const label = step?.command ?? rule.target ?? rule.id;
+    // En EV3 las reglas son preguntas de la evaluación: se muestra la pregunta
+    // (no su id interno). En Linux se deja el rótulo de siempre.
+    const quiz = ev3 && rule.rule_type === 'quiz'
+      ? module.blocks.find((b): b is Extract<LinuxBlock, { type: 'quiz' }> => b.type === 'quiz' && b.id === rule.target)
+      : undefined;
+    const label = quiz ? `Pregunta: ${quiz.question_md}` : (step?.command ?? rule.target ?? rule.id);
 
     if (ruleResult?.passed) {
       lines.push(`[x] ${label} — validado`);
@@ -79,14 +112,18 @@ function buildPracticeContext(module: LinuxModule, result: LinuxValidationResult
 
   lines.push('');
   lines.push(
-    'Guialo hacia el siguiente paso pendiente. No le des el comando textual salvo que lo ' +
-      'pida explícitamente — explicá qué hace y por qué, dejá que lo escriba él.',
+    ev3
+      ? 'Guialo en lo que le falta de la práctica: explicá qué hace cada control del panel y por qué, ' +
+          'y animalo a probarlo él mismo. No le des las respuestas de la evaluación; cuando haya recorrido ' +
+          'el panel, recordale responderla.'
+      : 'Guialo hacia el siguiente paso pendiente. No le des el comando textual salvo que lo ' +
+          'pida explícitamente — explicá qué hace y por qué, dejá que lo escriba él.',
   );
 
   return lines.join('\n');
 }
 
-export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxPracticeSessionParams) {
+export function useLinuxPracticeSession({ onNewSession, setChatOpen, setCameraOpen }: UseLinuxPracticeSessionParams) {
   const [connecting, setConnecting] = useState(false);
   // Distinto de `connecting`: ese arranca en true apenas se hace click en
   // "Conectar" (antes de que el modal siquiera aparezca, mientras se resuelve
@@ -148,6 +185,11 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
   // para pasárselo a SessionContainer/TerminalView, y para eso hace falta
   // que este mapeo sea observable desde afuera.
   const [sessionModuleMap, setSessionModuleMap] = useState<Record<string, string>>({});
+
+  // Paneles que cada sesión pidió (`environment.panels` del módulo) -- App.tsx
+  // los mezcla en `practiceMeta` para que la terminal muestre el panel del
+  // robot. Solo hay entrada para módulos que declaran un entorno.
+  const [sessionPanels, setSessionPanels] = useState<Record<string, SessionPanels>>({});
 
   const askPassword = useCallback((username: string): Promise<string> => {
     setPasswordPrompt({ username });
@@ -359,10 +401,33 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
           });
         });
 
+        // Entorno del módulo (EV3): se levanta el servidor del robot y su
+        // puente ANTES de abrir la pestaña, así el panel ya lo encuentra
+        // arriba y el botón "Conectar" sigue en carga mientras tanto. Es
+        // best-effort: si algo falla no se bloquea la práctica -- el panel
+        // del robot avisa por sí solo si el puente no responde.
+        const env = module.environment;
+        if (env?.setup_commands?.length) {
+          try {
+            const report = await practicasModuleSetup(sessionId, module.id);
+            console.info('[practica] arranque del entorno:', report);
+          } catch (e) {
+            console.warn('[practica] no se pudo preparar el entorno del módulo', e);
+          }
+        }
+        if (env?.panels) {
+          const panels: SessionPanels = {
+            robot_dashboard: !!env.panels.robot_dashboard,
+            camera: !!env.panels.camera,
+          };
+          setSessionPanels((prev) => ({ ...prev, [sessionId]: panels }));
+          if (panels.camera) setCameraOpen(sessionId, true);
+        }
+
         sessionByPractice.current[module.id] = sessionId;
         moduleBySession.current[sessionId] = module.id;
         setSessionModuleMap((prev) => ({ ...prev, [sessionId]: module.id }));
-        onNewSession({ id: sessionId, label: `Linux — ${module.title}` });
+        onNewSession({ id: sessionId, label: `${isEv3Module(module.id) ? 'EV3' : 'Linux'} — ${module.title}` });
         setChatOpen(true);
         setConnectedModules((prev) => ({ ...prev, [module.id]: true }));
 
@@ -402,7 +467,7 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
         setPasswordPrompt(null);
       }
     },
-    [askPassword, onNewSession, setChatOpen, revalidate, startPolling],
+    [askPassword, onNewSession, setChatOpen, setCameraOpen, revalidate, startPolling],
   );
 
   /**
@@ -439,6 +504,12 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
       delete next[sessionId];
       return next;
     });
+    setSessionPanels((prev) => {
+      if (!(sessionId in prev)) return prev;
+      const next = { ...prev };
+      delete next[sessionId];
+      return next;
+    });
     setConnectedModules((prev) => {
       if (!(moduleId in prev)) return prev;
       const next = { ...prev };
@@ -463,6 +534,7 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen }: UseLinuxP
     results,
     mistakeSignal,
     sessionModuleMap,
+    sessionPanels,
     connecting,
     submittingPassword,
     connectError,

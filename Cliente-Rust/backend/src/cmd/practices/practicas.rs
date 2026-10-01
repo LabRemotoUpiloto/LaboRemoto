@@ -307,84 +307,87 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
     categories
 }
 
+/// Tarjeta de un módulo del servicio de la Pi (metadata liviana). No lleva
+/// conexión ni credenciales: la sesión se abre con la cuenta del estudiante
+/// desde `useLinuxPracticeSession`, y el entorno lo describe el propio módulo.
+fn module_to_practice(s: crate::cmd::practices::linux_api::LinuxPracticeSummary) -> Practice {
+    Practice {
+        id: s.id,
+        name: s.title,
+        description: format!(
+            "Módulo {} · ~{} min",
+            s.order.unwrap_or(0),
+            s.estimated_minutes.unwrap_or(0)
+        ),
+        difficulty: s.difficulty,
+        moodle_assignment_id: None,
+        connection: PracticeConnection {
+            host: String::new(),
+            port: 0,
+            user: String::new(),
+            password: String::new(),
+            setup_commands: Vec::new(),
+        },
+        terminal: TerminalConfig {
+            allowed_commands: Vec::new(),
+            working_directory: String::new(),
+            allow_navigation: true,
+            allow_nano: true,
+        },
+        panels: PanelConfig {
+            camera: false,
+            chat: true,
+            chat_context: String::new(),
+            chat_tutorial: String::new(),
+            // Solo informativo en la tarjeta: el panel del robot de un módulo
+            // lo declara su `environment.panels` y lo aplica el hook de sesión.
+            robot_dashboard: false,
+        },
+    }
+}
+
 // ─── Comandos Tauri ───
 
 /// Devuelve todas las categorías con sus prácticas (sin contraseñas).
 ///
-/// La categoría "linux" no sale de `.env.practicas`: se puebla en vivo desde
-/// el servicio de prácticas que corre en la Pi (ver `linux_api.rs`). Si la Pi
-/// no responde, la categoría queda vacía pero el resto de categorías sigue
+/// Los módulos de Linux y de Eve3 no salen de `.env.practicas`: se pueblan en
+/// vivo desde el servicio de módulos que corre en la Pi (ver `linux_api.rs`),
+/// y cada uno va a su categoría según el prefijo de su id (`module_category`).
+/// Si la Pi no responde, esas categorías quedan vacías pero el resto sigue
 /// funcionando normalmente — no es un error fatal de este comando.
 #[tauri::command]
 pub async fn practicas_list_categories() -> Result<Vec<PracticeCategory>, CommandError> {
     let vars = load_practices_env();
     let mut categories = build_categories(&vars);
 
-    if let Some(linux_cat) = categories.iter_mut().find(|c| c.id == "linux") {
-        // Timeout defensivo: si la Pi no responde (red caída, apagada, el
-        // túnel SSH tardando en conectar) esto NO debe colgar el listado
-        // completo de categorías -- Eve3/Circuitos deben seguir cargando
-        // igual. Sin este timeout, un simple "no responde" (no un error,
-        // un cuelgue de red real) bloqueaba la pantalla de Prácticas entera.
-        // 20s: cómodamente por encima del peor caso de linux_tunnel::start_tunnel
-        // (6s conectar + 6s autenticar, timeouts propios ahí adentro) -- este
-        // de acá es una red de seguridad que casi nunca debería disparar sola;
-        // si dispara ANTES de que el tunel resuelva por su cuenta, cancelarlo
-        // desde afuera es justo lo que causaba el bug de "no vuelve a buscar
-        // nunca más" (ver comentario en linux_tunnel.rs).
-        let linux_result = tokio::time::timeout(
-            std::time::Duration::from_secs(20),
-            crate::cmd::practices::linux_api::fetch_linux_summaries(),
-        ).await;
-        match linux_result {
-            Ok(Ok(summaries)) => {
-                linux_cat.practices = summaries
-                    .into_iter()
-                    .map(|s| Practice {
-                        id: s.id,
-                        name: s.title,
-                        description: format!(
-                            "Módulo {} · ~{} min",
-                            s.order.unwrap_or(0),
-                            s.estimated_minutes.unwrap_or(0)
-                        ),
-                        difficulty: s.difficulty,
-                        moodle_assignment_id: None,
-                        connection: PracticeConnection {
-                            host: String::new(),
-                            port: 0,
-                            user: String::new(),
-                            password: String::new(),
-                            setup_commands: Vec::new(),
-                        },
-                        terminal: TerminalConfig {
-                            allowed_commands: Vec::new(),
-                            working_directory: String::new(),
-                            allow_navigation: true,
-                            allow_nano: true,
-                        },
-                        panels: PanelConfig {
-                            camera: false,
-                            chat: true,
-                            chat_context: String::new(),
-                            chat_tutorial: String::new(),
-                            // La práctica de Linux no controla robot: su panel
-                            // es la terminal más el progreso del módulo.
-                            robot_dashboard: false,
-                        },
-                    })
-                    .collect();
+    // Timeout defensivo: si la Pi no responde (red caída, apagada, el túnel SSH
+    // tardando en conectar) esto NO debe colgar el listado completo de
+    // categorías -- Circuitos y el resto deben seguir cargando igual.
+    // 20s: cómodamente por encima del peor caso de linux_tunnel::start_tunnel
+    // (6s conectar + 6s autenticar, timeouts propios ahí adentro) -- este de
+    // acá es una red de seguridad que casi nunca debería disparar sola; si
+    // dispara ANTES de que el túnel resuelva por su cuenta, cancelarlo desde
+    // afuera es justo lo que causaba el bug de "no vuelve a buscar nunca más"
+    // (ver comentario en linux_tunnel.rs).
+    let modules_result = tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        crate::cmd::practices::linux_api::fetch_linux_summaries(),
+    ).await;
+    match modules_result {
+        Ok(Ok(summaries)) => {
+            for summary in summaries {
+                let category_id = crate::cmd::practices::linux_api::module_category(&summary.id);
+                if let Some(category) = categories.iter_mut().find(|c| c.id == category_id) {
+                    category.practices.push(module_to_practice(summary));
+                }
             }
-            Ok(Err(e)) => {
-                eprintln!(
-                    "[practicas] No se pudo listar módulos de Linux desde la Pi: {}",
-                    e.message
-                );
-                // practices queda vacío — la categoría no rompe el resto del listado.
-            }
-            Err(_) => {
-                eprintln!("[practicas] Timeout (20s) listando módulos de Linux desde la Pi -- sigue sin bloquear el resto de categorías");
-            }
+        }
+        Ok(Err(e)) => {
+            eprintln!("[practicas] No se pudo listar los módulos desde la Pi: {}", e.message);
+            // Las categorías quedan sin módulos — no rompe el resto del listado.
+        }
+        Err(_) => {
+            eprintln!("[practicas] Timeout (20s) listando módulos desde la Pi -- sigue sin bloquear el resto de categorías");
         }
     }
 
@@ -443,13 +446,8 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
     run_setup_commands(app, practice_id, practice.name, practice.connection.setup_commands).await
 }
 
-/// Núcleo de `practicas_run_setup`, extraído para poder reutilizarlo desde
-/// prácticas cuyo contenido pedagógico viene del catálogo externo
-/// (`cmd::integration::lab_practices`) pero cuya conexión es un
-/// `LabConnectionProfile` local (ver `cmd::practices::lab_connection`) en vez
-/// de una entrada de `.env.practicas`. La lógica de "conectar por SSH y
-/// lanzar un comando de setup" es la misma sin importar de dónde salió el
-/// texto pedagógico de la práctica.
+/// Núcleo de `practicas_run_setup`: conectar por SSH a cada host de setup y
+/// lanzar su comando, emitiendo `practice:log` con el progreso.
 pub(crate) async fn run_setup_commands(
     app: tauri::AppHandle,
     practice_id: String,
