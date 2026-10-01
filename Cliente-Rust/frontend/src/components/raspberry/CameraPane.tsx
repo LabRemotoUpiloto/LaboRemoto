@@ -1,12 +1,13 @@
 // components/raspberry/CameraPane.tsx
 import React, { useState } from 'react'
-import HlsPlayer from './HlsPlayer'
+import CameraVideo from './CameraVideo'
 import PtzControls from './PtzControls'
 import type { PtzOp } from '../../hooks/usePtzControl'
 
 interface Props {
   streamUrl?: string   // HLS via túnel SSH — http://127.0.0.1:localPort/camId/index.m3u8
-  whepUrl?: string     // reservado para futuro WebRTC LAN directo
+  /** Path de MediaMTX para WebRTC (`NvrCamera.webrtc`); sin él, solo HLS. */
+  webrtcPath?: string | null
   label?: string
   camId?: string
   isActive?: boolean
@@ -21,7 +22,7 @@ interface Props {
   onPtzCommand?: (op: PtzOp) => void
 }
 
-const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true, isExpanded = false, isSwapSource = false, swapMode = false, onClick, onDoubleClick, ptzEnabled = false, onPtzCommand }) => {
+const CameraPane: React.FC<Props> = ({ streamUrl, webrtcPath, label, camId, isActive = true, isExpanded = false, isSwapSource = false, swapMode = false, onClick, onDoubleClick, ptzEnabled = false, onPtzCommand }) => {
   const [retryKey, setRetryKey] = useState(0)
 
   const borderClass = isSwapSource
@@ -46,9 +47,10 @@ const CameraPane: React.FC<Props> = ({ streamUrl, label, camId, isActive = true,
 
   return (
     <div className={`camera-pane flex flex-col w-full h-full bg-[var(--background-primary,#111116)] relative overflow-hidden items-center justify-center cursor-pointer [&>video]:absolute [&>video]:inset-0 [&>video]:w-full [&>video]:h-full [&>video]:object-contain [&>video]:z-0 ${isExpanded ? 'camera-pane--expanded' : ''} ${borderClass}`} onClick={onClick} onDoubleClick={onDoubleClick}>
-      <HlsPlayer
+      <CameraVideo
         key={retryKey}
-        src={streamUrl}
+        hlsUrl={streamUrl}
+        webrtcPath={webrtcPath}
         label={label}
       />
       {isSwapSource && (

@@ -12,4 +12,9 @@ export type NvrCamera = { id: string, name: string, status: string, stream_url: 
  * (`PTZ_CAMERAS_JSON` en la Pi) según qué modelos exponen la API HTTP
  * de Reolink en la red. El frontend solo muestra el control si es true.
  */
-ptz: boolean, };
+ptz: boolean, 
+/**
+ * Path de MediaMTX para ver esta cámara por WebRTC (baja latencia), o
+ * `None` si el broker no la tiene mapeada — entonces solo HLS.
+ */
+webrtc: string | null, };

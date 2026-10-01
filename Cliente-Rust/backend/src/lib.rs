@@ -182,6 +182,7 @@ pub fn run() {
       cmd::nvr::shinobi::nvr_list_cameras,
       cmd::nvr::shinobi::nvr_disconnect,
       cmd::nvr::shinobi::nvr_ptz_control,
+      cmd::nvr::shinobi::nvr_whep,
       // Registro central de sesiones de práctica (dashboard del personal)
       cmd::sesiones::sesiones_reportar_evento,
       cmd::sesiones::sesiones_resumen,
