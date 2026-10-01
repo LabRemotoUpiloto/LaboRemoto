@@ -1,0 +1,7 @@
+{
+  "q-actuador": "a",
+  "q-puerto-sensor": "b",
+  "q-avanzar": "c",
+  "q-sistema-operativo": "d",
+  "q-control-desde-afuera": "a"
+}

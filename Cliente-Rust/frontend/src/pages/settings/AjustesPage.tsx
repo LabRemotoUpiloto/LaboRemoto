@@ -7,6 +7,7 @@ import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { Palette, RefreshCw, LogOut, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type CheckState = 'idle' | 'checking' | 'up-to-date' | 'available' | 'installing' | 'error';
 
@@ -34,6 +35,7 @@ const SettingsRow: React.FC<{ icon: React.ReactNode; title: string; description:
 
 export default function AjustesPage({ onOpenPanel }: Props) {
   const { logout } = useAuth();
+  const { temaFijo } = useTheme();
   const [appVersion, setAppVersion] = useState('');
   const [checkState, setCheckState] = useState<CheckState>('idle');
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
@@ -122,12 +124,14 @@ export default function AjustesPage({ onOpenPanel }: Props) {
               <SettingsRow
                 icon={<Palette size={15} />}
                 title="Apariencia"
-                description="Elige el tema visual de la aplicación"
-                action={
+                description={temaFijo
+                  ? 'Los roles administrativos usan el tema institucional de la universidad'
+                  : 'Elige el tema visual de la aplicación'}
+                action={temaFijo ? null : (
                   <Button size="xs" variant="light" onClick={() => onOpenPanel?.('themes')}>
                     Ir a Temas
                   </Button>
-                }
+                )}
               />
             </Stack>
           </Card>

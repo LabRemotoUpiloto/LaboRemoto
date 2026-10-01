@@ -752,7 +752,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
           /* Tabla Resumen con ScrollArea solo en modo tabla */
           <ScrollArea style={{ flex: 1 }} scrollbarSize={6} type="hover" styles={{ viewport: { overflowX: 'hidden' } }}>
             <Paper p="xs" radius="md" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}>
-              <Table highlightOnHover fontSize="xs" verticalSpacing="xs">
+              <Table highlightOnHover fz="xs" verticalSpacing="xs">
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th style={{ fontSize: 10 }}>Pin</Table.Th>

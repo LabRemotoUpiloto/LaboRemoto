@@ -220,6 +220,7 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = f
           <CameraPane
             key={cam.id}
             streamUrl={cam.stream_url}
+            webrtcPath={cam.webrtc}
             label={cam.name}
             camId={cam.id}
             isActive={isActive}

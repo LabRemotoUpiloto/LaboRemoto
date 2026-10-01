@@ -35,12 +35,20 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
   isLoading: true,
 
   login: async () => {
+    // Evita relanzar el flujo si ya hay uno en curso: dos clics generarían dos
+    // PKCE verifiers, y el backend solo guarda uno (slot único, "un solo uso"),
+    // así que el segundo clic pisa el verifier del primero y ese intento falla
+    // silenciosamente (ver auth://error más abajo).
+    if (get().isLoading) return
+
+    set({ isLoading: true })
     try {
       await authService.loginUrl()
       // Nota: El backend abrirá el navegador.
-      // Cuando se complete, 'auth://session-ready' será emitido.
+      // Cuando se complete, 'auth://session-ready' (o 'auth://error') será emitido.
     } catch (error) {
       console.error('Failed to initialize login flow:', error)
+      set({ isLoading: false })
       notifications.show({
         title: 'Error',
         message: 'Error al iniciar sesión',
@@ -98,7 +106,7 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
         })
       }
 
-      set({ user: event.payload, isAuthenticated: true })
+      set({ user: event.payload, isAuthenticated: true, isLoading: false })
     })
 
     const unlistenLogoutPromise = listen('auth://logged-out', () => {
@@ -111,10 +119,27 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
       get().invalidateAllQueries()
     })
 
+    // El backend emite esto si falla el intercambio de código por tokens
+    // (timeout, PKCE verifier pisado por un segundo intento de login, etc.).
+    // Sin este listener el error se perdía en silencio y la app se quedaba
+    // en la pantalla de login sin ningún feedback ni forma de reintentar.
+    const unlistenErrorPromise = listen<string>('auth://error', (event) => {
+      console.error('Auth error event received', event.payload)
+      set({ isLoading: false })
+      notifications.show({
+        title: 'Error al iniciar sesión',
+        message: event.payload || 'No se pudo completar el inicio de sesión. Intenta de nuevo.',
+        color: 'red',
+        autoClose: 5000,
+        withBorder: true,
+      })
+    })
+
     // Cleanup: manejamos las promesas para evitar que se acumulen listeners en el Strict Mode
     return () => {
       unlistenReadyPromise.then((unlisten) => unlisten())
       unlistenLogoutPromise.then((unlisten) => unlisten())
+      unlistenErrorPromise.then((unlisten) => unlisten())
     }
   },
 })

@@ -25,13 +25,15 @@ interface Props {
   onToggleShortcuts: () => void;
   onNewChat: () => void;
   onClose?: () => void;
+  /** True durante una práctica guiada: oculta el selector de modo/modelo (queda fijo en modo tutor). */
+  practiceLocked?: boolean;
 }
 
 const ChatHeader: React.FC<Props> = ({
   mode, onModeSwitch, sessionId, selectedModel, onModelChange,
   showHistory, onToggleHistory, searchOpen, onToggleSearch,
   onExportMd, onExportHtml, messagesEmpty, showShortcuts, onToggleShortcuts,
-  onNewChat, onClose,
+  onNewChat, onClose, practiceLocked = false,
 }) => {
   return (
     <div className="flex flex-col border-b border-subtle bg-secondary w-full shrink-0 z-10 sticky top-0">
@@ -138,10 +140,16 @@ const ChatHeader: React.FC<Props> = ({
       </WindowDragZone>
 
       {/* Selectors Bar */}
-      <div className="flex items-center gap-2 p-2 bg-secondary border-b border-subtle relative z-[5]">
-        <ModeSelect value={mode} onChange={onModeSwitch} sessionId={sessionId} />
-        <ModelSelect value={selectedModel} onChange={onModelChange} />
-      </div>
+      {practiceLocked ? (
+        <div className="flex items-center gap-2 p-2 bg-secondary border-b border-subtle relative z-[5] text-[11px] text-white/50">
+          Modo tutor (práctica en curso)
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 p-2 bg-secondary border-b border-subtle relative z-[5]">
+          <ModeSelect value={mode} onChange={onModeSwitch} sessionId={sessionId} />
+          <ModelSelect value={selectedModel} onChange={onModelChange} />
+        </div>
+      )}
 
       {/* Mode Description */}
       <div className="py-1 px-3 bg-secondary text-[10px] text-white/40 border-b border-subtle flex items-center gap-2 h-[22px]">

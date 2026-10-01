@@ -3,51 +3,24 @@ import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { AlertTriangle, ArrowLeft, Bot, Cpu, Terminal, X } from 'lucide-react';
+import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
+import { ArrowLeft, Bot, Cpu, Terminal, X, type LucideIcon } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
-import ExternalPracticeCard from '../../components/practicas/ExternalPracticeCard';
-import { useLabPractices } from '../../hooks/useLabPractices';
+import { getInsigniaForPractice } from '../../components/practicas/badges/insigniaRegistry';
+import LinuxModulePage from './LinuxModulePage';
+import type { Practice } from '../../types';
+import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
+import { useEarnedBadges } from '../../services/badges.service';
+import { consumePendingPracticesFocus } from '../../services/practiceNavigation.service';
 
-const categoryIconMap: Record<string, React.ElementType> = {
+export type { Practice };
+
+const categoryIconMap: Record<string, LucideIcon> = {
     robot: Bot,
     terminal: Terminal,
     circuit: Cpu,
 };
-
-interface PanelConfig {
-    camera: boolean;
-    chat: boolean;
-    chat_context: string;
-    chat_tutorial: string;
-}
-
-interface TerminalConfig {
-    allowed_commands: string[];
-    working_directory: string;
-    allow_navigation: boolean;
-    allow_nano: boolean;
-}
-
-interface PracticeConnection {
-    host: string;
-    port: number;
-    user: string;
-    password: string;
-    setup_commands: any[];
-}
-
-interface Practice {
-    id: string;
-    name: string;
-    description: string;
-    difficulty: string;
-    moodle_assignment_id?: number;
-    connection: PracticeConnection;
-    terminal: TerminalConfig;
-    panels: PanelConfig;
-}
 
 interface PracticeCategory {
     id: string;
@@ -63,6 +36,19 @@ interface PracticesPageProps {
         practice: Practice;
         student: { id: number; username: string; fullname: string; email: string };
     }) => Promise<void>;
+    /** Requerido para los módulos de la Pi (Linux y EV3): abre la pestaña de la sesión SSH real. */
+    onNewSession?: (info: { id: string; label: string }) => void;
+    /** Requerido para los módulos de la Pi (Linux y EV3): abre el panel de chat al conectar. */
+    setChatOpen?: (open: boolean) => void;
+    /**
+     * Instancia única de useLinuxPracticeSession (vive a nivel de App, ver
+     * App.tsx) — se threadea hasta LinuxModulePage para que el polling de
+     * revalidación sobreviva a la navegación entre pestañas. Sirve a los
+     * módulos de Linux y de EV3.
+     */
+    linuxSession?: LinuxPracticeSessionApi;
+    /** "Repetir" del administrador en LinuxModulePage -- ver App.tsx. */
+    onRestartLinuxModule?: (moduleId: string) => Promise<void>;
 }
 
 interface LogEntry {
@@ -71,25 +57,38 @@ interface LogEntry {
     timestamp: string;
 }
 
-const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
+const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, setChatOpen, linuxSession, onRestartLinuxModule }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
     const [startingPractice, setStartingPractice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [setupLogs, setSetupLogs] = useState<LogEntry[]>([]);
+    // Módulo del servicio de la Pi (Linux o EV3) abierto en pantalla.
+    const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
 
-    // Catálogo externo (cmd::integration::lab_practices) — solo lectura,
-    // pestaña aparte porque es contenido importado sin entorno vinculado
-    // (ver ExternalPracticeCard). No comparte categorías con las prácticas
-    // locales: es una lista plana.
-    const [catalogTab, setCatalogTab] = useState<'local' | 'external'>('local');
-    const { practices: externalPractices, status: externalStatus, error: externalError, refetch: refetchExternal } = useLabPractices();
+    // Insignias ganadas -- keyed por el mismo id de práctica que usa la Pi
+    // (ej. "linux-m1"), ver services/badges.service.ts. Reactivo: si el
+    // estudiante termina un módulo y vuelve acá (ver App.tsx:
+    // onModuleCompleted), la tarjeta ya muestra la medalla sin recargar.
+    const earnedBadges = useEarnedBadges();
 
     useEffect(() => {
         loadCategories();
     }, []);
+
+    // Ver services/practiceNavigation.service.ts -- al volver de terminar un
+    // módulo (App.tsx: onModuleCompleted), aterriza directo en su categoría
+    // en vez de en la grilla de categorías, así el estudiante ve de una la
+    // tarjeta con la medalla nueva.
+    useEffect(() => {
+        if (categories.length === 0) return;
+        const pendingCategoryId = consumePendingPracticesFocus();
+        if (!pendingCategoryId) return;
+        const cat = categories.find(c => c.id === pendingCategoryId);
+        if (cat) setSelectedCategory(cat);
+    }, [categories]);
 
     // Auto-scroll logs
     useEffect(() => {
@@ -171,16 +170,39 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
     const handleBack = () => {
         setSelectedCategory(null);
         setSetupLogs([]);
+        setSelectedModuleId(null);
     };
 
-    if (loading) {
+    // Los módulos que sirve la Pi (todos los de Linux y los ev3-*) se abren en
+    // la pantalla de módulo; las demás prácticas (legacy, desde .env) arrancan
+    // con el flujo de setup + sesión compartida.
+    const isServiceModule = (categoryId: string, practiceId: string) =>
+        categoryId === 'linux' || practiceId.startsWith('ev3-');
+
+    if (selectedModuleId) {
+        if (!linuxSession) {
+            // No debería pasar en la app real (App.tsx siempre instancia y pasa
+            // useLinuxPracticeSession hacia acá) — guard defensivo para no
+            // reventar si algún día PracticesPage se usa sin ese hook arriba.
+            return (
+                <Container size="sm" py="xl">
+                    <Alert color="red" title="Práctica no disponible">
+                        No se pudo inicializar la sesión de la práctica.
+                    </Alert>
+                    <Button mt="md" variant="subtle" leftSection={<ArrowLeft size={14} />} onClick={() => setSelectedModuleId(null)}>
+                        Volver
+                    </Button>
+                </Container>
+            );
+        }
         return (
-            <Box w="100%" h="100%" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Stack align="center" gap="md">
-                    <Loader size="md" />
-                    <Text c="dimmed" size="sm">Cargando prácticas...</Text>
-                </Stack>
-            </Box>
+            <LinuxModulePage
+                practiceId={selectedModuleId}
+                categoryName={selectedCategory?.name ?? 'Prácticas'}
+                onBack={() => setSelectedModuleId(null)}
+                linuxSession={linuxSession}
+                onRestartModule={onRestartLinuxModule}
+            />
         );
     }
 
@@ -199,23 +221,20 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                         <Stack gap="sm">
                             <Title order={1}>Prácticas de Laboratorio</Title>
                             <Text size="md" c="dimmed" maw={580}>
-                                {catalogTab === 'local'
-                                    ? 'Selecciona una categoría para ver las prácticas disponibles. Cada práctica configura automáticamente tu entorno de trabajo.'
-                                    : 'Prácticas publicadas por aplicaciones de autoría externas. Contenido importado y de solo lectura — para ejecutarlas hace falta vincularlas a un entorno de laboratorio local (próxima fase).'}
+                                Selecciona una categoría para ver las prácticas disponibles. Cada práctica configura automáticamente tu entorno de trabajo.
                             </Text>
                         </Stack>
 
-                        <SegmentedControl
-                            value={catalogTab}
-                            onChange={(v) => setCatalogTab(v as 'local' | 'external')}
-                            data={[
-                                { label: 'Mis prácticas', value: 'local' },
-                                { label: 'Catálogo externo', value: 'external' },
-                            ]}
-                            style={{ alignSelf: 'flex-start' }}
-                        />
-
-                        {catalogTab === 'local' ? (
+                        {loading ? (
+                            // Solo esta parte (las cards) muestra el loading -- el título y la
+                            // descripción ya se ven arriba. Antes un `if (loading) return ...`
+                            // tapaba la página entera mientras practicas_list_categories
+                            // esperaba a la Pi (hasta 20s si no responde).
+                            <Stack align="center" gap="md" py="xl">
+                                <Loader size="md" />
+                                <Text c="dimmed" size="sm">Cargando prácticas...</Text>
+                            </Stack>
+                        ) : (
                             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
                                 {categories.map(cat => (
                                     <CategoryCard
@@ -228,28 +247,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                                         practiceCount={cat.practices.length}
                                         onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
                                     />
-                                ))}
-                            </SimpleGrid>
-                        ) : externalStatus === 'loading' ? (
-                            <Stack align="center" gap="md" py="xl">
-                                <Loader size="md" />
-                                <Text c="dimmed" size="sm">Cargando catálogo externo...</Text>
-                            </Stack>
-                        ) : externalStatus === 'error' ? (
-                            <Alert color="red" variant="light" icon={<AlertTriangle size={16} />} title="No se pudo cargar el catálogo externo">
-                                <Stack gap="sm">
-                                    <Text size="sm">{externalError}</Text>
-                                    <Button size="xs" variant="light" color="red" onClick={() => void refetchExternal()} style={{ alignSelf: 'flex-start' }}>
-                                        Reintentar
-                                    </Button>
-                                </Stack>
-                            </Alert>
-                        ) : externalPractices.length === 0 ? (
-                            <Text c="dimmed" size="sm">No hay prácticas publicadas todavía.</Text>
-                        ) : (
-                            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-                                {externalPractices.map(practice => (
-                                    <ExternalPracticeCard key={practice.id} practice={practice} />
                                 ))}
                             </SimpleGrid>
                         )}
@@ -298,57 +295,27 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
                                     id={practice.id}
                                     name={practice.name}
                                     description={practice.description}
-                                    difficulty={practice.difficulty}
                                     hasCamera={practice.panels.camera}
                                     hasChat={practice.panels.chat}
-                                    onStart={() => handleStartPractice(practice)}
+                                    onStart={() => (
+                                        isServiceModule(selectedCategory.id, practice.id)
+                                            ? setSelectedModuleId(practice.id)
+                                            : handleStartPractice(practice)
+                                    )}
                                     loading={startingPractice === practice.id}
+                                    badge={practice.id in earnedBadges ? getInsigniaForPractice(practice.id) : undefined}
                                 />
                             ))}
                         </SimpleGrid>
 
                         {setupLogs.length > 0 && (
-                            <Paper withBorder radius="md">
-                                <Group
-                                    px="md"
-                                    py="xs"
-                                    justify="space-between"
-                                    style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-                                >
-                                    <Text size="xs" fw={600} c="dimmed">Log de Inicialización</Text>
-                                    {!startingPractice && (
-                                        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setSetupLogs([])}>
-                                            <X size={14} />
-                                        </ActionIcon>
-                                    )}
-                                </Group>
-                                <ScrollArea h={280} p="md">
-                                    <Stack gap={4}>
-                                        {setupLogs.map((log, i) => (
-                                            <Group key={i} gap="sm" align="flex-start" wrap="nowrap">
-                                                <Text
-                                                    size="xs"
-                                                    c="dimmed"
-                                                    style={{ minWidth: 65, flexShrink: 0, fontFamily: 'monospace' }}
-                                                >
-                                                    {log.timestamp}
-                                                </Text>
-                                                <Text
-                                                    size="xs"
-                                                    c={levelColor[log.level]}
-                                                    style={{ fontFamily: 'monospace', wordBreak: 'break-word' }}
-                                                >
-                                                    {log.message}
-                                                </Text>
-                                            </Group>
-                                        ))}
-                                        {startingPractice && (
-                                            <Text size="xs" c="green" style={{ fontFamily: 'monospace' }}>▌</Text>
-                                        )}
-                                        <div ref={logEndRef} />
-                                    </Stack>
-                                </ScrollArea>
-                            </Paper>
+                            <SetupLogPanel
+                                logs={setupLogs}
+                                levelColor={levelColor}
+                                isRunning={!!startingPractice}
+                                onClear={() => setSetupLogs([])}
+                                logEndRef={logEndRef}
+                            />
                         )}
                     </Stack>
                 )}
@@ -356,5 +323,48 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice }) => {
         </Box>
     );
 };
+
+/** Panel de log de inicialización de las prácticas que arrancan con setup (legacy, desde .env). */
+const SetupLogPanel: React.FC<{
+    logs: LogEntry[];
+    levelColor: Record<LogEntry['level'], string>;
+    isRunning: boolean;
+    onClear: () => void;
+    logEndRef: React.RefObject<HTMLDivElement>;
+}> = ({ logs, levelColor, isRunning, onClear, logEndRef }) => (
+    <Paper withBorder radius="md">
+        <Group
+            px="md"
+            py="xs"
+            justify="space-between"
+            style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
+        >
+            <Text size="xs" fw={600} c="dimmed">Log de Inicialización</Text>
+            {!isRunning && (
+                <ActionIcon variant="subtle" color="gray" size="sm" onClick={onClear}>
+                    <X size={14} />
+                </ActionIcon>
+            )}
+        </Group>
+        <ScrollArea h={280} p="md">
+            <Stack gap={4}>
+                {logs.map((log, i) => (
+                    <Group key={i} gap="sm" align="flex-start" wrap="nowrap">
+                        <Text size="xs" c="dimmed" style={{ minWidth: 65, flexShrink: 0, fontFamily: 'monospace' }}>
+                            {log.timestamp}
+                        </Text>
+                        <Text size="xs" c={levelColor[log.level]} style={{ fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                            {log.message}
+                        </Text>
+                    </Group>
+                ))}
+                {isRunning && (
+                    <Text size="xs" c="green" style={{ fontFamily: 'monospace' }}>▌</Text>
+                )}
+                <div ref={logEndRef} />
+            </Stack>
+        </ScrollArea>
+    </Paper>
+);
 
 export default PracticesPage;

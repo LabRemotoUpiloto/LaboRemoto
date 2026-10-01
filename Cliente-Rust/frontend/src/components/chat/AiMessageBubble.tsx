@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import AskRenderer from './AskRenderer';
 import ToolResultRenderer from './ToolResultRenderer';
 import DiffView from '../analysis/DiffView';
 import { Message, ChatMode } from '../chatModes/types';
-import { fmtTime } from '../chatPane/chatPane.constants';
+import { RelativeTime } from './RelativeTime';
 import type { ChatAppearance } from './ChatMessageList';
-import { ActionIcon } from '@mantine/core';
-import { Copy, RefreshCw, RotateCcw } from 'lucide-react';
+import { ActionIcon, Button, Group, Text } from '@mantine/core';
+import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { BlockView } from '../practicas/linux/blocks/BlockRenderer';
+import { ModuleCompleteCelebration } from '../practicas/linux/ModuleCompleteCelebration';
+import { PosterUnlockCelebration } from '../practicas/linux/PosterUnlockCelebration';
+import { markModuleBadgeEarned, rankForModule } from '../../services/badges.service';
+import { posterForModule, markPosterUnlocked, downloadPoster } from '../../services/posters.service';
 
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;
@@ -23,12 +28,24 @@ interface AiMessageBubbleProps {
   onAnalyzeCandidate: (base: string, candidate: string, action: string, index?: number) => void;
   onSetInput: (text: string) => void;
   wordCount: number;
+  linuxPracticeId?: string | null;
+  linuxRules?: any[];
+  linuxResult?: any | null;
+  linuxQuizAnswers?: Record<string, string>;
+  linuxQuizSubmitting?: boolean;
+  linuxQuizSubmitted?: boolean;
+  onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
+  onLinuxQuizSubmit?: () => void;
+  onLinuxModuleComplete?: (moduleId: string) => void;
 }
 
 export default function AiMessageBubble({
   appearance = 'session',
   msg, mode, isSending, sessionId, streamingMsgId, streamedText, setLastCommand,
-  onCopy, onRegenerate, onRetry, onAnalyzeCandidate, onSetInput, wordCount
+  onCopy, onRegenerate, onRetry, onAnalyzeCandidate, onSetInput, wordCount,
+  linuxPracticeId, linuxRules = [], linuxResult = null,
+  linuxQuizAnswers = {}, linuxQuizSubmitting = false, linuxQuizSubmitted = false,
+  onLinuxQuizAnswer, onLinuxQuizSubmit, onLinuxModuleComplete,
 }: AiMessageBubbleProps) {
   const isStreaming = streamingMsgId === msg.id;
   const isError = msg.text.startsWith('Error');
@@ -37,6 +54,68 @@ export default function AiMessageBubble({
   const hasAnswerContent = answerText.trim().length > 0;
 
   const actionBtnClass = 'text-[var(--text-secondary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]';
+
+  // Fuegos artificiales + insignia: una sola vez por módulo (persistido vía
+  // services/badges.service.ts -- misma fuente que lee la Sala de Trofeos
+  // del Perfil) -- nunca de nuevo en re-renders o remounts posteriores una
+  // vez que ya se ganó la insignia.
+  // Encadenado: medalla -> (si el módulo tiene póster) póster -> redirect.
+  // 'medal' y 'poster' son pasos EXCLUYENTES (nunca los dos overlays a la
+  // vez) -- cada uno se cierra antes de que aparezca el siguiente.
+  const [celebrationStep, setCelebrationStep] = useState<'medal' | 'poster' | null>(null);
+  const [posterDownloading, setPosterDownloading] = useState(false);
+  const [posterDownloadDone, setPosterDownloadDone] = useState(false);
+  const celebratedRef = useRef(false);
+  const linuxQuizModuleId = msg.meta?.linuxQuiz?.moduleId;
+  const poster = linuxQuizModuleId ? posterForModule(linuxQuizModuleId) : undefined;
+
+  useEffect(() => {
+    if (!linuxQuizSubmitted || !linuxResult?.passed || !linuxQuizModuleId || celebratedRef.current) return;
+    celebratedRef.current = true;
+    // Módulo sin insignia en el catálogo: nada que ganar ni celebrar.
+    if (!rankForModule(linuxQuizModuleId)) return;
+    const { alreadyEarned } = markModuleBadgeEarned(linuxQuizModuleId);
+    if (alreadyEarned) {
+      // Ya se había ganado antes (ej. el estudiante vuelve a un módulo que
+      // ya tenía completo) -- no repetimos ninguna animación, pero igual
+      // cerramos el flujo de "fin de práctica" (ver docs/practice-completion.md).
+      onLinuxModuleComplete?.(linuxQuizModuleId);
+    } else {
+      setCelebrationStep('medal');
+    }
+  }, [linuxQuizSubmitted, linuxResult?.passed, linuxQuizModuleId, onLinuxModuleComplete]);
+
+  const handleMedalClose = () => {
+    if (poster) {
+      // Se desbloquea en este momento (no antes): recién cuando el
+      // estudiante YA vio la insignia es que pasa al póster -- ver
+      // services/posters.service.ts.
+      markPosterUnlocked(poster.id);
+      setCelebrationStep('poster');
+    } else {
+      setCelebrationStep(null);
+      onLinuxModuleComplete?.(linuxQuizModuleId!);
+    }
+  };
+
+  const handlePosterDownload = async () => {
+    if (!poster || posterDownloading) return;
+    setPosterDownloading(true);
+    try {
+      const saved = await downloadPoster(poster);
+      if (saved) setPosterDownloadDone(true);
+    } catch {
+      // Silencioso -- una descarga fallida no debe trabar el festejo; el
+      // póster de todos modos queda disponible en la Sala de Trofeos.
+    } finally {
+      setPosterDownloading(false);
+    }
+  };
+
+  const handlePosterClose = () => {
+    setCelebrationStep(null);
+    onLinuxModuleComplete?.(linuxQuizModuleId!);
+  };
 
   return (
     <div className={`relative flex flex-col group/ai items-start w-full`}>
@@ -67,13 +146,13 @@ export default function AiMessageBubble({
             className="block text-[10px] mb-2 tabular-nums text-right"
             style={{ color: 'var(--text-muted)' }}
           >
-            {fmtTime(msg.timestamp)}
+            <RelativeTime timestamp={msg.timestamp} />
           </span>
         )}
 
         {!isLanding && msg.timestamp && (
           <span className="block text-[9.5px] opacity-50 mb-1 font-mono tracking-wide">
-            {fmtTime(msg.timestamp)}
+            <RelativeTime timestamp={msg.timestamp} />
           </span>
         )}
 
@@ -95,6 +174,72 @@ export default function AiMessageBubble({
           )}
           {msg.meta?.toolAction && (
             <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />
+          )}
+
+          {msg.meta?.linuxContentBlocks && linuxPracticeId && (
+            <div className="flex flex-col gap-2 mt-1">
+              {msg.meta.linuxContentBlocks.map((block: any) => (
+                <BlockView key={block.id} block={block} rules={linuxRules} result={linuxResult} practiceId={linuxPracticeId} />
+              ))}
+            </div>
+          )}
+
+          {msg.meta?.linuxQuiz && linuxPracticeId && (
+            <div className="flex flex-col gap-2 mt-1">
+              {msg.meta.linuxQuiz.blocks.map((block: any) => (
+                <BlockView
+                  key={block.id}
+                  block={block}
+                  rules={linuxRules}
+                  result={linuxResult}
+                  practiceId={linuxPracticeId}
+                  quizAnswers={linuxQuizAnswers}
+                  onQuizAnswer={onLinuxQuizAnswer}
+                  quizLocked={linuxQuizSubmitted}
+                />
+              ))}
+              {/* La evaluación solo se da por terminada al 100% (ver validation.py
+                  en la Pi) -- mientras quede alguna pregunta incorrecta, el botón
+                  sigue disponible para corregir y reenviar, nunca se bloquea para
+                  siempre como antes. */}
+              {!(linuxQuizSubmitted && linuxResult?.passed) && (
+                <Group justify="flex-end">
+                  <Button
+                    size="xs"
+                    leftSection={<ClipboardCheck size={14} />}
+                    loading={linuxQuizSubmitting}
+                    disabled={!msg.meta.linuxQuiz.blocks.every((b: any) => !!linuxQuizAnswers[b.id])}
+                    onClick={onLinuxQuizSubmit}
+                  >
+                    {linuxQuizSubmitted ? 'Reenviar evaluación' : 'Enviar evaluación'}
+                  </Button>
+                </Group>
+              )}
+              {linuxQuizSubmitted && linuxResult && (
+                <Text fz="xs" c="dimmed">
+                  {linuxResult.earned_points}/{linuxResult.total_points} pts ({linuxResult.percentage}%)
+                  {linuxResult.passed ? ' — ¡módulo completo!' : ' — corregí las preguntas marcadas en rojo y reenviá.'}
+                </Text>
+              )}
+              {celebrationStep === 'medal' && linuxResult && linuxQuizModuleId && (
+                <ModuleCompleteCelebration
+                  moduleId={linuxQuizModuleId}
+                  moduleTitle={msg.meta?.linuxQuiz?.moduleTitle}
+                  earnedPoints={linuxResult.earned_points}
+                  totalPoints={linuxResult.total_points}
+                  onClose={handleMedalClose}
+                />
+              )}
+              {celebrationStep === 'poster' && poster && (
+                <PosterUnlockCelebration
+                  poster={poster}
+                  onClose={handlePosterClose}
+                  onDownload={handlePosterDownload}
+                  downloading={posterDownloading}
+                  downloadDone={posterDownloadDone}
+                />
+              )}
+            </div>
           )}
 
           <div className={`flex items-center gap-1 mt-2 -ml-1 opacity-0 group-hover/ai:opacity-100 transition-opacity ${isLanding ? 'border-t pt-2' : ''}`}

@@ -1,0 +1,68 @@
+name: Borrar rama tras merge
+
+# Cuando un PR se fusiona en Desarrollo, borra la rama de origen del PR.
+# Solo actúa sobre PRs fusionados (no sobre los cerrados sin fusionar) y nunca
+# toca las ramas permanentes de abajo. Si la rama se borra por error, el botón
+# "Restore branch" del PR la vuelve a crear con los mismos commits.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [ "Desarrollo" ]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  borrar-rama:
+    name: Borrar rama de origen
+    # Sin fusionar, o desde un fork (esa rama no es nuestra): no se hace nada.
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Borrar la rama si no es permanente
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RAMA: ${{ github.event.pull_request.head.ref }}
+          PR: ${{ github.event.pull_request.number }}
+          # Ramas que nunca se borran: entornos (Produccion, Pruebas(QA)),
+          # la rama de integración y las ramas personales que se reutilizan
+          # en muchos PR (felipe, LuEv3). Separadas por espacios.
+          PERMANENTES: "Desarrollo Produccion Pruebas(QA) main master felipe LuEv3"
+        run: |
+          set -euo pipefail
+
+          # El nombre de la rama llega solo por variable de entorno, nunca
+          # pegado en el script, y además se exige que use caracteres simples.
+          if [[ ! "$RAMA" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "::notice::La rama '$RAMA' tiene caracteres poco comunes: no se borra automáticamente."
+            exit 0
+          fi
+
+          for permanente in $PERMANENTES; do
+            if [ "$RAMA" = "$permanente" ]; then
+              echo "::notice::'$RAMA' es una rama permanente: no se borra."
+              exit 0
+            fi
+          done
+
+          # Si otro PR abierto apunta a esta rama (PRs encadenados), borrarla lo cerraría.
+          dependientes=$(gh pr list --repo "$REPO" --base "$RAMA" --state open --json number --jq 'length')
+          if [ "$dependientes" -gt 0 ]; then
+            echo "::notice::Hay $dependientes PR abierto(s) que apuntan a '$RAMA': no se borra."
+            exit 0
+          fi
+
+          if gh api -X DELETE "repos/$REPO/git/refs/heads/$RAMA" 2> error.txt; then
+            echo "Rama '$RAMA' borrada (PR #$PR fusionado en Desarrollo)."
+            echo "### Rama borrada: \`$RAMA\`" >> "$GITHUB_STEP_SUMMARY"
+          elif grep -q "Reference does not exist" error.txt; then
+            echo "La rama '$RAMA' ya no existía."
+          else
+            cat error.txt
+            exit 1
+          fi

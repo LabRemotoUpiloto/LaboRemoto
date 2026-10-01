@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Group, Stack, Text, ThemeIcon, useMantineTheme } from '@mantine/core';
-import { Bot, Terminal, Cpu, ArrowRight } from 'lucide-react';
+import { Bot, Terminal, Cpu, ArrowRight, type LucideIcon } from 'lucide-react';
 
 interface CategoryCardProps {
     id: string;
@@ -12,7 +12,7 @@ interface CategoryCardProps {
     onClick: () => void;
 }
 
-const iconMap: Record<string, React.ElementType> = {
+const iconMap: Record<string, LucideIcon> = {
     robot: Bot,
     terminal: Terminal,
     circuit: Cpu,

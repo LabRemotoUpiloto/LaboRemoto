@@ -9,6 +9,7 @@ import {
   CalendarDays, ChevronLeft, ChevronRight, Clock,
   Bot, Terminal, Cpu, CheckCircle2, XCircle, AlertCircle,
   Plus, ArrowLeft, ArrowRight, Camera, MessageSquare, Zap,
+  type LucideIcon,
 } from 'lucide-react';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ interface ReservaConfirmada {
 
 const HORAS = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'];
 
-const categoryIconMap: Record<string, React.ElementType> = {
+const categoryIconMap: Record<string, LucideIcon> = {
   robot: Bot,
   terminal: Terminal,
   circuit: Cpu,

@@ -1,0 +1,181 @@
+{
+  "id": "ev3-m8",
+  "order": 8,
+  "title": "Proyecto integrador",
+  "difficulty": "advanced",
+  "estimated_minutes": 30,
+  "sequential": false,
+  "objective": "Planificar un desafío abierto que combine seguir una línea, esquivar un obstáculo y una ruta planeada con precisión, y autoevaluar el resultado.",
+  "environment": {
+    "panels": {
+      "robot_dashboard": true,
+      "camera": true
+    },
+    "setup_commands": [
+      "sudo -n -u pi /home/pi/ev3-hop-robot.sh 'cd /home/robot && nohup python3 main.py > /dev/null 2>&1 &'",
+      "sudo -n -u pi /home/pi/ev3-hop-pi5.sh 'cd /home/labiotpi5/ev3_bridge && nohup venv/bin/python3 ev3_bridge.py > bridge.log 2>&1 & sleep 3 && curl -s -X POST -H \"Content-Type: application/json\" -d \"{\\\"mode\\\":\\\"real\\\",\\\"ip\\\":\\\"172.16.112.215\\\"}\" http://127.0.0.1:8000/api/config'"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "**El desafío.** Con los siete módulos anteriores ya tienes todas las piezas. Este último no enseña nada nuevo: es la oportunidad de combinarlas en un problema real, sin una respuesta única correcta."
+    },
+    {
+      "type": "text",
+      "id": "b-objetivo",
+      "body_md": "**Objetivo:** haz que el robot recorra un circuito simple que incluya **al menos** un tramo con una línea a seguir (sensor de color), un obstáculo en algún punto del recorrido (sensor ultrasónico) y un tramo final con una ruta planeada con precisión, sin depender de sensores (usando las cuentas de grados del módulo 3)."
+    },
+    {
+      "type": "text",
+      "id": "b-libertad",
+      "body_md": "No hay una única forma correcta de armarlo: puedes priorizar seguir la línea y solo esquivar cuando el obstáculo la corta, o tratar cada tramo como un estado de una máquina de estados. Las decisiones de diseño son parte del ejercicio. Si no tienes un circuito físico armado, también vale calcular el recorrido completo en papel y describir dónde y cómo intervendría cada sensor."
+    },
+    {
+      "type": "text",
+      "id": "b-plan-1",
+      "body_md": "**Cómo planificarlo.** Encarar todo el desafío de una vez suele terminar en un programa difícil de depurar. Un orden que funciona bien: **1)** dibuja el recorrido aproximado y anota distancias y giros. **2)** Identifica qué tramos necesitan sensores (seguir línea, esquivar) y cuáles pueden ser una ruta planeada fija (módulo 3)."
+    },
+    {
+      "type": "text",
+      "id": "b-plan-2",
+      "body_md": "**3)** Escribe y prueba cada comportamiento **por separado**: primero que siga la línea sin preocuparte del obstáculo, después que esquive sin preocuparte de la línea. **4)** Únelos con una **máquina de estados** (módulos 4 y 5): cada comportamiento probado se convierte en un estado. **5)** Agrega manejo de errores donde tenga sentido (módulo 5) y usa el checklist de diagnóstico (módulo 6) apenas algo no funcione como esperabas."
+    },
+    {
+      "type": "quiz",
+      "id": "q-orden-trabajo",
+      "question_md": "¿Cuál es el orden de trabajo recomendado para el proyecto?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Escribir todo el programa de una vez y probar al final"
+        },
+        {
+          "id": "b",
+          "label": "Empezar por el manejo de errores y dejar los sensores para el final"
+        },
+        {
+          "id": "c",
+          "label": "Probar cada comportamiento por separado y después unirlos con una máquina de estados"
+        },
+        {
+          "id": "d",
+          "label": "Copiar un programa ya hecho sin probarlo"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q-tramo-sin-sensores",
+      "question_md": "¿Qué parte del recorrido conviene resolver con una **ruta planeada** y no con sensores?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El tramo de la línea"
+        },
+        {
+          "id": "b",
+          "label": "La detección del obstáculo"
+        },
+        {
+          "id": "c",
+          "label": "Ninguno: todo debe usar sensores"
+        },
+        {
+          "id": "d",
+          "label": "Un tramo final de distancias y giros conocidos de antemano"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-autoevaluacion",
+      "body_md": "**Autoevaluación.** No hay una corrección automática para este proyecto: es una guía para ti, no un examen. Marca honestamente qué lograste:"
+    },
+    {
+      "type": "checklist",
+      "id": "w-autoevaluacion",
+      "title": "Autoevaluación",
+      "done_md": "Lograste todos los criterios: ya puedes empezar a resolver problemas nuevos con el EV3 por tu cuenta.",
+      "items": [
+        "El robot completa el recorrido de punta a punta.",
+        "Sigue la línea en el tramo correspondiente sin perderla en las curvas.",
+        "Detecta el obstáculo y reacciona antes de chocarlo.",
+        "El tramo de ruta planeada llega a destino sin depender de sensores.",
+        "El código maneja al menos un caso de error posible (sensor desconectado, lectura fuera de rango).",
+        "Dejaste el robot detenido y sin programas corriendo al terminar (módulo 7)."
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-cierre",
+      "body_md": "Los criterios sin cumplir son un buen punto de partida para la próxima sesión. Con este proyecto recorriste los ocho módulos y armaste algo que combina sensores, movimiento preciso y manejo de errores: eso es, en esencia, todo lo que hace falta para empezar a resolver problemas nuevos con el EV3 por tu cuenta."
+    },
+    {
+      "type": "quiz",
+      "id": "q-autoevaluacion",
+      "question_md": "Sobre la autoevaluación del proyecto, ¿cuál afirmación es correcta?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Es una guía honesta para ti: los criterios sin cumplir sirven para la próxima sesión"
+        },
+        {
+          "id": "b",
+          "label": "Es un examen con una única respuesta correcta"
+        },
+        {
+          "id": "c",
+          "label": "Solo cuenta si el robot no se detiene nunca"
+        },
+        {
+          "id": "d",
+          "label": "No hace falta dejar el robot detenido al terminar"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "b-practica",
+      "body_md": "**Ahora, a practicar.** Arma el proyecto en la pestaña **Consola** del Panel EV3, un comportamiento a la vez, y usa el Dashboard para revisar sensores y motores si algo no responde."
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "quiz-orden-trabajo",
+        "quiz-tramo-sin-sensores",
+        "quiz-autoevaluacion"
+      ]
+    }
+  ],
+  "hints": [
+    "Prueba cada comportamiento por separado antes de combinarlos.",
+    "Cada tramo del circuito puede ser un estado de una máquina de estados.",
+    "Si algo no funciona, recorre el checklist de diagnóstico del módulo 6."
+  ],
+  "validation_rules": [
+    {
+      "id": "quiz-orden-trabajo",
+      "rule_type": "quiz",
+      "target": "q-orden-trabajo",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-tramo-sin-sensores",
+      "rule_type": "quiz",
+      "target": "q-tramo-sin-sensores",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-autoevaluacion",
+      "rule_type": "quiz",
+      "target": "q-autoevaluacion",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+.ev3-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--background-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.ev3-panel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.ev3-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.ev3-nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background 0.3s;
+  background: var(--danger);
+}
+.ev3-nav-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.ev3-nav-dot.offline { background: var(--danger); }
+
+.ev3-nav-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.ev3-nav-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.ev3-nav-tab:hover { color: var(--text-primary); }
+.ev3-nav-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+.ev3-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  /* Contenedor de consulta para que el Dashboard reaccione al alto REAL del
+     panel (que cambia al abrir la cámara) y no al de la ventana. */
+  container: ev3body / size;
+}
+
+/* Las vistas vienen de investigacion_ev3, donde su contenedor padre era un
+   bloque: sus raíces no siempre declaran ancho y acá, como flex-item, se
+   encogerían al ancho del contenido. */
+.ev3-panel-body > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* La Consola queda montada aunque esté oculta (ver Ev3Panel.tsx). */
+.ev3-panel-pane {
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.ev3-panel-pane > .ev3-console { flex: 1; }

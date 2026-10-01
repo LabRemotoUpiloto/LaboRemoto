@@ -117,7 +117,7 @@ export function useDesktopSession(sessionId: string) {
           `No pude iniciar el escritorio remoto: al servidor le falta algo instalado.\n\n` +
           `${event.payload.message}\n\n` +
           `Contame si corrés el comando y qué te tira, así te ayudo a resolverlo.`
-        setPendingChatMessage({ text, model: 'nvidia/nemotron-3-nano-30b-a3b:free' })
+        setPendingChatMessage({ text, model: 'deepseek/deepseek-v3.2:free' })
         window.dispatchEvent(new CustomEvent('tour:open-chat'))
         document.dispatchEvent(new CustomEvent('chat:check-pending-msg'))
       },

@@ -1,0 +1,518 @@
+// components/practicas/linux/blocks/BlockRenderer.tsx
+//
+// Despacha cada bloque del módulo (ver linuxPractice.service.ts) a su propio
+// componente. `checkpoint` no renderiza nada acá — es leído por
+// LinuxModulePage para saber cuándo mostrar la pantalla de cierre.
+
+import React, { useEffect, useState } from 'react';
+import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, Button } from '@mantine/core';
+import { AlertTriangle, Play, X } from 'lucide-react';
+import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
+import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
+import { ZoomableImage } from '../ZoomableImage';
+import WheelsSimBlock from './widgets/WheelsSim';
+import CalculatorBlock from './widgets/CalculatorBlock';
+import SensorDemoBlock from './widgets/SensorDemo';
+import StateMachineBlock from './widgets/StateMachineBlock';
+import ChecklistBlock from './widgets/ChecklistBlock';
+
+const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
+
+/** Soporte mínimo de **negrita** y `código` — no se agrega una librería de markdown para esto. */
+function renderInline(md: string): React.ReactNode {
+  const parts = md.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code key={i} style={{ fontFamily: 'monospace', fontSize: '0.92em', padding: '1px 5px', borderRadius: 4, background: 'rgba(127,127,127,0.18)' }}>
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
+}
+
+/** Fragmento de código (hoy Python para los módulos de EV3). Solo se muestra: no se ejecuta. */
+function CodeBlockView({ block }: { block: Extract<LinuxBlock, { type: 'code_block' }> }) {
+  return (
+    <Paper withBorder radius="md" p="md" style={{ background: '#14150F' }}>
+      <Text component="pre" ff="monospace" fz="sm" m={0} style={{ color: '#E5E9DE', whiteSpace: 'pre-wrap', overflowX: 'auto' }}>
+        {block.code}
+      </Text>
+      {block.caption && (
+        <Text fz="xs" mt="xs" style={{ color: '#9AA38F' }}>
+          {block.caption}
+        </Text>
+      )}
+    </Paper>
+  );
+}
+
+function TextBlockView({ block }: { block: Extract<LinuxBlock, { type: 'text' }> }) {
+  return (
+    <Text fz="sm" style={{ lineHeight: 1.6 }}>
+      {renderInline(block.body_md)}
+    </Text>
+  );
+}
+
+function TerminalAnnotationBlock({ block }: { block: Extract<LinuxBlock, { type: 'terminal_annotation' }> }) {
+  const { prompt_example, labels } = block;
+  const segments: { text: string; label?: string; color?: string }[] = [];
+  let cursor = 0;
+
+  labels.forEach((lbl, i) => {
+    const idx = prompt_example.indexOf(lbl.span, cursor);
+    if (idx === -1) return;
+    if (idx > cursor) segments.push({ text: prompt_example.slice(cursor, idx) });
+    segments.push({
+      text: prompt_example.slice(idx, idx + lbl.span.length),
+      label: lbl.label,
+      color: PALETTE[i % PALETTE.length],
+    });
+    cursor = idx + lbl.span.length;
+  });
+  if (cursor < prompt_example.length) segments.push({ text: prompt_example.slice(cursor) });
+
+  return (
+    <Paper withBorder radius="md" p="md" style={{ background: '#14150F' }}>
+      <Text ff="monospace" fz="sm" style={{ color: '#E5E9DE' }}>
+        {segments.map((s, i) =>
+          s.label ? (
+            <span
+              key={i}
+              title={s.label}
+              style={{ borderBottom: `2px solid ${s.color}`, paddingBottom: 1, color: s.color, cursor: 'help' }}
+            >
+              {s.text}
+            </span>
+          ) : (
+            <React.Fragment key={i}>{s.text}</React.Fragment>
+          ),
+        )}
+      </Text>
+      <Group gap="md" mt="sm">
+        {labels.map((lbl, i) => (
+          <Group key={i} gap={6}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: PALETTE[i % PALETTE.length],
+                display: 'inline-block',
+              }}
+            />
+            <Text fz="xs" c="dimmed">{lbl.label}</Text>
+          </Group>
+        ))}
+      </Group>
+    </Paper>
+  );
+}
+
+function AnalogyBlock({ block }: { block: Extract<LinuxBlock, { type: 'analogy' }> }) {
+  return (
+    <Paper withBorder radius="md" p="md">
+      {block.title ? (
+        <Text fz="sm" fw={700} c="teal" mb={8}>
+          {block.title}
+        </Text>
+      ) : (
+        <Text fz="xs" tt="uppercase" fw={700} c="teal" mb={8} style={{ letterSpacing: '0.06em' }}>
+          {block.term}
+        </Text>
+      )}
+      <Group grow align="flex-start" gap="md">
+        <Stack gap={4}>
+          <Text fz="xs" c="dimmed" tt="uppercase">Objeto cotidiano</Text>
+          <Text fz="sm">{block.everyday}</Text>
+        </Stack>
+        <Stack gap={4}>
+          <Text fz="xs" c="dimmed" tt="uppercase">En Windows</Text>
+          <Text fz="sm">{block.windows}</Text>
+        </Stack>
+        <Stack gap={4}>
+          <Text fz="xs" c="dimmed" tt="uppercase">En Linux</Text>
+          <Text fz="sm">{block.linux}</Text>
+        </Stack>
+      </Group>
+    </Paper>
+  );
+}
+
+function CommandStepBlock({
+  block,
+  passed,
+  points,
+}: {
+  block: Extract<LinuxBlock, { type: 'command_step' }>;
+  passed: boolean;
+  points?: number;
+}) {
+  return (
+    <Paper
+      withBorder
+      radius="md"
+      p="md"
+      style={passed ? { borderColor: 'var(--success, #10b981)' } : undefined}
+    >
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <Group align="flex-start" gap="sm" wrap="nowrap">
+          <Checkbox checked={passed} readOnly mt={2} />
+          <Stack gap={4}>
+            {block.goal_md ? (
+              <Text fz="sm">{renderInline(block.goal_md)}</Text>
+            ) : (
+              <Text ff="monospace" fz="sm" fw={600}>{block.command}</Text>
+            )}
+            <Text fz="xs" c="dimmed">{renderInline(block.explain_md)}</Text>
+          </Stack>
+        </Group>
+      </Group>
+    </Paper>
+  );
+}
+
+// `invoke` rechaza con el payload del backend ({ code, message, ... }), no con un Error:
+// String(e) daba "[object Object]" en pantalla.
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string') return e;
+  if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+    return (e as { message: string }).message;
+  }
+  try { return JSON.stringify(e); } catch { return String(e); }
+}
+
+function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 'media' }>; practiceId: string }) {
+  // Los videos pesan varios MB y cada alumno los baja completos por el túnel de la
+  // Pi: con un curso entero abriendo la práctica a la vez saturan el enlace. Por eso
+  // el video solo se pide cuando el estudiante lo pide (botón); las imágenes, que son
+  // chicas, se siguen cargando de inmediato.
+  const [requested, setRequested] = useState(block.kind !== 'video');
+  const [state, setState] = useState<{ status: 'loading' } | { status: 'ok'; url: string } | { status: 'error'; message: string }>({ status: 'loading' });
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    setRequested(block.kind !== 'video');
+  }, [practiceId, block.file, block.kind]);
+
+  useEffect(() => {
+    if (!requested) return;
+    let cancelled = false;
+    setState({ status: 'loading' });
+    setExpanded(false);
+    // Video: URL del puente local -> streaming con Range (arranca en segundos). Imagen: archivo
+    // chico, se trae completo como data: URI.
+    const cargar = block.kind === 'video'
+      ? linuxGetMediaUrl(practiceId, block.file)
+      : linuxGetMedia(practiceId, block.file).then((media) => `data:${media.mime};base64,${media.base64}`);
+    cargar
+      .then((url) => {
+        if (cancelled) return;
+        setState({ status: 'ok', url });
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setState({ status: 'error', message: errorMessage(e) });
+      });
+    return () => { cancelled = true; };
+  }, [practiceId, block.file, requested]);
+
+  return (
+    <Paper withBorder radius="md" p="md">
+      {!requested && (
+        <Stack align="center" py="lg" gap="xs">
+          <Button leftSection={<Play size={16} />} onClick={() => setRequested(true)}>
+            Ver video
+          </Button>
+          {block.caption && <Text fz="xs" c="dimmed" ta="center">{block.caption}</Text>}
+        </Stack>
+      )}
+      {requested && state.status === 'loading' && (
+        <Stack align="center" py="lg" gap="xs">
+          <Loader size="sm" />
+          <Text fz="xs" c="dimmed">Cargando media…</Text>
+        </Stack>
+      )}
+      {state.status === 'error' && (
+        <Alert color="red" variant="light" icon={<AlertTriangle size={14} />} title="No se pudo cargar este archivo">
+          <Text fz="xs">{state.message}</Text>
+        </Alert>
+      )}
+      {/*
+        UN SOLO wrapper, montado siempre en la misma posición del árbol --
+        solo cambia su `style` (chico e inline <-> fixed cubriendo la
+        pantalla) según `expanded`. El <video>/<img> de adentro nunca se
+        desmonta: si existieran dos elementos <video> distintos (uno para
+        "chico" y otro para el modal), reproducir cortaría la reproducción
+        y la arrancaría de cero en el segundo. Por eso tampoco se usa un
+        portal acá: portear a otro nodo del DOM no ayuda a conservar el
+        estado si de paso cambia la posición en el árbol de React.
+      */}
+      {state.status === 'ok' && (
+        <div
+          style={
+            expanded
+              ? {
+                  position: 'fixed', inset: 0, zIndex: 3000,
+                  background: 'rgba(10, 10, 8, 0.92)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  padding: 24,
+                }
+              : { position: 'relative' }
+          }
+          onClick={(e) => { if (expanded && e.target === e.currentTarget) setExpanded(false); }}
+        >
+          {expanded && (
+            <ActionIcon
+              variant="light" color="gray" radius="xl" size="lg"
+              style={{ position: 'absolute', top: 20, right: 20 }}
+              onClick={() => setExpanded(false)}
+              aria-label="Cerrar"
+            >
+              <X size={18} />
+            </ActionIcon>
+          )}
+          {block.kind === 'image' ? (
+            expanded ? (
+              <ZoomableImage
+                src={state.url}
+                alt={block.caption ?? block.file}
+                style={{ maxWidth: '92vw', maxHeight: '85vh', borderRadius: 8 }}
+              />
+            ) : (
+              <img
+                src={state.url}
+                alt={block.caption ?? block.file}
+                onClick={() => setExpanded(true)}
+                style={{
+                  maxWidth: '100%',
+                  borderRadius: 6,
+                  display: 'block',
+                  cursor: 'zoom-in',
+                }}
+              />
+            )
+          ) : (
+            <video
+              src={state.url}
+              controls
+              autoPlay
+              preload="metadata"
+              onError={() => setState({ status: 'error', message: 'No se pudo reproducir el video (¿sin conexión con la Pi?). Probá de nuevo en un momento.' })}
+              onPlay={() => setExpanded(true)}
+              style={{
+                width: expanded ? 'auto' : '100%',
+                maxWidth: expanded ? '92vw' : undefined,
+                maxHeight: expanded ? '80vh' : undefined,
+                borderRadius: expanded ? 8 : 6,
+                aspectRatio: expanded ? undefined : '16 / 9',
+                background: '#000',
+              }}
+            />
+          )}
+          {block.caption && (
+            <Text
+              fz={expanded ? 'sm' : 'xs'}
+              c={expanded ? 'gray.3' : 'dimmed'}
+              mt={8}
+              ta="center"
+            >
+              {block.caption}
+            </Text>
+          )}
+        </div>
+      )}
+    </Paper>
+  );
+}
+
+function QuizBlock({
+  block,
+  passed,
+  answered,
+  points,
+  selected,
+  onSelect,
+  attempted,
+}: {
+  block: Extract<LinuxBlock, { type: 'quiz' }>;
+  passed: boolean;
+  answered: boolean;
+  points?: number;
+  selected?: string;
+  onSelect: (optionId: string) => void;
+  /** Ya se envió la evaluación al menos una vez -- antes de eso no hay feedback que mostrar. */
+  attempted: boolean;
+}) {
+  const showFeedback = attempted && answered;
+  // La evaluación completa exige el 100% (ver validation.py) -- una pregunta
+  // CORRECTA se bloquea (ya no tiene sentido tocarla), pero una INCORRECTA
+  // queda editable a propósito, para que el estudiante la corrija y reenvíe.
+  const locked = passed;
+  return (
+    <Paper
+      withBorder
+      radius="md"
+      p="md"
+      style={showFeedback ? { borderColor: passed ? 'var(--success, #10b981)' : 'var(--danger, #ef4444)' } : undefined}
+    >
+      <Group justify="space-between" align="flex-start" mb={8}>
+        <Text fz="sm" fw={600} style={{ lineHeight: 1.5 }}>{renderInline(block.question_md)}</Text>
+      </Group>
+      <Radio.Group value={selected ?? null} onChange={onSelect}>
+        <Stack gap={6}>
+          {block.options.map((opt) => (
+            <Radio key={opt.id} value={opt.id} label={opt.label} disabled={locked} />
+          ))}
+        </Stack>
+      </Radio.Group>
+      {showFeedback && (
+        <Text fz="xs" mt={8} c={passed ? 'green' : 'red'}>
+          {passed ? 'Correcto.' : 'Te equivocaste en esta pregunta — corregí tu respuesta y volvé a enviar la evaluación.'}
+        </Text>
+      )}
+    </Paper>
+  );
+}
+
+const PERMISSION_GROUPS = ['Dueño', 'Grupo', 'Otros'] as const;
+const PERMISSION_BITS = [
+  { key: 'r', label: 'Leer', value: 4 },
+  { key: 'w', label: 'Escribir', value: 2 },
+  { key: 'x', label: 'Ejecutar', value: 1 },
+] as const;
+
+function parseOctalDigit(digit: string): boolean[] {
+  const n = parseInt(digit, 8) || 0;
+  return [!!(n & 4), !!(n & 2), !!(n & 1)];
+}
+
+/**
+ * Exploración libre, sin validation_rule propia -- lo que valida el progreso
+ * es el `chmod` real que el estudiante corre después en la terminal (bloque
+ * `command_step` aparte). Esto es solo para que entienda de dónde sale el
+ * número antes de escribirlo a ciegas: toca los 9 checkboxes y ve en vivo
+ * cómo cambian el octal y la notación simbólica.
+ */
+function PermissionsCalculatorBlock({ block }: { block: Extract<LinuxBlock, { type: 'permissions_calculator' }> }) {
+  const initial = (block.initial_octal ?? '644').padStart(3, '0').slice(-3);
+  const [bits, setBits] = useState<boolean[][]>(() => initial.split('').map(parseOctalDigit));
+
+  const toggle = (groupIdx: number, bitIdx: number) => {
+    setBits((prev) => {
+      const next = prev.map((row) => [...row]);
+      next[groupIdx][bitIdx] = !next[groupIdx][bitIdx];
+      return next;
+    });
+  };
+
+  const digits = bits.map((row) => row.reduce((sum, on, i) => sum + (on ? PERMISSION_BITS[i].value : 0), 0));
+  const octal = digits.join('');
+  const symbolic = bits.map((row) => row.map((on, i) => (on ? PERMISSION_BITS[i].key : '-')).join('')).join('');
+
+  return (
+    <Paper withBorder radius="md" p="md">
+      {block.prompt_md && (
+        <Text fz="sm" mb="sm">{renderInline(block.prompt_md)}</Text>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: '64px repeat(3, 1fr)', gap: 8, alignItems: 'center' }}>
+        <div />
+        {PERMISSION_BITS.map((b) => (
+          <Text key={b.key} fz="xs" c="dimmed" ta="center" tt="uppercase" fw={600}>
+            {b.label}
+          </Text>
+        ))}
+        {PERMISSION_GROUPS.map((group, gi) => (
+          <React.Fragment key={group}>
+            <Text fz="xs" fw={600}>{group}</Text>
+            {PERMISSION_BITS.map((b, bi) => (
+              <Group key={b.key} justify="center">
+                <Checkbox checked={bits[gi][bi]} onChange={() => toggle(gi, bi)} />
+              </Group>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+      <Stack gap={6} mt="md" p="sm" style={{ background: 'var(--background-tertiary, rgba(255,255,255,0.04))', borderRadius: 8 }}>
+        <Group gap="xs">
+          <Text fz="xs" c="dimmed" style={{ minWidth: 78 }}>Simbólico</Text>
+          <Text ff="monospace" fz="sm" fw={700}>{symbolic}</Text>
+        </Group>
+        <Group gap="xs">
+          <Text fz="xs" c="dimmed" style={{ minWidth: 78 }}>Comando</Text>
+          <Text ff="monospace" fz="sm" fw={700}>chmod {octal} archivo</Text>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+interface BlockViewProps {
+  block: LinuxBlock;
+  rules: LinuxValidationRule[];
+  result: LinuxValidationResult | null;
+  /** Solo lo usa el bloque `media` -- para pedirla vía practicas_linux_get_media. */
+  practiceId: string;
+  /** Solo lo usan los bloques `quiz` -- selección en curso + callback + si ya se envió la evaluación. */
+  quizAnswers?: Record<string, string>;
+  onQuizAnswer?: (questionId: string, optionId: string) => void;
+  quizLocked?: boolean;
+}
+
+export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, practiceId, quizAnswers, onQuizAnswer, quizLocked }) => {
+  switch (block.type) {
+    case 'text':
+      return <TextBlockView block={block} />;
+    case 'terminal_annotation':
+      return <TerminalAnnotationBlock block={block} />;
+    case 'code_block':
+      return <CodeBlockView block={block} />;
+    case 'wheels_sim':
+      return <WheelsSimBlock block={block} />;
+    case 'calculator':
+      return <CalculatorBlock block={block} />;
+    case 'sensor_demo':
+      return <SensorDemoBlock block={block} />;
+    case 'state_machine':
+      return <StateMachineBlock block={block} />;
+    case 'checklist':
+      return <ChecklistBlock block={block} />;
+    case 'analogy':
+      return <AnalogyBlock block={block} />;
+    case 'media':
+      return <MediaBlock block={block} practiceId={practiceId} />;
+    case 'command_step': {
+      const rule = rules.find((r) => r.id === block.rule_id) ?? rules.find((r) => r.target === block.command);
+      const ruleResult = rule ? result?.results.find((r) => r.rule_id === rule.id) : undefined;
+      return <CommandStepBlock block={block} passed={!!ruleResult?.passed} points={rule?.points} />;
+    }
+    case 'quiz': {
+      const rule = rules.find((r) => r.target === block.id);
+      const ruleResult = rule ? result?.results.find((r) => r.rule_id === rule.id) : undefined;
+      return (
+        <QuizBlock
+          block={block}
+          passed={!!ruleResult?.passed}
+          answered={!!ruleResult}
+          points={rule?.points}
+          selected={quizAnswers?.[block.id]}
+          onSelect={(optionId) => onQuizAnswer?.(block.id, optionId)}
+          attempted={!!quizLocked}
+        />
+      );
+    }
+    case 'permissions_calculator':
+      return <PermissionsCalculatorBlock block={block} />;
+    case 'checkpoint':
+      return null;
+    default:
+      return null;
+  }
+};

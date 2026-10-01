@@ -13,16 +13,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Box, Card, Text, Title, Group, Avatar, Badge, Stack, Divider, Loader } from '@mantine/core';
 import { User, Mail, ShieldCheck, AtSign, Camera } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { useAccessTier } from '../../hooks/usePermissions';
+import { useEffectiveRole, ROLE_LABELS } from '../../hooks/usePermissions';
 import { authService } from '../../services/auth.service';
 import { resizeImageToDataUrl } from '../../utils/resizeImage';
-
-function formatRoleLabel(roles: string[] | undefined): string {
-  if (roles?.includes('admin_lab')) return 'Administrador';
-  if (roles?.includes('laboratorista')) return 'Laboratorista';
-  if (roles?.includes('semillerista')) return 'Semillerista';
-  return 'Estudiante';
-}
+import { TrophyRoom } from '../../components/practicas/linux/TrophyRoom';
 
 const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
   <Group gap="sm" wrap="nowrap">
@@ -41,8 +35,8 @@ const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }>
 
 export default function PerfilPage() {
   const { user } = useAuth();
-  const tier = useAccessTier();
-  const canEditAvatar = tier === 'admin';
+  const role = useEffectiveRole();
+  const canEditAvatar = role === 'admin_lab';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -57,7 +51,7 @@ export default function PerfilPage() {
   }, []);
 
   const fullName = [user?.given_name, user?.family_name].filter(Boolean).join(' ') || user?.name || user?.preferred_username || 'Usuario';
-  const roleLabel = formatRoleLabel(user?.roles);
+  const roleLabel = ROLE_LABELS[role];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -138,6 +132,14 @@ export default function PerfilPage() {
               {user?.email && <InfoRow icon={<Mail size={15} />} label="Correo" value={user.email} />}
               <InfoRow icon={<ShieldCheck size={15} />} label="Rol" value={roleLabel} />
             </Stack>
+          </Card>
+
+          <Card padding="lg" radius="md" withBorder mt="lg">
+            <Title order={5} mb={4}>Sala de trofeos</Title>
+            <Text size="xs" c="dimmed" mb="lg">
+              Las insignias que vas ganando en la práctica de Linux — personales, nadie más las ve.
+            </Text>
+            <TrophyRoom />
           </Card>
         </div>
       </div>

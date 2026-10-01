@@ -13,9 +13,11 @@ import PracticesPage from '../../pages/practices/PracticesPage'
 import ReservasPage from '../../pages/reservas/ReservasPage'
 import UserManagementPage from '../../pages/admin/UserManagementPage'
 import VigilanciaPage from '../../pages/vigilancia/VigilanciaPage'
+import DashboardPage from '../../pages/dashboard/DashboardPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
-import { useAccessTier, canAccessPage } from '../../hooks/usePermissions'
+import { useEffectiveRole, canAccessPage } from '../../hooks/usePermissions'
+import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession'
 
 type Props = {
   tabs: Tab[]
@@ -28,6 +30,11 @@ type Props = {
   onConnectedFromConnect: (info: { id: string; label?: string } | null) => void
   onOpenLog: (session: SessionLog) => void
   onStartPractice?: (practice: any) => Promise<void>
+  setChatOpen?: (open: boolean) => void
+  /** Instancia única de useLinuxPracticeSession, ver App.tsx. */
+  linuxSession?: LinuxPracticeSessionApi
+  /** "Repetir" del administrador en LinuxModulePage -- ver App.tsx. */
+  onRestartLinuxModule?: (moduleId: string) => Promise<void>
 }
 
 const HomeContainer: React.FC<Props> = ({
@@ -40,14 +47,17 @@ const HomeContainer: React.FC<Props> = ({
   setPendingHost,
   onConnectedFromConnect,
   onOpenLog,
-  onStartPractice
+  onStartPractice,
+  setChatOpen,
+  linuxSession,
+  onRestartLinuxModule
 }) => {
-  const tier = useAccessTier()
+  const role = useEffectiveRole()
   // Segunda verificación: si selectedPage llegó aquí por un deep-link/estado
   // restaurado a una página que este rol no debería ver (la sidebar ya no
   // ofrece el botón, pero eso no impide que selectedPage tome ese valor por
   // otra vía), cae a landing en vez de renderizar la página restringida.
-  const effectivePage = canAccessPage(selectedPage, tier) ? selectedPage : 'landing'
+  const effectivePage = canAccessPage(selectedPage, role) ? selectedPage : 'landing'
 
   // ConnectFormPage solo lee pendingHost una vez al montarse (ver el comentario
   // en useConnectionForm) -- lo limpiamos acá apenas se consume para que una
@@ -98,13 +108,15 @@ const HomeContainer: React.FC<Props> = ({
       ) : effectivePage === 'snippets' ? (
         <SnippetsPage />
       ) : effectivePage === 'practices' ? (
-        <PracticesPage onStartPractice={onStartPractice} />
+        <PracticesPage onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} setChatOpen={setChatOpen} linuxSession={linuxSession} onRestartLinuxModule={onRestartLinuxModule} />
       ) : effectivePage === 'reservas' ? (
         <ReservasPage />
       ) : effectivePage === 'admin-users' ? (
         <UserManagementPage />
       ) : effectivePage === 'vigilancia' ? (
         <VigilanciaPage />
+      ) : effectivePage === 'dashboard' ? (
+        <DashboardPage />
       ) : effectivePage === 'perfil' ? (
         <PerfilPage />
       ) : effectivePage === 'ajustes' ? (

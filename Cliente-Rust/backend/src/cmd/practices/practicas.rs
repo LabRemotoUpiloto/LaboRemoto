@@ -1,7 +1,8 @@
 //! cmd/practicas — Sistema de prácticas de laboratorio remoto
 //!
 //! Este módulo proporciona:
-//! - Configuración de prácticas desde .env.practicas
+//! - Configuración de prácticas Eve3 desde el .env único de la app (legacy —
+//!   las categorías nuevas van por API en la máquina de la práctica, ver linux_api.rs)
 //! - Categorías de prácticas (Eve3, Linux, Circuitos)
 //! - Comandos de setup pre-práctica (ej: levantar servidor del robot)
 //! - Configuración de terminal y paneles por práctica
@@ -74,17 +75,24 @@ pub struct PanelConfig {
     pub chat: bool,
     pub chat_context: String,
     pub chat_tutorial: String,
+    /// Si es true, el frontend muestra el panel de control del robot EV3
+    /// (Dashboard + Gemelo 3D) consumido vía API en vez de solo terminal.
+    #[serde(default)]
+    pub robot_dashboard: bool,
 }
 
-// ─── Helper: leer variables del .env.practicas ───
+// ─── Helper: leer variables PRACTICE_EVE3_* del .env único de la app ───
+// (legacy: las categorías nuevas van por API corriendo en la máquina de la
+// práctica, como Linux -- ver linux_api.rs -- no por credenciales SSH sueltas
+// en variables de entorno. Se deja andando para Eve3 hasta que también migre.)
 
 fn load_practices_env() -> HashMap<String, String> {
     let mut map = HashMap::new();
 
-    // Buscar .env.practicas desde CARGO_MANIFEST_DIR hacia arriba
+    // Buscar .env desde CARGO_MANIFEST_DIR hacia arriba
     let mut dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     loop {
-        let candidate = dir.join(".env.practicas");
+        let candidate = dir.join(".env");
         if candidate.exists() {
             if let Ok(content) = std::fs::read_to_string(&candidate) {
                 for line in content.lines() {
@@ -216,6 +224,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
                     chat: true,
                     chat_context: if !json_ctx.is_empty() { json_ctx } else { fallback_ctx },
                     chat_tutorial: json_tut,
+                    robot_dashboard: false,
                 }
             },
         });
@@ -260,6 +269,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
                     chat: true,
                     chat_context: if !json_ctx.is_empty() { json_ctx } else { fallback_ctx },
                     chat_tutorial: json_tut,
+                    robot_dashboard: false,
                 }
             },
         });
@@ -297,13 +307,89 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
     categories
 }
 
+/// Tarjeta de un módulo del servicio de la Pi (metadata liviana). No lleva
+/// conexión ni credenciales: la sesión se abre con la cuenta del estudiante
+/// desde `useLinuxPracticeSession`, y el entorno lo describe el propio módulo.
+fn module_to_practice(s: crate::cmd::practices::linux_api::LinuxPracticeSummary) -> Practice {
+    Practice {
+        id: s.id,
+        name: s.title,
+        description: format!(
+            "Módulo {} · ~{} min",
+            s.order.unwrap_or(0),
+            s.estimated_minutes.unwrap_or(0)
+        ),
+        difficulty: s.difficulty,
+        moodle_assignment_id: None,
+        connection: PracticeConnection {
+            host: String::new(),
+            port: 0,
+            user: String::new(),
+            password: String::new(),
+            setup_commands: Vec::new(),
+        },
+        terminal: TerminalConfig {
+            allowed_commands: Vec::new(),
+            working_directory: String::new(),
+            allow_navigation: true,
+            allow_nano: true,
+        },
+        panels: PanelConfig {
+            camera: false,
+            chat: true,
+            chat_context: String::new(),
+            chat_tutorial: String::new(),
+            // Solo informativo en la tarjeta: el panel del robot de un módulo
+            // lo declara su `environment.panels` y lo aplica el hook de sesión.
+            robot_dashboard: false,
+        },
+    }
+}
+
 // ─── Comandos Tauri ───
 
-/// Devuelve todas las categorías con sus prácticas (sin contraseñas)
+/// Devuelve todas las categorías con sus prácticas (sin contraseñas).
+///
+/// Los módulos de Linux y de Eve3 no salen de `.env.practicas`: se pueblan en
+/// vivo desde el servicio de módulos que corre en la Pi (ver `linux_api.rs`),
+/// y cada uno va a su categoría según el prefijo de su id (`module_category`).
+/// Si la Pi no responde, esas categorías quedan vacías pero el resto sigue
+/// funcionando normalmente — no es un error fatal de este comando.
 #[tauri::command]
-pub fn practicas_list_categories() -> Result<Vec<PracticeCategory>, CommandError> {
+pub async fn practicas_list_categories() -> Result<Vec<PracticeCategory>, CommandError> {
     let vars = load_practices_env();
     let mut categories = build_categories(&vars);
+
+    // Timeout defensivo: si la Pi no responde (red caída, apagada, el túnel SSH
+    // tardando en conectar) esto NO debe colgar el listado completo de
+    // categorías -- Circuitos y el resto deben seguir cargando igual.
+    // 20s: cómodamente por encima del peor caso de linux_tunnel::start_tunnel
+    // (6s conectar + 6s autenticar, timeouts propios ahí adentro) -- este de
+    // acá es una red de seguridad que casi nunca debería disparar sola; si
+    // dispara ANTES de que el túnel resuelva por su cuenta, cancelarlo desde
+    // afuera es justo lo que causaba el bug de "no vuelve a buscar nunca más"
+    // (ver comentario en linux_tunnel.rs).
+    let modules_result = tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        crate::cmd::practices::linux_api::fetch_linux_summaries(),
+    ).await;
+    match modules_result {
+        Ok(Ok(summaries)) => {
+            for summary in summaries {
+                let category_id = crate::cmd::practices::linux_api::module_category(&summary.id);
+                if let Some(category) = categories.iter_mut().find(|c| c.id == category_id) {
+                    category.practices.push(module_to_practice(summary));
+                }
+            }
+        }
+        Ok(Err(e)) => {
+            eprintln!("[practicas] No se pudo listar los módulos desde la Pi: {}", e.message);
+            // Las categorías quedan sin módulos — no rompe el resto del listado.
+        }
+        Err(_) => {
+            eprintln!("[practicas] Timeout (20s) listando módulos desde la Pi -- sigue sin bloquear el resto de categorías");
+        }
+    }
 
     // Sanitizar: no enviar contraseñas al frontend
     for cat in &mut categories {
@@ -343,8 +429,6 @@ pub fn practicas_get_config(practice_id: String) -> Result<Practice, CommandErro
 /// Devuelve el resultado de cada comando de setup.
 #[tauri::command]
 pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> Result<Vec<String>, CommandError> {
-    use tauri::Emitter;
-
     let vars = load_practices_env();
     let categories = build_categories(&vars);
 
@@ -359,15 +443,28 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
         })?
         .clone();
 
+    run_setup_commands(app, practice_id, practice.name, practice.connection.setup_commands).await
+}
+
+/// Núcleo de `practicas_run_setup`: conectar por SSH a cada host de setup y
+/// lanzar su comando, emitiendo `practice:log` con el progreso.
+pub(crate) async fn run_setup_commands(
+    app: tauri::AppHandle,
+    practice_id: String,
+    practice_name: String,
+    setup_commands: Vec<SetupCommand>,
+) -> Result<Vec<String>, CommandError> {
+    use tauri::Emitter;
+
     let _ = app.emit("practice:log", serde_json::json!({
         "practice_id": practice_id,
         "level": "info",
-        "message": format!("🚀 Iniciando práctica: {}", practice.name)
+        "message": format!("🚀 Iniciando práctica: {}", practice_name)
     }));
 
     let mut results = Vec::new();
 
-    for (i, setup) in practice.connection.setup_commands.iter().enumerate() {
+    for (i, setup) in setup_commands.iter().enumerate() {
         if setup.host.is_empty() || setup.command.is_empty() {
             continue;
         }
@@ -508,13 +605,6 @@ pub async fn practicas_run_setup(app: tauri::AppHandle, practice_id: String) -> 
 
         results.push(result?);
     }
-
-    // Log: Now connecting to workspace (Raspberry)
-    let _ = app.emit("practice:log", serde_json::json!({
-        "practice_id": practice_id,
-        "level": "info",
-        "message": format!("🖥️ Conectando al workspace ({}@{}:{})...", practice.connection.user, practice.connection.host, practice.connection.port)
-    }));
 
     Ok(results)
 }

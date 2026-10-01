@@ -417,7 +417,7 @@ pub async fn admin_search_users(
 }
 
 /// Lista TODOS los usuarios del realm — usado para derivar el grupo
-/// "Estudiante" (cualquiera sin admin_lab/semillerista/laboratorista).
+/// "Estudiante" (cualquiera sin rol especial).
 #[tauri::command]
 pub async fn admin_list_all_users(
     manager: tauri::State<'_, Arc<dyn SessionManager>>,

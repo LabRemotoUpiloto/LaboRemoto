@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Message } from '../chatModes/types';
-import { fmtTime } from '../chatPane/chatPane.constants';
+import { RelativeTime } from './RelativeTime';
 import { ActionIcon, Textarea, Button, Group } from '@mantine/core';
 import { Pencil, Trash2, File as FileIcon } from 'lucide-react';
 
@@ -91,7 +91,7 @@ export default function UserMessageBubble({ msg, isSending, onDelete, onSaveEdit
             className="block text-[9.5px] opacity-60 mt-1 text-right tabular-nums" 
             title={new Date(msg.timestamp).toLocaleString('es')}
           >
-            {fmtTime(msg.timestamp)}
+            <RelativeTime timestamp={msg.timestamp} />
           </span>
         )}
       </div>

@@ -23,12 +23,12 @@ use crate::session_manager::SessionManager;
 /// Host público del broker (Pi vía túnel inverso + nginx en AWS, mismo
 /// mecanismo que expone Keycloak). No es un secreto — es una URL pública,
 /// igual que `KEYCLOAK_BASE_URL`.
-const NVR_BROKER_HOST: &str = "http://52.14.162.232";
+pub(crate) const NVR_BROKER_HOST: &str = "http://52.14.162.232";
 
 // Perf: cliente HTTP compartido — `nvr_list_cameras` se sondea
 // periódicamente desde el panel de cámaras; reconstruir el cliente (y su
 // pool TCP/TLS) en cada poll era puro desperdicio.
-static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
+pub(crate) static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(8))
         .build()
@@ -52,6 +52,9 @@ pub struct NvrCamera {
     /// (`PTZ_CAMERAS_JSON` en la Pi) según qué modelos exponen la API HTTP
     /// de Reolink en la red. El frontend solo muestra el control si es true.
     pub ptz: bool,
+    /// Path de MediaMTX para ver esta cámara por WebRTC (baja latencia), o
+    /// `None` si el broker no la tiene mapeada — entonces solo HLS.
+    pub webrtc: Option<String>,
 }
 
 // Forma cruda de la respuesta del broker: GET /nvr/monitor/{groupKey}
@@ -65,6 +68,8 @@ struct ShinobiMonitorRaw {
     streams: Vec<String>,
     #[serde(default)]
     ptz: bool,
+    #[serde(default)]
+    webrtc: Option<String>,
 }
 
 /// Resultado de un comando PTZ — solo confirma que el broker lo aceptó y lo
@@ -171,9 +176,62 @@ pub async fn nvr_list_cameras(
                 id: m.mid,
                 name: m.name,
                 ptz: m.ptz,
+                webrtc: m.webrtc,
             }
         })
         .collect())
+}
+
+/// Negocia una conexión WebRTC (WHEP) con MediaMTX a través del broker:
+/// recibe la oferta SDP del reproductor y devuelve la respuesta SDP. El broker
+/// valida el token de Keycloak; el video en sí NO pasa por aquí, va directo al
+/// puerto que anuncia MediaMTX. `path` es el `webrtc` de `NvrCamera`.
+#[tauri::command]
+pub async fn nvr_whep(
+    path: String,
+    sdp_offer: String,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<String, CommandError> {
+    // Va dentro de la URL: solo caracteres de un nombre de path de MediaMTX.
+    if path.is_empty() || !path.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Path WebRTC inválido: {path}"))
+            .with_context("nvr_whep", &path));
+    }
+
+    let access_token = manager
+        .get_access_token()
+        .await
+        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
+        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión para ver las cámaras"))?;
+
+    let response = HTTP_CLIENT
+        .post(format!("{NVR_BROKER_HOST}/nvr/whep/{path}"))
+        .bearer_auth(&access_token)
+        .header("Content-Type", "application/sdp")
+        .body(sdp_offer)
+        .send()
+        .await
+        .map_err(|e| {
+            let err = if e.is_timeout() {
+                CommandError::transient("OPERATION_TIMEOUT", format!("Timeout negociando WebRTC: {e}"))
+            } else {
+                CommandError::transient("COMMUNICATION_ERROR", format!("Error negociando WebRTC: {e}"))
+            };
+            err.with_retry_after(2000).with_context("nvr_whep", &path)
+        })?;
+
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        let err = match status.as_u16() {
+            401 | 403 => CommandError::permanent("AUTH_FAILED", "Sesión inválida o expirada para ver la cámara"),
+            404 => CommandError::permanent("VALIDATION_FAILED", "Esta cámara no tiene WebRTC disponible"),
+            _ => CommandError::transient("COMMUNICATION_ERROR", format!("Broker WebRTC respondió {status}: {text}"))
+                .with_retry_after(2000),
+        };
+        return Err(err.with_context("nvr_whep", &path));
+    }
+    Ok(text)
 }
 
 /// No-op: ya no hay túnel SSH propio que cerrar (el broker gestiona sus
@@ -184,7 +242,7 @@ pub async fn nvr_disconnect() {}
 
 /// Envía un comando PTZ (mover/zoom/detener) a una cámara del Group. El
 /// backend nunca habla directo con la cámara Reolink — todo pasa por el
-/// broker, que valida rol (admin_lab/laboratorista/semillerista) y traduce `mid` a la
+/// broker, que valida rol (roles de personal, `PTZ_ROLES`) y traduce `mid` a la
 /// IP+credenciales reales de la cámara física (ver `PTZ_CAMERAS_JSON` en
 /// `infra/nvr-broker`). Si la cámara no está en ese mapa (no es PTZ), el
 /// broker responde 404 y este comando lo traduce a `VALIDATION_FAILED`.

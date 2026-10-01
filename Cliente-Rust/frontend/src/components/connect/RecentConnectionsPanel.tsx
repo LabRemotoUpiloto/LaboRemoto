@@ -71,7 +71,7 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
         </div>
       </div>
 
-      <Collapse in={isExpanded}>
+      <Collapse expanded={isExpanded}>
         <div className="flex flex-col gap-1.5 mt-2 max-h-[200px] overflow-y-auto pr-1">
           {connections.map((conn) => {
             const isKnownDevice = isRaspberryPi4(conn.host, conn.port);

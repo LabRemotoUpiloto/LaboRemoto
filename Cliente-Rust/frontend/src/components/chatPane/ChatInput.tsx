@@ -44,6 +44,8 @@ interface Props {
   onToggleHistory?: () => void;
   onClose?: () => void;
   onNewChat?: () => void;
+  /** True durante una práctica guiada: oculta el selector de modo/modelo (queda fijo en modo tutor). */
+  practiceLocked?: boolean;
 }
 
 const ChatInput: React.FC<Props> = ({
@@ -64,6 +66,7 @@ const ChatInput: React.FC<Props> = ({
   onToggleHistory,
   onClose,
   onNewChat,
+  practiceLocked = false,
 }) => {
   const isPill = variant === 'pill';
   const pillPlaceholder = MODE_PLACEHOLDERS[mode];
@@ -197,7 +200,7 @@ const ChatInput: React.FC<Props> = ({
     </Menu>
   );
 
-  const showModeRow = !footerMinimal && onModeSwitch && selectedModel && onModelChange;
+  const showModeRow = !footerMinimal && !practiceLocked && onModeSwitch && selectedModel && onModelChange;
 
   return (
     <div

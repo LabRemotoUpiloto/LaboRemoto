@@ -7,10 +7,13 @@ export type ChatMode = 'ask' | 'agente' | 'plan';
 export type ModelSelection = string;
 
 export const AVAILABLE_MODELS: Array<{ value: string; label: string; provider: string }> = [
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'Anthropic' },
-  { value: 'gpt-3.5-turbo', label: 'ChatGPT 3.5 Turbo', provider: 'OpenAI' },
-  { value: 'qwen/qwen3.6-plus', label: 'Qwen 3.6 Plus', provider: 'OpenRouter' },
-  { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron Nano 30B (Gratis)', provider: 'OpenRouter' },
+  // Groq es el único proveedor (ver ai_utils.rs) -- los .free de OpenRouter
+  // quedaron descartados: esa cuenta bloqueaba TODO modelo :free por su
+  // propia política de privacidad/entrenamiento, sin importar cuál.
+  { value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B (Recomendado)', provider: 'Groq' },
+  { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Rápido)', provider: 'Groq' },
+  { value: 'groq/compound', label: 'Compound (Groq)', provider: 'Groq' },
+  { value: 'qwen/qwen3.8-27b', label: 'Qwen 3.8 27B', provider: 'Groq' },
 ];
 
 export interface AgentState {
@@ -58,6 +61,16 @@ export interface MessageMeta {
   embeddedPi4Terminal?: boolean;
   embeddedPi4Cameras?: boolean;
   embeddedPi4Desktop?: boolean;
+  /**
+   * Lote de bloques de contenido de una práctica de Linux (texto, analogía,
+   * anotación de terminal, media, o el siguiente command_step pendiente)
+   * entregado por el chat a medida que el estudiante avanza -- reemplaza a
+   * la vieja página de módulo con scroll. Nunca incluye bloques `quiz`
+   * (esos van en `linuxQuiz`, que es interactivo y necesita otro renderer).
+   */
+  linuxContentBlocks?: any[];
+  /** Evaluación final de una práctica de Linux, solo aparece cuando ya se completaron los comandos obligatorios. */
+  linuxQuiz?: { moduleId: string; moduleTitle?: string; blocks: any[] };
 }
 
 export interface Message {

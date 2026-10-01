@@ -98,7 +98,7 @@ export function applyXtermTheme(
     brightWhite: resolveVar('--ansi-bright-white'),
   } as any;
 
-  try { term.setOption('theme', themeObj); } catch { (term as any).options.theme = themeObj; }
+  term.options.theme = themeObj;
 
   try { term.refresh(0, term.rows - 1); } catch {}
 }

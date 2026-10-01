@@ -167,6 +167,7 @@ pub fn run() {
       cmd::logs::logs::extract_session_commands,
       // PDF reports locales
       cmd::filesystem::pdf_reports::save_pdf_base64,
+      cmd::filesystem::images::save_image_base64,
       // Escritorio gráfico remoto (VNC sobre SSH)
       cmd::vnc::vnc_start,
       cmd::vnc::vnc_stop,
@@ -182,6 +183,10 @@ pub fn run() {
       cmd::nvr::shinobi::nvr_list_cameras,
       cmd::nvr::shinobi::nvr_disconnect,
       cmd::nvr::shinobi::nvr_ptz_control,
+      cmd::nvr::shinobi::nvr_whep,
+      // Registro central de sesiones de práctica (dashboard del personal)
+      cmd::sesiones::sesiones_reportar_evento,
+      cmd::sesiones::sesiones_resumen,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,
@@ -196,13 +201,17 @@ pub fn run() {
       cmd::practices::practicas::practicas_list_categories,
       cmd::practices::practicas::practicas_get_config,
       cmd::practices::practicas::practicas_run_setup,
+      // Módulos de práctica (Linux y EV3) — servicio HTTP en la Raspberry Pi
+      cmd::practices::linux_api::practicas_linux_list,
+      cmd::practices::linux_api::practicas_linux_get_module,
+      cmd::practices::linux_api::practicas_linux_validate,
+      cmd::practices::linux_api::practicas_linux_connection_target,
+      cmd::practices::linux_api::practicas_linux_get_media,
+      cmd::practices::linux_media_proxy::practicas_linux_media_url,
       // Integración con Moodle
       cmd::integration::moodle::moodle_sync_assignment,
       cmd::integration::moodle::moodle_prepare_grade,
       cmd::integration::moodle::moodle_submit_grade_direct,
-      // Catálogo externo de prácticas (solo lectura, contenido no confiable)
-      cmd::integration::lab_practices::lab_practices_list,
-      cmd::integration::lab_practices::lab_practices_get,
       // Validador de prácticas
       cmd::practices::practice_validator::validate_practice_progress,
       cmd::practices::practice_validator::calculate_practice_grade,
@@ -210,6 +219,13 @@ pub fn run() {
       cmd::hardware::arduino::arduino_bridge_status,
       cmd::hardware::arduino::arduino_send_cmd,
       cmd::hardware::arduino::arduino_read_buffer,
+      // Robot EV3 (bridge HTTP en la Pi -> ladrillo EV3)
+      cmd::hardware::ev3::ev3_status,
+      cmd::hardware::ev3::ev3_set_motor,
+      cmd::hardware::ev3::ev3_stop_all,
+      cmd::hardware::ev3_console::ev3_run_start,
+      cmd::hardware::ev3_console::ev3_run_output,
+      cmd::hardware::ev3_console::ev3_run_stop,
       // Autenticación OAuth 2.1 con Keycloak
       crate::auth::commands::auth_login_url,
       crate::auth::commands::auth_status,

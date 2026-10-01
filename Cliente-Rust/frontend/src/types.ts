@@ -75,6 +75,7 @@ export interface PracticeConfig {
     chat?: boolean;
     chat_context?: string;
     chat_tutorial?: string;
+    robot_dashboard?: boolean;
   };
 }
 
@@ -82,6 +83,45 @@ export interface PracticeSessionMeta {
   practiceId: string;
   assignmentId?: number;
   student: PracticeLaunchStudent;
+  /** true si la práctica trae dashboard de robot (Eve3 vía API) — ver ev3.service.ts. */
+  robotDashboard?: boolean;
+}
+
+// Mismo shape que devuelve `practicas_list_categories` / `practicas_get_config`
+// en Rust (cmd::practices::practicas::Practice). Los módulos de Linux y EV3 que
+// sirve la Pi también llegan así, pero solo con metadata para la tarjeta.
+export interface PracticeConnection {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  setup_commands: unknown[];
+}
+
+export interface TerminalConfig {
+  allowed_commands: string[];
+  working_directory: string;
+  allow_navigation: boolean;
+  allow_nano: boolean;
+}
+
+export interface PanelConfig {
+  camera: boolean;
+  chat: boolean;
+  chat_context: string;
+  chat_tutorial: string;
+  robot_dashboard: boolean;
+}
+
+export interface Practice {
+  id: string;
+  name: string;
+  description: string;
+  difficulty: string;
+  moodle_assignment_id?: number;
+  connection: PracticeConnection;
+  terminal: TerminalConfig;
+  panels: PanelConfig;
 }
 
 // ── Paneles de Vista ──────────────────────────────────────────────────────────

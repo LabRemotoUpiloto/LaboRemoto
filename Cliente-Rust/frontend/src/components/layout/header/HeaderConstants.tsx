@@ -1,4 +1,8 @@
 import React from 'react';
+// Reexportado desde useAppTabs (única fuente de verdad) -- una copia local
+// de este tipo había quedado desactualizada (sin 'local-terminal') y
+// generaba comparaciones imposibles en SessionTabs.
+export type { Tab } from '../../../hooks/useAppTabs';
 
 // SVG icons for panel tabs (H1)
 export const PANEL_ICONS: Record<string, React.ReactNode> = {
@@ -79,4 +83,3 @@ export const CloseIcon = ({ size = 12 }: { size?: number }) => (
   <X size={size} strokeWidth={2.5} />
 );
 
-export type Tab = { id: string; type: 'home' | 'session' | 'log'; label: string };

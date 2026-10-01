@@ -6,6 +6,8 @@
 
 pub mod local;
 pub mod pdf_reports;
+pub mod images;
 
 pub use local::{local_home_dir, local_list_dir, local_list_drives, local_open_path, local_reveal_in_explorer, local_temp_dir, save_text_file, chat_history_load, chat_history_save, chat_history_delete_entry};
 pub use pdf_reports::save_pdf_base64;
+pub use images::save_image_base64;

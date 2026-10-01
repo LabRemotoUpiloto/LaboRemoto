@@ -1,6 +1,6 @@
 {
   "name": "cliente-ssh-unipiloto",
-  "version": "3.5.3",
+  "version": "3.5.11",
   "private": true,
   "description": "Cliente SSH Unipiloto - Laboratorio remoto",
   "scripts": {

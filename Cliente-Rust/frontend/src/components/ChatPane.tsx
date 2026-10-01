@@ -37,6 +37,26 @@ import { vncStop, sshSessionInfo } from '../services/ssh.service';
 import { useTour } from '../tour/useTour';
 import { useQueryData } from '../hooks/useQueryData';
 import { useAuth } from '../hooks/useAuth';
+// NOTA de acoplamiento: ChatPane es en general genérico (por eso `practiceResult`
+// abajo usa un tipo estructural mínimo, no LinuxValidationResult) -- pero la
+// entrega de contenido en el chat (bloques de texto/media/quiz) sí es
+// específica de la categoría Linux, la única que hoy tiene este modelo de
+// contenido rico. Si el día de mañana otra categoría necesita lo mismo, ahí
+// vale la pena extraer una interfaz genérica; hoy sería abstraer sin un
+// segundo caso real que la valide.
+import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult, type LinuxValidationRule } from '../services/linuxPractice.service';
+import type { LinuxPracticeSessionApi } from '../hooks/useLinuxPracticeSession';
+
+// `rule_id` ya viene resuelto por `linuxGetModule` (ver resolveLinuxModule en
+// linuxPractice.service.ts) -- desambigua cuando dos command_step piden el
+// MISMO comando en puntos distintos del módulo. El fallback por target es
+// solo por si algún caller pasara un bloque sin pasar por ese resolver.
+function ruleForLinuxBlock(
+  rules: LinuxValidationRule[],
+  block: Extract<LinuxBlock, { type: 'command_step' }>,
+): LinuxValidationRule | undefined {
+  return rules.find((r) => r.id === block.rule_id) ?? rules.find((r) => r.target === block.command);
+}
 
 type Props = {
   sessionId?: string | null;
@@ -44,6 +64,18 @@ type Props = {
   layout?: 'default' | 'home';
   onOpenPanel?: (panelId: string) => void;
   onStartTutorial?: () => void;
+  /** Presente cuando el chat corre dentro de una práctica guiada (ver TerminalView/SessionContainer). */
+  practiceId?: string | null;
+  /**
+   * Resultado de validación de la práctica de Linux activa (ver
+   * useLinuxPracticeSession/TerminalView). Tipo estructural mínimo, sin
+   * importar LinuxValidationResult de linuxPractice.service.ts — ChatPane es
+   * un componente genérico y no debería atarse a un tipo de una categoría
+   * de práctica específica.
+   */
+  practiceResult?: { passed: boolean; results: { rule_id: string; passed: boolean }[] } | null;
+  /** Instancia única de useLinuxPracticeSession (ver App.tsx) -- para entregar contenido/quiz de la práctica de Linux por el chat. */
+  linuxSession?: LinuxPracticeSessionApi;
 };
 
 const ChatPane: React.FC<Props> = ({
@@ -51,8 +83,15 @@ const ChatPane: React.FC<Props> = ({
   onClose,
   layout = 'default',
   onOpenPanel,
+  practiceId = null,
+  practiceResult = null,
+  linuxSession,
 }) => {
   const isHome = layout === 'home';
+  // Durante una práctica el chat queda fijo en modo tutor (Consulta) -- no se
+  // expone el selector de modo/modelo (ver punto 2 del spec: ChatHeader y
+  // ChatInput ocultan esos selectores cuando practiceLocked es true).
+  const isPracticeSession = !!practiceId;
   const displayName = useDisplayName();
   const { startTour } = useTour();
   const { isAuthenticated } = useAuth();
@@ -60,20 +99,157 @@ const ChatPane: React.FC<Props> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
+  // Reusa el AskModeHandler existente (sin crear un modo nuevo): si algo
+  // (restauración de historial, banners de "analizar error", etc.) intenta
+  // cambiar el modo durante una práctica, esto lo revierte a 'ask' apenas se
+  // detecta -- no se expone el setter de modo hacia ChatHeader/ChatInput
+  // mientras practiceLocked (ver más abajo), pero esto cubre también los
+  // caminos que llaman setMode directamente desde adentro de este componente.
+  useEffect(() => {
+    if (isPracticeSession && mode !== 'ask') setMode('ask');
+  }, [isPracticeSession, mode]);
   const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
     const saved = localStorage.getItem('chatSelectedModel');
     const deprecated: Record<string, string> = {
-      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.6-plus',
-      'google/gemini-2.5-pro:free': 'qwen/qwen3.6-plus',
-      'nvidia/nemotron-super-49b-v1:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-      'nvidia/nemotron-3-super-120b-a12b:free': 'nvidia/nemotron-3-nano-30b-a3b:free',
-      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.6-plus',
-      'qwen/qwen3.6-plus:free': 'qwen/qwen3.6-plus',
-      'claude-sonnet-4-5': 'claude-sonnet-4-6',
+      'google/gemini-2.5-pro-exp-03-25:free': 'qwen/qwen3.8-27b',
+      'google/gemini-2.5-pro:free': 'qwen/qwen3.8-27b',
+      'nvidia/nemotron-super-49b-v1:free': 'openai/gpt-oss-120b',
+      'nvidia/nemotron-3-super-120b-a12b:free': 'openai/gpt-oss-120b',
+      'nvidia/nemotron-3-nano-30b-a3b:free': 'openai/gpt-oss-20b',
+      'deepseek/deepseek-v3-0324:free': 'qwen/qwen3.8-27b',
+      'qwen/qwen3.6-plus:free': 'qwen/qwen3.8-27b',
+      'qwen/qwen3.6-plus': 'qwen/qwen3.8-27b',
+      'claude-sonnet-4-5': 'openai/gpt-oss-120b',
+      'claude-sonnet-4-6': 'openai/gpt-oss-120b',
+      'gpt-3.5-turbo': 'openai/gpt-oss-120b',
+      // Migración OpenRouter -> Groq: esa cuenta bloqueaba TODO modelo
+      // :free (política de privacidad/entrenamiento de la cuenta, no un
+      // problema puntual de ningún modelo) -- se abandonó OpenRouter entero.
+      'deepseek/deepseek-v3.2:free': 'openai/gpt-oss-120b',
+      'z-ai/glm-4.6:free': 'openai/gpt-oss-120b',
+      'qwen/qwen3-235b-a22b:free': 'qwen/qwen3.8-27b',
+      'meta-llama/llama-3.3-70b-instruct:free': 'openai/gpt-oss-120b',
+      'qwen/qwen-2.5-coder-32b-instruct:free': 'qwen/qwen3.8-27b',
     };
-    return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'claude-sonnet-4-6';
+    return ((deprecated[saved ?? ''] ?? saved) as ModelSelection) || 'openai/gpt-oss-120b';
   });
-  
+  // Durante una práctica, el modelo real usado en los pedidos (y en el
+  // cálculo de %contexto) queda fijo en éste -- sin depender de qué haya
+  // elegido el estudiante antes de entrar (o que quede seleccionado
+  // globalmente después). No se persiste a localStorage: `selectedModel`
+  // (el estado real, mostrado/editable fuera de una práctica) no se toca,
+  // así no se pisa la preferencia del estudiante para sus chats normales.
+  const PRACTICE_MODEL: ModelSelection = 'openai/gpt-oss-120b';
+  const effectiveModel = isPracticeSession ? PRACTICE_MODEL : selectedModel;
+
+  // ── Entrega de contenido de la práctica de Linux por el chat ──
+  // Reemplaza a la vieja página de módulo con scroll (LinuxModulePage ahora
+  // solo muestra título/objetivo/botón Conectar): todo el contenido -- texto,
+  // analogías, media, el próximo comando pendiente, y al final el quiz --
+  // llega acá como mensajes del tutor, en orden, a medida que se resuelve.
+  const [linuxModule, setLinuxModule] = useState<LinuxModule | null>(null);
+  useEffect(() => {
+    setLinuxModule(null);
+    if (!practiceId) return;
+    let cancelled = false;
+    linuxGetModule(practiceId).then((m) => { if (!cancelled) setLinuxModule(m); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [practiceId]);
+
+  // Bloques ya entregados como mensaje -- ref (no estado): no necesita
+  // re-render propio, solo lo lee el efecto de entrega de contenido.
+  const deliveredLinuxBlockIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => { deliveredLinuxBlockIdsRef.current = new Set(); }, [practiceId]);
+
+  // Respuestas de quiz en curso -- una sola práctica activa por chat a la vez,
+  // no hace falta keyearlas por moduleId.
+  const [linuxQuizAnswers, setLinuxQuizAnswers] = useState<Record<string, string>>({});
+  const [linuxQuizSubmitting, setLinuxQuizSubmitting] = useState(false);
+  const [linuxQuizSubmitted, setLinuxQuizSubmitted] = useState(false);
+  useEffect(() => { setLinuxQuizAnswers({}); setLinuxQuizSubmitted(false); }, [practiceId]);
+
+  const handleLinuxQuizAnswer = useCallback((questionId: string, optionId: string) => {
+    setLinuxQuizAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+  }, []);
+
+  const handleLinuxQuizSubmit = useCallback(async () => {
+    if (!linuxModule || !linuxSession || linuxQuizSubmitting) return;
+    setLinuxQuizSubmitting(true);
+    try {
+      await linuxSession.submitQuizAnswers(linuxModule, linuxQuizAnswers);
+      setLinuxQuizSubmitted(true);
+    } catch (e: any) {
+      // Los comandos practicas_linux_* rechazan con el CommandError plano
+      // ({ code, message, ... }) tal cual lo serializa Tauri, no con un
+      // Error de JS -- `String(e)` sobre ese objeto da "[object Object]".
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error enviando la evaluación: ${e?.message ?? String(e)}` }]);
+    } finally {
+      setLinuxQuizSubmitting(false);
+    }
+  }, [linuxModule, linuxSession, linuxQuizSubmitting, linuxQuizAnswers]);
+
+  // Convención de "fin de práctica" para toda la app (ver
+  // frontend/docs/practice-completion.md) -- AiMessageBubble llama a esto
+  // apenas termina de mostrar la celebración del módulo (o de inmediato si
+  // ya estaba completo de antes), y acá solo reenviamos al hook, que a su
+  // vez dispara la navegación real (App.tsx: volver a Inicio + Prácticas).
+  const handleLinuxModuleComplete = useCallback((moduleId: string) => {
+    linuxSession?.notifyModuleComplete(moduleId);
+  }, [linuxSession]);
+
+  // Determina el próximo lote de bloques a mostrar: recorre module.blocks en
+  // orden, siempre agrega texto/analogía/anotación/media apenas se alcanzan,
+  // y se DETIENE en el primer command_step todavía no resuelto (una tarea a
+  // la vez -- ver decisión de diseño). Un quiz no revelado (todavía no
+  // terminó la práctica) se SALTEA sin frenar el recorrido -- solo bloquea
+  // command_step lo hace, nunca un quiz de por medio.
+  const computeNextLinuxBatch = useCallback((module: LinuxModule, result: LinuxValidationResult | null): LinuxBlock[] => {
+    const rules = module.validation_rules;
+    const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
+    const requiredNonQuiz = rules.filter((r) => r.rule_type !== 'quiz' && r.required);
+    // Un módulo sin reglas de comando (EV3: se maneja con el panel del robot,
+    // no con la terminal) no tiene "parte práctica" que esperar: su quiz se
+    // entrega junto con el resto del contenido. `every` sobre una lista vacía
+    // ya da true; antes se exigía `length > 0` y ese quiz nunca aparecía.
+    const practiceDone = requiredNonQuiz.every((r) => passedRuleIds.has(r.id));
+
+    const delivered = deliveredLinuxBlockIdsRef.current;
+    const batch: LinuxBlock[] = [];
+    for (const block of module.blocks) {
+      if (block.type === 'checkpoint') continue;
+      if (block.type === 'command_step') {
+        const rule = ruleForLinuxBlock(rules, block);
+        const passed = rule ? passedRuleIds.has(rule.id) : false;
+        if (!delivered.has(block.id)) batch.push(block);
+        if (!passed) break; // frena acá -- una tarea a la vez, ya esté recién agregada o ya entregada antes
+        continue;
+      }
+      if (block.type === 'quiz') {
+        // `continue`, NUNCA `break`: un quiz que todavía no se puede revelar
+        // no debe frenar la entrega de lo que venga DESPUÉS en module.blocks
+        // (ej. un command_step más adelante) -- antes cortaba acá con
+        // `break` asumiendo que todo quiz vive al final del módulo, y
+        // bastaba con reubicar uno solo a mitad de camino para que la
+        // práctica quedara congelada para siempre en ese punto.
+        if (!practiceDone) continue;
+        if (!delivered.has(block.id)) batch.push(block);
+        continue;
+      }
+      if (!delivered.has(block.id)) batch.push(block);
+    }
+    return batch;
+  }, []);
+
+  // id de los command_step ya explicados por la IA -- una sola vez por paso
+  // (por id de bloque, no por texto de comando: dos pasos distintos pueden
+  // pedir el mismo comando, ej. dos "pwd"), sin importar cuántos ticks de
+  // polling pasen después. (La lógica que USA estos refs vive más abajo,
+  // después de `buildModeContext` -- ver el bloque "Entrega de contenido de
+  // Linux, parte 2".)
+  const linuxExplainedStepIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => { linuxExplainedStepIdsRef.current = new Set(); }, [practiceId]);
+  const linuxExplainRunningRef = useRef(false);
+
   const [agentState, setAgentState] = useState<AgentState>({ cwd: '/', lastExitCode: undefined, lastStdoutTail: undefined, lastFile: undefined });
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = useRef(false);
@@ -127,6 +303,30 @@ const ChatPane: React.FC<Props> = ({
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       setShowScrollToBottom(false);
     }
+  }, []);
+  // Práctica de Linux: id del mensaje con el contenido recién entregado (siguiente tarea). Cuando
+  // llega, el chat se desplaza suavemente hasta él para que se note que avanzó -- ver
+  // `scrollToLinuxContent` y el efecto de auto-scroll.
+  const linuxScrollTargetRef = useRef<string | null>(null);
+  const scrollToLinuxContent = useCallback((messageId: string) => {
+    const reducir = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const ir = () => {
+      const el = messagesRef.current;
+      const msgEl = document.getElementById(`msg-${messageId}`);
+      if (!el || !msgEl) return;
+      const cRect = el.getBoundingClientRect();
+      const mRect = msgEl.getBoundingClientRect();
+      const arribaDelMensaje = el.scrollTop + (mRect.top - cRect.top) - 12;
+      const alFinal = el.scrollHeight - el.clientHeight;
+      // Si el contenido nuevo entra completo en pantalla, se baja hasta el final (se ve entero); si es más
+      // alto que la pantalla, se alinea su INICIO arriba para empezar a leerlo desde el principio y no
+      // quedar mirando el final de la tarea.
+      el.scrollTo({ top: Math.max(0, Math.min(alFinal, arribaDelMensaje)), behavior: reducir ? 'auto' : 'smooth' });
+      setShowScrollToBottom(false);
+    };
+    requestAnimationFrame(ir);
+    // Imágenes y video terminan de cargar después del primer render y cambian la altura: se reajusta una vez.
+    window.setTimeout(ir, 700);
   }, []);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const isComposingRef = useRef<boolean>(false);
@@ -292,6 +492,14 @@ const ChatPane: React.FC<Props> = ({
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
+    // Siguiente tarea de la práctica de Linux recién entregada: se desplaza hasta ella aunque el
+    // estudiante estuviera arriba releyendo (es lo que indica que el módulo avanzó).
+    const objetivo = linuxScrollTargetRef.current;
+    if (objetivo && document.getElementById(`msg-${objetivo}`)) {
+      linuxScrollTargetRef.current = null;
+      scrollToLinuxContent(objetivo);
+      return;
+    }
     const last = messages[messages.length - 1];
     // Mientras se está generando una respuesta, seguirla siempre (sin
     // importar si el usuario estaba "cerca del final" o no) -- por UX, ver
@@ -303,7 +511,7 @@ const ChatPane: React.FC<Props> = ({
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       setShowScrollToBottom(false);
     }
-  }, [messages, isSending]);
+  }, [messages, isSending, scrollToLinuxContent]);
 
   useEffect(() => {
     if (!pi4TerminalEmbedActive && !pi4CamerasEmbedActive && !pi4DesktopEmbedActive) return;
@@ -457,7 +665,7 @@ const ChatPane: React.FC<Props> = ({
           version: '1.0',
           timestamp_ms: Date.now(),
           payload: {
-            user_input: getContent(userMsg), mode, history, state: agentState, model_selection: selectedModel,
+            user_input: getContent(userMsg), mode, history, state: agentState, model_selection: effectiveModel,
             image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
             terminal_context: liveTerminalContext, request_id: reqId,
           },
@@ -518,6 +726,188 @@ const ChatPane: React.FC<Props> = ({
     setStreamedText,
   });
 
+  // ── Entrega de contenido de Linux, parte 2 (necesita buildModeContext/modeHandlers ya definidos arriba) ──
+  const deliverLinuxBatch = useCallback((module: LinuxModule, result: LinuxValidationResult | null) => {
+    const batch = computeNextLinuxBatch(module, result);
+    if (batch.length === 0) return;
+    batch.forEach((b) => deliveredLinuxBlockIdsRef.current.add(b.id));
+
+    const quizBlocks = batch.filter((b): b is Extract<LinuxBlock, { type: 'quiz' }> => b.type === 'quiz');
+    const contentBlocks = batch.filter((b) => b.type !== 'quiz');
+
+    const sello = Date.now();
+    const contentId = `linux-content-${sello}`;
+    const quizId = `linux-quiz-${sello}`;
+    linuxScrollTargetRef.current = contentBlocks.length > 0 ? contentId : quizId;
+
+    setMessages((prev) => {
+      const next = [...prev];
+      if (contentBlocks.length > 0) {
+        next.push({ id: contentId, sender: 'ai', text: '', timestamp: sello, meta: { linuxContentBlocks: contentBlocks } });
+      }
+      if (quizBlocks.length > 0) {
+        next.push({
+          id: quizId,
+          sender: 'ai',
+          // Sin reglas de comando (EV3) no hay "parte práctica" que haber terminado.
+          text: module.validation_rules.some((r) => r.rule_type !== 'quiz')
+            ? '¡Terminaste la parte práctica! Antes de cerrar el módulo, una evaluación corta:'
+            : 'Cuando hayas leído el módulo y probado el Panel EV3, responde esta evaluación corta para cerrarlo:',
+          timestamp: Date.now(),
+          meta: { linuxQuiz: { moduleId: module.id, moduleTitle: module.title, blocks: quizBlocks } },
+        });
+      }
+      return next;
+    });
+  }, [computeNextLinuxBatch]);
+
+  /**
+   * Pide al modelo que explique la salida REAL del comando que el estudiante
+   * acaba de correr (no una explicación genérica del comando) -- usa el
+   * mismo `get_terminal_context` que ya lee el flujo normal de preguntas.
+   */
+  const explainLinuxCommandOutput = useCallback(async (command: string) => {
+    const contextSessionId = sessionId ?? pi4ChatSessionId;
+    let liveTerminalContext: string | null = null;
+    if (contextSessionId) {
+      try {
+        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+      } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
+    }
+    const triggerText =
+      `El estudiante acaba de ejecutar \`${command}\` en la terminal. Esta es la salida real reciente de la terminal:\n\n` +
+      `${liveTerminalContext ?? '(no se pudo leer la salida de la terminal)'}\n\n` +
+      `Explicale en 2-4 líneas qué significa ESA salida concreta (los valores/nombres reales que aparecen, no una ` +
+      `explicación abstracta del comando) -- en lenguaje simple, como profesor explicándole a un principiante, sin ` +
+      `sugerir comandos nuevos acá. Mismo tono y nivel de detalle que usaste en tus otros mensajes de esta práctica.`;
+    // Igual que el resto de instrucciones sintéticas del tutor (ver
+    // handleAnalyzeCandidate): sender 'user' porque invokeAsk lee el
+    // `user_input` real de `userMsg.text`, pero esta instrucción nunca se
+    // agrega a `messages` -- no debe quedar como turno visible del estudiante.
+    const instructionMsg: Message = { id: `linux-explain-${Date.now()}`, sender: 'user', text: triggerText };
+    setIsSending(true);
+    try {
+      await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
+    } catch (e: any) {
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando la salida: ${e?.message ?? String(e)}` }]);
+    } finally {
+      setIsSending(false);
+    }
+  }, [sessionId, pi4ChatSessionId, modeHandlers, buildModeContext]);
+
+  /**
+   * Simétrico a `explainLinuxCommandOutput`, pero para el caso contrario: el
+   * estudiante ejecutó un comando NUEVO que no destrabó el paso pendiente
+   * (typo, error de sintaxis, o un comando válido pero que no era el que
+   * pedía este paso). Sin esto, la práctica se queda esperando en silencio
+   * -- se percibe como que "se congeló" aunque en realidad solo está
+   * esperando el comando correcto.
+   */
+  const explainLinuxMistake = useCallback(async (wrongCommand: string, expectedCommand?: string, isKnownFutureCommand?: boolean) => {
+    const contextSessionId = sessionId ?? pi4ChatSessionId;
+    let liveTerminalContext: string | null = null;
+    if (contextSessionId) {
+      try {
+        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+      } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
+    }
+    // Si `wrongCommand` coincide EXACTO con el comando de otro command_step
+    // del mismo módulo (ej. el estudiante se adelantó y probó `ls` cuando
+    // este paso todavía pide `echo "hola linux"`), no es un typo ni un error
+    // -- es un comando real que va a usar más adelante. Se lo marcamos
+    // explícito al modelo para que no invente una explicación de "escribiste
+    // mal" sobre un comando que en realidad escribió perfecto.
+    const triggerText =
+      `El estudiante ejecutó \`${wrongCommand}\` en la terminal, pero eso no era lo que este paso de la práctica necesitaba` +
+      (expectedCommand ? ` (el paso pendiente pide \`${expectedCommand}\`)` : '') +
+      `. Esta es la salida real reciente de la terminal:\n\n` +
+      `${liveTerminalContext ?? '(no se pudo leer la salida de la terminal)'}\n\n` +
+      (isKnownFutureCommand
+        ? `IMPORTANTE: \`${wrongCommand}\` es un comando real y válido, escrito correctamente -- NO es un typo ni un error. ` +
+          `Lo que pasa es que corresponde a un paso MÁS ADELANTE de este mismo módulo. Decile eso explícitamente (que ese ` +
+          `comando lo van a ver más adelante en la práctica), sin explicarle todavía qué hace, y`
+        : `Mirá la salida real: si fue un typo o un error de sintaxis, decile EXACTAMENTE qué escribió mal (comparando con lo ` +
+          `que se esperaba); si el comando existe pero no era el de este paso, explicale amablemente que no era ese y cuál sí. ` +
+          `Después,`) +
+      ` recordale` + (expectedCommand ? ` que el paso actual de la práctica pide \`${expectedCommand}\`` : ' cuál es el paso actual de la práctica') +
+      `. En 2-4 líneas, tono de profesor paciente (nunca de regaño ni de "error", es parte normal de aprender), y cerrá ` +
+      `pidiéndole que lo intente de nuevo` + (expectedCommand ? ` con \`${expectedCommand}\`.` : '.');
+    const instructionMsg: Message = { id: `linux-mistake-${Date.now()}`, sender: 'user', text: triggerText };
+    setIsSending(true);
+    try {
+      await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
+    } catch (e: any) {
+      setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando el error: ${e?.message ?? String(e)}` }]);
+    } finally {
+      setIsSending(false);
+    }
+  }, [sessionId, pi4ChatSessionId, modeHandlers, buildModeContext]);
+
+  // Cada mistakeSignal trae un `nonce` propio (ver useLinuxPracticeSession) --
+  // se recuerda el último ya atendido para no re-disparar la misma
+  // explicación en re-renders donde el objeto de la señal no cambió de nonce.
+  const lastHandledMistakeNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    const signal = linuxSession?.mistakeSignal;
+    if (!signal || !isPracticeSession || !linuxModule) return;
+    if (signal.moduleId !== linuxModule.id) return;
+    if (lastHandledMistakeNonceRef.current === signal.nonce) return;
+    lastHandledMistakeNonceRef.current = signal.nonce;
+    // Si ya hay una explicación en curso (de éxito o de otro mensaje), se
+    // resigna esta vez en vez de encolar -- no bloquea el resto del flujo, y
+    // el próximo comando (correcto o no) va a volver a disparar la señal.
+    if (linuxExplainRunningRef.current || isSendingRef.current) return;
+
+    const rules = linuxModule.validation_rules;
+    const result = (practiceResult as unknown as LinuxValidationResult) ?? null;
+    const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
+    const pendingStep = linuxModule.blocks.find((b): b is Extract<LinuxBlock, { type: 'command_step' }> => {
+      if (b.type !== 'command_step') return false;
+      const rule = ruleForLinuxBlock(rules, b);
+      return rule ? !passedRuleIds.has(rule.id) : true;
+    });
+
+    const normalizeCmd = (s: string) => s.trim().toLowerCase();
+    const isKnownFutureCommand = linuxModule.blocks.some(
+      (b) => b.type === 'command_step' && b.id !== pendingStep?.id && normalizeCmd(b.command) === normalizeCmd(signal.command),
+    );
+
+    explainLinuxMistake(signal.command, pendingStep?.command, isKnownFutureCommand);
+  }, [linuxSession?.mistakeSignal, isPracticeSession, linuxModule, practiceResult, explainLinuxMistake]);
+
+  useEffect(() => {
+    if (!isPracticeSession || !linuxModule || linuxExplainRunningRef.current) return;
+    const rules = linuxModule.validation_rules;
+    // practiceResult puede venir null en el instante de conectar (primera
+    // validación real todavía en vuelo) -- igual hay contenido para entregar
+    // (intro, video, el primer comando pendiente), por eso no se exige acá.
+    const result = (practiceResult as unknown as LinuxValidationResult) ?? null;
+    const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
+
+    // Un command_step ya entregado (el estudiante ya vio la instrucción) +
+    // ya aprobado + todavía sin explicar -> hay que explicar su salida ANTES
+    // de seguir revelando el resto del módulo (una cosa a la vez).
+    const toExplain = linuxModule.blocks.find((b): b is Extract<LinuxBlock, { type: 'command_step' }> => {
+      if (b.type !== 'command_step') return false;
+      if (!deliveredLinuxBlockIdsRef.current.has(b.id)) return false;
+      if (linuxExplainedStepIdsRef.current.has(b.id)) return false;
+      const rule = ruleForLinuxBlock(rules, b);
+      return rule ? passedRuleIds.has(rule.id) : false;
+    });
+
+    if (toExplain) {
+      linuxExplainedStepIdsRef.current.add(toExplain.id);
+      linuxExplainRunningRef.current = true;
+      explainLinuxCommandOutput(toExplain.command).finally(() => {
+        linuxExplainRunningRef.current = false;
+        deliverLinuxBatch(linuxModule, result);
+      });
+      return; // el resto del contenido se entrega recién después de explicar
+    }
+
+    deliverLinuxBatch(linuxModule, result);
+  }, [linuxModule, practiceResult, isPracticeSession, deliverLinuxBatch, explainLinuxCommandOutput]);
+
   const handleSend = async (overrideText?: string) => {
     if (isSending || isSendingRef.current) return;
     const trimmed = (overrideText ?? input).trim();
@@ -549,8 +939,19 @@ const ChatPane: React.FC<Props> = ({
     try {
       setIsSending(true);
       await handler.send(trimmed, userMsg, buildModeContext());
+      // El estudiante puede escribir algo suelto (una pregunta libre) en medio
+      // de la práctica -- eso NO cambia `practiceResult`, así que el efecto de
+      // arriba (que solo reacciona a practiceResult) nunca se re-dispara y la
+      // práctica queda "congelada" hasta el próximo ciclo de polling. Se
+      // reintenta la entrega acá mismo, justo después de responder: si ya no
+      // queda nada nuevo por mostrar, `deliverLinuxBatch` es un no-op (dedup
+      // por `deliveredLinuxBlockIdsRef`), así que no duplica mensajes cuando
+      // el polling sí llega a disparar el efecto más tarde.
+      if (isPracticeSession && linuxModule) {
+        deliverLinuxBatch(linuxModule, (practiceResult as unknown as LinuxValidationResult) ?? null);
+      }
     } catch (e: any) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
     } finally { isSendingRef.current = false; setIsSending(false); }
   };
   handleSendRef.current = handleSend;
@@ -597,8 +998,8 @@ const ChatPane: React.FC<Props> = ({
     try {
       setIsSending(true); isSendingRef.current = true;
       await modeHandlers[mode].send(userMsg.text, userMsg, buildModeContext());
-    } catch (e) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
     } finally { isSendingRef.current = false; setIsSending(false); }
   };
   const handleRetry = useCallback((id: string) => re_send_wrapper(id, false), [messages, mode, isSending]); /* eslint-disable-line */
@@ -612,8 +1013,8 @@ const ChatPane: React.FC<Props> = ({
       const userMsg: Message = { id: String(Date.now()), sender: 'user', text: command };
       setMessages(prev => [...prev, userMsg]);
       await modeHandlers['ask'].send(command, userMsg, buildModeContext());
-    } catch (e) {
-      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error ${action === 'optimize' ? 'optimizando' : 'analizando'} ${candidate}: ${String(e)}` }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error ${action === 'optimize' ? 'optimizando' : 'analizando'} ${candidate}: ${e?.message ?? String(e)}` }]);
     } finally { setIsSending(false); }
   };
 
@@ -626,7 +1027,7 @@ const ChatPane: React.FC<Props> = ({
     if (modeHandlers[mode]?.canSend()) {
       setIsSending(true); isSendingRef.current = true;
       modeHandlers[mode].send(draft, updatedMsg, buildModeContext()).catch((e: any) => {
-        setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${String(e)}` }]);
+        setMessages(prev => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error: ${e?.message ?? String(e)}` }]);
       }).finally(() => { isSendingRef.current = false; setIsSending(false); });
     }
   };
@@ -641,7 +1042,7 @@ const ChatPane: React.FC<Props> = ({
       attachedFile={attachedFile} setAttachedFile={setAttachedFile}
       inputRef={inputRef} isComposingRef={isComposingRef} messages={messages}
       sessionTokens={sessionTokens} setSessionTokens={setSessionTokens} sessionId={sessionId}
-      ctxUsagePct={Math.min(100, (sessionTokens.input / (MODEL_CONTEXT_WINDOW[selectedModel] || 200000)) * 100)}
+      ctxUsagePct={Math.min(100, (sessionTokens.input / (MODEL_CONTEXT_WINDOW[effectiveModel] || 200000)) * 100)}
       setToast={setToast} showTokenPopover={showTokenPopover} setShowTokenPopover={setShowTokenPopover}
       variant={isHomeEmpty ? 'pill' : 'default'}
       selectedModel={selectedModel}
@@ -653,6 +1054,7 @@ const ChatPane: React.FC<Props> = ({
       onToggleHistory={() => setShowHistory(o => !o)}
       onClose={onClose}
       onNewChat={handleNewChat}
+      practiceLocked={isPracticeSession}
     />
   );
 
@@ -711,6 +1113,15 @@ const ChatPane: React.FC<Props> = ({
           onCopyMsg={async text => { try { await navigator.clipboard.writeText(text); setToast('Copiado al portapapeles'); setTimeout(() => setToast(null), 2000); } catch {} }}
           onRegenerateMsg={handleRegenerate} onRetryMsg={handleRetry} onAnalyzeCandidate={handleAnalyzeCandidate}
           onSetInput={setInput} setLastCommand={setLastCommand}
+          linuxPracticeId={practiceId}
+          linuxRules={linuxModule?.validation_rules ?? []}
+          linuxResult={(practiceResult as unknown as LinuxValidationResult) ?? null}
+          linuxQuizAnswers={linuxQuizAnswers}
+          linuxQuizSubmitting={linuxQuizSubmitting}
+          linuxQuizSubmitted={linuxQuizSubmitted}
+          onLinuxQuizAnswer={handleLinuxQuizAnswer}
+          onLinuxQuizSubmit={handleLinuxQuizSubmit}
+          onLinuxModuleComplete={handleLinuxModuleComplete}
           embeddedTerminal={pi4TerminalEmbedActive ? {
             sessionId: pi4ChatSessionId,
             sshCommandLine: pi4SshCommandLine,

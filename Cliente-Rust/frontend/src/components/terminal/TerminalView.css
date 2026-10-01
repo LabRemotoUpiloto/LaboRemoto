@@ -95,6 +95,29 @@
   background: var(--accent-primary-hover);
 }
 
+/* ═══ Toggle Panel EV3 / Terminal (práctica Eve3 vía API) ═══ */
+.ev3-view-toggle {
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.15s ease;
+  z-index: 100;
+}
+
+.ev3-view-toggle:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
 /* ═══ Camera Top Panel ═══ */
 .camera-top-panel {
   flex-shrink: 0;

@@ -76,40 +76,43 @@ pub struct AgentState {
     pub last_file: Option<String>,
 }
 
-/// Modelos disponibles para el chat
+/// Modelos disponibles en Groq
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub enum ModelSelection {
-    #[serde(alias = "gpt-3.5-turbo", alias = "gpt35", alias = "chatgpt")]
-    Gpt35Turbo,
-    #[serde(alias = "claude-sonnet-4-6", alias = "claude-sonnet-4-6", alias = "claude", alias = "anthropic")]
-    ClaudeSonnet,
+    #[serde(alias = "openai/gpt-oss-120b", alias = "gpt-oss-120b", alias = "gpt120b")]
+    GptOss120b,
+    #[serde(alias = "openai/gpt-oss-20b", alias = "gpt-oss-20b", alias = "gpt20b")]
+    GptOss20b,
+    #[serde(alias = "groq/compound", alias = "compound")]
+    Compound,
+    #[serde(alias = "qwen/qwen3.8-27b", alias = "qwen")]
+    Qwen38,
 }
 
 impl Default for ModelSelection {
     fn default() -> Self {
         // Intentar obtener el modelo predeterminado de tiempo de compilación
         if let Some(baked_model) = option_env!("COMPILED_OPENAI_MODEL") {
-            match baked_model.to_lowercase().as_str() {
-                "gpt-3.5-turbo" | "gpt35" => return ModelSelection::Gpt35Turbo,
-                "claude-sonnet-4-6" | "claude" => return ModelSelection::ClaudeSonnet,
+            match baked_model {
+                "openai/gpt-oss-20b" | "gpt20b" => return ModelSelection::GptOss20b,
+                "groq/compound" | "compound"    => return ModelSelection::Compound,
+                "qwen/qwen3.8-27b" | "qwen"    => return ModelSelection::Qwen38,
                 _ => {}
             }
         }
-        ModelSelection::ClaudeSonnet
+        ModelSelection::GptOss120b
     }
 }
 
 impl ModelSelection {
     pub fn to_model_id(&self) -> &'static str {
         match self {
-            ModelSelection::Gpt35Turbo => "gpt-3.5-turbo",
-            ModelSelection::ClaudeSonnet => "claude-sonnet-4-6",
+            ModelSelection::GptOss120b => "openai/gpt-oss-120b",
+            ModelSelection::GptOss20b  => "openai/gpt-oss-20b",
+            ModelSelection::Compound   => "groq/compound",
+            ModelSelection::Qwen38     => "qwen/qwen3.8-27b",
         }
-    }
-    
-    pub fn is_claude(&self) -> bool {
-        matches!(self, ModelSelection::ClaudeSonnet)
     }
 }
 
@@ -245,8 +248,8 @@ async fn ai_chat_impl(
   }
 
   let (cfg_proxy_url, cfg_proxy_auth) = load_proxy_settings();
-  let proxy_url = cfg_proxy_url.or_else(|| env::var("AI_PROXY_URL").ok());
-  let proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
+  let _proxy_url = cfg_proxy_url.or_else(|| env::var("AI_PROXY_URL").ok());
+  let _proxy_auth = cfg_proxy_auth.or_else(|| env::var("AI_PROXY_AUTH").ok());
 
   fn get_system_prompt(agent_mode: &ChatMode) -> String {
     match agent_mode {
@@ -279,37 +282,17 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   let req_id = raw_req_id.filter(|s| !s.is_empty()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
   let mut cancel_rx = cancel_state.register(&req_id);
 
-  // Usar modelo seleccionado por el usuario o fallback a Claude
-  let model_selection = req_model_selection.unwrap_or_else(|| "claude-sonnet-4-6".to_string());
-  // Si OPENAI_MODEL del .env contiene "/" es un modelo OpenRouter (ej: "nvidia/nemotron-3-super-120b-a12b:free")
+  // Resolver modelo y API key de Groq
+  let groq_key = super::ai_utils::get_groq_api_key()
+    .ok_or_else(|| "GROQ_API_KEY no encontrada en .env".to_string())?;
+
+  // Usar modelo de .env si está definido, si no el enviado por el frontend, si no el default
   let env_model = std::env::var("OPENAI_MODEL").unwrap_or_default();
-  let model_id = if env_model.contains('/') { env_model } else { model_selection.clone() };
-  // Claude si el model_id empieza por "claude" y no es un modelo OpenRouter
-  let is_claude = model_id.starts_with("claude") && !model_id.contains('/');
-
-  // Auto-detectar OpenRouter: si el modelo tiene "/" y hay OPENROUTER_API_KEY, enrutar automáticamente
-  let or_key = super::ai_utils::get_openrouter_api_key();
-  let (proxy_url, proxy_auth) = if proxy_url.is_none() && model_id.contains('/') && or_key.is_some() {
-    (Some("https://openrouter.ai/api/v1/chat/completions".to_string()), or_key)
+  let model_id = if !env_model.is_empty() {
+    env_model
   } else {
-    (proxy_url, proxy_auth)
+    req_model_selection.unwrap_or_else(|| "openai/gpt-oss-120b".to_string())
   };
-
-  // Determinar qué API key usar según el modelo seleccionado
-  let api_key = if proxy_url.is_none() {
-    if is_claude {
-      super::ai_utils::get_claude_api_key()
-    } else {
-      super::ai_utils::get_openai_api_key()
-    }
-  } else { 
-    None 
-  };
-  
-  if proxy_url.is_none() && api_key.is_none() {
-    let key_type = if is_claude { "CLAUDE_API_KEY" } else { "OPENAI_API_KEY o OPENROUTER_API_KEY" };
-    return Err(format!("{} not set", key_type));
-  }
 
   // Utilidades ligeras para normalización/detección
   fn strip_diacritics_basic(input: &str) -> String {
@@ -522,89 +505,24 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
   }
 
-  // Build the request payload - format differs between OpenAI and Claude
-  let use_stream = proxy_url.is_none(); // Solo streaming para llamadas directas a la API
-  let (payload, base_url) = if is_claude {
-    // Claude API format - extract system message and put it in separate parameter
-    let mut claude_messages = Vec::new();
-    let mut system_parts = Vec::new(); // Concatenar TODOS los mensajes de sistema
-    
-    for msg in &messages {
-      if let Some(role) = msg.get("role").and_then(|v| v.as_str()) {
-        if role == "system" {
-          if let Some(content) = msg.get("content").and_then(|v| v.as_str()) {
-            system_parts.push(content.to_string()); // Agregar en lugar de sobrescribir
-          }
-        } else {
-          claude_messages.push(msg.clone());
-        }
-      }
-    }
-    
-    // Unir todos los mensajes de sistema con doble salto de línea
-    let system_content = system_parts.join("\n\n");
-    
-    let max_tok = if matches!(incoming_mode, ChatMode::Plan) { 1000u32 } else { 500u32 };
-    let claude_payload = serde_json::json!({
-      "model": model_id,
-      "max_tokens": max_tok,
-      "temperature": 0.1,
-      "stream": use_stream,
-      "system": system_content,
-      "messages": claude_messages
-    });
-    let claude_url = proxy_url.unwrap_or_else(|| "https://api.anthropic.com/v1/messages".to_string());
-    (claude_payload, claude_url)
-  } else {
-    // OpenAI API format
-    let is_openrouter = proxy_url.as_deref().unwrap_or("").contains("openrouter.ai");
-    // Modelos "reasoning" (ej. nvidia/nemotron-*:free) gastan buena parte del
-    // presupuesto de tokens pensando antes de responder; con 500 tokens el
-    // stream se corta a mitad del razonamiento y el usuario nunca ve la
-    // respuesta final. Les damos más margen y le pedimos a OpenRouter que
-    // excluya el bloque de razonamiento del `content` devuelto.
-    let max_tok = if matches!(incoming_mode, ChatMode::Plan) {
-      1000u32
-    } else if is_openrouter {
-      1500u32
-    } else {
-      500u32
-    };
-    let mut openai_payload = serde_json::json!({
-      "model": model_id,
-      "messages": messages,
-      "max_tokens": max_tok,
-      "temperature": 0.1,
-      "stream": use_stream,
-    });
-    // stream_options solo cuando se usa streaming; OpenRouter rechaza el campo si es null
-    if use_stream {
-      openai_payload["stream_options"] = serde_json::json!({"include_usage": true});
-    }
-    if is_openrouter {
-      openai_payload["reasoning"] = serde_json::json!({ "exclude": true });
-    }
-    let openai_url = proxy_url.unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string());
-    (openai_payload, openai_url)
-  };
+  // Build request payload — Groq usa formato OpenAI-compatible
+  let max_tok = if matches!(incoming_mode, ChatMode::Plan) { 1000u32 } else { 600u32 };
+  let mut payload = serde_json::json!({
+    "model": model_id,
+    "messages": messages,
+    "max_tokens": max_tok,
+    "temperature": 0.1,
+    "stream": true,
+    "stream_options": {"include_usage": true}
+  });
+  // qwen3.x en Groq puede emitir bloques <think>; se suprimen más abajo
+  // pero también podemos pedirle que los excluya del stream si el modelo lo soporta
+  if model_id.starts_with("qwen") {
+    payload["reasoning"] = serde_json::json!({ "exclude": true });
+  }
+  let base_url = "https://api.groq.com/openai/v1/chat/completions".to_string();
 
-  let mut req_builder = client.post(&base_url).json(&payload);
-  
-  // Set appropriate headers for each API
-  if is_claude && !base_url.contains("openrouter.ai") {
-    req_builder = req_builder.header("anthropic-version", "2023-06-01");
-    if let Some(ref token) = proxy_auth { req_builder = req_builder.header("x-api-key", token); }
-    else if let Some(ref key) = api_key { req_builder = req_builder.header("x-api-key", key); }
-  } else {
-    if let Some(ref token) = proxy_auth { req_builder = req_builder.bearer_auth(token); }
-    else if let Some(ref key) = api_key { req_builder = req_builder.bearer_auth(key); }
-  }
-  // Headers adicionales requeridos por OpenRouter
-  if base_url.contains("openrouter.ai") {
-    req_builder = req_builder
-      .header("HTTP-Referer", "https://github.com/ssh-ai-client")
-      .header("X-Title", "SSH AI Client");
-  }
+  let req_builder = client.post(&base_url).bearer_auth(&groq_key).json(&payload);
   let resp = tokio::select! {
     r = req_builder.send() => r.map_err(|e| e.to_string())?,
     _ = cancel_rx.changed() => {
@@ -616,12 +534,11 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
   if !resp.status().is_success() {
     let status = resp.status();
     let txt = resp.text().await.unwrap_or_default();
-    let api_name = if is_claude { "Claude API" } else { "OpenAI API" };
-    return Err(format!("{} error {}: {}", api_name, status, txt));
+    return Err(format!("Groq API error {}: {}", status, txt));
   }
 
-  let mut assistant_text = if use_stream {
-    // ── Streaming SSE ──────────────────────────────────────────────────────────
+  let mut assistant_text = {
+    // ── Streaming SSE (Groq siempre usa stream=true) ───────────────────────────
     let mut sse_buffer = String::new();
     let mut accumulated = String::new();
     let mut byte_stream = resp.bytes_stream();
@@ -651,32 +568,14 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
                         stream_ended = true;
                         break;
                       }
-                      // Extraer uso de tokens del chunk SSE
+                      // Extraer uso de tokens del chunk SSE (formato OpenAI / Groq)
                       if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
-                        if is_claude {
-                          // Claude emite input en message_start, output en message_delta
-                          match json.get("type").and_then(|v| v.as_str()) {
-                            Some("message_start") => {
-                              if let Some(u) = json.get("message").and_then(|m| m.get("usage")) {
-                                tok_input = u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_input);
-                              }
-                            }
-                            Some("message_delta") => {
-                              if let Some(u) = json.get("usage") {
-                                tok_output = u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_output);
-                              }
-                            }
-                            _ => {}
-                          }
-                        } else {
-                          // OpenAI: chunk final (con stream_options.include_usage) trae usage
-                          if let Some(u) = json.get("usage") {
-                            tok_input = u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_input);
-                            tok_output = u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_output);
-                          }
+                        if let Some(u) = json.get("usage") {
+                          tok_input = u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_input);
+                          tok_output = u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(tok_output);
                         }
                       }
-                      if let Some(delta) = sse_extract_delta(data, is_claude) {
+                      if let Some(delta) = sse_extract_delta(data, false) {
                         if !delta.is_empty() {
                           accumulated.push_str(&delta);
                           let _ = app.emit("ai:chunk", AiChunkEvent {
@@ -705,26 +604,8 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       });
     }
     accumulated
-  } else {
-    // ── Non-streaming (proxy) ───────────────────────────────────────────────────
-    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    if is_claude {
-      body.get("content")
-        .and_then(|c| c.get(0))
-        .and_then(|c0| c0.get("text"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string()
-    } else {
-      body.get("choices")
-        .and_then(|c| c.get(0))
-        .and_then(|c0| c0.get("message"))
-        .and_then(|m| m.get("content"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string()
-    }
   };
+  // ── Non-streaming eliminado: Groq siempre usa stream=true ──────────────────
 
   // Salvaguarda: algunos modelos "reasoning" (vía OpenRouter) ignoran
   // `reasoning.exclude` y devuelven su monólogo interno envuelto en
@@ -905,53 +786,17 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       }
       retry_messages.push(serde_json::json!({"role":"user","content": user_input.clone()}));
 
-      // Build retry payload with correct format for each API
-      let (retry_payload, retry_url) = if is_claude {
-        // Claude API format - extract system message and put it in separate parameter
-        let mut claude_retry_messages = Vec::new();
-        let mut retry_system_content = String::new();
-        
-        for msg in &retry_messages {
-          if let Some(role) = msg.get("role").and_then(|v| v.as_str()) {
-            if role == "system" {
-              if let Some(content) = msg.get("content").and_then(|v| v.as_str()) {
-                retry_system_content = content.to_string();
-              }
-            } else {
-              claude_retry_messages.push(msg.clone());
-            }
-          }
-        }
-        
-        let claude_retry = serde_json::json!({
-          "model": model_id,
-          "max_tokens": 900,
-          "temperature": 0.1,
-          "system": retry_system_content,
-          "messages": claude_retry_messages
-        });
-        (claude_retry, base_url.clone())
-      } else {
-        let openai_retry = serde_json::json!({
-          "model": model_id,
-          "messages": retry_messages,
-          "max_tokens": 900,
-          "temperature": 0.1
-        });
-        (openai_retry, base_url.clone())
-      };
+      // Build retry payload with correct format for Groq (OpenAI-compatible)
+      let retry_payload = serde_json::json!({
+        "model": model_id,
+        "messages": retry_messages,
+        "max_tokens": 900,
+        "temperature": 0.1
+      });
       
-      let mut retry_req = client.post(&retry_url).json(&retry_payload);
-      
-      // Set headers for retry request
-      if is_claude {
-        retry_req = retry_req.header("anthropic-version", "2023-06-01");
-        if let Some(ref token ) = proxy_auth { retry_req = retry_req.header("x-api-key", token); }
-        else if let Some(ref key) = api_key { retry_req = retry_req.header("x-api-key", key); }
-      } else {
-        if let Some(ref token) = proxy_auth { retry_req = retry_req.bearer_auth(token); }
-        else if let Some(ref key) = api_key { retry_req = retry_req.bearer_auth(key); }
-      }
+      let retry_req = client.post(&base_url)
+        .bearer_auth(&groq_key)
+        .json(&retry_payload);
       
       let retry_send = tokio::select! {
         r = retry_req.send() => r,
@@ -963,20 +808,11 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
       if let Ok(retry_resp) = retry_send {
         if retry_resp.status().is_success() {
           if let Ok(v) = retry_resp.json::<serde_json::Value>().await {
-            let text = if is_claude {
-              // Claude response format
-              v.get("content")
-                .and_then(|c| c.get(0))
-                .and_then(|c0| c0.get("text"))
-                .and_then(|v| v.as_str())
-            } else {
-              // OpenAI response format
-              v.get("choices")
-                .and_then(|c| c.get(0))
-                .and_then(|c0| c0.get("message"))
-                .and_then(|m| m.get("content"))
-                .and_then(|v| v.as_str())
-            };
+            let text = v.get("choices")
+              .and_then(|c| c.get(0))
+              .and_then(|c0| c0.get("message"))
+              .and_then(|m| m.get("content"))
+              .and_then(|v| v.as_str());
             
             if let Some(text) = text {
               let txt = text.trim();

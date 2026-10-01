@@ -4,7 +4,10 @@ import TerminalPane from './TerminalPane';
 import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
+import Ev3Panel from '../ev3/Ev3Panel';
+import LinuxPracticeProgressBar from '../practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
+import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 
 interface TerminalViewProps {
   sessionId: string;
@@ -16,6 +19,10 @@ interface TerminalViewProps {
   practiceId?: string | null;
   assignmentId?: number;
   student?: { id: number; username: string; fullname: string; email: string } | null;
+  /** true si la práctica activa trae panel de control de robot (Eve3 vía API) — ver usePracticeSession. */
+  robotDashboardEnabled?: boolean;
+  /** Instancia única de useLinuxPracticeSession (ver App.tsx), para leer progreso/conexión de la práctica Linux activa. */
+  linuxSession?: LinuxPracticeSessionApi;
 }
 
 const TerminalView: React.FC<TerminalViewProps> = ({
@@ -28,7 +35,12 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   practiceId = null,
   assignmentId,
   student = null,
+  robotDashboardEnabled = false,
+  linuxSession,
 }) => {
+  // La práctica arranca mostrando el dashboard del robot (si aplica); el
+  // estudiante puede alternar a la terminal SSH cruda sin perder la sesión.
+  const [showEv3Panel, setShowEv3Panel] = useState(robotDashboardEnabled);
   const [chatWidth, setChatWidth] = useState(420);
   const [cameraHeight, setCameraHeight] = useState(450);
   const [isResizingChat, setIsResizingChat] = useState(false);
@@ -39,6 +51,17 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   useEffect(() => {
     clearHistory();
   }, [sessionId, clearHistory]);
+
+  // Reporta el historial de comandos en vivo (capturado por
+  // useCommandHistory sin tocar disco) hacia useLinuxPracticeSession, que lo
+  // lee en revalidate() -- reemplaza a extractSessionCommands, que leía
+  // savedLogs/<id>.html, un archivo que nunca existe mientras la sesión
+  // sigue abierta.
+  useEffect(() => {
+    if (practiceId && linuxSession) {
+      linuxSession.reportCommandHistory(sessionId, commandHistory);
+    }
+  }, [practiceId, linuxSession, sessionId, commandHistory]);
 
   // When camera panel opens/closes, xterm must re-fit to the new height
   useEffect(() => {
@@ -70,12 +93,36 @@ const TerminalView: React.FC<TerminalViewProps> = ({
 
   const isResizing = isResizingChat || isResizingCamera;
 
+  // Progreso/estado de conexión de la práctica de Linux activa en esta
+  // pestaña (si la hay) — derivado de la instancia única de
+  // useLinuxPracticeSession que vive en App.tsx. `null`/`false` para
+  // sesiones SSH normales (practiceId nulo) o prácticas que no son Linux.
+  const linuxResult = practiceId ? linuxSession?.results[practiceId] ?? null : null;
+  const linuxConnected = practiceId ? !!linuxSession?.connectedModules[practiceId] : false;
+  const showProgressBar = !!(practiceId && linuxConnected && linuxResult);
+
+  // La barra de progreso de la práctica de Linux aparece/desaparece de forma
+  // asíncrona (linuxResult pasa de null a un objeto real) y cambia la altura
+  // disponible para el terminal sin pasar por un resize de ventana -- mismo
+  // caso que el panel de cámara arriba, mismo fix: forzar un resize sintético
+  // para que xterm vuelva a hacer fit() contra el contenedor ya redimensionado.
+  useEffect(() => {
+    const t1 = setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+    const t2 = setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [showProgressBar]);
+
   return (
     <div className={`terminal-view ${isResizing ? 'is-resizing' : ''}`} ref={containerRef} style={{ display: 'flex', width: '100%', height: '100%', minHeight: 0 }}>
       
       {/* ── Main Stack (Camera Top, Terminal/VNC Bottom) ── */}
       <div className="terminal-stack" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        
+
+        {/* ── Barra de progreso de la práctica de Linux — nunca en sesiones SSH normales (practiceId siempre null ahí) ── */}
+        {showProgressBar && linuxResult && (
+          <LinuxPracticeProgressBar result={linuxResult} />
+        )}
+
         {/* ── Top: Camera Panel ── */}
         {isCameraOpen && (
           <>
@@ -126,9 +173,36 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             <DesktopPane sessionId={sessionId} isActive={activeView === 'escritorio' && isTabActive} />
           </div>
 
+          {/* Capa 3: Panel de control EV3 (práctica Eve3 vía API) — se superpone
+              a terminal/VNC, no depende de `activeView` sino de su propio toggle. */}
+          {robotDashboardEnabled && (
+            <div style={{
+              gridArea: '1 / 1',
+              display: 'flex',
+              flexDirection: 'column',
+              visibility: showEv3Panel ? 'visible' : 'hidden',
+              zIndex: showEv3Panel ? 2 : 0,
+              minWidth: 0,
+              minHeight: 0,
+            }}>
+              <Ev3Panel sessionId={sessionId} />
+            </div>
+          )}
+
         </div>
 
       </div>
+
+      {robotDashboardEnabled && (
+        <button
+          type="button"
+          onClick={() => setShowEv3Panel(v => !v)}
+          className="ev3-view-toggle"
+          title={showEv3Panel ? 'Ver terminal SSH' : 'Ver panel de control EV3'}
+        >
+          {showEv3Panel ? 'Terminal' : 'Panel EV3'}
+        </button>
+      )}
 
       {/* ── Right: Chat Side Panel ── */}
       {isChatOpen && (
@@ -138,7 +212,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             onMouseDown={() => setIsResizingChat(true)}
           />
           <div style={{ width: chatWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <ChatPane sessionId={sessionId} onClose={onCloseChat} />
+            <ChatPane sessionId={sessionId} onClose={onCloseChat} practiceId={practiceId} practiceResult={linuxResult} linuxSession={linuxSession} />
           </div>
         </>
       )}

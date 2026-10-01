@@ -23,7 +23,7 @@ export function useChatHistoryManager(
 
   const loadedHistoryIdRef = useRef<string | null>(null);
   const messageCountAtLoadRef = useRef<number>(0);
-  const archiveCurrentChatRef = useRef<((excludeEntryId?: string) => Promise<boolean>)>();
+  const archiveCurrentChatRef = useRef<((excludeEntryId?: string) => Promise<boolean>) | undefined>(undefined);
 
   const archiveCurrentChat = useCallback(async (excludeEntryId?: string): Promise<boolean> => {
     if (!messages.some(m => m.sender === 'user')) return false;
