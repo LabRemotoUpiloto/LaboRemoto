@@ -424,7 +424,7 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
     case 'media':
       return <MediaBlock block={block} practiceId={practiceId} />;
     case 'command_step': {
-      const rule = rules.find((r) => r.target === block.command);
+      const rule = rules.find((r) => r.id === block.rule_id) ?? rules.find((r) => r.target === block.command);
       const ruleResult = rule ? result?.results.find((r) => r.rule_id === rule.id) : undefined;
       return <CommandStepBlock block={block} passed={!!ruleResult?.passed} points={rule?.points} />;
     }
