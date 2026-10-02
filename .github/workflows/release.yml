@@ -26,6 +26,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verificar que estén las claves que se embeben en la app
+        # Sin estos secretos la versión sale sin modelo de IA ni prácticas de Linux (la app instalada no
+        # tiene .env). Es mejor que el release falle aquí, con un mensaje claro, a publicar algo roto.
+        shell: bash
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          PRACTICE_LINUX_TUNNEL_HOST: ${{ secrets.PRACTICE_LINUX_TUNNEL_HOST }}
+          PRACTICE_LINUX_TUNNEL_PORT: ${{ secrets.PRACTICE_LINUX_TUNNEL_PORT }}
+          PRACTICE_LINUX_TUNNEL_USER: ${{ secrets.PRACTICE_LINUX_TUNNEL_USER }}
+          PRACTICE_LINUX_TUNNEL_PASSWORD: ${{ secrets.PRACTICE_LINUX_TUNNEL_PASSWORD }}
+          PRACTICE_LINUX_API_REMOTE_PORT: ${{ secrets.PRACTICE_LINUX_API_REMOTE_PORT }}
+          PRACTICE_LINUX_API_TOKEN: ${{ secrets.PRACTICE_LINUX_API_TOKEN }}
+          PRACTICE_LINUX_SSH_HOST: ${{ secrets.PRACTICE_LINUX_SSH_HOST }}
+          PRACTICE_LINUX_SSH_PORT: ${{ secrets.PRACTICE_LINUX_SSH_PORT }}
+        run: |
+          faltan=""
+          for v in GROQ_API_KEY PRACTICE_LINUX_TUNNEL_HOST PRACTICE_LINUX_TUNNEL_USER PRACTICE_LINUX_TUNNEL_PASSWORD PRACTICE_LINUX_API_TOKEN; do
+            if [ -z "${!v}" ]; then faltan="$faltan $v"; fi
+          done
+          if [ -n "$faltan" ]; then
+            echo "::error::Faltan secretos de GitHub Actions (Settings > Secrets and variables > Actions):$faltan"
+            exit 1
+          fi
+          echo "Claves de compilación presentes (valores ocultos)."
+
       - name: Compute unique release version
         # La version comiteada en el repo (tauri.conf.json/Cargo.toml/package.json)
         # a veces se queda atras porque alguien se olvida de subirla antes de
@@ -112,6 +138,17 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Claves que build.rs EMBEBE en el binario (la app instalada no trae .env). Ver build.rs.
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          PRACTICE_LINUX_TUNNEL_HOST: ${{ secrets.PRACTICE_LINUX_TUNNEL_HOST }}
+          PRACTICE_LINUX_TUNNEL_PORT: ${{ secrets.PRACTICE_LINUX_TUNNEL_PORT }}
+          PRACTICE_LINUX_TUNNEL_USER: ${{ secrets.PRACTICE_LINUX_TUNNEL_USER }}
+          PRACTICE_LINUX_TUNNEL_PASSWORD: ${{ secrets.PRACTICE_LINUX_TUNNEL_PASSWORD }}
+          PRACTICE_LINUX_API_REMOTE_PORT: ${{ secrets.PRACTICE_LINUX_API_REMOTE_PORT }}
+          PRACTICE_LINUX_API_TOKEN: ${{ secrets.PRACTICE_LINUX_API_TOKEN }}
+          PRACTICE_LINUX_SSH_HOST: ${{ secrets.PRACTICE_LINUX_SSH_HOST }}
+          PRACTICE_LINUX_SSH_PORT: ${{ secrets.PRACTICE_LINUX_SSH_PORT }}
         run: cargo tauri build
 
       - name: Prepare updater metadata
@@ -242,6 +279,17 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Claves que build.rs EMBEBE en el binario (la app instalada no trae .env). Ver build.rs.
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          PRACTICE_LINUX_TUNNEL_HOST: ${{ secrets.PRACTICE_LINUX_TUNNEL_HOST }}
+          PRACTICE_LINUX_TUNNEL_PORT: ${{ secrets.PRACTICE_LINUX_TUNNEL_PORT }}
+          PRACTICE_LINUX_TUNNEL_USER: ${{ secrets.PRACTICE_LINUX_TUNNEL_USER }}
+          PRACTICE_LINUX_TUNNEL_PASSWORD: ${{ secrets.PRACTICE_LINUX_TUNNEL_PASSWORD }}
+          PRACTICE_LINUX_API_REMOTE_PORT: ${{ secrets.PRACTICE_LINUX_API_REMOTE_PORT }}
+          PRACTICE_LINUX_API_TOKEN: ${{ secrets.PRACTICE_LINUX_API_TOKEN }}
+          PRACTICE_LINUX_SSH_HOST: ${{ secrets.PRACTICE_LINUX_SSH_HOST }}
+          PRACTICE_LINUX_SSH_PORT: ${{ secrets.PRACTICE_LINUX_SSH_PORT }}
         # --bundles sobreescribe `bundle.targets` de tauri.conf.json (que solo
         # trae "nsis", el instalador de Windows) sin tocar ese archivo -- el
         # job de Windows sigue usando el target committeado tal cual.
