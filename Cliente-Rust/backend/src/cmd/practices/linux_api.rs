@@ -51,13 +51,77 @@ pub(crate) struct LinuxApiConfig {
     ssh_port: u16,
 }
 
+/// Valor embebido al compilar (`build.rs`) para una variable de la práctica de Linux. El instalador
+/// no trae `.env`: sin esto la versión publicada no podría hablar con la Pi.
+fn embebido(key: &str) -> Option<&'static str> {
+    match key {
+        "PRACTICE_LINUX_TUNNEL_HOST" => option_env!("COMPILED_PRACTICE_LINUX_TUNNEL_HOST"),
+        "PRACTICE_LINUX_TUNNEL_PORT" => option_env!("COMPILED_PRACTICE_LINUX_TUNNEL_PORT"),
+        "PRACTICE_LINUX_TUNNEL_USER" => option_env!("COMPILED_PRACTICE_LINUX_TUNNEL_USER"),
+        "PRACTICE_LINUX_TUNNEL_PASSWORD" => option_env!("COMPILED_PRACTICE_LINUX_TUNNEL_PASSWORD"),
+        "PRACTICE_LINUX_API_REMOTE_PORT" => option_env!("COMPILED_PRACTICE_LINUX_API_REMOTE_PORT"),
+        "PRACTICE_LINUX_API_TOKEN" => option_env!("COMPILED_PRACTICE_LINUX_API_TOKEN"),
+        "PRACTICE_LINUX_SSH_HOST" => option_env!("COMPILED_PRACTICE_LINUX_SSH_HOST"),
+        "PRACTICE_LINUX_SSH_PORT" => option_env!("COMPILED_PRACTICE_LINUX_SSH_PORT"),
+        _ => None,
+    }
+}
+
+/// El valor de la variable de entorno si trae algo (desarrollo, `.env`, archivo de la máquina);
+/// si no, el embebido al compilar.
+fn resolver_valor(entorno: Option<String>, embebido: Option<&str>) -> Option<String> {
+    entorno
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| embebido.map(str::trim).filter(|v| !v.is_empty()).map(String::from))
+}
+
 fn env_var(key: &str) -> Option<String> {
-    std::env::var(key).ok().filter(|v| !v.trim().is_empty())
+    resolver_valor(std::env::var(key).ok(), embebido(key))
+}
+
+#[cfg(test)]
+mod tests_config {
+    use super::resolver_valor;
+
+    #[test]
+    fn el_entorno_manda_sobre_lo_embebido() {
+        assert_eq!(resolver_valor(Some("del-env".into()), Some("embebido")), Some("del-env".to_string()));
+    }
+
+    #[test]
+    fn sin_entorno_usa_lo_embebido() {
+        assert_eq!(resolver_valor(None, Some("embebido")), Some("embebido".to_string()));
+        assert_eq!(resolver_valor(Some("  ".into()), Some(" embebido ")), Some("embebido".to_string()));
+    }
+
+    /// Comprueba de punta a punta que `build.rs` embebe lo que había en el entorno al COMPILAR.
+    /// Solo actúa si la variable está definida al correr la prueba (mismo entorno que al compilar):
+    ///   PRACTICE_LINUX_TUNNEL_HOST=valor-de-prueba cargo test --lib embebido_coincide
+    #[test]
+    fn embebido_coincide_con_el_entorno_de_compilacion() {
+        for clave in ["PRACTICE_LINUX_TUNNEL_HOST", "PRACTICE_LINUX_API_TOKEN", "PRACTICE_LINUX_SSH_PORT"] {
+            if let Ok(valor) = std::env::var(clave) {
+                if !valor.trim().is_empty() {
+                    assert_eq!(super::embebido(clave), Some(valor.trim()), "{clave} no quedó embebida por build.rs");
+                }
+            }
+        }
+        assert_eq!(super::embebido("CLAVE_QUE_NO_EXISTE"), None);
+    }
+
+    #[test]
+    fn sin_nada_devuelve_none() {
+        assert_eq!(resolver_valor(None, None), None);
+        assert_eq!(resolver_valor(Some("".into()), Some("  ")), None);
+    }
 }
 
 pub(crate) fn load_config() -> Result<LinuxApiConfig, CommandError> {
     let missing = |key: &str| {
-        CommandError::permanent("VALIDATION_FAILED", format!("{key} no configurado en .env"))
+        CommandError::permanent(
+            "VALIDATION_FAILED",
+            format!("{key} no configurado. Falta el archivo de configuración de las prácticas: debe estar en {}", crate::user_config::donde_ponerlo()),
+        )
     };
 
     // Cuenta de servicio restringida (sin shell, forwarding local limitado a

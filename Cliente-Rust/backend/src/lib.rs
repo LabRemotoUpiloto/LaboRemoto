@@ -10,6 +10,7 @@ pub mod session_manager; // Store único de sesión + auth (trait SessionManager
 pub mod security;   // Validaciones de seguridad y backups
 pub mod api;        // REST API
 pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
+pub mod user_config; // Configuración por máquina (.env en la carpeta de datos de la app instalada)
 pub mod ipc;        // Contrato de mensajería interna Message+ACK+backpressure (REFACTOR #5: Fase A completa + Fase B piloto auth wireado)
 
 use tauri::Manager;
@@ -31,6 +32,9 @@ fn load_dotenv() {
       None => break,
     }
   }
+  // 3. App instalada: no hay `.env` del repo (esa ruta es la del runner de CI), así que se lee el
+  //    archivo de configuración de la máquina (ver user_config.rs). Solo rellena lo que falte.
+  user_config::cargar();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
