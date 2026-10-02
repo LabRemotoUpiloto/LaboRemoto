@@ -287,7 +287,9 @@ Sé concreto con comandos reales. No des opciones alternativas, solo el camino �
     .ok_or_else(|| format!("GROQ_API_KEY no encontrada. Falta el archivo de configuración del modelo de IA: debe estar en {}", crate::user_config::donde_ponerlo()))?;
 
   // Usar modelo de .env si está definido, si no el enviado por el frontend, si no el default
-  let env_model = std::env::var("OPENAI_MODEL").unwrap_or_default();
+  let env_model = std::env::var("OPENAI_MODEL").ok().filter(|v| !v.trim().is_empty())
+    .or_else(|| option_env!("COMPILED_OPENAI_MODEL").map(|v| v.to_string()))
+    .unwrap_or_default();
   let model_id = if !env_model.is_empty() {
     env_model
   } else {
