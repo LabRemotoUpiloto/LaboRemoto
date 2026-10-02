@@ -57,7 +57,10 @@ fn env_var(key: &str) -> Option<String> {
 
 pub(crate) fn load_config() -> Result<LinuxApiConfig, CommandError> {
     let missing = |key: &str| {
-        CommandError::permanent("VALIDATION_FAILED", format!("{key} no configurado en .env"))
+        CommandError::permanent(
+            "VALIDATION_FAILED",
+            format!("{key} no configurado. Falta el archivo de configuración de las prácticas: debe estar en {}", crate::user_config::donde_ponerlo()),
+        )
     };
 
     // Cuenta de servicio restringida (sin shell, forwarding local limitado a

@@ -263,7 +263,7 @@ pub async fn ai_test_key() -> Result<AiTestKeyResult, CommandError> {
 
     let key = get_groq_api_key().ok_or_else(|| CommandError::permanent(
         "MISSING_API_KEY",
-        "GROQ_API_KEY no encontrada en .env",
+        format!("GROQ_API_KEY no encontrada. Falta el archivo de configuración del modelo de IA: debe estar en {}", crate::user_config::donde_ponerlo()),
     ))?;
 
     let client = &*HTTP_CLIENT;
