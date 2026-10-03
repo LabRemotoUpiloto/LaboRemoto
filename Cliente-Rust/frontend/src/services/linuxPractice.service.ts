@@ -130,7 +130,12 @@ export type LinuxBlock =
   // número). `initial_octal` arranca el grillado de checkboxes en ese
   // valor (default "644" si se omite).
   | { type: 'permissions_calculator'; id: string; initial_octal?: string; prompt_md?: string }
-  | { type: 'checkpoint'; id: string; rule_id?: string; rule_ids?: string[] };
+  | { type: 'checkpoint'; id: string; rule_id?: string; rule_ids?: string[] }
+  // Freno de la entrega en el chat para módulos sin comandos (EV3): el chat
+  // se detiene acá hasta que el estudiante pulsa el botón, como con un
+  // `command_step` sin resolver. Mientras queden frenos sin abrir, el quiz
+  // final tampoco se entrega.
+  | { type: 'step_gate'; id: string; label?: string };
 
 export interface LinuxValidationRule {
   id: string;
