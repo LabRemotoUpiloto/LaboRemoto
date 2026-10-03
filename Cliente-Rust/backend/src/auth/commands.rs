@@ -33,6 +33,7 @@
 //! canal y el mismo payload que el frontend (`store/auth.ts`) ya consume
 //! hoy — cero cambios requeridos ahí.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Manager;
@@ -92,6 +93,13 @@ fn enqueue_auth_event(
     hub.enqueue(envelope);
 }
 
+/// Número del intento de login vigente. Cada `auth_login_url` lo incrementa y
+/// `auth_cancel_login` también: la tarea de un intento anterior compara su número
+/// con este y, si ya no coincide (reintento o cancelación), termina en silencio.
+/// Sin esto, un intento abandonado emitía `auth://error` ("Timeout…") hasta 5 min
+/// después y pisaba el estado del reintento.
+static LOGIN_ATTEMPT: AtomicU64 = AtomicU64::new(0);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Comandos Tauri
 // ─────────────────────────────────────────────────────────────────────────────
@@ -121,6 +129,9 @@ pub async fn auth_login_url(
 ) -> Result<String, String> {
     // Extraer el Arc antes de cualquier await (el guard de `State` no se retiene).
     let manager = manager.inner().clone();
+
+    // Este intento reemplaza a cualquiera anterior que siga esperando.
+    let attempt = LOGIN_ATTEMPT.fetch_add(1, Ordering::SeqCst) + 1;
 
     // ── 1-2. Generar y guardar PKCE ──────────────────────────────────────────
     let verifier  = PkceVerifier::new();
@@ -156,9 +167,18 @@ pub async fn auth_login_url(
         config,
         redirect_uri.clone(),
         code_rx,
+        attempt,
     ));
 
     Ok(auth_url)
+}
+
+/// Abandona el intento de login en curso (el usuario cerró la ventana del
+/// navegador o pulsó «Cancelar»). El intento queda obsoleto y no emite eventos.
+/// El servidor loopback se apaga solo a los 5 min.
+#[tauri::command]
+pub fn auth_cancel_login() {
+    LOGIN_ATTEMPT.fetch_add(1, Ordering::SeqCst);
 }
 
 /// Retorna la información de sesión actual si el usuario está autenticado.
@@ -228,21 +248,32 @@ async fn exchange_code_background(
     config:       KeycloakConfig,
     redirect_uri: String,
     code_rx:      tokio::sync::oneshot::Receiver<String>,
+    attempt:      u64,
 ) {
     let hub = app.state::<IpcHub>().inner().clone();
+    let is_current = move || LOGIN_ATTEMPT.load(Ordering::SeqCst) == attempt;
 
     // Esperar el código (con margen de 10 s sobre el timeout del servidor loopback)
     let code = match tokio::time::timeout(Duration::from_secs(310), code_rx).await {
         Ok(Ok(code)) => code,
         Ok(Err(_)) => {
-            enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String("Flujo OAuth cancelado".to_string()));
+            if is_current() {
+                enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String("Flujo OAuth cancelado".to_string()));
+            }
             return;
         }
         Err(_) => {
-            enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String("Timeout: el login tardó demasiado".to_string()));
+            if is_current() {
+                enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String("Timeout: el login tardó demasiado".to_string()));
+            }
             return;
         }
     };
+
+    // Un intento reemplazado o cancelado no debe iniciar sesión aunque su pestaña termine.
+    if !is_current() {
+        return;
+    }
 
     // Recuperar y consumir el verifier PKCE (semántica de un solo uso)
     let manager = app.state::<Arc<dyn SessionManager>>().inner().clone();
@@ -270,7 +301,9 @@ async fn exchange_code_background(
             tauri::async_runtime::spawn(token_refresh_daemon(app.clone(), config));
         }
         Err(e) => {
-            enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String(e.to_string()));
+            if is_current() {
+                enqueue_auth_event(&hub, "unknown".to_string(), AuthStateKind::Error, serde_json::Value::String(e.to_string()));
+            }
         }
     }
 }
