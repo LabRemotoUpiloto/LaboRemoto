@@ -1,0 +1,28 @@
+/* Botón de ojo de la contraseña (ver js/ver-contrasena-v1.js) */
+.ver-contrasena {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.ver-contrasena > input {
+  padding-right: 46px;
+}
+.ver-contrasena__btn {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+.ver-contrasena__btn:hover { color: #111827; background: rgba(0, 0, 0, 0.06); }
+.ver-contrasena__btn:focus-visible { outline: 2px solid #d51f22; outline-offset: 1px; }
