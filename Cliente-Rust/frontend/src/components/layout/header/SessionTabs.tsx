@@ -3,6 +3,7 @@ import { Tabs, UnstyledButton, rem } from '@mantine/core';
 import { gsap } from 'gsap';
 import { SquareTerminal } from 'lucide-react';
 import { CloseIcon, Tab } from './HeaderConstants';
+import { useEffectiveRole, canAccessPage } from '../../../hooks/usePermissions';
 
 interface SessionTabsProps {
   tabs: Tab[];
@@ -33,6 +34,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
   handleMouseEnter,
   handleMouseUp,
 }) => {
+  const canOpenLocalTerminal = canAccessPage('local-terminal-new', useEffectiveRole());
   const sessionsRef = useRef<HTMLDivElement | null>(null);
 
   const animateClose = (e: React.MouseEvent, callback: () => void) => {
@@ -160,14 +162,16 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         >
           <svg viewBox="0 0 13 13" fill="none" className="w-3 h-3"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
         </UnstyledButton>
-        <UnstyledButton
-          className="flex items-center justify-center w-[24px] h-[24px] rounded-md text-secondary hover:text-primary hover:bg-secondary transition-colors shrink-0"
-          onClick={onNewLocalTerminal}
-          aria-label="Nueva terminal local"
-          title="Nueva terminal local"
-        >
-          <SquareTerminal size={13} />
-        </UnstyledButton>
+        {canOpenLocalTerminal && (
+          <UnstyledButton
+            className="flex items-center justify-center w-[24px] h-[24px] rounded-md text-secondary hover:text-primary hover:bg-secondary transition-colors shrink-0"
+            onClick={onNewLocalTerminal}
+            aria-label="Nueva terminal local"
+            title="Nueva terminal local"
+          >
+            <SquareTerminal size={13} />
+          </UnstyledButton>
+        )}
       </div>
     </div>
   );
