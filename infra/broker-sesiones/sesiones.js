@@ -92,6 +92,7 @@ function compactar() {
 setInterval(() => {
   try {
     compactar();
+    limpiarUbicacionesApp();
   } catch (e) {
     console.error('[sesiones] no se pudo compactar', DATA_FILE, e.message);
   }
@@ -193,6 +194,70 @@ async function lugarDeCoordenadas(lat, lon) {
   };
   lugarCache.set(clave, lugar);
   return lugar;
+}
+
+/**
+ * Ubicación exacta que manda la propia app (con o sin práctica abierta) desde cada IP. Es lo que usa dispositivos.js para no
+ * quedarse con la aproximación por IP de una conexión SSH. Solo en memoria: la app la reenvía cada pocos minutos.
+ */
+const VENTANA_UBICACION_APP_MS = 6 * 3_600_000;
+const MAX_PUNTOS_POR_IP = 40;
+/** ip -> [{ts, usuario, lat, lon, precision_m, ciudad, region, pais}] (de más viejo a más nuevo) */
+const ubicacionesApp = new Map();
+
+function registrarUbicacionApp(ip, usuario, lat, lon, precision) {
+  const lista = ubicacionesApp.get(ip) || [];
+  const ultimo = lista[lista.length - 1];
+  const p = { ts: Date.now(), usuario, lat, lon, precision_m: precision, ciudad: null, region: null, pais: null };
+  // Mismo sitio que el aviso anterior: se reutiliza el lugar ya traducido y solo se refresca la hora.
+  if (ultimo && ultimo.lat === lat && ultimo.lon === lon) { ultimo.ts = p.ts; ultimo.usuario = usuario; return ultimo; }
+  lista.push(p);
+  while (lista.length > MAX_PUNTOS_POR_IP) lista.shift();
+  ubicacionesApp.set(ip, lista);
+  return p;
+}
+
+function limpiarUbicacionesApp() {
+  const corte = Date.now() - 24 * 3_600_000;
+  for (const [ip, lista] of ubicacionesApp) {
+    const vigentes = lista.filter((p) => p.ts >= corte);
+    if (vigentes.length) ubicacionesApp.set(ip, vigentes); else ubicacionesApp.delete(ip);
+  }
+}
+
+function ubicacionDeLaApp(ip, tMs) {
+  let mejor = null;
+  let distancia = Infinity;
+  for (const p of ubicacionesApp.get(ip) || []) {
+    const d = Math.abs(p.ts - tMs);
+    if (d <= VENTANA_UBICACION_APP_MS && d < distancia) { distancia = d; mejor = p; }
+  }
+  // Sin avisos de la app cerca en el tiempo: la ubicación del equipo de una práctica de la misma IP.
+  for (const r of registros.values()) {
+    if (r.ip !== ip || r.fuente_ubicacion !== 'dispositivo' || r.lat === null || r.lon === null) continue;
+    const ini = Date.parse(r.inicio);
+    const fin = Date.parse(r.fin || r.ultimo_latido || r.inicio);
+    if (ini > tMs + VENTANA_UBICACION_APP_MS || fin < tMs - VENTANA_UBICACION_APP_MS) continue;
+    const d = Math.abs(ini - tMs);
+    if (d < distancia) { distancia = d; mejor = r; }
+  }
+  if (!mejor) return null;
+  return { ciudad: mejor.ciudad, region: mejor.region, pais: mejor.pais, lat: mejor.lat, lon: mejor.lon, precision_m: mejor.precision_m };
+}
+
+/** POST /nvr/sesiones/ubicacion-app — {lat, lon, precision_m?}. Cualquier usuario con sesión; no crea ninguna sesión de práctica. */
+async function registrarUbicacionDeLaApp(req, res, claims) {
+  let datos;
+  try { datos = JSON.parse(await leerBody(req)); } catch { return responder(res, 400, { error: 'invalid_body' }); }
+  const lat = coordenada(datos && datos.lat, 90);
+  const lon = coordenada(datos && datos.lon, 180);
+  if (lat === null || lon === null) return responder(res, 400, { error: 'invalid_coordenadas' });
+  const ip = ipCliente(req);
+  const p = registrarUbicacionApp(ip, claims.preferred_username || claims.sub, lat, lon, coordenada(datos.precision_m, 1_000_000));
+  responder(res, 200, { ok: true });
+  if (p.ciudad === null) {
+    try { Object.assign(p, await lugarDeCoordenadas(lat, lon)); } catch (e) { console.error(`[sesiones] geocodificación inversa falló para ${lat},${lon}:`, e.message); }
+  }
 }
 
 function coordenada(v, max) {
@@ -396,7 +461,8 @@ async function handle(req, res, url, parts, verifyJwt) {
   if (parts[0] !== 'nvr' || parts[1] !== 'sesiones' || parts.length !== 3) return false;
   const esEvento = req.method === 'POST' && parts[2] === 'evento';
   const esResumen = req.method === 'GET' && parts[2] === 'resumen';
-  if (!esEvento && !esResumen) return false;
+  const esUbicacionApp = req.method === 'POST' && parts[2] === 'ubicacion-app';
+  if (!esEvento && !esResumen && !esUbicacionApp) return false;
 
   const auth = req.headers['authorization'] || '';
   const jwt = auth.startsWith('Bearer ') ? auth.slice(7) : null;
@@ -411,6 +477,7 @@ async function handle(req, res, url, parts, verifyJwt) {
 
   try {
     if (esEvento) await registrarEvento(req, res, claims);
+    else if (esUbicacionApp) await registrarUbicacionDeLaApp(req, res, claims);
     else resumen(res, url, claims);
   } catch (e) {
     console.error('[sesiones] error:', e.message);
@@ -421,4 +488,15 @@ async function handle(req, res, url, parts, verifyJwt) {
 
 cargar();
 
-module.exports = { handle };
+/**
+ * Nombre completo de una persona si ya usó la app (las prácticas lo traen del token). `persona` = usuario sin dominio, en
+ * minúsculas. Lo reutiliza el módulo de dispositivos para poner nombre a las conexiones SSH.
+ */
+function nombrePorPersona(persona) {
+  for (const r of registros.values()) {
+    if (String(r.usuario || '').split('@')[0].toLowerCase() === persona && r.nombre) return r.nombre;
+  }
+  return null;
+}
+
+module.exports = { handle, geolocalizar, ubicacionDeLaApp, esIpPrivada, nombrePorPersona, RESUMEN_ROLES };

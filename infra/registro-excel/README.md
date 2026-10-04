@@ -7,7 +7,7 @@ dos fuentes y las guarda en el mismo archivo, `/Registros_Raspberry.xlsx`
 | Fuente | Qué registra | `origen` | Tabla |
 |---|---|---|---|
 | `RegistroExcel.sh` (Pi4, servicio `registroExcel`) | Cada conexión SSH con contraseña, leída de `auth.log` | *(no lo manda)* | `Registros` |
-| Broker `sesiones.js` (Pi4, servicio `nvr-broker`) | Cada práctica abierta desde la app, con el estudiante de Keycloak | `app` | `SesionesApp` |
+| Broker `broker-sesiones` (Pi4, servicio `broker-sesiones`, antes `nvr-broker`) | Cada práctica abierta desde la app, con el estudiante de Keycloak | `app` | `SesionesApp` |
 
 Van en tablas separadas porque el flujo "Envio automatico de asistencia
 labIOT" arma el correo de asistencia leyendo `Registros`. Si las sesiones de la
@@ -19,7 +19,7 @@ conectarse (`hora_desconexion: "Activo"`) y al desconectarse (con la hora). El
 flujo crea la fila la primera vez y la actualiza por `ID` la segunda.
 
 El Excel es el registro permanente. El broker solo guarda los últimos 90 días
-(`/opt/nvr-broker/sesiones.jsonl`) para el dashboard de la app.
+(`/opt/laboremoto-brokers/data/sesiones.jsonl`) para el dashboard de la app.
 
 ## Actualizar el flujo para recibir las sesiones de la app
 
@@ -107,9 +107,9 @@ El Excel es el registro permanente. El broker solo guarda los últimos 90 días
    Usa la misma URL que ya tiene `/etc/registroExcel.env`:
 
    ```bash
-   sudo systemctl edit nvr-broker
+   sudo systemctl edit broker-sesiones
    # [Service]
    # Environment=SESIONES_WEBHOOK_URL=<misma URL de /etc/registroExcel.env>
-   sudo systemctl restart nvr-broker
-   journalctl -u nvr-broker -f   # "[sesiones] webhook falló" si el flujo rechaza algo
+   sudo systemctl restart broker-sesiones
+   journalctl -u broker-sesiones -f   # "[sesiones] webhook falló" si el flujo rechaza algo
    ```
