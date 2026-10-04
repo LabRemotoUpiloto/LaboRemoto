@@ -3,10 +3,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { tryEvaluateExpr, type MathVars } from '../../src/utils/mathExpr';
 
-// Los módulos viven en infra/practicas-linux/ev3-mN (se despliegan a la Pi);
+// Los módulos viven en infra/practicas/ev3/content/ev3-mN (se despliegan a la Pi);
 // aquí se comprueba que los bloques interactivos sean coherentes con lo que
 // la app sabe dibujar.
-const ROOT = resolve(__dirname, '../../../../infra/practicas-linux');
+const ROOT = resolve(__dirname, '../../../../infra/practicas/ev3/content');
 
 interface Block { type: string; id: string; [k: string]: any }
 
@@ -20,6 +20,7 @@ const modules: { id: string; blocks: Block[] }[] = existsSync(ROOT)
 const KNOWN = new Set([
   'text', 'code_block', 'quiz', 'checkpoint',
   'wheels_sim', 'calculator', 'sensor_demo', 'state_machine', 'checklist',
+  'media', 'step_gate',
 ]);
 
 describe('módulos ev3-m*', () => {
@@ -32,6 +33,24 @@ describe('módulos ev3-m*', () => {
       const ids = m.blocks.map(b => b.id);
       expect(new Set(ids).size, `${m.id}: ids repetidos`).toBe(ids.length);
       for (const b of m.blocks) expect(KNOWN.has(b.type), `${m.id}/${b.id}: tipo ${b.type}`).toBe(true);
+    }
+  });
+
+  it('cada imagen referenciada existe en la carpeta media del módulo', () => {
+    for (const m of modules) {
+      for (const b of m.blocks.filter(x => x.type === 'media')) {
+        const ruta = resolve(ROOT, m.id, 'media', b.file);
+        expect(existsSync(ruta), `${m.id}/${b.id}: falta media/${b.file}`).toBe(true);
+      }
+    }
+  });
+
+  it('los módulos con pasos (step_gate) no dejan quiz antes del último freno', () => {
+    for (const m of modules) {
+      const ultimoFreno = m.blocks.map(b => b.type).lastIndexOf('step_gate');
+      if (ultimoFreno < 0) continue;
+      const primerQuiz = m.blocks.findIndex(b => b.type === 'quiz');
+      expect(primerQuiz, `${m.id}: quiz antes del último freno`).toBeGreaterThan(ultimoFreno);
     }
   });
 
