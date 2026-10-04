@@ -14,7 +14,7 @@ import './Ev3Twin.css';
 
 // ─── Piso ─────────────────────────────────────────────────────────────────────
 
-function Floor({ offsetX = 0, offsetZ = 0 }: { offsetX?: number; offsetZ?: number }) {
+export function Floor({ offsetX = 0, offsetZ = 0 }: { offsetX?: number; offsetZ?: number }) {
   return (
     <group position={[offsetX, -3.2, offsetZ]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -420,7 +420,7 @@ function Ev3Body({ status }: { status: Ev3Status | null }) {
 
 // ─── Robot completo ───────────────────────────────────────────────────────────
 
-function Ev3Robot({ status }: { status: Ev3Status | null }) {
+export function Ev3Robot({ status }: { status: Ev3Status | null }) {
   const robotRef = useRef<any>(null);
   const motors = status?.motors ?? [];
   const sensors = status?.sensors ?? [];
