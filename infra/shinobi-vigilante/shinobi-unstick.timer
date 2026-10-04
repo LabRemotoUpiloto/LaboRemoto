@@ -1,0 +1,11 @@
+[Unit]
+Description=Revisa cada minuto si Shinobi quedo trabado
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1min
+AccuracySec=5s
+Unit=shinobi-unstick.service
+
+[Install]
+WantedBy=timers.target
