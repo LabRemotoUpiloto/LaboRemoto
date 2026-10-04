@@ -1,0 +1,15 @@
+[Unit]
+Description=Broker de Moodle: cursos y resultados, guarda el token de Moodle
+After=network.target
+
+[Service]
+User=pi
+Type=simple
+WorkingDirectory=/opt/laboremoto-brokers/broker-moodle
+EnvironmentFile=/etc/laboremoto-brokers/moodle.env
+ExecStart=/usr/local/bin/node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
