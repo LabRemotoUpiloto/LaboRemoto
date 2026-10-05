@@ -206,8 +206,13 @@
   
   --overlay-scrim: rgba(0,0,0,0.5);
   
-  --selection-bg: rgba(34,211,238,0.28);
-  --selection-fg: var(--text-primary);
+  /* Selección de texto: fondo SÓLIDO (no translúcido) con el acento del tema +
+     su contraste ya probado en los botones primarios (.dribbble-btn-primary),
+     en vez de --text-primary -- ese token no viene emparejado con
+     --selection-bg para garantizar contraste, y por eso un tema con texto
+     oscuro + selección oscura podía volver el texto seleccionado invisible. */
+  --selection-bg: var(--accent-primary);
+  --selection-fg: var(--accent-contrast, #ffffff);
   
   --ansi-black: #111827;    --ansi-red: #ef4444;   --ansi-green: #22c55e;  --ansi-yellow: #eab308;  --ansi-blue: #3b82f6;  --ansi-magenta: #d946ef;  --ansi-cyan: #22d3ee;  --ansi-white: #e5e7eb;
   --ansi-bright-black: #374151; --ansi-bright-red: #f87171; --ansi-bright-green: #4ade80; --ansi-bright-yellow: #facc15; --ansi-bright-blue: #60a5fa; --ansi-bright-magenta: #e879f9; --ansi-bright-cyan: #67e8f9; --ansi-bright-white: #ffffff;
