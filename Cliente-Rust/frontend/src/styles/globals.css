@@ -2023,6 +2023,28 @@ a:hover { text-decoration-thickness: 2px; }
   transform: translateY(1px) !important;
 }
 
+/* Acción principal de una tarjeta repetida muchas veces en una grilla (ej.
+   "Ver Logs" en cada SessionCard) -- mismo color de acento que el primary,
+   pero sin relleno sólido, para que no se sienta como N botones rojos
+   compitiendo entre sí. Sigue siendo claramente la acción principal (borde +
+   texto de acento) frente al secondary, que es neutro. */
+.dribbble-btn-outline {
+  background-color: color-mix(in srgb, var(--accent-primary) 6%, transparent) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent) !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+  font-family: var(--font-body);
+  transition: all var(--transition-speed) var(--transition-curve) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dribbble-btn-outline:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
+  border-color: var(--accent-primary) !important;
+}
+
 .dribbble-btn-secondary {
   background-color: var(--background-tertiary) !important;
   color: var(--text-primary) !important;

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, Group, Stack, Text, Button, ActionIcon, Box, rem } from '@mantine/core'
+import { Card, Group, Stack, Text, Button, ActionIcon, Box } from '@mantine/core'
 import { Clock, Terminal, Calendar, Eye, FileDown, Trash2 } from 'lucide-react'
 
 export interface SessionLog {
@@ -68,21 +68,11 @@ const SessionCard: React.FC<SessionCardProps> = ({
       }}
     >
       <Stack gap="sm">
-        {/* Header: icon + identity + delete */}
+        {/* Header: identity + delete -- antes también llevaba un cuadradito
+            con un ícono de terminal, idéntico en TODAS las tarjetas (no
+            diferenciaba nada, puro ruido repetido en una grilla de varias
+            decenas de sesiones). */}
         <Group gap="sm" wrap="nowrap">
-          <Box
-            className="flex items-center justify-center shrink-0"
-            style={{
-              width: rem(36),
-              height: rem(36),
-              borderRadius: 'var(--mantine-radius-md)',
-              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
-              color: 'var(--accent-primary)',
-            }}
-          >
-            <Terminal size={18} />
-          </Box>
-
           <div className="flex flex-col min-w-0" style={{ flex: 1 }}>
             <Group gap={0} wrap="nowrap">
               <Text size="sm" fw={600} truncate ff="monospace" style={{ color: 'var(--text-primary)' }}>
@@ -155,7 +145,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
             leftSection={<Eye size={14} />}
             onClick={onViewBuffer}
             style={{ flex: 1 }}
-            className="dribbble-btn-primary h-8 text-xs"
+            className="dribbble-btn-outline h-8 text-xs"
           >
             Ver Logs
           </Button>
