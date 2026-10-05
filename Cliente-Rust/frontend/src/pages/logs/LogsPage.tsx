@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { Box, Container, Stack, Title, Text, Group, TextInput, Select, ActionIcon, Tooltip } from '@mantine/core'
+import { Box, Container, Stack, Title, Text, Group, TextInput, Select, ActionIcon, Tooltip, Button } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { Search, Monitor, RefreshCw } from 'lucide-react'
 import SessionsGrid from '../../components/logs/SessionsGrid'
@@ -11,6 +11,11 @@ import { useToasts } from '../../contexts/ToastContext'
 import { buildCommandsReportHtml } from '../../utils/commandParser'
 
 type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'
+
+// Con uso diario esta lista solo crece -- en vez de renderizar cientos de
+// tarjetas de una (la consulta en sí es liviana, son metadatos; el costo
+// real es el DOM), se revela de a tandas con "Cargar más".
+const PAGE_SIZE = 24
 
 interface LogsPageProps {
   onOpenLog?: (session: SessionLog) => void
@@ -36,6 +41,7 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
   const [filterUser, setFilterUser] = useState('')
   const [filterHost, setFilterHost] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('date-desc')
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const { push } = useToasts()
 
   useEffect(() => {
@@ -82,6 +88,15 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
       }
     })
   }, [filteredSessions, sortBy])
+
+  // Cambiar filtro u orden reinicia la paginación -- si no, quedarías
+  // "en la página 5" de un resultado completamente distinto al nuevo filtro.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [filterUser, filterHost, sortBy])
+
+  const visibleSessions = sortedSessions.slice(0, visibleCount)
+  const hasMore = visibleCount < sortedSessions.length
 
   const handleDeleteLog = (session: SessionLog) => {
     modals.openConfirmModal({
@@ -208,7 +223,7 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
 
           {/* Sessions grid */}
           <SessionsGrid
-            sessions={sortedSessions}
+            sessions={visibleSessions}
             selectedSessionId={null}
             onSelectSession={s => onOpenLog?.(s)}
             onViewBuffer={handleViewBuffer}
@@ -216,6 +231,17 @@ const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
             onDeleteLog={handleDeleteLog}
             loading={loading}
           />
+
+          {!loading && hasMore && (
+            <Group justify="center">
+              <Button
+                className="dribbble-btn-secondary"
+                onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
+              >
+                Cargar más ({sortedSessions.length - visibleCount} restantes)
+              </Button>
+            </Group>
+          )}
         </Stack>
       </Container>
     </Box>
