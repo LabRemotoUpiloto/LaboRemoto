@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, Group, Stack, Text, Button, ActionIcon, Box } from '@mantine/core'
 import { Clock, Terminal, Calendar, Eye, FileDown, Trash2 } from 'lucide-react'
+import { isRaspberryPi4, KNOWN_DEVICES } from '../../constants/devices'
 
 export interface SessionLog {
   id: string
@@ -50,6 +51,13 @@ const SessionCard: React.FC<SessionCardProps> = ({
 
   const isActive = !session.endedAt
 
+  // Dispositivos conocidos del laboratorio (ej. la Pi 4) se muestran con su
+  // nombre amigable en vez de la IP -- mismo criterio que ya usa el selector
+  // de conexión (ver RecentConnectionsPanel/constants/devices).
+  const isKnownDevice = isRaspberryPi4(session.host, session.port)
+  const hostLabel = isKnownDevice ? KNOWN_DEVICES.RASPBERRY_PI_4.label : session.host
+  const showPort = !isKnownDevice
+
   return (
     <Card
       padding="md"
@@ -73,18 +81,24 @@ const SessionCard: React.FC<SessionCardProps> = ({
             diferenciaba nada, puro ruido repetido en una grilla de varias
             decenas de sesiones). */}
         <Group gap="sm" wrap="nowrap">
-          <div className="flex flex-col min-w-0" style={{ flex: 1 }}>
-            <Group gap={0} wrap="nowrap">
-              <Text size="sm" fw={600} truncate ff="monospace" style={{ color: 'var(--text-primary)' }}>
-                {session.user}
-              </Text>
-              <Text size="xs" style={{ color: 'var(--text-secondary)' }} ff="monospace">@</Text>
-              <Text size="sm" style={{ color: 'var(--text-secondary)', flex: 1, minWidth: 0 }} truncate ff="monospace">
-                {session.host}
-              </Text>
-            </Group>
-            <Text size="xs" style={{ color: 'var(--text-secondary)' }} ff="monospace">:{session.port}</Text>
-          </div>
+          {/* Identidad: antes era lo más grande/negrita de la tarjeta, pero
+              en la práctica es casi idéntica en decenas de sesiones del
+              mismo estudiante -- lo que de verdad distingue una tarjeta de
+              otra es la fila de stats de abajo, así que esta queda más
+              chica y en un solo renglón (con nombre amigable para
+              dispositivos conocidos, en vez de truncar la IP a la mitad). */}
+          <Text
+            size="xs"
+            truncate
+            ff="monospace"
+            style={{ color: 'var(--text-secondary)', flex: 1, minWidth: 0 }}
+            title={`${session.user}@${session.host}:${session.port}`}
+          >
+            {session.user}
+            <span style={{ opacity: 0.7 }}>@</span>
+            {hostLabel}
+            {showPort && <span style={{ opacity: 0.7 }}>:{session.port}</span>}
+          </Text>
 
           {isActive && (
             <Box
@@ -116,17 +130,20 @@ const SessionCard: React.FC<SessionCardProps> = ({
           )}
         </Group>
 
-        {/* Stats row */}
+        {/* Stats row -- esto sí es lo que distingue una tarjeta de otra
+            (duración y cantidad de comandos), así que ahora es lo más
+            grande/negrita de la tarjeta; la hora queda secundaria (el día
+            ya está en el encabezado del grupo, arriba). */}
         <Group gap="lg">
-          <Group gap={4}>
-            <Clock size={13} style={{ color: 'var(--text-tertiary)' }} />
-            <Text size="xs" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+          <Group gap={6}>
+            <Clock size={15} style={{ color: 'var(--accent-primary)' }} />
+            <Text size="sm" fw={700} style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
               {formatDuration(session.duration)}
             </Text>
           </Group>
-          <Group gap={4}>
-            <Terminal size={13} style={{ color: 'var(--text-tertiary)' }} />
-            <Text size="xs" fw={500} style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+          <Group gap={6}>
+            <Terminal size={15} style={{ color: 'var(--accent-primary)' }} />
+            <Text size="sm" fw={700} style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
               {session.totalCommands} cmds
             </Text>
           </Group>
