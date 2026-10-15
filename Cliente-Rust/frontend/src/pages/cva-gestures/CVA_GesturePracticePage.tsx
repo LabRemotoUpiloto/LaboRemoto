@@ -7,9 +7,8 @@ import { CvaFrameStats } from '../../bindings/CvaFrameStats';
 import { useHandSkeleton } from '../../hooks/useHandSkeleton';
 import CVA_PiInstructionLog from '../../components/cva-gestures/CVA_PiInstructionLog';
 import CVA_ConfigSidebar from '../../components/cva-gestures/CVA_ConfigSidebar';
-
-// Ocultar temporalmente la cámara del laboratorio (revertible cambiando a true cuando WebRTC esté listo)
-const SHOW_LAB_CAMERA = false;
+import CVA_LabCameraPanel from '../../components/cva-gestures/CVA_LabCameraPanel';
+import { getCvaModuleConfig } from '../../config/cvaModulesConfig';
 
 interface CVA_GesturePracticePageProps {
     moduleId: 'robot' | 'domotica';
@@ -34,6 +33,9 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
 }) => {
     const handleRetry = connect || onRetry;
     const isDomotica = moduleId === 'domotica';
+    const moduleConfig = getCvaModuleConfig(moduleId);
+    const labCameraConfig = moduleConfig?.labCamera;
+    const showLabCamera = Boolean(labCameraConfig?.enabled);
     const [sensitivity, setSensitivity] = useState('balanceado');
     const [lastGesture, setLastGesture] = useState('Ninguno (Buscando...)');
     const [confidence, setConfidence] = useState(0);
@@ -413,330 +415,28 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
 
             {/* Video Feeds Grid */}
 
-            {/* Video Feeds */}
-            {SHOW_LAB_CAMERA ? (
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-                    {/* 1. Feed del Laboratorio (Cámara Remota) + Log de la Pi debajo (AC11) */}
-                    <Stack gap="md">
-                        <Card padding="md" radius="md" className="dribbble-card">
-                        <Stack gap="sm" style={{ height: '100%' }}>
-                            <Group justify="space-between" align="center">
-                                <Group gap="xs" align="center">
-                                    <Eye size={16} style={{ color: 'var(--text-secondary)' }} />
-                                    <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                        Cámara del Laboratorio
-                                    </Text>
-                                </Group>
-                            </Group>
-                            <Box
-                                style={{
-                                    flex: 1,
-                                    minHeight: '280px',
-                                    backgroundColor: 'var(--background-tertiary, var(--surface-3))',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--border-subtle)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    overflow: 'hidden',
-                                    position: 'relative'
-                                }}
-                            >
-                                <Stack align="center" gap="xs">
-                                    <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
-                                        <Eye size={24} />
-                                    </ThemeIcon>
-                                    <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
-                                        Vista Remota del Laboratorio
-                                    </Text>
-                                    <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
-                                        Conectando al canal WebRTC del equipo físico...
-                                    </Text>
-                                </Stack>
-                            </Box>
-                        </Stack>
-                    </Card>
-
-                        {/* Componente de Log de Instrucciones de la Pi (Front 3) */}
-                        <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
-                    </Stack>
-
-                    {/* 2. Feed del Usuario (Cámara Local con Esqueleto Decorativo) */}
+            {/* Tarjeta de Cámara Local (Deduplicada sin cambiar comportamiento) */}
+            {(() => {
+                const localCameraCard = (
                     <Card padding="md" radius="md" className="dribbble-card">
-                    <Stack gap="sm" style={{ height: '100%' }}>
-                        <Group justify="space-between" align="center">
-                            <Group gap="xs" align="center">
-                                <Video size={16} style={{ color: 'var(--text-secondary)' }} />
-                                <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                    Cámara Local
-                                </Text>
-                            </Group>
-                            {camera.active && sessionActive && !emergencyStopped && (
-                                <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--accent-primary)', background: 'transparent' }}>
-                                    Transmitiendo frames ({realFps} FPS)
-                                </Badge>
-                            )}
-                        </Group>
-                        <Box
-                            style={{
-                                flex: 1,
-                                minHeight: '380px',
-                                backgroundColor: 'var(--background-tertiary, var(--surface-3))',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--border-subtle)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                overflow: 'hidden',
-                                position: 'relative'
-                            }}
-                        >
-                            {camera.active ? (
-                                <>
-                                    <video
-                                        ref={videoRef}
-                                        style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'cover',
-                                            transform: 'scaleX(-1)', // Espejo
-                                        }}
-                                        playsInline
-                                        muted
-                                    />
-                                    {showSkeleton && (
-                                        <canvas
-                                            ref={skeletonCanvasRef}
-                                            style={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                width: '100%',
-                                                height: '100%',
-                                                pointerEvents: 'none',
-                                                transform: 'scaleX(-1)',
-                                            }}
-                                        />
-                                    )}
-                                </>
-                            ) : (
-                                <Stack align="center" gap="xs">
-                                    <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
-                                        <VideoOff size={24} />
-                                    </ThemeIcon>
-                                    <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
-                                        Cámara Desconectada
-                                    </Text>
-                                </Stack>
-                            )}
-                        </Box>
-
-                        {/* Parada de Emergencia */}
-                        {emergencyStopped ? (
-                            <Box
-                                p="md"
-                                style={{
-                                    background: 'transparent',
-                                    border: '1px solid var(--border-subtle)',
-                                    borderRadius: 'var(--radius-md)',
-                                }}
-                            >
-                                <Group gap="xs" align="flex-start">
-                                    <AlertTriangle size={16} style={{ color: 'var(--danger, #EF4444)', marginTop: 2 }} />
-                                    <Stack gap="xs" style={{ flex: 1 }}>
-                                        <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                            Parada de Emergencia Activa
-                                        </Text>
-                                        <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
-                                            La transmisión de frames hacia la Pi y la emisión de comandos hacia el hardware están detenidas.
-                                        </Text>
-                                        <Group mt="xs">
-                                            <Button
-                                                size="xs"
-                                                radius="md"
-                                                onClick={handleReset}
-                                                leftSection={<RefreshCw size={14} />}
-                                                style={{
-                                                    background: 'transparent',
-                                                    border: '1px solid var(--border-subtle)',
-                                                    color: 'var(--text-primary)',
-                                                }}
-                                            >
-                                                Reanudar Transmisión
-                                            </Button>
-                                        </Group>
-                                    </Stack>
-                                </Group>
-                            </Box>
-                        ) : (
-                            <Group justify="flex-end" mt="xs">
-                                <Button
-                                    size="xs"
-                                    radius="md"
-                                    onClick={handleEmergencyStop}
-                                    leftSection={<AlertTriangle size={14} />}
-                                    style={{
-                                        background: 'transparent',
-                                        border: '1px solid var(--border-subtle)',
-                                        color: 'var(--danger, #EF4444)',
-                                    }}
-                                >
-                                    ABORTAR Y DETENER EQUIPOS
-                                </Button>
-                            </Group>
-                        )}
-                    </Stack>
-                </Card>
-                </SimpleGrid>
-            ) : (
-                <Box maw={760} mx="auto" w="100%">
-                    <Stack gap="lg">
-                        {/* Feed del Usuario (Cámara Local con Esqueleto Decorativo) centrado */}
-                        <Card padding="md" radius="md" className="dribbble-card">
-                    <Stack gap="sm" style={{ height: '100%' }}>
-                        <Group justify="space-between" align="center">
-                            <Group gap="xs" align="center">
-                                <Video size={16} style={{ color: 'var(--text-secondary)' }} />
-                                <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                    Cámara Local
-                                </Text>
-                            </Group>
-                            {camera.active && sessionActive && !emergencyStopped && (
-                                <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--accent-primary)', background: 'transparent' }}>
-                                    Transmitiendo frames ({realFps} FPS)
-                                </Badge>
-                            )}
-                        </Group>
-                        <Box
-                            style={{
-                                flex: 1,
-                                minHeight: '380px',
-                                backgroundColor: 'var(--background-tertiary, var(--surface-3))',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--border-subtle)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                overflow: 'hidden',
-                                position: 'relative'
-                            }}
-                        >
-                            {camera.active ? (
-                                <>
-                                    <video
-                                        ref={videoRef}
-                                        style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'cover',
-                                            transform: 'scaleX(-1)', // Espejo
-                                        }}
-                                        playsInline
-                                        muted
-                                    />
-                                    {showSkeleton && (
-                                        <canvas
-                                            ref={skeletonCanvasRef}
-                                            style={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                width: '100%',
-                                                height: '100%',
-                                                pointerEvents: 'none',
-                                                transform: 'scaleX(-1)',
-                                            }}
-                                        />
-                                    )}
-                                </>
-                            ) : (
-                                <Stack align="center" gap="xs">
-                                    <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
-                                        <VideoOff size={24} />
-                                    </ThemeIcon>
-                                    <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
-                                        Cámara Desconectada
-                                    </Text>
-                                </Stack>
-                            )}
-                        </Box>
-
-                        {/* Parada de Emergencia */}
-                        {emergencyStopped ? (
-                            <Box
-                                p="md"
-                                style={{
-                                    background: 'transparent',
-                                    border: '1px solid var(--border-subtle)',
-                                    borderRadius: 'var(--radius-md)',
-                                }}
-                            >
-                                <Group gap="xs" align="flex-start">
-                                    <AlertTriangle size={16} style={{ color: 'var(--danger, #EF4444)', marginTop: 2 }} />
-                                    <Stack gap="xs" style={{ flex: 1 }}>
-                                        <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                            Parada de Emergencia Activa
-                                        </Text>
-                                        <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
-                                            La transmisión de frames hacia la Pi y la emisión de comandos hacia el hardware están detenidas.
-                                        </Text>
-                                        <Group mt="xs">
-                                            <Button
-                                                size="xs"
-                                                radius="md"
-                                                onClick={handleReset}
-                                                leftSection={<RefreshCw size={14} />}
-                                                style={{
-                                                    background: 'transparent',
-                                                    border: '1px solid var(--border-subtle)',
-                                                    color: 'var(--text-primary)',
-                                                }}
-                                            >
-                                                Reanudar Transmisión
-                                            </Button>
-                                        </Group>
-                                    </Stack>
-                                </Group>
-                            </Box>
-                        ) : (
-                            <Group justify="flex-end" mt="xs">
-                                <Button
-                                    size="xs"
-                                    radius="md"
-                                    onClick={handleEmergencyStop}
-                                    leftSection={<AlertTriangle size={14} />}
-                                    style={{
-                                        background: 'transparent',
-                                        border: '1px solid var(--border-subtle)',
-                                        color: 'var(--danger, #EF4444)',
-                                    }}
-                                >
-                                    ABORTAR Y DETENER EQUIPOS
-                                </Button>
-                            </Group>
-                        )}
-                    </Stack>
-                </Card>
-
-                        {/* Componente de Log de Instrucciones de la Pi (Front 3) */}
-                        <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
-
-                        {/* Tarjeta Cámara del Laboratorio (preservada para fácil reversión tras SHOW_LAB_CAMERA) */}
-                        {false && (
-                            <Card padding="md" radius="md" className="dribbble-card">
                         <Stack gap="sm" style={{ height: '100%' }}>
                             <Group justify="space-between" align="center">
                                 <Group gap="xs" align="center">
-                                    <Eye size={16} style={{ color: 'var(--text-secondary)' }} />
+                                    <Video size={16} style={{ color: 'var(--text-secondary)' }} />
                                     <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                        Cámara del Laboratorio
+                                        Cámara Local
                                     </Text>
                                 </Group>
+                                {camera.active && sessionActive && !emergencyStopped && (
+                                    <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--accent-primary)', background: 'transparent' }}>
+                                        Transmitiendo frames ({realFps} FPS)
+                                    </Badge>
+                                )}
                             </Group>
                             <Box
                                 style={{
                                     flex: 1,
-                                    minHeight: '280px',
+                                    minHeight: '380px',
                                     backgroundColor: 'var(--background-tertiary, var(--surface-3))',
                                     borderRadius: 'var(--radius-md)',
                                     border: '1px solid var(--border-subtle)',
@@ -747,24 +447,129 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                                     position: 'relative'
                                 }}
                             >
-                                <Stack align="center" gap="xs">
-                                    <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
-                                        <Eye size={24} />
-                                    </ThemeIcon>
-                                    <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
-                                        Vista Remota del Laboratorio
-                                    </Text>
-                                    <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
-                                        Conectando al canal WebRTC del equipo físico...
-                                    </Text>
-                                </Stack>
+                                {camera.active ? (
+                                    <>
+                                        <video
+                                            ref={videoRef}
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                transform: 'scaleX(-1)', // Espejo
+                                            }}
+                                            playsInline
+                                            muted
+                                        />
+                                        {showSkeleton && (
+                                            <canvas
+                                                ref={skeletonCanvasRef}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    pointerEvents: 'none',
+                                                    transform: 'scaleX(-1)',
+                                                }}
+                                            />
+                                        )}
+                                    </>
+                                ) : (
+                                    <Stack align="center" gap="xs">
+                                        <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
+                                            <VideoOff size={24} />
+                                        </ThemeIcon>
+                                        <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
+                                            Cámara Desconectada
+                                        </Text>
+                                    </Stack>
+                                )}
                             </Box>
+
+                            {/* Parada de Emergencia */}
+                            {emergencyStopped ? (
+                                <Box
+                                    p="md"
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid var(--border-subtle)',
+                                        borderRadius: 'var(--radius-md)',
+                                    }}
+                                >
+                                    <Group gap="xs" align="flex-start">
+                                        <AlertTriangle size={16} style={{ color: 'var(--danger, #EF4444)', marginTop: 2 }} />
+                                        <Stack gap="xs" style={{ flex: 1 }}>
+                                            <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                                Parada de Emergencia Activa
+                                            </Text>
+                                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                                                La transmisión de frames hacia la Pi y la emisión de comandos hacia el hardware están detenidas.
+                                            </Text>
+                                            <Group mt="xs">
+                                                <Button
+                                                    size="xs"
+                                                    radius="md"
+                                                    onClick={handleReset}
+                                                    leftSection={<RefreshCw size={14} />}
+                                                    style={{
+                                                        background: 'transparent',
+                                                        border: '1px solid var(--border-subtle)',
+                                                        color: 'var(--text-primary)',
+                                                    }}
+                                                >
+                                                    Reanudar Transmisión
+                                                </Button>
+                                            </Group>
+                                        </Stack>
+                                    </Group>
+                                </Box>
+                            ) : (
+                                <Group justify="flex-end" mt="xs">
+                                    <Button
+                                        size="xs"
+                                        radius="md"
+                                        onClick={handleEmergencyStop}
+                                        leftSection={<AlertTriangle size={14} />}
+                                        style={{
+                                            background: 'transparent',
+                                            border: '1px solid var(--border-subtle)',
+                                            color: 'var(--danger, #EF4444)',
+                                        }}
+                                    >
+                                        ABORTAR Y DETENER EQUIPOS
+                                    </Button>
+                                </Group>
+                            )}
                         </Stack>
                     </Card>
-                        )}
-                    </Stack>
-                </Box>
-            )}
+                );
+
+                return showLabCamera ? (
+                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+                        {/* 1. Feed del Laboratorio (Cámara Remota) + Log de la Pi debajo */}
+                        <Stack gap="md">
+                            <CVA_LabCameraPanel
+                                groupKey={labCameraConfig?.groupKey}
+                                cameraId={labCameraConfig?.cameraId}
+                                label={labCameraConfig?.label}
+                                isActive={sessionActive && !emergencyStopped}
+                            />
+                            <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
+                        </Stack>
+
+                        {/* 2. Feed del Usuario (Cámara Local) */}
+                        {localCameraCard}
+                    </SimpleGrid>
+                ) : (
+                    <Box maw={760} mx="auto" w="100%">
+                        <Stack gap="lg">
+                            {localCameraCard}
+                            <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
+                        </Stack>
+                    </Box>
+                );
+            })()}
 
             {/* Botón único para terminar la práctica */}
             <Group justify="center" mt="md">
