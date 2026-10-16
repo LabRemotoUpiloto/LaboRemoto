@@ -391,7 +391,7 @@ const ReservasPage: React.FC = () => {
 
   return (
     <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
-      <Container size="xl" pt={28} pb={60} px="xl">
+      <Container size="xl" pt={28} pb={60} px="xl" data-tour="reservas-pagina">
         <Stack gap="xl">
 
           {/* ── Encabezado ── */}

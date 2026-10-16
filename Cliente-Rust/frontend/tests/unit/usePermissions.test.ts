@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ASSIGNABLE_ROLES, canAccessPage, getEffectiveRole } from '../../src/hooks/usePermissions';
+import { ASSIGNABLE_ROLES, canAccessPage, getEffectiveRole, puedeAdministrarCamaras } from '../../src/hooks/usePermissions';
 
 describe('rol docente', () => {
   it('lo reconoce venga del directorio (user_type) o asignado a mano: ambos llegan en roles', () => {
@@ -26,11 +26,12 @@ describe('rol docente', () => {
     }
   });
 
-  it('ve prácticas, reservas y logs; el estudiante no ve logs', () => {
-    for (const page of ['practices', 'reservas', 'logs']) {
+  it('ve prácticas, mis cursos y logs; el estudiante no ve logs', () => {
+    for (const page of ['practices', 'mis-cursos', 'logs']) {
       expect(canAccessPage(page, 'docente'), page).toBe(true);
     }
     expect(canAccessPage('logs', 'estudiante')).toBe(false);
+    expect(canAccessPage('mis-cursos', 'estudiante')).toBe(true);
   });
 
   it('la terminal local es solo de semillerista y admin_lab', () => {
@@ -39,5 +40,18 @@ describe('rol docente', () => {
     }
     expect(canAccessPage('local-terminal-new', 'semillerista')).toBe(true);
     expect(canAccessPage('local-terminal-new', 'admin_lab')).toBe(true);
+  });
+
+  it('solo el administrador gestiona cámaras (crear, editar, eliminar, claves)', () => {
+    expect(puedeAdministrarCamaras('admin_lab')).toBe(true);
+    for (const role of ['jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista', 'semillerista', 'docente', 'estudiante'] as const) {
+      expect(puedeAdministrarCamaras(role), role).toBe(false);
+    }
+  });
+
+  it('Reservas está desactivada para todos mientras se termina', () => {
+    for (const role of ['admin_lab', 'docente', 'estudiante', 'laboratorista'] as const) {
+      expect(canAccessPage('reservas', role), role).toBe(false);
+    }
   });
 });

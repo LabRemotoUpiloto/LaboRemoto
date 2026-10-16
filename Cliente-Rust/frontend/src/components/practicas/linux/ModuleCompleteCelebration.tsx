@@ -16,6 +16,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { gsap } from 'gsap';
 import { RANKS, rankForModule } from '../../../services/badges.service';
 import { MedalIcon } from './MedalIcon';
+import EnvioMoodlePanel from '../../cursos/EnvioMoodlePanel';
+import { celebracion } from '../../cursos/envioMoodle';
 
 const RING_RADIUS = 42;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -94,6 +96,12 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
       })),
     [],
   );
+
+  // Mientras el modal está abierto, el aviso flotante de Moodle espera: el envío va dentro de este modal.
+  useEffect(() => {
+    celebracion.abrir();
+    return () => celebracion.cerrar();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -265,6 +273,16 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
           <p className="m-0 text-xs" style={{ color: 'var(--text-secondary, #9ca3af)' }}>
             Ya la podés ver en tu Sala de Trofeos, en tu Perfil.
           </p>
+          {/* Si la práctica tiene tarea en Moodle, aquí se ofrece enviarla (con el registro de la sesión). Si no, no se ve nada. */}
+          <EnvioMoodlePanel
+            resultado={{
+              practice_id: moduleId,
+              total_points: totalPoints,
+              earned_points: earnedPoints,
+              percentage: totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 100,
+              passed: true,
+            }}
+          />
           <button
             className="rounded-[10px] bg-[#e21f19] px-[34px] py-2.5 text-sm font-bold text-white transition hover:brightness-110 active:scale-[0.97]"
             onClick={onClose}

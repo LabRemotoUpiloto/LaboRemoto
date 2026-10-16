@@ -46,6 +46,7 @@ import { useAuth } from '../hooks/useAuth';
 // segundo caso real que la valide.
 import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult, type LinuxValidationRule } from '../services/linuxPractice.service';
 import { STEP_GATE_EVENT } from './practicas/linux/blocks/BlockRenderer';
+import { armarPlan, type PasoPractica } from './practicas/linux/ritmo';
 import type { LinuxPracticeSessionApi } from '../hooks/useLinuxPracticeSession';
 
 // `rule_id` ya viene resuelto por `linuxGetModule` (ver resolveLinuxModule en
@@ -161,9 +162,12 @@ const ChatPane: React.FC<Props> = ({
   // re-render propio, solo lo lee el efecto de entrega de contenido.
   const deliveredLinuxBlockIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => { deliveredLinuxBlockIdsRef.current = new Set(); }, [practiceId]);
-  // `step_gate` que el estudiante ya abrió (botón «Listo, sigue»).
+  // Pasos sin comandos que el estudiante ya cerró con «Siguiente paso» (id del paso).
   const openedLinuxGatesRef = useRef<Set<string>>(new Set());
   useEffect(() => { openedLinuxGatesRef.current = new Set(); }, [practiceId]);
+  // Pasos ya entregados como mensaje (ver ritmo.ts).
+  const deliveredLinuxPasosRef = useRef<Set<string>>(new Set());
+  useEffect(() => { deliveredLinuxPasosRef.current = new Set(); }, [practiceId]);
 
   // Respuestas de quiz en curso -- una sola práctica activa por chat a la vez,
   // no hace falta keyearlas por moduleId.
@@ -201,55 +205,33 @@ const ChatPane: React.FC<Props> = ({
     linuxSession?.notifyModuleComplete(moduleId);
   }, [linuxSession]);
 
-  // Determina el próximo lote de bloques a mostrar: recorre module.blocks en
-  // orden, siempre agrega texto/analogía/anotación/media apenas se alcanzan,
-  // y se DETIENE en el primer command_step todavía no resuelto (una tarea a
-  // la vez -- ver decisión de diseño). Un quiz no revelado (todavía no
-  // terminó la práctica) se SALTEA sin frenar el recorrido -- solo bloquea
-  // command_step lo hace, nunca un quiz de por medio.
-  const computeNextLinuxBatch = useCallback((module: LinuxModule, result: LinuxValidationResult | null): LinuxBlock[] => {
+  // Lo próximo que hay que mostrar, de a un paso (ver ritmo.ts): el primer paso
+  // sin entregar, siempre que los anteriores estén completos. Un paso con
+  // comandos se completa cuando todos pasan la validación; uno sin comandos,
+  // con su botón «Siguiente paso». Con todos completos, la evaluación.
+  const computeNextLinuxEntrega = useCallback((module: LinuxModule, result: LinuxValidationResult | null) => {
     const rules = module.validation_rules;
     const passedRuleIds = new Set((result?.results ?? []).filter((r) => r.passed).map((r) => r.rule_id));
-    const requiredNonQuiz = rules.filter((r) => r.rule_type !== 'quiz' && r.required);
-    // Un módulo sin reglas de comando (EV3: se maneja con el panel del robot,
-    // no con la terminal) no tiene "parte práctica" que esperar: su quiz se
-    // entrega junto con el resto del contenido. `every` sobre una lista vacía
-    // ya da true; antes se exigía `length > 0` y ese quiz nunca aparecía.
-    const openedGates = openedLinuxGatesRef.current;
-    // Con `step_gate` (EV3) el quiz final espera a que se abran todos los frenos.
-    const gatesDone = module.blocks.every((b) => b.type !== 'step_gate' || openedGates.has(b.id));
-    const practiceDone = gatesDone && requiredNonQuiz.every((r) => passedRuleIds.has(r.id));
+    const plan = armarPlan(module.blocks);
+    const pasoCompleto = (paso: PasoPractica) =>
+      paso.conBoton
+        ? openedLinuxGatesRef.current.has(paso.id)
+        : paso.bloques.every((b) => {
+            if (b.type !== 'command_step') return true;
+            const rule = ruleForLinuxBlock(rules, b);
+            return rule ? passedRuleIds.has(rule.id) : false;
+          });
 
-    const delivered = deliveredLinuxBlockIdsRef.current;
-    const batch: LinuxBlock[] = [];
-    for (const block of module.blocks) {
-      if (block.type === 'checkpoint') continue;
-      if (block.type === 'step_gate') {
-        if (!delivered.has(block.id)) batch.push(block);
-        if (!openedGates.has(block.id)) break; // frena hasta que pulse el botón
-        continue;
-      }
-      if (block.type === 'command_step') {
-        const rule = ruleForLinuxBlock(rules, block);
-        const passed = rule ? passedRuleIds.has(rule.id) : false;
-        if (!delivered.has(block.id)) batch.push(block);
-        if (!passed) break; // frena acá -- una tarea a la vez, ya esté recién agregada o ya entregada antes
-        continue;
-      }
-      if (block.type === 'quiz') {
-        // `continue`, NUNCA `break`: un quiz que todavía no se puede revelar
-        // no debe frenar la entrega de lo que venga DESPUÉS en module.blocks
-        // (ej. un command_step más adelante) -- antes cortaba acá con
-        // `break` asumiendo que todo quiz vive al final del módulo, y
-        // bastaba con reubicar uno solo a mitad de camino para que la
-        // práctica quedara congelada para siempre en ese punto.
-        if (!practiceDone) continue;
-        if (!delivered.has(block.id)) batch.push(block);
-        continue;
-      }
-      if (!delivered.has(block.id)) batch.push(block);
+    for (const paso of plan.pasos) {
+      if (!deliveredLinuxPasosRef.current.has(paso.id)) return { plan, paso, completo: pasoCompleto(paso) };
+      if (!pasoCompleto(paso)) return { plan };
     }
-    return batch;
+    // Reglas requeridas sin bloque propio también cuentan como parte práctica.
+    const requiredNonQuiz = rules.filter((r) => r.rule_type !== 'quiz' && r.required);
+    const practiceDone = requiredNonQuiz.every((r) => passedRuleIds.has(r.id));
+    const quizPendiente = plan.preguntas.some((q) => !deliveredLinuxBlockIdsRef.current.has(q.id));
+    if (practiceDone && quizPendiente) return { plan, preguntas: plan.preguntas };
+    return { plan };
   }, []);
 
   // id de los command_step ya explicados por la IA -- una sola vez por paso
@@ -509,7 +491,14 @@ const ChatPane: React.FC<Props> = ({
     const objetivo = linuxScrollTargetRef.current;
     if (objetivo && document.getElementById(`msg-${objetivo}`)) {
       linuxScrollTargetRef.current = null;
-      scrollToLinuxContent(objetivo);
+      // Si el paso llega justo después de la explicación del tutor (la salida
+      // del comando que acaba de escribir), se arranca desde esa explicación:
+      // ir directo al paso la dejaba fuera de la pantalla, sin leer.
+      const idx = messages.findIndex((m) => m.id === objetivo);
+      const anterior = idx > 0 ? messages[idx - 1] : undefined;
+      const esExplicacion = anterior?.sender === 'ai' && anterior.text.trim().length > 0
+        && !anterior.meta?.linuxPaso && !anterior.meta?.linuxQuiz;
+      scrollToLinuxContent(esExplicacion ? anterior.id : objetivo);
       return;
     }
     const last = messages[messages.length - 1];
@@ -740,38 +729,44 @@ const ChatPane: React.FC<Props> = ({
 
   // ── Entrega de contenido de Linux, parte 2 (necesita buildModeContext/modeHandlers ya definidos arriba) ──
   const deliverLinuxBatch = useCallback((module: LinuxModule, result: LinuxValidationResult | null) => {
-    const batch = computeNextLinuxBatch(module, result);
-    if (batch.length === 0) return;
-    batch.forEach((b) => deliveredLinuxBlockIdsRef.current.add(b.id));
-
-    const quizBlocks = batch.filter((b): b is Extract<LinuxBlock, { type: 'quiz' }> => b.type === 'quiz');
-    const contentBlocks = batch.filter((b) => b.type !== 'quiz');
-
+    const nuevos: Message[] = [];
     const sello = Date.now();
-    const contentId = `linux-content-${sello}`;
-    const quizId = `linux-quiz-${sello}`;
-    linuxScrollTargetRef.current = contentBlocks.length > 0 ? contentId : quizId;
-
-    setMessages((prev) => {
-      const next = [...prev];
-      if (contentBlocks.length > 0) {
-        next.push({ id: contentId, sender: 'ai', text: '', timestamp: sello, meta: { linuxContentBlocks: contentBlocks } });
-      }
-      if (quizBlocks.length > 0) {
-        next.push({
-          id: quizId,
+    // Normalmente sale un paso. Al reconectar, los pasos con comandos que ya
+    // estaban aprobados salen todos seguidos (ya resumidos) hasta el pendiente.
+    for (;;) {
+      const siguiente = computeNextLinuxEntrega(module, result);
+      if (siguiente.paso) {
+        const { paso, plan } = siguiente;
+        deliveredLinuxPasosRef.current.add(paso.id);
+        // Los bloques también: de eso dependen la explicación de cada comando y la detección de errores.
+        paso.bloques.forEach((b) => deliveredLinuxBlockIdsRef.current.add(b.id));
+        nuevos.push({
+          id: `linux-${paso.id}-${sello}`,
           sender: 'ai',
-          // Sin reglas de comando (EV3) no hay "parte práctica" que haber terminado.
-          text: module.validation_rules.some((r) => r.rule_type !== 'quiz')
-            ? '¡Terminaste la parte práctica! Antes de cerrar el módulo, una evaluación corta:'
-            : 'Cuando hayas leído el módulo y probado el Panel EV3, responde esta evaluación corta para cerrarlo:',
-          timestamp: Date.now(),
-          meta: { linuxQuiz: { moduleId: module.id, moduleTitle: module.title, blocks: quizBlocks } },
+          text: '',
+          timestamp: sello,
+          meta: { linuxPaso: { paso, total: plan.total } },
+        });
+        if (!siguiente.completo) break;
+        continue;
+      }
+      if (siguiente.preguntas) {
+        const { preguntas, plan } = siguiente;
+        preguntas.forEach((q) => deliveredLinuxBlockIdsRef.current.add(q.id));
+        nuevos.push({
+          id: `linux-quiz-${sello}`,
+          sender: 'ai',
+          text: '',
+          timestamp: sello,
+          meta: { linuxQuiz: { moduleId: module.id, moduleTitle: module.title, blocks: preguntas, numero: plan.total, total: plan.total } },
         });
       }
-      return next;
-    });
-  }, [computeNextLinuxBatch]);
+      break;
+    }
+    if (nuevos.length === 0) return;
+    linuxScrollTargetRef.current = nuevos[nuevos.length - 1].id;
+    setMessages((prev) => [...prev, ...nuevos]);
+  }, [computeNextLinuxEntrega]);
 
   /**
    * Pide al modelo que explique la salida REAL del comando que el estudiante

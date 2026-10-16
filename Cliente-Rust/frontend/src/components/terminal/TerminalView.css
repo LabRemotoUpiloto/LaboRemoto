@@ -20,6 +20,82 @@
   height: 100%;
 }
 
+/* Práctica: mientras un paso pide escribir, la terminal se señala sin tapar
+   nada: un borde fino y quieto, y una etiqueta chica pegada al cursor
+   (ver TerminalView). */
+.terminal-guiada::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  border-radius: 4px;
+}
+
+.terminal-guiada-etiqueta {
+  position: absolute;
+  transform: translateY(-50%);
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 50%, transparent);
+  background: var(--background-secondary, #fff);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+  animation: terminal-guiada-aparecer 0.25s ease-out;
+}
+
+/* Flechita que apunta al cursor. */
+.terminal-guiada-etiqueta::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  border-left: inherit;
+  border-bottom: inherit;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.terminal-guiada-etiqueta--abajo {
+  transform: none;
+}
+
+.terminal-guiada-etiqueta--abajo::before {
+  left: 20px;
+  top: -5px;
+  border-bottom: none;
+  border-top: inherit;
+  transform: rotate(45deg);
+}
+
+@keyframes terminal-guiada-aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* «Ir a la terminal»: un solo empujón suave para que el ojo la encuentre. */
+.terminal-guiada-etiqueta--destello {
+  animation: terminal-guiada-aparecer 0.25s ease-out, terminal-guiada-empujon 0.6s ease-out 0.1s;
+}
+
+@keyframes terminal-guiada-empujon {
+  0%, 100% { margin-left: 0; }
+  40% { margin-left: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-guiada-etiqueta,
+  .terminal-guiada-etiqueta--destello {
+    animation: none;
+  }
+}
+
 
 
 .terminal-view > .chat-container {

@@ -7,7 +7,8 @@ import { RelativeTime } from './RelativeTime';
 import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon, Button, Group, Text } from '@mantine/core';
 import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
-import { BlockView } from '../practicas/linux/blocks/BlockRenderer';
+import { BlockView, CLASE_RESALTADA } from '../practicas/linux/blocks/BlockRenderer';
+import { PasoCard, EncabezadoPaso, ListaAcciones, FranjaAhora } from '../practicas/linux/PasoCard';
 import { ModuleCompleteCelebration } from '../practicas/linux/ModuleCompleteCelebration';
 import { PosterUnlockCelebration } from '../practicas/linux/PosterUnlockCelebration';
 import { markModuleBadgeEarned, rankForModule } from '../../services/badges.service';
@@ -117,6 +118,37 @@ export default function AiMessageBubble({
     onLinuxModuleComplete?.(linuxQuizModuleId!);
   };
 
+  // Guía de la evaluación final: qué pregunta toca, o que falta enviarla.
+  const preguntas: any[] = msg.meta?.linuxQuiz?.blocks ?? [];
+  const reglaDe = (q: any) => linuxRules.find((r: any) => r.target === q.id);
+  const incorrecta = (q: any) => {
+    const regla = reglaDe(q);
+    const res = regla ? linuxResult?.results?.find((r: any) => r.rule_id === regla.id) : undefined;
+    return linuxQuizSubmitted && !!res && !res.passed;
+  };
+  const evaluacionAprobada = linuxQuizSubmitted && !!linuxResult?.passed;
+  const sinResponder = preguntas.find((q) => !linuxQuizAnswers[q.id]);
+  const aCorregir = linuxQuizSubmitted && !evaluacionAprobada ? preguntas.find(incorrecta) : undefined;
+  const preguntaResaltada = sinResponder ?? aCorregir;
+  const resaltarEnvio = !evaluacionAprobada && !sinResponder && !aCorregir;
+  const numeroDe = (q: any) => preguntas.indexOf(q) + 1;
+  const ahoraEvaluacion = evaluacionAprobada
+    ? null
+    : sinResponder
+      ? `responde la pregunta ${numeroDe(sinResponder)} de ${preguntas.length}: elige la opción que te parezca correcta.`
+      : aCorregir
+        ? `la pregunta ${numeroDe(aCorregir)} quedó en rojo: elige otra opción y pulsa «Reenviar evaluación».`
+        : `pulsa «${linuxQuizSubmitted ? 'Reenviar evaluación' : 'Enviar evaluación'}» para entregar tus respuestas.`;
+  const accionesEvaluacion = [
+    ...preguntas.map((q) => ({ id: q.id, texto: `Responde la pregunta ${numeroDe(q)}` })),
+    { id: 'enviar', texto: 'Envía la evaluación' },
+  ];
+  const hechasEvaluacion = new Set<string>([
+    ...preguntas.filter((q) => linuxQuizAnswers[q.id] && !incorrecta(q)).map((q) => q.id),
+    ...(evaluacionAprobada ? ['enviar'] : []),
+  ]);
+  const accionEvaluacionActual = preguntaResaltada?.id ?? (evaluacionAprobada ? null : 'enviar');
+
   return (
     <div className={`relative flex flex-col group/ai items-start w-full`}>
       <div
@@ -184,9 +216,34 @@ export default function AiMessageBubble({
             </div>
           )}
 
+          {msg.meta?.linuxPaso && linuxPracticeId && (
+            <PasoCard
+              paso={msg.meta.linuxPaso.paso}
+              total={msg.meta.linuxPaso.total}
+              rules={linuxRules}
+              result={linuxResult}
+              practiceId={linuxPracticeId}
+              sessionId={sessionId}
+            />
+          )}
+
           {msg.meta?.linuxQuiz && linuxPracticeId && (
             <div className="flex flex-col gap-2 mt-1">
-              {msg.meta.linuxQuiz.blocks.map((block: any) => (
+              {msg.meta.linuxQuiz.total && (
+                <>
+                  <EncabezadoPaso
+                    numero={msg.meta.linuxQuiz.numero ?? msg.meta.linuxQuiz.total}
+                    total={msg.meta.linuxQuiz.total}
+                    titulo="Responde las preguntas"
+                  />
+                  <Text fz="sm" style={{ lineHeight: 1.6 }}>
+                    Ya hiciste la parte práctica. Para terminar el módulo responde estas preguntas aquí en el chat; no hay que escribir nada en la terminal.
+                  </Text>
+                  <ListaAcciones acciones={accionesEvaluacion} hechas={hechasEvaluacion} actual={accionEvaluacionActual} />
+                  {ahoraEvaluacion && <FranjaAhora>{ahoraEvaluacion}</FranjaAhora>}
+                </>
+              )}
+              {msg.meta.linuxQuiz.blocks.map((block: any, i: number) => (
                 <BlockView
                   key={block.id}
                   block={block}
@@ -196,6 +253,8 @@ export default function AiMessageBubble({
                   quizAnswers={linuxQuizAnswers}
                   onQuizAnswer={onLinuxQuizAnswer}
                   quizLocked={linuxQuizSubmitted}
+                  etiqueta={`Pregunta ${i + 1} de ${msg.meta!.linuxQuiz!.blocks.length}`}
+                  resaltar={preguntaResaltada?.id === block.id}
                 />
               ))}
               {/* La evaluación solo se da por terminada al 100% (ver validation.py
@@ -205,8 +264,9 @@ export default function AiMessageBubble({
               {!(linuxQuizSubmitted && linuxResult?.passed) && (
                 <Group justify="flex-end">
                   <Button
-                    size="xs"
+                    size="sm"
                     leftSection={<ClipboardCheck size={14} />}
+                    className={resaltarEnvio ? CLASE_RESALTADA : undefined}
                     loading={linuxQuizSubmitting}
                     disabled={!msg.meta.linuxQuiz.blocks.every((b: any) => !!linuxQuizAnswers[b.id])}
                     onClick={onLinuxQuizSubmit}
@@ -218,7 +278,7 @@ export default function AiMessageBubble({
               {linuxQuizSubmitted && linuxResult && (
                 <Text fz="xs" c="dimmed">
                   {linuxResult.earned_points}/{linuxResult.total_points} pts ({linuxResult.percentage}%)
-                  {linuxResult.passed ? ' — ¡módulo completo!' : ' — corregí las preguntas marcadas en rojo y reenviá.'}
+                  {linuxResult.passed ? ' — ¡módulo completo!' : ' — corrige las preguntas marcadas en rojo y vuelve a enviar.'}
                 </Text>
               )}
               {celebrationStep === 'medal' && linuxResult && linuxQuizModuleId && (

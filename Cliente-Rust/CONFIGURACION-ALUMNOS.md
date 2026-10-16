@@ -35,4 +35,4 @@ valores. Los valores los entrega el docente.
 Esta es una solución **temporal**: las claves quedan en cada equipo (revocar la de Groq al terminar el
 curso y rotar la contraseña de la cuenta `svc-practicas`). El reemplazo correcto es un servidor
 intermedio autenticado con Keycloak (como el broker de cámaras) que guarde las claves; ver
-`infra/nvr-broker`. Código: `Cliente-Rust/backend/src/user_config.rs`.
+`infra/broker-gateway` (ver ahí los brokers). Código: `Cliente-Rust/backend/src/user_config.rs`.

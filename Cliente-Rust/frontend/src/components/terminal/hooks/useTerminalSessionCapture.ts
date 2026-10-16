@@ -27,6 +27,7 @@ import { Terminal } from 'xterm';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { captureAndSaveSession, SessionMetadata } from '../../../services/session.service';
 import { TerminalSessionMetadata } from './terminalTypes';
+import { EVENTO_EXPORTAR_REGISTRO, type RegistroSesion } from '../../../utils/registroSesion';
 
 interface UseTerminalSessionCaptureParams {
   sessionId: string | null;
@@ -45,6 +46,20 @@ interface UseTerminalSessionCaptureResult {
   captureCurrentSession: () => Promise<void>;
   /** Guarda un snapshot intermedio del buffer si detecta una reducción de contenido (ej. clear). */
   captureSnapshot: () => void;
+}
+
+/** user/host/port finales: si el sessionId es «usuario@host:puerto», manda sobre lo que trae la metadata. */
+function metadataFinal(metadata: TerminalSessionMetadata, endTime: string): SessionMetadata {
+  let finalMetadata: SessionMetadata = { ...metadata, endTime };
+  if (metadata.sessionId.includes('@') && metadata.sessionId.includes(':')) {
+    const parts = metadata.sessionId.split('@');
+    const user = parts[0] || metadata.user;
+    const hostPort = parts[1]?.split(':') || [];
+    const host = hostPort[0] || metadata.host;
+    const port = parseInt(hostPort[1]) || metadata.port;
+    finalMetadata = { ...metadata, user, host, port, endTime };
+  }
+  return finalMetadata;
 }
 
 export function useTerminalSessionCapture({
@@ -79,22 +94,7 @@ export function useTerminalSessionCapture({
         const fullHistory = allSnapshots.join('\n');
         if (fullHistory && fullHistory.length > 10) {
           const endTime = new Date().toISOString();
-          let finalMetadata: SessionMetadata = { ...metadata, endTime };
-          if (metadata.sessionId.includes('@') && metadata.sessionId.includes(':')) {
-            const parts = metadata.sessionId.split('@');
-            const user = parts[0] || metadata.user;
-            const hostPort = parts[1]?.split(':') || [];
-            const host = hostPort[0] || metadata.host;
-            const port = parseInt(hostPort[1]) || metadata.port;
-            finalMetadata = {
-              ...metadata,
-              user,
-              host,
-              port,
-              endTime
-            };
-          }
-          await captureAndSaveSession(fullHistory, finalMetadata);
+          await captureAndSaveSession(fullHistory, metadataFinal(metadata, endTime));
         }
       } catch (error) {
         hasBeenSavedRef.current = false;
@@ -144,10 +144,33 @@ export function useTerminalSessionCapture({
       }
     };
 
+    // Registro actual de esta sesión, bajo demanda (p. ej. para adjuntarlo a la entrega de una práctica en Moodle).
+    // No marca la sesión como guardada ni toca el historial: el log de siempre se guarda al cerrar, completo.
+    const handleExportLog = (event: CustomEvent) => {
+      const { sessionId: requestedSessionId, responder } = event.detail as { sessionId: string; responder: (r: RegistroSesion | null) => void };
+      if (requestedSessionId !== sessionId) return;
+      const metadata = sessionMetadataRef.current;
+      const serialize = serializeRef.current;
+      if (!metadata || !serialize) { responder(null); return; }
+      try {
+        const snapshots = [...snapshotsHistoryRef.current];
+        const finalSnapshot = serialize.serialize();
+        if (finalSnapshot && finalSnapshot.length > 10) snapshots.push(finalSnapshot);
+        const rawContent = snapshots.join('\n');
+        if (rawContent.length <= 10) { responder(null); return; }
+        const m = metadataFinal(metadata, new Date().toISOString());
+        responder({ sessionId: m.sessionId, user: m.user, host: m.host, port: m.port, startTime: m.startTime, endTime: m.endTime, rawContent });
+      } catch {
+        responder(null);
+      }
+    };
+
     window.addEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
+    window.addEventListener(EVENTO_EXPORTAR_REGISTRO, handleExportLog as EventListener);
 
     return () => {
       window.removeEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
+      window.removeEventListener(EVENTO_EXPORTAR_REGISTRO, handleExportLog as EventListener);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, localSshCommand]);

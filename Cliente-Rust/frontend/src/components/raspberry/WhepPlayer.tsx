@@ -9,7 +9,12 @@ import { invoke } from '@tauri-apps/api/core'
 interface Props {
   path: string
   label?: string
-  onFail: (motivo: string) => void
+  /**
+   * `deRed` = true si falló la conexión (ICE: no conecta, se pierde o se agota el tiempo), señal de que el puerto del
+   * video no pasa en esta red y conviene mandar todas las cámaras a HLS un rato. = false si falló la negociación de ESTA
+   * cámara (p. ej. 404: no tiene video): no dice nada de la red y no debe afectar a las demás.
+   */
+  onFail: (motivo: string, deRed: boolean, habiaConectado: boolean) => void
 }
 
 // Sin conexión en este tiempo, se da por fallido (típico: el puerto del video
@@ -58,15 +63,16 @@ const WhepPlayer: React.FC<Props> = ({ path, label, onFail }) => {
     if (!video) return
     let cerrado = false
     let fallo = false
+    let conectado = false // ¿llegó a establecerse la conexión alguna vez? (distingue «no pasa el video» de «se cortó esta cámara»)
     const timers: ReturnType<typeof setTimeout>[] = []
     const pc = new RTCPeerConnection({ iceServers: [] })
 
-    const fallar = async (motivo: string) => {
+    const fallar = async (motivo: string, deRed = true) => {
       if (cerrado || fallo) return
       fallo = true
       let extra = ''
       try { extra = await resumenIce(pc) } catch { /* el diagnóstico es opcional */ }
-      onFailRef.current(extra ? `${motivo} [${extra}]` : motivo)
+      onFailRef.current(extra ? `${motivo} [${extra}]` : motivo, deRed, conectado)
     }
 
     pc.addTransceiver('video', { direction: 'recvonly' })
@@ -81,6 +87,7 @@ const WhepPlayer: React.FC<Props> = ({ path, label, onFail }) => {
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'connected') {
+        conectado = true
         timers.forEach(clearTimeout)
         timers.length = 0
       } else if (pc.connectionState === 'failed') {
@@ -106,7 +113,8 @@ const WhepPlayer: React.FC<Props> = ({ path, label, onFail }) => {
         if (cerrado) return
         await pc.setRemoteDescription({ type: 'answer', sdp: respuesta })
       } catch (e) {
-        fallar(e instanceof Error ? e.message : String(e))
+        // La negociación con el broker falló (cámara sin video, sesión, etc.): es de esta cámara, no de la red.
+        fallar(e instanceof Error ? e.message : (typeof e === 'object' && e && 'message' in e ? String((e as any).message) : String(e)), false)
       }
     })()
 

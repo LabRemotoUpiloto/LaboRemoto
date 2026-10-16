@@ -1,4 +1,5 @@
 import type React from 'react';
+import type { PasoPractica } from '../practicas/linux/ritmo';
 
 // Tipos compartidos entre modos de chat
 export type ChatMode = 'ask' | 'agente' | 'plan';
@@ -69,8 +70,13 @@ export interface MessageMeta {
    * (esos van en `linuxQuiz`, que es interactivo y necesita otro renderer).
    */
   linuxContentBlocks?: any[];
+  /**
+   * Un paso de la práctica («Paso 3 de 8», ver components/practicas/linux/ritmo.ts).
+   * Reemplaza a `linuxContentBlocks`, que queda solo para chats guardados antes.
+   */
+  linuxPaso?: { paso: PasoPractica; total: number };
   /** Evaluación final de una práctica de Linux, solo aparece cuando ya se completaron los comandos obligatorios. */
-  linuxQuiz?: { moduleId: string; moduleTitle?: string; blocks: any[] };
+  linuxQuiz?: { moduleId: string; moduleTitle?: string; blocks: any[]; numero?: number; total?: number };
 }
 
 export interface Message {
