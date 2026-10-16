@@ -16,10 +16,12 @@ interface Props {
   errorMessage?: string | null;
   onSubmit: (password: string) => void;
   onCancel: () => void;
+  /** Clase extra del cuadro (el tutorial de bienvenida la usa para resaltarlo). */
+  contentClassName?: string;
 }
 
 const LinuxPasswordPrompt: React.FC<Props> = ({
-  opened, username, loading, errorMessage, onSubmit, onCancel,
+  opened, username, loading, errorMessage, onSubmit, onCancel, contentClassName,
 }) => {
   const [password, setPassword] = useState('');
 
@@ -37,6 +39,7 @@ const LinuxPasswordPrompt: React.FC<Props> = ({
       size="sm"
       closeOnClickOutside={!loading}
       closeOnEscape={!loading}
+      classNames={contentClassName ? { content: contentClassName } : undefined}
     >
       <Stack gap="md">
         <Text size="sm" c="dimmed">

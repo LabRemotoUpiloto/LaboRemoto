@@ -280,16 +280,25 @@ const SUCCESS_HTML_TEMPLATE: &str = r#"<!DOCTYPE html>
       opacity: .92;
     }
     .status-label {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
       width: max-content;
       margin-bottom: 1.2rem;
-      padding: .46rem .78rem;
-      border-left: 5px solid #d51f22;
-      background: #fff3f3;
-      color: #a81010;
-      font-size: .78rem;
-      font-weight: 800;
-      letter-spacing: .08em;
-      text-transform: uppercase;
+      padding: .42rem .95rem .42rem .5rem;
+      border: 1px solid #e6e6e6;
+      border-radius: 999px;
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+      color: #1f1f1f;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+    .status-label::before {
+      content: '';
+      width: 1.2rem; height: 1.2rem;
+      border-radius: 50%;
+      background: #16a34a url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center / 68% no-repeat;
     }
     .bee-wrap {
       position: absolute;
@@ -313,8 +322,8 @@ const SUCCESS_HTML_TEMPLATE: &str = r#"<!DOCTYPE html>
       margin-bottom: 1rem;
     }
     h1 { color: #a81010; font-size: clamp(2rem, 4vw, 3.2rem); line-height: .95; font-weight: 900; letter-spacing: -.04em; }
-    p  { color: #353535; line-height: 1.75; font-size: 1rem; max-width: 420px; }
-    .highlight { color: #d51f22; font-weight: 800; }
+    p  { color: #111111; line-height: 1.75; font-size: 1rem; max-width: 420px; }
+    .highlight { color: inherit; font-weight: 800; }
     @media (max-width: 760px) {
       body { padding: 20px; overflow: auto; }
       .page-mark { width: 100%; height: 180px; inset: 0 0 auto 0; clip-path: polygon(0 0, 100% 0, 100% 68%, 0 100%); }

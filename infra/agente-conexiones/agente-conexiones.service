@@ -1,0 +1,19 @@
+[Unit]
+Description=Agente de conexiones SSH: avisa al servidor de cada entrada y salida a este dispositivo
+After=network.target broker-sesiones.service
+
+[Service]
+User=pi
+# auth.log lo leen root y el grupo adm: el agente no necesita ser administrador.
+SupplementaryGroups=adm
+EnvironmentFile=/etc/laboremoto-brokers/agente-conexiones.env
+ExecStart=/usr/bin/python3 /opt/laboremoto-brokers/agente-conexiones/agente_conexiones.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

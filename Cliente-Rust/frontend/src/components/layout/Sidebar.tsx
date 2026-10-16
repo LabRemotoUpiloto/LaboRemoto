@@ -5,10 +5,10 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
-import { User, Shield, SquareTerminal, Activity } from 'lucide-react';
+import { User, Shield, SquareTerminal, Activity, BookOpen } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
-import { useEffectiveRole, canAccessPage, ROLE_LABELS } from '../../hooks/usePermissions';
+import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo } from '../../hooks/usePermissions';
 import {
   MonitorIcon,
   CompassIcon,
@@ -52,6 +52,7 @@ const sections = [
     items: [
       { id: 'landing',   label: 'Inicio',    icon: HomeIcon },
       { id: 'practices', label: 'Prácticas', icon: LabIcon },
+      { id: 'mis-cursos', label: 'Mis cursos', icon: BookOpen },
       { id: 'reservas',  label: 'Reservas',  icon: CalendarIcon },
     ],
   },
@@ -340,6 +341,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <Menu shadow="md" width={200} position="top-start" withinPortal zIndex={2200}>
           <Menu.Target>
             <div
+              data-tour="sidebar-usuario"
               className="w-full flex items-center transition-colors"
               style={{
                 color: 'var(--mantine-color-text)',
@@ -372,6 +374,18 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Menu.Label>Usuario</Menu.Label>
             <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('perfil')}>Perfil</Menu.Item>
             <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('ajustes')}>Ajustes</Menu.Item>
+            {import.meta.env.DEV && (
+              <>
+                <Menu.Divider />
+                <Menu.Label>Ver como (solo desarrollo)</Menu.Label>
+                {ROLE_ORDER.map((r) => (
+                  <Menu.Item key={r} c="var(--mantine-color-text)" fw={rolVerComo() === r ? 700 : undefined} onClick={() => setRolVerComo(r)}>
+                    {ROLE_LABELS[r]}{rolVerComo() === r ? ' ✓' : ''}
+                  </Menu.Item>
+                ))}
+                <Menu.Item c="dimmed" onClick={() => setRolVerComo(null)}>Mi rol real</Menu.Item>
+              </>
+            )}
             <Menu.Divider />
             <Menu.Item color="red" onClick={logout}>Cerrar Sesión</Menu.Item>
           </Menu.Dropdown>

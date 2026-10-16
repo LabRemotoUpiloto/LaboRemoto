@@ -217,7 +217,7 @@ export default function ChatMessageList({
 
             {msg.meta?.embeddedPi4Desktop && embeddedDesktop && (
               <div
-                className={`message message--assistant message--chat-desktop ${mode} mt-1 ${isLanding ? 'self-center w-full max-w-[min(720px,100%)]' : ''}`}
+                className={`message message--assistant message--chat-desktop ${mode} mt-1 ${isLanding ? 'self-center w-full max-w-[min(720px,100%)]' : 'w-full max-w-full'}`}
                 id={`msg-desktop-${msg.id}`}
                 role="article"
                 aria-label="Escritorio remoto Raspberry Pi en el chat"

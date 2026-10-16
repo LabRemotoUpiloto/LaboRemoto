@@ -41,7 +41,13 @@ import { useLinuxPracticeSession } from './hooks/useLinuxPracticeSession'
 import { requestPracticesFocus } from './services/practiceNavigation.service'
 import { clearModuleBadge } from './services/badges.service'
 import { usePracticeActivityReporter, type PracticaAbierta } from './hooks/usePracticeActivityReporter'
+import { useUbicacionAppReporter } from './hooks/useUbicacionAppReporter'
+import { useEnlacesApp } from './hooks/useEnlacesApp'
+import ResultadoMoodleAviso from './components/cursos/ResultadoMoodleAviso'
+import BienvenidaTutorial from './tour/bienvenida/BienvenidaTutorial'
+import { SesionPorPracticaContext } from './components/cursos/envioMoodle'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { useAppStore } from './store/app'
 import type { PracticeSessionMeta } from './types'
 
 // ── Mantine theme — color primario y fuentes reactivas al tema CSS activo ───────────────
@@ -213,7 +219,15 @@ const AppMain: React.FC = () => {
     }
     return abiertas
   }, [combinedPracticeMeta, tabs])
-  usePracticeActivityReporter(practicasAbiertas, isAuthenticated)
+  const { finalizarTodas: finalizarPracticasReportadas } = usePracticeActivityReporter(practicasAbiertas, isAuthenticated)
+  // práctica -> sesión de terminal donde se hace (para adjuntar el registro al entregarla en Moodle)
+  const sesionPorPractica = useMemo(
+    () => Object.fromEntries(Object.entries(linuxSession.sessionModuleMap).map(([sessionId, moduleId]) => [moduleId, sessionId])),
+    [linuxSession.sessionModuleMap],
+  )
+  useUbicacionAppReporter(isAuthenticated)
+  // Enlaces laboremoto://practica/<id> (desde una tarea de Moodle): abren la vista de Prácticas en esa práctica.
+  useEnlacesApp(isAuthenticated, () => handleOpenPanel('practices'))
 
   // ── Ciclo de vida de tabs ────────────────────────────────────────────────────
   const { handleCloseTab } = useTabLifecycle({
@@ -222,6 +236,43 @@ const AppMain: React.FC = () => {
     clearPracticeMeta,
     stopLinuxSession: linuxSession.stopSession,
   })
+
+  // ── Cierre de sesiones al salir de la cuenta ─────────────────────────────────
+  // Cierra todas las pestañas de terminal por el mismo camino que la «x» de la
+  // pestaña: guarda el log, desconecta el SSH y limpia la práctica. Va por refs
+  // porque el store la llama desde logout(), fuera del ciclo de render.
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
+  const handleCloseTabRef = useRef(handleCloseTab)
+  handleCloseTabRef.current = handleCloseTab
+  const finalizarPracticasRef = useRef(finalizarPracticasReportadas)
+  finalizarPracticasRef.current = finalizarPracticasReportadas
+
+  const cerrarTerminalesAbiertas = useCallback(async () => {
+    const abiertas = tabsRef.current.filter(t => t.type === 'session' || t.type === 'local-terminal')
+    await Promise.allSettled(abiertas.map(t => handleCloseTabRef.current(t.id)))
+  }, [])
+
+  // Antes de revocar el token: con él todavía vigente se avisa el fin de la
+  // práctica al registro de sesiones (si no, el dashboard la deja «conectada»).
+  const setBeforeLogout = useAppStore((s) => s.setBeforeLogout)
+  useEffect(() => {
+    setBeforeLogout(async () => {
+      await cerrarTerminalesAbiertas()
+      await finalizarPracticasRef.current()
+    })
+    return () => setBeforeLogout(null)
+  }, [setBeforeLogout, cerrarTerminalesAbiertas])
+
+  // La sesión también puede terminar sin pasar por logout() (token vencido o
+  // revocado): igual se cierran las terminales de esa cuenta para que no le
+  // queden abiertas a la siguiente. Solo en la transición, para no tocar las
+  // sesiones SSH de invitado que se abren sin haber iniciado sesión.
+  const estabaAutenticado = useRef(isAuthenticated)
+  useEffect(() => {
+    if (estabaAutenticado.current && !isAuthenticated) void cerrarTerminalesAbiertas()
+    estabaAutenticado.current = isAuthenticated
+  }, [isAuthenticated, cerrarTerminalesAbiertas])
 
   // "Repetir" del administrador en LinuxModulePage (ver ese archivo): un rol
   // operativo necesita poder rehacer un módulo ya completo para revisar
@@ -240,7 +291,7 @@ const AppMain: React.FC = () => {
   }, [linuxSession.sessionModuleMap, handleCloseTab])
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'admin-users', 'vigilancia', 'dashboard']
+  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'mis-cursos', 'admin-users', 'vigilancia', 'dashboard']
   const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {
@@ -334,7 +385,10 @@ const AppMain: React.FC = () => {
   return (
     <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
       <ModalsProvider>
+        <SesionPorPracticaContext.Provider value={sesionPorPractica}>
         <Notifications position="bottom-right" zIndex={9998} />
+        <ResultadoMoodleAviso resultados={linuxSession.results} habilitado={isAuthenticated} />
+        <BienvenidaTutorial abrirPagina={handleOpenPanel} />
         <GlobalLoader />
 
         <div
@@ -436,6 +490,7 @@ const AppMain: React.FC = () => {
         {updating && updateProgress && (
           <UpdateProgressOverlay progress={updateProgress} onCancel={cancelUpdate} />
         )}
+        </SesionPorPracticaContext.Provider>
       </ModalsProvider>
     </MantineProvider>
   )

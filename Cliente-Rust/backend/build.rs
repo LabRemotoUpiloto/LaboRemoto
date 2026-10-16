@@ -53,9 +53,38 @@ fn main() {
     println!("cargo:rustc-env=COMPILED_MOODLE_TOKEN={}", val);
   }
 
-  // Modelo (Opcional, por si se quiere fijar en el binario)
+  // Modelo (Opcional, por si se quiere fijar en el binario). Solo si trae valor: en CI un secreto
+  // sin definir llega como variable vacía y no debe quedar embebido como "".
   if let Ok(val) = std::env::var("OPENAI_MODEL") {
-    println!("cargo:rustc-env=COMPILED_OPENAI_MODEL={}", val);
+    if !val.trim().is_empty() {
+      println!("cargo:rustc-env=COMPILED_OPENAI_MODEL={}", val.trim());
+    }
+  }
+
+  // Modelo de IA (Groq) y servicio de prácticas de Linux. El instalador no trae `.env` (se compila en
+  // GitHub), así que estos valores se embeben al compilar: desde el `.env` local en desarrollo y desde
+  // los secretos de GitHub en el flujo de release (ver release.yml). Sin esto la versión publicada no
+  // puede usar el modelo ni las prácticas.
+  // DECISIÓN CONSCIENTE (2026-10): lo embebido se puede extraer del binario. Es temporal hasta que las
+  // claves vivan en un servidor intermedio autenticado con Keycloak.
+  for (var, baked) in [
+    ("GROQ_API_KEY", "COMPILED_GROQ_KEY"),
+    ("PRACTICE_LINUX_TUNNEL_HOST", "COMPILED_PRACTICE_LINUX_TUNNEL_HOST"),
+    ("PRACTICE_LINUX_TUNNEL_PORT", "COMPILED_PRACTICE_LINUX_TUNNEL_PORT"),
+    ("PRACTICE_LINUX_TUNNEL_USER", "COMPILED_PRACTICE_LINUX_TUNNEL_USER"),
+    ("PRACTICE_LINUX_TUNNEL_PASSWORD", "COMPILED_PRACTICE_LINUX_TUNNEL_PASSWORD"),
+    ("PRACTICE_LINUX_API_REMOTE_PORT", "COMPILED_PRACTICE_LINUX_API_REMOTE_PORT"),
+    ("PRACTICE_LINUX_API_TOKEN", "COMPILED_PRACTICE_LINUX_API_TOKEN"),
+    ("PRACTICE_LINUX_SSH_HOST", "COMPILED_PRACTICE_LINUX_SSH_HOST"),
+    ("PRACTICE_LINUX_SSH_PORT", "COMPILED_PRACTICE_LINUX_SSH_PORT"),
+  ] {
+    println!("cargo:rerun-if-env-changed={}", var);
+    if let Ok(val) = std::env::var(var) {
+      let val = val.trim();
+      if !val.is_empty() {
+        println!("cargo:rustc-env={}={}", baked, val);
+      }
+    }
   }
 
   tauri_build::build()

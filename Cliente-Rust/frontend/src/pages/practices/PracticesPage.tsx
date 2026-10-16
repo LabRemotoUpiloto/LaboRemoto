@@ -1,5 +1,5 @@
 // PracticesPage — Página de prácticas de laboratorio.
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
@@ -12,7 +12,8 @@ import LinuxModulePage from './LinuxModulePage';
 import type { Practice } from '../../types';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { useEarnedBadges } from '../../services/badges.service';
-import { consumePendingPracticesFocus } from '../../services/practiceNavigation.service';
+import { consumePendingPracticesFocus, consumePendingPracticeOpen, onPracticeOpenRequest, consumirVistaPracticas, alPedirVistaPracticas } from '../../services/practiceNavigation.service';
+import { notifications } from '@mantine/notifications';
 
 export type { Practice };
 
@@ -90,6 +91,40 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         if (cat) setSelectedCategory(cat);
     }, [categories]);
 
+    // Enlace laboremoto://practica/<id> (p. ej. desde una tarea de Moodle): abre la categoría de esa práctica y, si es un módulo del
+    // servicio (Linux/EV3), su pantalla. Nunca arranca la práctica por sí solo: el estudiante pulsa «Comenzar» como siempre.
+    const abrirPracticaPedida = useCallback(() => {
+        if (categories.length === 0) return; // el catálogo aún carga: el pedido queda pendiente y se aplica al terminar
+        const id = consumePendingPracticeOpen();
+        if (!id) return;
+        const cat = categories.find(c => c.practices.some(p => p.id === id));
+        if (!cat) {
+            notifications.show({ title: 'Práctica no disponible', message: `La práctica «${id}» no está en tu catálogo.`, color: 'yellow' });
+            return;
+        }
+        setSelectedCategory(cat);
+        if (cat.id === 'linux' || id.startsWith('ev3-')) setSelectedModuleId(id);
+    }, [categories]);
+
+    useEffect(() => {
+        abrirPracticaPedida();
+        return onPracticeOpenRequest(abrirPracticaPedida);
+    }, [abrirPracticaPedida]);
+
+    // El tutorial de bienvenida muestra la lista de temas o abre uno (sin arrancar ninguna práctica).
+    const aplicarVistaPedida = useCallback(() => {
+        if (categories.length === 0) return; // se aplica cuando terminen de cargar los temas
+        const v = consumirVistaPracticas();
+        if (!v) return;
+        setSelectedModuleId(null);
+        setSelectedCategory(v.categoria ? categories.find(c => c.id === v.categoria) ?? null : null);
+    }, [categories]);
+
+    useEffect(() => {
+        aplicarVistaPedida();
+        return alPedirVistaPracticas(aplicarVistaPedida);
+    }, [aplicarVistaPedida]);
+
     // Auto-scroll logs
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -112,7 +147,8 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         try {
             setLoading(true);
             const cats = await invoke<PracticeCategory[]>('practicas_list_categories');
-            setCategories(cats);
+            // Linux va primero (es la práctica de entrada); el resto, en el orden que manda la Pi.
+            setCategories([...cats].sort((a, b) => Number(b.id === 'linux') - Number(a.id === 'linux')));
         } catch (err) {
             setError(`Error cargando prácticas: ${err}`);
         } finally {
@@ -235,7 +271,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                 <Text c="dimmed" size="sm">Cargando prácticas...</Text>
                             </Stack>
                         ) : (
-                            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md" data-tour="practicas-categorias">
                                 {categories.map(cat => (
                                     <CategoryCard
                                         key={cat.id}

@@ -26,6 +26,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verificar que estén las claves que se embeben en la app
+        # Sin estos secretos la versión sale sin modelo de IA ni prácticas de Linux (la app instalada no
+        # tiene .env). Es mejor que el release falle aquí, con un mensaje claro, a publicar algo roto.
+        shell: bash
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          PRACTICE_LINUX_TUNNEL_HOST: ${{ secrets.PRACTICE_LINUX_TUNNEL_HOST }}
+          PRACTICE_LINUX_TUNNEL_PORT: ${{ secrets.PRACTICE_LINUX_TUNNEL_PORT }}
+          PRACTICE_LINUX_TUNNEL_USER: ${{ secrets.PRACTICE_LINUX_TUNNEL_USER }}
+          PRACTICE_LINUX_TUNNEL_PASSWORD: ${{ secrets.PRACTICE_LINUX_TUNNEL_PASSWORD }}
+          PRACTICE_LINUX_API_REMOTE_PORT: ${{ secrets.PRACTICE_LINUX_API_REMOTE_PORT }}
+          PRACTICE_LINUX_API_TOKEN: ${{ secrets.PRACTICE_LINUX_API_TOKEN }}
+          PRACTICE_LINUX_SSH_HOST: ${{ secrets.PRACTICE_LINUX_SSH_HOST }}
+          PRACTICE_LINUX_SSH_PORT: ${{ secrets.PRACTICE_LINUX_SSH_PORT }}
+        run: |
+          faltan=""
+          for v in GROQ_API_KEY PRACTICE_LINUX_TUNNEL_HOST PRACTICE_LINUX_TUNNEL_USER PRACTICE_LINUX_TUNNEL_PASSWORD PRACTICE_LINUX_API_TOKEN; do
+            if [ -z "${!v}" ]; then faltan="$faltan $v"; fi
+          done
+          if [ -n "$faltan" ]; then
+            echo "::error::Faltan secretos de GitHub Actions (Settings > Secrets and variables > Actions):$faltan"
+            exit 1
+          fi
+          echo "Claves de compilación presentes (valores ocultos)."
+
       - name: Compute unique release version
         # La version comiteada en el repo (tauri.conf.json/Cargo.toml/package.json)
         # a veces se queda atras porque alguien se olvida de subirla antes de
@@ -105,14 +131,29 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2"
+        # Binario ya compilado desde npm, con la version fija. Antes se hacia `cargo install tauri-cli`, que compila el CLI
+        # y resuelve sus dependencias de Rust al momento: el 2026-10-16 fallo en los 4 jobs porque tauri-cli 2.12.x exige
+        # `zip ^8` y todas esas versiones de zip fueron retiradas (yanked) de crates.io. Con esto el release no depende de
+        # lo que pase en crates.io ese dia, y se ahorra la compilacion del CLI. 2.12.1 es la que uso el ultimo release bueno.
+        run: npm install -g @tauri-apps/cli@2.12.1
 
       - name: Build Tauri app
         working-directory: Cliente-Rust/backend
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: cargo tauri build
+          # Claves que build.rs EMBEBE en el binario (la app instalada no trae .env). Ver build.rs.
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          PRACTICE_LINUX_TUNNEL_HOST: ${{ secrets.PRACTICE_LINUX_TUNNEL_HOST }}
+          PRACTICE_LINUX_TUNNEL_PORT: ${{ secrets.PRACTICE_LINUX_TUNNEL_PORT }}
+          PRACTICE_LINUX_TUNNEL_USER: ${{ secrets.PRACTICE_LINUX_TUNNEL_USER }}
+          PRACTICE_LINUX_TUNNEL_PASSWORD: ${{ secrets.PRACTICE_LINUX_TUNNEL_PASSWORD }}
+          PRACTICE_LINUX_API_REMOTE_PORT: ${{ secrets.PRACTICE_LINUX_API_REMOTE_PORT }}
+          PRACTICE_LINUX_API_TOKEN: ${{ secrets.PRACTICE_LINUX_API_TOKEN }}
+          PRACTICE_LINUX_SSH_HOST: ${{ secrets.PRACTICE_LINUX_SSH_HOST }}
+          PRACTICE_LINUX_SSH_PORT: ${{ secrets.PRACTICE_LINUX_SSH_PORT }}
+        run: tauri build
 
       - name: Prepare updater metadata
         shell: pwsh
@@ -173,7 +214,7 @@ jobs:
     # (Debian 13/glibc>=2.39 y Debian 12/glibc>=2.36). Se replica lo mismo
     # acá: compilar en ubuntu-22.04 da un binario compatible con glibc>=2.36
     # (corre tambien en sistemas mas nuevos), compilar en ubuntu-24.04 da uno
-    # que exige glibc>=2.39.
+    # que exige glibc>=2.39 y compilar en ubuntu-26.04 uno que exige glibc>=2.43.
     strategy:
       fail-fast: false
       matrix:
@@ -182,6 +223,8 @@ jobs:
             glibc_label: glibc2.36
           - runner: ubuntu-24.04
             glibc_label: glibc2.39
+          - runner: ubuntu-26.04
+            glibc_label: glibc2.43
     runs-on: ${{ matrix.runner }}
 
     steps:
@@ -235,17 +278,32 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2"
+        # Binario ya compilado desde npm, con la version fija. Antes se hacia `cargo install tauri-cli`, que compila el CLI
+        # y resuelve sus dependencias de Rust al momento: el 2026-10-16 fallo en los 4 jobs porque tauri-cli 2.12.x exige
+        # `zip ^8` y todas esas versiones de zip fueron retiradas (yanked) de crates.io. Con esto el release no depende de
+        # lo que pase en crates.io ese dia, y se ahorra la compilacion del CLI. 2.12.1 es la que uso el ultimo release bueno.
+        run: npm install -g @tauri-apps/cli@2.12.1
 
       - name: Build Tauri app
         working-directory: Cliente-Rust/backend
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Claves que build.rs EMBEBE en el binario (la app instalada no trae .env). Ver build.rs.
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          PRACTICE_LINUX_TUNNEL_HOST: ${{ secrets.PRACTICE_LINUX_TUNNEL_HOST }}
+          PRACTICE_LINUX_TUNNEL_PORT: ${{ secrets.PRACTICE_LINUX_TUNNEL_PORT }}
+          PRACTICE_LINUX_TUNNEL_USER: ${{ secrets.PRACTICE_LINUX_TUNNEL_USER }}
+          PRACTICE_LINUX_TUNNEL_PASSWORD: ${{ secrets.PRACTICE_LINUX_TUNNEL_PASSWORD }}
+          PRACTICE_LINUX_API_REMOTE_PORT: ${{ secrets.PRACTICE_LINUX_API_REMOTE_PORT }}
+          PRACTICE_LINUX_API_TOKEN: ${{ secrets.PRACTICE_LINUX_API_TOKEN }}
+          PRACTICE_LINUX_SSH_HOST: ${{ secrets.PRACTICE_LINUX_SSH_HOST }}
+          PRACTICE_LINUX_SSH_PORT: ${{ secrets.PRACTICE_LINUX_SSH_PORT }}
         # --bundles sobreescribe `bundle.targets` de tauri.conf.json (que solo
         # trae "nsis", el instalador de Windows) sin tocar ese archivo -- el
         # job de Windows sigue usando el target committeado tal cual.
-        run: cargo tauri build --bundles deb,appimage
+        run: tauri build --bundles deb,appimage
 
       - name: Rename assets con sufijo de compatibilidad glibc
         # Los dos legs de la matriz producen archivos con el MISMO nombre

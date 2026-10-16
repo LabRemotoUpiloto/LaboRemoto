@@ -1,0 +1,15 @@
+[Unit]
+Description=Broker de sesiones: registro central de sesiones de practica
+After=network.target
+
+[Service]
+User=pi
+Type=simple
+WorkingDirectory=/opt/laboremoto-brokers/broker-sesiones
+EnvironmentFile=/etc/laboremoto-brokers/sesiones.env
+ExecStart=/usr/local/bin/node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

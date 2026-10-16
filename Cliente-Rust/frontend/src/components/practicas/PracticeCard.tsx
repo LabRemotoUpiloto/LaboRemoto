@@ -63,6 +63,7 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, hasCamer
                 <Button
                     loading={loading}
                     onClick={onStart}
+                    data-tour="practica-iniciar"
                     className="dribbble-btn-primary h-9 text-xs w-full group"
                     rightSection={
                         <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />

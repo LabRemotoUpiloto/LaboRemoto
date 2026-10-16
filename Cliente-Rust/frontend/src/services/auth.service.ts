@@ -20,6 +20,12 @@ export const authService = {
   loginUrl: (): Promise<string> => invoke('auth_login_url'),
 
   /**
+   * Abandona el intento de login en curso (se cerró la ventana del navegador o el
+   * usuario canceló). El backend deja de esperar y no emite eventos por ese intento.
+   */
+  cancelLogin: (): Promise<void> => invoke('auth_cancel_login'),
+
+  /**
    * Obtiene el estado actual de la sesión.
    * Retorna los claims institucionales si hay una sesión activa en memoria de Rust.
    */

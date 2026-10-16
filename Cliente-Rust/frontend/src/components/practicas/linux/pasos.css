@@ -1,0 +1,44 @@
+/* Pasos de la práctica en el chat (PasoCard): lo que toca usar ahora late suave. */
+
+.paso-resaltado {
+  border-color: var(--accent-primary) !important;
+  animation: paso-latido 1.4s ease-in-out infinite;
+}
+
+@keyframes paso-latido {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-primary) 55%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent-primary) 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paso-resaltado {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--accent-primary);
+  }
+}
+
+.paso-ahora {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.paso-barra {
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--border-subtle);
+}
+
+.paso-barra > span {
+  display: block;
+  height: 100%;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}

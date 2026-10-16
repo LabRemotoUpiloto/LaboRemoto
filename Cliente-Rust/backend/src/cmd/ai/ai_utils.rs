@@ -258,12 +258,13 @@ pub struct AiTestKeyResult {
 
 #[tauri::command]
 pub async fn ai_test_key() -> Result<AiTestKeyResult, CommandError> {
-    let model = std::env::var("OPENAI_MODEL")
-        .unwrap_or_else(|_| "openai/gpt-oss-120b".to_string());
+    let model = std::env::var("OPENAI_MODEL").ok().filter(|v| !v.trim().is_empty())
+        .or_else(|| option_env!("COMPILED_OPENAI_MODEL").map(|v| v.to_string()))
+        .unwrap_or_else(|| "openai/gpt-oss-120b".to_string());
 
     let key = get_groq_api_key().ok_or_else(|| CommandError::permanent(
         "MISSING_API_KEY",
-        "GROQ_API_KEY no encontrada en .env",
+        format!("GROQ_API_KEY no encontrada. Falta el archivo de configuración del modelo de IA: debe estar en {}", crate::user_config::donde_ponerlo()),
     ))?;
 
     let client = &*HTTP_CLIENT;

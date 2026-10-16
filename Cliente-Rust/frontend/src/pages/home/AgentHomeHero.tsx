@@ -13,7 +13,7 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
   displayName,
   onStartTutorial,
 }) => {
-  const { isAuthenticated, login, isLoading } = useAuth();
+  const { isAuthenticated, login, cancelLogin, isLoading, isLoggingIn } = useAuth();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[1.15fr_0.85fr] gap-8 md:gap-16 items-center w-full h-full max-w-[1120px] mx-auto px-4 py-6 md:p-10 box-border animate-[agent-home-in_0.55s_ease-out_both]">
@@ -35,7 +35,35 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
           {displayName ? `${displayName}, bienvenido` : 'Bienvenido'} a tu espacio de prácticas. Aquí podrás interactuar de forma real y segura con equipos de laboratorio para complementar tu formación académica.
         </p>
 
-        {!isAuthenticated ? (
+        {!isAuthenticated && isLoggingIn ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex flex-col items-center md:items-start gap-3 w-full max-w-[460px] p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--background-secondary)]"
+          >
+            <p className="m-0 text-[13.5px] leading-[1.5] text-[var(--text-secondary)] text-center md:text-left">
+              <strong className="text-[var(--text-primary)]">Esperando el inicio de sesión en tu navegador…</strong>
+              <br />
+              ¿Cerraste la ventana o no se abrió? Puedes volver a abrirla.
+            </p>
+            <div className="flex flex-wrap justify-center md:justify-start gap-2.5">
+              <button
+                type="button"
+                className="inline-flex items-center px-5 py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white border-none rounded-full text-[13px] font-bold cursor-pointer transition-colors duration-200"
+                onClick={login}
+              >
+                Abrir de nuevo
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center px-5 py-2.5 bg-transparent text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-full text-[13px] font-semibold cursor-pointer transition-colors duration-200 hover:text-[var(--text-primary)]"
+                onClick={cancelLogin}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : !isAuthenticated ? (
           <div className="flex justify-center md:justify-start w-full">
             <button
               type="button"
@@ -43,7 +71,7 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
               onClick={login}
               disabled={isLoading}
             >
-              <span>{isLoading ? 'Iniciando...' : 'Iniciar sesión'}</span>
+              <span>{isLoading ? 'Cargando...' : 'Iniciar sesión'}</span>
             </button>
           </div>
         ) : (
@@ -53,6 +81,7 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
                 type="button"
                 className="group inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:translate-y-0 active:shadow-[0_4px_10px_-2px_rgba(213,31,34,0.3)] text-white border-none rounded-full text-[13.5px] font-bold cursor-pointer shadow-[0_6px_16px_-4px_rgba(213,31,34,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_rgba(213,31,34,0.45)]"
                 onClick={onStartTutorial}
+                data-tour="inicio-tutorial"
               >
                 <GraduationCap size={18} strokeWidth={2} className="text-white transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
                 <span>Iniciar recorrido</span>

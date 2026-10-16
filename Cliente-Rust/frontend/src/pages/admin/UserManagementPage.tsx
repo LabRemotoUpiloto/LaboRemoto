@@ -14,6 +14,14 @@ import { ASSIGNABLE_ROLES, ROLE_LABELS, ROLE_ORDER, getEffectiveRole, type Effec
 const ROLE_SELECT_OPTIONS = ROLE_ORDER.map(r => ({ value: r, label: ROLE_LABELS[r] }));
 const FILTER_OPTIONS = [{ value: 'all', label: 'Todos los roles' }, ...ROLE_SELECT_OPTIONS];
 
+/** Docente según el directorio LDAP (Keycloak lo trae como atributo `postalCode`,
+ *  el mismo valor que el token publica como claim `user_type`). Entra con ese rol
+ *  sin que nadie se lo asigne; por eso Gestión de Usuarios no puede quitárselo. */
+function esDocenteDeDirectorio(user: KeycloakUser): boolean {
+    const attrs = user.attributes ?? {};
+    return ['postalCode', 'user_type'].some(k => attrs[k]?.some(v => v.trim().toLowerCase() === 'docente'));
+}
+
 function fullNameOf(user: KeycloakUser) {
     return user.firstName || user.lastName
         ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
@@ -97,7 +105,10 @@ const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
             </Group>
 
             {/* Rol (texto, sin badge) */}
-            <Text size="sm" fw={500} style={{ flex: 1.1, minWidth: 0 }} truncate>{ROLE_LABELS[role]}</Text>
+            <Text size="sm" fw={500} style={{ flex: 1.1, minWidth: 0 }} truncate>
+                {ROLE_LABELS[role]}
+                {role === 'docente' && esDocenteDeDirectorio(user) && <Text span size="xs" c="dimmed"> · directorio</Text>}
+            </Text>
 
             {/* Fecha registro */}
             <Text size="sm" c="dimmed" style={{ flex: 1, minWidth: 0 }} truncate visibleFrom="sm">
@@ -146,7 +157,11 @@ export default function UserManagementPage() {
         setLoading(true);
         try {
             const [special, all] = await Promise.all([
-                Promise.all(ASSIGNABLE_ROLES.map(r => adminService.listUsersByRole(r).then(us => [r, us] as const))),
+                // Si un realm role aún no existe en Keycloak (p. ej. `docente` antes de
+                // crearlo), esa lista queda vacía en vez de romper toda la pantalla.
+                Promise.all(ASSIGNABLE_ROLES.map(r => adminService.listUsersByRole(r)
+                    .catch((err) => { console.warn(`[UserManagement] rol '${r}' no consultable:`, err); return [] as KeycloakUser[]; })
+                    .then(us => [r, us] as const))),
                 adminService.listAllUsers(),
             ]);
             setRoleMembers(Object.fromEntries(special));
@@ -179,7 +194,8 @@ export default function UserManagementPage() {
         for (const u of all) {
             if (seen.has(u.id)) continue;
             seen.add(u.id);
-            list.push({ user: u, role: roleById.get(u.id) || 'estudiante' });
+            const role = roleById.get(u.id) || (esDocenteDeDirectorio(u) ? 'docente' : 'estudiante');
+            list.push({ user: u, role });
         }
         list.sort((a, b) => {
             const ra = ROLE_ORDER.indexOf(a.role), rb = ROLE_ORDER.indexOf(b.role);
@@ -212,6 +228,16 @@ export default function UserManagementPage() {
         .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
     const changeRole = async (user: KeycloakUser, currentRole: EffectiveRole, newRole: EffectiveRole) => {
+        // El directorio de la universidad manda: no se le puede quitar «Docente».
+        // Sí se le puede dar un rol de mayor jerarquía (tiene precedencia).
+        if (newRole === 'estudiante' && esDocenteDeDirectorio(user)) {
+            notifications.show({
+                title: 'No se puede quitar',
+                message: `${user.username} figura como docente en el directorio de la universidad, por eso entra siempre con ese rol.`,
+                color: 'yellow',
+            });
+            return;
+        }
         const userLabel = user.username || user.email || 'este usuario';
         const result = await Swal.fire({
             html: `
