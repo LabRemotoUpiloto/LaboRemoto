@@ -3,7 +3,7 @@
 // latido por minuto mientras siga abierta y el fin al cerrarla. Si la app se
 // cierra de golpe no llega el fin: el broker la da por terminada al dejar de
 // recibir latidos.
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { sesionesService } from '../services/sesiones.service';
 import { obtenerUbicacionDispositivo } from '../utils/ubicacionDispositivo';
 
@@ -25,9 +25,29 @@ async function reportarInicio(id: string, practicaId: string, practicaNombre: st
   if (ubicacion) await sesionesService.reportarEvento('ubicacion', id, ubicacion);
 }
 
-/** `abiertas`: sessionId SSH -> práctica. `enabled`: hay sesión de Keycloak. */
+/**
+ * `abiertas`: sessionId SSH -> práctica. `enabled`: hay sesión de Keycloak.
+ * Devuelve `finalizarTodas`, que avisa el fin de todas las prácticas reportadas
+ * y espera a que salgan: el cierre de sesión la llama antes de revocar el token.
+ */
 export function usePracticeActivityReporter(abiertas: Record<string, PracticaAbierta>, enabled: boolean) {
   const reportadas = useRef(new Set<string>());
+  // Avisos de fin todavía en vuelo (también los del efecto al cerrar una pestaña).
+  const finesEnVuelo = useRef(new Set<Promise<void>>());
+
+  const reportarFin = useCallback((id: string) => {
+    reportadas.current.delete(id);
+    const envio: Promise<void> = sesionesService
+      .reportarEvento('fin', id)
+      .catch(avisar)
+      .finally(() => finesEnVuelo.current.delete(envio));
+    finesEnVuelo.current.add(envio);
+  }, []);
+
+  const finalizarTodas = useCallback(async () => {
+    for (const id of [...reportadas.current]) reportarFin(id);
+    await Promise.all([...finesEnVuelo.current]);
+  }, [reportarFin]);
 
   useEffect(() => {
     if (!enabled) {
@@ -41,11 +61,9 @@ export function usePracticeActivityReporter(abiertas: Record<string, PracticaAbi
       reportarInicio(id, practiceId, nombre).catch(avisar);
     }
     for (const id of [...reportadas.current]) {
-      if (id in abiertas) continue;
-      reportadas.current.delete(id);
-      sesionesService.reportarEvento('fin', id).catch(avisar);
+      if (!(id in abiertas)) reportarFin(id);
     }
-  }, [abiertas, enabled]);
+  }, [abiertas, enabled, reportarFin]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -54,4 +72,6 @@ export function usePracticeActivityReporter(abiertas: Record<string, PracticaAbi
     }, LATIDO_MS);
     return () => clearInterval(timer);
   }, [enabled]);
+
+  return { finalizarTodas };
 }

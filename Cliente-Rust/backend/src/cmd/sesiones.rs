@@ -1,7 +1,7 @@
 //! cmd/sesiones — registro central de sesiones de práctica (vía broker).
 //!
 //! La app reporta inicio/latido/fin de cada práctica al broker de la Pi
-//! (`infra/nvr-broker/sesiones.js`) con el access_token de Keycloak — así el
+//! (`infra/broker-sesiones/sesiones.js`) con el access_token de Keycloak — así el
 //! registro lleva al estudiante real, no la cuenta compartida del sistema
 //! operativo. El dashboard del personal de laboratorio lee de ahí el resumen.
 
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ts_rs::TS;
 
-use crate::cmd::nvr::shinobi::{HTTP_CLIENT, NVR_BROKER_HOST};
+use crate::cmd::nvr::shinobi::{HTTP_CLIENT, BROKER_HOST};
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
@@ -102,7 +102,7 @@ pub async fn sesiones_reportar_evento(
     });
 
     let response = HTTP_CLIENT
-        .post(format!("{NVR_BROKER_HOST}/nvr/sesiones/evento"))
+        .post(format!("{BROKER_HOST}/nvr/sesiones/evento"))
         .bearer_auth(&token)
         .json(&body)
         .send()
@@ -118,6 +118,33 @@ pub async fn sesiones_reportar_evento(
     Ok(())
 }
 
+/// Avisa al broker dónde está el equipo (ubicación ya redondeada en el cliente), con o sin práctica abierta. El broker la usa para
+/// ubicar con exactitud las conexiones SSH que salen de la misma IP; no crea ninguna sesión de práctica.
+#[tauri::command]
+pub async fn sesiones_reportar_ubicacion_app(
+    lat: f64,
+    lon: f64,
+    precision_m: Option<f64>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<(), CommandError> {
+    let token = access_token(manager.inner()).await?;
+    let response = HTTP_CLIENT
+        .post(format!("{BROKER_HOST}/nvr/sesiones/ubicacion-app"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "lat": lat, "lon": lon, "precision_m": precision_m }))
+        .send()
+        .await
+        .map_err(|e| error_de_red("sesiones_reportar_ubicacion_app", e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Registro de sesiones respondió {status}: {text}"))
+            .with_context("sesiones_reportar_ubicacion_app", "broker"));
+    }
+    Ok(())
+}
+
 /// Sesiones de los últimos `dias` días (1–90, default 30). Solo para roles de
 /// supervisión — el broker responde 403 al resto.
 #[tauri::command]
@@ -129,7 +156,7 @@ pub async fn sesiones_resumen(
     let dias = dias.unwrap_or(30);
 
     let response = HTTP_CLIENT
-        .get(format!("{NVR_BROKER_HOST}/nvr/sesiones/resumen?dias={dias}"))
+        .get(format!("{BROKER_HOST}/nvr/sesiones/resumen?dias={dias}"))
         .bearer_auth(&token)
         .send()
         .await

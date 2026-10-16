@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 base64 = "0.21"
+flate2 = "1"
 # Utilidades/base
 anyhow = "1.0"
 async-trait = "0.1"
@@ -51,6 +52,9 @@ png = "0.17"
 tauri = { version = "2", features = [] }
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# Enlaces laboremoto://… (p. ej. desde una tarea de Moodle) y una sola instancia de la app: el segundo arranque reenvía el enlace a la primera.
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 # HTTP client y otros
 reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }

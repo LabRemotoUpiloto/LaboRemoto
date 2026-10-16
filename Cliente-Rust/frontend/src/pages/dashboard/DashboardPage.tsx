@@ -1,12 +1,13 @@
 // pages/dashboard/DashboardPage.tsx — actividad del laboratorio para el
-// personal de supervisión (jefe, coordinador, laboratorista, admin). Los datos
-// salen del registro central de sesiones del broker (ver cmd::sesiones); en
-// Fase 1 todos ven el laboratorio completo, sin filtro por curso/grupo.
+// personal de supervisión (jefe, coordinador, laboratorista, admin), en dos pestañas:
+//  - General: las prácticas que reporta la app (cmd::sesiones). En Fase 1 todos ven el laboratorio completo.
+//  - Dispositivos: quién entra por SSH a cada Pi, con su ubicación (cmd::dispositivos). Aparte de las prácticas.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActionIcon, Box, Group, Loader, Paper, SegmentedControl, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip, UnstyledButton } from '@mantine/core';
 import { Activity, RefreshCw, Search, X } from 'lucide-react';
 import { sesionesService, type ResumenSesiones, type SesionPractica } from '../../services/sesiones.service';
 import SesionesMapa from './SesionesMapa';
+import DispositivosPanel from './DispositivosPanel';
 import {
   conteoPorPractica, detalleUbicacion, duracionMs, esActiva, formatoDuracion, formatoFecha, nombreEstudiante, nombrePractica,
   porEstudiante, porUbicacion, resumenGeneral, sesionesPorDia, ubicacion,
@@ -153,7 +154,7 @@ const TablaSesiones: React.FC<{ sesiones: SesionPractica[]; ahora: number; conEs
   </Box>
 );
 
-export default function DashboardPage() {
+function ActividadGeneral() {
   const [dias, setDias] = useState('30');
   const [datos, setDatos] = useState<ResumenSesiones | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -319,6 +320,25 @@ export default function DashboardPage() {
           </>
         )}
       </Stack>
+    </Box>
+  );
+}
+
+const PESTANAS = [
+  { value: 'general', label: 'General' },
+  { value: 'dispositivos', label: 'Dispositivos' },
+];
+
+export default function DashboardPage() {
+  const [pestana, setPestana] = useState('general');
+  return (
+    <Box h="100%" style={{ display: 'flex', flexDirection: 'column' }}>
+      <Box px="xl" pt="md" style={{ flexShrink: 0 }}>
+        <SegmentedControl data={PESTANAS} value={pestana} onChange={(v) => setPestana(String(v))} aria-label="Sección de actividad" />
+      </Box>
+      <Box style={{ flex: 1, minHeight: 0 }}>
+        {pestana === 'general' ? <ActividadGeneral /> : <DispositivosPanel />}
+      </Box>
     </Box>
   );
 }

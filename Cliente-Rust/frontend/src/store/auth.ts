@@ -29,6 +29,15 @@ export interface AuthSlice {
   cancelLogin: () => Promise<void>
   logout: () => Promise<void>
   /**
+   * Trabajo que debe terminar ANTES de revocar el token (lo registra App.tsx):
+   * cerrar las pestañas de práctica guardando su log y avisar el fin al
+   * registro de sesiones, que exige el token del estudiante. Sin esto, al
+   * cambiar de cuenta la práctica seguía abierta, el log no se guardaba y el
+   * dashboard la mostraba «conectada» hasta que vencía el latido.
+   */
+  beforeLogout: (() => Promise<void>) | null
+  setBeforeLogout: (fn: (() => Promise<void>) | null) => void
+  /**
    * Inicializa la sesión: consulta el estado actual al backend y registra
    * los listeners de eventos Tauri `auth://session-ready` y `auth://logged-out`.
    * Devuelve una función de cleanup que remueve ambos listeners.
@@ -43,6 +52,9 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
   isAuthenticated: false,
   isLoading: true,
   isLoggingIn: false,
+  beforeLogout: null,
+
+  setBeforeLogout: (fn) => set({ beforeLogout: fn }),
 
   login: async () => {
     // Solo mientras se consulta la sesión inicial. Reintentar con un login ya
@@ -78,6 +90,14 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
   },
 
   logout: async () => {
+    // Antes de `isLoading`: ese flag desmonta toda la app («Cargando sesión...»)
+    // y con ella las terminales que tienen que responder el guardado del log.
+    try {
+      await get().beforeLogout?.()
+    } catch (error) {
+      // Nunca bloquea el cierre de sesión.
+      console.error('Failed to close open sessions before logout:', error)
+    }
     try {
       // Indicamos que cargue mientras el backend hace el request a Keycloak
       set({ isLoading: true })

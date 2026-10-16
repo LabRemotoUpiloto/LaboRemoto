@@ -11,6 +11,7 @@ import SftpPage from '../../pages/session/SftpPage'
 import SnippetsPage from '../../pages/session/SnippetsPage'
 import PracticesPage from '../../pages/practices/PracticesPage'
 import ReservasPage from '../../pages/reservas/ReservasPage'
+import MisCursosPage from '../../pages/cursos/MisCursosPage'
 import UserManagementPage from '../../pages/admin/UserManagementPage'
 import VigilanciaPage from '../../pages/vigilancia/VigilanciaPage'
 import DashboardPage from '../../pages/dashboard/DashboardPage'
@@ -18,6 +19,7 @@ import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 import { useEffectiveRole, canAccessPage } from '../../hooks/usePermissions'
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession'
+import { pedirTutorialBienvenida } from '../../tour/bienvenida/BienvenidaTutorial'
 
 type Props = {
   tabs: Tab[]
@@ -73,7 +75,7 @@ const HomeContainer: React.FC<Props> = ({
     <div style={{ height: '100%' }}>
       {effectivePage === 'landing' ? (
         <LandingPage
-          onStartTutorial={() => onOpenPanel('landing')}
+          onStartTutorial={pedirTutorialBienvenida}
           onOpenPanel={onOpenPanel}
         />
       ) : effectivePage === 'connect' ? (
@@ -111,6 +113,8 @@ const HomeContainer: React.FC<Props> = ({
         <PracticesPage onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} setChatOpen={setChatOpen} linuxSession={linuxSession} onRestartLinuxModule={onRestartLinuxModule} />
       ) : effectivePage === 'reservas' ? (
         <ReservasPage />
+      ) : effectivePage === 'mis-cursos' ? (
+        <MisCursosPage />
       ) : effectivePage === 'admin-users' ? (
         <UserManagementPage />
       ) : effectivePage === 'vigilancia' ? (
@@ -123,7 +127,7 @@ const HomeContainer: React.FC<Props> = ({
         <AjustesPage onOpenPanel={onOpenPanel} />
       ) : (
         <LandingPage
-          onStartTutorial={() => onOpenPanel('landing')}
+          onStartTutorial={pedirTutorialBienvenida}
           onOpenPanel={onOpenPanel}
         />
       )}

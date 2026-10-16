@@ -18,5 +18,9 @@ export const sesionesService = {
   reportarEvento: (tipo: TipoEventoSesion, sesionId: string, datos: DatosEventoSesion = {}) =>
     invoke<void>('sesiones_reportar_evento', { tipo, sesionId, ...datos }),
 
+  /** Dónde está el equipo, con o sin práctica abierta (el broker la usa para las conexiones SSH de la misma IP). */
+  reportarUbicacionApp: (lat: number, lon: number, precisionM?: number) =>
+    invoke<void>('sesiones_reportar_ubicacion_app', { lat, lon, precisionM }),
+
   resumen: (dias: number) => invoke<ResumenSesiones>('sesiones_resumen', { dias }),
 };

@@ -1,0 +1,58 @@
+# Guion del video de bienvenida para estudiantes (ElevenLabs).
+# Genera un audio por frase y guárdalos como 1.mp3 ... 13.mp3 (también vale 01.mp3) en una carpeta.
+# Mismo estilo y voz que el video de EV3. Las palabras en inglés van escritas como suenan
+# (Línux, E-V tres, Ráspberri Pai); los subtítulos llevan la ortografía correcta.
+# En [corchetes]: lo que se ve en pantalla mientras suena la frase (no se lee).
+
+01
+Hola, soy el Profesor Bee. Bienvenido a LaboRemoto, el laboratorio remoto de la Universidad Piloto.
+[Portada con Prof. Bee y el logo]
+
+02
+Desde tu computador vas a manejar equipos reales del laboratorio, como robots y otros computadores, sin necesidad de estar allí.
+[Tu computador → internet → equipos del laboratorio]
+
+03
+A la izquierda tienes el menú. Desde ahí llegas a todo lo que necesitas.
+[Captura de la app con el menú resaltado]
+
+04
+En Inicio tienes los accesos rápidos y el botón para volver a ver este tutorial cuando quieras.
+[Inicio, con los accesos rápidos resaltados]
+
+05
+En Prácticas están todas las prácticas del laboratorio, organizadas por tema: Línux, robótica y más.
+[Prácticas: tarjetas de categorías]
+
+06
+Para empezar, elige un tema y luego una práctica, y pulsa Comenzar.
+[Lista de prácticas de una categoría, botón Comenzar resaltado]
+
+07
+La aplicación te pedirá tu contraseña institucional y se conectará sola al equipo del laboratorio.
+[Ventana de la contraseña]
+
+08
+Dentro de la práctica tienes la terminal, donde escribes los comandos, y al lado el chat, donde la guía te explica cada paso.
+[Práctica abierta: terminal y chat resaltados]
+
+09
+La guía avanza contigo: cuando haces bien un paso, se marca como hecho y aparece el siguiente.
+[Un paso marcándose como hecho en el chat]
+
+10
+Si tienes dudas, escríbele al asistente en el mismo chat. Te ayuda a entender lo que estás haciendo.
+[Pregunta al asistente en el chat]
+
+11
+Al completar una práctica ganas una insignia. Las encuentras en tu perfil, en la Sala de Trofeos.
+[Animación de la insignia y la Sala de Trofeos]
+
+12
+# SIN USAR: Reservas está desactivada; el tutorial se la salta hasta que vuelva.
+En Reservas puedes apartar un horario para una práctica, para tener el equipo disponible cuando lo necesites.
+[Reservas: calendario y horarios]
+
+13
+Y ya está. Elige tu primera práctica y empieza a aprender haciendo.
+[Cierre con Prof. Bee]

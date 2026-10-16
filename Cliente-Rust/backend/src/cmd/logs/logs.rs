@@ -463,6 +463,38 @@ pub async fn save_session_log_fragment(
     .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
+/// HTML completo (cabecera, estilos y terminal) de un buffer crudo de terminal, SIN guardarlo en disco: el mismo formato
+/// que el log guardado. Lo usa el envío del registro de una práctica a Moodle.
+pub(crate) fn html_de_buffer_crudo(
+    session_id: &str,
+    user: String,
+    host: String,
+    port: u16,
+    start_time: &str,
+    end_time: &str,
+    raw_content: &str,
+) -> Result<String, CommandError> {
+    let start_time = DateTime::parse_from_rfc3339(start_time)
+        .map_err(|e| timestamp_format_error(e, "start_time", "html_de_buffer_crudo", session_id))?
+        .with_timezone(&Utc);
+    let end_time = DateTime::parse_from_rfc3339(end_time)
+        .map_err(|e| timestamp_format_error(e, "end_time", "html_de_buffer_crudo", session_id))?
+        .with_timezone(&Utc);
+    let html_fragment = super::ansi_html::convert_ansi_to_html(raw_content);
+    let metadata = SessionLogMetadata {
+        session_id: session_id.to_string(),
+        user,
+        host,
+        port,
+        start_time,
+        end_time,
+        duration_seconds: (end_time - start_time).num_seconds(),
+        buffer_size_bytes: html_fragment.len(),
+        command_count: Some(count_commands_in_html(&html_fragment)),
+    };
+    Ok(build_session_html(&metadata, &html_fragment))
+}
+
 #[tauri::command]
 pub async fn list_session_logs() -> Result<Vec<SessionLogMetadata>, CommandError> {
     // Perf: recorre y lee TODOS los .meta.json/.html guardados — potencialmente
