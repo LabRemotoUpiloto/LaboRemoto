@@ -1,0 +1,15 @@
+[Unit]
+Description=Puerta de entrada de los brokers: reparte /nvr/... a cada servicio
+After=network.target
+
+[Service]
+User=pi
+Type=simple
+WorkingDirectory=/opt/laboremoto-brokers/broker-gateway
+EnvironmentFile=/etc/laboremoto-brokers/gateway.env
+ExecStart=/usr/local/bin/node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

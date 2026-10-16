@@ -52,6 +52,28 @@ function CodeBlockView({ block }: { block: Extract<LinuxBlock, { type: 'code_blo
   );
 }
 
+/** Evento de documento con el que el botón avisa al chat que abra el freno (`detail.id`). */
+export const STEP_GATE_EVENT = 'linux:gate-open';
+
+function StepGateBlock({ block }: { block: Extract<LinuxBlock, { type: 'step_gate' }> }) {
+  const [opened, setOpened] = useState(false);
+  return (
+    <Group justify="flex-start">
+      <Button
+        size="xs"
+        variant={opened ? 'subtle' : 'light'}
+        disabled={opened}
+        onClick={() => {
+          setOpened(true);
+          document.dispatchEvent(new CustomEvent(STEP_GATE_EVENT, { detail: { id: block.id } }));
+        }}
+      >
+        {opened ? '✓ Listo' : (block.label ?? 'Listo, sigue')}
+      </Button>
+    </Group>
+  );
+}
+
 function TextBlockView({ block }: { block: Extract<LinuxBlock, { type: 'text' }> }) {
   return (
     <Text fz="sm" style={{ lineHeight: 1.6 }}>
@@ -510,6 +532,8 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
     }
     case 'permissions_calculator':
       return <PermissionsCalculatorBlock block={block} />;
+    case 'step_gate':
+      return <StepGateBlock block={block} />;
     case 'checkpoint':
       return null;
     default:

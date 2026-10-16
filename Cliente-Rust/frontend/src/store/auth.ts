@@ -17,7 +17,16 @@ export interface AuthSlice {
   user: AuthSessionInfo | null
   isAuthenticated: boolean
   isLoading: boolean
+  /**
+   * Hay un login abierto en el navegador esperando respuesta. Va aparte de
+   * `isLoading` (consulta inicial de sesión): si el usuario cierra la ventana
+   * del navegador no llega ningún evento, y con un solo flag la app se quedaba
+   * en «Iniciando…» hasta 5 min sin forma de reintentar.
+   */
+  isLoggingIn: boolean
   login: () => Promise<void>
+  /** Abandona el login en curso para poder empezar otro. */
+  cancelLogin: () => Promise<void>
   logout: () => Promise<void>
   /**
    * Inicializa la sesión: consulta el estado actual al backend y registra
@@ -33,22 +42,22 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  isLoggingIn: false,
 
   login: async () => {
-    // Evita relanzar el flujo si ya hay uno en curso: dos clics generarían dos
-    // PKCE verifiers, y el backend solo guarda uno (slot único, "un solo uso"),
-    // así que el segundo clic pisa el verifier del primero y ese intento falla
-    // silenciosamente (ver auth://error más abajo).
+    // Solo mientras se consulta la sesión inicial. Reintentar con un login ya
+    // abierto SÍ está permitido (botón «Abrir de nuevo»): el backend numera los
+    // intentos y el anterior queda obsoleto en silencio, así que ya no se pisan.
     if (get().isLoading) return
 
-    set({ isLoading: true })
+    set({ isLoggingIn: true })
     try {
       await authService.loginUrl()
       // Nota: El backend abrirá el navegador.
       // Cuando se complete, 'auth://session-ready' (o 'auth://error') será emitido.
     } catch (error) {
       console.error('Failed to initialize login flow:', error)
-      set({ isLoading: false })
+      set({ isLoggingIn: false })
       notifications.show({
         title: 'Error',
         message: 'Error al iniciar sesión',
@@ -56,6 +65,15 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
         autoClose: 4000,
         withBorder: true,
       })
+    }
+  },
+
+  cancelLogin: async () => {
+    set({ isLoggingIn: false })
+    try {
+      await authService.cancelLogin()
+    } catch (error) {
+      console.error('Failed to cancel login:', error)
     }
   },
 
@@ -106,7 +124,7 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
         })
       }
 
-      set({ user: event.payload, isAuthenticated: true, isLoading: false })
+      set({ user: event.payload, isAuthenticated: true, isLoading: false, isLoggingIn: false })
     })
 
     const unlistenLogoutPromise = listen('auth://logged-out', () => {
@@ -125,7 +143,7 @@ export const createAuthSlice: StateCreator<AuthSlice & QueryCacheSlice, [], [], 
     // en la pantalla de login sin ningún feedback ni forma de reintentar.
     const unlistenErrorPromise = listen<string>('auth://error', (event) => {
       console.error('Auth error event received', event.payload)
-      set({ isLoading: false })
+      set({ isLoading: false, isLoggingIn: false })
       notifications.show({
         title: 'Error al iniciar sesión',
         message: event.payload || 'No se pudo completar el inicio de sesión. Intenta de nuevo.',

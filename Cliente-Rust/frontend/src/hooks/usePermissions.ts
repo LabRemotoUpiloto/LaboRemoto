@@ -3,6 +3,11 @@
 // Cada persona tiene UN rol efectivo: el primero de ROLE_ORDER presente en
 // `AuthSessionInfo.roles` (realm roles de Keycloak). Estudiante es el fallback
 // implícito para cualquiera sin rol especial — nadie se lo asigna.
+//
+// `docente` llega por dos caminos y ambos terminan en `roles`: (1) automático,
+// el claim `user_type = "Docente"` que Keycloak toma del directorio LDAP (el
+// backend lo agrega a `roles`, ver auth/jwt.rs); (2) manual, el realm role
+// `docente` asignado desde Gestión de Usuarios.
 import { useAuth } from './useAuth'
 
 export type EffectiveRole =
@@ -11,6 +16,7 @@ export type EffectiveRole =
   | 'coordinador_laboratorio'
   | 'laboratorista'
   | 'semillerista'
+  | 'docente'
   | 'estudiante'
 
 // Mayor precedencia primero.
@@ -20,6 +26,7 @@ export const ROLE_ORDER: EffectiveRole[] = [
   'coordinador_laboratorio',
   'laboratorista',
   'semillerista',
+  'docente',
   'estudiante',
 ]
 
@@ -32,6 +39,7 @@ export const ROLE_LABELS: Record<EffectiveRole, string> = {
   coordinador_laboratorio: 'Coordinador de laboratorio',
   laboratorista: 'Laboratorista',
   semillerista: 'Semillerista',
+  docente: 'Docente',
   estudiante: 'Estudiante',
 }
 
@@ -42,9 +50,13 @@ export function getEffectiveRole(roles: string[] | undefined): EffectiveRole {
 const EVERYONE: EffectiveRole[] = ROLE_ORDER
 // Jefe, coordinador y laboratorista supervisan (logs, vigilancia) pero ya no
 // operan infraestructura: connect/hosts/sftp/snippets son solo de semillerista
-// y admin_lab.
-const STAFF: EffectiveRole[] = ASSIGNABLE_ROLES
+// y admin_lab. Lista explícita (no ASSIGNABLE_ROLES): `docente` es asignable
+// pero NO es personal del laboratorio, así que no ve vigilancia (cámaras) ni
+// administración de usuarios. Los logs sí los ve (ver LOGS más abajo).
+const STAFF: EffectiveRole[] = ['admin_lab', 'jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista', 'semillerista']
 const TECHNICAL: EffectiveRole[] = ['admin_lab', 'semillerista']
+// Logs: el personal y también el docente.
+const LOGS: EffectiveRole[] = [...STAFF, 'docente']
 // Debe coincidir con RESUMEN_ROLES en infra/nvr-broker/sesiones.js.
 const SUPERVISION: EffectiveRole[] = ['admin_lab', 'jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista']
 
@@ -66,10 +78,12 @@ export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   reservas: EVERYONE,
   themes: EVERYONE.filter((r) => !usaTemaInstitucional(r)),
   connect: TECHNICAL,
+  // Terminal local (botón del sidebar y del header): solo semillerista y admin_lab.
+  'local-terminal-new': TECHNICAL,
   hosts: TECHNICAL,
   sftp: TECHNICAL,
   snippets: TECHNICAL,
-  logs: STAFF,
+  logs: LOGS,
   vigilancia: STAFF,
   dashboard: SUPERVISION,
   'admin-users': ['admin_lab'],

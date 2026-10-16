@@ -45,6 +45,7 @@ import { useAuth } from '../hooks/useAuth';
 // vale la pena extraer una interfaz genérica; hoy sería abstraer sin un
 // segundo caso real que la valide.
 import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult, type LinuxValidationRule } from '../services/linuxPractice.service';
+import { STEP_GATE_EVENT } from './practicas/linux/blocks/BlockRenderer';
 import type { LinuxPracticeSessionApi } from '../hooks/useLinuxPracticeSession';
 
 // `rule_id` ya viene resuelto por `linuxGetModule` (ver resolveLinuxModule en
@@ -160,6 +161,9 @@ const ChatPane: React.FC<Props> = ({
   // re-render propio, solo lo lee el efecto de entrega de contenido.
   const deliveredLinuxBlockIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => { deliveredLinuxBlockIdsRef.current = new Set(); }, [practiceId]);
+  // `step_gate` que el estudiante ya abrió (botón «Listo, sigue»).
+  const openedLinuxGatesRef = useRef<Set<string>>(new Set());
+  useEffect(() => { openedLinuxGatesRef.current = new Set(); }, [practiceId]);
 
   // Respuestas de quiz en curso -- una sola práctica activa por chat a la vez,
   // no hace falta keyearlas por moduleId.
@@ -211,12 +215,20 @@ const ChatPane: React.FC<Props> = ({
     // no con la terminal) no tiene "parte práctica" que esperar: su quiz se
     // entrega junto con el resto del contenido. `every` sobre una lista vacía
     // ya da true; antes se exigía `length > 0` y ese quiz nunca aparecía.
-    const practiceDone = requiredNonQuiz.every((r) => passedRuleIds.has(r.id));
+    const openedGates = openedLinuxGatesRef.current;
+    // Con `step_gate` (EV3) el quiz final espera a que se abran todos los frenos.
+    const gatesDone = module.blocks.every((b) => b.type !== 'step_gate' || openedGates.has(b.id));
+    const practiceDone = gatesDone && requiredNonQuiz.every((r) => passedRuleIds.has(r.id));
 
     const delivered = deliveredLinuxBlockIdsRef.current;
     const batch: LinuxBlock[] = [];
     for (const block of module.blocks) {
       if (block.type === 'checkpoint') continue;
+      if (block.type === 'step_gate') {
+        if (!delivered.has(block.id)) batch.push(block);
+        if (!openedGates.has(block.id)) break; // frena hasta que pulse el botón
+        continue;
+      }
       if (block.type === 'command_step') {
         const rule = ruleForLinuxBlock(rules, block);
         const passed = rule ? passedRuleIds.has(rule.id) : false;
@@ -907,6 +919,20 @@ const ChatPane: React.FC<Props> = ({
 
     deliverLinuxBatch(linuxModule, result);
   }, [linuxModule, practiceResult, isPracticeSession, deliverLinuxBatch, explainLinuxCommandOutput]);
+
+  // El botón de un `step_gate` avisa por evento de documento (así no hay que
+  // pasar un callback por ChatMessageList y AiMessageBubble).
+  useEffect(() => {
+    if (!isPracticeSession || !linuxModule) return;
+    const onGateOpen = (ev: Event) => {
+      const id = (ev as CustomEvent<{ id: string }>).detail?.id;
+      if (!id) return;
+      openedLinuxGatesRef.current.add(id);
+      deliverLinuxBatch(linuxModule, (practiceResult as unknown as LinuxValidationResult) ?? null);
+    };
+    document.addEventListener(STEP_GATE_EVENT, onGateOpen);
+    return () => document.removeEventListener(STEP_GATE_EVENT, onGateOpen);
+  }, [linuxModule, practiceResult, isPracticeSession, deliverLinuxBatch]);
 
   const handleSend = async (overrideText?: string) => {
     if (isSending || isSendingRef.current) return;

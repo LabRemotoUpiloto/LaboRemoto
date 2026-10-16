@@ -1,0 +1,11 @@
+[Unit]
+Description=Destraba Shinobi si queda online sin transmitir (reinicia pm2 shinobi)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+Environment=HOME=/home/pi
+WorkingDirectory=/home/pi/shinobi-watchdog
+ExecStart=/home/pi/shinobi-watchdog/scripts/shinobi-unstick.sh

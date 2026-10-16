@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SessionLog } from "../components/logs/SessionCard";
+import { useEffectiveRole, canAccessPage } from "./usePermissions";
 
 export type Tab = {
   id: string;
@@ -13,6 +14,7 @@ export const HOME_TAB_ID = "home";
 export type ActiveView = 'terminal' | 'escritorio';
 
 export function useAppTabs() {
+  const role = useEffectiveRole();
   const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_TAB_ID, type: "home", label: "Inicio" }]);
   const [activeTabId, setActiveTabId] = useState<string>(HOME_TAB_ID);
   // true = sidebar expandida (iconos + texto); false = colapsada (solo iconos).
@@ -111,6 +113,8 @@ export function useAppTabs() {
   };
 
   const openLocalTerminalTab = useCallback(() => {
+    // Segunda barrera: el evento `app:open-local-terminal` también llega acá.
+    if (!canAccessPage('local-terminal-new', role)) return;
     const id = crypto.randomUUID();
     setTabs(prev => {
       const n = prev.filter(t => t.type === 'local-terminal').length + 1;
@@ -120,7 +124,7 @@ export function useAppTabs() {
     setSelectedPage('terminal');
     setOpenPanels(prev => prev.includes('terminal') ? prev : [...prev, 'terminal']);
     setActivePanel('terminal');
-  }, []);
+  }, [role]);
 
   // "Nueva pestaña de terminal" desde el menú contextual de un panel
   // (LocalTerminalGroup) — el grupo vive muy abajo en el árbol, así que se

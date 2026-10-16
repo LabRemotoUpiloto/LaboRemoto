@@ -26,11 +26,18 @@ try {
 } catch (e) {
   console.error('[webrtc] WEBRTC_PATHS_JSON invalido:', e.message);
 }
-const PATHS_VALIDOS = new Set(Object.values(MAPA));
+
+// El registro de cámaras (registro.js) reemplaza al mapa de la variable de entorno cuando tiene cámaras: así una cámara
+// nueva o editada desde la app aparece en WebRTC sin reiniciar. `fuente()` devuelve el mapa o null (= usar el de env).
+let fuente = () => null;
+function usarMapa(fn) { fuente = fn; }
+function mapaActual() { return fuente() || MAPA; }
+const pathsValidos = () => new Set(Object.values(mapaActual()));
 
 /** Path de MediaMTX para un monitor de Shinobi, o null si no tiene WebRTC. */
 function rutaDe(mid) {
-  return Object.prototype.hasOwnProperty.call(MAPA, mid) ? MAPA[mid] : null;
+  const m = mapaActual();
+  return Object.prototype.hasOwnProperty.call(m, mid) ? m[mid] : null;
 }
 
 function responder(res, status, obj) {
@@ -96,7 +103,7 @@ async function handle(req, res, parts, verifyJwt) {
     responder(res, 400, { error: 'invalid_path' });
     return true;
   }
-  if (!PATHS_VALIDOS.has(path)) { responder(res, 404, { error: 'webrtc_not_supported', path }); return true; }
+  if (!pathsValidos().has(path)) { responder(res, 404, { error: 'webrtc_not_supported', path }); return true; }
 
   let sdp;
   try {
@@ -124,4 +131,4 @@ async function handle(req, res, parts, verifyJwt) {
   return true;
 }
 
-module.exports = { handle, rutaDe };
+module.exports = { handle, rutaDe, usarMapa };

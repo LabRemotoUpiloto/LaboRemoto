@@ -1,0 +1,15 @@
+[Unit]
+Description=Broker de camaras (Shinobi, PTZ, WebRTC): valida JWT de Keycloak y oculta SHINOBI_API_KEY
+After=network.target
+
+[Service]
+User=pi
+Type=simple
+WorkingDirectory=/opt/laboremoto-brokers/broker-camaras
+EnvironmentFile=/etc/laboremoto-brokers/camaras.env
+ExecStart=/usr/local/bin/node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

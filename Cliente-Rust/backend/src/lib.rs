@@ -232,6 +232,7 @@ pub fn run() {
       cmd::hardware::ev3_console::ev3_run_stop,
       // Autenticación OAuth 2.1 con Keycloak
       crate::auth::commands::auth_login_url,
+      crate::auth::commands::auth_cancel_login,
       crate::auth::commands::auth_status,
       crate::auth::commands::auth_logout,
       // Admin REST API (User Management)
