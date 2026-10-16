@@ -210,7 +210,7 @@ jobs:
     # (Debian 13/glibc>=2.39 y Debian 12/glibc>=2.36). Se replica lo mismo
     # acá: compilar en ubuntu-22.04 da un binario compatible con glibc>=2.36
     # (corre tambien en sistemas mas nuevos), compilar en ubuntu-24.04 da uno
-    # que exige glibc>=2.39.
+    # que exige glibc>=2.39 y compilar en ubuntu-26.04 uno que exige glibc>=2.43.
     strategy:
       fail-fast: false
       matrix:
@@ -219,6 +219,8 @@ jobs:
             glibc_label: glibc2.36
           - runner: ubuntu-24.04
             glibc_label: glibc2.39
+          - runner: ubuntu-26.04
+            glibc_label: glibc2.43
     runs-on: ${{ matrix.runner }}
 
     steps:
