@@ -450,5 +450,48 @@ describe('CVA Gestures Components', () => {
       // invoke NO debe haberse llamado una segunda vez
       expect(invoke).toHaveBeenCalledTimes(1);
     });
+
+    it('manages video container aspect-ratio correctly (default 4/3 and updates on loadedmetadata)', async () => {
+      (invoke as any).mockResolvedValue({
+        session_id: 'sess-aspect-123',
+        module_id: 'domotica',
+        bridge_port: 8766,
+        active: true,
+      });
+
+      render(
+        <MantineProvider>
+          <CVA_GesturePracticePage
+            moduleId="domotica"
+            sessionId="sess-aspect-123"
+            camera={{ ...mockCamera, active: true }}
+            onBack={vi.fn()}
+          />
+        </MantineProvider>
+      );
+
+      const aspectBox = screen.getByTestId('local-video-aspect-container');
+      expect(aspectBox).toBeDefined();
+      // Valor por defecto 4/3 (1.333...)
+      expect(aspectBox.style.aspectRatio).toMatch(/^1\.333/);
+
+      // Video y canvas dentro del contenedor con posicionamiento absoluto y transform scaleX(-1)
+      const video = screen.getByTestId('local-video') as HTMLVideoElement;
+      expect(video.style.position).toBe('absolute');
+      expect(video.style.transform).toBe('scaleX(-1)');
+
+      const canvas = screen.getByTestId('skeleton-canvas') as HTMLCanvasElement;
+      expect(canvas.style.position).toBe('absolute');
+      expect(canvas.style.transform).toBe('scaleX(-1)');
+
+      // Simular evento loadedmetadata con videoWidth=1280, videoHeight=720 (16:9)
+      Object.defineProperty(video, 'videoWidth', { value: 1280, configurable: true });
+      Object.defineProperty(video, 'videoHeight', { value: 720, configurable: true });
+      fireEvent(video, new Event('loadedmetadata'));
+
+      await waitFor(() => {
+        expect(aspectBox.style.aspectRatio).toMatch(/^1\.777/);
+      });
+    });
   });
 });

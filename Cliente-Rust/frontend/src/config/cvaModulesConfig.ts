@@ -19,7 +19,7 @@ export const CVA_MODULES_CONFIG: Record<string, CvaModuleConfig> = {
         labCamera: {
             enabled: true,
             groupKey: 'pilabpiloto',
-            cameraId: '01',
+            cameraId: 'camara 01',
             label: 'Cámara del Laboratorio (Robot EV3)',
         },
     },

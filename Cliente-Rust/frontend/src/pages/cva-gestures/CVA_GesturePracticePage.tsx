@@ -52,10 +52,19 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
     const [sidebarOpened, setSidebarOpened] = useState(false);
     const [showMetrics, setShowMetrics] = useState(false);
     const [showSkeleton, setShowSkeleton] = useState(true);
+    // Proporción de aspecto del video local (4/3 por defecto hasta loadedmetadata)
+    const [videoAspectRatio, setVideoAspectRatio] = useState<number>(4 / 3);
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const skeletonCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+    const handleLoadedMetadata = () => {
+        const video = videoRef.current;
+        if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+            setVideoAspectRatio(video.videoWidth / video.videoHeight);
+        }
+    };
 
     // Hook de Esqueleto de Mano Decorativo (MediaPipe) (AC9 & AC10)
     const { processAndDrawFrame, skeletonColor, setSkeletonColor } = useHandSkeleton(camera.active && showSkeleton);
@@ -444,14 +453,31 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     overflow: 'hidden',
-                                    position: 'relative'
+                                    position: 'relative',
+                                    padding: '8px',
                                 }}
                             >
                                 {camera.active ? (
-                                    <>
+                                    <Box
+                                        data-testid="local-video-aspect-container"
+                                        style={{
+                                            width: '100%',
+                                            maxWidth: '100%',
+                                            maxHeight: '480px',
+                                            aspectRatio: `${videoAspectRatio}`,
+                                            position: 'relative',
+                                            margin: '0 auto',
+                                            overflow: 'hidden',
+                                            borderRadius: 'var(--radius-sm)',
+                                        }}
+                                    >
                                         <video
                                             ref={videoRef}
+                                            data-testid="local-video"
+                                            onLoadedMetadata={handleLoadedMetadata}
                                             style={{
+                                                position: 'absolute',
+                                                inset: 0,
                                                 width: '100%',
                                                 height: '100%',
                                                 objectFit: 'cover',
@@ -463,18 +489,18 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                                         {showSkeleton && (
                                             <canvas
                                                 ref={skeletonCanvasRef}
+                                                data-testid="skeleton-canvas"
                                                 style={{
                                                     position: 'absolute',
-                                                    top: 0,
-                                                    left: 0,
+                                                    inset: 0,
                                                     width: '100%',
                                                     height: '100%',
                                                     pointerEvents: 'none',
-                                                    transform: 'scaleX(-1)',
+                                                    transform: 'scaleX(-1)', // Mismo transform espejo que el video
                                                 }}
                                             />
                                         )}
-                                    </>
+                                    </Box>
                                 ) : (
                                     <Stack align="center" gap="xs">
                                         <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
@@ -546,16 +572,16 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                 );
 
                 return showLabCamera ? (
-                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" style={{ alignItems: 'start' }}>
                         {/* 1. Feed del Laboratorio (Cámara Remota) + Log de la Pi debajo */}
                         <Stack gap="md">
                             <CVA_LabCameraPanel
                                 groupKey={labCameraConfig?.groupKey}
                                 cameraId={labCameraConfig?.cameraId}
                                 label={labCameraConfig?.label}
-                                isActive={sessionActive && !emergencyStopped}
+                                isActive={sessionActive}
                             />
-                            <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
+                            <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive} />
                         </Stack>
 
                         {/* 2. Feed del Usuario (Cámara Local) */}

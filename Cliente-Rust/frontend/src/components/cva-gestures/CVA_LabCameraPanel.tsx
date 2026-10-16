@@ -33,21 +33,45 @@ export const CVA_LabCameraPanel: React.FC<CVA_LabCameraPanelProps> = ({
         };
     }, [isConfigured, isActive, start, stop]);
 
-    // Búsqueda de la cámara por ID o Nombre (case-insensitive)
+    // Búsqueda de la cámara por ID o Nombre (case-insensitive, tolerante a espacios y tildes)
     const targetCamera = useMemo(() => {
         if (!cameraId || cameras.length === 0) return null;
-        const normalizedTarget = cameraId.trim().toLowerCase();
-        return cameras.find(
-            (c) => c.id.toLowerCase() === normalizedTarget || c.name.toLowerCase() === normalizedTarget
-        ) || null;
+        const clean = (s: string) =>
+            s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+        const normalizedTarget = clean(cameraId);
+        const compactTarget = normalizedTarget.replace(/\s+/g, "");
+
+        return cameras.find((c) => {
+            const idClean = clean(c.id);
+            const nameClean = clean(c.name);
+            const idCompact = idClean.replace(/\s+/g, "");
+            const nameCompact = nameClean.replace(/\s+/g, "");
+            return (
+                idClean === normalizedTarget ||
+                nameClean === normalizedTarget ||
+                idCompact === compactTarget ||
+                nameCompact === compactTarget
+            );
+        }) || null;
     }, [cameraId, cameras]);
 
     // Estado derivado para renderizado
     const isOffline = targetCamera?.status === 'offline' || (targetCamera != null && !targetCamera.stream_url);
     const isCameraActive = targetCamera != null && !isOffline && (targetCamera.status === 'active' || Boolean(targetCamera.stream_url));
+    // Robustez ante fallo puntual de sondeo: no tumbar el stream si ya estaba activo
+    const isNvrError = (status === 'error' || Boolean(error)) && !isCameraActive;
     const isNotFound = status === 'active' && !targetCamera;
-    const isConnecting = status === 'connecting' || (status === 'idle' && isConfigured && isActive);
-    const isNvrError = status === 'error' || Boolean(error);
+    const isConnecting = !isCameraActive && (status === 'connecting' || (status === 'idle' && isConfigured && isActive));
+
+    // Diagnóstico en consola para cámaras no encontradas (Requerimiento A.2)
+    useEffect(() => {
+        if (isNotFound && isConfigured) {
+            console.warn(
+                `[CVA_LabCameraPanel] Cámara con identificador «${cameraId}» no encontrada en el grupo «${groupKey}». Cámaras disponibles en el grupo:`,
+                cameras.map((c) => ({ id: c.id, name: c.name, status: c.status }))
+            );
+        }
+    }, [isNotFound, isConfigured, cameraId, groupKey, cameras]);
 
     const handleRetry = () => {
         if (isConfigured && isActive) {
@@ -72,6 +96,10 @@ export const CVA_LabCameraPanel: React.FC<CVA_LabCameraPanelProps> = ({
                         <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', background: 'transparent' }}>
                             No configurada
                         </Badge>
+                    ) : isCameraActive ? (
+                        <Badge size="xs" variant="outline" style={{ border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', background: 'transparent' }}>
+                            En vivo
+                        </Badge>
                     ) : isNvrError ? (
                         <Badge size="xs" variant="outline" style={{ border: '1px solid var(--danger, #EF4444)', color: 'var(--danger, #EF4444)', background: 'transparent' }}>
                             Error NVR
@@ -87,10 +115,6 @@ export const CVA_LabCameraPanel: React.FC<CVA_LabCameraPanelProps> = ({
                     ) : isConnecting ? (
                         <Badge size="xs" variant="outline" style={{ border: '1px solid var(--warning, #F59E0B)', color: 'var(--warning, #F59E0B)', background: 'transparent' }}>
                             Conectando
-                        </Badge>
-                    ) : isCameraActive ? (
-                        <Badge size="xs" variant="outline" style={{ border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', background: 'transparent' }}>
-                            En vivo
                         </Badge>
                     ) : null}
                 </Group>
@@ -195,7 +219,7 @@ export const CVA_LabCameraPanel: React.FC<CVA_LabCameraPanelProps> = ({
                                 label={label || targetCamera.name}
                                 camId={targetCamera.id}
                                 isActive={isActive}
-                                ptzEnabled={targetCamera.ptz}
+                                ptzEnabled={false}
                             />
                         </Box>
                     ) : null}
