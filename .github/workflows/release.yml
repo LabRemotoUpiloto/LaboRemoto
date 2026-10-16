@@ -131,7 +131,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2"
+        # Binario ya compilado desde npm, con la version fija. Antes se hacia `cargo install tauri-cli`, que compila el CLI
+        # y resuelve sus dependencias de Rust al momento: el 2026-10-16 fallo en los 4 jobs porque tauri-cli 2.12.x exige
+        # `zip ^8` y todas esas versiones de zip fueron retiradas (yanked) de crates.io. Con esto el release no depende de
+        # lo que pase en crates.io ese dia, y se ahorra la compilacion del CLI. 2.12.1 es la que uso el ultimo release bueno.
+        run: npm install -g @tauri-apps/cli@2.12.1
 
       - name: Build Tauri app
         working-directory: Cliente-Rust/backend
@@ -149,7 +153,7 @@ jobs:
           PRACTICE_LINUX_API_TOKEN: ${{ secrets.PRACTICE_LINUX_API_TOKEN }}
           PRACTICE_LINUX_SSH_HOST: ${{ secrets.PRACTICE_LINUX_SSH_HOST }}
           PRACTICE_LINUX_SSH_PORT: ${{ secrets.PRACTICE_LINUX_SSH_PORT }}
-        run: cargo tauri build
+        run: tauri build
 
       - name: Prepare updater metadata
         shell: pwsh
@@ -279,7 +283,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2"
+        # Binario ya compilado desde npm, con la version fija. Antes se hacia `cargo install tauri-cli`, que compila el CLI
+        # y resuelve sus dependencias de Rust al momento: el 2026-10-16 fallo en los 4 jobs porque tauri-cli 2.12.x exige
+        # `zip ^8` y todas esas versiones de zip fueron retiradas (yanked) de crates.io. Con esto el release no depende de
+        # lo que pase en crates.io ese dia, y se ahorra la compilacion del CLI. 2.12.1 es la que uso el ultimo release bueno.
+        run: npm install -g @tauri-apps/cli@2.12.1
 
       - name: Build Tauri app
         working-directory: Cliente-Rust/backend
@@ -300,7 +308,7 @@ jobs:
         # --bundles sobreescribe `bundle.targets` de tauri.conf.json (que solo
         # trae "nsis", el instalador de Windows) sin tocar ese archivo -- el
         # job de Windows sigue usando el target committeado tal cual.
-        run: cargo tauri build --bundles deb,appimage
+        run: tauri build --bundles deb,appimage
 
       - name: Rename assets con sufijo de compatibilidad glibc
         # Los dos legs de la matriz producen archivos con el MISMO nombre
