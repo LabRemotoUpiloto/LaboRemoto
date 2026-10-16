@@ -985,9 +985,17 @@ Rama: `cva-camara-laboratorio`
    * Desacoplamiento de la parada de emergencia: se retiró `isActive={sessionActive}` de `CVA_LabCameraPanel` para que use su valor por defecto (`isActive = true`). El video permanece activo mientras la página esté montada (antes de iniciar sesión, durante la emergencia y al reanudar), deteniéndose únicamente al salir de la práctica.
    * `CVA_PiInstructionLog`: se mantiene estrictamente con `isPracticeActive={sessionActive && !emergencyStopped}` en ambos layouts (dos columnas y una columna).
    * Corrección de desalineación del esqueleto: integración de `computeLocalVideoBoxStyle(videoAspectRatio)` eliminando `maxHeight: 480px` y limitando por ancho mediante `maxWidth`.
-   * Desduplicación del bloque JSX de la cámara local (`localCameraCard`).
-   * `alignItems: 'start'` en `SimpleGrid cols={{ base: 1, md: 2 }}`.
-2. **[cvaGestures.test.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/tests/unit/cvaGestures.test.tsx)**:
+   * **Simetría y geometría de tarjetas de cámara**: se desacopló el control de parada de emergencia del interior de `localCameraCard` hacia una sección unificada inferior, igualando perfectamente la altura, estructura, paddings y estética de ambas tarjetas de video en la grilla (`SimpleGrid cols={{ base: 1, md: 2 }}`).
+   * **Log de la Pi en ancho completo**: `CVA_PiInstructionLog` se reubicó debajo de la grilla de cámaras y parada de emergencia, abarcando el 100% del ancho del layout.
+   * **Limpieza de artefactos y código muerto**: se eliminaron los estados no renderizados `lastGesture` y `confidence`, así como el `setInterval` de simulación ficticia cada 3 segundos.
+   * **Estandarización visual**: cabecera estándar con `Title order={2}` ("Práctica de Gestos"), subtítulo contextualizado, botón de configuración en la barra superior y botón de terminación de práctica con estética `subtle` con borde sutil.
+2. **[CVA_ConfigSidebar.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/components/cva-gestures/CVA_ConfigSidebar.tsx)**:
+   * Se eliminó el botón flotante fijo en el borde medio de la pantalla (`top: 50%`), dejando la apertura del drawer a través del botón estándar de cabecera.
+   * Se removieron las 3 tarjetas de maquetación simulada con controles deshabilitados ("Fase 6+", "Fase 8+", "Fase 9+").
+   * Se conservaron exclusivamente los controles funcionales: tasa de muestreo (Sensibilidad FPS), interruptor de barra superior de métricas y selector de color del esqueleto (MediaPipe) con switch de visibilidad.
+3. **[CVA_PiInstructionLog.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/components/cva-gestures/CVA_PiInstructionLog.tsx)**:
+   * Remoción de margen forzado inline (`style={{ marginTop: '1rem' }}`) para permitir que el `Stack` del diseño controle el espaciado de manera natural y homogénea.
+4. **[cvaGestures.test.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/tests/unit/cvaGestures.test.tsx)**:
    * Prueba de integración de la página que verifica que tras pulsar "ABORTAR Y DETENER EQUIPOS" el panel de la cámara del robot sigue montado y su reproductor (`HlsPlayer` / botón de reconexión) sigue presente (comprobado que FALLA si se pasa `isActive={sessionActive}`).
    * Prueba unitaria que valida la relación de aspecto dinámica y los límites por `maxWidth` (640px en 4:3, 853px en 16:9) sin `maxHeight`.
 

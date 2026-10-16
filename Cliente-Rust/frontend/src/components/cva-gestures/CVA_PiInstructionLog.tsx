@@ -58,7 +58,7 @@ export const CVA_PiInstructionLog: React.FC<CVA_PiInstructionLogProps> = ({ sess
     };
 
     return (
-        <Card padding="md" radius="md" className="dribbble-card" style={{ marginTop: '1rem' }}>
+        <Card padding="md" radius="md" className="dribbble-card">
             <Stack gap="xs">
                 <Group justify="space-between" align="center">
                     <Group gap="xs" align="center">

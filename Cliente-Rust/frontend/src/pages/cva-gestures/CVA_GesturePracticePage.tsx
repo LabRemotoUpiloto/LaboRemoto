@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon, Title, Badge, Box, SegmentedControl, Alert } from '@mantine/core';
-import { ArrowLeft, AlertTriangle, Eye, Video, Sliders, RefreshCw, VideoOff, Activity } from 'lucide-react';
+import { Button, Card, Group, SimpleGrid, Stack, Text, ThemeIcon, Title, Badge, Box } from '@mantine/core';
+import { ArrowLeft, AlertTriangle, Video, Sliders, RefreshCw, VideoOff } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { UseLocalCameraResult } from '../../hooks/useLocalCamera';
 import { CvaFrameStats } from '../../bindings/CvaFrameStats';
@@ -37,9 +37,9 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
     const moduleConfig = getCvaModuleConfig(moduleId);
     const labCameraConfig = moduleConfig?.labCamera;
     const showLabCamera = Boolean(labCameraConfig?.enabled);
+
+    // Estados de transmisión y métricas
     const [sensitivity, setSensitivity] = useState('balanceado');
-    const [lastGesture, setLastGesture] = useState('Ninguno (Buscando...)');
-    const [confidence, setConfidence] = useState(0);
     const [latency, setLatency] = useState(0);
     const [totalFrames, setTotalFrames] = useState(0);
     const [realFps, setRealFps] = useState(0);
@@ -49,7 +49,7 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
     const [sessionActive, setSessionActive] = useState(false);
     const [emergencyStopped, setEmergencyStopped] = useState(false);
 
-    // Estados de UI y Configuración Sidebar (AC12)
+    // Estados de UI y Configuración Sidebar
     const [sidebarOpened, setSidebarOpened] = useState(false);
     const [showMetrics, setShowMetrics] = useState(false);
     const [showSkeleton, setShowSkeleton] = useState(true);
@@ -67,7 +67,7 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
         }
     };
 
-    // Hook de Esqueleto de Mano Decorativo (MediaPipe) (AC9 & AC10)
+    // Hook de Esqueleto de Mano Decorativo (MediaPipe)
     const { processAndDrawFrame, skeletonColor, setSkeletonColor } = useHandSkeleton(camera.active && showSkeleton);
 
     // Loop de renderizado del esqueleto decorativo
@@ -83,22 +83,32 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    processAndDrawFrame(ctx, video, cpuLoad);
+                    processAndDrawFrame(ctx, video, 0);
                 }
             }
-            if (camera.active && showSkeleton) {
+            if (showSkeleton && camera.active) {
                 animationId = requestAnimationFrame(renderLoop);
             }
         };
 
-        if (camera.active && showSkeleton) {
-            renderLoop();
+        if (showSkeleton && camera.active) {
+            animationId = requestAnimationFrame(renderLoop);
         }
 
         return () => {
             if (animationId) cancelAnimationFrame(animationId);
         };
-    }, [camera.active, showSkeleton, cpuLoad, processAndDrawFrame]);
+    }, [showSkeleton, camera.active, processAndDrawFrame]);
+
+    // Conectar stream a elemento de video
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.srcObject = camera.stream;
+            if (camera.stream) {
+                videoRef.current.play().catch(() => {});
+            }
+        }
+    }, [camera.stream]);
 
     const currentSessionIdRef = useRef<string | undefined>(sessionId);
     useEffect(() => {
@@ -142,7 +152,6 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
             } catch (err: any) {
                 if (!isCancelled) {
                     const errMsg = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
-                    // Restaurar manejo de SESSION_ALREADY_ACTIVE de Corrección #2:
                     // Si la sesión ya estaba activa en backend, se reconoce como éxito y no se muestra error
                     if (errMsg.includes('SESSION_ALREADY_ACTIVE')) {
                         if (currentSessionIdRef.current === sessionId) {
@@ -168,25 +177,10 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
         };
     }, [sessionId, moduleId]);
 
-    // Conectar stream a elemento de video en el DOM
+    // Bucle de muestreo y codificación de frames hacia la Pi
     useEffect(() => {
-        if (videoRef.current) {
-            videoRef.current.srcObject = camera.stream;
-            if (camera.stream && !emergencyStopped) {
-                videoRef.current.play().catch((err) => {
-                    console.error('Error al intentar reproducir local stream en práctica:', err);
-                });
-            } else {
-                videoRef.current.pause();
-            }
-        }
-    }, [camera.stream, emergencyStopped]);
+        if (!camera.active || emergencyStopped || !sessionId || !sessionActive) return;
 
-    // 2. Loop de muestreo y transmisión de frames por la conexión TCP persistente del túnel
-    useEffect(() => {
-        if (!camera.active || emergencyStopped || !sessionActive || sessionError || !sessionId) return;
-
-        // Rango de sensibilidad dentro de 6-8 FPS (especificación CVA)
         const fpsMap: Record<string, number> = {
             preciso: 6,
             balanceado: 7,
@@ -242,35 +236,10 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
         }, intervalMs);
 
         return () => clearInterval(interval);
-    }, [camera.active, emergencyStopped, sensitivity, sessionId, sessionActive, sessionError]);
-
-    // Simular reconocimiento de gestos para la vista previa
-    useEffect(() => {
-        if (emergencyStopped || !sessionActive) return;
-
-        const gestures = isDomotica 
-            ? ['Dedo índice (Encender Luz 1)', 'Dos dedos (Encender Luz 2)', 'Palma abierta (Apagar Todo)', 'Ninguno']
-            : ['Dedo índice (Avanzar)', 'Dos dedos (Retroceder)', 'Puño cerrado (Detener)', 'Ninguno'];
-
-        const interval = setInterval(() => {
-            const idx = Math.floor(Math.random() * gestures.length);
-            const gesture = gestures[idx];
-            setLastGesture(gesture);
-            
-            if (gesture === 'Ninguno') {
-                setConfidence(0);
-            } else {
-                setConfidence(Math.floor(75 + Math.random() * 20));
-            }
-        }, 3000);
-
-        return () => clearInterval(interval);
-    }, [isDomotica, emergencyStopped, sessionActive]);
+    }, [camera.active, emergencyStopped, sensitivity, sessionId, sessionActive]);
 
     const handleEmergencyStop = async () => {
         setEmergencyStopped(true);
-        setLastGesture('PARADA DE EMERGENCIA ACTIVA');
-        setConfidence(0);
         if (sessionId) {
             try {
                 await invoke('cva_gestures_session_stop', { sessionId });
@@ -281,7 +250,6 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
 
     const handleReset = async () => {
         setEmergencyStopped(false);
-        setLastGesture('Ninguno (Buscando...)');
         if (sessionId) {
             try {
                 await invoke('cva_gestures_session_start', { sessionId, moduleId });
@@ -302,8 +270,161 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
         onBack();
     };
 
+    // ── TARJETA DE CÁMARA LOCAL (SIMÉTRICA EN GEOMETRÍA CON CVA_LabCameraPanel) ──
+    const localCameraCard = (
+        <Card padding="md" radius="md" className="dribbble-card" style={{ height: '100%' }}>
+            <Stack gap="sm" style={{ height: '100%' }}>
+                <Group justify="space-between" align="center">
+                    <Group gap="xs" align="center">
+                        <Video size={16} style={{ color: 'var(--text-secondary)' }} />
+                        <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                            Cámara Local
+                        </Text>
+                    </Group>
+                    {camera.active && sessionActive && !emergencyStopped ? (
+                        <Badge size="xs" variant="outline" style={{ border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', background: 'transparent' }}>
+                            Transmitiendo ({realFps} FPS)
+                        </Badge>
+                    ) : camera.active ? (
+                        <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', background: 'transparent' }}>
+                            Cámara lista
+                        </Badge>
+                    ) : (
+                        <Badge size="xs" variant="outline" style={{ border: '1px solid var(--danger, #EF4444)', color: 'var(--danger, #EF4444)', background: 'transparent' }}>
+                            Desconectada
+                        </Badge>
+                    )}
+                </Group>
+                <Box
+                    style={{
+                        flex: 1,
+                        minHeight: '380px',
+                        backgroundColor: 'var(--background-tertiary, var(--surface-3, #0B1220))',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        position: 'relative',
+                        padding: '8px',
+                    }}
+                >
+                    {camera.active ? (
+                        <Box
+                            data-testid="local-video-aspect-container"
+                            style={computeLocalVideoBoxStyle(videoAspectRatio)}
+                        >
+                            <video
+                                ref={videoRef}
+                                data-testid="local-video"
+                                onLoadedMetadata={handleLoadedMetadata}
+                                style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    transform: 'scaleX(-1)', // Espejo
+                                }}
+                                playsInline
+                                muted
+                            />
+                            {showSkeleton && (
+                                <canvas
+                                    ref={skeletonCanvasRef}
+                                    data-testid="skeleton-canvas"
+                                    style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        pointerEvents: 'none',
+                                        transform: 'scaleX(-1)', // Mismo transform espejo que el video
+                                    }}
+                                />
+                            )}
+                        </Box>
+                    ) : (
+                        <Stack align="center" gap="xs">
+                            <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
+                                <VideoOff size={24} />
+                            </ThemeIcon>
+                            <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
+                                Cámara Desconectada
+                            </Text>
+                            <Text size="xs" style={{ color: 'var(--text-secondary)', maxWidth: 260, textAlign: 'center' }}>
+                                Conecta o autoriza tu cámara web para iniciar el reconocimiento.
+                            </Text>
+                        </Stack>
+                    )}
+                </Box>
+            </Stack>
+        </Card>
+    );
+
+    // ── SECCIÓN UNIFICADA DE PARADA DE EMERGENCIA ──
+    const emergencySection = emergencyStopped ? (
+        <Card
+            padding="md"
+            radius="md"
+            className="dribbble-card"
+            style={{
+                border: '1px solid var(--danger, #EF4444)',
+                backgroundColor: 'rgba(239, 68, 68, 0.04)',
+            }}
+        >
+            <Group gap="sm" align="flex-start">
+                <AlertTriangle size={18} style={{ color: 'var(--danger, #EF4444)', marginTop: 2, flexShrink: 0 }} />
+                <Stack gap="xs" style={{ flex: 1 }}>
+                    <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                        Parada de Emergencia Activa
+                    </Text>
+                    <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                        La transmisión de frames hacia la Pi y la emisión de comandos hacia el hardware están detenidas.
+                    </Text>
+                    <Group mt="xs">
+                        <Button
+                            size="xs"
+                            radius="md"
+                            onClick={handleReset}
+                            leftSection={<RefreshCw size={14} />}
+                            style={{
+                                background: 'transparent',
+                                border: '1px solid var(--border-subtle)',
+                                color: 'var(--text-primary)',
+                            }}
+                        >
+                            Reanudar Transmisión
+                        </Button>
+                    </Group>
+                </Stack>
+            </Group>
+        </Card>
+    ) : (
+        <Group justify="space-between" align="center" px="xs">
+            <Text size="xs" c="dimmed">
+                La transmisión procesa tus gestos en la Raspberry Pi. En caso de anomalía, activa la parada de emergencia.
+            </Text>
+            <Button
+                size="xs"
+                radius="md"
+                variant="subtle"
+                onClick={handleEmergencyStop}
+                leftSection={<AlertTriangle size={14} />}
+                style={{
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: 'var(--danger, #EF4444)',
+                    background: 'transparent',
+                }}
+            >
+                ABORTAR Y DETENER EQUIPOS
+            </Button>
+        </Group>
+    );
+
     return (
-        <Stack gap="md">
+        <Stack gap="lg">
             {/* Sidebar de Configuración */}
             <CVA_ConfigSidebar
                 opened={sidebarOpened}
@@ -318,32 +439,50 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                 onChangeSensitivity={setSensitivity}
             />
 
-            {/* Top Navigation & Controls Bar */}
-            <Group justify="space-between" align="center">
-                <Button
-                    variant="subtle"
-                    size="sm"
-                    radius="md"
-                    leftSection={<ArrowLeft size={14} />}
-                    onClick={handleLeave}
-                >
-                    Volver a opciones
-                </Button>
+            {/* Canvas Oculto para muestreo de frames */}
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-                <Group gap="xs" align="center">
+            {/* Cabecera estándar de navegación y controles */}
+            <Stack gap="xs">
+                <Group justify="space-between" align="center">
                     <Button
                         variant="subtle"
-                        size="xs"
+                        size="sm"
                         radius="md"
-                        leftSection={<Sliders size={14} />}
-                        onClick={() => setSidebarOpened(true)}
+                        leftSection={<ArrowLeft size={16} />}
+                        onClick={handleLeave}
                     >
-                        Configuración
+                        Volver a opciones
                     </Button>
-                </Group>
-            </Group>
 
-            {/* BARRA SUPERIOR COMPACTA DE MÉTRICAS (Reorganización AC12) */}
+                    <Group gap="xs" align="center">
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            radius="md"
+                            leftSection={<Sliders size={14} />}
+                            onClick={() => setSidebarOpened(true)}
+                        >
+                            Configuración
+                        </Button>
+                    </Group>
+                </Group>
+
+                <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
+                    <Stack gap={4}>
+                        <Title order={2} style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                            Práctica de Gestos — {moduleConfig?.name || (isDomotica ? 'Domótica' : 'Robot EV3')}
+                        </Title>
+                        <Text size="sm" c="dimmed" style={{ lineHeight: 1.55 }}>
+                            {showLabCamera
+                                ? 'Supervisa la cámara del laboratorio en tiempo real mientras interactúas mediante gestos capturados por tu cámara local.'
+                                : 'Controla el módulo domótico ejecutando gestos reconocidos frente a tu cámara web.'}
+                        </Text>
+                    </Stack>
+                </Group>
+            </Stack>
+
+            {/* BARRA SUPERIOR COMPACTA DE MÉTRICAS */}
             {showMetrics && (
                 <Card padding="xs" radius="md" className="dribbble-card" style={{ backgroundColor: 'var(--background-secondary)' }}>
                     <Group justify="space-between" align="center" wrap="nowrap">
@@ -377,9 +516,6 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                     </Group>
                 </Card>
             )}
-
-            {/* Canvas Oculto para muestreo de frames */}
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
 
             {/* Alerta de Error de Sesión o Conexión SSH */}
             {sessionError && (
@@ -423,179 +559,47 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                 </Box>
             )}
 
-            {/* Video Feeds Grid */}
-
-            {/* Tarjeta de Cámara Local (Deduplicada sin cambiar comportamiento) */}
-            {(() => {
-                const localCameraCard = (
-                    <Card padding="md" radius="md" className="dribbble-card">
-                        <Stack gap="sm" style={{ height: '100%' }}>
-                            <Group justify="space-between" align="center">
-                                <Group gap="xs" align="center">
-                                    <Video size={16} style={{ color: 'var(--text-secondary)' }} />
-                                    <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                        Cámara Local
-                                    </Text>
-                                </Group>
-                                {camera.active && sessionActive && !emergencyStopped && (
-                                    <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--accent-primary)', background: 'transparent' }}>
-                                        Transmitiendo frames ({realFps} FPS)
-                                    </Badge>
-                                )}
-                            </Group>
-                            <Box
-                                style={{
-                                    flex: 1,
-                                    minHeight: '380px',
-                                    backgroundColor: 'var(--background-tertiary, var(--surface-3))',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--border-subtle)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    overflow: 'hidden',
-                                    position: 'relative',
-                                    padding: '8px',
-                                }}
-                            >
-                                {camera.active ? (
-                                    <Box
-                                        data-testid="local-video-aspect-container"
-                                        style={computeLocalVideoBoxStyle(videoAspectRatio)}
-                                    >
-                                        <video
-                                            ref={videoRef}
-                                            data-testid="local-video"
-                                            onLoadedMetadata={handleLoadedMetadata}
-                                            style={{
-                                                position: 'absolute',
-                                                inset: 0,
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover',
-                                                transform: 'scaleX(-1)', // Espejo
-                                            }}
-                                            playsInline
-                                            muted
-                                        />
-                                        {showSkeleton && (
-                                            <canvas
-                                                ref={skeletonCanvasRef}
-                                                data-testid="skeleton-canvas"
-                                                style={{
-                                                    position: 'absolute',
-                                                    inset: 0,
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    pointerEvents: 'none',
-                                                    transform: 'scaleX(-1)', // Mismo transform espejo que el video
-                                                }}
-                                            />
-                                        )}
-                                    </Box>
-                                ) : (
-                                    <Stack align="center" gap="xs">
-                                        <ThemeIcon size="xl" radius="xl" variant="subtle" style={{ color: 'var(--text-secondary)' }}>
-                                            <VideoOff size={24} />
-                                        </ThemeIcon>
-                                        <Text size="sm" fw={600} style={{ color: 'var(--text-primary)' }}>
-                                            Cámara Desconectada
-                                        </Text>
-                                    </Stack>
-                                )}
-                            </Box>
-
-                            {/* Parada de Emergencia */}
-                            {emergencyStopped ? (
-                                <Box
-                                    p="md"
-                                    style={{
-                                        background: 'transparent',
-                                        border: '1px solid var(--border-subtle)',
-                                        borderRadius: 'var(--radius-md)',
-                                    }}
-                                >
-                                    <Group gap="xs" align="flex-start">
-                                        <AlertTriangle size={16} style={{ color: 'var(--danger, #EF4444)', marginTop: 2 }} />
-                                        <Stack gap="xs" style={{ flex: 1 }}>
-                                            <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
-                                                Parada de Emergencia Activa
-                                            </Text>
-                                            <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
-                                                La transmisión de frames hacia la Pi y la emisión de comandos hacia el hardware están detenidas.
-                                            </Text>
-                                            <Group mt="xs">
-                                                <Button
-                                                    size="xs"
-                                                    radius="md"
-                                                    onClick={handleReset}
-                                                    leftSection={<RefreshCw size={14} />}
-                                                    style={{
-                                                        background: 'transparent',
-                                                        border: '1px solid var(--border-subtle)',
-                                                        color: 'var(--text-primary)',
-                                                    }}
-                                                >
-                                                    Reanudar Transmisión
-                                                </Button>
-                                            </Group>
-                                        </Stack>
-                                    </Group>
-                                </Box>
-                            ) : (
-                                <Group justify="flex-end" mt="xs">
-                                    <Button
-                                        size="xs"
-                                        radius="md"
-                                        onClick={handleEmergencyStop}
-                                        leftSection={<AlertTriangle size={14} />}
-                                        style={{
-                                            background: 'transparent',
-                                            border: '1px solid var(--border-subtle)',
-                                            color: 'var(--danger, #EF4444)',
-                                        }}
-                                    >
-                                        ABORTAR Y DETENER EQUIPOS
-                                    </Button>
-                                </Group>
-                            )}
-                        </Stack>
-                    </Card>
-                );
-
-                return showLabCamera ? (
-                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" style={{ alignItems: 'start' }}>
-                        {/* 1. Feed del Laboratorio (Cámara Remota) + Log de la Pi debajo */}
-                        <Stack gap="md">
-                            <CVA_LabCameraPanel
-                                groupKey={labCameraConfig?.groupKey}
-                                cameraId={labCameraConfig?.cameraId}
-                                label={labCameraConfig?.label}
-                            />
-                            <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
-                        </Stack>
+            {/* Grilla Simétrica de Cámaras y Controles */}
+            {showLabCamera ? (
+                <Stack gap="lg">
+                    {/* Grilla simétrica de 2 columnas para cámaras */}
+                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" style={{ alignItems: 'stretch' }}>
+                        {/* 1. Feed del Laboratorio (Cámara Remota) */}
+                        <CVA_LabCameraPanel
+                            groupKey={labCameraConfig?.groupKey}
+                            cameraId={labCameraConfig?.cameraId}
+                            label={labCameraConfig?.label}
+                        />
 
                         {/* 2. Feed del Usuario (Cámara Local) */}
                         {localCameraCard}
                     </SimpleGrid>
-                ) : (
-                    <Box maw={760} mx="auto" w="100%">
-                        <Stack gap="lg">
-                            {localCameraCard}
-                            <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
-                        </Stack>
-                    </Box>
-                );
-            })()}
 
-            {/* Botón único para terminar la práctica */}
-            <Group justify="center" mt="md">
+                    {/* Parada de Emergencia unificada */}
+                    {emergencySection}
+
+                    {/* Log de Instrucciones de la Pi en tiempo real (Ancho completo) */}
+                    <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
+                </Stack>
+            ) : (
+                <Box maw={760} mx="auto" w="100%">
+                    <Stack gap="lg">
+                        {localCameraCard}
+                        {emergencySection}
+                        <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
+                    </Stack>
+                </Box>
+            )}
+
+            {/* Botón para terminar la práctica */}
+            <Group justify="center" mt="md" pb="md">
                 <Button
-                    className="dribbble-btn-primary h-11 px-8 text-sm"
-                    size="md"
+                    variant="subtle"
+                    size="sm"
                     radius="md"
-                    leftSection={<ArrowLeft size={18} />}
+                    leftSection={<ArrowLeft size={16} />}
                     onClick={handleLeave}
+                    style={{ border: '1px solid var(--border-subtle)' }}
                 >
                     Terminar la práctica
                 </Button>
@@ -605,5 +609,3 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
 };
 
 export default CVA_GesturePracticePage;
-
-
