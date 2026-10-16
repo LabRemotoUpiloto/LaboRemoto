@@ -20,7 +20,7 @@
     "@react-three/drei": "10.7.7",
     "@react-three/fiber": "9.6.1",
     "@tauri-apps/api": "2.8.0",
-    "@tauri-apps/plugin-deep-link": "^2.6.1",
+    "@tauri-apps/plugin-deep-link": "2.6.1",
     "@tauri-apps/plugin-process": "2.3.0",
     "@tauri-apps/plugin-updater": "2.9.0",
     "@types/hls.js": "0.13.3",
