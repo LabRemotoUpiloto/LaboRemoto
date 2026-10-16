@@ -991,10 +991,11 @@ Rama: `cva-camara-laboratorio`
      * **Parada de emergencia en sección unificada**: desacoplamiento del control de emergencia del interior de la tarjeta local hacia un bloque unificado a ancho completo inmediatamente debajo de la grilla de cámaras, garantizando máxima visibilidad y accesibilidad inmediata para abortar ambos equipos sin romper la simetría de los visores de video.
      * **Log de instrucciones de la Pi a ancho completo**: reubicación de `CVA_PiInstructionLog` a ancho completo (100%) debajo de la sección de emergencia, brindando espacio horizontal óptimo para la lectura de eventos temporales y balance geométrico de la ventana.
      * **Panel de configuración sin botón flotante**: eliminación del botón flotante fijo en `top: 50%` en favor de la apertura controlada desde la cabecera superior estándar.
-   * **Restauración de comportamiento (no estéticos, restaurados a su estado original)**:
-     * **Estados de gestos y simulación**: se restauraron los estados `lastGesture` y `confidence`, el temporizador de simulación periódica cada 3 s, y las asignaciones `'PARADA DE EMERGENCIA ACTIVA'` / `'Ninguno (Buscando...)'` en `handleEmergencyStop` y `handleReset`.
-     * **Pausa de video local en emergencia**: se restauró la condición en `useEffect([camera.stream, emergencyStopped])` que pausa el elemento `<video>` local (`videoRef.current.pause()`) al activarse la parada de emergencia.
-     * **Control de errores y CPU en frames/esqueleto**: se restauró la comprobación `sessionError` en el ciclo de envío de frames hacia la Pi (`!sessionError`) y el pase del cálculo `cpuLoad` al renderizado del esqueleto (`processAndDrawFrame(ctx, video, cpuLoad)`).
+   * **Restauración de comportamiento genuino (no estéticos, restaurados a su estado original)**:
+     * **Pausa de video local en emergencia**: se restauró la condición en `useEffect([camera.stream, emergencyStopped])` que pausa el elemento `<video>` local (`videoRef.current.pause()`) al activarse la parada de emergencia y lo reanuda (`video.play()`) al restablecer.
+     * **Control de errores y CPU en frames/esqueleto**: se restauró la comprobación `sessionError` en el ciclo de envío de frames hacia la Pi (`!sessionError`) para suspender la transmisión de inmediato si ocurre un error de túnel/red, y el pase del cálculo `cpuLoad` al renderizado del esqueleto (`processAndDrawFrame(ctx, video, cpuLoad)`).
+   * **Limpieza de artefactos y simulación ficticia (mantenida)**:
+     * Se retiró definitivamente el `setInterval` de 3 segundos con gestos aleatorios inventados (`Dedo índice...`) y los estados `lastGesture`/`confidence`. Dichos estados nunca se mostraban en pantalla, no forman parte del catálogo real de gestos y provocaban un re-render innecesario de toda la página cada 3 segundos.
 2. **[CVA_ConfigSidebar.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/components/cva-gestures/CVA_ConfigSidebar.tsx)**:
    * Se eliminó el botón flotante fijo en el borde medio de la pantalla (`top: 50%`), unificando la apertura desde la cabecera superior estándar.
    * **Retiro temporal de tarjetas futuras**: se retiraron temporalmente las 3 tarjetas de maquetación preliminar con controles deshabilitados ("Cámara y Dispositivo" / Fase 6+, "Visión YOLO y Umbrales" / Fase 8+, "Feedback y Notificaciones" / Fase 9+) para mantener la interfaz limpia de elementos no funcionales. Dichas tarjetas (selector de cámara física, umbral de confianza del detector y retroalimentación háptica/sonora) se reconstruirán e integrarán en sus respectivas fases (6+, 8+, 9+) cuando existan sus backends y drivers.
@@ -1004,6 +1005,11 @@ Rama: `cva-camara-laboratorio`
 4. **[cvaGestures.test.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/tests/unit/cvaGestures.test.tsx)**:
    * Prueba de integración de la página que verifica que tras pulsar "ABORTAR Y DETENER EQUIPOS" el panel de la cámara del robot sigue montado y su reproductor (`HlsPlayer` / botón de reconexión) sigue presente (comprobado que FALLA si se pasa `isActive={sessionActive}`).
    * Prueba unitaria que valida la relación de aspecto dinámica y los límites por `maxWidth` (640px en 4:3, 853px en 16:9) sin `maxHeight`.
+5. **[cvaRestoredBehaviors.test.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/tests/unit/cvaRestoredBehaviors.test.tsx)**:
+   * **Suite de regresión para comportamientos restaurados** (3 pruebas que fallan contra `d17153b` y pasan con la corrección):
+     * `a) pasa el valor real de cpuLoad (> 0) a processAndDrawFrame en lugar del hardcodeado 0`: verifica que al calcular carga de procesamiento (`cpuLoad`), `processAndDrawFrame` recibe el valor real calculado en lugar de 0.
+     * `b) con sessionError definido el bucle detiene inmediatamente el envío de frames a la Pi`: verifica que un fallo en la transmisión detiene el `setInterval` y no envía frames adicionales (falla en `d17153b` con 4 llamadas vs 1).
+     * `c) tras la parada de emergencia el <video> local se pausa y al reanudar se reproduce`: verifica la llamada a `video.pause()` al pulsar abortar y reactivación con `video.play()` al reanudar (falla en `d17153b` donde nunca se pausaba).
 
 ### Decisiones técnicas y puntos de control:
 * **Punto 5 (Seguridad e idempotencia de `nvr_disconnect`)**:

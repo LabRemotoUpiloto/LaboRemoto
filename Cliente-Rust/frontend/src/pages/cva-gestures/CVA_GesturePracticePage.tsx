@@ -40,8 +40,6 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
 
     // Estados de transmisión y métricas
     const [sensitivity, setSensitivity] = useState('balanceado');
-    const [lastGesture, setLastGesture] = useState('Ninguno (Buscando...)');
-    const [confidence, setConfidence] = useState(0);
     const [latency, setLatency] = useState(0);
     const [totalFrames, setTotalFrames] = useState(0);
     const [realFps, setRealFps] = useState(0);
@@ -245,33 +243,8 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
         return () => clearInterval(interval);
     }, [camera.active, emergencyStopped, sensitivity, sessionId, sessionActive, sessionError]);
 
-    // Simular reconocimiento de gestos para la vista previa
-    useEffect(() => {
-        if (emergencyStopped || !sessionActive) return;
-
-        const gestures = isDomotica 
-            ? ['Dedo índice (Encender Luz 1)', 'Dos dedos (Encender Luz 2)', 'Palma abierta (Apagar Todo)', 'Ninguno']
-            : ['Dedo índice (Avanzar)', 'Dos dedos (Retroceder)', 'Puño cerrado (Detener)', 'Ninguno'];
-
-        const interval = setInterval(() => {
-            const idx = Math.floor(Math.random() * gestures.length);
-            const gesture = gestures[idx];
-            setLastGesture(gesture);
-            
-            if (gesture === 'Ninguno') {
-                setConfidence(0);
-            } else {
-                setConfidence(Math.floor(75 + Math.random() * 20));
-            }
-        }, 3000);
-
-        return () => clearInterval(interval);
-    }, [isDomotica, emergencyStopped, sessionActive]);
-
     const handleEmergencyStop = async () => {
         setEmergencyStopped(true);
-        setLastGesture('PARADA DE EMERGENCIA ACTIVA');
-        setConfidence(0);
         if (sessionId) {
             try {
                 await invoke('cva_gestures_session_stop', { sessionId });
@@ -282,7 +255,6 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
 
     const handleReset = async () => {
         setEmergencyStopped(false);
-        setLastGesture('Ninguno (Buscando...)');
         if (sessionId) {
             try {
                 await invoke('cva_gestures_session_start', { sessionId, moduleId });
