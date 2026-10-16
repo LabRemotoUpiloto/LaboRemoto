@@ -82,6 +82,7 @@ async fn test_auth_flow_login_then_logout() {
         refresh_token: "eyJ.fake.refresh".to_string(),
         access_expires_at: Instant::now() + Duration::from_secs(300),
         refresh_expires_at: Instant::now() + Duration::from_secs(1800),
+        refresh_expires_at_unix: 1800,
         claims: StoredClaims {
             sub: "sub-123".to_string(),
             preferred_username: "estudiante1".to_string(),

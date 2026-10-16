@@ -9,6 +9,7 @@ import CVA_PiInstructionLog from '../../components/cva-gestures/CVA_PiInstructio
 import CVA_ConfigSidebar from '../../components/cva-gestures/CVA_ConfigSidebar';
 import CVA_LabCameraPanel from '../../components/cva-gestures/CVA_LabCameraPanel';
 import { getCvaModuleConfig } from '../../config/cvaModulesConfig';
+import { computeLocalVideoBoxStyle } from '../../utils/cvaVideoLayout';
 
 interface CVA_GesturePracticePageProps {
     moduleId: 'robot' | 'domotica';
@@ -460,16 +461,7 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                                 {camera.active ? (
                                     <Box
                                         data-testid="local-video-aspect-container"
-                                        style={{
-                                            width: '100%',
-                                            maxWidth: '100%',
-                                            maxHeight: '480px',
-                                            aspectRatio: `${videoAspectRatio}`,
-                                            position: 'relative',
-                                            margin: '0 auto',
-                                            overflow: 'hidden',
-                                            borderRadius: 'var(--radius-sm)',
-                                        }}
+                                        style={computeLocalVideoBoxStyle(videoAspectRatio)}
                                     >
                                         <video
                                             ref={videoRef}
@@ -579,9 +571,8 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                                 groupKey={labCameraConfig?.groupKey}
                                 cameraId={labCameraConfig?.cameraId}
                                 label={labCameraConfig?.label}
-                                isActive={sessionActive}
                             />
-                            <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive} />
+                            <CVA_PiInstructionLog sessionId={sessionId} isPracticeActive={sessionActive && !emergencyStopped} />
                         </Stack>
 
                         {/* 2. Feed del Usuario (Cámara Local) */}

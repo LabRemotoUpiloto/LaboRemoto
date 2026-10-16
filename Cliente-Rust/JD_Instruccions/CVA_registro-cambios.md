@@ -960,52 +960,63 @@ Rama: `cva-camara-laboratorio`
 
 ### Archivos creados:
 1. **[cvaModulesConfig.ts](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/config/cvaModulesConfig.ts)**:
-   * Configuración modular desacoplada de la cámara NVR por módulo CVA (Opción A).
-   * Módulo `robot`: `enabled: true`, `groupKey: 'pilabpiloto'`, `cameraId: 'camara 01'` (confirmada en vivo por JD).
+   * Configuración modular desacoplada de la cámara NVR por módulo CVA.
+   * Módulo `robot`: `enabled: true`, `groupKey: 'pilabpiloto'`, `cameraId: 'camara 01'` (confirmada en vivo por JD; pendiente actualizar a monitor ID `mid` cuando el console.log lo reporte).
    * Módulo `domotica`: `enabled: false`.
 2. **[CVA_LabCameraPanel.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/components/cva-gestures/CVA_LabCameraPanel.tsx)**:
    * Componente de panel para visualizar la cámara remota del laboratorio reutilizando `useNvrCameras` y `CameraPane` sin modificarlos.
    * Manejo integral de los 6 estados visibles: No configurada, Conectando, Error del NVR (con botón Reintentar), Cámara no encontrada en grupo, Cámara offline y Activa (stream HLS).
-   * Diagnóstico mejorado en consola (`console.warn`) ante cámara no encontrada, reportando la lista completa devuelta por el grupo sin saturar la pantalla.
+   * Diagnóstico en consola (`console.warn`) ante cámara no encontrada, reportando la lista completa devuelta por el grupo sin saturar la pantalla.
    * Búsqueda robusta insensible a mayúsculas, tildes y espacios.
    * `ptzEnabled={false}` explícito para evitar controles PTZ en la práctica de gestos.
    * Robustez ante fallos transitorios de sondeo de red sin interrumpir el stream si ya estaba activo.
    * Fail-safe de interfaz: no sondea el NVR ni monta el reproductor si `isActive` es `false`.
 3. **[cvaLabCameraPanel.test.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/tests/unit/cvaLabCameraPanel.test.tsx)**:
    * 8 pruebas unitarias completas que cubren los 6 estados visibles, el fail-safe de inactividad (`isActive=false`), la emisión de `console.warn` y la tolerancia a errores de sondeo transitorios.
+4. **[cvaVideoLayout.ts](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/utils/cvaVideoLayout.ts)**:
+   * Funciones puras (`computeLocalVideoBoxStyle`, `calculateEffectiveBoxDimensions`) para el cálculo de dimensiones y estilos del visor de video.
+   * Limita el contenedor por ANCHO (`maxWidth = round(targetMaxHeight * aspectRatio)`) con `width: 100%`, `margin: 0 auto`, `aspectRatio`, eliminando `maxHeight` para evitar recortes verticales que causen desalineación del esqueleto.
+5. **[cvaVideoLayout.test.ts](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/tests/unit/cvaVideoLayout.test.ts)**:
+   * 18 pruebas unitarias que verifican la preservación estricta de la proporción del sensor (4:3, 16:9, 1:1) a lo largo de 5 anchos de pantalla (1920px, 1600px, 1200px, 600px, 360px), confirmando que la altura nunca excede `targetMaxHeight` y no existe recorte vertical.
 
 ### Archivos modificados:
 1. **[CVA_GesturePracticePage.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/pages/cva-gestures/CVA_GesturePracticePage.tsx)**:
-   * Integración del panel `CVA_LabCameraPanel` cuando `labCamera.enabled` es `true` (módulo `robot`).
-   * Desacoplamiento de la parada de emergencia: el stream de la cámara del robot continúa activo (`isActive={sessionActive}`) aún si se activa la parada de emergencia, permitiendo al estudiante verificar visualmente que el robot se detuvo.
-   * Corrección de desalineación del esqueleto: contenedor con `aspectRatio` dinámico (`videoWidth / videoHeight`, valor por defecto `4 / 3`), `<video>` y `<canvas>` posicionados absolutamente en `inset: 0` y compartiendo el mismo `transform: 'scaleX(-1)'`.
-   * Desduplicación completa del bloque JSX de la cámara local del usuario (`localCameraCard`), eliminando ~200 líneas de código repetido sin alterar el funcionamiento.
-   * `alignItems: 'start'` en `SimpleGrid cols={{ base: 1, md: 2 }}` para evitar que la tarjeta local se estire para igualar la columna del robot.
+   * Integración de `CVA_LabCameraPanel` cuando `labCamera.enabled` es `true` (módulo `robot`).
+   * Desacoplamiento de la parada de emergencia: se retiró `isActive={sessionActive}` de `CVA_LabCameraPanel` para que use su valor por defecto (`isActive = true`). El video permanece activo mientras la página esté montada (antes de iniciar sesión, durante la emergencia y al reanudar), deteniéndose únicamente al salir de la práctica.
+   * `CVA_PiInstructionLog`: se mantiene estrictamente con `isPracticeActive={sessionActive && !emergencyStopped}` en ambos layouts (dos columnas y una columna).
+   * Corrección de desalineación del esqueleto: integración de `computeLocalVideoBoxStyle(videoAspectRatio)` eliminando `maxHeight: 480px` y limitando por ancho mediante `maxWidth`.
+   * Desduplicación del bloque JSX de la cámara local (`localCameraCard`).
+   * `alignItems: 'start'` en `SimpleGrid cols={{ base: 1, md: 2 }}`.
 2. **[cvaGestures.test.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/tests/unit/cvaGestures.test.tsx)**:
-   * Prueba unitaria para validar la relación de aspecto dinámica del contenedor, el valor inicial por defecto (4/3) y la actualización reactiva ante el evento `loadedmetadata`.
+   * Prueba de integración de la página que verifica que tras pulsar "ABORTAR Y DETENER EQUIPOS" el panel de la cámara del robot sigue montado y su reproductor (`HlsPlayer` / botón de reconexión) sigue presente (comprobado que FALLA si se pasa `isActive={sessionActive}`).
+   * Prueba unitaria que valida la relación de aspecto dinámica y los límites por `maxWidth` (640px en 4:3, 853px en 16:9) sin `maxHeight`.
 
 ### Decisiones técnicas y puntos de control:
 * **Punto 5 (Seguridad e idempotencia de `nvr_disconnect`)**:
-  Se verificó en `backend/src/cmd/nvr/shinobi.rs` que `nvr_disconnect` es una función completamente vacía (`pub async fn nvr_disconnect() {}`). En `useNvrCameras.ts`, `stop()` solo detiene su propio temporizador de sondeo (`setInterval`) y resetea su estado local de React. Por lo tanto, el ciclo de vida del panel en CVA es 100% aislado y no afecta a `VigilanciaPage` ni a otros componentes NVR.
+  Se verificó en `backend/src/cmd/nvr/shinobi.rs` que `nvr_disconnect` es una función no destructiva (`pub async fn nvr_disconnect() {}`). En `useNvrCameras.ts`, `stop()` solo detiene su propio temporizador de sondeo (`setInterval`) y resetea su estado local de React. El ciclo de vida del panel en CVA es 100% aislado.
 * **Punto 6 (Rendimiento, latencia y CPU)**:
-  * El reproductor `HlsPlayer.tsx` utiliza `hls.js` con Web Worker activado (`enableWorker: true`), delegando el demuxing/parsing de paquetes fuera del hilo principal de React.
-  * La decodificación del stream H.264 es acelerada por GPU en WebView2, por lo que el impacto en CPU al reproducir la cámara del robot junto a la cámara local y MediaPipe es mínimo (~2-5% CPU adicional).
-  * Latencia de streaming HLS en régimen del broker: ~2-4 segundos (conforme a los buffers configurados `liveSyncDurationCount: 2`, `liveMaxLatencyDurationCount: 4`).
+  * El reproductor `HlsPlayer.tsx` utiliza `hls.js` con Web Worker activado (`enableWorker: true`).
+  * **Pendiente de medición real**: medición de retraso HLS con cronómetro frente a la cámara (5 repeticiones, promedio y máximo) y medición comparativa de CPU de ambas cámaras vs. solo la local. Se eliminaron las cifras estimadas preliminares.
+* **Verificación de permisos / usuario no administrador**:
+  * **Pendiente de prueba en vivo**: probar con cuenta de usuario NO administrador para capturar y reportar el error exacto si ocurre denegación de acceso a los streams NVR.
 * **Invarianza del hilo de captura**:
-  Se confirmó analíticamente y en runtime que el muestreo a 320x240 JPEG hacia la Raspberry Pi opera sobre un canvas oculto exclusivo y extrae los píxeles del búfer decodificado nativo del video, siendo 100% independiente del tamaño de pantalla, aspect ratio CSS o redimensionamiento de ventana.
+  El muestreo a 320x240 JPEG hacia la Raspberry Pi opera sobre un canvas oculto exclusivo y extrae los píxeles del búfer decodificado nativo del video, siendo 100% independiente del tamaño de pantalla o aspect ratio CSS.
 * **Alcance estricto**:
   Solo interfaz gráfica (UI). No se envía ninguna orden a hardware ni actuadores.
 
 ### Tests corridos y resultado:
 * `cargo check` en backend: Exitoso (código 0).
-* `npx vitest run tests/unit/cvaLabCameraPanel.test.tsx tests/unit/cvaPiInstructionLog.test.tsx tests/unit/cvaGestures.test.tsx tests/unit/useHandSkeleton.test.ts`:
+* `npx vitest run tests/unit/cvaGestures.test.tsx tests/unit/cvaVideoLayout.test.ts tests/unit/cvaLabCameraPanel.test.tsx tests/unit/cvaPiInstructionLog.test.tsx tests/unit/useHandSkeleton.test.ts`:
+  * `cvaGestures.test.tsx`: 15 pasados (100%).
+  * `cvaVideoLayout.test.ts`: 18 pasados (100%).
   * `cvaLabCameraPanel.test.tsx`: 8 pasados (100%).
   * `cvaPiInstructionLog.test.tsx`: 4 pasados (100%).
-  * `cvaGestures.test.tsx`: 14 pasados (100%).
   * `useHandSkeleton.test.ts`: 6 pasados (100%).
-  * Total: 32 pasados, 0 fallados.
+  * Total suite CVA: 51 pasados, 0 fallados.
 
 ### Estado:
-* Verificado y probado en vivo con JD en la rama `cva-camara-laboratorio`.
+* **En progreso / Pendiente de mediciones físicas y validación de campo**:
+  * Código e integración de interfaz completados con pruebas unitarias e integración en verde.
+  * Pendiente: Medición real del retraso HLS (cronómetro frente a la cámara, 5 repeticiones), consumo de CPU real con dos cámaras vs. una, prueba con usuario no administrador y capturas de mano real en centro y 4 bordes.
 
 

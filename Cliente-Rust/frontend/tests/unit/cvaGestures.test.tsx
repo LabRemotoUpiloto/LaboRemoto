@@ -472,8 +472,10 @@ describe('CVA Gestures Components', () => {
 
       const aspectBox = screen.getByTestId('local-video-aspect-container');
       expect(aspectBox).toBeDefined();
-      // Valor por defecto 4/3 (1.333...)
+      // Valor por defecto 4/3 (1.333...) y maxWidth limitado por ancho (640px) sin maxHeight
       expect(aspectBox.style.aspectRatio).toMatch(/^1\.333/);
+      expect(aspectBox.style.maxWidth).toBe('640px');
+      expect(aspectBox.style.maxHeight).toBe('');
 
       // Video y canvas dentro del contenedor con posicionamiento absoluto y transform scaleX(-1)
       const video = screen.getByTestId('local-video') as HTMLVideoElement;
@@ -491,7 +493,76 @@ describe('CVA Gestures Components', () => {
 
       await waitFor(() => {
         expect(aspectBox.style.aspectRatio).toMatch(/^1\.777/);
+        expect(aspectBox.style.maxWidth).toBe('853px');
+        expect(aspectBox.style.maxHeight).toBe('');
       });
+    });
+
+    it('keeps laboratory robot camera panel and player active and mounted after clicking ABORTAR Y DETENER EQUIPOS', async () => {
+      (invoke as any).mockImplementation((cmd: string) => {
+        if (cmd === 'cva_gestures_session_start') {
+          return Promise.resolve({
+            session_id: 'sess-robot-abort',
+            module_id: 'robot',
+            bridge_port: 8766,
+            active: true,
+          });
+        }
+        if (cmd === 'nvr_list_cameras') {
+          return Promise.resolve([
+            {
+              id: 'Camara1',
+              name: 'camara 01',
+              group_key: 'pilabpiloto',
+              stream_url: 'http://localhost:8080/live/Camara1/index.m3u8',
+              status: 'active',
+              ptz: false,
+            },
+          ]);
+        }
+        if (cmd === 'cva_gestures_session_stop' || cmd === 'nvr_disconnect') {
+          return Promise.resolve();
+        }
+        return Promise.resolve();
+      });
+
+      render(
+        <MantineProvider>
+          <CVA_GesturePracticePage
+            moduleId="robot"
+            sessionId="sess-robot-abort"
+            camera={{ ...mockCamera, active: true }}
+            onBack={vi.fn()}
+          />
+        </MantineProvider>
+      );
+
+      // Esperar a que la cámara del laboratorio esté en vivo
+      await waitFor(() => {
+        expect(screen.getByText('Cámara del Laboratorio (Robot EV3)')).toBeDefined();
+        expect(screen.getByText('En vivo')).toBeDefined();
+      });
+
+      // El reproductor HLS / botón de reconexión del stream está presente
+      expect(screen.getByTitle('Reconectar stream')).toBeDefined();
+      expect(screen.queryByText('Sin stream disponible')).toBeNull();
+
+      // Pulsar "ABORTAR Y DETENER EQUIPOS"
+      const abortBtn = screen.getByRole('button', { name: /ABORTAR Y DETENER EQUIPOS/i });
+      fireEvent.click(abortBtn);
+
+      // La parada de emergencia debe activarse en la práctica
+      await waitFor(() => {
+        expect(screen.getByText('Parada de Emergencia Activa')).toBeDefined();
+      });
+
+      // VERIFICACIÓN CLAVE: El panel de la cámara del laboratorio SIGUE montado
+      expect(screen.getByText('Cámara del Laboratorio (Robot EV3)')).toBeDefined();
+      expect(screen.getByText('En vivo')).toBeDefined();
+
+      // Y su reproductor SIGUE presente (NO se apaga a "Sin stream disponible")
+      expect(screen.getByTitle('Reconectar stream')).toBeDefined();
+      expect(screen.queryByText('Sin stream disponible')).toBeNull();
     });
   });
 });
