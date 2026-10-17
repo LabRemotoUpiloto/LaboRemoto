@@ -59,6 +59,16 @@ pub fn run() {
   
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
+    // Debe ser el PRIMER plugin. Si ya hay una instancia abierta (p. ej. al pulsar un enlace laboremoto:// de Moodle), la nueva no
+    // arranca: reenvía el enlace a la existente (feature `deep-link`) y esta solo pasa al frente.
+    .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+      if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+      }
+    }))
+    .plugin(tauri_plugin_deep_link::init())
     // Store único de sesión (SessionMem) + autenticación (JWT OAuth 2.1).
     // Ver `session_manager` para el trait y `InMemorySessionManager` para el backend.
     .manage(std::sync::Arc::new(crate::session_manager::InMemorySessionManager::new())
@@ -72,6 +82,14 @@ pub fn run() {
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .setup(|app| {
+      // En desarrollo el instalador no registra el esquema laboremoto://: se registra para este ejecutable.
+      #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+      {
+        use tauri_plugin_deep_link::DeepLinkExt;
+        if let Err(e) = app.deep_link().register_all() {
+          eprintln!("[deep-link] no se pudo registrar laboremoto://: {e}");
+        }
+      }
       let hub = app.state::<crate::ipc::IpcHub>().inner().clone();
       hub.spawn_dispatcher(app.handle().clone());
       // Intenta retomar una sesión persistida de un arranque anterior (si hay
@@ -190,7 +208,23 @@ pub fn run() {
       cmd::nvr::shinobi::nvr_whep,
       // Registro central de sesiones de práctica (dashboard del personal)
       cmd::sesiones::sesiones_reportar_evento,
+      cmd::sesiones::sesiones_reportar_ubicacion_app,
       cmd::sesiones::sesiones_resumen,
+      // Cursos y prácticas desde Moodle (vía broker)
+      cmd::moodle_cursos::moodle_mis_cursos,
+      cmd::moodle_cursos::moodle_practicas_curso,
+      cmd::moodle_cursos::moodle_enviar_resultado,
+      cmd::moodle_cursos::moodle_enlace_practica,
+      cmd::moodle_cursos::moodle_entregas_practica,
+      cmd::moodle_cursos::moodle_resumen_curso,
+      // Administración de cámaras (solo admin_lab; el broker lo exige)
+      cmd::camaras_admin::camaras_listar,
+      cmd::camaras_admin::camaras_probar,
+      cmd::camaras_admin::camaras_crear,
+      cmd::camaras_admin::camaras_actualizar,
+      cmd::camaras_admin::camaras_eliminar,
+      // Conexiones SSH a los dispositivos (solo supervisión; el broker lo exige)
+      cmd::dispositivos::dispositivos_resumen,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,

@@ -83,3 +83,34 @@ describe('auth slice — logout invalidates the query cache (REFACTOR #4 closing
     cleanup();
   });
 });
+
+describe('auth slice — beforeLogout cierra las prácticas antes de revocar el token', () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    useAppStore.setState({ user: null, isAuthenticated: true, isLoading: false, queryCache: {}, beforeLogout: null });
+  });
+
+  it('logout() espera a beforeLogout antes de llamar a auth_logout', async () => {
+    const orden: string[] = [];
+    invokeMock.mockImplementation(async (cmd: string) => { orden.push(cmd); });
+    useAppStore.getState().setBeforeLogout(async () => {
+      // Mientras corre, la app sigue montada (sin «Cargando sesión...»).
+      expect(useAppStore.getState().isLoading).toBe(false);
+      await Promise.resolve();
+      orden.push('beforeLogout');
+    });
+
+    await useAppStore.getState().logout();
+
+    expect(orden).toEqual(['beforeLogout', 'auth_logout']);
+  });
+
+  it('logout() sigue aunque beforeLogout falle', async () => {
+    invokeMock.mockResolvedValueOnce(undefined); // auth_logout
+    useAppStore.getState().setBeforeLogout(async () => { throw new Error('falló el guardado'); });
+
+    await useAppStore.getState().logout();
+
+    expect(invokeMock).toHaveBeenCalledWith('auth_logout');
+  });
+});

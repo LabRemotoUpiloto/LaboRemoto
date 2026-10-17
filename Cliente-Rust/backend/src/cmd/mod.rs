@@ -15,6 +15,9 @@ pub mod integration; // Integraciones externas (Moodle, MCP)
 pub mod streaming;   // Port-forwarding para streaming de video (legacy, ver cmd::nvr)
 pub mod nvr;         // Consumo del NVR Shinobi vía API HTTP directa
 pub mod sesiones;    // Registro central de sesiones de práctica (vía broker)
+pub mod moodle_cursos; // Cursos y prácticas desde Moodle (vía broker)
+pub mod camaras_admin; // Administración de cámaras (crear/editar/eliminar/probar, vía broker)
+pub mod dispositivos; // Conexiones SSH a los dispositivos (pestaña Dispositivos de Actividad, vía broker)
 pub mod logs;        // Sistema de logs de sesión
 pub mod editor;      // Análisis y edición de archivos
 pub mod tools;       // Herramientas del agente AI

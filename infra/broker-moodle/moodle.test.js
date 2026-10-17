@@ -33,6 +33,19 @@ function moodleFalso(over = {}) {
         return t ? { cm: { id: t.cmid, course: 2, modname: 'assign', instance: t.id, idnumber: idnumber[t.cmid], visible: 1 } } : { cm: null };
       }
       case 'mod_assign_get_submission_status': return { lastattempt: { gradingstatus: estado[p.userid] } };
+      case 'core_enrol_get_enrolled_users': return [
+        { id: 3, username: 'docente@x', fullname: 'Doña Docente', roles: [{ shortname: 'editingteacher' }] },
+        { id: 5, username: 'est2@x', fullname: 'Zoe Estudiante', roles: [{ shortname: 'student' }] },
+        { id: 4, username: 'est1@x', fullname: 'Ana Estudiante', roles: [{ shortname: 'student' }] },
+        { id: 6, username: 'est3@x', fullname: 'Beto Estudiante', roles: [{ shortname: 'student' }] },
+      ];
+      case 'mod_assign_get_grades': return { assignments: [{ assignmentid: p.assignmentids[0], grades: [
+        { userid: 4, grade: '40.00000', attemptnumber: 0, timemodified: 1790000000 },
+        { userid: 5, grade: '-1.00000', attemptnumber: 0, timemodified: 1790000100 },
+      ] }] };
+      case 'mod_assign_get_user_flags': return { assignments: [{ assignmentid: p.assignmentids[0], userflags: [
+        { userid: 4, workflowstate: 'readyforreview' },
+      ] }] };
       case 'mod_assign_save_grade': return null;
       default: throw new Error('función no simulada: ' + fn);
     }
@@ -260,4 +273,46 @@ test('abrir: un id con caracteres raros no se refleja en la página (404)', asyn
     assert.doesNotMatch(texto, /script/i);
   }
   assert.doesNotMatch(paginaAbrir('ev3-m3'), /undefined/);
+});
+
+test('entregas: el docente ve a cada estudiante con estado, nota (0–100) y fecha; sin nota ni estado queda «sin enviar»', async () => {
+  const m = moodleFalso();
+  const r = await pedir(crearModulo({ llamar: m.llamar }), { ruta: '/nvr/moodle/cursos/2/practicas/3/entregas', usuario: 'docente@x' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.json.practica.practica, 'ev3-m3');
+  // la tarea m3 vale 50 puntos: 40 -> 80 %. El docente no aparece en la lista; el orden es por nombre.
+  assert.deepStrictEqual(r.json.estudiantes.map((e) => [e.nombre, e.estado, e.nota]), [
+    ['Ana Estudiante', 'readyforreview', 80],
+    ['Beto Estudiante', 'notgraded', null],
+    ['Zoe Estudiante', 'notgraded', null],   // grade -1 en Moodle = sin nota
+  ]);
+  assert.strictEqual(r.json.estudiantes[0].fecha, new Date(1790000000 * 1000).toISOString());
+  assert.strictEqual(r.json.estudiantes[1].fecha, null);
+});
+
+test('entregas: un estudiante no puede verlas, ni alguien sin matrícula, ni una actividad que no es práctica', async () => {
+  const m = moodleFalso();
+  const mod = crearModulo({ llamar: m.llamar });
+  const ver = (usuario, ruta = '/nvr/moodle/cursos/2/practicas/3/entregas') => pedir(mod, { ruta, usuario });
+  assert.strictEqual((await ver('est1@x')).status, 403);
+  assert.strictEqual((await ver('otro@x')).status, 403);
+  assert.strictEqual((await ver('docente@x', '/nvr/moodle/cursos/2/practicas/4/entregas')).status, 404);   // «Tarea suelta» sin labo:
+  assert.strictEqual((await ver('docente@x', '/nvr/moodle/cursos/2/practicas/abc/entregas')).status, 400);
+  assert.strictEqual((await pedir(mod, { ruta: '/nvr/moodle/cursos/2/practicas/3/entregas', jwt: null })).status, 401);
+});
+
+test('resumen del curso: una fila por estudiante con una entrada por práctica, en el mismo orden; solo docentes', async () => {
+  const m = moodleFalso();
+  const mod = crearModulo({ llamar: m.llamar });
+  const r = await pedir(mod, { ruta: '/nvr/moodle/cursos/2/resumen', usuario: 'docente@x' });
+  assert.strictEqual(r.status, 200);
+  assert.deepStrictEqual(r.json.practicas.map((p) => p.practica), ['ev3-m1', 'ev3-m3']);   // «Tarea suelta» no es práctica
+  assert.deepStrictEqual(r.json.estudiantes.map((e) => e.nombre), ['Ana Estudiante', 'Beto Estudiante', 'Zoe Estudiante']);
+  const ana = r.json.estudiantes[0];
+  assert.deepStrictEqual(ana.entregas.map((e) => e.cmid), [2, 3]);
+  assert.deepStrictEqual(ana.entregas.map((e) => [e.estado, e.nota]), [['readyforreview', 40], ['readyforreview', 80]]);   // m1 vale 100, m3 vale 50
+  assert.deepStrictEqual(r.json.estudiantes[1].entregas.map((e) => [e.estado, e.nota]), [['notgraded', null], ['notgraded', null]]);
+  assert.strictEqual((await pedir(mod, { ruta: '/nvr/moodle/cursos/2/resumen', usuario: 'est1@x' })).status, 403);
+  assert.strictEqual((await pedir(mod, { ruta: '/nvr/moodle/cursos/2/resumen', usuario: 'otro@x' })).status, 403);
+  assert.strictEqual((await pedir(mod, { ruta: '/nvr/moodle/cursos/abc/resumen', usuario: 'docente@x' })).status, 400);
 });

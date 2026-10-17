@@ -2,7 +2,7 @@
 //!
 //! Este módulo contiene:
 //! - shinobi.rs: Cliente HTTP contra el broker desplegado en la Pi
-//!   (infra/nvr-broker) — valida sesión Keycloak, nunca expone la
+//!   (infra/broker-camaras) — valida sesión Keycloak, nunca expone la
 //!   SHINOBI_API_KEY real ni requiere una clave SSH en el cliente.
 
 pub mod shinobi;

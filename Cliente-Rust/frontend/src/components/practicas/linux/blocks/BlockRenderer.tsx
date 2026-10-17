@@ -6,7 +6,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, Button } from '@mantine/core';
-import { AlertTriangle, Play, X } from 'lucide-react';
+import { AlertTriangle, Maximize2, Play, X } from 'lucide-react';
+import '../pasos.css';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
 import { ZoomableImage } from '../ZoomableImage';
@@ -18,12 +19,15 @@ import ChecklistBlock from './widgets/ChecklistBlock';
 
 const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
 
-/** Soporte mínimo de **negrita** y `código` — no se agrega una librería de markdown para esto. */
+/** Soporte mínimo de **negrita**, *cursiva* y `código` — no se agrega una librería de markdown para esto. */
 function renderInline(md: string): React.ReactNode {
-  const parts = md.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  const parts = md.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
       return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      return <em key={i}>{part.slice(1, -1)}</em>;
     }
     if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
       return (
@@ -68,11 +72,14 @@ function StepGateBlock({ block }: { block: Extract<LinuxBlock, { type: 'step_gat
           document.dispatchEvent(new CustomEvent(STEP_GATE_EVENT, { detail: { id: block.id } }));
         }}
       >
-        {opened ? '✓ Listo' : (block.label ?? 'Listo, sigue')}
+        {opened ? 'Listo' : (block.label ?? 'Listo, sigue')}
       </Button>
     </Group>
   );
 }
+
+/** Clase que hace latir el elemento que toca usar ahora (ver pasos.css). */
+export const CLASE_RESALTADA = 'paso-resaltado';
 
 function TextBlockView({ block }: { block: Extract<LinuxBlock, { type: 'text' }> }) {
   return (
@@ -170,33 +177,38 @@ function AnalogyBlock({ block }: { block: Extract<LinuxBlock, { type: 'analogy' 
 function CommandStepBlock({
   block,
   passed,
-  points,
+  resaltar,
 }: {
   block: Extract<LinuxBlock, { type: 'command_step' }>;
   passed: boolean;
-  points?: number;
+  resaltar?: boolean;
 }) {
+  // Antes era un checkbox con el comando y una línea gris: parecía algo para
+  // marcar con el mouse y no se entendía que había que ir a la terminal. Lo
+  // que hay que hacer lo dice la franja «Ahora:» del paso (PasoCard).
   return (
-    <Paper
-      withBorder
-      radius="md"
-      p="md"
-      style={passed ? { borderColor: 'var(--success, #10b981)' } : undefined}
-    >
-      <Group justify="space-between" align="flex-start" wrap="nowrap">
-        <Group align="flex-start" gap="sm" wrap="nowrap">
-          <Checkbox checked={passed} readOnly mt={2} />
-          <Stack gap={4}>
-            {block.goal_md ? (
-              <Text fz="sm">{renderInline(block.goal_md)}</Text>
-            ) : (
-              <Text ff="monospace" fz="sm" fw={600}>{block.command}</Text>
-            )}
-            <Text fz="xs" c="dimmed">{renderInline(block.explain_md)}</Text>
-          </Stack>
-        </Group>
-      </Group>
-    </Paper>
+    <Stack gap={8}>
+      <Text fz="sm" style={{ lineHeight: 1.6 }}>
+        {renderInline(block.goal_md ?? block.explain_md)}
+      </Text>
+      {!block.goal_md && (
+        <Text
+          ff="monospace"
+          fz="md"
+          fw={600}
+          px="sm"
+          py={8}
+          className={resaltar ? CLASE_RESALTADA : undefined}
+          style={{ background: '#14150F', color: '#E5E9DE', borderRadius: 6, wordBreak: 'break-all', border: '1px solid transparent' }}
+        >
+          <span style={{ color: '#7f8a6f', userSelect: 'none' }}>$ </span>{block.command}
+        </Text>
+      )}
+      {block.goal_md && <Text fz="xs" c="dimmed">{renderInline(block.explain_md)}</Text>}
+      <Text fz="xs" c={passed ? 'teal' : 'dimmed'}>
+        {passed ? 'Hecho. El comando funcionó.' : 'Cuando lo escribas bien en la terminal, este paso se marca solo.'}
+      </Text>
+    </Stack>
   );
 }
 
@@ -211,7 +223,19 @@ function errorMessage(e: unknown): string {
   try { return JSON.stringify(e); } catch { return String(e); }
 }
 
-function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 'media' }>; practiceId: string }) {
+function MediaBlock({
+  block,
+  practiceId,
+  resaltar,
+  onAbierto,
+}: {
+  block: Extract<LinuxBlock, { type: 'media' }>;
+  practiceId: string;
+  /** Hace latir el botón que la abre: es lo que toca hacer ahora. */
+  resaltar?: boolean;
+  /** Avisa que el estudiante la abrió (ampliar la imagen o darle a ver el video). */
+  onAbierto?: () => void;
+}) {
   // Los videos pesan varios MB y cada alumno los baja completos por el túnel de la
   // Pi: con un curso entero abriendo la práctica a la vez saturan el enlace. Por eso
   // el video solo se pide cuando el estudiante lo pide (botón); las imágenes, que son
@@ -250,7 +274,11 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
     <Paper withBorder radius="md" p="md">
       {!requested && (
         <Stack align="center" py="lg" gap="xs">
-          <Button leftSection={<Play size={16} />} onClick={() => setRequested(true)}>
+          <Button
+            leftSection={<Play size={16} />}
+            className={resaltar ? CLASE_RESALTADA : undefined}
+            onClick={() => { setRequested(true); onAbierto?.(); }}
+          >
             Ver video
           </Button>
           {block.caption && <Text fz="xs" c="dimmed" ta="center">{block.caption}</Text>}
@@ -309,17 +337,30 @@ function MediaBlock({ block, practiceId }: { block: Extract<LinuxBlock, { type: 
                 style={{ maxWidth: '92vw', maxHeight: '85vh', borderRadius: 8 }}
               />
             ) : (
-              <img
-                src={state.url}
-                alt={block.caption ?? block.file}
-                onClick={() => setExpanded(true)}
-                style={{
-                  maxWidth: '100%',
-                  borderRadius: 6,
-                  display: 'block',
-                  cursor: 'zoom-in',
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <img
+                  src={state.url}
+                  alt={block.caption ?? block.file}
+                  onClick={() => { setExpanded(true); onAbierto?.(); }}
+                  style={{
+                    maxWidth: '100%',
+                    borderRadius: 6,
+                    display: 'block',
+                    cursor: 'zoom-in',
+                  }}
+                />
+                {/* Que se puede ampliar no se adivinaba por el cursor: se dice con un botón. */}
+                <Button
+                  size="xs"
+                  variant="default"
+                  leftSection={<Maximize2 size={14} />}
+                  className={resaltar ? CLASE_RESALTADA : undefined}
+                  style={{ position: 'absolute', right: 8, bottom: 8 }}
+                  onClick={() => { setExpanded(true); onAbierto?.(); }}
+                >
+                  Ampliar imagen
+                </Button>
+              </div>
             )
           ) : (
             <video
@@ -363,8 +404,13 @@ function QuizBlock({
   selected,
   onSelect,
   attempted,
+  etiqueta,
+  resaltar,
 }: {
   block: Extract<LinuxBlock, { type: 'quiz' }>;
+  /** «Pregunta 2 de 4». */
+  etiqueta?: string;
+  resaltar?: boolean;
   passed: boolean;
   answered: boolean;
   points?: number;
@@ -383,8 +429,10 @@ function QuizBlock({
       withBorder
       radius="md"
       p="md"
+      className={resaltar ? CLASE_RESALTADA : undefined}
       style={showFeedback ? { borderColor: passed ? 'var(--success, #10b981)' : 'var(--danger, #ef4444)' } : undefined}
     >
+      {etiqueta && <Text fz="xs" c="dimmed" mb={4}>{etiqueta}</Text>}
       <Group justify="space-between" align="flex-start" mb={8}>
         <Text fz="sm" fw={600} style={{ lineHeight: 1.5 }}>{renderInline(block.question_md)}</Text>
       </Group>
@@ -397,7 +445,7 @@ function QuizBlock({
       </Radio.Group>
       {showFeedback && (
         <Text fz="xs" mt={8} c={passed ? 'green' : 'red'}>
-          {passed ? 'Correcto.' : 'Te equivocaste en esta pregunta — corregí tu respuesta y volvé a enviar la evaluación.'}
+          {passed ? 'Correcto.' : 'Esta no es la respuesta correcta. Elige otra opción y vuelve a pulsar «Reenviar evaluación».'}
         </Text>
       )}
     </Paper>
@@ -486,9 +534,15 @@ interface BlockViewProps {
   quizAnswers?: Record<string, string>;
   onQuizAnswer?: (questionId: string, optionId: string) => void;
   quizLocked?: boolean;
+  /** Hace latir lo que toca usar ahora en este bloque (botón de la media, comando, pregunta). */
+  resaltar?: boolean;
+  /** El estudiante abrió la media (ver PasoCard). */
+  onAbierto?: () => void;
+  /** «Pregunta 2 de 4». */
+  etiqueta?: string;
 }
 
-export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, practiceId, quizAnswers, onQuizAnswer, quizLocked }) => {
+export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, practiceId, quizAnswers, onQuizAnswer, quizLocked, resaltar, onAbierto, etiqueta }) => {
   switch (block.type) {
     case 'text':
       return <TextBlockView block={block} />;
@@ -509,11 +563,11 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
     case 'analogy':
       return <AnalogyBlock block={block} />;
     case 'media':
-      return <MediaBlock block={block} practiceId={practiceId} />;
+      return <MediaBlock block={block} practiceId={practiceId} resaltar={resaltar} onAbierto={onAbierto} />;
     case 'command_step': {
       const rule = rules.find((r) => r.id === block.rule_id) ?? rules.find((r) => r.target === block.command);
       const ruleResult = rule ? result?.results.find((r) => r.rule_id === rule.id) : undefined;
-      return <CommandStepBlock block={block} passed={!!ruleResult?.passed} points={rule?.points} />;
+      return <CommandStepBlock block={block} passed={!!ruleResult?.passed} resaltar={resaltar} />;
     }
     case 'quiz': {
       const rule = rules.find((r) => r.target === block.id);
@@ -527,6 +581,8 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
           selected={quizAnswers?.[block.id]}
           onSelect={(optionId) => onQuizAnswer?.(block.id, optionId)}
           attempted={!!quizLocked}
+          etiqueta={etiqueta}
+          resaltar={resaltar}
         />
       );
     }

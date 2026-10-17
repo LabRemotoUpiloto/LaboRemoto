@@ -8,6 +8,7 @@
 // el claim `user_type = "Docente"` que Keycloak toma del directorio LDAP (el
 // backend lo agrega a `roles`, ver auth/jwt.rs); (2) manual, el realm role
 // `docente` asignado desde Gestión de Usuarios.
+import { useSyncExternalStore } from 'react'
 import { useAuth } from './useAuth'
 
 export type EffectiveRole =
@@ -57,7 +58,7 @@ const STAFF: EffectiveRole[] = ['admin_lab', 'jefe_laboratorio', 'coordinador_la
 const TECHNICAL: EffectiveRole[] = ['admin_lab', 'semillerista']
 // Logs: el personal y también el docente.
 const LOGS: EffectiveRole[] = [...STAFF, 'docente']
-// Debe coincidir con RESUMEN_ROLES en infra/nvr-broker/sesiones.js.
+// Debe coincidir con RESUMEN_ROLES en infra/broker-sesiones/sesiones.js.
 const SUPERVISION: EffectiveRole[] = ['admin_lab', 'jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista']
 
 // Jefe, coordinador y laboratorista usan siempre el tema institucional
@@ -75,7 +76,9 @@ export const usaTemaInstitucional = (role: EffectiveRole) => INSTITUTIONAL_THEME
 export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   landing: EVERYONE,
   practices: EVERYONE,
-  reservas: EVERYONE,
+  // Reservas está desactivada mientras se termina: ningún rol la ve (ni en el menú ni abriéndola por id).
+  reservas: [],
+  'mis-cursos': EVERYONE,
   themes: EVERYONE.filter((r) => !usaTemaInstitucional(r)),
   connect: TECHNICAL,
   // Terminal local (botón del sidebar y del header): solo semillerista y admin_lab.
@@ -89,9 +92,41 @@ export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   'admin-users': ['admin_lab'],
 }
 
+/**
+ * Crear, editar y eliminar cámaras (con sus claves): solo el administrador. El broker lo vuelve a exigir con el rol
+ * `admin_lab` del token; esto solo decide si se muestra el botón.
+ */
+export const puedeAdministrarCamaras = (role: EffectiveRole): boolean => role === 'admin_lab'
+
+// ── «Ver como» (solo en desarrollo) ──
+// Permite mirar la app con el menú de otro rol (p. ej. probar el tutorial de bienvenida como estudiante). Solo cambia lo que
+// se MUESTRA: el servidor sigue validando el token real. En la versión compilada no existe (import.meta.env.DEV es false).
+const CLAVE_VER_COMO = 'labo:dev:ver-como'
+const oyentesVerComo = new Set<() => void>()
+
+export function rolVerComo(): EffectiveRole | null {
+  if (!import.meta.env.DEV) return null
+  try {
+    const r = localStorage.getItem(CLAVE_VER_COMO) as EffectiveRole | null
+    return r && ROLE_ORDER.includes(r) ? r : null
+  } catch { return null }
+}
+
+export function setRolVerComo(rol: EffectiveRole | null) {
+  if (!import.meta.env.DEV) return
+  try {
+    if (rol) localStorage.setItem(CLAVE_VER_COMO, rol)
+    else localStorage.removeItem(CLAVE_VER_COMO)
+  } catch { /* sin almacenamiento: se queda el rol real */ }
+  oyentesVerComo.forEach((f) => f())
+}
+
+const suscribirVerComo = (f: () => void) => { oyentesVerComo.add(f); return () => { oyentesVerComo.delete(f) } }
+
 export function useEffectiveRole(): EffectiveRole {
   const { user } = useAuth()
-  return getEffectiveRole(user?.roles)
+  const verComo = useSyncExternalStore(suscribirVerComo, rolVerComo)
+  return verComo ?? getEffectiveRole(user?.roles)
 }
 
 /** Ids de página no listados en PAGE_ACCESS quedan abiertos (ej. moodle-test). */

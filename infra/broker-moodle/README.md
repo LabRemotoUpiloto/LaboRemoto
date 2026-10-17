@@ -9,6 +9,11 @@ Keycloak (y que el gateway sepa su dirección, `UPSTREAM_MOODLE`).
 ## Endpoints (públicos como `/nvr/moodle/…`)
 - `GET /nvr/moodle/cursos` — cursos de la persona con su rol (`docente` | `estudiante`); `enMoodle:false` si aún no tiene cuenta.
 - `GET /nvr/moodle/cursos/:id/practicas` — tareas del curso cuyo *ID number* empieza por `labo:` (= prácticas); exige estar matriculado.
+- `GET /nvr/moodle/cursos/:id/resumen` — **solo docentes del curso**. Vista general: todas las prácticas del curso y, por estudiante, una entrada
+  por práctica (`{cmid, estado, nota 0-100|null, fecha|null}`, en el mismo orden). El cliente calcula el avance y la nota general.
+- `GET /nvr/moodle/cursos/:id/practicas/:cmid/entregas` — **solo docentes del curso** (403 al resto). Cómo va cada estudiante en esa práctica:
+  `{curso, practica, estudiantes:[{usuario, nombre, estado, nota 0-100|null, fecha|null}]}`. El estado sale de las banderas del flujo de
+  calificación (`readyforreview`, `inreview`…; sin bandera, `graded` si hay nota o `notgraded`) y la nota se escala a 0–100.
 - `POST /nvr/moodle/resultado` — `{cmid, nota 0-100, resumen, log?}`. Deja nota provisional y comentario en estado «listo para
   revisar»; el docente decide en Moodle. Con `log: {gzipBase64}` (el HTML completo del registro de la sesión, comprimido), lo
   adjunta como **archivo de comentarios** dentro de un `.zip` (y con una política de contenido que bloquea scripts al abrirlo): Moodle
@@ -31,7 +36,8 @@ las de Keycloak. Sin `MOODLE_URL`/`MOODLE_TOKEN` responde 503 `moodle_no_configu
 ## Qué necesita el usuario de servicio de Moodle
 Funciones del servicio web: `core_webservice_get_site_info`, `core_user_get_users_by_field`, `core_enrol_get_users_courses`,
 `core_user_get_course_user_profiles`, `core_course_get_contents`, `core_course_get_course_module`,
-`mod_assign_get_assignments`, `mod_assign_get_submission_status`, `mod_assign_save_grade`. Permiso `moodle/course:manageactivities`
+`mod_assign_get_assignments`, `mod_assign_get_submission_status`, `mod_assign_save_grade`, y para la lista de entregas del docente
+`core_enrol_get_enrolled_users`, `mod_assign_get_grades` y `mod_assign_get_user_flags`. Permiso `moodle/course:manageactivities`
 (sin él Moodle no devuelve el `idnumber`).
 
 Para adjuntar el registro de la sesión además hace falta, en Moodle:

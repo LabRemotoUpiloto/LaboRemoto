@@ -63,6 +63,8 @@ fn embebido(key: &str) -> Option<&'static str> {
         "PRACTICE_LINUX_API_TOKEN" => option_env!("COMPILED_PRACTICE_LINUX_API_TOKEN"),
         "PRACTICE_LINUX_SSH_HOST" => option_env!("COMPILED_PRACTICE_LINUX_SSH_HOST"),
         "PRACTICE_LINUX_SSH_PORT" => option_env!("COMPILED_PRACTICE_LINUX_SSH_PORT"),
+        "PRACTICE_LINUX_LOCAL_HOST" => option_env!("COMPILED_PRACTICE_LINUX_LOCAL_HOST"),
+        "PRACTICE_LINUX_LOCAL_PORT" => option_env!("COMPILED_PRACTICE_LINUX_LOCAL_PORT"),
         _ => None,
     }
 }
@@ -155,6 +157,48 @@ pub(crate) fn load_config() -> Result<LinuxApiConfig, CommandError> {
         ssh_host,
         ssh_port,
     })
+}
+
+// ─── Entrada local o pública a la Pi ───
+//
+// La Pi tiene dos entradas: la pública (PRACTICE_LINUX_*_HOST, la única
+// abierta a internet) y la de la red del laboratorio (PRACTICE_LINUX_LOCAL_*).
+// Dentro de la U se usa la local, que no depende de salir a internet y volver;
+// fuera, la pública. Se decide probando la local con una espera corta y se
+// recuerda un rato para no pagar esa espera en cada llamada. Aplica a la
+// terminal del estudiante y al túnel de servicio, que van a la misma Pi.
+
+const ESPERA_PRUEBA_LOCAL: std::time::Duration = std::time::Duration::from_millis(1200);
+const RECORDAR_ELECCION: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// Entrada local configurada (`PRACTICE_LINUX_LOCAL_HOST` / `_PORT`). Sin host, solo la pública.
+fn entrada_local() -> Option<(String, u16)> {
+    let host = env_var("PRACTICE_LINUX_LOCAL_HOST")?;
+    let port = env_var("PRACTICE_LINUX_LOCAL_PORT").and_then(|v| v.trim().parse().ok()).unwrap_or(22);
+    Some((host.trim().to_string(), port))
+}
+
+/// Última prueba de la entrada local: cuándo y si respondió.
+static ULTIMA_PRUEBA_LOCAL: tokio::sync::Mutex<Option<(std::time::Instant, bool)>> = tokio::sync::Mutex::const_new(None);
+
+/// Host y puerto por donde entrar a la Pi: la entrada local si responde, si no la pública (`host`, `port`).
+pub(crate) async fn entrada_pi(host: &str, port: u16) -> (String, u16) {
+    let Some((local_host, local_port)) = entrada_local() else {
+        return (host.to_string(), port);
+    };
+    let mut ultima = ULTIMA_PRUEBA_LOCAL.lock().await;
+    let responde = match *ultima {
+        Some((cuando, responde)) if cuando.elapsed() < RECORDAR_ELECCION => responde,
+        _ => {
+            let responde = matches!(
+                tokio::time::timeout(ESPERA_PRUEBA_LOCAL, tokio::net::TcpStream::connect((local_host.as_str(), local_port))).await,
+                Ok(Ok(_))
+            );
+            *ultima = Some((std::time::Instant::now(), responde));
+            responde
+        }
+    };
+    if responde { (local_host, local_port) } else { (host.to_string(), port) }
 }
 
 pub(crate) async fn resolve_base_url(config: &LinuxApiConfig) -> Result<String, CommandError> {
@@ -399,11 +443,9 @@ pub async fn practicas_linux_connection_target(
     // el dominio, así que se agrega acá.
     let user = format!("{username}@upiloto.edu");
 
-    Ok(LinuxConnectionTarget {
-        host: config.ssh_host,
-        port: config.ssh_port,
-        user,
-    })
+    // Dentro del laboratorio, por la red local; fuera, por la IP pública.
+    let (host, port) = entrada_pi(&config.ssh_host, config.ssh_port).await;
+    Ok(LinuxConnectionTarget { host, port, user })
 }
 
 // ─── Categorías y entorno de los módulos ───

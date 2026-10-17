@@ -7,6 +7,7 @@ import CameraGrid from '../raspberry/CameraGrid';
 import Ev3Panel from '../ev3/Ev3Panel';
 import LinuxPracticeProgressBar from '../practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
+import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '../practicas/linux/ritmo';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 
 interface TerminalViewProps {
@@ -93,6 +94,65 @@ const TerminalView: React.FC<TerminalViewProps> = ({
 
   const isResizing = isResizingChat || isResizingCamera;
 
+  // Guía de la práctica (ver ritmo.ts): mientras un paso pide escribir un
+  // comando, la terminal se marca para que quien nunca la vio sepa cuál es; y
+  // «Ir a la terminal» le pone el cursor sin tener que adivinar dónde hacer clic.
+  const terminalRef = useRef<HTMLDivElement | null>(null);
+  const [pedidosGuia, setPedidosGuia] = useState<Set<string>>(() => new Set());
+  const [destello, setDestello] = useState(0);
+  useEffect(() => {
+    const onGuia = (ev: Event) => {
+      const d = (ev as CustomEvent<DetalleGuiaTerminal>).detail;
+      if (!d || d.sessionId !== sessionId) return;
+      if (d.resaltar !== undefined) {
+        setPedidosGuia((prev) => {
+          if (prev.has(d.origen) === d.resaltar) return prev;
+          const next = new Set(prev);
+          if (d.resaltar) next.add(d.origen); else next.delete(d.origen);
+          return next;
+        });
+      }
+      if (d.enfocar) {
+        // xterm recibe el teclado por su textarea oculto.
+        terminalRef.current?.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')?.focus();
+        setDestello((n) => n + 1);
+      }
+    };
+    window.addEventListener(EVENTO_GUIA_TERMINAL, onGuia);
+    return () => window.removeEventListener(EVENTO_GUIA_TERMINAL, onGuia);
+  }, [sessionId]);
+  const terminalGuiada = pedidosGuia.size > 0 && activeView !== 'escritorio';
+
+  // La etiqueta «Escribe aquí» va pegada al cursor, donde de verdad se escribe.
+  // xterm mueve su textarea oculto a la celda del cursor en cada movimiento
+  // (Terminal._syncTextArea): se sigue su posición en vez de adivinarla.
+  const [cursor, setCursor] = useState<{ x: number; y: number; alto: number } | null>(null);
+  useEffect(() => {
+    if (!terminalGuiada) { setCursor(null); return; }
+    let soltar = () => {};
+    let reintento: number | undefined;
+    const enganchar = () => {
+      const textarea = terminalRef.current?.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea');
+      if (!textarea) { reintento = window.setTimeout(enganchar, 300); return; }
+      const medir = () => {
+        const caja = terminalRef.current?.getBoundingClientRect();
+        const t = textarea.getBoundingClientRect();
+        if (!caja || t.height === 0) return;
+        setCursor({ x: t.left - caja.left + t.width, y: t.top - caja.top, alto: t.height });
+      };
+      medir();
+      const observador = new MutationObserver(medir);
+      observador.observe(textarea, { attributes: true, attributeFilter: ['style'] });
+      window.addEventListener('resize', medir);
+      soltar = () => { observador.disconnect(); window.removeEventListener('resize', medir); };
+    };
+    enganchar();
+    return () => { window.clearTimeout(reintento); soltar(); };
+  }, [terminalGuiada]);
+  const anchoTerminal = terminalRef.current?.clientWidth ?? 0;
+  // Si el cursor está muy a la derecha, la etiqueta pasa abajo para no salirse.
+  const etiquetaAbajo = !!cursor && cursor.x + 260 > anchoTerminal;
+
   // Progreso/estado de conexión de la práctica de Linux activa en esta
   // pestaña (si la hay) — derivado de la instancia única de
   // useLinuxPracticeSession que vive en App.tsx. `null`/`false` para
@@ -151,12 +211,28 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             minWidth: 0,
             minHeight: 0
           }}>
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <div
+              ref={terminalRef}
+              className={terminalGuiada ? 'terminal-guiada' : undefined}
+              style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}
+            >
               <TerminalPane
                 sessionId={sessionId}
                 onTerminalOutput={processTerminalData}
                 onTerminalInput={processTerminalInput}
               />
+              {terminalGuiada && cursor && (
+                <div
+                  key={destello}
+                  className={`terminal-guiada-etiqueta${etiquetaAbajo ? ' terminal-guiada-etiqueta--abajo' : ''}${destello ? ' terminal-guiada-etiqueta--destello' : ''}`}
+                  style={etiquetaAbajo
+                    ? { left: Math.max(8, Math.min(cursor.x - 24, anchoTerminal - 248)), top: cursor.y + cursor.alto + 8 }
+                    : { left: cursor.x + 10, top: cursor.y + cursor.alto / 2 }}
+                  aria-hidden
+                >
+                  Escribe aquí y presiona Enter
+                </div>
+              )}
             </div>
           </div>
 

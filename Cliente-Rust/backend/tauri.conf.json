@@ -38,6 +38,11 @@
     ]
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["laboremoto"]
+      }
+    },
     "updater": {
       "endpoints": [
         "https://github.com/LabRemotoUpiloto/LaboRemoto/releases/latest/download/latest.json"

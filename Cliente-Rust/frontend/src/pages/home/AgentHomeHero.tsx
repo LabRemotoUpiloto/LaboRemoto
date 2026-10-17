@@ -81,6 +81,7 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
                 type="button"
                 className="group inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:translate-y-0 active:shadow-[0_4px_10px_-2px_rgba(213,31,34,0.3)] text-white border-none rounded-full text-[13.5px] font-bold cursor-pointer shadow-[0_6px_16px_-4px_rgba(213,31,34,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_rgba(213,31,34,0.45)]"
                 onClick={onStartTutorial}
+                data-tour="inicio-tutorial"
               >
                 <GraduationCap size={18} strokeWidth={2} className="text-white transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
                 <span>Iniciar recorrido</span>

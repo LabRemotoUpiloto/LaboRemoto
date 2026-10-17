@@ -1,7 +1,7 @@
 //! cmd/nvr/shinobi — Cliente de API del NVR Shinobi (vía broker)
 //!
 //! Consume el catálogo de cámaras a través del broker desplegado en la Pi
-//! (`infra/nvr-broker`, expuesto públicamente en `NVR_BROKER_HOST/nvr/...`
+//! (`infra/broker-camaras`, expuesto públicamente en `BROKER_HOST/nvr/...`
 //! vía el mismo túnel SSH inverso + nginx que ya usa Keycloak). El cliente
 //! nunca tiene la `SHINOBI_API_KEY` real ni una clave SSH hacia la Pi — solo
 //! manda el access_token de Keycloak (el mismo que ya tiene por el login) y
@@ -23,7 +23,7 @@ use crate::session_manager::SessionManager;
 /// Host público del broker (Pi vía túnel inverso + nginx en AWS, mismo
 /// mecanismo que expone Keycloak). No es un secreto — es una URL pública,
 /// igual que `KEYCLOAK_BASE_URL`.
-pub(crate) const NVR_BROKER_HOST: &str = "http://52.14.162.232";
+pub(crate) const BROKER_HOST: &str = "http://52.14.162.232";
 
 // Perf: cliente HTTP compartido — `nvr_list_cameras` se sondea
 // periódicamente desde el panel de cámaras; reconstruir el cliente (y su
@@ -122,7 +122,7 @@ pub async fn nvr_list_cameras(
 
     let client = &*HTTP_CLIENT;
 
-    let url = format!("{}/nvr/monitor/{}", NVR_BROKER_HOST, group_key);
+    let url = format!("{}/nvr/monitor/{}", BROKER_HOST, group_key);
 
     let response = client.get(&url).bearer_auth(&access_token).send().await.map_err(|e| {
         let err = if e.is_timeout() {
@@ -172,7 +172,7 @@ pub async fn nvr_list_cameras(
             let stream_path = m.streams.first().cloned().unwrap_or_default();
             NvrCamera {
                 status: map_status(&m.mode, m.status.as_deref()),
-                stream_url: format!("{}{}", NVR_BROKER_HOST, stream_path),
+                stream_url: format!("{}{}", BROKER_HOST, stream_path),
                 id: m.mid,
                 name: m.name,
                 ptz: m.ptz,
@@ -205,7 +205,7 @@ pub async fn nvr_whep(
         .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión para ver las cámaras"))?;
 
     let response = HTTP_CLIENT
-        .post(format!("{NVR_BROKER_HOST}/nvr/whep/{path}"))
+        .post(format!("{BROKER_HOST}/nvr/whep/{path}"))
         .bearer_auth(&access_token)
         .header("Content-Type", "application/sdp")
         .body(sdp_offer)
@@ -244,7 +244,7 @@ pub async fn nvr_disconnect() {}
 /// backend nunca habla directo con la cámara Reolink — todo pasa por el
 /// broker, que valida rol (roles de personal, `PTZ_ROLES`) y traduce `mid` a la
 /// IP+credenciales reales de la cámara física (ver `PTZ_CAMERAS_JSON` en
-/// `infra/nvr-broker`). Si la cámara no está en ese mapa (no es PTZ), el
+/// `infra/broker-camaras`). Si la cámara no está en ese mapa (no es PTZ), el
 /// broker responde 404 y este comando lo traduce a `VALIDATION_FAILED`.
 #[tauri::command]
 pub async fn nvr_ptz_control(
@@ -268,7 +268,7 @@ pub async fn nvr_ptz_control(
         })?;
 
     let client = &*HTTP_CLIENT;
-    let url = format!("{}/nvr/ptz/{}/{}", NVR_BROKER_HOST, group_key, mid);
+    let url = format!("{}/nvr/ptz/{}/{}", BROKER_HOST, group_key, mid);
     let body = serde_json::json!({ "op": op, "speed": speed.unwrap_or(4) });
 
     let response = client

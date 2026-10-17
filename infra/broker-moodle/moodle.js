@@ -306,6 +306,78 @@ function crearModulo({ llamar, subir = null, configurado = true, ahora = Date.no
     return practicas;
   }
 
+  /**
+   * Estado de cada estudiante en una práctica (para el docente): estado de revisión, nota provisional o final (0–100) y fecha.
+   * La app no entrega «en nombre» del estudiante: lo que hay en Moodle es la nota y el estado que deja `moodle/resultado`.
+   */
+  async function entregasDe(cursoId, cmid) {
+    const info = await llamar('core_course_get_course_module', { cmid });
+    const cm = info && info.cm;
+    if (!cm || cm.modname !== 'assign' || cm.course !== cursoId || !String(cm.idnumber || '').startsWith(PREFIJO)) return null;
+    const tareas = await llamar('mod_assign_get_assignments', { courseids: [cursoId], includenotenrolledcourses: 1 });
+    const tarea = ((tareas && tareas.courses) || []).flatMap((c) => c.assignments || []).find((a) => a.cmid === cmid);
+    if (!tarea) return null;
+    const [inscritos, notas, banderas] = await Promise.all([
+      llamar('core_enrol_get_enrolled_users', { courseid: cursoId }),
+      llamar('mod_assign_get_grades', { assignmentids: [tarea.id] }),
+      llamar('mod_assign_get_user_flags', { assignmentids: [tarea.id] }),
+    ]);
+    const nota = new Map();
+    for (const a of (notas && notas.assignments) || []) for (const g of a.grades || []) {
+      const previa = nota.get(g.userid);
+      if (!previa || (g.attemptnumber || 0) >= (previa.attemptnumber || 0)) nota.set(g.userid, g);
+    }
+    const flujo = new Map();
+    for (const a of (banderas && banderas.assignments) || []) for (const f of a.userflags || []) flujo.set(f.userid, f.workflowstate || '');
+    const maxima = Number(tarea.grade) || 100;
+    const estudiantes = (Array.isArray(inscritos) ? inscritos : [])
+      .filter((u) => (u.roles || []).some((r) => r.shortname === 'student'))
+      .map((u) => {
+        const g = nota.get(u.id);
+        const valor = g !== undefined && Number(g.grade) >= 0 ? Number(g.grade) : null;
+        const estado = flujo.get(u.id) || (valor !== null ? 'graded' : 'notgraded');
+        return {
+          usuario: u.username || '', nombre: u.fullname || u.username || '',
+          estado,
+          nota: valor === null ? null : Math.round((valor / maxima) * 10000) / 100,
+          fecha: g && g.timemodified ? new Date(g.timemodified * 1000).toISOString() : null,
+        };
+      })
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    return {
+      practica: { cmid, nombre: cm.name || tarea.name, practica: String(cm.idnumber).slice(PREFIJO.length), notaMaxima: tarea.grade ?? null,
+        flujoRevision: tarea.markingworkflow === 1 || tarea.markingworkflow === true },
+      estudiantes,
+    };
+  }
+
+  /**
+   * Vista general del curso para el docente: todas las prácticas del curso y, por estudiante, cómo va en cada una (estado, nota
+   * 0–100 y fecha). Los porcentajes (avance, nota general) los calcula el cliente con esto.
+   */
+  async function resumenDeCurso(cursoId, uid) {
+    const practicas = await practicasDeCurso(cursoId, uid, true);
+    const porPractica = await Promise.all(practicas.map((p) => entregasDe(cursoId, p.cmid)));
+    const vistas = practicas.map((p, i) => ({ p, e: porPractica[i] })).filter((x) => x.e);
+    const estudiantes = new Map(); // usuario -> {usuario, nombre, entregas: Map(cmid -> entrega)}
+    for (const { p, e } of vistas) {
+      for (const s of e.estudiantes) {
+        if (!estudiantes.has(s.usuario)) estudiantes.set(s.usuario, { usuario: s.usuario, nombre: s.nombre, entregas: new Map() });
+        estudiantes.get(s.usuario).entregas.set(p.cmid, { cmid: p.cmid, estado: s.estado, nota: s.nota, fecha: s.fecha });
+      }
+    }
+    return {
+      practicas: vistas.map(({ p }) => ({ cmid: p.cmid, nombre: p.nombre, practica: p.practica, notaMaxima: p.notaMaxima, flujoRevision: p.flujoRevision })),
+      estudiantes: [...estudiantes.values()]
+        .map((s) => ({
+          usuario: s.usuario, nombre: s.nombre,
+          // Una entrada por práctica del curso, en el mismo orden; si Moodle no la trae, queda «sin enviar».
+          entregas: vistas.map(({ p }) => s.entregas.get(p.cmid) || { cmid: p.cmid, estado: 'notgraded', nota: null, fecha: null }),
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    };
+  }
+
   async function handle(req, res, url, parts, verifyJwt) {
     if (parts[0] !== 'nvr' || parts[1] !== 'moodle') return false;
 
@@ -344,6 +416,33 @@ function crearModulo({ llamar, subir = null, configurado = true, ahora = Date.no
         if (!curso) { responder(res, 403, { error: 'no_matriculado' }); return true; }
         const practicas = await practicasDeCurso(cursoId, uid, curso.rol === 'docente');
         responder(res, 200, { curso: { id: curso.id, nombre: curso.nombre, corto: curso.corto, rol: curso.rol }, practicas });
+        return true;
+      }
+
+      // GET /nvr/moodle/cursos/:id/resumen — vista general del curso, solo docentes
+      if (req.method === 'GET' && parts.length === 5 && parts[2] === 'cursos' && parts[4] === 'resumen') {
+        const cursoId = Number(parts[3]);
+        if (!Number.isInteger(cursoId) || cursoId <= 0) { responder(res, 400, { error: 'curso_invalido' }); return true; }
+        const uid = await usuarioMoodle(username);
+        const curso = uid === null ? null : (await cursosDe(uid)).find((c) => c.id === cursoId);
+        if (!curso) { responder(res, 403, { error: 'no_matriculado' }); return true; }
+        if (curso.rol !== 'docente') { responder(res, 403, { error: 'solo_docentes' }); return true; }
+        responder(res, 200, { curso: { id: curso.id, nombre: curso.nombre, corto: curso.corto, rol: curso.rol }, ...(await resumenDeCurso(cursoId, uid)) });
+        return true;
+      }
+
+      // GET /nvr/moodle/cursos/:id/practicas/:cmid/entregas — solo docentes del curso
+      if (req.method === 'GET' && parts.length === 7 && parts[2] === 'cursos' && parts[4] === 'practicas' && parts[6] === 'entregas') {
+        const cursoId = Number(parts[3]);
+        const cmid = Number(parts[5]);
+        if (!Number.isInteger(cursoId) || cursoId <= 0 || !Number.isInteger(cmid) || cmid <= 0) { responder(res, 400, { error: 'parametros_invalidos' }); return true; }
+        const uid = await usuarioMoodle(username);
+        const curso = uid === null ? null : (await cursosDe(uid)).find((c) => c.id === cursoId);
+        if (!curso) { responder(res, 403, { error: 'no_matriculado' }); return true; }
+        if (curso.rol !== 'docente') { responder(res, 403, { error: 'solo_docentes' }); return true; }
+        const r = await entregasDe(cursoId, cmid);
+        if (!r) { responder(res, 404, { error: 'practica_no_encontrada' }); return true; }
+        responder(res, 200, { curso: { id: curso.id, nombre: curso.nombre, corto: curso.corto, rol: curso.rol }, ...r });
         return true;
       }
 
