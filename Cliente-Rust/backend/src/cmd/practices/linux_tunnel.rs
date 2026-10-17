@@ -77,8 +77,11 @@ pub async fn ensure_tunnel(config: TunnelConfig) -> Result<u16> {
 // termina por sí sola con Ok o Err, y la próxima llamada vuelve a intentar.
 const TUNNEL_STEP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(6);
 
-async fn start_tunnel(config: TunnelConfig) -> Result<Tunel> {
+async fn start_tunnel(mut config: TunnelConfig) -> Result<Tunel> {
     use std::net::ToSocketAddrs;
+
+    // Dentro del laboratorio el túnel también entra por la red local (ver linux_api::entrada_pi).
+    (config.host, config.port) = super::linux_api::entrada_pi(&config.host, config.port).await;
 
     let mut addrs = (config.host.as_str(), config.port)
         .to_socket_addrs()
