@@ -148,6 +148,7 @@ pub fn run() {
       cmd::filesystem::local::local_rename,
       cmd::filesystem::local::local_delete,
       cmd::filesystem::local::save_text_file,
+      cmd::filesystem::local::save_binary_file,
       cmd::filesystem::local::chat_history_load,
       cmd::filesystem::local::chat_history_save,
       cmd::filesystem::local::chat_history_delete_entry,
