@@ -14,6 +14,7 @@ use std::time::Duration;
 use std::sync::Arc;
 use ts_rs::TS;
 
+use crate::cmd::broker_client::access_token;
 use crate::cmd::nvr::shinobi::{BROKER_HOST, HTTP_CLIENT};
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
@@ -177,14 +178,6 @@ fn error_de_estado(status: u16, body: &str) -> CommandError {
         429 => CommandError::transient("RATE_LIMITED", "Demasiadas pruebas seguidas: espera un minuto").with_retry_after(30_000),
         _ => CommandError::transient("COMMUNICATION_ERROR", format!("Las cámaras respondieron {status}: {}", body.chars().take(200).collect::<String>())).with_retry_after(3000),
     }
-}
-
-async fn access_token(manager: &Arc<dyn SessionManager>) -> Result<String, CommandError> {
-    manager
-        .get_access_token()
-        .await
-        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
-        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión"))
 }
 
 fn error_de_red(ctx: &str, e: reqwest::Error) -> CommandError {

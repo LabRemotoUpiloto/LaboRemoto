@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ts_rs::TS;
 
+use crate::cmd::broker_client::{access_token, error_de_red, get_json};
 use crate::cmd::nvr::shinobi::{HTTP_CLIENT, BROKER_HOST};
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
@@ -130,23 +131,6 @@ pub struct ResumenCurso {
     pub estudiantes: Vec<EstudianteResumen>,
 }
 
-async fn access_token(manager: &Arc<dyn SessionManager>) -> Result<String, CommandError> {
-    manager
-        .get_access_token()
-        .await
-        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
-        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión"))
-}
-
-fn error_de_red(ctx: &str, e: reqwest::Error) -> CommandError {
-    let err = if e.is_timeout() {
-        CommandError::transient("OPERATION_TIMEOUT", format!("Timeout contactando los cursos: {e}"))
-    } else {
-        CommandError::transient("COMMUNICATION_ERROR", format!("Error contactando los cursos: {e}"))
-    };
-    err.with_retry_after(3000).with_context(ctx, "broker")
-}
-
 /// Traduce una respuesta de error del broker a un `CommandError` legible.
 fn error_de_broker(ctx: &str, status: reqwest::StatusCode, body: &str) -> CommandError {
     let codigo = serde_json::from_str::<serde_json::Value>(body)
@@ -171,31 +155,11 @@ fn error_de_broker(ctx: &str, status: reqwest::StatusCode, body: &str) -> Comman
     err.with_context(ctx, "broker")
 }
 
-async fn get_json<T: serde::de::DeserializeOwned>(
-    ctx: &str,
-    ruta: &str,
-    manager: &Arc<dyn SessionManager>,
-) -> Result<T, CommandError> {
-    let token = access_token(manager).await?;
-    let response = HTTP_CLIENT
-        .get(format!("{BROKER_HOST}{ruta}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| error_de_red(ctx, e))?;
-    let status = response.status();
-    let text = response.text().await.map_err(|e| error_de_red(ctx, e))?;
-    if !status.is_success() {
-        return Err(error_de_broker(ctx, status, &text));
-    }
-    serde_json::from_str(&text)
-        .map_err(|e| CommandError::permanent("INVALID_DATA", format!("Respuesta inválida de los cursos: {e}")).with_context(ctx, "broker"))
-}
-
 /// Cursos de la persona en Moodle, con su rol en cada uno.
 #[tauri::command]
 pub async fn moodle_mis_cursos(manager: tauri::State<'_, Arc<dyn SessionManager>>) -> Result<MisCursos, CommandError> {
-    get_json("moodle_mis_cursos", "/nvr/moodle/cursos", manager.inner()).await
+    let ctx = "moodle_mis_cursos";
+    get_json(ctx, "los cursos", "/nvr/moodle/cursos", manager.inner(), |status, body| error_de_broker(ctx, status, body)).await
 }
 
 /// Prácticas (tareas `labo:…`) de un curso. El broker exige que la persona esté matriculada.
@@ -204,7 +168,11 @@ pub async fn moodle_practicas_curso(
     curso_id: u32,
     manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<PracticasCurso, CommandError> {
-    get_json("moodle_practicas_curso", &format!("/nvr/moodle/cursos/{curso_id}/practicas"), manager.inner()).await
+    let ctx = "moodle_practicas_curso";
+    get_json(ctx, "los cursos", &format!("/nvr/moodle/cursos/{curso_id}/practicas"), manager.inner(), |status, body| {
+        error_de_broker(ctx, status, body)
+    })
+    .await
 }
 
 /// Cómo va cada estudiante en una práctica (estado, nota y fecha). Solo para docentes del curso: el broker responde 403 al resto.
@@ -214,7 +182,11 @@ pub async fn moodle_entregas_practica(
     cmid: u32,
     manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<EntregasPractica, CommandError> {
-    get_json("moodle_entregas_practica", &format!("/nvr/moodle/cursos/{curso_id}/practicas/{cmid}/entregas"), manager.inner()).await
+    let ctx = "moodle_entregas_practica";
+    get_json(ctx, "los cursos", &format!("/nvr/moodle/cursos/{curso_id}/practicas/{cmid}/entregas"), manager.inner(), |status, body| {
+        error_de_broker(ctx, status, body)
+    })
+    .await
 }
 
 /// Vista general de un curso (todas las prácticas × todos los estudiantes). Solo docentes del curso.
@@ -223,7 +195,11 @@ pub async fn moodle_resumen_curso(
     curso_id: u32,
     manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<ResumenCurso, CommandError> {
-    get_json("moodle_resumen_curso", &format!("/nvr/moodle/cursos/{curso_id}/resumen"), manager.inner()).await
+    let ctx = "moodle_resumen_curso";
+    get_json(ctx, "los cursos", &format!("/nvr/moodle/cursos/{curso_id}/resumen"), manager.inner(), |status, body| {
+        error_de_broker(ctx, status, body)
+    })
+    .await
 }
 
 /// Enlace que el docente pega en la descripción de la tarea de Moodle: abre una página puente del servidor que lanza la app en esa
@@ -305,7 +281,7 @@ pub async fn moodle_enviar_resultado(
         .json(&cuerpo)
         .send()
         .await
-        .map_err(|e| error_de_red(ctx, e))?;
+        .map_err(|e| error_de_red(ctx, "los cursos", e))?;
     let status = response.status();
     if !status.is_success() {
         let text = response.text().await.unwrap_or_default();

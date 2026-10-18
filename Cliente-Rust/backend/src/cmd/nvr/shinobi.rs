@@ -74,8 +74,8 @@ struct ShinobiMonitorRaw {
 
 /// Resultado de un comando PTZ — solo confirma que el broker lo aceptó y lo
 /// reenvió a la cámara; el movimiento en sí no tiene feedback síncrono.
-#[derive(Serialize, Deserialize, TS)]
-#[ts(export)]
+/// Sin `TS`/`ts(export)` a propósito — el frontend no importa el binding generado.
+#[derive(Serialize, Deserialize)]
 pub struct PtzCommandResult {
     pub ok: bool,
 }

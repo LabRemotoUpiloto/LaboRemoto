@@ -62,21 +62,17 @@ futures-util = "0.3"
 dotenvy = "0.15"
 parking_lot = "0.12"
 chrono = { version = "0.4", features = ["clock", "serde"] }
-wildmatch = "2.1"
 walkdir = "2"
 regex = "1"
 rfd = "0.14"
 tungstenite = "0.21"
 open = "5"          # Abre el navegador del sistema (OAuth loopback flow)
 
-# LDAP authentication
-ldap3 = "0.11"
 jsonwebtoken = "9"
 
 # REST API
 axum = "0.7"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
-tokio-stream = "0.1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -91,8 +87,10 @@ name = "auth_ipc_dispatch_test"
 path = "tests/integration/auth_ipc_dispatch_test.rs"
 
 [profile.release]
-lto = true
+lto = "thin"
 codegen-units = 1
+strip = true
+opt-level = "s"
 
 [dev-dependencies]
 tracing-test = { version = "0.2.6", features = ["no-env-filter"] }
