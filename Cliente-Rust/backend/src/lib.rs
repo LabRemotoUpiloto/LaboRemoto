@@ -148,6 +148,7 @@ pub fn run() {
       cmd::filesystem::local::local_rename,
       cmd::filesystem::local::local_delete,
       cmd::filesystem::local::save_text_file,
+      cmd::filesystem::local::save_binary_file,
       cmd::filesystem::local::chat_history_load,
       cmd::filesystem::local::chat_history_save,
       cmd::filesystem::local::chat_history_delete_entry,
@@ -244,6 +245,8 @@ pub fn run() {
       cmd::practices::linux_api::practicas_linux_get_module,
       cmd::practices::linux_api::practicas_linux_validate,
       cmd::practices::linux_api::practicas_linux_connection_target,
+      cmd::practices::linux_api::rendimiento_pi,
+      cmd::practices::linux_api::rendimiento_logs,
       cmd::practices::linux_api::practicas_linux_get_media,
       cmd::practices::linux_media_proxy::practicas_linux_media_url,
       // Integración con Moodle
