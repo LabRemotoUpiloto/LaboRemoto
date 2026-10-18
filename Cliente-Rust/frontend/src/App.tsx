@@ -296,7 +296,7 @@ const AppMain: React.FC = () => {
   }, [linuxSession.sessionModuleMap, handleCloseTab])
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'mis-cursos', 'admin-users', 'vigilancia', 'dashboard']
+  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'mis-cursos', 'admin-users', 'vigilancia', 'dashboard', 'rendimiento']
   const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {

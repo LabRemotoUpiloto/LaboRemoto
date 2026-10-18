@@ -90,6 +90,8 @@ export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   vigilancia: STAFF,
   dashboard: SUPERVISION,
   'admin-users': ['admin_lab'],
+  // Rendimiento de la Pi4 (CPU, RAM, red, procesos): solo el administrador.
+  rendimiento: ['admin_lab'],
 }
 
 /**
