@@ -11,7 +11,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
-import { ArrowRight, Check, ChevronDown, ChevronUp, Circle, Pointer, Terminal } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronUp, Pointer, Terminal } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../services/linuxPractice.service';
 import { BlockView, CLASE_RESALTADA, STEP_GATE_EVENT } from './blocks/BlockRenderer';
 import { accionActual, accionesDelPaso, guiarTerminal, instruccion, tituloDelPaso, type AccionPaso, type PasoPractica } from './ritmo';
@@ -57,11 +57,11 @@ export interface DatosGuia {
 }
 
 /**
- * Guía en un solo bloque: la lista de acciones (hechas con visto bueno, las
- * que faltan en gris) donde la fila de la acción actual no se queda con su
- * etiqueta genérica («Abre la imagen») sino que se actualiza con la
- * instrucción puntual de qué hacer con ella. La renderiza el header fijo del
- * chat (ChatMessageList), no cada mensaje por separado.
+ * Guía en una sola fila compacta: la instrucción puntual de la acción actual
+ * a la izquierda, y a la derecha un punto por cada acción del paso (verde la
+ * hecha, con acento la actual, gris lo que falta) -- el mismo lenguaje visual
+ * de puntitos que ya usan los tours, no una lista larga de filas. Flota como
+ * barra del chat (ver .paso-guia en pasos.css), no como tarjeta aparte.
  */
 export function GuiaPaso({ acciones, hechas, actual, ahora, extra }: {
   acciones: { id: string; texto: string }[];
@@ -71,27 +71,27 @@ export function GuiaPaso({ acciones, hechas, actual, ahora, extra }: {
   ahora?: React.ReactNode | null;
   extra?: React.ReactNode;
 }) {
+  const hechasCount = acciones.filter((a) => hechas.has(a.id)).length;
+  const actualTexto = ahora ?? acciones.find((a) => a.id === actual)?.texto ?? null;
+  if (!actualTexto) return null;
   return (
     <div className="paso-guia" data-tour="practica-guia">
-      <Stack gap={6}>
-        {acciones.map((a) => {
-          const hecha = hechas.has(a.id);
-          const esActual = a.id === actual;
-          return (
-            <Group key={a.id} gap={8} wrap="nowrap" align="flex-start">
-              {hecha
-                ? <Check size={15} color="var(--success, #22C55E)" style={{ flexShrink: 0, marginTop: 2 }} />
-                : esActual
-                  ? <Pointer size={15} style={{ flexShrink: 0, marginTop: 2 }} />
-                  : <Circle size={13} style={{ flexShrink: 0, opacity: 0.5, margin: '0 1px', marginTop: 3 }} />}
-              <Text fz="sm" fw={esActual ? 600 : 400} c={hecha ? 'teal' : esActual ? undefined : 'dimmed'} style={{ minWidth: 0 }}>
-                {esActual && ahora ? ahora : a.texto}
-              </Text>
-            </Group>
-          );
-        })}
-      </Stack>
-      {extra}
+      <div className="paso-guia__fila">
+        <span className="paso-guia__icono" aria-hidden="true"><Pointer size={13} /></span>
+        <span className="paso-guia__texto">{actualTexto}</span>
+        {acciones.length > 1 && (
+          <span className="paso-guia__puntos" role="img" aria-label={`${hechasCount} de ${acciones.length} acciones de este paso listas`}>
+            {acciones.map((a) => (
+              <span
+                key={a.id}
+                className={`paso-guia__punto${hechas.has(a.id) ? ' paso-guia__punto--hecho' : a.id === actual ? ' paso-guia__punto--actual' : ''}`}
+                title={a.texto}
+              />
+            ))}
+          </span>
+        )}
+      </div>
+      {extra && <div className="paso-guia__extra">{extra}</div>}
     </div>
   );
 }
@@ -164,9 +164,9 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
       {sessionId && (
         <Group>
           <Button
-            size="xs"
-            variant="white"
-            leftSection={<Terminal size={14} />}
+            size="compact-xs"
+            variant="light"
+            leftSection={<Terminal size={13} />}
             onClick={() => guiarTerminal({ sessionId, origen: paso.id, enfocar: true })}
           >
             Ir a la terminal
