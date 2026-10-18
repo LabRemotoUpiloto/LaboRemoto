@@ -14,6 +14,7 @@ export const LinuxPracticeProgressBar: React.FC<Props> = ({ result, moduleTitle 
 
   return (
     <div
+      data-tour="practica-progreso"
       style={{
         margin: '6px 12px',
         padding: '8px 14px',

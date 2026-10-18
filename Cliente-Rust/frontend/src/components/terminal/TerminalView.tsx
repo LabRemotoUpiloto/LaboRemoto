@@ -213,6 +213,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
           }}>
             <div
               ref={terminalRef}
+              data-tour="practica-terminal"
               className={terminalGuiada ? 'terminal-guiada' : undefined}
               style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}
             >
@@ -287,7 +288,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             className="side-resizer"
             onMouseDown={() => setIsResizingChat(true)}
           />
-          <div style={{ width: chatWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div data-tour="practica-chat" style={{ width: chatWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <ChatPane sessionId={sessionId} onClose={onCloseChat} practiceId={practiceId} practiceResult={linuxResult} linuxSession={linuxSession} />
           </div>
         </>

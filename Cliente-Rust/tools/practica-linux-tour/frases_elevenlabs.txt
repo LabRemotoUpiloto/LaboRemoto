@@ -1,0 +1,20 @@
+# Guion del tour de la práctica de Linux (VoiceStudio, voz clonada del Profesor Bee a partir de un
+# clip del tour de bienvenida). Genera un audio por frase y guárdalos como 01.mp3 ... 04.mp3 en
+# Cliente-Rust/frontend/public/tutorial/practica-linux/.
+# En [corchetes]: qué elemento real se resalta mientras suena la frase (no se lee).
+
+01
+Este es tu chat. Te va diciendo qué hacer en cada paso, y le puedes preguntar lo que quieras.
+[Resalta el panel de chat — data-tour="practica-chat"]
+
+02
+Esta es la terminal. Aquí escribes los comandos que el chat te vaya pidiendo.
+[Resalta la terminal — data-tour="practica-terminal"]
+
+03
+Arriba ves cuánto llevas: cuántos pasos has completado y cuántos faltan.
+[Resalta la barra de progreso — data-tour="practica-progreso"]
+
+04
+Y aquí abajo le escribes tus preguntas al chat, cuando tengas dudas.
+[Resalta la caja de preguntas — data-tour="practica-pregunta"]

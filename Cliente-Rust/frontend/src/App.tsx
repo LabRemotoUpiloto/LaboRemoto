@@ -44,7 +44,8 @@ import { usePracticeActivityReporter, type PracticaAbierta } from './hooks/usePr
 import { useUbicacionAppReporter } from './hooks/useUbicacionAppReporter'
 import { useEnlacesApp } from './hooks/useEnlacesApp'
 import ResultadoMoodleAviso from './components/cursos/ResultadoMoodleAviso'
-import BienvenidaTutorial from './tour/bienvenida/BienvenidaTutorial'
+import BienvenidaTutorial from './tours/tour_inicio/BienvenidaTutorial'
+import TourPracticaLinux from './tours/tour_linux/TourPracticaLinux'
 import { SesionPorPracticaContext } from './components/cursos/envioMoodle'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { useAppStore } from './store/app'
@@ -389,6 +390,7 @@ const AppMain: React.FC = () => {
         <Notifications position="bottom-right" zIndex={9998} />
         <ResultadoMoodleAviso resultados={linuxSession.results} habilitado={isAuthenticated} />
         <BienvenidaTutorial abrirPagina={handleOpenPanel} />
+        <TourPracticaLinux />
         <GlobalLoader />
 
         <div

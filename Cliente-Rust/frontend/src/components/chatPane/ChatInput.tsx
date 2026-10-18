@@ -330,6 +330,7 @@ const ChatInput: React.FC<Props> = ({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={MODE_PLACEHOLDERS[mode]}
+                data-tour="practica-pregunta"
                 variant="unstyled"
                 autosize
                 minRows={1}
