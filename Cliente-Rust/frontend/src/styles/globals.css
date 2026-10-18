@@ -1648,6 +1648,19 @@ pre, code, .terminal, .xterm-viewport, .content-area {
   scrollbar-color: var(--accent-primary) var(--panel);
 }
 
+/* La lista de mensajes del chat se desplaza sola todo el tiempo (streaming de respuestas, pasos nuevos):
+   el thumb rojo de acento quedaba como una barra vertical roja siempre encendida, sin aportar nada que el
+   propio scroll del chat no muestre ya. Acá, en vez del acento, un gris discreto. */
+.custom-scrollbar {
+  scrollbar-color: var(--border-subtle, rgba(255, 255, 255, 0.18)) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border-subtle, rgba(255, 255, 255, 0.18));
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary, #b0b0b0);
+}
+
 /* Restored themes (9) to reach 30 total */
 
 /* Polar Mint (light-fresh) */

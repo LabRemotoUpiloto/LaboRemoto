@@ -214,6 +214,7 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
             <Button
               rightSection={<ArrowRight size={15} />}
               className={resaltada?.tipo === 'siguiente' ? CLASE_RESALTADA : undefined}
+              disabled={actual?.tipo !== 'siguiente'}
               onClick={() => {
                 marcar('siguiente');
                 document.dispatchEvent(new CustomEvent(STEP_GATE_EVENT, { detail: { id: paso.id } }));
