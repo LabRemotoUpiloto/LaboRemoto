@@ -43,7 +43,7 @@ const LinuxPasswordPrompt: React.FC<Props> = ({
     >
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          Se conecta como <strong>{username}</strong> a la Raspberry Pi del laboratorio —
+          Se conecta como <strong>{username}</strong> al equipo del laboratorio —
           es tu misma cuenta de la universidad. La contraseña se usa una sola vez para
           esta conexión y no se guarda.
         </Text>
