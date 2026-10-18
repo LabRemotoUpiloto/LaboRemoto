@@ -11,6 +11,7 @@ import SystemMessageBanner from './SystemMessageBanner';
 import { isNearBottom } from './chatUtils';
 import { ActionIcon } from '@mantine/core';
 import { ArrowDown } from 'lucide-react';
+import { GuiaPaso, type DatosGuia } from '../practicas/linux/PasoCard';
 
 export type ChatAppearance = 'landing' | 'session';
 
@@ -98,6 +99,11 @@ export default function ChatMessageList({
   onLinuxModuleComplete,
 }: ChatMessageListProps) {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  // Guía del paso (o de la evaluación final) que esté activa ahora mismo -- la reporta
+  // PasoCard/AiMessageBubble vía onLinuxGuiaChange. Solo hay una activa a la vez (los
+  // pasos anteriores ya están completos y reportan `null`), así que el último aviso
+  // que llega es siempre el vigente.
+  const [guiaActiva, setGuiaActiva] = useState<DatosGuia | null>(null);
 
   const countWords = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
   const isLanding = appearance === 'landing';
@@ -107,7 +113,7 @@ export default function ChatMessageList({
 
   return (
     <div
-      className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-[10px] relative custom-scrollbar ${scrollPadding} ${editingMsgId ? ' chat-messages--editing' : ''} ${className ?? ''}`}
+      className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col relative custom-scrollbar ${editingMsgId ? ' chat-messages--editing' : ''} ${className ?? ''}`}
       ref={messagesRef}
       role="log"
       aria-live={isSending ? 'polite' : undefined}
@@ -117,6 +123,16 @@ export default function ChatMessageList({
       }}
       style={{ scrollbarGutter: isLanding ? 'stable' : 'stable both-edges' }}
     >
+      {/* Lo que toca hacer ahora, siempre a la vista: antes vivía a mitad de
+          cada mensaje y al bajar a ver el video o la imagen quedaba fuera de
+          pantalla. Ver nota de .paso-guia-sticky en pasos.css. */}
+      {!isLanding && guiaActiva && (
+        <div className="paso-guia-sticky">
+          <GuiaPaso acciones={guiaActiva.acciones} hechas={guiaActiva.hechas} actual={guiaActiva.actual} ahora={guiaActiva.ahora} extra={guiaActiva.extra} />
+        </div>
+      )}
+
+      <div className={`flex flex-col gap-[10px] ${scrollPadding}`}>
       {/* Welcome state */}
       {messages.length === 0 && !isSending && !hideWelcome && (
         <WelcomeMessage mode={mode} handleSuggestionClick={handleSuggestionClick} />
@@ -176,6 +192,7 @@ export default function ChatMessageList({
                 onLinuxQuizAnswer={onLinuxQuizAnswer}
                 onLinuxQuizSubmit={onLinuxQuizSubmit}
                 onLinuxModuleComplete={onLinuxModuleComplete}
+                onLinuxGuiaChange={setGuiaActiva}
               />
             )}
 
@@ -260,6 +277,7 @@ export default function ChatMessageList({
           </ActionIcon>
         </div>
       )}
+      </div>
     </div>
   );
 }
