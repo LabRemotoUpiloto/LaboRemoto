@@ -277,8 +277,10 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
 
     categories.push(PracticeCategory {
         id: "eve3".into(),
-        name: "Eve3".into(),
-        description: "Prácticas con el robot Eve3 — Control y programación robótica".into(),
+        // Nombre visible simplificado a propósito (sin "Eve3"/"EV3", jerga para un estudiante nuevo) — el
+        // id interno se deja igual para no tocar nada que dependa de él (Moodle, rutas, etc.).
+        name: "Robótica".into(),
+        description: "Programa y controla un robot real, paso a paso.".into(),
         icon: "robot".into(),
         color: "#10b981".into(),
         practices: eve3_practices,

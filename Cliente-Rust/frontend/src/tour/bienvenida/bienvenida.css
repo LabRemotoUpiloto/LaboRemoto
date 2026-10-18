@@ -1,151 +1,51 @@
-/* Tutorial narrado de bienvenida: se apoya en tourStyles.css (colores del tema) y solo agrega lo propio. */
+/* Tutorial narrado de bienvenida: todo el estilo de las ilustraciones, subtítulo, barra de progreso y botón de
+   pausa vive como clases de Tailwind directo en pasos.ts/tutorialBienvenida.ts (Tailwind escanea los .ts de src).
+   Lo que queda acá son 4 cosas que NO se pueden expresar así:
+   1. Los @keyframes custom. Nota histórica: este proyecto tenía un `tailwind.config.js` estilo v3 (fadeIn,
+      popIn, confettiFall…) que nunca se cargaba — a Tailwind v4 le hace falta un `@config` explícito, y sin
+      eso esas animaciones eran no-ops silenciosos en producción. Agregar `@config` "arregla" eso pero ROMPE
+      los estilos de Mantine en toda la app (el motor de compatibilidad v3 maltrata el `@layer mantine {...}`
+      que trae @mantine/core/styles.layer.css — probado: 0 de 334 clases .m_* sobreviven, sin importar dónde
+      se ponga `@config`). El arreglo real: esas animaciones ahora viven en `@theme` nativo de v4, en
+      globals.css — `tailwind.config.js` ya no existe, no hacía falta para nada más. Los de este archivo
+      (tb-entrar, tb-chat-zoom, tb-insignia) van igual en CSS plano + sintaxis arbitraria de Tailwind
+      (`animate-[tbEntrar_0.45s_ease-out_both]`) para no acoplar el tour a ese registro central.
+   2. El tamaño del popover de driver.js — pelea de !important con tourStyles.css contra un elemento que la
+      librería genera ella misma; mover esto a una clase de Tailwind arriesga romper el orden de cascada sin
+      poder probarlo en vivo.
+   3. prefers-reduced-motion — una sola regla paraguas en vez de repetir el modificador en cada elemento animado.
+   4. El elemento real que driver.js resalta en cada paso (sidebar, botones…) — es contenido de la app, no HTML
+      que yo genere, así que no hay dónde ponerle una clase de Tailwind. */
+
+@keyframes tbEntrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes tbInsignia {
+  0% { opacity: 0; transform: scale(0.3) rotateY(0deg); }
+  60% { opacity: 1; transform: scale(1.15) rotateY(540deg); }
+  100% { transform: scale(1) rotateY(720deg); }
+}
+@keyframes tbChatZoom {
+  0% { transform: scale(1); border-color: transparent; box-shadow: none; }
+  40% { transform: scale(1.05); border-color: var(--accent-primary, #d51f22); box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.4); }
+  100% { transform: scale(1); border-color: transparent; box-shadow: none; }
+}
+/* Paso "Escribe tu pregunta" (demo escribir + enviar). `clip-path` en vez de `width`: anima en el
+   compositor (GPU), no dispara reflow (ver skill web-animations — animar width/height sí lo dispara).
+   `steps(20, end)` da el efecto de tecleo letra por letra sobre "¿Qué significa esto?" (20 caracteres);
+   si el texto de ejemplo cambia, hay que ajustar ese número. Duración total 2.5s: 70% tecleando, resto
+   se mantiene y se desvanece — recalibrar el % si el audio real queda con otro ritmo. */
+@keyframes tbTypewriter {
+  0% { clip-path: inset(0 100% 0 0); opacity: 1; animation-timing-function: steps(20, end); }
+  65% { clip-path: inset(0 0% 0 0); opacity: 1; animation-timing-function: ease-out; }
+  100% { clip-path: inset(0 0% 0 0); opacity: 0; }
+}
+@keyframes tbSendPop {
+  0%, 100% { transform: scale(1); color: var(--text-tertiary, #888); }
+  50% { transform: scale(1.35); color: var(--accent-primary, #d51f22); }
+}
 
 .driver-popover.tutorial-bienvenida {
   max-width: 420px !important;
   min-width: 320px;
-}
-
-.tutorial-bienvenida .tb-subtitulo {
-  margin: 0;
-  color: var(--text-primary, #f0f0f0);
-  font-size: 15px;
-  line-height: 1.55;
-}
-
-.tutorial-bienvenida .tb-ilustracion {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 14px;
-}
-
-.tutorial-bienvenida .tb-ilustracion-img {
-  width: 132px;
-  height: 132px;
-  object-fit: contain;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid var(--accent-primary, #d51f22);
-  animation: tb-entrar 0.45s ease-out both;
-}
-
-/* Barra de progreso: un segmento por paso */
-.tutorial-bienvenida .tb-progreso {
-  display: flex;
-  gap: 4px;
-  margin-top: 14px;
-}
-.tutorial-bienvenida .tb-progreso span {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--border-subtle, rgba(255, 255, 255, 0.15));
-}
-.tutorial-bienvenida .tb-progreso span.hecho { background: var(--accent-primary, #d51f22); opacity: 0.55; }
-.tutorial-bienvenida .tb-progreso span.actual { background: var(--accent-primary, #d51f22); }
-
-.tutorial-bienvenida .tb-pausa {
-  margin-right: auto;
-  background: transparent !important;
-  color: var(--text-secondary, #b0b0b0) !important;
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.2)) !important;
-  border-radius: 8px !important;
-  padding: 6px 10px !important;
-  font-size: 12.5px !important;
-  cursor: pointer;
-  text-shadow: none !important;
-}
-.tutorial-bienvenida .tb-pausa:hover { color: var(--text-primary, #fff) !important; }
-
-/* Ilustraciones de los pasos que no tienen un elemento en pantalla (la práctica todavía no está abierta) */
-.tutorial-bienvenida .tb-maqueta {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  animation: tb-entrar 0.45s ease-out both;
-}
-.tutorial-bienvenida .tb-maqueta-terminal {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px;
-  border-radius: 8px;
-  background: #0d0d0d;
-  color: #7ee787;
-  font: 12px/1.4 var(--font-mono, Consolas, monospace);
-}
-.tutorial-bienvenida .tb-cursor { animation: tb-parpadeo 1s steps(1) infinite; }
-.tutorial-bienvenida .tb-maqueta-chat {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 8px;
-  background: var(--background-tertiary, #262626);
-}
-.tutorial-bienvenida .tb-maqueta-chat.solo { width: 100%; animation: tb-entrar 0.45s ease-out both; }
-.tutorial-bienvenida .tb-burbuja {
-  padding: 6px 9px;
-  border-radius: 8px;
-  background: var(--background-secondary, #1a1a1a);
-  color: var(--text-primary, #eee);
-  font-size: 12px;
-  line-height: 1.35;
-}
-.tutorial-bienvenida .tb-burbuja.tu { align-self: flex-end; background: var(--accent-primary, #d51f22); color: #fff; }
-.tutorial-bienvenida .tb-burbuja.tb-ok { color: #3fb950; font-weight: 700; }
-
-.tutorial-bienvenida .tb-checklist {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-}
-.tutorial-bienvenida .tb-checklist li {
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: var(--background-tertiary, #262626);
-  font-size: 13px;
-  animation: tb-entrar 0.4s ease-out both;
-}
-.tutorial-bienvenida .tb-checklist li:nth-child(2) { animation-delay: 0.25s; }
-.tutorial-bienvenida .tb-checklist li:nth-child(3) { animation-delay: 0.5s; }
-.tutorial-bienvenida .tb-checklist li.hecho { color: #3fb950; }
-.tutorial-bienvenida .tb-checklist li.actual { border: 1px solid var(--accent-primary, #d51f22); color: var(--text-primary, #fff); }
-
-.tutorial-bienvenida .tb-contrasena {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--background-tertiary, #262626);
-  animation: tb-entrar 0.45s ease-out both;
-}
-.tutorial-bienvenida .tb-candado { font-size: 26px; }
-.tutorial-bienvenida .tb-campo {
-  margin-top: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.2));
-  letter-spacing: 3px;
-  min-width: 150px;
-}
-
-.tutorial-bienvenida .tb-insignia {
-  font-size: 54px;
-  animation: tb-insignia 1.4s ease-out both;
-}
-
-@keyframes tb-entrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@keyframes tb-parpadeo { 50% { opacity: 0; } }
-@keyframes tb-insignia {
-  0% { opacity: 0; transform: scale(0.3) rotateY(0); }
-  60% { opacity: 1; transform: scale(1.15) rotateY(540deg); }
-  100% { transform: scale(1) rotateY(720deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {

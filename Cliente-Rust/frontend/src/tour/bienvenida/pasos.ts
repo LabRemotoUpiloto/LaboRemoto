@@ -27,28 +27,86 @@ export interface PasoBienvenida {
   luego?: { aLosMs: number; antes?: () => void; elementos: string[]; lado?: PasoBienvenida['lado'] };
 }
 
-const img = (src: string, alt: string) => `<img class="tb-ilustracion-img" src="${src}" alt="${alt}" />`;
+// Clases de Tailwind directas en el HTML: tailwind.config.js escanea src/**/*.ts, así que esto se compila igual
+// que si fueran className de JSX. Las animaciones tb-entrar/tb-insignia/tb-chat-zoom están registradas ahí mismo
+// (theme.extend.keyframes/animation). Los colores usan las variables CSS del tema (se resuelven en runtime, no
+// son estáticos de Tailwind) vía la sintaxis de valor arbitrario `bg-[var(--x)]`.
+const BURBUJA = 'px-[9px] py-1.5 rounded-lg bg-[var(--background-secondary)] text-[var(--text-primary)] text-xs leading-[1.35]';
+const BURBUJA_TU = `${BURBUJA} self-end bg-[var(--accent-primary)] text-white`;
 
-const pantallaPractica = `
-  <div class="tb-maqueta" aria-hidden="true">
-    <div class="tb-maqueta-terminal"><span>$ ls -l</span><span>$ cd prácticas</span><span class="tb-cursor">$ ▍</span></div>
-    <div class="tb-maqueta-chat"><span class="tb-burbuja">Paso 1: lista los archivos con <b>ls</b></span><span class="tb-burbuja tb-ok">✓ Hecho</span></div>
+const img = (src: string, alt: string) =>
+  `<img class="w-[132px] h-[132px] object-contain rounded-full bg-white border-2 border-[var(--accent-primary)] animate-[tbEntrar_0.45s_ease-out_both]" src="${src}" alt="${alt}" />`;
+
+// Genérico a propósito: no todas las prácticas tienen terminal (hay de robótica, circuitos, cámaras…), pero
+// TODAS comparten este chat-guía. Nada de comandos ni jerga técnica aquí — el público son estudiantes nuevos.
+// Fiel al chat real (header con avatar + nombre, burbujas, caja de pregunta abajo) para que el estudiante
+// reconozca el panel cuando lo vea de verdad. El zoom (tb-chat-zoom) cae ~3.5s adentro del audio, cuando la
+// narración dice «se lo preguntas ahí mismo» — ajustar ese delay si se regrabó el audio con otro ritmo.
+const chatTutor = `
+  <div class="grid grid-cols-[0.55fr_1.45fr] gap-2 w-full animate-[tbEntrar_0.45s_ease-out_both]" aria-hidden="true">
+    <div class="flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg bg-[var(--background-tertiary)] text-[var(--text-secondary)] text-[11px] text-center">
+      <span class="text-[22px]">🧪</span>
+      <span>Tu práctica</span>
+    </div>
+    <div class="flex flex-col gap-1.5 p-2 rounded-lg border border-transparent bg-[var(--background-tertiary)] animate-[tbChatZoom_1.3s_ease-out_3.5s_both]">
+      <div class="flex items-center gap-2 pb-1.5 border-b border-[var(--border-subtle)]">
+        <span class="w-[26px] h-[26px] shrink-0 flex items-center justify-center rounded-full bg-[var(--background-secondary)] text-[15px]">🐝</span>
+        <div>
+          <strong class="block text-xs text-[var(--text-primary)]">Asistente</strong>
+          <small class="text-[10px] text-[var(--text-tertiary)]">Te explica y responde tus dudas</small>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <span class="${BURBUJA}">Vamos con el primer paso: sigue las instrucciones de la pantalla.</span>
+        <span class="${BURBUJA_TU}">¿Y esto para qué sirve?</span>
+        <span class="${BURBUJA}">¡Buena pregunta! Te explico…</span>
+      </div>
+      <div class="mt-0.5 px-2.5 py-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--background-secondary)] text-[11px] text-[var(--text-tertiary)]">
+        Pregunta lo que quieras…
+      </div>
+    </div>
   </div>`;
 
+// Demo de "escribir y enviar": tecleo letra por letra (tbTypewriter, ver bienvenida.css) de la MISMA
+// pregunta que después aparece como burbuja enviada, para que se note que es "la pregunta viajando" al
+// chat. Tiempos (relativos al inicio del paso): 0.3s-2.3s teclea, ~2.0s el ícono de enviar reacciona,
+// 2.0s aparece la burbuja del estudiante, 2.5s la respuesta — recalibrar con la duración real del audio.
+const chatDemo = `
+  <div class="grid grid-cols-[0.55fr_1.45fr] gap-2 w-full animate-[tbEntrar_0.45s_ease-out_both]" aria-hidden="true">
+    <div class="flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg bg-[var(--background-tertiary)] text-[var(--text-secondary)] text-[11px] text-center">
+      <span class="text-[22px]">🧪</span>
+      <span>Tu práctica</span>
+    </div>
+    <div class="flex flex-col gap-1.5 p-2 rounded-lg bg-[var(--background-tertiary)]">
+      <div class="flex items-center gap-2 pb-1.5 border-b border-[var(--border-subtle)]">
+        <span class="w-[26px] h-[26px] shrink-0 flex items-center justify-center rounded-full bg-[var(--background-secondary)] text-[15px]">🐝</span>
+        <div>
+          <strong class="block text-xs text-[var(--text-primary)]">Asistente</strong>
+          <small class="text-[10px] text-[var(--text-tertiary)]">Te explica y responde tus dudas</small>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5 min-h-[62px]">
+        <span class="${BURBUJA}">Vamos con el primer paso: sigue las instrucciones de la pantalla.</span>
+        <span class="${BURBUJA_TU} [animation:tbEntrar_0.3s_ease-out_2s_both]">¿Qué significa esto?</span>
+        <span class="${BURBUJA} [animation:tbEntrar_0.3s_ease-out_2.5s_both]">¡Claro! Te explico…</span>
+      </div>
+      <div class="mt-0.5 flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--background-secondary)] text-[11px] text-[var(--text-tertiary)]">
+        <span class="inline-block whitespace-nowrap overflow-hidden [animation:tbTypewriter_2s_linear_0.3s_both]">¿Qué significa esto?</span>
+        <span class="ml-auto [animation:tbSendPop_0.3s_ease-out_1.8s_both]">➤</span>
+      </div>
+    </div>
+  </div>`;
+
+// Genérico a propósito (igual que chatTutor): no todas las prácticas se resuelven igual, pero
+// todas marcan los pasos como hechos de la misma forma.
 const pasosHechos = `
-  <ul class="tb-checklist" aria-hidden="true">
-    <li class="hecho">✓ Lista los archivos</li>
-    <li class="hecho">✓ Entra a la carpeta</li>
-    <li class="actual">→ Crea un archivo nuevo</li>
+  <ul class="list-none m-0 p-0 flex flex-col gap-1.5 w-full" aria-hidden="true">
+    <li class="px-2.5 py-[7px] rounded-lg bg-[var(--background-tertiary)] text-[13px] animate-[tbEntrar_0.45s_ease-out_both] text-[#3fb950]">✓ Paso 1 — Hecho</li>
+    <li class="px-2.5 py-[7px] rounded-lg bg-[var(--background-tertiary)] text-[13px] animate-[tbEntrar_0.45s_ease-out_both] text-[#3fb950] [animation-delay:0.25s]">✓ Paso 2 — Hecho</li>
+    <li class="px-2.5 py-[7px] rounded-lg bg-[var(--background-tertiary)] text-[13px] animate-[tbEntrar_0.45s_ease-out_both] border border-[var(--accent-primary)] text-[var(--text-primary)] [animation-delay:0.5s]">→ Paso 3</li>
   </ul>`;
 
-const asistente = `
-  <div class="tb-maqueta-chat solo" aria-hidden="true">
-    <span class="tb-burbuja tu">¿Qué hace el comando <b>chmod</b>?</span>
-    <span class="tb-burbuja">Cambia los permisos de un archivo. Por ejemplo…</span>
-  </div>`;
-
-const insignia = `<div class="tb-insignia" aria-hidden="true">🏅</div>`;
+const insignia = `<div class="text-[54px] animate-[tbInsignia_1.4s_ease-out_both]" aria-hidden="true">🏅</div>`;
 
 export const PASOS_BIENVENIDA: PasoBienvenida[] = [
   {
@@ -73,14 +131,17 @@ export const PASOS_BIENVENIDA: PasoBienvenida[] = [
   {
     audio: '05.mp3', titulo: 'Prácticas', pagina: 'practices', antes: () => pedirVistaPracticas(null),
     elementos: ['[data-tour="practicas-categorias"]', '[data-page="practices"]'], lado: 'bottom',
-    texto: 'En Prácticas están todas las prácticas del laboratorio, organizadas por tema: Linux, robótica y más.',
+    texto: 'En Prácticas están todas las prácticas del laboratorio, organizadas por tema: computadores, robots y más.',
   },
   {
     audio: '06.mp3', titulo: 'Elige y comienza', pagina: 'practices', antes: () => pedirVistaPracticas(null),
     elementos: ['[data-tour="practicas-categorias"] > *:first-child', '[data-page="practices"]'], lado: 'right',
-    // «elige un tema» → se abre Linux de verdad; «y luego una práctica, y pulsa Comenzar» → el botón del primer módulo
-    luego: { aLosMs: 2000, antes: () => pedirVistaPracticas('linux'), elementos: ['[data-tour="practica-iniciar"]'], lado: 'bottom' },
-    texto: 'Para empezar, elige un tema y luego una práctica, y pulsa Comenzar.',
+    // «elige un tema» → se abre Linux de verdad; «y luego una práctica, y pulsa Iniciar Práctica» → el botón
+    // real del primer módulo (PracticeCard.tsx dice «Iniciar Práctica», no «Comenzar» — ver el texto exacto).
+    // 3.2s (audio de 5.28s) para que a la card de categoría le dé tiempo de verse antes de saltar al botón — con
+    // 2s antes no alcanzaba a entenderse que esas cards son clicables.
+    luego: { aLosMs: 3200, antes: () => pedirVistaPracticas('linux'), elementos: ['[data-tour="practica-iniciar"]'], lado: 'bottom' },
+    texto: 'Para empezar, elige un tema y luego una práctica, y pulsa Iniciar Práctica.',
   },
   {
     audio: '07.mp3', titulo: 'Tu contraseña institucional',
@@ -88,19 +149,19 @@ export const PASOS_BIENVENIDA: PasoBienvenida[] = [
     escena: 'contrasena', elementos: ['.tb-escena-contrasena'], lado: 'right',
   },
   {
-    audio: '08.mp3', titulo: 'Terminal y chat',
-    texto: 'Dentro de la práctica tienes la terminal, donde escribes los comandos, y al lado el chat, donde la guía te explica cada paso.',
-    ilustracion: pantallaPractica,
+    audio: '08.mp3', titulo: 'Tu chat-guía',
+    texto: 'Dentro de cada práctica tienes un chat a la derecha. Es tu guía: te va diciendo qué hacer en cada paso. Y si no entiendes algo, se lo preguntas ahí mismo y te responde.',
+    ilustracion: chatTutor,
   },
   {
-    audio: '09.mp3', titulo: 'La guía avanza contigo',
+    audio: '09.mp3', titulo: 'Escribe tu pregunta',
+    texto: 'Mira cómo se hace: escribes tu pregunta aquí abajo, así, y la envías.',
+    ilustracion: chatDemo,
+  },
+  {
+    audio: '10.mp3', titulo: 'La guía avanza contigo',
     texto: 'La guía avanza contigo: cuando haces bien un paso, se marca como hecho y aparece el siguiente.',
     ilustracion: pasosHechos,
-  },
-  {
-    audio: '10.mp3', titulo: 'Pregúntale al asistente',
-    texto: 'Si tienes dudas, escríbele al asistente en el mismo chat. Te ayuda a entender lo que estás haciendo.',
-    ilustracion: asistente,
   },
   {
     audio: '11.mp3', titulo: 'Tus insignias', elementos: ['[data-tour="sidebar-usuario"]'], lado: 'right',

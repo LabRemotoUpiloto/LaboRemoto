@@ -73,10 +73,15 @@ export function applyXtermTheme(
     return value || undefined;
   };
 
+  // El texto de la terminal ya está pensado por cada tema para contrastar con su propio
+  // fondo. El acento de marca (--accent-primary) no tiene esa garantía — en temas claros
+  // puede ser un color pastel o casi blanco y el cursor se vuelve invisible. Por eso el
+  // cursor reutiliza el mismo color que el texto, en vez del acento.
+  const foreground = resolveVar('--terminal-foreground') || resolveVar('--text-primary');
   const themeObj = {
-    foreground: resolveVar('--terminal-foreground') || resolveVar('--text-primary'),
+    foreground,
     background: 'transparent',
-    cursor: resolveVar('--accent-primary'),
+    cursor: foreground,
     cursorAccent: resolveVar('--background-primary'),
     selectionBackground: resolveVar('--selection-bg'),
     selectionForeground: resolveVar('--selection-fg'),

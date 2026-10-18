@@ -19,6 +19,43 @@
 @import "./themes/sunburst-rainbow.css";
 @import "./themes/legacy-themes.css";
 
+/* Animaciones custom — forma nativa de Tailwind v4 (CSS-first, @theme), NO vía tailwind.config.js.
+   HALLAZGO: el proyecto tenía un `tailwind.config.js` estilo v3 (fadeIn, popIn, confettiFall…) que nunca se
+   cargó — a Tailwind v4 le hace falta un `@config` explícito, y sin eso esas animaciones eran no-ops
+   silenciosos en producción. La causa real de por qué `@config` (o cualquier regla que no sea @import) "rompe"
+   los imports de Mantine que vienen después no es un bug de Tailwind: es CSS puro — las reglas @import deben
+   ir TODAS seguidas al inicio del archivo, antes de cualquier otra cosa; cualquier regla intermedia invalida
+   los @import que le siguen (por eso este bloque va aquí, DESPUÉS de todos los @import, no antes). El arreglo
+   real para las animaciones: viven en `@theme` nativo de v4 — `tailwind.config.js` ya no existe, no hacía
+   falta para nada más. Los del tour (tb-entrar, tb-chat-zoom, tb-insignia) van en CSS plano + sintaxis
+   arbitraria de Tailwind (`animate-[tbEntrar_0.45s_ease-out_both]`, ver tour/bienvenida/bienvenida.css) para
+   no acoplar el tour a este registro central. */
+@theme {
+  --animate-fadeIn: fadeIn 0.2s ease-out;
+  --animate-slideUp: slideUp 0.3s ease-out;
+  --animate-popIn: popIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-spinSlow: spinSlow 30s linear infinite;
+  --animate-confettiFall: confettiFall 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-fireworkRing: fireworkRing 2.2s ease-out infinite;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes popIn {
+  from { transform: scale(0.8) translateY(10px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes confettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(115vh) rotate(360deg); opacity: 0; }
+}
+@keyframes fireworkRing {
+  0% { transform: scale(0); opacity: 1; }
+  70% { opacity: 0.5; }
+  100% { transform: scale(7); opacity: 0; }
+}
+
 /* ============================================
    🎨 GLOBALS.CSS - Estilos Globales Compartidos
    ============================================ */
