@@ -76,8 +76,8 @@ export const usaTemaInstitucional = (role: EffectiveRole) => INSTITUTIONAL_THEME
 export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   landing: EVERYONE,
   practices: EVERYONE,
-  // Reservas está desactivada mientras se termina: ningún rol la ve (ni en el menú ni abriéndola por id).
-  reservas: [],
+  // Reservas está en pruebas: por ahora la ve todo el mundo menos estudiante (ni en el menú ni abriéndola por id).
+  reservas: ROLE_ORDER.filter((r) => r !== 'estudiante'),
   'mis-cursos': EVERYONE,
   themes: EVERYONE.filter((r) => !usaTemaInstitucional(r)),
   connect: TECHNICAL,
