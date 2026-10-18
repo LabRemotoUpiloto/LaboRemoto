@@ -100,9 +100,12 @@ function botonPausa(): HTMLButtonElement {
   b.type = 'button';
   // Los `!` son porque este botón vive entre los de driver.js (.driver-popover-btn en tourStyles.css,
   // con sus propios !important) dentro del mismo footer — ver botonPausa() en tutorialBienvenida.ts.
+  // Fantasma (sin borde): de los 3 botones del footer es la acción menos importante — Siguiente (relleno)
+  // y Anterior (con borde) llevan más peso visual, ver bienvenida.css.
   b.className =
-    'mr-auto bg-transparent! text-[var(--text-secondary)]! border! border-[var(--border-subtle)]! ' +
-    'rounded-lg! px-2.5! py-1.5! text-[12.5px]! cursor-pointer [text-shadow:none]! hover:text-[var(--text-primary)]!';
+    'mr-auto bg-transparent! text-[var(--text-secondary)]! border-none! rounded-full! px-4! py-2! ' +
+    'text-[13px]! font-semibold! cursor-pointer [text-shadow:none]! transition-colors! duration-200! ' +
+    'hover:bg-[var(--background-tertiary)]! hover:text-[var(--text-primary)]!';
   const pintar = () => { b.textContent = pausado ? '▶ Continuar' : '⏸ Pausar'; b.setAttribute('aria-pressed', String(pausado)); };
   pintar();
   b.addEventListener('click', () => {

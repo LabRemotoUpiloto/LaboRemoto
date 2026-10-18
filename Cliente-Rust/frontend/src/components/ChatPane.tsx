@@ -34,7 +34,7 @@ import { useDisplayName } from '../pages/home/useDisplayName';
 import ChatFloatingActions from './chatPane/ChatFloatingActions';
 import { pi4AgentReady as fetchPi4AgentReady } from '../services/ai.service';
 import { vncStop, sshSessionInfo } from '../services/ssh.service';
-import { useTour } from '../tour/useTour';
+import { useTour } from '../tours/tour_general/useTour';
 import { useQueryData } from '../hooks/useQueryData';
 import { useAuth } from '../hooks/useAuth';
 // NOTA de acoplamiento: ChatPane es en general genérico (por eso `practiceResult`

@@ -48,6 +48,51 @@
   min-width: 320px;
 }
 
+/* Botones del footer (Pausar / Anterior / Siguiente) — sobrescriben SOLO para los tours narrados (este y
+   tour_linux/practicaLinux.css, selector combinado) los estilos compartidos de tourStyles.css (el tour
+   general de 24 pasos los deja intactos). Jerarquía a propósito: Siguiente es la acción principal
+   (pastilla llena, con sombra); Anterior es secundaria (pastilla con borde sutil); Pausar es la menos
+   importante de las tres (fantasma, sin borde). */
+.tutorial-bienvenida .driver-popover-footer,
+.tour-practica-linux .driver-popover-footer { gap: 8px; }
+
+.tutorial-bienvenida .driver-popover-btn,
+.tour-practica-linux .driver-popover-btn {
+  border-radius: 999px !important;
+  padding: 9px 18px !important;
+  font-weight: 600 !important;
+}
+
+.tutorial-bienvenida .driver-popover-prev-btn,
+.tour-practica-linux .driver-popover-prev-btn {
+  background: transparent !important;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.18)) !important;
+  color: var(--text-secondary, #b0b0b0) !important;
+}
+.tutorial-bienvenida .driver-popover-prev-btn:hover,
+.tour-practica-linux .driver-popover-prev-btn:hover {
+  background: var(--background-tertiary, #262626) !important;
+  border-color: var(--text-secondary, #b0b0b0) !important;
+  color: var(--text-primary, #fff) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.tutorial-bienvenida .driver-popover-next-btn,
+.tour-practica-linux .driver-popover-next-btn {
+  box-shadow: 0 6px 16px -4px color-mix(in srgb, var(--accent-primary, #d51f22) 55%, transparent) !important;
+}
+.tutorial-bienvenida .driver-popover-next-btn:hover,
+.tour-practica-linux .driver-popover-next-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--accent-primary, #d51f22) 65%, transparent) !important;
+}
+.tutorial-bienvenida .driver-popover-next-btn:active,
+.tour-practica-linux .driver-popover-next-btn:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--accent-primary, #d51f22) 50%, transparent) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tutorial-bienvenida * { animation: none !important; }
 }

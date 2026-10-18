@@ -1,0 +1,25 @@
+/* Tour de la práctica Linux: el subtítulo y la barra de progreso van como clases de Tailwind directo en
+   tutorialPracticaLinux.ts (igual que tour_inicio). Acá solo lo que no se puede expresar así — mismas 3
+   razones que en tour_inicio/bienvenida.css (tamaño de popover de driver.js, reduced-motion, elemento
+   real resaltado). El diseño de los botones del footer (Pausar/Anterior/Siguiente) se comparte con
+   tour_inicio vía selector combinado en ese mismo archivo — no se duplica acá. */
+
+.driver-popover.tour-practica-linux {
+  max-width: 380px !important;
+  min-width: 300px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-practica-linux * { animation: none !important; }
+}
+
+body.tpl-activo .driver-highlighted-element {
+  outline: 3px solid var(--accent-primary, #d51f22) !important;
+  outline-offset: 4px !important;
+  border-radius: 10px;
+}
+
+body.tpl-activo .driver-active-element,
+body.tpl-activo .driver-active-element * {
+  pointer-events: none !important;
+}
