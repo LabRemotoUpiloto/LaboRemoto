@@ -82,15 +82,18 @@ function esperarElemento(selectores: string[]): Promise<Element | null> {
   });
 }
 
-const PROGRESO_SEGMENTO = 'flex-1 h-1 rounded-full bg-[var(--border-subtle)]';
+const PROGRESO_SEGMENTO = 'flex-1 h-1 rounded-full';
 
 function descripcion(paso: PasoBienvenida, i: number): string {
   return `${paso.ilustracion ? `<div class="flex justify-center mb-3.5">${paso.ilustracion}</div>` : ''}
     <p class="m-0 text-[var(--text-primary)] text-[15px] leading-[1.55]">${paso.texto}</p>
     <div class="flex gap-1 mt-3.5" aria-label="Paso ${i + 1} de ${PASOS_BIENVENIDA.length}">
       ${PASOS_BIENVENIDA.map((_, j) => {
-        const estado = j < i ? ' bg-[var(--accent-primary)] opacity-55' : j === i ? ' bg-[var(--accent-primary)]' : '';
-        return `<span class="${PROGRESO_SEGMENTO}${estado}"></span>`;
+        // Un solo `bg-*` por segmento: con dos (el de base + el del estado) compitiendo
+        // por la misma propiedad, cuál gana depende del orden en que Tailwind los generó,
+        // no del orden en el HTML -- acá siempre perdía el del estado y todo quedaba gris.
+        const bg = j < i ? 'bg-[var(--accent-primary)] opacity-55' : j === i ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-subtle)]';
+        return `<span class="${PROGRESO_SEGMENTO} ${bg}"></span>`;
       }).join('')}
     </div>`;
 }
