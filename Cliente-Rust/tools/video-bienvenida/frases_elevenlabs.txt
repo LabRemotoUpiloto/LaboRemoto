@@ -21,28 +21,28 @@ En Inicio tienes los accesos rápidos y el botón para volver a ver este tutoria
 [Inicio, con los accesos rápidos resaltados]
 
 05
-En Prácticas están todas las prácticas del laboratorio, organizadas por tema: Línux, robótica y más.
+En Prácticas están todas las prácticas del laboratorio, organizadas por tema: computadores, robots y más.
 [Prácticas: tarjetas de categorías]
 
 06
-Para empezar, elige un tema y luego una práctica, y pulsa Comenzar.
-[Lista de prácticas de una categoría, botón Comenzar resaltado]
+Para empezar, elige un tema y luego una práctica, y pulsa Iniciar Práctica.
+[Lista de prácticas de una categoría, botón «Iniciar Práctica» resaltado]
 
 07
 La aplicación te pedirá tu contraseña institucional y se conectará sola al equipo del laboratorio.
 [Ventana de la contraseña]
 
 08
-Dentro de la práctica tienes la terminal, donde escribes los comandos, y al lado el chat, donde la guía te explica cada paso.
-[Práctica abierta: terminal y chat resaltados]
+Dentro de cada práctica tienes un chat a la derecha. Es tu guía: te va diciendo qué hacer en cada paso. Y si no entiendes algo, se lo preguntas ahí mismo y te responde.
+[Práctica abierta: contexto genérico de práctica a la izquierda, chat a la derecha con énfasis al mencionar la pregunta]
 
 09
-La guía avanza contigo: cuando haces bien un paso, se marca como hecho y aparece el siguiente.
-[Un paso marcándose como hecho en el chat]
+Mira cómo se hace: escribes tu pregunta aquí abajo, así, y la envías.
+[Demo: se teclea "¿Qué significa esto?" en la caja de pregunta, se envía, aparece como burbuja y el chat responde]
 
 10
-Si tienes dudas, escríbele al asistente en el mismo chat. Te ayuda a entender lo que estás haciendo.
-[Pregunta al asistente en el chat]
+La guía avanza contigo: cuando haces bien un paso, se marca como hecho y aparece el siguiente.
+[Un paso marcándose como hecho en el chat]
 
 11
 Al completar una práctica ganas una insignia. Las encuentras en tu perfil, en la Sala de Trofeos.

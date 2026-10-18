@@ -82,18 +82,27 @@ function esperarElemento(selectores: string[]): Promise<Element | null> {
   });
 }
 
+const PROGRESO_SEGMENTO = 'flex-1 h-1 rounded-full bg-[var(--border-subtle)]';
+
 function descripcion(paso: PasoBienvenida, i: number): string {
-  return `${paso.ilustracion ? `<div class="tb-ilustracion">${paso.ilustracion}</div>` : ''}
-    <p class="tb-subtitulo">${paso.texto}</p>
-    <div class="tb-progreso" aria-label="Paso ${i + 1} de ${PASOS_BIENVENIDA.length}">
-      ${PASOS_BIENVENIDA.map((_, j) => `<span class="${j < i ? 'hecho' : j === i ? 'actual' : ''}"></span>`).join('')}
+  return `${paso.ilustracion ? `<div class="flex justify-center mb-3.5">${paso.ilustracion}</div>` : ''}
+    <p class="m-0 text-[var(--text-primary)] text-[15px] leading-[1.55]">${paso.texto}</p>
+    <div class="flex gap-1 mt-3.5" aria-label="Paso ${i + 1} de ${PASOS_BIENVENIDA.length}">
+      ${PASOS_BIENVENIDA.map((_, j) => {
+        const estado = j < i ? ' bg-[var(--accent-primary)] opacity-55' : j === i ? ' bg-[var(--accent-primary)]' : '';
+        return `<span class="${PROGRESO_SEGMENTO}${estado}"></span>`;
+      }).join('')}
     </div>`;
 }
 
 function botonPausa(): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
-  b.className = 'tb-pausa';
+  // Los `!` son porque este botón vive entre los de driver.js (.driver-popover-btn en tourStyles.css,
+  // con sus propios !important) dentro del mismo footer — ver botonPausa() en tutorialBienvenida.ts.
+  b.className =
+    'mr-auto bg-transparent! text-[var(--text-secondary)]! border! border-[var(--border-subtle)]! ' +
+    'rounded-lg! px-2.5! py-1.5! text-[12.5px]! cursor-pointer [text-shadow:none]! hover:text-[var(--text-primary)]!';
   const pintar = () => { b.textContent = pausado ? '▶ Continuar' : '⏸ Pausar'; b.setAttribute('aria-pressed', String(pausado)); };
   pintar();
   b.addEventListener('click', () => {
