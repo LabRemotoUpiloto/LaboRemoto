@@ -13,6 +13,7 @@ pub mod ai;          // Chat con IA, agente y utilidades
 pub mod practices;   // Sistema de prácticas de laboratorio remoto
 pub mod integration; // Integraciones externas (Moodle, MCP)
 pub mod streaming;   // Port-forwarding para streaming de video (legacy, ver cmd::nvr)
+pub mod broker_client; // Boilerplate común para hablar con los brokers de la Pi (token, GET autenticado, errores de red)
 pub mod nvr;         // Consumo del NVR Shinobi vía API HTTP directa
 pub mod sesiones;    // Registro central de sesiones de práctica (vía broker)
 pub mod moodle_cursos; // Cursos y prácticas desde Moodle (vía broker)

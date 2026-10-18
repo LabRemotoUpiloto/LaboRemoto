@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import 'xterm/css/xterm.css';
+import '@xterm/xterm/css/xterm.css';
 import './TerminalPane.css';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTerminal } from './useTerminal';

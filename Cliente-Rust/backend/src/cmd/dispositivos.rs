@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ts_rs::TS;
 
-use crate::cmd::nvr::shinobi::{BROKER_HOST, HTTP_CLIENT};
+use crate::cmd::broker_client::get_text;
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
@@ -96,23 +96,6 @@ pub struct ResumenDispositivos {
     pub dispositivos: Vec<DispositivoActividad>,
 }
 
-async fn access_token(manager: &Arc<dyn SessionManager>) -> Result<String, CommandError> {
-    manager
-        .get_access_token()
-        .await
-        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
-        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión"))
-}
-
-fn error_de_red(ctx: &str, e: reqwest::Error) -> CommandError {
-    let err = if e.is_timeout() {
-        CommandError::transient("OPERATION_TIMEOUT", format!("Timeout contactando el registro de dispositivos: {e}"))
-    } else {
-        CommandError::transient("COMMUNICATION_ERROR", format!("Error contactando el registro de dispositivos: {e}"))
-    };
-    err.with_retry_after(3000).with_context(ctx, "broker")
-}
-
 /// Interpreta la respuesta del broker. Función pura para poder probarla.
 fn interpretar(status: u16, texto: &str) -> Result<ResumenDispositivos, CommandError> {
     match status {
@@ -130,17 +113,9 @@ pub async fn dispositivos_resumen(
     manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<ResumenDispositivos, CommandError> {
     let ctx = "dispositivos_resumen";
-    let token = access_token(manager.inner()).await?;
     let dias = dias.unwrap_or(30);
-    let respuesta = HTTP_CLIENT
-        .get(format!("{BROKER_HOST}/nvr/dispositivos/resumen?dias={dias}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| error_de_red(ctx, e))?;
-    let status = respuesta.status().as_u16();
-    let texto = respuesta.text().await.map_err(|e| error_de_red(ctx, e))?;
-    interpretar(status, &texto).map_err(|e| e.with_context(ctx, "broker"))
+    let (status, texto) = get_text(ctx, "el registro de dispositivos", &format!("/nvr/dispositivos/resumen?dias={dias}"), manager.inner()).await?;
+    interpretar(status.as_u16(), &texto).map_err(|e| e.with_context(ctx, "broker"))
 }
 
 #[cfg(test)]

@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import SnippetsHeader from '../../components/snippets/SnippetsHeader';
+import React, { useCallback, useMemo, useState } from 'react';
 import SnippetForm from '../../components/snippets/SnippetForm';
 import SnippetsList from '../../components/snippets/SnippetsList';
 import { useToasts } from '../../contexts/ToastContext';
 import { modals } from '@mantine/modals';
-import { Text } from '@mantine/core';
+import { Box, Container, Stack, Title, Text, Group, TextInput, Select } from '@mantine/core';
+import { Search } from 'lucide-react';
 
 export interface UserSnippet {
   id: string;
@@ -13,8 +13,6 @@ export interface UserSnippet {
   createdAt: number;
   updatedAt?: number;
   category?: string;
-  sessionId?: string;
-  lastFileRef?: string;
 }
 
 const STORAGE_KEY = 'user-snippets-v1';
@@ -44,6 +42,18 @@ const SnippetsPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date' | 'title' | 'updated'>('date');
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Única fuente de verdad para persistir -- antes `addSnippet`/`deleteSnippet`
+  // también llamaban a `saveStored` a mano dentro del setter, duplicando la
+  // escritura a localStorage en cada acción. `setSnippets` siempre dispara
+  // este efecto, así que alcanza con guardar acá.
+  const updateSnippets = useCallback((updater: (prev: UserSnippet[]) => UserSnippet[]) => {
+    setSnippets(prev => {
+      const next = updater(prev);
+      saveStored(next);
+      return next;
+    });
+  }, []);
+
   const addSnippet = useCallback(() => {
     const t = title.trim();
     const c = text.trim();
@@ -51,42 +61,34 @@ const SnippetsPage: React.FC = () => {
     if (!c) return;
 
     if (editingId) {
-      setSnippets(prev => {
-        const next = prev.map(s => 
-          s.id === editingId 
-            ? { ...s, title: t || 'Sin título', content: c, category: cat || undefined, updatedAt: Date.now() }
-            : s
-        );
-        saveStored(next);
-        return next;
-      });
+      updateSnippets(prev => prev.map(s =>
+        s.id === editingId
+          ? { ...s, title: t || 'Sin título', content: c, category: cat || undefined, updatedAt: Date.now() }
+          : s
+      ));
       push({ type: 'success', message: 'Snippet actualizado' });
       setEditingId(null);
     } else {
       const sn: UserSnippet = {
-        id: String(Date.now()) + Math.random().toString(36).slice(2,8),
+        id: String(Date.now()) + Math.random().toString(36).slice(2, 8),
         title: t || 'Sin título',
         content: c,
         category: cat || undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      setSnippets(prev => {
-        const next = [sn, ...prev].slice(0, 500);
-        saveStored(next);
-        return next;
-      });
+      updateSnippets(prev => [sn, ...prev].slice(0, 500));
       push({ type: 'success', message: 'Snippet guardado' });
     }
     setTitle('');
     setText('');
     setCategory('');
-  }, [title, text, category, editingId, push]);
+  }, [title, text, category, editingId, push, updateSnippets]);
 
   const deleteSnippet = (id: string) => {
     const snippet = snippets.find(s => s.id === id);
     if (!snippet) return;
-    
+
     modals.openConfirmModal({
       title: 'Eliminar snippet',
       centered: true,
@@ -96,11 +98,7 @@ const SnippetsPage: React.FC = () => {
       labels: { confirm: 'Eliminar', cancel: 'Cancelar' },
       confirmProps: { color: 'red' },
       onConfirm: () => {
-        setSnippets(prev => {
-          const next = prev.filter(s => s.id !== id);
-          saveStored(next);
-          return next;
-        });
+        updateSnippets(prev => prev.filter(s => s.id !== id));
         push({ type: 'success', message: 'Snippet eliminado' });
       }
     });
@@ -121,7 +119,7 @@ const SnippetsPage: React.FC = () => {
   };
 
   const copySnippet = (content: string) => {
-    try { 
+    try {
       navigator.clipboard.writeText(content);
       push({ type: 'success', message: 'Copiado al portapapeles' });
     } catch {
@@ -131,15 +129,15 @@ const SnippetsPage: React.FC = () => {
 
   const filteredAndSortedSnippets = useMemo(() => {
     const f = filter.trim().toLowerCase();
-    
-    let filtered = f 
+
+    let filtered = f
       ? snippets.filter(s => (s.title.toLowerCase().includes(f) || s.content.toLowerCase().includes(f)))
       : snippets;
-    
+
     if (categoryFilter) {
       filtered = filtered.filter(s => s.category === categoryFilter);
     }
-    
+
     if (sortBy === 'date') {
       filtered = [...filtered].sort((a, b) => b.createdAt - a.createdAt);
     } else if (sortBy === 'updated') {
@@ -147,10 +145,10 @@ const SnippetsPage: React.FC = () => {
     } else {
       filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
     }
-    
+
     return filtered;
   }, [snippets, filter, categoryFilter, sortBy]);
-  
+
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
     snippets.forEach(s => {
@@ -159,26 +157,59 @@ const SnippetsPage: React.FC = () => {
     return Array.from(cats).sort();
   }, [snippets]);
 
-  useEffect(() => { saveStored(snippets); }, [snippets]);
-
   const editingSnippet = editingId ? snippets.find(s => s.id === editingId) : null;
 
   return (
-    <div className="flex flex-col h-full">
-      <SnippetsHeader
-        totalCount={snippets.length}
-        filteredCount={filteredAndSortedSnippets.length}
-        filter={filter}
-        onFilterChange={setFilter}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        categories={allCategories}
-        categoryFilter={categoryFilter}
-        onCategoryFilterChange={setCategoryFilter}
-      />
+    <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+      <Container size="lg" py="xl" px="xl">
+        <Stack gap="xl">
+          {/* Mismo patrón de encabezado que Logs/Prácticas (Title + descripción
+              apiladas) -- antes esta página usaba la barra compacta de 36px
+              que comparten Ajustes/Perfil/Temas, pensada para páginas de
+              configuración, no para una página de contenido como esta. */}
+          <Stack gap={4}>
+            <Title order={1}>Snippets</Title>
+            <Text size="md" c="dimmed" maw={580}>
+              Guardá los comandos y scripts que repetís seguido en tus sesiones SSH,
+              para no tener que escribirlos de nuevo cada vez.
+            </Text>
+          </Stack>
 
-      <div className="flex-1 overflow-y-auto p-6 scroll-smooth custom-scrollbar">
-        <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
+          <Group gap="sm">
+            <TextInput
+              placeholder="Buscar..."
+              value={filter}
+              onChange={(e) => setFilter(e.currentTarget.value)}
+              leftSection={<Search size={14} style={{ color: 'var(--text-secondary)' }} />}
+              size="sm"
+              w={200}
+              className="dribbble-toolbar-input"
+            />
+            <Select
+              placeholder="Categorías"
+              value={categoryFilter || null}
+              onChange={(v) => setCategoryFilter(v || '')}
+              data={allCategories.map(c => ({ value: c, label: c }))}
+              clearable
+              size="sm"
+              w={160}
+              className="dribbble-toolbar-input"
+            />
+            <Select
+              value={sortBy}
+              onChange={(v) => setSortBy((v as 'date' | 'title' | 'updated') || 'date')}
+              data={[
+                { value: 'date', label: 'Recientes' },
+                { value: 'updated', label: 'Modificado' },
+                { value: 'title', label: 'Título' },
+              ]}
+              size="sm"
+              w={140}
+              allowDeselect={false}
+              className="dribbble-toolbar-input"
+            />
+          </Group>
+
           <SnippetForm
             title={title}
             content={text}
@@ -196,7 +227,7 @@ const SnippetsPage: React.FC = () => {
             <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
               {(filter || categoryFilter) ? `Resultados (${filteredAndSortedSnippets.length})` : `Guardados (${snippets.length})`}
             </h2>
-            
+
             <SnippetsList
               snippets={filteredAndSortedSnippets}
               onCopy={copySnippet}
@@ -204,14 +235,14 @@ const SnippetsPage: React.FC = () => {
               onDelete={deleteSnippet}
               emptyMessage={
                 (filter || categoryFilter)
-                  ? 'No se encontraron snippets con ese filtro.' 
-                  : 'Aún no tienes snippets guardados. ¡Crea tu primer snippet arriba!'
+                  ? 'No se encontraron snippets con ese filtro.'
+                  : 'Todavía no guardaste ningún comando. Guardá el primero que uses seguido, arriba.'
               }
             />
           </section>
-        </div>
-      </div>
-    </div>
+        </Stack>
+      </Container>
+    </Box>
   );
 };
 

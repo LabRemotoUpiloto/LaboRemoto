@@ -332,7 +332,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                     name={practice.name}
                                     description={practice.description}
                                     hasCamera={practice.panels.camera}
-                                    hasChat={practice.panels.chat}
                                     onStart={() => (
                                         isServiceModule(selectedCategory.id, practice.id)
                                             ? setSelectedModuleId(practice.id)

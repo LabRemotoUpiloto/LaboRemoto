@@ -167,7 +167,7 @@ async fn callback_handler(
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LOGO_UNIPILOTO: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../frontend/src/assets/logo-unipiloto.png"));
-const ABEJA_UNIPILOTO: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../frontend/public/abeja1.jpeg"));
+const ABEJA_UNIPILOTO: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../frontend/public/abeja1.webp"));
 
 fn image_data_uri(mime: &str, bytes: &[u8]) -> String {
     format!("data:{};base64,{}", mime, STANDARD.encode(bytes))
@@ -176,7 +176,7 @@ fn image_data_uri(mime: &str, bytes: &[u8]) -> String {
 fn build_success_html() -> String {
     SUCCESS_HTML_TEMPLATE
         .replace("__LOGO_SRC__", &image_data_uri("image/png", LOGO_UNIPILOTO))
-        .replace("__ABEJA_SRC__", &image_data_uri("image/jpeg", ABEJA_UNIPILOTO))
+        .replace("__ABEJA_SRC__", &image_data_uri("image/webp", ABEJA_UNIPILOTO))
 }
 
 const SUCCESS_HTML_TEMPLATE: &str = r#"<!DOCTYPE html>

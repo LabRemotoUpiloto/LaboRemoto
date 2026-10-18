@@ -59,9 +59,10 @@ html[data-theme="unipiloto"] {
   /* ── Terminal: texto oscuro en fondo claro ── */
   --terminal-foreground:   #1c1c1c;
 
-  /* ── Selección de texto ── */
-  --selection-bg:          rgba(213, 31, 34, 0.18);
-  --selection-fg:          #1c1c1c;
+  /* Selección de texto: hereda la fórmula global (--accent-primary sólido +
+     --accent-contrast) -- antes este tema la pisaba con un rojo traslúcido
+     al 18% + texto #1c1c1c fijo, que se volvía ilegible en cuanto se
+     mezclaba con el fondo de una fila ya seleccionada o en hover. */
 
   /* ── Estados semánticos en contexto claro ── */
   --success:               #007a33;
