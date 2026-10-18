@@ -1,9 +1,10 @@
 // components/practicas/linux/PasoCard.tsx — un paso de la práctica en el chat.
 //
-// Cada paso dice con palabras qué hacer: una lista corta de acciones (hechas,
-// la actual y las que faltan), la franja «Ahora: ...» con la única cosa que
-// toca, y el botón o la caja que hay que usar late suave. Cuando el paso se
-// completa queda resumido en una línea, que se puede volver a abrir.
+// Cada paso dice con palabras qué hacer con una sola guía: la lista de
+// acciones (hechas, la actual y las que faltan) donde la fila de la acción
+// actual se actualiza sola con la instrucción puntual («Ahora: ...»), y el
+// botón o la caja que hay que usar late suave. Cuando el paso se completa
+// queda resumido en una línea, que se puede volver a abrir.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
@@ -38,37 +39,47 @@ export function EncabezadoPaso({ numero, total, titulo, derecha }: { numero: num
   );
 }
 
-/** Lista de acciones del paso: hechas con visto bueno, la actual resaltada, las demás en gris. */
-export function ListaAcciones({ acciones, hechas, actual }: { acciones: { id: string; texto: string }[]; hechas: Set<string>; actual: string | null }) {
-  return (
-    <Stack gap={4}>
-      {acciones.map((a) => {
-        const hecha = hechas.has(a.id);
-        const esActual = a.id === actual;
-        return (
-          <Group key={a.id} gap={8} wrap="nowrap">
-            {hecha
-              ? <Check size={15} color="var(--success, #22C55E)" style={{ flexShrink: 0 }} />
-              : <Circle size={13} style={{ flexShrink: 0, opacity: esActual ? 1 : 0.5, margin: '0 1px' }} />}
-            <Text fz="sm" fw={esActual ? 600 : 400} c={hecha ? 'teal' : esActual ? undefined : 'dimmed'}>
-              {a.texto}
-            </Text>
-          </Group>
-        );
-      })}
-    </Stack>
-  );
+/** Primera letra en mayúscula: las instrucciones se escriben pensadas para ir después de «Ahora:». */
+export function mayuscula(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** La única cosa que toca hacer ahora, dicha con palabras. */
-export function FranjaAhora({ children, extra }: { children: React.ReactNode; extra?: React.ReactNode }) {
+/**
+ * Guía del paso en un solo bloque: la lista de acciones (hechas con visto
+ * bueno, las que faltan en gris) donde la fila de la acción actual no se
+ * queda con su etiqueta genérica («Abre la imagen») sino que se actualiza con
+ * la instrucción puntual de qué hacer con ella. Evita repetir la explicación
+ * que ya se mostró arriba en una franja aparte.
+ */
+export function GuiaPaso({ acciones, hechas, actual, ahora, extra }: {
+  acciones: { id: string; texto: string }[];
+  hechas: Set<string>;
+  actual: string | null;
+  /** Instrucción puntual de la acción actual; si falta, se usa su etiqueta genérica. */
+  ahora?: React.ReactNode | null;
+  extra?: React.ReactNode;
+}) {
   return (
-    <div className="paso-ahora">
-      <Pointer size={18} style={{ flexShrink: 0, marginTop: 2 }} />
-      <Stack gap={8} style={{ minWidth: 0 }}>
-        <span><strong>Ahora:</strong> {children}</span>
-        {extra}
+    <div className="paso-guia" data-tour="practica-guia">
+      <Stack gap={6}>
+        {acciones.map((a) => {
+          const hecha = hechas.has(a.id);
+          const esActual = a.id === actual;
+          return (
+            <Group key={a.id} gap={8} wrap="nowrap" align="flex-start">
+              {hecha
+                ? <Check size={15} color="var(--success, #22C55E)" style={{ flexShrink: 0, marginTop: 2 }} />
+                : esActual
+                  ? <Pointer size={15} style={{ flexShrink: 0, marginTop: 2 }} />
+                  : <Circle size={13} style={{ flexShrink: 0, opacity: 0.5, margin: '0 1px', marginTop: 3 }} />}
+              <Text fz="sm" fw={esActual ? 600 : 400} c={hecha ? 'teal' : esActual ? undefined : 'dimmed'} style={{ minWidth: 0 }}>
+                {esActual && ahora ? ahora : a.texto}
+              </Text>
+            </Group>
+          );
+        })}
       </Stack>
+      {extra}
     </div>
   );
 }
@@ -135,7 +146,8 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
     if (a.tipo === 'leer' && r) return `lee la explicación de arriba. Cuando termines, ${instruccion(r, etiquetaBoton)}`;
     return instruccion(a, etiquetaBoton);
   };
-  const ahora = textoAhora(actual, resaltada);
+  const textoAhoraCrudo = textoAhora(actual, resaltada);
+  const ahora = textoAhoraCrudo ? mayuscula(textoAhoraCrudo) : null;
 
   // «La terminal» no le dice nada a quien nunca la usó: en el primer comando
   // del módulo se explica qué es y dónde está; siempre se ofrece llevarlo ahí.
@@ -162,8 +174,8 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
     </>
   );
 
-  // La guía (lista + «Ahora:») va después del primer texto, antes del material
-  // y del comando: primero se lee de qué se trata y enseguida qué hacer.
+  // La guía va después del primer texto, antes del material y del comando:
+  // primero se lee de qué se trata y enseguida qué hacer.
   const corte = paso.bloques.findIndex((b) => b.type !== 'text');
   const antes = corte === -1 ? paso.bloques : paso.bloques.slice(0, corte);
   const despues = corte === -1 ? [] : paso.bloques.slice(corte);
@@ -203,10 +215,7 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
       <Stack gap="sm">
         {antes.map(bloque)}
         {!completo && (
-          <>
-            <ListaAcciones acciones={acciones} hechas={hechas} actual={actual?.id ?? null} />
-            {ahora && <FranjaAhora extra={ayudaTerminal || undefined}>{ahora}</FranjaAhora>}
-          </>
+          <GuiaPaso acciones={acciones} hechas={hechas} actual={actual?.id ?? null} ahora={ahora} extra={ayudaTerminal || undefined} />
         )}
         {despues.map(bloque)}
         {paso.conBoton && !completo && (

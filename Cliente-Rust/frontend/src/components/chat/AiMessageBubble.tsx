@@ -8,7 +8,7 @@ import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon, Button, Group, Text } from '@mantine/core';
 import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
 import { BlockView, CLASE_RESALTADA } from '../practicas/linux/blocks/BlockRenderer';
-import { PasoCard, EncabezadoPaso, ListaAcciones, FranjaAhora } from '../practicas/linux/PasoCard';
+import { PasoCard, EncabezadoPaso, GuiaPaso, mayuscula } from '../practicas/linux/PasoCard';
 import { ModuleCompleteCelebration } from '../practicas/linux/ModuleCompleteCelebration';
 import { PosterUnlockCelebration } from '../practicas/linux/PosterUnlockCelebration';
 import { markModuleBadgeEarned, rankForModule } from '../../services/badges.service';
@@ -239,8 +239,7 @@ export default function AiMessageBubble({
                   <Text fz="sm" style={{ lineHeight: 1.6 }}>
                     Ya hiciste la parte práctica. Para terminar el módulo responde estas preguntas aquí en el chat; no hay que escribir nada en la terminal.
                   </Text>
-                  <ListaAcciones acciones={accionesEvaluacion} hechas={hechasEvaluacion} actual={accionEvaluacionActual} />
-                  {ahoraEvaluacion && <FranjaAhora>{ahoraEvaluacion}</FranjaAhora>}
+                  <GuiaPaso acciones={accionesEvaluacion} hechas={hechasEvaluacion} actual={accionEvaluacionActual} ahora={ahoraEvaluacion ? mayuscula(ahoraEvaluacion) : null} />
                 </>
               )}
               {msg.meta.linuxQuiz.blocks.map((block: any, i: number) => (

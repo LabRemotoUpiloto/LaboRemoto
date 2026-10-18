@@ -35,4 +35,9 @@ export const PASOS_PRACTICA_LINUX: PasoPracticaLinux[] = [
     texto: 'Y aquí abajo le escribes tus preguntas al chat, cuando tengas dudas.',
     elementos: ['[data-tour="practica-pregunta"]'], lado: 'top',
   },
+  {
+    audio: '05.mp3', titulo: 'Qué toca ahora',
+    texto: 'Este recuadro te dice qué toca ahora, y se va marcando solo a medida que avanzas.',
+    elementos: ['[data-tour="practica-guia"]'], lado: 'left',
+  },
 ];
