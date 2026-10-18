@@ -104,7 +104,7 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
 
           {/* Círculo central con Mascota */}
           <div className="relative z-10 w-[140px] h-[140px] md:w-[190px] md:h-[190px] rounded-full bg-[var(--background-secondary)] border border-[var(--border-strong)] flex items-center justify-center overflow-hidden shadow-[0_20px_40px_-15px_rgba(0,0,0,0.22),_inset_0_2px_4px_rgba(255,255,255,0.05)] transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent-primary)]">
-            <img src="/abeja1.jpeg" alt="Mascota Abeja" className="w-[96px] h-[96px] md:w-[130px] md:h-[130px] object-contain rounded-full" />
+            <img src="/abeja1.webp" alt="Mascota Abeja" className="w-[96px] h-[96px] md:w-[130px] md:h-[130px] object-contain rounded-full" />
           </div>
         </div>
       </div>

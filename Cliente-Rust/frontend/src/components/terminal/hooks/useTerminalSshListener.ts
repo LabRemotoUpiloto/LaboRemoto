@@ -23,7 +23,7 @@
  * parámetro — ver useTerminal.ts para el orden de composición.
  */
 import { useEffect, useState, MutableRefObject, RefObject } from 'react';
-import { Terminal } from 'xterm';
+import { Terminal } from '@xterm/xterm';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { sshStdin, sshResize } from '../../../services/ssh.service';

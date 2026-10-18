@@ -7,7 +7,7 @@
  * useTerminalSshListener sin duplicar lógica ni depender de closures locales.
  */
 import { MutableRefObject, RefObject } from 'react';
-import { Terminal } from 'xterm';
+import { Terminal } from '@xterm/xterm';
 
 /** Sanitiza un sessionId para usarlo como sufijo del canal de evento `ssh_out_<safe>`. */
 export const sanitizeSessionId = (id: string) => (id || '').replace(/[^a-zA-Z0-9_:\-\/]/g, '_');

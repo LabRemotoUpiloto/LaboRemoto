@@ -38,7 +38,7 @@
  * truthiness, nunca se opera sobre la instancia en sí dentro de ese hook.
  */
 import { useEffect, useRef, RefObject } from 'react';
-import { Terminal } from 'xterm';
+import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { useTerminalResize } from './hooks/useTerminalResize';

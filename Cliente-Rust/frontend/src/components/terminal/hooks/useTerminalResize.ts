@@ -22,7 +22,7 @@
  * terminal se destruya (`term.dispose()`).
  */
 import { useEffect, MutableRefObject, RefObject } from 'react';
-import { Terminal } from 'xterm';
+import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { isPaneVisible } from './terminalDomUtils';
 
