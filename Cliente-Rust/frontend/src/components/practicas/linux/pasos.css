@@ -148,17 +148,3 @@
   border-radius: 10px;
   cursor: zoom-in;
 }
-
-.paso-barra {
-  height: 5px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: var(--border-subtle);
-}
-
-.paso-barra > span {
-  display: block;
-  height: 100%;
-  background: var(--accent-primary);
-  transition: width 0.3s ease;
-}

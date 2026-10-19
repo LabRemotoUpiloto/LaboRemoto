@@ -49,6 +49,7 @@ import { STEP_GATE_EVENT } from './practicas/linux/blocks/BlockRenderer';
 import { armarPlan, type PasoPractica } from './practicas/linux/ritmo';
 import type { DatosGuia } from './practicas/linux/PasoCard';
 import { GuiaPractica } from './practicas/linux/GuiaPractica';
+import type { ProgresoPractica } from './practicas/linux/LinuxPracticeProgressBar';
 import { contextoPractica, loQueTocaAhora, relacionDelComando, textoComandoFueraDeLugar, type RelacionComando } from './practicas/linux/contextoTutor';
 import type { LinuxPracticeSessionApi } from '../hooks/useLinuxPracticeSession';
 
@@ -88,6 +89,8 @@ type Props = {
   practiceResult?: { passed: boolean; results: { rule_id: string; passed: boolean }[] } | null;
   /** Instancia única de useLinuxPracticeSession (ver App.tsx) -- para entregar contenido/quiz de la práctica de Linux por el chat. */
   linuxSession?: LinuxPracticeSessionApi;
+  /** Avance de la práctica (nombre + paso actual de la guía) para la cabecera de arriba de la terminal. */
+  onProgresoPractica?: (p: ProgresoPractica | null) => void;
 };
 
 const ChatPane: React.FC<Props> = ({
@@ -98,6 +101,7 @@ const ChatPane: React.FC<Props> = ({
   practiceId = null,
   practiceResult = null,
   linuxSession,
+  onProgresoPractica,
 }) => {
   const isHome = layout === 'home';
   // Durante una práctica el chat queda fijo en modo tutor (Consulta) -- no se
@@ -174,6 +178,21 @@ const ChatPane: React.FC<Props> = ({
   linuxModuleRef.current = linuxModule;
   const practiceResultRef = useRef(practiceResult);
   practiceResultRef.current = practiceResult;
+
+  // La cabecera de arriba muestra el mismo paso que la guía. Entre un paso completado y la llegada del
+  // siguiente la guía queda vacía un momento: se mantiene el último paso conocido para que no parpadee.
+  const ultimoPasoRef = useRef<{ numero: number; total: number } | null>(null);
+  useEffect(() => { ultimoPasoRef.current = null; }, [practiceId]);
+  useEffect(() => {
+    if (!onProgresoPractica) return;
+    if (!isPracticeSession || !linuxModule) { onProgresoPractica(null); return; }
+    if (guiaActiva?.numero && guiaActiva.total) ultimoPasoRef.current = { numero: guiaActiva.numero, total: guiaActiva.total };
+    onProgresoPractica({
+      titulo: linuxModule.title,
+      numero: ultimoPasoRef.current?.numero ?? null,
+      total: ultimoPasoRef.current?.total ?? null,
+    });
+  }, [onProgresoPractica, isPracticeSession, linuxModule, guiaActiva]);
 
   const contextoActual = () => contextoPractica(
     guiaRef.current, linuxModuleRef.current, practiceResultRef.current as unknown as LinuxValidationResult | null,

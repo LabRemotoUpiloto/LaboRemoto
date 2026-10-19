@@ -43,9 +43,10 @@ export function GuiaPractica({ guia }: { guia: DatosGuia | null }) {
             <Icono size={15} strokeWidth={2.2} />
           </span>
           <div className="guia-practica__cuerpo">
+            {/* «Paso 3 de 16» va solo en la cabecera de arriba; acá basta con decir que es lo de ahora
+                (o «Evaluación final»). La cuenta de acciones del paso ya la muestran los segmentos. */}
             <div className="guia-practica__meta">
-              <span>{guia?.etiqueta ?? 'Práctica'}</span>
-              {total > 1 && <span className="guia-practica__cuenta">{listas}/{total}</span>}
+              <span>{guia?.etiqueta && !/^Paso\s/.test(guia.etiqueta) ? guia.etiqueta : 'Ahora'}</span>
             </div>
             <p key={`${actual?.id ?? 'quieta'}:${typeof texto === 'string' ? texto : ''}`} className="guia-practica__texto">
               {texto ?? 'Sigue las indicaciones del chat.'}

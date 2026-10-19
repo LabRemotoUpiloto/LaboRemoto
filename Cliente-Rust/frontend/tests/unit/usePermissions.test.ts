@@ -26,12 +26,13 @@ describe('rol docente', () => {
     }
   });
 
-  it('ve prácticas, mis cursos y logs; el estudiante no ve logs', () => {
+  it('ve prácticas, mis cursos y logs; el estudiante no ve logs ni mis cursos', () => {
     for (const page of ['practices', 'mis-cursos', 'logs']) {
       expect(canAccessPage(page, 'docente'), page).toBe(true);
     }
     expect(canAccessPage('logs', 'estudiante')).toBe(false);
-    expect(canAccessPage('mis-cursos', 'estudiante')).toBe(true);
+    expect(canAccessPage('mis-cursos', 'estudiante')).toBe(false);
+    expect(canAccessPage('practices', 'estudiante')).toBe(true);
   });
 
   it('la terminal local es solo de semillerista y admin_lab', () => {

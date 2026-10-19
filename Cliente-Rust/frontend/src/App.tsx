@@ -209,6 +209,15 @@ const AppMain: React.FC = () => {
     return merged
   }, [practiceMeta, linuxSession.sessionModuleMap, linuxSession.sessionPanels])
 
+  // Al iniciar una práctica, la barra lateral se colapsa para dejarle el espacio a la terminal y al
+  // chat (el estudiante la puede volver a abrir). Solo cuando aparece una práctica nueva, no en cada render.
+  const cantidadPracticas = Object.keys(combinedPracticeMeta ?? {}).length
+  const cantidadPracticasPrevia = useRef(cantidadPracticas)
+  useEffect(() => {
+    if (cantidadPracticas > cantidadPracticasPrevia.current) setIsSidebarOpen(false)
+    cantidadPracticasPrevia.current = cantidadPracticas
+  }, [cantidadPracticas, setIsSidebarOpen])
+
   // ── Sesión y Autenticación ───────────────────────────────────────────────────
   const { isAuthenticated, isLoading } = useAuth()
 

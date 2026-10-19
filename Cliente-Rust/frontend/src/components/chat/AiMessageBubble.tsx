@@ -161,6 +161,8 @@ export default function AiMessageBubble({
       actual: accionEvaluacionActual,
       ahora: mayuscula(ahoraEvaluacion),
       etiqueta: 'Evaluación final',
+      numero: msg.meta?.linuxQuiz?.numero ?? msg.meta?.linuxQuiz?.total,
+      total: msg.meta?.linuxQuiz?.total,
     } : null);
   }, [quizConGuia, onLinuxGuiaChange, accionesEvaluacion, hechasEvaluacion, accionEvaluacionActual, ahoraEvaluacion]);
 
@@ -248,11 +250,7 @@ export default function AiMessageBubble({
             <div className="flex flex-col gap-2 mt-1">
               {msg.meta.linuxQuiz.total && (
                 <>
-                  <EncabezadoPaso
-                    numero={msg.meta.linuxQuiz.numero ?? msg.meta.linuxQuiz.total}
-                    total={msg.meta.linuxQuiz.total}
-                    titulo="Responde las preguntas"
-                  />
+                  <EncabezadoPaso titulo="Responde las preguntas" />
                   <Text fz="sm" style={{ lineHeight: 1.6 }}>
                     Ya hiciste la parte práctica. Para terminar el módulo responde estas preguntas aquí en el chat; no hay que escribir nada en la terminal.
                   </Text>
@@ -317,7 +315,8 @@ export default function AiMessageBubble({
             </div>
           )}
 
-          <div className={`flex items-center gap-1 mt-2 -ml-1 opacity-0 group-hover/ai:opacity-100 transition-opacity ${isLanding ? 'border-t pt-2' : ''}`}
+          {/* Copiar / Regenerar / Reintentar: no en la práctica, donde el chat es la guía y no una conversación libre. */}
+          {!linuxPracticeId && <div className={`flex items-center gap-1 mt-2 -ml-1 opacity-0 group-hover/ai:opacity-100 transition-opacity ${isLanding ? 'border-t pt-2' : ''}`}
             style={isLanding ? { borderColor: 'var(--border-subtle)' } : undefined}
           >
             <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onCopy(msg.text)} title="Copiar mensaje" className={actionBtnClass}>
@@ -340,7 +339,7 @@ export default function AiMessageBubble({
                 ~{wordCount} pal.
               </span>
             )}
-          </div>
+          </div>}
 
           {msg.meta?.fileEdit && (
             <div className="mt-3 border border-[var(--border-subtle)] bg-[var(--background-tertiary)] rounded-lg overflow-hidden">

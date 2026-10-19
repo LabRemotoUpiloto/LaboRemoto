@@ -69,11 +69,6 @@
   color: var(--accent-primary);
 }
 
-.guia-practica__cuenta {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-}
-
 .guia-practica__texto {
   margin: 2px 0 0;
   font-size: 13px;
