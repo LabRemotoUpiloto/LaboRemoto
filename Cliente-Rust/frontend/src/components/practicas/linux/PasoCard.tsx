@@ -202,7 +202,10 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
             <Button
               rightSection={<ArrowRight size={15} />}
               className={resaltada?.tipo === 'siguiente' ? CLASE_RESALTADA : undefined}
-              disabled={actual?.tipo !== 'siguiente'}
+              // `resaltada` (no `actual`): «leer» no tiene botón y solo se marca al hacer otra
+              // acción, así que en un paso de solo texto `actual` se quedaba en «leer» para
+              // siempre y el botón nunca se habilitaba.
+              disabled={resaltada?.tipo !== 'siguiente'}
               onClick={() => {
                 marcar('siguiente');
                 document.dispatchEvent(new CustomEvent(STEP_GATE_EVENT, { detail: { id: paso.id } }));

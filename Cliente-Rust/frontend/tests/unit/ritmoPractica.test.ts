@@ -60,6 +60,13 @@ describe('acciones del paso y la franja «Ahora:»', () => {
     expect(resaltada?.id).toBe('atajos');
   });
 
+  it('un paso de solo texto deja pasar enseguida: «leer» no tiene botón (PasoCard habilita con `resaltada`)', () => {
+    const [soloTexto] = armarPlan([texto('gnu')]).pasos;
+    const { actual, resaltada } = accionActual(accionesDelPaso(soloTexto), new Set());
+    expect(actual?.tipo).toBe('leer');
+    expect(resaltada?.tipo).toBe('siguiente');
+  });
+
   it('avanza a la acción pendiente siguiente', () => {
     const { actual, resaltada } = accionActual(accionesDelPaso(paso), new Set(['leer', 'atajos']));
     expect(actual?.id).toBe('demo');
