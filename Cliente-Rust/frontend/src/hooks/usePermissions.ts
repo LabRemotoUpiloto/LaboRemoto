@@ -78,7 +78,8 @@ export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   practices: EVERYONE,
   // Reservas está en pruebas: por ahora la ve todo el mundo menos estudiante (ni en el menú ni abriéndola por id).
   reservas: ROLE_ORDER.filter((r) => r !== 'estudiante'),
-  'mis-cursos': EVERYONE,
+  // El estudiante no la ve (ni en el menú ni abriéndola por id): llega a sus prácticas por Prácticas.
+  'mis-cursos': ROLE_ORDER.filter((r) => r !== 'estudiante'),
   themes: EVERYONE.filter((r) => !usaTemaInstitucional(r)),
   connect: TECHNICAL,
   // Terminal local (botón del sidebar y del header): solo semillerista y admin_lab.
