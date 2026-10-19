@@ -1,9 +1,9 @@
 // components/practicas/linux/GuiaPractica.tsx — barra «qué toca ahora» de la práctica.
 //
 // Es una fila más de la columna del chat (ver ChatPane), arriba de los
-// mensajes y gemela de la caja del input de abajo: misma tarjeta, mismo
-// radio, mismo fondo. No flota sobre el scroll -- los mensajes nunca le pasan
-// por encima. La alimentan PasoCard y la evaluación final vía DatosGuia.
+// mensajes, con la misma forma que la caja del input de abajo pero teñida del
+// acento. No flota sobre el scroll -- los mensajes nunca le pasan por encima.
+// La alimentan PasoCard y la evaluación final vía DatosGuia.
 
 import React from 'react';
 import {
@@ -66,7 +66,7 @@ export function GuiaPractica({ guia }: { guia: DatosGuia | null }) {
                   role="listitem"
                   title={a.texto}
                   aria-label={`${a.texto}${hecha ? ' (lista)' : esActual ? ' (ahora)' : ''}`}
-                  className={`guia-practica__seg${hecha ? ' is-hecha' : ''}${esActual ? ' is-actual' : ''}`}
+                  className={`guia-practica__seg${hecha ? ' is-hecha' : ''}`}
                 />
               );
             })}

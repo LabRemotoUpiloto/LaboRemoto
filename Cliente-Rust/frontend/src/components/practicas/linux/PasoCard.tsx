@@ -9,7 +9,7 @@
 // una línea, que se puede volver a abrir.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { ArrowRight, Check, ChevronDown, ChevronUp, Terminal } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../services/linuxPractice.service';
 import { BlockView, CLASE_RESALTADA, STEP_GATE_EVENT } from './blocks/BlockRenderer';
@@ -183,7 +183,8 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
   };
 
   return (
-    <Paper withBorder radius="md" p="md" style={{ width: '100%' }}>
+    // Sin tarjeta propia: el paso ya vive dentro de la burbuja del mensaje (caja dentro de caja era ruido).
+    <div style={{ width: '100%' }}>
       <EncabezadoPaso
         numero={paso.numero}
         total={total}
@@ -212,6 +213,6 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
           </Group>
         )}
       </Stack>
-    </Paper>
+    </div>
   );
 }

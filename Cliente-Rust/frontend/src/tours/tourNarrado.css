@@ -19,16 +19,6 @@
 
 .driver-popover.tutorial-bienvenida.tour-narrado { max-width: 420px !important; min-width: 320px; }
 
-/* Hilo de acento arriba: identifica el globo sin teñirlo entero. */
-.driver-popover.tour-narrado::before {
-  content: '';
-  position: absolute;
-  inset: 0 18px auto;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: var(--accent-primary, #d51f22);
-}
-
 /* ── Título: meta («Paso 2 de 5» + voz) arriba, título debajo ── */
 .driver-popover.tour-narrado .driver-popover-title {
   display: block !important;
@@ -115,7 +105,8 @@
   transform: scaleX(0);
   transform-origin: left center;
 }
-.tn-seg.is-hecho::after { transform: scaleX(1); opacity: 0.4; }
+/* Dos colores, igual que la guía de la práctica: rojo lo recorrido, sin color lo que falta. */
+.tn-seg.is-hecho::after { transform: scaleX(1); }
 .tn-seg.is-actual::after { animation: tnLlenar 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
 
 /* ── Footer ── */

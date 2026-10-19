@@ -17,6 +17,67 @@
   }
 }
 
+/* Imagen / video de un paso (MediaBlock): sin caja propia, solo encabezado + el medio con su marco. */
+.paso-media {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.paso-media__cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.paso-media__tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* Gris, no rojo: el acento queda para la guía de arriba y para lo que hay que pulsar. */
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+.paso-media__titulo {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+/* Video aún sin pedir: una portada oscura del mismo tamaño que tendrá el reproductor. */
+.paso-media__portada {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  background: radial-gradient(120% 90% at 50% 35%, #2b2b2b 0%, #121212 70%);
+}
+
+.paso-media__portada--cargando {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  aspect-ratio: auto;
+  min-height: 120px;
+  background: var(--background-tertiary);
+}
+
+.paso-media__img {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  cursor: zoom-in;
+}
+
 .paso-barra {
   height: 5px;
   border-radius: 3px;

@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, Button } from '@mantine/core';
-import { AlertTriangle, Maximize2, Play, X } from 'lucide-react';
+import { AlertTriangle, Image as ImageIcon, Maximize2, Play, X } from 'lucide-react';
 import '../pasos.css';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
@@ -270,10 +270,20 @@ function MediaBlock({
     return () => { cancelled = true; };
   }, [practiceId, block.file, requested]);
 
+  // Sin caja propia (ya vive dentro de la burbuja del mensaje): un encabezado que dice qué es
+  // y el medio con su propio marco redondeado. Los módulos guardan los diagramas en `diagrams/`.
+  const tipo = block.kind === 'video' ? 'Video' : /^diagrams?\//i.test(block.file) ? 'Diagrama' : 'Imagen';
   return (
-    <Paper withBorder radius="md" p="md">
+    <figure className="paso-media">
+      <figcaption className="paso-media__cabecera">
+        <span className="paso-media__tipo">
+          {block.kind === 'video' ? <Play size={11} strokeWidth={2.6} /> : <ImageIcon size={11} strokeWidth={2.6} />}
+          {tipo}
+        </span>
+        {block.caption && <span className="paso-media__titulo">{block.caption}</span>}
+      </figcaption>
       {!requested && (
-        <Stack align="center" py="lg" gap="xs">
+        <div className="paso-media__portada">
           <Button
             leftSection={<Play size={16} />}
             className={resaltar ? CLASE_RESALTADA : undefined}
@@ -281,14 +291,13 @@ function MediaBlock({
           >
             Ver video
           </Button>
-          {block.caption && <Text fz="xs" c="dimmed" ta="center">{block.caption}</Text>}
-        </Stack>
+        </div>
       )}
       {requested && state.status === 'loading' && (
-        <Stack align="center" py="lg" gap="xs">
+        <div className="paso-media__portada paso-media__portada--cargando">
           <Loader size="sm" />
-          <Text fz="xs" c="dimmed">Cargando media…</Text>
-        </Stack>
+          <Text fz="xs" c="dimmed">Cargando…</Text>
+        </div>
       )}
       {state.status === 'error' && (
         <Alert color="red" variant="light" icon={<AlertTriangle size={14} />} title="No se pudo cargar este archivo">
@@ -342,12 +351,7 @@ function MediaBlock({
                   src={state.url}
                   alt={block.caption ?? block.file}
                   onClick={() => { setExpanded(true); onAbierto?.(); }}
-                  style={{
-                    maxWidth: '100%',
-                    borderRadius: 6,
-                    display: 'block',
-                    cursor: 'zoom-in',
-                  }}
+                  className="paso-media__img"
                 />
                 {/* Que se puede ampliar no se adivinaba por el cursor: se dice con un botón. */}
                 <Button
@@ -374,25 +378,19 @@ function MediaBlock({
                 width: expanded ? 'auto' : '100%',
                 maxWidth: expanded ? '92vw' : undefined,
                 maxHeight: expanded ? '80vh' : undefined,
-                borderRadius: expanded ? 8 : 6,
+                borderRadius: expanded ? 8 : 10,
                 aspectRatio: expanded ? undefined : '16 / 9',
                 background: '#000',
               }}
             />
           )}
-          {block.caption && (
-            <Text
-              fz={expanded ? 'sm' : 'xs'}
-              c={expanded ? 'gray.3' : 'dimmed'}
-              mt={8}
-              ta="center"
-            >
-              {block.caption}
-            </Text>
+          {/* En línea el título ya va arriba; en pantalla completa se repite abajo. */}
+          {expanded && block.caption && (
+            <Text fz="sm" c="gray.3" mt={8} ta="center">{block.caption}</Text>
           )}
         </div>
       )}
-    </Paper>
+    </figure>
   );
 }
 
