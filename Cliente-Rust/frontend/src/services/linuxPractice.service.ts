@@ -127,7 +127,15 @@ export type LinuxBlock =
   // `rule_id` lo completa `linuxGetModule` (nunca viene de la Pi): la regla
   // de validation_rules que a ESTE paso en particular le corresponde, ya
   // resuelta -- ver `resolveLinuxModule` más abajo.
-  | { type: 'command_step'; id: string; command: string; explain_md: string; goal_md?: string; rule_id?: string }
+  // `comando_personal` (opcional): el mismo comando con `{usuario}` en lugar del usuario del
+  // estudiante (ej. "cd /home/{usuario}"); `linuxGetModule` lo completa y lo pone en `command`.
+  // `command` queda como versión genérica para clientes viejos. `ejecutable` muestra el botón
+  // «Ejecutar comando» (para rutas largas o símbolos difíciles de encontrar en el teclado), con
+  // `nota_ejecutar_md` como aviso al lado.
+  | {
+      type: 'command_step'; id: string; command: string; explain_md: string; goal_md?: string; rule_id?: string;
+      comando_personal?: string; ejecutable?: boolean; nota_ejecutar_md?: string;
+    }
   // `file` es una ruta relativa dentro de content/<practice_id>/media/ en la
   // Pi (ej. "diagrams/pipe.png", "videos/demo.mp4") -- nunca una URL. El
   // cliente la pide vía practicas_linux_get_media, nunca le habla a la Pi
@@ -266,8 +274,26 @@ function resolveLinuxModule(module: LinuxModule): LinuxModule {
   return { ...module, blocks };
 }
 
+/**
+ * Completa `comando_personal` con el usuario con el que el estudiante entra a la Pi (el mismo de
+ * `linuxConnectionTarget`) y lo deja en `command`, así la tarjeta, la guía y el tutor muestran SU
+ * ruta real (`/home/ana@upiloto.edu`) en vez de una genérica. Sin usuario, queda el genérico.
+ */
+export function personalizarComandos(module: LinuxModule, usuario: string | null): LinuxModule {
+  if (!usuario) return module;
+  return {
+    ...module,
+    blocks: module.blocks.map((b) =>
+      b.type === 'command_step' && b.comando_personal ? { ...b, command: b.comando_personal.split('{usuario}').join(usuario) } : b,
+    ),
+  };
+}
+
 export const linuxGetModule = (practiceId: string): Promise<LinuxModule> =>
-  invoke<LinuxModule>('practicas_linux_get_module', { practiceId }).then(resolveLinuxModule);
+  Promise.all([
+    invoke<LinuxModule>('practicas_linux_get_module', { practiceId }),
+    linuxConnectionTarget().then((t) => t.user).catch(() => null),
+  ]).then(([module, usuario]) => resolveLinuxModule(personalizarComandos(module, usuario)));
 
 /**
  * `quizAnswers`: mapa question_id -> option_id elegida. Opcional -- los

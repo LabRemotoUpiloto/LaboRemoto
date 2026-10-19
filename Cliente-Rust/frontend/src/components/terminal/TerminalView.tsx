@@ -8,6 +8,8 @@ import Ev3Panel from '../ev3/Ev3Panel';
 import LinuxPracticeProgressBar, { type ProgresoPractica } from '../practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
 import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '../practicas/linux/ritmo';
+import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '../practicas/linux/ejecutarComando';
+import { sshStdin } from '../../services/ssh.service';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 
 interface TerminalViewProps {
@@ -68,6 +70,21 @@ const TerminalView: React.FC<TerminalViewProps> = ({
       reportCommandHistory(sessionId, commandHistory);
     }
   }, [practiceId, reportCommandHistory, sessionId, commandHistory]);
+
+  // Botón «Ejecutar comando» de un paso (ver practicas/linux/ejecutarComando.ts): se escribe por
+  // el mismo camino que el teclado -- historial (para validar el paso) y SSH.
+  useEffect(() => {
+    if (!practiceId) return;
+    const alPedir = (e: Event) => {
+      const detalle = (e as CustomEvent<DetalleEjecutarComando>).detail;
+      if (!detalle || detalle.practiceId !== practiceId) return;
+      const teclas = teclasDelComando(detalle.comando);
+      processTerminalInput(teclas);
+      sshStdin(sessionId, teclas).catch((err) => console.warn('[practica] no se pudo ejecutar el comando del paso', err));
+    };
+    window.addEventListener(EVENTO_EJECUTAR_COMANDO, alPedir);
+    return () => window.removeEventListener(EVENTO_EJECUTAR_COMANDO, alPedir);
+  }, [practiceId, sessionId, processTerminalInput]);
 
   // When camera panel opens/closes, xterm must re-fit to the new height
   useEffect(() => {

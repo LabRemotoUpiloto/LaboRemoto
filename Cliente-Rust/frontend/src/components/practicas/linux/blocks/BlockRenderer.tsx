@@ -11,6 +11,7 @@ import '../pasos.css';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
 import { ZoomableImage } from '../ZoomableImage';
+import { pedirEjecutarComando } from '../ejecutarComando';
 import WheelsSimBlock from './widgets/WheelsSim';
 import CalculatorBlock from './widgets/CalculatorBlock';
 import SensorDemoBlock from './widgets/SensorDemo';
@@ -184,10 +185,12 @@ function CommandStepBlock({
   block,
   passed,
   resaltar,
+  practiceId,
 }: {
   block: Extract<LinuxBlock, { type: 'command_step' }>;
   passed: boolean;
   resaltar?: boolean;
+  practiceId: string;
 }) {
   // Antes era un checkbox con el comando y una línea gris: parecía algo para
   // marcar con el mouse y no se entendía que había que ir a la terminal. Lo
@@ -211,6 +214,24 @@ function CommandStepBlock({
         </Text>
       )}
       {block.goal_md && <Text fz="xs" c="dimmed">{renderInline(block.explain_md)}</Text>}
+      {block.ejecutable && !passed && (
+        <Group gap="sm" wrap="nowrap" align="center">
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<Play size={13} />}
+            onClick={() => pedirEjecutarComando(practiceId, block.command)}
+            style={{ flexShrink: 0 }}
+          >
+            Ejecutar comando
+          </Button>
+          {block.nota_ejecutar_md && (
+            <Text fz="xs" c="dimmed" style={{ lineHeight: 1.45 }}>
+              {renderInline(block.nota_ejecutar_md)}
+            </Text>
+          )}
+        </Group>
+      )}
       <Text fz="xs" c={passed ? 'teal' : 'dimmed'}>
         {passed ? 'Hecho. El comando funcionó.' : 'Cuando lo escribas bien en la terminal, este paso se marca solo.'}
       </Text>
@@ -571,7 +592,7 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
     case 'command_step': {
       const rule = rules.find((r) => r.id === block.rule_id) ?? rules.find((r) => r.target === block.command);
       const ruleResult = rule ? result?.results.find((r) => r.rule_id === rule.id) : undefined;
-      return <CommandStepBlock block={block} passed={!!ruleResult?.passed} resaltar={resaltar} />;
+      return <CommandStepBlock block={block} passed={!!ruleResult?.passed} resaltar={resaltar} practiceId={practiceId} />;
     }
     case 'quiz': {
       const rule = rules.find((r) => r.target === block.id);
