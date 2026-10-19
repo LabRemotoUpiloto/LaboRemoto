@@ -1,21 +1,6 @@
-/* Tutorial narrado de bienvenida: todo el estilo de las ilustraciones, subtítulo, barra de progreso y botón de
-   pausa vive como clases de Tailwind directo en pasos.ts/tutorialBienvenida.ts (Tailwind escanea los .ts de src).
-   Lo que queda acá son 4 cosas que NO se pueden expresar así:
-   1. Los @keyframes custom. Nota histórica: este proyecto tenía un `tailwind.config.js` estilo v3 (fadeIn,
-      popIn, confettiFall…) que nunca se cargaba — a Tailwind v4 le hace falta un `@config` explícito, y sin
-      eso esas animaciones eran no-ops silenciosos en producción. Agregar `@config` "arregla" eso pero ROMPE
-      los estilos de Mantine en toda la app (el motor de compatibilidad v3 maltrata el `@layer mantine {...}`
-      que trae @mantine/core/styles.layer.css — probado: 0 de 334 clases .m_* sobreviven, sin importar dónde
-      se ponga `@config`). El arreglo real: esas animaciones ahora viven en `@theme` nativo de v4, en
-      globals.css — `tailwind.config.js` ya no existe, no hacía falta para nada más. Los de este archivo
-      (tb-entrar, tb-chat-zoom, tb-insignia) van igual en CSS plano + sintaxis arbitraria de Tailwind
-      (`animate-[tbEntrar_0.45s_ease-out_both]`) para no acoplar el tour a ese registro central.
-   2. El tamaño del popover de driver.js — pelea de !important con tourStyles.css contra un elemento que la
-      librería genera ella misma; mover esto a una clase de Tailwind arriesga romper el orden de cascada sin
-      poder probarlo en vivo.
-   3. prefers-reduced-motion — una sola regla paraguas en vez de repetir el modificador en cada elemento animado.
-   4. El elemento real que driver.js resalta en cada paso (sidebar, botones…) — es contenido de la app, no HTML
-      que yo genere, así que no hay dónde ponerle una clase de Tailwind. */
+/* Tutorial narrado de bienvenida: las ilustraciones van como clases de Tailwind en pasos.ts. Acá solo los
+   @keyframes custom que esas ilustraciones usan con sintaxis arbitraria (`animate-[tbEntrar_0.45s_ease-out_both]`),
+   en CSS plano para no acoplar el tour al `@theme` central de globals.css. */
 
 @keyframes tbEntrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes tbInsignia {
@@ -43,69 +28,4 @@
   50% { transform: scale(1.35); color: var(--accent-primary, #d51f22); }
 }
 
-.driver-popover.tutorial-bienvenida {
-  max-width: 420px !important;
-  min-width: 320px;
-}
-
-/* Botones del footer (Pausar / Anterior / Siguiente) — sobrescriben SOLO para los tours narrados (este y
-   tour_linux/practicaLinux.css, selector combinado) los estilos compartidos de tourStyles.css (el tour
-   general de 24 pasos los deja intactos). Jerarquía a propósito: Siguiente es la acción principal
-   (pastilla llena, con sombra); Anterior es secundaria (pastilla con borde sutil); Pausar es la menos
-   importante de las tres (fantasma, sin borde). */
-.tutorial-bienvenida .driver-popover-footer,
-.tour-practica-linux .driver-popover-footer { gap: 8px; }
-
-.tutorial-bienvenida .driver-popover-btn,
-.tour-practica-linux .driver-popover-btn {
-  border-radius: 999px !important;
-  padding: 9px 18px !important;
-  font-weight: 600 !important;
-}
-
-.tutorial-bienvenida .driver-popover-prev-btn,
-.tour-practica-linux .driver-popover-prev-btn {
-  background: transparent !important;
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.18)) !important;
-  color: var(--text-secondary, #b0b0b0) !important;
-}
-.tutorial-bienvenida .driver-popover-prev-btn:hover,
-.tour-practica-linux .driver-popover-prev-btn:hover {
-  background: var(--background-tertiary, #262626) !important;
-  border-color: var(--text-secondary, #b0b0b0) !important;
-  color: var(--text-primary, #fff) !important;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-.tutorial-bienvenida .driver-popover-next-btn,
-.tour-practica-linux .driver-popover-next-btn {
-  box-shadow: 0 6px 16px -4px color-mix(in srgb, var(--accent-primary, #d51f22) 55%, transparent) !important;
-}
-.tutorial-bienvenida .driver-popover-next-btn:hover,
-.tour-practica-linux .driver-popover-next-btn:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--accent-primary, #d51f22) 65%, transparent) !important;
-}
-.tutorial-bienvenida .driver-popover-next-btn:active,
-.tour-practica-linux .driver-popover-next-btn:active {
-  transform: translateY(0) !important;
-  box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--accent-primary, #d51f22) 50%, transparent) !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tutorial-bienvenida * { animation: none !important; }
-}
-
-/* Elemento resaltado: se ve tal cual (sin brillo ni escalado), solo con un borde del color de acento. */
-body.tb-activo .driver-highlighted-element {
-  outline: 3px solid var(--accent-primary, #d51f22) !important;
-  outline-offset: 4px !important;
-  border-radius: 10px;
-}
-
-/* Nada de lo resaltado responde durante el recorrido (refuerzo del bloqueo de eventos en tutorialBienvenida.ts). */
-body.tb-activo .driver-active-element,
-body.tb-activo .driver-active-element * {
-  pointer-events: none !important;
-}
+/* El globo, sus botones y el resaltado del elemento los comparte con tour_linux: ver ../tourNarrado.css. */

@@ -4,6 +4,7 @@ import { driver, type Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import '../tourStyles.css';
 import './bienvenida.css';
+import { botonPausaNarrado, cuerpoNarrado, marcarPausa, tituloNarrado } from '../narrado';
 import { PASOS_BIENVENIDA, type EscenaTutorial, type PasoBienvenida } from './pasos';
 
 const PAUSA_ENTRE_PASOS_MS = 700;
@@ -82,43 +83,19 @@ function esperarElemento(selectores: string[]): Promise<Element | null> {
   });
 }
 
-const PROGRESO_SEGMENTO = 'flex-1 h-1 rounded-full';
-
 function descripcion(paso: PasoBienvenida, i: number): string {
-  return `${paso.ilustracion ? `<div class="flex justify-center mb-3.5">${paso.ilustracion}</div>` : ''}
-    <p class="m-0 text-[var(--text-primary)] text-[15px] leading-[1.55]">${paso.texto}</p>
-    <div class="flex gap-1 mt-3.5" aria-label="Paso ${i + 1} de ${PASOS_BIENVENIDA.length}">
-      ${PASOS_BIENVENIDA.map((_, j) => {
-        // Un solo `bg-*` por segmento: con dos (el de base + el del estado) compitiendo
-        // por la misma propiedad, cuál gana depende del orden en que Tailwind los generó,
-        // no del orden en el HTML -- acá siempre perdía el del estado y todo quedaba gris.
-        const bg = j < i ? 'bg-[var(--accent-primary)] opacity-55' : j === i ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-subtle)]';
-        return `<span class="${PROGRESO_SEGMENTO} ${bg}"></span>`;
-      }).join('')}
-    </div>`;
+  const ilustracion = paso.ilustracion ? `<div class="flex justify-center mb-3.5">${paso.ilustracion}</div>` : '';
+  return cuerpoNarrado(paso.texto, i, PASOS_BIENVENIDA.length, ilustracion);
 }
 
 function botonPausa(): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  // Los `!` son porque este botón vive entre los de driver.js (.driver-popover-btn en tourStyles.css,
-  // con sus propios !important) dentro del mismo footer — ver botonPausa() en tutorialBienvenida.ts.
-  // Fantasma (sin borde): de los 3 botones del footer es la acción menos importante — Siguiente (relleno)
-  // y Anterior (con borde) llevan más peso visual, ver bienvenida.css.
-  b.className =
-    'mr-auto bg-transparent! text-[var(--text-secondary)]! border-none! rounded-full! px-4! py-2! ' +
-    'text-[13px]! font-semibold! cursor-pointer [text-shadow:none]! transition-colors! duration-200! ' +
-    'hover:bg-[var(--background-tertiary)]! hover:text-[var(--text-primary)]!';
-  const pintar = () => { b.textContent = pausado ? '▶ Continuar' : '⏸ Pausar'; b.setAttribute('aria-pressed', String(pausado)); };
-  pintar();
-  b.addEventListener('click', () => {
+  return botonPausaNarrado(pausado, () => {
     pausado = !pausado;
     if (pausado) { limpiarTimer(); audio?.pause(); }
     else if (audio && !audio.ended) void audio.play().catch(() => {});
-    else ir(indice + 1);
-    pintar();
+    else void ir(indice + 1);
+    return pausado;
   });
-  return b;
 }
 
 function reproducir(i: number) {
@@ -126,11 +103,14 @@ function reproducir(i: number) {
   const a = new Audio(`/tutorial/bienvenida/${PASOS_BIENVENIDA[i].audio}`);
   audio = a;
   a.onended = () => {
+    marcarPausa(true);
     if (pausado || i !== indice || i === PASOS_BIENVENIDA.length - 1) return;
     siguienteTimer = setTimeout(() => ir(i + 1), PAUSA_ENTRE_PASOS_MS);
   };
   // Si el sistema no deja reproducir (sin salida de audio, por ejemplo), el tutorial sigue con los subtítulos y los botones.
-  void a.play().catch(() => { pausado = true; document.querySelector('.tb-pausa')?.replaceWith(botonPausa()); });
+  void a.play()
+    .then(() => marcarPausa(false))
+    .catch(() => { pausado = true; document.querySelector('.tn-pausa')?.replaceWith(botonPausa()); });
 }
 
 async function ir(i: number) {
@@ -165,14 +145,14 @@ function resaltar(paso: PasoBienvenida, i: number, el: Element | null, lado: Pas
   drv.highlight({
     element: el ?? undefined,
     popover: {
-      title: paso.titulo,
+      title: tituloNarrado(paso.titulo, i, PASOS_BIENVENIDA.length),
       description: descripcion(paso, i),
       side: el ? lado : undefined,
       align: 'start',
       showButtons: ['previous', 'next', 'close'],
       disableButtons: i === 0 ? ['previous'] : [],
-      prevBtnText: '← Anterior',
-      nextBtnText: ultimo ? '¡Listo! ✓' : 'Siguiente →',
+      prevBtnText: 'Anterior',
+      nextBtnText: ultimo ? '¡Listo!' : 'Siguiente →',
       onNextClick: () => { void ir(i + 1); },
       onPrevClick: () => { void ir(i - 1); },
       onCloseClick: () => cerrarTutorialBienvenida(),
@@ -203,7 +183,7 @@ export function iniciarTutorialBienvenida(abrir: (pagina: string) => void, onTer
     stagePadding: 8,
     stageRadius: 12,
     popoverOffset: 18,
-    popoverClass: 'tutorial-bienvenida',
+    popoverClass: 'tour-narrado tutorial-bienvenida',
   });
   void ir(0);
 }
