@@ -36,7 +36,7 @@ export function EncabezadoPaso({ numero, total, titulo, derecha }: { numero: num
       <div className="paso-barra" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={numero}>
         <span style={{ width: `${Math.round((numero / Math.max(total, 1)) * 100)}%` }} />
       </div>
-      <Text fz="md" fw={600} mt={2}>{titulo}</Text>
+      <h3 className="paso-titulo">{titulo}</h3>
     </Stack>
   );
 }

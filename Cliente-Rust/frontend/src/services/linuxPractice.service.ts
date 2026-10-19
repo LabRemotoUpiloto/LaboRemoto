@@ -76,8 +76,21 @@ export interface MachineEvent {
   to: string;
 }
 
+/**
+ * Papel de un bloque de texto en el module.json de la Pi:
+ * - `heading`: subtítulo dentro de un paso.
+ * - `lead`: entrada a un tema nuevo (algo más grande que el cuerpo).
+ * - `body`: párrafo normal (el valor por defecto).
+ * - `concept`: definición o analogía de un concepto (el término en negrita se resalta).
+ * - `tip`: indicación práctica de cómo seguir (más chica, con ícono).
+ * - `recap`: repaso de lo visto (más tenue, con rótulo «Repaso»).
+ */
+export type LinuxTextKind = 'heading' | 'lead' | 'body' | 'concept' | 'tip' | 'recap';
+
 export type LinuxBlock =
-  | { type: 'text'; id: string; body_md: string }
+  // `kind` (opcional, lo define el module.json en la Pi): qué papel cumple el texto, y con eso
+  // su lugar en la jerarquía visual (ver TextBlockView). Sin `kind` se pinta como `body`.
+  | { type: 'text'; id: string; body_md: string; kind?: LinuxTextKind }
   // Simulador de dos ruedas (potencia izquierda/derecha -> qué hace el robot).
   | { type: 'wheels_sim'; id: string; title?: string }
   // Calculadora configurable; `code_template` usa {id} de entradas y salidas.

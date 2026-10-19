@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, Button } from '@mantine/core';
-import { AlertTriangle, Image as ImageIcon, Maximize2, Play, X } from 'lucide-react';
+import { AlertTriangle, Image as ImageIcon, Lightbulb, Maximize2, Play, X } from 'lucide-react';
 import '../pasos.css';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../../services/linuxPractice.service';
 import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
@@ -81,11 +81,17 @@ function StepGateBlock({ block }: { block: Extract<LinuxBlock, { type: 'step_gat
 /** Clase que hace latir el elemento que toca usar ahora (ver pasos.css). */
 export const CLASE_RESALTADA = 'paso-resaltado';
 
+/** Cada texto se pinta según el papel que le da el module.json (`kind`, ver LinuxTextKind). */
 function TextBlockView({ block }: { block: Extract<LinuxBlock, { type: 'text' }> }) {
+  const kind = block.kind ?? 'body';
   return (
-    <Text fz="sm" style={{ lineHeight: 1.6 }}>
-      {renderInline(block.body_md)}
-    </Text>
+    <div className={`paso-texto paso-texto--${kind}`}>
+      {kind === 'tip' && <Lightbulb size={15} className="paso-texto__icono" aria-hidden />}
+      <div className="paso-texto__cuerpo">
+        {kind === 'recap' && <span className="paso-texto__rotulo">Repaso</span>}
+        <p>{renderInline(block.body_md)}</p>
+      </div>
+    </div>
   );
 }
 
