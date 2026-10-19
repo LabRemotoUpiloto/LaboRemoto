@@ -3,6 +3,7 @@ import { adminService, KeycloakUser } from '../../services/admin.service';
 import { Container, Title, Text, TextInput, Stack, Group, ActionIcon, Loader, Box, Select, Paper } from '@mantine/core';
 import { X, Search, Users } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
+import { useAuth } from '../../hooks/useAuth';
 import Swal from 'sweetalert2';
 import { ASSIGNABLE_ROLES, ROLE_LABELS, ROLE_ORDER, getEffectiveRole, type EffectiveRole } from '../../hooks/usePermissions';
 
@@ -65,9 +66,11 @@ interface PersonRowProps {
     row: Row;
     onChangeRole: (user: KeycloakUser, currentRole: EffectiveRole, newRole: EffectiveRole) => void;
     last: boolean;
+    /** Es la cuenta con la que se inició sesión: su rol no se cambia desde aquí. */
+    esYo: boolean;
 }
 
-const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
+const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last, esYo }) => {
     const { user, role } = row;
     const tint = tintOf(user);
     const avatarUrl = avatarUrlOf(user);
@@ -108,6 +111,7 @@ const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
             <Text size="sm" fw={500} style={{ flex: 1.1, minWidth: 0 }} truncate>
                 {ROLE_LABELS[role]}
                 {role === 'docente' && esDocenteDeDirectorio(user) && <Text span size="xs" c="dimmed"> · directorio</Text>}
+                {esYo && <Text span size="xs" c="dimmed"> · tú</Text>}
             </Text>
 
             {/* Fecha registro */}
@@ -116,9 +120,10 @@ const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
             </Text>
 
             {/* Acciones: selector de rol */}
-            <Box style={{ flexShrink: 0 }}>
+            <Box style={{ flexShrink: 0 }} title={esYo ? 'No puedes cambiar tu propio rol: te quedarías sin acceso. Pídeselo a otro administrador.' : undefined}>
                 <Select
                     aria-label={`Cambiar rol de ${user.username}`}
+                    disabled={esYo}
                     data={ROLE_SELECT_OPTIONS}
                     value={role}
                     onChange={(newRole) => { if (newRole && newRole !== role) onChangeRole(user, role, newRole as EffectiveRole); }}
@@ -142,6 +147,8 @@ const PersonRow: React.FC<PersonRowProps> = ({ row, onChangeRole, last }) => {
 // ─── Página ──────────────────────────────────────────────────────────────────
 
 export default function UserManagementPage() {
+    const { user: yo } = useAuth();
+    const esMiCuenta = (u: KeycloakUser) => !!yo?.preferred_username && u.username.toLowerCase() === yo.preferred_username.toLowerCase();
     const [query, setQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState<string>('all');
 
@@ -228,6 +235,15 @@ export default function UserManagementPage() {
         .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
     const changeRole = async (user: KeycloakUser, currentRole: EffectiveRole, newRole: EffectiveRole) => {
+        // Quien se baja a sí mismo de administrador pierde el acceso a este mismo panel y no puede deshacerlo.
+        if (esMiCuenta(user)) {
+            notifications.show({
+                title: 'No puedes cambiar tu propio rol',
+                message: 'Te quedarías sin acceso a este panel. Pídeselo a otro administrador. Para probar la app como otro rol usa «Ver como» en el menú de tu usuario.',
+                color: 'yellow',
+            });
+            return;
+        }
         // El directorio de la universidad manda: no se le puede quitar «Docente».
         // Sí se le puede dar un rol de mayor jerarquía (tiene precedencia).
         if (newRole === 'estudiante' && esDocenteDeDirectorio(user)) {
@@ -355,7 +371,7 @@ export default function UserManagementPage() {
                         </Text>
                     ) : (
                         filteredRows.map((row, i) => (
-                            <PersonRow key={row.user.id} row={row} onChangeRole={changeRole} last={i === filteredRows.length - 1} />
+                            <PersonRow key={row.user.id} row={row} onChangeRole={changeRole} last={i === filteredRows.length - 1} esYo={esMiCuenta(row.user)} />
                         ))
                     )}
                 </Paper>

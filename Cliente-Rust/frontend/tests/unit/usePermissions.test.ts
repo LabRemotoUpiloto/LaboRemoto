@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { ASSIGNABLE_ROLES, canAccessPage, getEffectiveRole, puedeAdministrarCamaras } from '../../src/hooks/usePermissions';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ASSIGNABLE_ROLES, canAccessPage, getEffectiveRole, puedeAdministrarCamaras, puedeVerComo, rolVerComo, setRolVerComo } from '../../src/hooks/usePermissions';
+import { useAppStore } from '../../src/store/app';
 
 describe('rol docente', () => {
   it('lo reconoce venga del directorio (user_type) o asignado a mano: ambos llegan en roles', () => {
@@ -55,5 +56,54 @@ describe('rol docente', () => {
     for (const role of ['admin_lab', 'docente', 'laboratorista'] as const) {
       expect(canAccessPage('reservas', role), role).toBe(true);
     }
+  });
+});
+
+describe('«Ver como»: solo para administradores y solo de vista', () => {
+  const entrarCon = (roles: string[]) =>
+    useAppStore.setState({ user: { preferred_username: 'prueba', user_type: '', roles, access_expires_at: 0 } as never });
+  afterEach(() => { setRolVerComo(null); useAppStore.setState({ user: null as never }); });
+
+  it('solo lo puede usar quien tiene el rol REAL de administrador', () => {
+    expect(puedeVerComo(['admin_lab'])).toBe(true);
+    for (const r of ['jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista', 'semillerista', 'docente']) {
+      expect(puedeVerComo([r])).toBe(false);
+    }
+    expect(puedeVerComo([])).toBe(false);
+    expect(puedeVerComo(undefined)).toBe(false);
+  });
+
+  it('un administrador puede mirar la app como otro rol y volver a su rol real', () => {
+    entrarCon(['admin_lab']);
+    setRolVerComo('estudiante');
+    expect(rolVerComo()).toBe('estudiante');
+    setRolVerComo(null);
+    expect(rolVerComo()).toBeNull();
+  });
+
+  it('cualquier otro rol no puede activarlo: no hace nada', () => {
+    for (const r of ['semillerista', 'docente', 'jefe_laboratorio']) {
+      entrarCon([r]);
+      setRolVerComo('admin_lab');
+      expect(rolVerComo()).toBeNull();
+    }
+    entrarCon([]);
+    setRolVerComo('admin_lab');
+    expect(rolVerComo()).toBeNull();
+  });
+
+  it('si la sesión deja de ser de un administrador, lo que quedó activado se ignora', () => {
+    entrarCon(['admin_lab']);
+    setRolVerComo('estudiante');
+    entrarCon(['estudiante']);
+    expect(rolVerComo()).toBeNull();
+    useAppStore.setState({ user: null as never });
+    expect(rolVerComo()).toBeNull();
+  });
+
+  it('no toca el rol real que llega en el token', () => {
+    entrarCon(['admin_lab']);
+    setRolVerComo('estudiante');
+    expect(getEffectiveRole(useAppStore.getState().user?.roles)).toBe('admin_lab');
   });
 });

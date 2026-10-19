@@ -8,7 +8,7 @@ import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import { User, Shield, SquareTerminal, Activity, BookOpen, Gauge } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
-import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo } from '../../hooks/usePermissions';
+import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo, puedeVerComo } from '../../hooks/usePermissions';
 import {
   MonitorIcon,
   CompassIcon,
@@ -363,7 +363,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   {user?.preferred_username || 'Usuario'}
                 </Text>
                 <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>
-                  {ROLE_LABELS[role]}
+                  {ROLE_LABELS[role]}{rolVerComo() ? ' (vista)' : ''}
                 </Text>
                 {appVersion && (
                   <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>
@@ -377,20 +377,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Menu.Label>Usuario</Menu.Label>
             <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('perfil')}>Perfil</Menu.Item>
             <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('ajustes')}>Ajustes</Menu.Item>
-            {import.meta.env.DEV && (
+            {puedeVerComo(user?.roles) && (
               <>
                 <Menu.Divider />
-                <Menu.Label>Ver como (solo desarrollo)</Menu.Label>
+                <Menu.Label>Ver como (solo cambia la vista)</Menu.Label>
                 {ROLE_ORDER.map((r) => (
                   <Menu.Item key={r} c="var(--mantine-color-text)" fw={rolVerComo() === r ? 700 : undefined} onClick={() => setRolVerComo(r)}>
                     {ROLE_LABELS[r]}{rolVerComo() === r ? ' ✓' : ''}
                   </Menu.Item>
                 ))}
-                <Menu.Item c="dimmed" onClick={() => setRolVerComo(null)}>Mi rol real</Menu.Item>
+                <Menu.Item c="dimmed" fw={rolVerComo() === null ? 700 : undefined} onClick={() => setRolVerComo(null)}>Mi rol real{rolVerComo() === null ? ' ✓' : ''}</Menu.Item>
               </>
             )}
             <Menu.Divider />
-            <Menu.Item color="red" onClick={logout}>Cerrar Sesión</Menu.Item>
+            <Menu.Item color="red" onClick={() => { setRolVerComo(null); logout(); }}>Cerrar Sesión</Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Box>
