@@ -26,10 +26,10 @@ export default function TourPracticaLinux() {
       const detalle = (e as CustomEvent<DetalleTourPracticaLinux>).detail;
       if (!detalle || detalle.esEv3) return; // por ahora, solo prácticas de Linux
       if (!isAuthenticated || !usuario || rol !== 'estudiante') return;
-      // "Ver como" (solo desarrollo, ver usePermissions.ts) es justo para esto: probar el tour las
-      // veces que haga falta sin que el "ya visto" se interponga. Un estudiante real (sin esa opción,
-      // o en producción) sigue viéndolo una sola vez por módulo.
-      const previsualizando = import.meta.env.DEV && rolVerComo() !== null;
+      // "Ver como" (solo administradores, ver usePermissions.ts) es justo para esto: probar el tour las
+      // veces que haga falta sin que el "ya visto" se interponga. Un estudiante real (sin esa opción)
+      // sigue viéndolo una sola vez por módulo.
+      const previsualizando = rolVerComo() !== null;
       if (!previsualizando && tourPracticaLinuxYaVisto(usuario, detalle.moduleId)) return;
       // Un instante para que el panel de chat/terminal recién abierto termine de montarse y animarse.
       const t = setTimeout(() => {
