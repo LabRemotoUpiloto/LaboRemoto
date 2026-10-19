@@ -55,6 +55,9 @@ export interface DatosGuia {
   ahora: React.ReactNode | null;
   /** «Paso 3 de 17», «Evaluación final»... */
   etiqueta?: string;
+  /** Paso actual y total de la práctica (lo mismo que dice `etiqueta`, en números): los usa la cabecera de arriba. */
+  numero?: number;
+  total?: number;
   extra?: React.ReactNode;
 }
 
@@ -145,6 +148,8 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
       actual: actual?.id ?? null,
       ahora,
       etiqueta: `Paso ${paso.numero} de ${total}`,
+      numero: paso.numero,
+      total,
       extra: ayudaTerminal || undefined,
     });
   }, [onGuia, completo, acciones, hechas, actual, ahora, paso.numero, total, ayudaTerminal]);

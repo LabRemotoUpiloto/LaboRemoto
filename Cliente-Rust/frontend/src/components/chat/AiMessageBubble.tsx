@@ -161,6 +161,8 @@ export default function AiMessageBubble({
       actual: accionEvaluacionActual,
       ahora: mayuscula(ahoraEvaluacion),
       etiqueta: 'Evaluación final',
+      numero: msg.meta?.linuxQuiz?.numero ?? msg.meta?.linuxQuiz?.total,
+      total: msg.meta?.linuxQuiz?.total,
     } : null);
   }, [quizConGuia, onLinuxGuiaChange, accionesEvaluacion, hechasEvaluacion, accionEvaluacionActual, ahoraEvaluacion]);
 

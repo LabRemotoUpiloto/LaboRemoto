@@ -5,7 +5,7 @@ import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
 import Ev3Panel from '../ev3/Ev3Panel';
-import LinuxPracticeProgressBar from '../practicas/linux/LinuxPracticeProgressBar';
+import LinuxPracticeProgressBar, { type ProgresoPractica } from '../practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
 import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '../practicas/linux/ritmo';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
@@ -43,6 +43,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   // estudiante puede alternar a la terminal SSH cruda sin perder la sesión.
   const [showEv3Panel, setShowEv3Panel] = useState(robotDashboardEnabled);
   const [chatWidth, setChatWidth] = useState(420);
+  // Lo reporta el chat: nombre de la práctica y el paso en que va (el mismo que muestra la guía).
+  const [progresoPractica, setProgresoPractica] = useState<ProgresoPractica | null>(null);
   const [cameraHeight, setCameraHeight] = useState(450);
   const [isResizingChat, setIsResizingChat] = useState(false);
   const [isResizingCamera, setIsResizingCamera] = useState(false);
@@ -180,7 +182,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
 
         {/* ── Barra de progreso de la práctica de Linux — nunca en sesiones SSH normales (practiceId siempre null ahí) ── */}
         {showProgressBar && linuxResult && (
-          <LinuxPracticeProgressBar result={linuxResult} />
+          <LinuxPracticeProgressBar result={linuxResult} progreso={progresoPractica} />
         )}
 
         {/* ── Top: Camera Panel ── */}
@@ -289,7 +291,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             onMouseDown={() => setIsResizingChat(true)}
           />
           <div data-tour="practica-chat" style={{ width: chatWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <ChatPane sessionId={sessionId} onClose={onCloseChat} practiceId={practiceId} practiceResult={linuxResult} linuxSession={linuxSession} />
+            <ChatPane sessionId={sessionId} onClose={onCloseChat} practiceId={practiceId} practiceResult={linuxResult} linuxSession={linuxSession} onProgresoPractica={setProgresoPractica} />
           </div>
         </>
       )}
