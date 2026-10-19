@@ -47,6 +47,8 @@ import { useAuth } from '../hooks/useAuth';
 import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult, type LinuxValidationRule } from '../services/linuxPractice.service';
 import { STEP_GATE_EVENT } from './practicas/linux/blocks/BlockRenderer';
 import { armarPlan, type PasoPractica } from './practicas/linux/ritmo';
+import type { DatosGuia } from './practicas/linux/PasoCard';
+import { GuiaPractica } from './practicas/linux/GuiaPractica';
 import type { LinuxPracticeSessionApi } from '../hooks/useLinuxPracticeSession';
 
 // `rule_id` ya viene resuelto por `linuxGetModule` (ver resolveLinuxModule en
@@ -99,6 +101,11 @@ const ChatPane: React.FC<Props> = ({
   const { isAuthenticated } = useAuth();
   // ── Core State ──
   const [messages, setMessages] = useState<Message[]>([]);
+  // Guía del paso/evaluación activa (la reportan PasoCard y AiMessageBubble). Solo
+  // un paso está pendiente a la vez y los completos reportan `null`, así que el
+  // último aviso es siempre el vigente.
+  const [guiaActiva, setGuiaActiva] = useState<DatosGuia | null>(null);
+  useEffect(() => { setGuiaActiva(null); }, [practiceId]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('ask');
   // Reusa el AskModeHandler existente (sin crear un modo nuevo): si algo
@@ -1119,8 +1126,16 @@ const ChatPane: React.FC<Props> = ({
           />
         </div>
       ) : (
+        <>
+        {/* Fila propia de la columna (como el input de abajo), no un overlay
+            dentro del scroll: los mensajes nunca le pasan por encima. */}
+        {isPracticeSession && !isHome && <GuiaPractica guia={guiaActiva} />}
         <ChatMessageList
-          className={isHome ? 'flex-1 min-h-0 pt-[68px] px-5 pb-7 scroll-pt-[68px] !gap-3.5' : 'flex-1 min-h-0 chat-messages-area--inset-top'}
+          className={isHome
+            ? 'flex-1 min-h-0 pt-[68px] px-5 pb-7 scroll-pt-[68px] !gap-3.5'
+            // En práctica la barra de la guía ya ocupa ese espacio de arriba (y en
+            // macOS es ella la que deja lugar a la barra de título).
+            : isPracticeSession ? 'flex-1 min-h-0' : 'flex-1 min-h-0 chat-messages-area--inset-top'}
           messages={messages} mode={mode} isSending={isSending}
           hideWelcome={isHome}
           appearance={isHome ? 'landing' : 'session'}
@@ -1143,6 +1158,7 @@ const ChatPane: React.FC<Props> = ({
           onLinuxQuizAnswer={handleLinuxQuizAnswer}
           onLinuxQuizSubmit={handleLinuxQuizSubmit}
           onLinuxModuleComplete={handleLinuxModuleComplete}
+          onLinuxGuiaChange={setGuiaActiva}
           embeddedTerminal={pi4TerminalEmbedActive ? {
             sessionId: pi4ChatSessionId,
             sshCommandLine: pi4SshCommandLine,
@@ -1166,6 +1182,7 @@ const ChatPane: React.FC<Props> = ({
             onClose: closePi4DesktopInChat,
           } : null}
         />
+        </>
       )}
       {toast && <ChatToast message={toast} />}
       {isHome && !isHomeEmpty ? (

@@ -142,8 +142,8 @@ export default function AiMessageBubble({
         ? `la pregunta ${numeroDe(aCorregir)} quedó en rojo: elige otra opción y pulsa «Reenviar evaluación».`
         : `pulsa «${linuxQuizSubmitted ? 'Reenviar evaluación' : 'Enviar evaluación'}» para entregar tus respuestas.`;
   const accionesEvaluacion = [
-    ...preguntas.map((q) => ({ id: q.id, texto: `Responde la pregunta ${numeroDe(q)}` })),
-    { id: 'enviar', texto: 'Envía la evaluación' },
+    ...preguntas.map((q) => ({ id: q.id, texto: `Responde la pregunta ${numeroDe(q)}`, tipo: 'pregunta' })),
+    { id: 'enviar', texto: 'Envía la evaluación', tipo: 'enviar' },
   ];
   const hechasEvaluacion = new Set<string>([
     ...preguntas.filter((q) => linuxQuizAnswers[q.id] && !incorrecta(q)).map((q) => q.id),
@@ -160,6 +160,7 @@ export default function AiMessageBubble({
       hechas: hechasEvaluacion,
       actual: accionEvaluacionActual,
       ahora: mayuscula(ahoraEvaluacion),
+      etiqueta: 'Evaluación final',
     } : null);
   }, [quizConGuia, onLinuxGuiaChange, accionesEvaluacion, hechasEvaluacion, accionEvaluacionActual, ahoraEvaluacion]);
 

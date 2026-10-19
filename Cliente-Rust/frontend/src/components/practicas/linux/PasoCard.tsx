@@ -1,17 +1,16 @@
 // components/practicas/linux/PasoCard.tsx — un paso de la práctica en el chat.
 //
-// La guía (lista de acciones + la instrucción puntual de la actual) ya NO vive
-// aquí dentro: antes era una caja fija a mitad del mensaje y, apenas el
-// estudiante bajaba a ver el video o la imagen, quedaba fuera de pantalla. Este
-// componente solo reporta su estado (ver `onGuia`) hacia el header fijo del
-// chat (ChatMessageList), que es quien la muestra siempre visible. Acá queda
-// el material del paso y el botón o la caja que hay que usar, que late suave.
-// Cuando el paso se completa queda resumido en una línea, que se puede volver
-// a abrir.
+// La guía (qué toca ahora + cuántas acciones del paso van listas) ya NO vive
+// aquí dentro: era una caja a mitad del mensaje y, apenas el estudiante bajaba
+// a ver el video o la imagen, quedaba fuera de pantalla. Este componente solo
+// reporta su estado (ver `onGuia`) y la muestra GuiaPractica, una fila fija de
+// la columna del chat. Acá queda el material del paso y el botón o la caja que
+// hay que usar, que late suave. Cuando el paso se completa queda resumido en
+// una línea, que se puede volver a abrir.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
-import { ArrowRight, Check, ChevronDown, ChevronUp, Pointer, Terminal } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronUp, Terminal } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../services/linuxPractice.service';
 import { BlockView, CLASE_RESALTADA, STEP_GATE_EVENT } from './blocks/BlockRenderer';
 import { accionActual, accionesDelPaso, guiarTerminal, instruccion, tituloDelPaso, type AccionPaso, type PasoPractica } from './ritmo';
@@ -47,53 +46,16 @@ export function mayuscula(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Lo que reporta cada guía (de un paso o de la evaluación final) hacia el header fijo del chat. */
+/** Lo que reporta cada guía (de un paso o de la evaluación final) hacia la barra GuiaPractica. */
 export interface DatosGuia {
-  acciones: { id: string; texto: string }[];
+  /** `tipo` elige el ícono de la barra (ver GuiaPractica). */
+  acciones: { id: string; texto: string; tipo?: string }[];
   hechas: Set<string>;
   actual: string | null;
   ahora: React.ReactNode | null;
+  /** «Paso 3 de 17», «Evaluación final»... */
+  etiqueta?: string;
   extra?: React.ReactNode;
-}
-
-/**
- * Guía en una sola fila compacta: la instrucción puntual de la acción actual
- * a la izquierda, y a la derecha un punto por cada acción del paso (verde la
- * hecha, con acento la actual, gris lo que falta) -- el mismo lenguaje visual
- * de puntitos que ya usan los tours, no una lista larga de filas. Flota como
- * barra del chat (ver .paso-guia en pasos.css), no como tarjeta aparte.
- */
-export function GuiaPaso({ acciones, hechas, actual, ahora, extra }: {
-  acciones: { id: string; texto: string }[];
-  hechas: Set<string>;
-  actual: string | null;
-  /** Instrucción puntual de la acción actual; si falta, se usa su etiqueta genérica. */
-  ahora?: React.ReactNode | null;
-  extra?: React.ReactNode;
-}) {
-  const hechasCount = acciones.filter((a) => hechas.has(a.id)).length;
-  const actualTexto = ahora ?? acciones.find((a) => a.id === actual)?.texto ?? null;
-  if (!actualTexto) return null;
-  return (
-    <div className="paso-guia" data-tour="practica-guia">
-      <div className="paso-guia__fila">
-        <span className="paso-guia__icono" aria-hidden="true"><Pointer size={13} /></span>
-        <span className="paso-guia__texto">{actualTexto}</span>
-        {acciones.length > 1 && (
-          <span className="paso-guia__puntos" role="img" aria-label={`${hechasCount} de ${acciones.length} acciones de este paso listas`}>
-            {acciones.map((a) => (
-              <span
-                key={a.id}
-                className={`paso-guia__punto${hechas.has(a.id) ? ' paso-guia__punto--hecho' : a.id === actual ? ' paso-guia__punto--actual' : ''}`}
-                title={a.texto}
-              />
-            ))}
-          </span>
-        )}
-      </div>
-      {extra && <div className="paso-guia__extra">{extra}</div>}
-    </div>
-  );
 }
 
 interface PasoCardProps {
@@ -145,7 +107,7 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
 
   const textoAhora = (a: AccionPaso | null, r: AccionPaso | null) => {
     if (!a) return null;
-    if (a.tipo === 'leer' && r) return `lee la explicación de arriba. Cuando termines, ${instruccion(r, etiquetaBoton)}`;
+    if (a.tipo === 'leer' && r) return `lee la explicación del paso. Cuando termines, ${instruccion(r, etiquetaBoton)}`;
     return instruccion(a, etiquetaBoton);
   };
   const textoAhoraCrudo = textoAhora(actual, resaltada);
@@ -177,8 +139,15 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
   );
 
   useEffect(() => {
-    onGuia?.(completo ? null : { acciones, hechas, actual: actual?.id ?? null, ahora, extra: ayudaTerminal || undefined });
-  }, [onGuia, completo, acciones, hechas, actual, ahora, ayudaTerminal]);
+    onGuia?.(completo ? null : {
+      acciones,
+      hechas,
+      actual: actual?.id ?? null,
+      ahora,
+      etiqueta: `Paso ${paso.numero} de ${total}`,
+      extra: ayudaTerminal || undefined,
+    });
+  }, [onGuia, completo, acciones, hechas, actual, ahora, paso.numero, total, ayudaTerminal]);
 
   if (completo && abierto !== true) {
     return (
