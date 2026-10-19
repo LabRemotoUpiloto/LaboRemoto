@@ -223,6 +223,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
                 sessionId={sessionId}
                 onTerminalOutput={processTerminalData}
                 onTerminalInput={processTerminalInput}
+                bloquearTab={!!practiceId}
               />
               {terminalGuiada && cursor && (
                 <div
