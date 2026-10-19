@@ -49,6 +49,7 @@ import { STEP_GATE_EVENT } from './practicas/linux/blocks/BlockRenderer';
 import { armarPlan, type PasoPractica } from './practicas/linux/ritmo';
 import type { DatosGuia } from './practicas/linux/PasoCard';
 import { GuiaPractica } from './practicas/linux/GuiaPractica';
+import { contextoPractica, loQueTocaAhora, relacionDelComando, textoComandoFueraDeLugar, type RelacionComando } from './practicas/linux/contextoTutor';
 import type { LinuxPracticeSessionApi } from '../hooks/useLinuxPracticeSession';
 
 const REGLAS_PRACTICA =
@@ -164,6 +165,20 @@ const ChatPane: React.FC<Props> = ({
   // analogías, media, el próximo comando pendiente, y al final el quiz --
   // llega acá como mensajes del tutor, en orden, a medida que se resuelve.
   const [linuxModule, setLinuxModule] = useState<LinuxModule | null>(null);
+
+  // ── Dónde va el estudiante, para que el modelo responda sabiendo el paso exacto ──
+  // En refs: se leen desde callbacks que pueden haberse creado en un render anterior.
+  const guiaRef = useRef<DatosGuia | null>(null);
+  guiaRef.current = guiaActiva;
+  const linuxModuleRef = useRef<LinuxModule | null>(null);
+  linuxModuleRef.current = linuxModule;
+  const practiceResultRef = useRef(practiceResult);
+  practiceResultRef.current = practiceResult;
+
+  const contextoActual = () => contextoPractica(
+    guiaRef.current, linuxModuleRef.current, practiceResultRef.current as unknown as LinuxValidationResult | null,
+  );
+
   useEffect(() => {
     setLinuxModule(null);
     if (!practiceId) return;
@@ -641,7 +656,7 @@ const ChatPane: React.FC<Props> = ({
     // El prompt base (backend/prompts/ai.toml) pide «### Explicación» + «### Comandos» con bloques bash.
     // En la práctica eso confunde: los comandos los da la práctica, paso a paso. AskRenderer igual
     // descarta comandos en práctica (modoPractica), esto es para que el modelo ni los genere.
-    if (isPracticeSession) { history.unshift({ role: 'system', content: REGLAS_PRACTICA }); }
+    if (isPracticeSession) { history.unshift({ role: 'system', content: `${REGLAS_PRACTICA}\n\n${contextoActual()}` }); }
 
     const imgSnap = attachedImage ?? (userMsg.meta?.imagePreview ? (() => {
       const p = userMsg.meta.imagePreview!; const cIdx = p.indexOf(',');
@@ -828,7 +843,8 @@ const ChatPane: React.FC<Props> = ({
    * -- se percibe como que "se congeló" aunque en realidad solo está
    * esperando el comando correcto.
    */
-  const explainLinuxMistake = useCallback(async (wrongCommand: string, expectedCommand?: string, isKnownFutureCommand?: boolean) => {
+  /** Ver textoComandoFueraDeLugar / relacionDelComando en contextoTutor.ts. */
+  const explainLinuxMistake = useCallback(async (wrongCommand: string, expectedCommand: string | undefined, relacion: RelacionComando) => {
     const contextSessionId = sessionId ?? pi4ChatSessionId;
     let liveTerminalContext: string | null = null;
     if (contextSessionId) {
@@ -836,27 +852,13 @@ const ChatPane: React.FC<Props> = ({
         liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
       } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
     }
-    // Si `wrongCommand` coincide EXACTO con el comando de otro command_step
-    // del mismo módulo (ej. el estudiante se adelantó y probó `ls` cuando
-    // este paso todavía pide `echo "hola linux"`), no es un typo ni un error
-    // -- es un comando real que va a usar más adelante. Se lo marcamos
-    // explícito al modelo para que no invente una explicación de "escribiste
-    // mal" sobre un comando que en realidad escribió perfecto.
-    const triggerText =
-      `El estudiante ejecutó \`${wrongCommand}\` en la terminal, pero eso no era lo que este paso de la práctica necesitaba` +
-      (expectedCommand ? ` (el paso pendiente pide \`${expectedCommand}\`)` : '') +
-      `. Esta es la salida real reciente de la terminal:\n\n` +
-      `${liveTerminalContext ?? '(no se pudo leer la salida de la terminal)'}\n\n` +
-      (isKnownFutureCommand
-        ? `IMPORTANTE: \`${wrongCommand}\` es un comando real y válido, escrito correctamente -- NO es un typo ni un error. ` +
-          `Lo que pasa es que corresponde a un paso MÁS ADELANTE de este mismo módulo. Decile eso explícitamente (que ese ` +
-          `comando lo van a ver más adelante en la práctica), sin explicarle todavía qué hace, y`
-        : `Mirá la salida real: si fue un typo o un error de sintaxis, decile EXACTAMENTE qué escribió mal (comparando con lo ` +
-          `que se esperaba); si el comando existe pero no era el de este paso, explicale amablemente que no era ese y cuál sí. ` +
-          `Después,`) +
-      ` recordale` + (expectedCommand ? ` que el paso actual de la práctica pide \`${expectedCommand}\`` : ' cuál es el paso actual de la práctica') +
-      `. En 2-4 líneas, tono de profesor paciente (nunca de regaño ni de "error", es parte normal de aprender), y cerrá ` +
-      `pidiéndole que lo intente de nuevo` + (expectedCommand ? ` con \`${expectedCommand}\`.` : '.');
+    const triggerText = textoComandoFueraDeLugar({
+      comando: wrongCommand,
+      esperado: expectedCommand,
+      relacion,
+      ahora: loQueTocaAhora(guiaRef.current),
+      salidaTerminal: liveTerminalContext,
+    });
     const instructionMsg: Message = { id: `linux-mistake-${Date.now()}`, sender: 'user', text: triggerText };
     setIsSending(true);
     try {
@@ -892,12 +894,7 @@ const ChatPane: React.FC<Props> = ({
       return rule ? !passedRuleIds.has(rule.id) : true;
     });
 
-    const normalizeCmd = (s: string) => s.trim().toLowerCase();
-    const isKnownFutureCommand = linuxModule.blocks.some(
-      (b) => b.type === 'command_step' && b.id !== pendingStep?.id && normalizeCmd(b.command) === normalizeCmd(signal.command),
-    );
-
-    explainLinuxMistake(signal.command, pendingStep?.command, isKnownFutureCommand);
+    explainLinuxMistake(signal.command, pendingStep?.command, relacionDelComando(signal.command, linuxModule, result, pendingStep?.id));
   }, [linuxSession?.mistakeSignal, isPracticeSession, linuxModule, practiceResult, explainLinuxMistake]);
 
   useEffect(() => {
