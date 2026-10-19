@@ -11,6 +11,7 @@ import SystemMessageBanner from './SystemMessageBanner';
 import { isNearBottom } from './chatUtils';
 import { ActionIcon } from '@mantine/core';
 import { ArrowDown } from 'lucide-react';
+import type { DatosGuia } from '../practicas/linux/PasoCard';
 
 export type ChatAppearance = 'landing' | 'session';
 
@@ -73,6 +74,8 @@ interface ChatMessageListProps {
   onLinuxQuizSubmit?: () => void;
   /** Ver docs/practice-completion.md -- se llama cuando el módulo llega al 100%. */
   onLinuxModuleComplete?: (moduleId: string) => void;
+  /** Reporta la guía del paso/evaluación activa -- la muestra ChatPane como fila fija arriba del chat, no acá. */
+  onLinuxGuiaChange?: (datos: DatosGuia | null) => void;
   /** Mensajes de tipo `linuxContentBlocks` ya confirmados con "Continuar". */
 }
 
@@ -96,6 +99,7 @@ export default function ChatMessageList({
   onLinuxQuizAnswer,
   onLinuxQuizSubmit,
   onLinuxModuleComplete,
+  onLinuxGuiaChange,
 }: ChatMessageListProps) {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
 
@@ -176,6 +180,7 @@ export default function ChatMessageList({
                 onLinuxQuizAnswer={onLinuxQuizAnswer}
                 onLinuxQuizSubmit={onLinuxQuizSubmit}
                 onLinuxModuleComplete={onLinuxModuleComplete}
+                onLinuxGuiaChange={onLinuxGuiaChange}
               />
             )}
 

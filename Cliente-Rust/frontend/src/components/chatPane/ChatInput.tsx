@@ -322,7 +322,7 @@ const ChatInput: React.FC<Props> = ({
 
         {!isPill ? (
           // STACKED LAYOUT (for active chat pane)
-          <div className="flex flex-col w-full">
+          <div className="flex flex-col w-full" data-tour="practica-pregunta">
             {/* Top row: full-width Textarea */}
             <div className="w-full">
               <Textarea

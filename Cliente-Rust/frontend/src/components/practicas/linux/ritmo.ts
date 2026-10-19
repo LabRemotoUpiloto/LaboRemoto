@@ -161,7 +161,7 @@ export function tituloDelPaso(paso: PasoPractica): string {
 /** Qué decir en la franja «Ahora:» para una acción (sin el «Ahora:»). */
 export function instruccion(accion: AccionPaso, etiquetaBoton = 'Siguiente paso'): string {
   switch (accion.tipo) {
-    case 'leer': return 'lee la explicación de arriba.';
+    case 'leer': return 'lee la explicación del paso.';
     case 'imagen': return 'pulsa «Ampliar imagen» para verla en grande.';
     case 'video': return 'pulsa «Ver video» y míralo completo.';
     case 'ejercicio': return 'prueba el ejercicio: toca sus controles y mira qué cambia.';

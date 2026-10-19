@@ -166,7 +166,7 @@ body:has([data-tour="connect-form"] .connect-form.driver-highlighted-element) .d
 }
 
 /* Elemento destacado */
-body:not(.tb-activo) .driver-highlighted-element {
+body:not(.tb-activo):not(.tpl-activo) .driver-highlighted-element {
   outline: 3px solid var(--accent-primary, #00d4aa) !important;
   outline-offset: 4px !important;
   border-radius: 8px !important;
@@ -183,26 +183,26 @@ body:not(.tb-activo) .driver-highlighted-element {
 }
 
 /* Stage especial: mantener la sidebar visible cuando se destaca un botón */
-body:not(.tb-activo) .driver-active-element {
+body:not(.tb-activo):not(.tpl-activo) .driver-active-element {
   position: relative !important;
   z-index: 10000000 !important;
 }
 
 /* Overlay personalizado para mantener sidebar visible */
-body:not(.tb-activo):has(.driver-active-element [data-page]) .sidebar,
-body:not(.tb-activo):has(button.driver-highlighted-element[data-page]) .sidebar {
+body:not(.tb-activo):not(.tpl-activo):has(.driver-active-element [data-page]) .sidebar,
+body:not(.tb-activo):not(.tpl-activo):has(button.driver-highlighted-element[data-page]) .sidebar {
   position: relative !important;
   z-index: 9999999 !important;
   pointer-events: auto !important;
 }
 
 /* Asegurar que cuando se destaca un botón, toda la sidebar esté visible */
-body:not(.tb-activo) button[data-page].driver-highlighted-element {
+body:not(.tb-activo):not(.tpl-activo) button[data-page].driver-highlighted-element {
   z-index: 10000001 !important;
 }
 
 /* Crear un "stage" virtual para la sidebar completa */
-body:not(.tb-activo):has(button[data-page].driver-highlighted-element) .sidebar::before {
+body:not(.tb-activo):not(.tpl-activo):has(button[data-page].driver-highlighted-element) .sidebar::before {
   content: '' !important;
   position: fixed !important;
   top: 0 !important;
@@ -231,14 +231,14 @@ body:not(.tb-activo):has(button[data-page].driver-highlighted-element) .sidebar:
 ============================================ */
 
 /* Overlay oscuro - por defecto normal */
-body:not(.tb-activo) .driver-overlay {
+body:not(.tb-activo):not(.tpl-activo) .driver-overlay {
   background-color: rgba(0, 0, 0, 0.4) !important; /* 👈 CAMBIA AQUÍ: 0.5 = 50% oscuro */
   backdrop-filter: blur(3px) !important;
   z-index: 9999998 !important;
 }
 
 /* Cuando hay un botón de sidebar destacado, hacer la sidebar más visible */
-body:not(.tb-activo):has(button[data-page].driver-highlighted-element) .driver-overlay {
+body:not(.tb-activo):not(.tpl-activo):has(button[data-page].driver-highlighted-element) .driver-overlay {
   /* Usar un gradiente que deje la sidebar más clara */
   background: linear-gradient(
     to right,
@@ -250,7 +250,7 @@ body:not(.tb-activo):has(button[data-page].driver-highlighted-element) .driver-o
 }
 
 /* Forzar que la sidebar esté por encima del overlay cuando hay tour activo */
-body:not(.tb-activo):has(.driver-overlay) .sidebar {
+body:not(.tb-activo):not(.tpl-activo):has(.driver-overlay) .sidebar {
   position: fixed !important;
   z-index: 9999999 !important;
 }
@@ -285,27 +285,27 @@ body:not(.tb-activo):has(.driver-overlay) .sidebar {
 }
 
 /* Stage (capa que envuelve el elemento destacado) */
-body:not(.tb-activo) .driver-active-element,
-body:not(.tb-activo) .driver-no-interaction {
+body:not(.tb-activo):not(.tpl-activo) .driver-active-element,
+body:not(.tb-activo):not(.tpl-activo) .driver-no-interaction {
   position: relative !important;
   z-index: 10000000 !important;
 }
 
 /* Asegurar que el elemento destacado sea interactivo */
-body:not(.tb-activo) .driver-active-element * {
+body:not(.tb-activo):not(.tpl-activo) .driver-active-element * {
   pointer-events: auto !important;
 }
 
 /* Mejora visual adicional para elementos de la sidebar */
-body:not(.tb-activo) .sidebar.driver-highlighted-element {
+body:not(.tb-activo):not(.tpl-activo) .sidebar.driver-highlighted-element {
   background: var(--background-primary, #0a0a0a) !important;
   overflow: visible !important;
 }
 
 /* Mejora para botones destacados en la sidebar - MÁXIMA ESPECIFICIDAD */
-body:not(.tb-activo) .sidebar button[data-page].driver-highlighted-element,
-body:not(.tb-activo) button.nav-item.driver-highlighted-element,
-body:not(.tb-activo) button[data-page].driver-highlighted-element {
+body:not(.tb-activo):not(.tpl-activo) .sidebar button[data-page].driver-highlighted-element,
+body:not(.tb-activo):not(.tpl-activo) button.nav-item.driver-highlighted-element,
+body:not(.tb-activo):not(.tpl-activo) button[data-page].driver-highlighted-element {
   transform: scale(1.1) !important;
   transition: transform 0.3s ease !important;
   background: transparent !important;
@@ -314,9 +314,9 @@ body:not(.tb-activo) button[data-page].driver-highlighted-element {
 }
 
 /* Mejora adicional para el contenido interno de botones destacados */
-body:not(.tb-activo) .sidebar button[data-page].driver-highlighted-element .nav-pill,
-body:not(.tb-activo) button.nav-item.driver-highlighted-element .nav-pill,
-body:not(.tb-activo) button[data-page].driver-highlighted-element .nav-pill {
+body:not(.tb-activo):not(.tpl-activo) .sidebar button[data-page].driver-highlighted-element .nav-pill,
+body:not(.tb-activo):not(.tpl-activo) button.nav-item.driver-highlighted-element .nav-pill,
+body:not(.tb-activo):not(.tpl-activo) button[data-page].driver-highlighted-element .nav-pill {
   background: var(--background-secondary, #1a1a1a) !important;
   backdrop-filter: blur(10px) !important;
   border: 1px solid var(--accent-primary, #00d4aa) !important;
@@ -328,17 +328,17 @@ body:not(.tb-activo) button[data-page].driver-highlighted-element .nav-pill {
 }
 
 /* Icono dentro del botón destacado */
-body:not(.tb-activo) .sidebar button[data-page].driver-highlighted-element .icon,
-body:not(.tb-activo) button.nav-item.driver-highlighted-element .icon,
-body:not(.tb-activo) button[data-page].driver-highlighted-element .icon {
+body:not(.tb-activo):not(.tpl-activo) .sidebar button[data-page].driver-highlighted-element .icon,
+body:not(.tb-activo):not(.tpl-activo) button.nav-item.driver-highlighted-element .icon,
+body:not(.tb-activo):not(.tpl-activo) button[data-page].driver-highlighted-element .icon {
   color: var(--accent-primary, #00d4aa) !important;
   filter: drop-shadow(0 0 8px rgba(0, 212, 170, 0.6)) !important;
 }
 
 /* Label dentro del botón destacado */
-body:not(.tb-activo) .sidebar button[data-page].driver-highlighted-element .label,
-body:not(.tb-activo) button.nav-item.driver-highlighted-element .label,
-body:not(.tb-activo) button[data-page].driver-highlighted-element .label {
+body:not(.tb-activo):not(.tpl-activo) .sidebar button[data-page].driver-highlighted-element .label,
+body:not(.tb-activo):not(.tpl-activo) button.nav-item.driver-highlighted-element .label,
+body:not(.tb-activo):not(.tpl-activo) button[data-page].driver-highlighted-element .label {
   color: var(--text-primary, #ffffff) !important;
   font-weight: 600 !important;
 }

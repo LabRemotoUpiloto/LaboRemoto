@@ -11,6 +11,23 @@ interface AskRendererProps {
   setLastCommand?: (cmd: string) => Promise<void> | void;
   mode?: string;
   appearance?: ChatAppearance;
+  /** Práctica guiada: nada de comandos para ejecutar (los da la práctica, paso a paso). */
+  modoPractica?: boolean;
+}
+
+/**
+ * En una práctica la IA no debe darle comandos al estudiante (ChatPane se lo pide al modelo, pero
+ * a veces igual manda el formato «### Explicación / ### Comandos»). Se quita la sección de comandos
+ * entera, cualquier bloque de código (también uno sin cerrar mientras llega el streaming) y el
+ * título «Explicación», que sin la otra sección sobra.
+ */
+export function limpiarParaPractica(txt: string): string {
+  return txt
+    // Primero los bloques de código: un comentario de bash adentro («# ...») parecería un título.
+    .replace(/```[\s\S]*?(?:```|$)/g, '')
+    .replace(/^#{1,4}[ \t]*(?:💻[ \t]*)?Comandos?\b[^\n]*\n?[\s\S]*?(?=^#{1,4}[ \t]|(?![\s\S]))/gim, '')
+    .replace(/^#{1,4}[ \t]*(?:🐧[ \t]*)?Explicaci[óo]n\b[^\n]*\n?/gim, '')
+    .trim();
 }
 
 // Detecta si un bloque de código es ejecutable (script completo) o informativo (ejemplo)
@@ -61,7 +78,8 @@ const isExecutableCode = (code: string, precedingText: string): boolean => {
 };
 
 // Renderizador del modo ASK (reutilizable para respuestas AI)
-export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, setLastCommand, mode, appearance = 'session' }) => {
+export const AskRenderer: React.FC<AskRendererProps> = ({ content: contenidoOriginal, sessionId, setLastCommand, mode, appearance = 'session', modoPractica = false }) => {
+  const content = modoPractica ? limpiarParaPractica(contenidoOriginal) : contenidoOriginal;
   const isLanding = appearance === 'landing';
   const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string; precedingText?: string }> = [];
   const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
@@ -365,7 +383,7 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content, sessionId, se
 
   return (
     <div className="flex flex-col gap-1 w-full max-w-full overflow-hidden">
-      {blocks.map((b, i) => b.type === 'code' ? (
+      {blocks.filter((b) => !(modoPractica && b.type === 'code')).map((b, i) => b.type === 'code' ? (
         <CodeBlock
           key={`c-${i}`}
           code={b.body}
