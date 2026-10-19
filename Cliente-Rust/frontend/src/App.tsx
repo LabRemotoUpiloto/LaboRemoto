@@ -49,6 +49,8 @@ import TourPracticaLinux from './tours/tour_linux/TourPracticaLinux'
 import { SesionPorPracticaContext } from './components/cursos/envioMoodle'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { useAppStore } from './store/app'
+import { useGrabadorPrueba } from './services/pruebaRendimiento'
+import { canAccessPage, useEffectiveRole } from './hooks/usePermissions'
 import type { PracticeSessionMeta } from './types'
 
 // ── Mantine theme — color primario y fuentes reactivas al tema CSS activo ───────────────
@@ -230,6 +232,9 @@ const AppMain: React.FC = () => {
     return abiertas
   }, [combinedPracticeMeta, tabs])
   const { finalizarTodas: finalizarPracticasReportadas } = usePracticeActivityReporter(practicasAbiertas, isAuthenticated)
+  // Prueba de rendimiento de la Pi4 en curso: se sigue grabando aunque el admin cambie de sección.
+  const rolEfectivo = useEffectiveRole()
+  useGrabadorPrueba(isAuthenticated && canAccessPage('rendimiento', rolEfectivo))
   // práctica -> sesión de terminal donde se hace (para adjuntar el registro al entregarla en Moodle)
   const sesionPorPractica = useMemo(
     () => Object.fromEntries(Object.entries(linuxSession.sessionModuleMap).map(([sessionId, moduleId]) => [moduleId, sessionId])),
@@ -301,7 +306,7 @@ const AppMain: React.FC = () => {
   }, [linuxSession.sessionModuleMap, handleCloseTab])
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'mis-cursos', 'admin-users', 'vigilancia', 'dashboard']
+  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'mis-cursos', 'admin-users', 'vigilancia', 'dashboard', 'rendimiento']
   const SESSION_PAGES = ['sftp', 'snippets', 'logs']
 
   const handleTabClick = (id: string) => {

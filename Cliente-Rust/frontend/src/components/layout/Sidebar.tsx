@@ -5,7 +5,7 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
-import { User, Shield, SquareTerminal, Activity, BookOpen } from 'lucide-react';
+import { User, Shield, SquareTerminal, Activity, BookOpen, Gauge } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo } from '../../hooks/usePermissions';
@@ -230,6 +230,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               { id: 'admin-users', label: 'Usuarios', icon: Shield },
               { id: 'logs', label: 'Logs', icon: FileTextIcon },
               { id: 'vigilancia', label: 'Vigilancia', icon: CameraIcon },
+              { id: 'rendimiento', label: 'Rendimiento', icon: Gauge },
             ],
           },
         ]

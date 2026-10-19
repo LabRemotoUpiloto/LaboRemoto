@@ -50,9 +50,10 @@ describe('rol docente', () => {
     }
   });
 
-  it('Reservas está desactivada para todos mientras se termina', () => {
-    for (const role of ['admin_lab', 'docente', 'estudiante', 'laboratorista'] as const) {
-      expect(canAccessPage('reservas', role), role).toBe(false);
+  it('Reservas está oculta solo para los estudiantes mientras se termina', () => {
+    expect(canAccessPage('reservas', 'estudiante')).toBe(false);
+    for (const role of ['admin_lab', 'docente', 'laboratorista'] as const) {
+      expect(canAccessPage('reservas', role), role).toBe(true);
     }
   });
 });

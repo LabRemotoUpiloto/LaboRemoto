@@ -18,6 +18,7 @@ pub mod nvr;         // Consumo del NVR Shinobi vía API HTTP directa
 pub mod sesiones;    // Registro central de sesiones de práctica (vía broker)
 pub mod moodle_cursos; // Cursos y prácticas desde Moodle (vía broker)
 pub mod camaras_admin; // Administración de cámaras (crear/editar/eliminar/probar, vía broker)
+pub mod encuestas; // Encuesta al terminar una práctica (vía broker de sesiones)
 pub mod dispositivos; // Conexiones SSH a los dispositivos (pestaña Dispositivos de Actividad, vía broker)
 pub mod logs;        // Sistema de logs de sesión
 pub mod editor;      // Análisis y edición de archivos
