@@ -192,8 +192,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       {/* "Vista" (chat/cámara/escritorio/pines). En el rail se colapsa a un
-          solo botón con menú desplegable — misma estrategia que sesiones. */}
-      {showSessionActions && onViewChange && onToggleChat && (
+          solo botón con menú desplegable — misma estrategia que sesiones.
+          El estudiante no la ve: en la práctica el chat y la terminal ya
+          vienen armados, y cámara/escritorio/pines son del laboratorio. */}
+      {showSessionActions && role !== 'estudiante' && onViewChange && onToggleChat && (
         <SidebarSessionActions
           activeView={activeView}
           onViewChange={onViewChange}
