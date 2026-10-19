@@ -8,6 +8,7 @@ import { Activity, RefreshCw, Search, X } from 'lucide-react';
 import { sesionesService, type ResumenSesiones, type SesionPractica } from '../../services/sesiones.service';
 import SesionesMapa from './SesionesMapa';
 import DispositivosPanel from './DispositivosPanel';
+import EncuestasPanel from './EncuestasPanel';
 import {
   conteoPorPractica, detalleUbicacion, duracionMs, esActiva, formatoDuracion, formatoFecha, nombreEstudiante, nombrePractica,
   porEstudiante, porUbicacion, resumenGeneral, sesionesPorDia, ubicacion,
@@ -327,6 +328,7 @@ function ActividadGeneral() {
 const PESTANAS = [
   { value: 'general', label: 'General' },
   { value: 'dispositivos', label: 'Dispositivos' },
+  { value: 'encuestas', label: 'Encuestas' },
 ];
 
 export default function DashboardPage() {
@@ -337,7 +339,7 @@ export default function DashboardPage() {
         <SegmentedControl data={PESTANAS} value={pestana} onChange={(v) => setPestana(String(v))} aria-label="Sección de actividad" />
       </Box>
       <Box style={{ flex: 1, minHeight: 0 }}>
-        {pestana === 'general' ? <ActividadGeneral /> : <DispositivosPanel />}
+        {pestana === 'general' ? <ActividadGeneral /> : pestana === 'dispositivos' ? <DispositivosPanel /> : <EncuestasPanel />}
       </Box>
     </Box>
   );

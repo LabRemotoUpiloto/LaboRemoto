@@ -226,6 +226,10 @@ pub fn run() {
       cmd::camaras_admin::camaras_eliminar,
       // Conexiones SSH a los dispositivos (solo supervisión; el broker lo exige)
       cmd::dispositivos::dispositivos_resumen,
+      // Encuesta al terminar una práctica (enviar: cualquiera con sesión; resumen: solo supervisión)
+      cmd::encuestas::encuestas_enviar,
+      cmd::encuestas::encuestas_mia,
+      cmd::encuestas::encuestas_resumen,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,

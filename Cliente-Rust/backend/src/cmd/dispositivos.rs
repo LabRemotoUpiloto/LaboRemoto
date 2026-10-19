@@ -123,7 +123,7 @@ mod tests {
     use super::*;
 
     // Respuesta con la forma real del broker (infra/broker-sesiones/dispositivos.js).
-    const JSON: &str = r#"{"generado":"2026-10-04T17:00:00.000Z","dias":30,"dispositivos":[{"id":"pi4","nombre":"Pi4","enLinea":true,"ultimoLatido":"2026-10-04T16:59:40.000Z","conectados":[{"id":"pi4:22029:1","usuario":"UPILOTO\\luisa-quijano","persona":"luisa-quijano","nombre":null,"inicio":"2026-10-04T14:29:00.000Z","fin":null,"activa":true,"cierre":null,"ip":"191.156.236.133","ciudad":"Bogotá","region":"Bogotá D.C.","pais":"CO","lat":4.6,"lon":-74.08}],"conexiones":[{"id":"pi4:22029:1","usuario":"UPILOTO\\luisa-quijano","persona":"luisa-quijano","nombre":"Luisa Quijano","inicio":"2026-10-04T14:29:00.000Z","fin":"2026-10-04T14:30:00.000Z","activa":false,"cierre":"cliente","ip":"191.156.236.133","ciudad":null,"region":null,"pais":null,"lat":null,"lon":null}],"totalConexiones":1,"personasDistintas":1,"cuentaCompartida":{"nombre":"pi","conexiones":947,"activas":0},"noReconocidas":{"conexiones":1,"activas":0,"ultimas":[{"usuario":"root","ip":"45.9.9.9","inicio":"2026-10-04T10:00:00.000Z","activa":false,"ciudad":null,"pais":null}]}}]}"#;
+    const JSON: &str = r#"{"generado":"2026-10-04T17:00:00.000Z","dias":30,"dispositivos":[{"id":"pi4","nombre":"Pi4","enLinea":true,"ultimoLatido":"2026-10-04T16:59:40.000Z","conectados":[{"id":"pi4:22029:1","usuario":"UPILOTO\\ana-perez","persona":"ana-perez","nombre":null,"inicio":"2026-10-04T14:29:00.000Z","fin":null,"activa":true,"cierre":null,"ip":"203.0.113.7","ciudad":"Bogotá","region":"Bogotá D.C.","pais":"CO","lat":4.6,"lon":-74.08}],"conexiones":[{"id":"pi4:22029:1","usuario":"UPILOTO\\ana-perez","persona":"ana-perez","nombre":"Ana Pérez","inicio":"2026-10-04T14:29:00.000Z","fin":"2026-10-04T14:30:00.000Z","activa":false,"cierre":"cliente","ip":"203.0.113.7","ciudad":null,"region":null,"pais":null,"lat":null,"lon":null}],"totalConexiones":1,"personasDistintas":1,"cuentaCompartida":{"nombre":"pi","conexiones":947,"activas":0},"noReconocidas":{"conexiones":1,"activas":0,"ultimas":[{"usuario":"root","ip":"45.9.9.9","inicio":"2026-10-04T10:00:00.000Z","activa":false,"ciudad":null,"pais":null}]}}]}"#;
 
     #[test]
     fn lee_el_resumen_completo() {
@@ -131,7 +131,7 @@ mod tests {
         assert_eq!(r.dias, 30);
         let d = &r.dispositivos[0];
         assert_eq!((d.id.as_str(), d.en_linea, d.total_conexiones, d.personas_distintas), ("pi4", true, 1, 1));
-        assert_eq!(d.conectados[0].usuario, "UPILOTO\\luisa-quijano");
+        assert_eq!(d.conectados[0].usuario, "UPILOTO\\ana-perez");
         assert_eq!(d.conectados[0].ciudad.as_deref(), Some("Bogotá"));
         assert_eq!(d.conexiones[0].fin.as_deref(), Some("2026-10-04T14:30:00.000Z"));
         assert_eq!(d.cuenta_compartida.conexiones, 947);

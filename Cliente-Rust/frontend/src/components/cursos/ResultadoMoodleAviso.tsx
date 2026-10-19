@@ -1,7 +1,7 @@
 // components/cursos/ResultadoMoodleAviso.tsx — aviso flotante de respaldo para enviar a Moodle una práctica ya aprobada.
 // El envío normal se ofrece dentro del modal de la insignia (ModuleCompleteCelebration); este aviso solo aparece cuando ese modal no
 // está abierto: p. ej. si la práctica ya tenía la insignia (el modal se salta) o el estudiante lo cerró sin enviar.
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Paper } from '@mantine/core';
 import { EnvioMoodleContenido, hayEnvio } from './EnvioMoodlePanel';
 import { useCelebracionAbierta, useEnvioMoodle, type ResultadoPractica } from './envioMoodle';

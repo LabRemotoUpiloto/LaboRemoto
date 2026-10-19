@@ -150,7 +150,7 @@ test.before(async () => {
   });
   arrancar('broker-sesiones/server.js', {
     ...keycloak, PORT: pSes, SESIONES_FILE: path.join(tmp, 'sesiones.jsonl'),
-    DISPOSITIVOS_JSON: JSON.stringify({ pi4: { nombre: 'Pi4', token: 'token-del-agente' } }), DISPOSITIVOS_FILE: path.join(tmp, 'dispositivos.jsonl'),
+    DISPOSITIVOS_JSON: JSON.stringify({ pi4: { nombre: 'Pi4', token: 'token-del-agente' } }), DISPOSITIVOS_FILE: path.join(tmp, 'dispositivos.jsonl'), ENCUESTAS_FILE: path.join(tmp, 'encuestas.jsonl'),
   });
   const moodle = arrancar('broker-moodle/server.js', {
     ...keycloak, PORT: pMoo, MOODLE_URL: `http://127.0.0.1:${moodleFalso.address().port}`, MOODLE_TOKEN: 'tok', MOODLE_HOST_HEADER: 'localhost:8080',
@@ -326,4 +326,17 @@ test('si el servicio de Moodle se cae, solo falla Moodle: cámaras y sesiones si
   assert.strictEqual(caido.json.servicio, 'moodle');
   assert.strictEqual((await pedir('GET', '/nvr/monitor/grp', { token: jwt(g.priv) })).status, 200);
   assert.strictEqual((await pedir('GET', '/nvr/sesiones/resumen', { token: jwt(g.priv, { roles: ['admin_lab'] }) })).status, 200);
+});
+
+test('encuestas: el estudiante responde por la puerta de entrada y solo la supervisión ve el resumen, sin nombres', async () => {
+  const est = jwt(g.priv, { usuario: 'ana-perez' });
+  const respuestas = { aprendizaje: 5, claridad: 4, funcionamiento: 4, satisfaccion: 5, asistente: 3, dificultad: 'adecuada', problemas: ['ninguno'], gusto: 'Todo', mejorar: '' };
+  assert.strictEqual((await pedir('POST', '/nvr/encuestas', { cuerpo: { practica: 'linux', respuestas } })).status, 401);
+  assert.strictEqual((await pedir('POST', '/nvr/encuestas', { token: est, cuerpo: { practica: 'linux', respuestas } })).status, 201);
+  assert.strictEqual((await pedir('GET', '/nvr/encuestas/mia?practica=linux', { token: est })).json.respondida, true);
+  assert.strictEqual((await pedir('GET', '/nvr/encuestas/resumen', { token: est })).status, 403);
+  const r = await pedir('GET', '/nvr/encuestas/resumen', { token: jwt(g.priv, { usuario: 'admin@x', roles: ['admin_lab'] }) });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.json.practicas[0].respuestas, 1);
+  assert.doesNotMatch(r.texto, /ana-perez/);
 });

@@ -5,9 +5,9 @@ import {
 import type { ConexionDispositivo } from '../../src/services/dispositivos.service';
 
 const base: ConexionDispositivo = {
-  id: 'pi4:1:1', usuario: 'UPILOTO\\luisa-quijano', persona: 'luisa-quijano', nombre: null,
+  id: 'pi4:1:1', usuario: 'UPILOTO\\ana-perez', persona: 'ana-perez', nombre: null,
   inicio: '2026-10-04T14:29:00.000Z', fin: '2026-10-04T14:30:00.000Z', activa: false, cierre: 'cliente',
-  ip: '191.156.236.133', ciudad: 'Bogotá', region: 'Bogotá D.C.', pais: 'CO', lat: 4.6, lon: -74.08,
+  ip: '203.0.113.7', ciudad: 'Bogotá', region: 'Bogotá D.C.', pais: 'CO', lat: 4.6, lon: -74.08,
 };
 
 describe('fechaExcel', () => {
@@ -31,7 +31,7 @@ describe('ubicación', () => {
   });
   it('reconoce las redes locales', () => {
     for (const ip of ['10.0.0.1', '192.168.1.5', '172.16.0.1', '172.31.255.1', '127.0.0.1', '::1']) expect(esIpLocal(ip), ip).toBe(true);
-    for (const ip of ['8.8.8.8', '172.32.0.1', '191.156.236.133']) expect(esIpLocal(ip), ip).toBe(false);
+    for (const ip of ['8.8.8.8', '172.32.0.1', '203.0.113.7']) expect(esIpLocal(ip), ip).toBe(false);
   });
 });
 
@@ -62,8 +62,8 @@ describe('estadoDispositivo', () => {
 
 describe('nombre y mapa', () => {
   it('muestra el nombre completo si lo hay y, si no, el usuario del LDAP', () => {
-    expect(nombreConexion({ nombre: 'Luisa Quijano', usuario: 'UPILOTO\\luisa-quijano' })).toBe('Luisa Quijano');
-    expect(nombreConexion(base)).toBe('UPILOTO\\luisa-quijano');
+    expect(nombreConexion({ nombre: 'Ana Pérez', usuario: 'UPILOTO\\ana-perez' })).toBe('Ana Pérez');
+    expect(nombreConexion(base)).toBe('UPILOTO\\ana-perez');
   });
 
   it('agrupa por lugar, cuenta las activas y omite lo que no tiene coordenadas', () => {
@@ -76,7 +76,7 @@ describe('nombre y mapa', () => {
     const p = puntosDeConexiones(c);
     expect(p).toHaveLength(2);
     const bogota = p.find((x) => x.lugar === 'Bogotá, CO')!;
-    expect([bogota.sesiones, bogota.activas, bogota.estudiantes.sort()]).toEqual([2, 1, ['Ben', 'UPILOTO\\luisa-quijano']]);
+    expect([bogota.sesiones, bogota.activas, bogota.estudiantes.sort()]).toEqual([2, 1, ['Ben', 'UPILOTO\\ana-perez']]);
     expect(bogota.aproximada).toBe(true);
   });
 });
@@ -92,7 +92,7 @@ describe('porUsuario', () => {
     const g = porUsuario(c, ahora);
     expect(g.map((u) => [u.usuario, u.nombre, u.conexiones.length, u.tiempoTotalMs / 60_000, u.activa])).toEqual([
       ['UPILOTO\\ben', 'Ben', 1, 5, true],
-      ['UPILOTO\\luisa-quijano', 'UPILOTO\\luisa-quijano', 2, 11, false],
+      ['UPILOTO\\ana-perez', 'UPILOTO\\ana-perez', 2, 11, false],
     ]);
     expect(g[1].conexiones.map((x) => x.id)).toEqual(['2', 'pi4:1:1']);
   });
