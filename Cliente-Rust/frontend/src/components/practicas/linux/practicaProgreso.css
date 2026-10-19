@@ -2,7 +2,7 @@
    como título y el mismo avance que la guía del chat. */
 .practica-progreso {
   margin: 6px 12px;
-  padding: 12px 16px 13px;
+  padding: 10px 16px 11px;
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   background: var(--background-secondary);
@@ -10,30 +10,16 @@
 
 .practica-progreso__fila {
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 10px;
-}
-
-.practica-progreso__nombre {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.practica-progreso__orden {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent-primary);
+  margin-bottom: 8px;
 }
 
 .practica-progreso__titulo {
+  min-width: 0;
   overflow: hidden;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.25;
   white-space: nowrap;

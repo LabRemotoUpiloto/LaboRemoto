@@ -10,7 +10,6 @@ import './practicaProgreso.css';
  */
 export interface ProgresoPractica {
   titulo: string | null;
-  orden: number | null;
   /** Paso en el que va (el actual, todavía sin completar). */
   numero: number | null;
   total: number | null;
@@ -32,10 +31,7 @@ export const LinuxPracticeProgressBar: React.FC<Props> = ({ result, progreso }) 
   return (
     <div data-tour="practica-progreso" className="practica-progreso">
       <div className="practica-progreso__fila">
-        <div className="practica-progreso__nombre">
-          {progreso?.orden != null && <span className="practica-progreso__orden">Práctica {progreso.orden}</span>}
-          <span className="practica-progreso__titulo">{progreso?.titulo ?? 'Práctica de laboratorio'}</span>
-        </div>
+        <span className="practica-progreso__titulo">{progreso?.titulo ?? 'Práctica de laboratorio'}</span>
         <span className={`practica-progreso__estado${completa ? ' is-completa' : ''}`}>
           {completa ? '¡Práctica completa!' : numero && total ? `Paso ${numero} de ${total}` : ''}
         </span>

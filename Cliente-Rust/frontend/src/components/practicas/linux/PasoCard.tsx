@@ -25,19 +25,17 @@ function comandoAprobado(block: Extract<LinuxBlock, { type: 'command_step' }>, r
   return !!rule && !!result?.results.find((r) => r.rule_id === rule.id)?.passed;
 }
 
-/** «Paso 3 de 8» con su barra de avance. Lo comparten los pasos y la evaluación final. */
-export function EncabezadoPaso({ numero, total, titulo, derecha }: { numero: number; total: number; titulo: string; derecha?: React.ReactNode }) {
+/**
+ * Título del paso (y a la derecha «Ocultar», si ya está completo). Lo comparten los pasos y la
+ * evaluación final. El «Paso 3 de 16» va en un solo lugar: la cabecera de la práctica, arriba de la
+ * terminal (LinuxPracticeProgressBar).
+ */
+export function EncabezadoPaso({ titulo, derecha }: { titulo: string; derecha?: React.ReactNode }) {
   return (
-    <Stack gap={6} mb="sm">
-      <Group justify="space-between" wrap="nowrap">
-        <Text fz="xs" c="dimmed">Paso {numero} de {total}</Text>
-        {derecha}
-      </Group>
-      <div className="paso-barra" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={numero}>
-        <span style={{ width: `${Math.round((numero / Math.max(total, 1)) * 100)}%` }} />
-      </div>
+    <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm" mb="sm">
       <h3 className="paso-titulo">{titulo}</h3>
-    </Stack>
+      {derecha}
+    </Group>
   );
 }
 
@@ -191,8 +189,6 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
     // Sin tarjeta propia: el paso ya vive dentro de la burbuja del mensaje (caja dentro de caja era ruido).
     <div style={{ width: '100%' }}>
       <EncabezadoPaso
-        numero={paso.numero}
-        total={total}
         titulo={titulo}
         derecha={completo && (
           <UnstyledButton onClick={() => setAbierto(false)}>

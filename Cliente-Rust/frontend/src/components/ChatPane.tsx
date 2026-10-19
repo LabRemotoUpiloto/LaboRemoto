@@ -189,7 +189,6 @@ const ChatPane: React.FC<Props> = ({
     if (guiaActiva?.numero && guiaActiva.total) ultimoPasoRef.current = { numero: guiaActiva.numero, total: guiaActiva.total };
     onProgresoPractica({
       titulo: linuxModule.title,
-      orden: linuxModule.order ?? null,
       numero: ultimoPasoRef.current?.numero ?? null,
       total: ultimoPasoRef.current?.total ?? null,
     });
