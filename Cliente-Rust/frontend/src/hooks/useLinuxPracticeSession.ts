@@ -312,6 +312,11 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, setCameraOp
    * no dispara re-render, lo lee revalidate() en el próximo tick de polling.
    */
   const reportCommandHistory = useCallback((sessionId: string, commands: string[]) => {
+    // Mismo historial que ya teníamos (un re-render que lo reporta otra vez,
+    // StrictMode montando el efecto dos veces...): no hay comando nuevo, así
+    // que no hay nada que validar. El polling sigue cubriendo lo demás.
+    const previo = commandHistoryBySession.current[sessionId];
+    if (previo && previo.length === commands.length && previo.every((c, i) => c === commands[i])) return;
     commandHistoryBySession.current[sessionId] = commands;
     // Revalida apenas se ejecuta un comando nuevo, sin esperar el próximo
     // tick del polling (hasta REVALIDATE_INTERVAL_MS de rezago) -- el chat
