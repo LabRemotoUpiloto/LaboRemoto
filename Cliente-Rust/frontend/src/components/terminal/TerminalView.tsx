@@ -59,12 +59,15 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   // useCommandHistory sin tocar disco) hacia useLinuxPracticeSession, que lo
   // lee en revalidate() -- reemplaza a extractSessionCommands, que leía
   // savedLogs/<id>.html, un archivo que nunca existe mientras la sesión
-  // sigue abierta.
+  // sigue abierta. Depende de `reportCommandHistory` (estable, useCallback) y
+  // no del objeto `linuxSession`, que es nuevo en cada render de App: con el
+  // objeto entero, cualquier re-render de la app volvía a reportar y a validar.
+  const reportCommandHistory = linuxSession?.reportCommandHistory;
   useEffect(() => {
-    if (practiceId && linuxSession) {
-      linuxSession.reportCommandHistory(sessionId, commandHistory);
+    if (practiceId && reportCommandHistory) {
+      reportCommandHistory(sessionId, commandHistory);
     }
-  }, [practiceId, linuxSession, sessionId, commandHistory]);
+  }, [practiceId, reportCommandHistory, sessionId, commandHistory]);
 
   // When camera panel opens/closes, xterm must re-fit to the new height
   useEffect(() => {
