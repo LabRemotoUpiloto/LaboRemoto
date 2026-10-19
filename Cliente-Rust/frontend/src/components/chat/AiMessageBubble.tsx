@@ -217,6 +217,7 @@ export default function AiMessageBubble({
               setLastCommand={setLastCommand}
               mode={mode}
               appearance={appearance}
+              modoPractica={!!linuxPracticeId}
             />
           )}
           {msg.meta?.toolAction && (

@@ -51,6 +51,13 @@ import type { DatosGuia } from './practicas/linux/PasoCard';
 import { GuiaPractica } from './practicas/linux/GuiaPractica';
 import type { LinuxPracticeSessionApi } from '../hooks/useLinuxPracticeSession';
 
+const REGLAS_PRACTICA =
+  'MODO PRÁCTICA (estas reglas mandan sobre el FORMATO DE RESPUESTA): le estás hablando a un estudiante que ' +
+  'nunca usó Linux. Responde solo con texto corto y en lenguaje simple. NO uses títulos («### Explicación», ' +
+  '«### Comandos» ni otros), NO pongas bloques de código y NO le des comandos para ejecutar: los comandos que ' +
+  'tiene que escribir ya se los da la práctica, paso a paso. Si tienes que nombrar un comando, escríbelo entre ' +
+  'comillas invertidas dentro de la frase (por ejemplo `whoami`).';
+
 // `rule_id` ya viene resuelto por `linuxGetModule` (ver resolveLinuxModule en
 // linuxPractice.service.ts) -- desambigua cuando dos command_step piden el
 // MISMO comando en puntos distintos del módulo. El fallback por target es
@@ -631,7 +638,11 @@ const ChatPane: React.FC<Props> = ({
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: getContent(m) }));
     
     if (mem.practiceContext) { history.unshift({ role: 'system', content: mem.practiceContext }); }
-    
+    // El prompt base (backend/prompts/ai.toml) pide «### Explicación» + «### Comandos» con bloques bash.
+    // En la práctica eso confunde: los comandos los da la práctica, paso a paso. AskRenderer igual
+    // descarta comandos en práctica (modoPractica), esto es para que el modelo ni los genere.
+    if (isPracticeSession) { history.unshift({ role: 'system', content: REGLAS_PRACTICA }); }
+
     const imgSnap = attachedImage ?? (userMsg.meta?.imagePreview ? (() => {
       const p = userMsg.meta.imagePreview!; const cIdx = p.indexOf(',');
       return { base64: p.substring(cIdx + 1), mediaType: p.substring(0, cIdx).replace('data:', '').replace(';base64', ''), preview: p };
