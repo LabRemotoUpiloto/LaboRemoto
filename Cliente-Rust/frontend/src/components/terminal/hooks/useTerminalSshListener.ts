@@ -22,12 +22,14 @@
  * sub-hooks (useTerminalLifecycle / useTerminalSessionCapture) y se reciben por
  * parámetro — ver useTerminal.ts para el orden de composición.
  */
-import { useEffect, useState, MutableRefObject, RefObject } from 'react';
+import { useEffect, useRef, useState, MutableRefObject, RefObject } from 'react';
+import { notifications } from '@mantine/notifications';
 import { Terminal } from '@xterm/xterm';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { sshStdin, sshResize } from '../../../services/ssh.service';
 import { canRefocusTerminal, sanitizeSessionId } from './terminalDomUtils';
+import { esPulsacionTab, quitarTabs, tocaAvisarTab } from './bloqueoTab';
 import { TerminalSessionMetadata } from './terminalTypes';
 
 interface UseTerminalSshListenerParams {
@@ -40,6 +42,8 @@ interface UseTerminalSshListenerParams {
   sessionMetadataRef: MutableRefObject<TerminalSessionMetadata | null>;
   onTerminalOutput?: (data: string) => void;
   onTerminalInput?: (data: string) => void;
+  /** Prácticas: sin autocompletar con Tab (ver bloqueoTab.ts). */
+  bloquearTab?: boolean;
   captureCurrentSession: () => Promise<void>;
   captureSnapshot: () => void;
 }
@@ -60,12 +64,17 @@ export function useTerminalSshListener({
   sessionMetadataRef,
   onTerminalOutput,
   onTerminalInput,
+  bloquearTab,
   captureCurrentSession,
   captureSnapshot,
 }: UseTerminalSshListenerParams): UseTerminalSshListenerResult {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
   const [waitingForPrompt, setWaitingForPrompt] = useState<boolean>(false);
+  // Ref para que el handler del teclado lea el valor actual sin reabrir el listener de la sesión.
+  const bloquearTabRef = useRef<boolean>(!!bloquearTab);
+  bloquearTabRef.current = !!bloquearTab;
+  const ultimoAvisoTabRef = useRef<number>(0);
 
   useEffect(() => {
     const term = termRef.current;
@@ -189,9 +198,37 @@ export function useTerminalSshListener({
         }
       }, 15000);
 
+      const avisarTab = () => {
+        const ahora = Date.now();
+        if (!tocaAvisarTab(ahora, ultimoAvisoTabRef.current)) return;
+        ultimoAvisoTabRef.current = ahora;
+        notifications.show({
+          title: 'Tab desactivado en las prácticas',
+          message: 'Escribe el comando completo: así lo aprendes y lo practicas.',
+          color: 'yellow',
+          autoClose: 3500,
+        });
+      };
+      // La tecla Tab no llega a la shell ni mueve el foco fuera de la terminal.
+      term.attachCustomKeyEventHandler((ev) => {
+        if (bloquearTabRef.current && esPulsacionTab(ev)) {
+          ev.preventDefault();
+          avisarTab();
+          return false;
+        }
+        return true;
+      });
+
       disposers.push(term.onData((data) => {
-        try { onTerminalInput?.(data); } catch {}
-        sshStdin(sessionId, data).catch(() => {});
+        let entrada = data;
+        // Ctrl+I o un pegado con tabulaciones también producen \t: se quitan antes de mandar nada.
+        if (bloquearTabRef.current && entrada.includes('\t')) {
+          entrada = quitarTabs(entrada);
+          avisarTab();
+          if (!entrada) return;
+        }
+        try { onTerminalInput?.(entrada); } catch {}
+        sshStdin(sessionId, entrada).catch(() => {});
       }));
 
       listen<string>(`ssh_out_${safe}`, (event) => {
@@ -214,6 +251,7 @@ export function useTerminalSshListener({
 
       return () => {
         disposers.forEach(d => d.dispose());
+        try { term.attachCustomKeyEventHandler(() => true); } catch {}
         if (unlistenRef.current) { try { unlistenRef.current(); } catch {} unlistenRef.current = null; }
         if (contentCheckInterval) {
           window.clearInterval(contentCheckInterval);
