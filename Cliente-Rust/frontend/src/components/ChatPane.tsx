@@ -376,6 +376,8 @@ const ChatPane: React.FC<Props> = ({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const isComposingRef = useRef<boolean>(false);
   const handleSendRef = useRef<((t?: string) => void)>(() => {});
+  // Marca para la PRÓXIMA respuesta del tutor (ver explainLinuxCommandOutput): se pone en su meta al crearla.
+  const marcaRespuestaRef = useRef<Message['meta'] | null>(null);
   const currentReqIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const skipRestoreRef = useRef(false);
@@ -517,14 +519,14 @@ const ChatPane: React.FC<Props> = ({
   const { errorBanner, setErrorBanner, promptBanner, setPromptBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(terminalMonitorSessionId);
   const { handleExportMd, handleExportHtml } = useChatExport(messages, setToast);
   const { sessionTokens, setSessionTokens } = useChatStorage(sessionId, mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
-  
+
   const {
     showHistory, setShowHistory, historyEntries, historySearch, setHistorySearch,
     pendingDeleteId, archiveCurrentChatRef, handleNewChat, handleLoadHistory,
     handleDeleteHistoryEntry, confirmDeleteHistoryEntry, cancelDeleteHistoryEntry,
     loadedHistoryIdRef, messageCountAtLoadRef
   } = useChatHistoryManager(
-    sessionId, hostKey, mode, messages, setMessages, setSessionTokens, 
+    sessionId, hostKey, mode, messages, setMessages, setSessionTokens,
     setMode, setToast, skipRestoreRef, clearMemory, mem.practiceTutorial
   );
 
@@ -673,7 +675,7 @@ const ChatPane: React.FC<Props> = ({
     const history = messages
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: getContent(m) }));
-    
+
     if (mem.practiceContext) { history.unshift({ role: 'system', content: mem.practiceContext }); }
     // El prompt base (backend/prompts/ai.toml) pide «### Explicación» + «### Comandos» con bloques bash.
     // En la práctica eso confunde: los comandos los da la práctica, paso a paso. AskRenderer igual
@@ -684,11 +686,13 @@ const ChatPane: React.FC<Props> = ({
       const p = userMsg.meta.imagePreview!; const cIdx = p.indexOf(',');
       return { base64: p.substring(cIdx + 1), mediaType: p.substring(0, cIdx).replace('data:', '').replace(';base64', ''), preview: p };
     })() : null);
-    
+
     setAttachedImage(null); setTerminalActivity(false);
     const reqId = crypto.randomUUID(); currentReqIdRef.current = reqId;
     setStreamingMsgId(reqId); setStreamedText('');
-    setMessages(prev => [...prev, { id: reqId, sender: 'ai', text: '', timestamp: Date.now(), meta: { chat_mode: mode } }]);
+    const marca = marcaRespuestaRef.current;
+    marcaRespuestaRef.current = null;
+    setMessages(prev => [...prev, { id: reqId, sender: 'ai', text: '', timestamp: Date.now(), meta: { chat_mode: mode, ...marca } }]);
 
     const unlistenChunk = await listen<{ request_id: string; delta: string }>('ai:chunk', (ev) => {
       if (ev.payload.request_id !== reqId) return;
@@ -848,11 +852,13 @@ const ChatPane: React.FC<Props> = ({
     // agrega a `messages` -- no debe quedar como turno visible del estudiante.
     const instructionMsg: Message = { id: `linux-explain-${Date.now()}`, sender: 'user', text: triggerText };
     setIsSending(true);
+    marcaRespuestaRef.current = { linuxExplica: 'salida' };
     try {
       await modeHandlers['ask'].send(triggerText, instructionMsg, buildModeContext());
     } catch (e: any) {
       setMessages((prev) => [...prev, { id: String(Date.now()), sender: 'ai', text: `Error explicando la salida: ${e?.message ?? String(e)}` }]);
     } finally {
+      marcaRespuestaRef.current = null;
       setIsSending(false);
     }
   }, [sessionId, pi4ChatSessionId, modeHandlers, buildModeContext]);
@@ -983,7 +989,7 @@ const ChatPane: React.FC<Props> = ({
 
     const handler = modeHandlers[mode];
     if (!handler?.canSend()) { setInput(''); return; }
-    
+
     isSendingRef.current = true; setErrorBanner(null);
     const filesnap = attachedFileRef.current ?? attachedFile;
     setAttachedFile(null); attachedFileRef.current = null;
@@ -991,7 +997,7 @@ const ChatPane: React.FC<Props> = ({
       ...(attachedImage ? { imagePreview: attachedImage.preview } : {}),
       ...(filesnap ? { attachedFileName: filesnap.name, attachedFileContent: filesnap.content } : {}),
     } as any };
-    
+
     setMessages(prev => [...prev, userMsg]);
     if (!overrideText) setInput('');
 
