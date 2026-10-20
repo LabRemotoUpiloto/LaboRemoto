@@ -58,6 +58,21 @@ cansador; se rehizo quitando el micro-movimiento del texto, la capa de glifos y 
    congelada: el cursor que parpadea, o un elemento decorativo que flota 1–2 px en un ciclo lento. **Nunca en texto
    que se lee** ni en varios elementos a la vez (ver «Elegir, no acumular»).
 
+## Armado de la serie (siempre igual)
+
+Todos los videos tienen la misma estructura, para que se reconozcan como parte de la misma serie:
+
+1. **Entrada** (`src/comun/Bumper.tsx`, ~3,3 s antes de la voz): fondo amarillo con panal, el **Profesor Bee**
+   (`bee-professor.jpeg`) entra desde la derecha y queda flotando, tarjeta «MÓDULO N · BITÁCORA DEL OPERADOR» con el
+   subrayado que se dibuja, el título del video y una ráfaga de confeti.
+2. **Cuerpo**: fondo papel con el panal de `HoneycombBackground` (quieto, sin parallax de colores ni capas extra),
+   la terminal oscura de siempre y los subtítulos abajo.
+3. **Cierre** (`src/comun/CierreCTA.tsx`, con iris desde el cuerpo): fondo amarillo con panal, la **abeja en la
+   computadora** (`bee-computer.png`) entra desde la izquierda, «Ahora probá vos» en rojo y el comando en una tarjeta
+   tinta con letra amarilla.
+
+La abeja es la única que «flota» en reposo, como en los videos originales (U1, U2).
+
 ## Estilo visual
 
 - Colores de `video-u1/src/theme.ts`: rojo `#E21F19`, amarillo `#F7CD3D`, tinta `#211C16`, papel `#FAF5E9`,
