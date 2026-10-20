@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ts_rs::TS;
 
-use crate::cmd::nvr::shinobi::{HTTP_CLIENT, BROKER_HOST};
+use crate::cmd::broker_client::{access_token, error_de_red, get_json, HTTP_CLIENT, BROKER_HOST};
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
@@ -54,23 +54,7 @@ pub struct ResumenSesiones {
 }
 
 const TIPOS_EVENTO: &[&str] = &["inicio", "latido", "fin", "ubicacion"];
-
-async fn access_token(manager: &Arc<dyn SessionManager>) -> Result<String, CommandError> {
-    manager
-        .get_access_token()
-        .await
-        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
-        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión"))
-}
-
-fn error_de_red(ctx: &str, e: reqwest::Error) -> CommandError {
-    let err = if e.is_timeout() {
-        CommandError::transient("OPERATION_TIMEOUT", format!("Timeout contactando el registro de sesiones: {e}"))
-    } else {
-        CommandError::transient("COMMUNICATION_ERROR", format!("Error contactando el registro de sesiones: {e}"))
-    };
-    err.with_retry_after(3000).with_context(ctx, "broker")
-}
+const QUE: &str = "el registro de sesiones";
 
 /// Reporta un evento de la sesión de práctica `sesion_id` (el id de la
 /// sesión SSH). La identidad del estudiante la pone el broker desde el token.
@@ -107,7 +91,7 @@ pub async fn sesiones_reportar_evento(
         .json(&body)
         .send()
         .await
-        .map_err(|e| error_de_red("sesiones_reportar_evento", e))?;
+        .map_err(|e| error_de_red("sesiones_reportar_evento", QUE, e))?;
 
     let status = response.status();
     if !status.is_success() {
@@ -134,7 +118,7 @@ pub async fn sesiones_reportar_ubicacion_app(
         .json(&serde_json::json!({ "lat": lat, "lon": lon, "precision_m": precision_m }))
         .send()
         .await
-        .map_err(|e| error_de_red("sesiones_reportar_ubicacion_app", e))?;
+        .map_err(|e| error_de_red("sesiones_reportar_ubicacion_app", QUE, e))?;
 
     let status = response.status();
     if !status.is_success() {
@@ -152,29 +136,16 @@ pub async fn sesiones_resumen(
     dias: Option<u32>,
     manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<ResumenSesiones, CommandError> {
-    let token = access_token(manager.inner()).await?;
+    let ctx = "sesiones_resumen";
     let dias = dias.unwrap_or(30);
 
-    let response = HTTP_CLIENT
-        .get(format!("{BROKER_HOST}/nvr/sesiones/resumen?dias={dias}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| error_de_red("sesiones_resumen", e))?;
-
-    let status = response.status();
-    let text = response.text().await.map_err(|e| error_de_red("sesiones_resumen", e))?;
-    if !status.is_success() {
+    get_json(ctx, QUE, &format!("/nvr/sesiones/resumen?dias={dias}"), manager.inner(), |status, text| {
         let err = match status.as_u16() {
             401 | 403 => CommandError::permanent("AUTH_FAILED", "No tienes permiso para ver el registro de sesiones"),
             _ => CommandError::transient("COMMUNICATION_ERROR", format!("Registro de sesiones respondió {status}: {text}"))
                 .with_retry_after(3000),
         };
-        return Err(err.with_context("sesiones_resumen", "broker"));
-    }
-
-    serde_json::from_str(&text).map_err(|e| {
-        CommandError::permanent("INVALID_DATA", format!("Respuesta inválida del registro de sesiones: {e}"))
-            .with_context("sesiones_resumen", "broker")
+        err.with_context(ctx, "broker")
     })
+    .await
 }

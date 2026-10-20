@@ -153,15 +153,17 @@ export function tituloDelPaso(paso: PasoPractica): string {
   const comando = paso.bloques.find(esComando);
   if (comando) return comando.goal_md ? 'Resuelve el reto' : 'Escribe un comando';
   if (paso.bloques.some((b) => EJERCICIOS.has(b.type))) return 'Prueba el ejercicio';
-  if (paso.bloques.some((b) => b.type === 'media' && b.kind === 'video')) return 'Lee y mira el video';
-  if (paso.bloques.some((b) => b.type === 'media')) return 'Lee y mira la imagen';
+  // «Lee y…» solo si hay algo que leer: hay pasos que son únicamente una imagen.
+  const lee = paso.bloques.some((b) => b.type === 'text') ? 'Lee y mira' : 'Mira';
+  if (paso.bloques.some((b) => b.type === 'media' && b.kind === 'video')) return `${lee} el video`;
+  if (paso.bloques.some((b) => b.type === 'media')) return `${lee} la imagen`;
   return 'Lee la explicación';
 }
 
 /** Qué decir en la franja «Ahora:» para una acción (sin el «Ahora:»). */
 export function instruccion(accion: AccionPaso, etiquetaBoton = 'Siguiente paso'): string {
   switch (accion.tipo) {
-    case 'leer': return 'lee la explicación de arriba.';
+    case 'leer': return 'lee la explicación del paso.';
     case 'imagen': return 'pulsa «Ampliar imagen» para verla en grande.';
     case 'video': return 'pulsa «Ver video» y míralo completo.';
     case 'ejercicio': return 'prueba el ejercicio: toca sus controles y mira qué cambia.';

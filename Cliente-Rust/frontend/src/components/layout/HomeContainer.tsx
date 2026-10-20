@@ -15,11 +15,12 @@ import MisCursosPage from '../../pages/cursos/MisCursosPage'
 import UserManagementPage from '../../pages/admin/UserManagementPage'
 import VigilanciaPage from '../../pages/vigilancia/VigilanciaPage'
 import DashboardPage from '../../pages/dashboard/DashboardPage'
+import RendimientoPage from '../../pages/rendimiento/RendimientoPage'
 import type { Tab } from '../../hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 import { useEffectiveRole, canAccessPage } from '../../hooks/usePermissions'
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession'
-import { pedirTutorialBienvenida } from '../../tour/bienvenida/BienvenidaTutorial'
+import { pedirTutorialBienvenida } from '../../tours/tour_inicio/BienvenidaTutorial'
 
 type Props = {
   tabs: Tab[]
@@ -121,6 +122,8 @@ const HomeContainer: React.FC<Props> = ({
         <VigilanciaPage />
       ) : effectivePage === 'dashboard' ? (
         <DashboardPage />
+      ) : effectivePage === 'rendimiento' ? (
+        <RendimientoPage />
       ) : effectivePage === 'perfil' ? (
         <PerfilPage />
       ) : effectivePage === 'ajustes' ? (

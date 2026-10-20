@@ -17,28 +17,134 @@
   }
 }
 
-.paso-ahora {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+/* ── Jerarquía de textos de un paso ──
+   Escala en px (no en los tamaños de Mantine, que dependen del tema): un solo título por paso,
+   el texto según su papel en el module.json (`kind`), y los títulos de los medios como leyenda.
+     título del paso 18/700 · heading 15.5/700 · lead 15.5 · body/concept 14.5 · recap 14 ·
+     tip 13.5 · leyenda de medio 13 · rótulos 10.5 en mayúsculas */
+.paso-titulo {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
   color: var(--text-primary);
-  font-size: 14px;
+}
+
+.paso-texto {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+.paso-texto p { margin: 0; }
+.paso-texto__cuerpo { min-width: 0; }
+
+.paso-texto--heading { margin-top: 6px; }
+.paso-texto--heading p {
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.paso-texto--lead {
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+
+/* Concepto: filete del acento a la izquierda y el término (en negrita) en el color del acento. */
+.paso-texto--concept {
+  padding-left: 12px;
+  border-left: 3px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+.paso-texto--concept strong { color: var(--accent-primary); }
+
+.paso-texto--tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13.5px;
   line-height: 1.55;
+  color: var(--text-secondary);
+}
+.paso-texto__icono {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-tertiary, var(--text-secondary));
 }
 
-.paso-barra {
-  height: 5px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: var(--border-subtle);
+.paso-texto--recap {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
 }
-
-.paso-barra > span {
+.paso-texto__rotulo {
   display: block;
-  height: 100%;
-  background: var(--accent-primary);
-  transition: width 0.3s ease;
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+/* Imagen / video de un paso (MediaBlock): sin caja propia, solo encabezado + el medio con su marco. */
+.paso-media {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.paso-media__cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.paso-media__tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* Gris, no rojo: el acento queda para la guía de arriba y para lo que hay que pulsar. */
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+/* Leyenda, no título: más chica y tenue que el cuerpo, para no competir con el título del paso. */
+.paso-media__titulo {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* Video aún sin pedir: una portada oscura del mismo tamaño que tendrá el reproductor. */
+.paso-media__portada {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  background: radial-gradient(120% 90% at 50% 35%, #2b2b2b 0%, #121212 70%);
+}
+
+.paso-media__portada--cargando {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  aspect-ratio: auto;
+  min-height: 120px;
+  background: var(--background-tertiary);
+}
+
+.paso-media__img {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  cursor: zoom-in;
 }

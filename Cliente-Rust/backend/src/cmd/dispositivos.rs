@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ts_rs::TS;
 
-use crate::cmd::nvr::shinobi::{BROKER_HOST, HTTP_CLIENT};
+use crate::cmd::broker_client::get_text;
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
@@ -96,23 +96,6 @@ pub struct ResumenDispositivos {
     pub dispositivos: Vec<DispositivoActividad>,
 }
 
-async fn access_token(manager: &Arc<dyn SessionManager>) -> Result<String, CommandError> {
-    manager
-        .get_access_token()
-        .await
-        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
-        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión"))
-}
-
-fn error_de_red(ctx: &str, e: reqwest::Error) -> CommandError {
-    let err = if e.is_timeout() {
-        CommandError::transient("OPERATION_TIMEOUT", format!("Timeout contactando el registro de dispositivos: {e}"))
-    } else {
-        CommandError::transient("COMMUNICATION_ERROR", format!("Error contactando el registro de dispositivos: {e}"))
-    };
-    err.with_retry_after(3000).with_context(ctx, "broker")
-}
-
 /// Interpreta la respuesta del broker. Función pura para poder probarla.
 fn interpretar(status: u16, texto: &str) -> Result<ResumenDispositivos, CommandError> {
     match status {
@@ -130,17 +113,9 @@ pub async fn dispositivos_resumen(
     manager: tauri::State<'_, Arc<dyn SessionManager>>,
 ) -> Result<ResumenDispositivos, CommandError> {
     let ctx = "dispositivos_resumen";
-    let token = access_token(manager.inner()).await?;
     let dias = dias.unwrap_or(30);
-    let respuesta = HTTP_CLIENT
-        .get(format!("{BROKER_HOST}/nvr/dispositivos/resumen?dias={dias}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| error_de_red(ctx, e))?;
-    let status = respuesta.status().as_u16();
-    let texto = respuesta.text().await.map_err(|e| error_de_red(ctx, e))?;
-    interpretar(status, &texto).map_err(|e| e.with_context(ctx, "broker"))
+    let (status, texto) = get_text(ctx, "el registro de dispositivos", &format!("/nvr/dispositivos/resumen?dias={dias}"), manager.inner()).await?;
+    interpretar(status.as_u16(), &texto).map_err(|e| e.with_context(ctx, "broker"))
 }
 
 #[cfg(test)]
@@ -148,7 +123,7 @@ mod tests {
     use super::*;
 
     // Respuesta con la forma real del broker (infra/broker-sesiones/dispositivos.js).
-    const JSON: &str = r#"{"generado":"2026-10-04T17:00:00.000Z","dias":30,"dispositivos":[{"id":"pi4","nombre":"Pi4","enLinea":true,"ultimoLatido":"2026-10-04T16:59:40.000Z","conectados":[{"id":"pi4:22029:1","usuario":"UPILOTO\\luisa-quijano","persona":"luisa-quijano","nombre":null,"inicio":"2026-10-04T14:29:00.000Z","fin":null,"activa":true,"cierre":null,"ip":"191.156.236.133","ciudad":"Bogotá","region":"Bogotá D.C.","pais":"CO","lat":4.6,"lon":-74.08}],"conexiones":[{"id":"pi4:22029:1","usuario":"UPILOTO\\luisa-quijano","persona":"luisa-quijano","nombre":"Luisa Quijano","inicio":"2026-10-04T14:29:00.000Z","fin":"2026-10-04T14:30:00.000Z","activa":false,"cierre":"cliente","ip":"191.156.236.133","ciudad":null,"region":null,"pais":null,"lat":null,"lon":null}],"totalConexiones":1,"personasDistintas":1,"cuentaCompartida":{"nombre":"pi","conexiones":947,"activas":0},"noReconocidas":{"conexiones":1,"activas":0,"ultimas":[{"usuario":"root","ip":"45.9.9.9","inicio":"2026-10-04T10:00:00.000Z","activa":false,"ciudad":null,"pais":null}]}}]}"#;
+    const JSON: &str = r#"{"generado":"2026-10-04T17:00:00.000Z","dias":30,"dispositivos":[{"id":"pi4","nombre":"Pi4","enLinea":true,"ultimoLatido":"2026-10-04T16:59:40.000Z","conectados":[{"id":"pi4:22029:1","usuario":"UPILOTO\\ana-perez","persona":"ana-perez","nombre":null,"inicio":"2026-10-04T14:29:00.000Z","fin":null,"activa":true,"cierre":null,"ip":"203.0.113.7","ciudad":"Bogotá","region":"Bogotá D.C.","pais":"CO","lat":4.6,"lon":-74.08}],"conexiones":[{"id":"pi4:22029:1","usuario":"UPILOTO\\ana-perez","persona":"ana-perez","nombre":"Ana Pérez","inicio":"2026-10-04T14:29:00.000Z","fin":"2026-10-04T14:30:00.000Z","activa":false,"cierre":"cliente","ip":"203.0.113.7","ciudad":null,"region":null,"pais":null,"lat":null,"lon":null}],"totalConexiones":1,"personasDistintas":1,"cuentaCompartida":{"nombre":"pi","conexiones":947,"activas":0},"noReconocidas":{"conexiones":1,"activas":0,"ultimas":[{"usuario":"root","ip":"45.9.9.9","inicio":"2026-10-04T10:00:00.000Z","activa":false,"ciudad":null,"pais":null}]}}]}"#;
 
     #[test]
     fn lee_el_resumen_completo() {
@@ -156,7 +131,7 @@ mod tests {
         assert_eq!(r.dias, 30);
         let d = &r.dispositivos[0];
         assert_eq!((d.id.as_str(), d.en_linea, d.total_conexiones, d.personas_distintas), ("pi4", true, 1, 1));
-        assert_eq!(d.conectados[0].usuario, "UPILOTO\\luisa-quijano");
+        assert_eq!(d.conectados[0].usuario, "UPILOTO\\ana-perez");
         assert_eq!(d.conectados[0].ciudad.as_deref(), Some("Bogotá"));
         assert_eq!(d.conexiones[0].fin.as_deref(), Some("2026-10-04T14:30:00.000Z"));
         assert_eq!(d.cuenta_compartida.conexiones, 947);

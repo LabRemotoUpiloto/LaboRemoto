@@ -1,76 +1,43 @@
 import React from 'react';
 import { type LinuxValidationResult } from '../../../services/linuxPractice.service';
+import './practicaProgreso.css';
+
+/**
+ * Lo que reporta el chat (ChatPane) de la práctica abierta. Es el MISMO conteo que la barra de la
+ * guía («Paso 3 de 16»): antes acá se contaban las reglas de validación de la Pi («0 de 18 pasos,
+ * 0/28 pts»), dos números distintos en la misma pantalla para lo que el estudiante ve como un solo
+ * avance.
+ */
+export interface ProgresoPractica {
+  titulo: string | null;
+  /** Paso en el que va (el actual, todavía sin completar). */
+  numero: number | null;
+  total: number | null;
+}
 
 interface Props {
   result: LinuxValidationResult;
-  moduleTitle?: string;
+  progreso: ProgresoPractica | null;
 }
 
-export const LinuxPracticeProgressBar: React.FC<Props> = ({ result, moduleTitle }) => {
-  const { percentage = 0, passed = false, results = [], earned_points = 0, total_points = 0 } = result;
-  const passedCount = results.filter((r) => r.passed).length;
-  const totalRules = results.length;
-  const roundedPct = Math.round(percentage);
+export const LinuxPracticeProgressBar: React.FC<Props> = ({ result, progreso }) => {
+  const completa = !!result.passed;
+  const total = progreso?.total ?? null;
+  const numero = progreso?.numero ?? null;
+  // Pasos ya completados: todos los anteriores al actual (o todos, si la práctica terminó).
+  const hechos = completa ? total ?? 0 : numero ? numero - 1 : 0;
+  const pct = completa ? 100 : total ? (hechos / total) * 100 : 0;
 
   return (
-    <div
-      style={{
-        margin: '6px 12px',
-        padding: '8px 14px',
-        borderRadius: '8px',
-        backgroundColor: 'var(--background-secondary)',
-        border: '1px solid var(--border-color)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '6px',
-          fontSize: '12px',
-          lineHeight: '1.4',
-        }}
-      >
-        <span
-          style={{
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-          }}
-        >
-          {moduleTitle || 'Práctica de laboratorio'}
-        </span>
-        <span
-          style={{
-            color: 'var(--text-secondary)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {totalRules > 0 ? `${passedCount} de ${totalRules} pasos` : ''}
-          {total_points > 0 ? ` (${earned_points}/${total_points} pts)` : ''}
-          {totalRules > 0 ? ` — ${roundedPct}%` : `${roundedPct}%`}
+    <div data-tour="practica-progreso" className="practica-progreso">
+      <div className="practica-progreso__fila">
+        <span className="practica-progreso__titulo">{progreso?.titulo ?? 'Práctica de laboratorio'}</span>
+        <span className={`practica-progreso__estado${completa ? ' is-completa' : ''}`}>
+          {completa ? '¡Práctica completa!' : numero && total ? `Paso ${numero} de ${total}` : ''}
         </span>
       </div>
-
-      {/* Progress Track */}
-      <div
-        style={{
-          width: '100%',
-          height: '6px',
-          borderRadius: '3px',
-          backgroundColor: 'var(--background-tertiary)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            height: '100%',
-            borderRadius: '3px',
-            width: `${Math.max(0, Math.min(100, percentage))}%`,
-            backgroundColor: passed ? 'var(--accent-tertiary, #007a33)' : 'var(--accent-primary)',
-            transition: 'width 0.4s ease',
-          }}
-        />
+      <div className="practica-progreso__pista" role="progressbar" aria-valuemin={0} aria-valuemax={total ?? 100} aria-valuenow={hechos}>
+        <div className={`practica-progreso__barra${completa ? ' is-completa' : ''}`} style={{ transform: `scaleX(${pct / 100})` }} />
       </div>
     </div>
   );

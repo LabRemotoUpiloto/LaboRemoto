@@ -66,7 +66,7 @@ export default function ResumenGeneralPanel({ cursoId }: { cursoId: number }) {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {g.filas.map((f, i) => (
+            {g.filas.map((f) => (
               <Table.Tr key={f.usuario}>
                 <Table.Td>
                   <Text size="sm" fw={500}>{f.nombre}</Text>

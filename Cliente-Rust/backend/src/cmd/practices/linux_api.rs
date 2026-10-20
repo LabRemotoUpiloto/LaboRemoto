@@ -448,6 +448,56 @@ pub async fn practicas_linux_connection_target(
     Ok(LinuxConnectionTarget { host, port, user })
 }
 
+/// Signos vitales de la Pi para el panel de Rendimiento (solo `admin_lab`): CPU, RAM,
+/// temperatura, red, conexiones, sesiones SSH, cámaras y latencia de la API, con
+/// historial. `desde` (epoch en segundos) trae solo las muestras nuevas. Lo calcula
+/// `metrics_svc.py` en la propia API de prácticas.
+#[tauri::command]
+pub async fn rendimiento_pi(
+    desde: Option<f64>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<serde_json::Value, CommandError> {
+    exigir_admin(manager.inner()).await?;
+    let config = load_config()?;
+    let ruta = match desde {
+        Some(t) if t.is_finite() => format!("/system/metrics?desde={t}"),
+        _ => "/system/metrics".to_string(),
+    };
+    api_get(&config, &ruta).await
+}
+
+/// Registros para el panel de Rendimiento (solo `admin_lab`): las últimas peticiones a
+/// la API de prácticas y los eventos de SSH de la Pi (entradas, claves fallidas,
+/// conexiones rechazadas o cortadas). Cada `desde_*` trae solo lo posterior.
+#[tauri::command]
+pub async fn rendimiento_logs(
+    desde_api: Option<f64>,
+    desde_ssh: Option<f64>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<serde_json::Value, CommandError> {
+    exigir_admin(manager.inner()).await?;
+    let config = load_config()?;
+    let consulta: Vec<String> = [("desde_api", desde_api), ("desde_ssh", desde_ssh)]
+        .into_iter()
+        .filter_map(|(clave, valor)| valor.filter(|t| t.is_finite()).map(|t| format!("{clave}={t}")))
+        .collect();
+    let ruta = if consulta.is_empty() { "/system/logs".to_string() } else { format!("/system/logs?{}", consulta.join("&")) };
+    api_get(&config, &ruta).await
+}
+
+/// El panel de Rendimiento muestra datos internos de la Pi: solo para el administrador.
+async fn exigir_admin(manager: &Arc<dyn SessionManager>) -> Result<(), CommandError> {
+    let session = manager
+        .session_info()
+        .await
+        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
+        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión"))?;
+    if !session.roles.iter().any(|r| r == "admin_lab") {
+        return Err(CommandError::permanent("FORBIDDEN", "El panel de rendimiento es solo para el administrador"));
+    }
+    Ok(())
+}
+
 // ─── Categorías y entorno de los módulos ───
 
 /// Categoría (`PracticeCategory.id`) a la que pertenece un módulo, según el

@@ -1,13 +1,16 @@
 // components/practicas/linux/PasoCard.tsx — un paso de la práctica en el chat.
 //
-// Cada paso dice con palabras qué hacer: una lista corta de acciones (hechas,
-// la actual y las que faltan), la franja «Ahora: ...» con la única cosa que
-// toca, y el botón o la caja que hay que usar late suave. Cuando el paso se
-// completa queda resumido en una línea, que se puede volver a abrir.
+// La guía (qué toca ahora + cuántas acciones del paso van listas) ya NO vive
+// aquí dentro: era una caja a mitad del mensaje y, apenas el estudiante bajaba
+// a ver el video o la imagen, quedaba fuera de pantalla. Este componente solo
+// reporta su estado (ver `onGuia`) y la muestra GuiaPractica, una fila fija de
+// la columna del chat. Acá queda el material del paso y el botón o la caja que
+// hay que usar, que late suave. Cuando el paso se completa queda resumido en
+// una línea, que se puede volver a abrir.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
-import { ArrowRight, Check, ChevronDown, ChevronUp, Circle, Pointer, Terminal } from 'lucide-react';
+import { Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import { ArrowRight, Check, ChevronDown, ChevronUp, Terminal } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../services/linuxPractice.service';
 import { BlockView, CLASE_RESALTADA, STEP_GATE_EVENT } from './blocks/BlockRenderer';
 import { accionActual, accionesDelPaso, guiarTerminal, instruccion, tituloDelPaso, type AccionPaso, type PasoPractica } from './ritmo';
@@ -22,55 +25,38 @@ function comandoAprobado(block: Extract<LinuxBlock, { type: 'command_step' }>, r
   return !!rule && !!result?.results.find((r) => r.rule_id === rule.id)?.passed;
 }
 
-/** «Paso 3 de 8» con su barra de avance. Lo comparten los pasos y la evaluación final. */
-export function EncabezadoPaso({ numero, total, titulo, derecha }: { numero: number; total: number; titulo: string; derecha?: React.ReactNode }) {
+/**
+ * Título del paso (y a la derecha «Ocultar», si ya está completo). Lo comparten los pasos y la
+ * evaluación final. El «Paso 3 de 16» va en un solo lugar: la cabecera de la práctica, arriba de la
+ * terminal (LinuxPracticeProgressBar).
+ */
+export function EncabezadoPaso({ titulo, derecha }: { titulo: string; derecha?: React.ReactNode }) {
   return (
-    <Stack gap={6} mb="sm">
-      <Group justify="space-between" wrap="nowrap">
-        <Text fz="xs" c="dimmed">Paso {numero} de {total}</Text>
-        {derecha}
-      </Group>
-      <div className="paso-barra" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={numero}>
-        <span style={{ width: `${Math.round((numero / Math.max(total, 1)) * 100)}%` }} />
-      </div>
-      <Text fz="md" fw={600} mt={2}>{titulo}</Text>
-    </Stack>
+    <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm" mb="sm">
+      <h3 className="paso-titulo">{titulo}</h3>
+      {derecha}
+    </Group>
   );
 }
 
-/** Lista de acciones del paso: hechas con visto bueno, la actual resaltada, las demás en gris. */
-export function ListaAcciones({ acciones, hechas, actual }: { acciones: { id: string; texto: string }[]; hechas: Set<string>; actual: string | null }) {
-  return (
-    <Stack gap={4}>
-      {acciones.map((a) => {
-        const hecha = hechas.has(a.id);
-        const esActual = a.id === actual;
-        return (
-          <Group key={a.id} gap={8} wrap="nowrap">
-            {hecha
-              ? <Check size={15} color="var(--success, #22C55E)" style={{ flexShrink: 0 }} />
-              : <Circle size={13} style={{ flexShrink: 0, opacity: esActual ? 1 : 0.5, margin: '0 1px' }} />}
-            <Text fz="sm" fw={esActual ? 600 : 400} c={hecha ? 'teal' : esActual ? undefined : 'dimmed'}>
-              {a.texto}
-            </Text>
-          </Group>
-        );
-      })}
-    </Stack>
-  );
+/** Primera letra en mayúscula: las instrucciones se escriben pensadas para ir después de «Ahora:». */
+export function mayuscula(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** La única cosa que toca hacer ahora, dicha con palabras. */
-export function FranjaAhora({ children, extra }: { children: React.ReactNode; extra?: React.ReactNode }) {
-  return (
-    <div className="paso-ahora">
-      <Pointer size={18} style={{ flexShrink: 0, marginTop: 2 }} />
-      <Stack gap={8} style={{ minWidth: 0 }}>
-        <span><strong>Ahora:</strong> {children}</span>
-        {extra}
-      </Stack>
-    </div>
-  );
+/** Lo que reporta cada guía (de un paso o de la evaluación final) hacia la barra GuiaPractica. */
+export interface DatosGuia {
+  /** `tipo` elige el ícono de la barra (ver GuiaPractica). */
+  acciones: { id: string; texto: string; tipo?: string }[];
+  hechas: Set<string>;
+  actual: string | null;
+  ahora: React.ReactNode | null;
+  /** «Paso 3 de 17», «Evaluación final»... */
+  etiqueta?: string;
+  /** Paso actual y total de la práctica (lo mismo que dice `etiqueta`, en números): los usa la cabecera de arriba. */
+  numero?: number;
+  total?: number;
+  extra?: React.ReactNode;
 }
 
 interface PasoCardProps {
@@ -81,9 +67,11 @@ interface PasoCardProps {
   practiceId: string;
   /** Sesión SSH de la práctica: para marcar su terminal y darle el foco. */
   sessionId?: string | null;
+  /** Reporta el estado de la guía hacia el header fijo del chat; `null` cuando no hay nada pendiente (completo o escondido). */
+  onGuia?: (datos: DatosGuia | null) => void;
 }
 
-export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: PasoCardProps) {
+export function PasoCard({ paso, total, rules, result, practiceId, sessionId, onGuia }: PasoCardProps) {
   const acciones = useMemo(() => accionesDelPaso(paso), [paso]);
   // Lo que el estudiante hizo con el mouse (abrir media, tocar un ejercicio, «Siguiente paso»).
   const [hechasLocal, setHechasLocal] = useState<Set<string>>(() => new Set());
@@ -107,35 +95,24 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
   const titulo = tituloDelPaso(paso);
   const etiquetaBoton = paso.etiquetaBoton ?? 'Siguiente paso';
 
-  // Mientras toque escribir en la terminal, se marca la terminal real (ver TerminalView).
-  const pendiente = completo ? null : accionActual(acciones, hechas).resaltada;
-  const pideTerminal = pendiente?.tipo === 'comando' || pendiente?.tipo === 'reto';
+  // Todo esto va antes del `return` del resumen colapsado: los hooks de abajo
+  // (guiar la terminal, reportar la guía) tienen que llamarse siempre, en el
+  // mismo orden, sin importar si el paso ya está completo.
+  const { actual, resaltada } = completo ? { actual: null, resaltada: null } : accionActual(acciones, hechas);
+  const pideTerminal = resaltada?.tipo === 'comando' || resaltada?.tipo === 'reto';
   useEffect(() => {
     if (!sessionId) return;
     guiarTerminal({ sessionId, origen: paso.id, resaltar: pideTerminal });
     return () => guiarTerminal({ sessionId, origen: paso.id, resaltar: false });
   }, [sessionId, paso.id, pideTerminal]);
 
-  if (completo && abierto !== true) {
-    return (
-      <UnstyledButton onClick={() => setAbierto(true)} style={{ width: '100%' }} aria-label={`Ver de nuevo el paso ${paso.numero}`}>
-        <Group gap={8} wrap="nowrap" py={4}>
-          <Check size={16} color="var(--success, #22C55E)" style={{ flexShrink: 0 }} />
-          <Text fz="sm" c="dimmed" style={{ flex: 1 }}>Paso {paso.numero} · {titulo}</Text>
-          <Text fz="xs" c="dimmed">Ver de nuevo</Text>
-          <ChevronDown size={14} />
-        </Group>
-      </UnstyledButton>
-    );
-  }
-
-  const { actual, resaltada } = completo ? { actual: null, resaltada: null } : accionActual(acciones, hechas);
   const textoAhora = (a: AccionPaso | null, r: AccionPaso | null) => {
     if (!a) return null;
-    if (a.tipo === 'leer' && r) return `lee la explicación de arriba. Cuando termines, ${instruccion(r, etiquetaBoton)}`;
+    if (a.tipo === 'leer' && r) return `lee la explicación del paso. Cuando termines, ${instruccion(r, etiquetaBoton)}`;
     return instruccion(a, etiquetaBoton);
   };
-  const ahora = textoAhora(actual, resaltada);
+  const textoAhoraCrudo = textoAhora(actual, resaltada);
+  const ahora = textoAhoraCrudo ? mayuscula(textoAhoraCrudo) : null;
 
   // «La terminal» no le dice nada a quien nunca la usó: en el primer comando
   // del módulo se explica qué es y dónde está; siempre se ofrece llevarlo ahí.
@@ -150,9 +127,9 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
       {sessionId && (
         <Group>
           <Button
-            size="xs"
-            variant="white"
-            leftSection={<Terminal size={14} />}
+            size="compact-xs"
+            variant="light"
+            leftSection={<Terminal size={13} />}
             onClick={() => guiarTerminal({ sessionId, origen: paso.id, enfocar: true })}
           >
             Ir a la terminal
@@ -162,11 +139,31 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
     </>
   );
 
-  // La guía (lista + «Ahora:») va después del primer texto, antes del material
-  // y del comando: primero se lee de qué se trata y enseguida qué hacer.
-  const corte = paso.bloques.findIndex((b) => b.type !== 'text');
-  const antes = corte === -1 ? paso.bloques : paso.bloques.slice(0, corte);
-  const despues = corte === -1 ? [] : paso.bloques.slice(corte);
+  useEffect(() => {
+    onGuia?.(completo ? null : {
+      acciones,
+      hechas,
+      actual: actual?.id ?? null,
+      ahora,
+      etiqueta: `Paso ${paso.numero} de ${total}`,
+      numero: paso.numero,
+      total,
+      extra: ayudaTerminal || undefined,
+    });
+  }, [onGuia, completo, acciones, hechas, actual, ahora, paso.numero, total, ayudaTerminal]);
+
+  if (completo && abierto !== true) {
+    return (
+      <UnstyledButton onClick={() => setAbierto(true)} style={{ width: '100%' }} aria-label={`Ver de nuevo el paso ${paso.numero}`}>
+        <Group gap={8} wrap="nowrap" py={4}>
+          <Check size={16} color="var(--success, #22C55E)" style={{ flexShrink: 0 }} />
+          <Text fz="sm" c="dimmed" style={{ flex: 1 }}>Paso {paso.numero} · {titulo}</Text>
+          <Text fz="xs" c="dimmed">Ver de nuevo</Text>
+          <ChevronDown size={14} />
+        </Group>
+      </UnstyledButton>
+    );
+  }
 
   const bloque = (b: LinuxBlock) => {
     const vista = (
@@ -189,10 +186,9 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
   };
 
   return (
-    <Paper withBorder radius="md" p="md" style={{ width: '100%' }}>
+    // Sin tarjeta propia: el paso ya vive dentro de la burbuja del mensaje (caja dentro de caja era ruido).
+    <div style={{ width: '100%' }}>
       <EncabezadoPaso
-        numero={paso.numero}
-        total={total}
         titulo={titulo}
         derecha={completo && (
           <UnstyledButton onClick={() => setAbierto(false)}>
@@ -201,19 +197,16 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
         )}
       />
       <Stack gap="sm">
-        {antes.map(bloque)}
-        {!completo && (
-          <>
-            <ListaAcciones acciones={acciones} hechas={hechas} actual={actual?.id ?? null} />
-            {ahora && <FranjaAhora extra={ayudaTerminal || undefined}>{ahora}</FranjaAhora>}
-          </>
-        )}
-        {despues.map(bloque)}
+        {paso.bloques.map(bloque)}
         {paso.conBoton && !completo && (
           <Group>
             <Button
               rightSection={<ArrowRight size={15} />}
               className={resaltada?.tipo === 'siguiente' ? CLASE_RESALTADA : undefined}
+              // `resaltada` (no `actual`): «leer» no tiene botón y solo se marca al hacer otra
+              // acción, así que en un paso de solo texto `actual` se quedaba en «leer» para
+              // siempre y el botón nunca se habilitaba.
+              disabled={resaltada?.tipo !== 'siguiente'}
               onClick={() => {
                 marcar('siguiente');
                 document.dispatchEvent(new CustomEvent(STEP_GATE_EVENT, { detail: { id: paso.id } }));
@@ -224,6 +217,6 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId }: 
           </Group>
         )}
       </Stack>
-    </Paper>
+    </div>
   );
 }

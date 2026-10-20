@@ -7,7 +7,7 @@
  * useTerminalSshListener sin duplicar lógica ni depender de closures locales.
  */
 import { MutableRefObject, RefObject } from 'react';
-import { Terminal } from 'xterm';
+import { Terminal } from '@xterm/xterm';
 
 /** Sanitiza un sessionId para usarlo como sufijo del canal de evento `ssh_out_<safe>`. */
 export const sanitizeSessionId = (id: string) => (id || '').replace(/[^a-zA-Z0-9_:\-\/]/g, '_');
@@ -73,10 +73,15 @@ export function applyXtermTheme(
     return value || undefined;
   };
 
+  // El texto de la terminal ya está pensado por cada tema para contrastar con su propio
+  // fondo. El acento de marca (--accent-primary) no tiene esa garantía — en temas claros
+  // puede ser un color pastel o casi blanco y el cursor se vuelve invisible. Por eso el
+  // cursor reutiliza el mismo color que el texto, en vez del acento.
+  const foreground = resolveVar('--terminal-foreground') || resolveVar('--text-primary');
   const themeObj = {
-    foreground: resolveVar('--terminal-foreground') || resolveVar('--text-primary'),
+    foreground,
     background: 'transparent',
-    cursor: resolveVar('--accent-primary'),
+    cursor: foreground,
     cursorAccent: resolveVar('--background-primary'),
     selectionBackground: resolveVar('--selection-bg'),
     selectionForeground: resolveVar('--selection-fg'),
@@ -99,6 +104,37 @@ export function applyXtermTheme(
   } as any;
 
   term.options.theme = themeObj;
+  aplicarCursorDelMouse(foreground, resolveVar('--background-primary'));
 
   try { term.refresh(0, term.rows - 1); } catch {}
+}
+
+// Barra en «I» con remates curvos (16×24, punto activo en el centro).
+const TRAZO_I = 'M5 3.5C7 3.5 8 4.5 8 6.5V17.5C8 19.5 7 20.5 5 20.5M11 3.5C9 3.5 8 4.5 8 6.5M11 20.5C9 20.5 8 19.5 8 17.5';
+
+/**
+ * Cursor del MOUSE sobre la terminal (no el de escritura). xterm usa `cursor: text`, el del sistema: en
+ * Windows 11 es blanco con un borde finito y sobre los fondos claros de algunos temas no se ve. Se
+ * dibuja uno propio con el color del texto de la terminal (que cada tema ya hace legible sobre su
+ * fondo) y un halo del color del fondo, así se ve en cualquier tema. Un `url()` de CSS no puede leer
+ * variables, por eso se arma acá y se deja en una sola regla global (el tema es el mismo para todas
+ * las terminales). Respeta los otros cursores de xterm: modo mouse (tmux), enlaces y selección en
+ * columna.
+ */
+function aplicarCursorDelMouse(texto?: string, fondo?: string) {
+  if (!texto) return;
+  const halo = fondo || '#ffffff';
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="24" viewBox="0 0 16 24">` +
+    `<g fill="none" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path d="${TRAZO_I}" stroke="${halo}" stroke-width="4"/>` +
+    `<path d="${TRAZO_I}" stroke="${texto}" stroke-width="1.6"/></g></svg>`;
+  const cursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") 8 12, text`;
+  let estilo = document.getElementById('xterm-cursor-mouse') as HTMLStyleElement | null;
+  if (!estilo) {
+    estilo = document.createElement('style');
+    estilo.id = 'xterm-cursor-mouse';
+    document.head.appendChild(estilo);
+  }
+  estilo.textContent = `.xterm:not(.enable-mouse-events):not(.xterm-cursor-pointer):not(.column-select) { cursor: ${cursor}; }`;
 }

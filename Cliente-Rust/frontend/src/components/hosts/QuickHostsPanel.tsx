@@ -1,6 +1,5 @@
 import React from 'react';
 import { UnstyledButton, Tooltip } from '@mantine/core';
-import { Server, Cpu, Monitor, Zap, type LucideIcon } from 'lucide-react';
 
 export interface QuickHost {
   id: string;
@@ -16,12 +15,7 @@ interface QuickHostsPanelProps {
   'data-tour'?: string;
 }
 
-const HOST_ICONS: Record<string, LucideIcon> = {
-  pi4: Cpu,
-  default: Server,
-};
-
-const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({ 
+const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
   hosts = [], 
   onHostSelect, 
   selectedHostId,
@@ -45,17 +39,13 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
 
   return (
     <div data-tour={dataTour}>
-      <div className="flex items-center gap-2 mb-3">
-        <Zap size={14} style={{ color: 'var(--accent-primary)' }} />
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-          Hosts rápidos
-        </span>
-      </div>
+      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-3 block">
+        Hosts rápidos
+      </span>
 
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(hostsToShow.length, 3)}, 1fr)` }}>
         {hostsToShow.map(host => {
           const isActive = selectedHostId === host.id;
-          const IconComponent = HOST_ICONS[host.id] ?? HOST_ICONS.default;
 
           return (
             <Tooltip
@@ -70,14 +60,6 @@ const QuickHostsPanel: React.FC<QuickHostsPanelProps> = ({
                 onClick={() => handleHostClick(host)}
                 aria-pressed={isActive}
               >
-                <div
-                  className="flex items-center justify-center w-8 h-8 rounded-md shrink-0 transition-colors duration-200"
-                  style={{
-                    backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 20%, transparent)' : 'color-mix(in srgb, var(--border-subtle) 50%, transparent)',
-                    color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                  }}>
-                  <IconComponent size={16} />
-                </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-[13px] font-medium truncate leading-tight" style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
                     {host.name}

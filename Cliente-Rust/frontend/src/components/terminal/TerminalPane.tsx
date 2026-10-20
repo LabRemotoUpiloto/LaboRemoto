@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import 'xterm/css/xterm.css';
+import '@xterm/xterm/css/xterm.css';
 import './TerminalPane.css';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTerminal } from './useTerminal';
@@ -9,13 +9,15 @@ type Props = {
   onTerminalOutput?: (data: string) => void;
   onTerminalInput?: (data: string) => void;
   localSshCommand?: string | null;
+  /** Terminal de una práctica: la tecla Tab (autocompletar) está desactivada. */
+  bloquearTab?: boolean;
 };
 
-const TerminalPane: React.FC<Props> = ({ sessionId, onTerminalOutput, onTerminalInput, localSshCommand }) => {
+const TerminalPane: React.FC<Props> = ({ sessionId, onTerminalOutput, onTerminalInput, localSshCommand, bloquearTab }) => {
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { isLoading, isFadingOut, waitingForPrompt } = useTerminal(
-    sessionId, containerRef, theme, onTerminalOutput, onTerminalInput, localSshCommand,
+    sessionId, containerRef, theme, onTerminalOutput, onTerminalInput, localSshCommand, bloquearTab,
   );
 
   return (

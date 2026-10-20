@@ -11,5 +11,18 @@ export default defineConfig({
   preview: {
     port: 5174
   },
-  build: { target: ["esnext"], outDir: "dist" }
+  build: {
+    target: ["esnext"],
+    outDir: "dist",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          mantine: ["@mantine/core", "@mantine/hooks", "@mantine/modals", "@mantine/notifications"],
+          three: ["three", "@react-three/fiber", "@react-three/drei"],
+          pdf: ["pdfjs-dist", "mammoth", "html2pdf.js"],
+          xterm: ["@xterm/xterm", "@xterm/addon-fit", "@xterm/addon-serialize", "@xterm/addon-web-links"],
+        },
+      },
+    },
+  }
 })

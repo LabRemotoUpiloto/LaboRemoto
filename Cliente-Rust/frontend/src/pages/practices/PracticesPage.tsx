@@ -4,11 +4,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
 import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { ArrowLeft, Bot, Cpu, Terminal, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Bot, Cpu, MessageSquareHeart, Terminal, X, type LucideIcon } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import PracticeCard from '../../components/practicas/PracticeCard';
 import { getInsigniaForPractice } from '../../components/practicas/badges/insigniaRegistry';
 import LinuxModulePage from './LinuxModulePage';
+import EncuestaPracticaModal from '../../components/practicas/EncuestaPracticaModal';
+import { encuestasService } from '../../services/encuestas.service';
 import type { Practice } from '../../types';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { useEarnedBadges } from '../../services/badges.service';
@@ -58,6 +60,9 @@ interface LogEntry {
     timestamp: string;
 }
 
+/** Prácticas cuya encuesta ya se ofreció en esta sesión de la app (al decir «Ahora no» no se insiste hasta volver a abrirla). */
+const encuestaOfrecida = new Set<string>();
+
 const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, setChatOpen, linuxSession, onRestartLinuxModule }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
@@ -74,6 +79,28 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     // estudiante termina un módulo y vuelve acá (ver App.tsx:
     // onModuleCompleted), la tarjeta ya muestra la medalla sin recargar.
     const earnedBadges = useEarnedBadges();
+
+    // Encuesta al terminar la práctica completa (todos sus módulos con insignia).
+    const [encuestaAbierta, setEncuestaAbierta] = useState(false);
+    const [encuestaRespondida, setEncuestaRespondida] = useState<Record<string, boolean>>({});
+    const practicaCompleta = !!selectedCategory && selectedCategory.practices.length > 0
+        && selectedCategory.practices.every(p => p.id in earnedBadges);
+
+    useEffect(() => {
+        if (!practicaCompleta || !selectedCategory || encuestaOfrecida.has(selectedCategory.id)) return;
+        const id = selectedCategory.id;
+        encuestaOfrecida.add(id);
+        let activo = true;
+        encuestasService.mia(id)
+            .then((respondida) => {
+                if (!activo) return;
+                setEncuestaRespondida((r) => ({ ...r, [id]: respondida }));
+                if (!respondida) setEncuestaAbierta(true);
+            })
+            // Sin conexión con el servidor no se ofrece: la práctica sigue igual y el botón de la cabecera queda disponible.
+            .catch((e) => console.warn('[encuestas] no se pudo consultar:', e));
+        return () => { activo = false; };
+    }, [practicaCompleta, selectedCategory]);
 
     useEffect(() => {
         loadCategories();
@@ -300,10 +327,30 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                             >
                                 Volver a categorías
                             </Button>
-                            <Text size="xs" c="dimmed" fw={500} tt="uppercase" style={{ letterSpacing: '0.08em' }}>
-                                {selectedCategory.practices.length} práctica{selectedCategory.practices.length !== 1 ? 's' : ''}
-                            </Text>
+                            <Group gap="sm">
+                                {practicaCompleta && (
+                                    <Button
+                                        variant="light"
+                                        size="xs"
+                                        leftSection={<MessageSquareHeart size={14} />}
+                                        onClick={() => setEncuestaAbierta(true)}
+                                    >
+                                        {encuestaRespondida[selectedCategory.id] ? 'Cambiar mi opinión' : 'Dar mi opinión'}
+                                    </Button>
+                                )}
+                                <Text size="xs" c="dimmed" fw={500} tt="uppercase" style={{ letterSpacing: '0.08em' }}>
+                                    {selectedCategory.practices.length} práctica{selectedCategory.practices.length !== 1 ? 's' : ''}
+                                </Text>
+                            </Group>
                         </Group>
+
+                        <EncuestaPracticaModal
+                            opened={encuestaAbierta}
+                            practica={selectedCategory.id}
+                            nombre={selectedCategory.name}
+                            onClose={() => setEncuestaAbierta(false)}
+                            onEnviada={() => setEncuestaRespondida((r) => ({ ...r, [selectedCategory.id]: true }))}
+                        />
 
                         <Group gap="md" align="flex-start" wrap="nowrap">
                             <ThemeIcon size={52} radius="lg" variant="light" color="blue">
@@ -332,7 +379,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                     name={practice.name}
                                     description={practice.description}
                                     hasCamera={practice.panels.camera}
-                                    hasChat={practice.panels.chat}
                                     onStart={() => (
                                         isServiceModule(selectedCategory.id, practice.id)
                                             ? setSelectedModuleId(practice.id)

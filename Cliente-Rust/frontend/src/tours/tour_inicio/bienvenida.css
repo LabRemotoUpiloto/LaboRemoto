@@ -1,0 +1,31 @@
+/* Tutorial narrado de bienvenida: las ilustraciones van como clases de Tailwind en pasos.ts. Acá solo los
+   @keyframes custom que esas ilustraciones usan con sintaxis arbitraria (`animate-[tbEntrar_0.45s_ease-out_both]`),
+   en CSS plano para no acoplar el tour al `@theme` central de globals.css. */
+
+@keyframes tbEntrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes tbInsignia {
+  0% { opacity: 0; transform: scale(0.3) rotateY(0deg); }
+  60% { opacity: 1; transform: scale(1.15) rotateY(540deg); }
+  100% { transform: scale(1) rotateY(720deg); }
+}
+@keyframes tbChatZoom {
+  0% { transform: scale(1); border-color: transparent; box-shadow: none; }
+  40% { transform: scale(1.05); border-color: var(--accent-primary, #d51f22); box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.4); }
+  100% { transform: scale(1); border-color: transparent; box-shadow: none; }
+}
+/* Paso "Escribe tu pregunta" (demo escribir + enviar). `clip-path` en vez de `width`: anima en el
+   compositor (GPU), no dispara reflow (ver skill web-animations — animar width/height sí lo dispara).
+   `steps(20, end)` da el efecto de tecleo letra por letra sobre "¿Qué significa esto?" (20 caracteres);
+   si el texto de ejemplo cambia, hay que ajustar ese número. Duración total 2.5s: 70% tecleando, resto
+   se mantiene y se desvanece — recalibrar el % si el audio real queda con otro ritmo. */
+@keyframes tbTypewriter {
+  0% { clip-path: inset(0 100% 0 0); opacity: 1; animation-timing-function: steps(20, end); }
+  65% { clip-path: inset(0 0% 0 0); opacity: 1; animation-timing-function: ease-out; }
+  100% { clip-path: inset(0 0% 0 0); opacity: 0; }
+}
+@keyframes tbSendPop {
+  0%, 100% { transform: scale(1); color: var(--text-tertiary, #888); }
+  50% { transform: scale(1.35); color: var(--accent-primary, #d51f22); }
+}
+
+/* El globo, sus botones y el resaltado del elemento los comparte con tour_linux: ver ../tourNarrado.css. */

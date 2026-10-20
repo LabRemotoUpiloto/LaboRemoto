@@ -5,10 +5,10 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
-import { User, Shield, SquareTerminal, Activity, BookOpen } from 'lucide-react';
+import { User, Shield, SquareTerminal, Activity, BookOpen, Gauge } from 'lucide-react';
 import type { Tab, ActiveView } from '../../hooks/useAppTabs';
 import { useAuth } from '../../contexts/AuthContext';
-import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo } from '../../hooks/usePermissions';
+import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo, puedeVerComo } from '../../hooks/usePermissions';
 import {
   MonitorIcon,
   CompassIcon,
@@ -192,8 +192,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       {/* "Vista" (chat/cámara/escritorio/pines). En el rail se colapsa a un
-          solo botón con menú desplegable — misma estrategia que sesiones. */}
-      {showSessionActions && onViewChange && onToggleChat && (
+          solo botón con menú desplegable — misma estrategia que sesiones.
+          El estudiante no la ve: en la práctica el chat y la terminal ya
+          vienen armados, y cámara/escritorio/pines son del laboratorio. */}
+      {showSessionActions && role !== 'estudiante' && onViewChange && onToggleChat && (
         <SidebarSessionActions
           activeView={activeView}
           onViewChange={onViewChange}
@@ -228,6 +230,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               { id: 'admin-users', label: 'Usuarios', icon: Shield },
               { id: 'logs', label: 'Logs', icon: FileTextIcon },
               { id: 'vigilancia', label: 'Vigilancia', icon: CameraIcon },
+              { id: 'rendimiento', label: 'Rendimiento', icon: Gauge },
             ],
           },
         ]
@@ -360,7 +363,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   {user?.preferred_username || 'Usuario'}
                 </Text>
                 <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>
-                  {ROLE_LABELS[role]}
+                  {ROLE_LABELS[role]}{rolVerComo() ? ' (vista)' : ''}
                 </Text>
                 {appVersion && (
                   <Text size="xs" c="dimmed" style={{ lineHeight: 1.2, fontSize: 10 }}>
@@ -374,20 +377,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Menu.Label>Usuario</Menu.Label>
             <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('perfil')}>Perfil</Menu.Item>
             <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('ajustes')}>Ajustes</Menu.Item>
-            {import.meta.env.DEV && (
+            {puedeVerComo(user?.roles) && (
               <>
                 <Menu.Divider />
-                <Menu.Label>Ver como (solo desarrollo)</Menu.Label>
+                <Menu.Label>Ver como (solo cambia la vista)</Menu.Label>
                 {ROLE_ORDER.map((r) => (
                   <Menu.Item key={r} c="var(--mantine-color-text)" fw={rolVerComo() === r ? 700 : undefined} onClick={() => setRolVerComo(r)}>
                     {ROLE_LABELS[r]}{rolVerComo() === r ? ' ✓' : ''}
                   </Menu.Item>
                 ))}
-                <Menu.Item c="dimmed" onClick={() => setRolVerComo(null)}>Mi rol real</Menu.Item>
+                <Menu.Item c="dimmed" fw={rolVerComo() === null ? 700 : undefined} onClick={() => setRolVerComo(null)}>Mi rol real{rolVerComo() === null ? ' ✓' : ''}</Menu.Item>
               </>
             )}
             <Menu.Divider />
-            <Menu.Item color="red" onClick={logout}>Cerrar Sesión</Menu.Item>
+            <Menu.Item color="red" onClick={() => { setRolVerComo(null); logout(); }}>Cerrar Sesión</Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Box>

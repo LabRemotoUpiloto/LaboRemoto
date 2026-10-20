@@ -8,7 +8,7 @@ import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon, Button, Group, Text } from '@mantine/core';
 import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
 import { BlockView, CLASE_RESALTADA } from '../practicas/linux/blocks/BlockRenderer';
-import { PasoCard, EncabezadoPaso, ListaAcciones, FranjaAhora } from '../practicas/linux/PasoCard';
+import { PasoCard, EncabezadoPaso, mayuscula, type DatosGuia } from '../practicas/linux/PasoCard';
 import { ModuleCompleteCelebration } from '../practicas/linux/ModuleCompleteCelebration';
 import { PosterUnlockCelebration } from '../practicas/linux/PosterUnlockCelebration';
 import { markModuleBadgeEarned, rankForModule } from '../../services/badges.service';
@@ -38,6 +38,8 @@ interface AiMessageBubbleProps {
   onLinuxQuizAnswer?: (questionId: string, optionId: string) => void;
   onLinuxQuizSubmit?: () => void;
   onLinuxModuleComplete?: (moduleId: string) => void;
+  /** Reporta la guía del paso o de la evaluación hacia el header fijo del chat (ver ChatMessageList). */
+  onLinuxGuiaChange?: (datos: DatosGuia | null) => void;
 }
 
 export default function AiMessageBubble({
@@ -46,7 +48,7 @@ export default function AiMessageBubble({
   onCopy, onRegenerate, onRetry, onAnalyzeCandidate, onSetInput, wordCount,
   linuxPracticeId, linuxRules = [], linuxResult = null,
   linuxQuizAnswers = {}, linuxQuizSubmitting = false, linuxQuizSubmitted = false,
-  onLinuxQuizAnswer, onLinuxQuizSubmit, onLinuxModuleComplete,
+  onLinuxQuizAnswer, onLinuxQuizSubmit, onLinuxModuleComplete, onLinuxGuiaChange,
 }: AiMessageBubbleProps) {
   const isStreaming = streamingMsgId === msg.id;
   const isError = msg.text.startsWith('Error');
@@ -140,14 +142,29 @@ export default function AiMessageBubble({
         ? `la pregunta ${numeroDe(aCorregir)} quedó en rojo: elige otra opción y pulsa «Reenviar evaluación».`
         : `pulsa «${linuxQuizSubmitted ? 'Reenviar evaluación' : 'Enviar evaluación'}» para entregar tus respuestas.`;
   const accionesEvaluacion = [
-    ...preguntas.map((q) => ({ id: q.id, texto: `Responde la pregunta ${numeroDe(q)}` })),
-    { id: 'enviar', texto: 'Envía la evaluación' },
+    ...preguntas.map((q) => ({ id: q.id, texto: `Responde la pregunta ${numeroDe(q)}`, tipo: 'pregunta' })),
+    { id: 'enviar', texto: 'Envía la evaluación', tipo: 'enviar' },
   ];
   const hechasEvaluacion = new Set<string>([
     ...preguntas.filter((q) => linuxQuizAnswers[q.id] && !incorrecta(q)).map((q) => q.id),
     ...(evaluacionAprobada ? ['enviar'] : []),
   ]);
   const accionEvaluacionActual = preguntaResaltada?.id ?? (evaluacionAprobada ? null : 'enviar');
+  const quizConGuia = !!(msg.meta?.linuxQuiz && linuxPracticeId && msg.meta.linuxQuiz.total);
+
+  // Misma idea que PasoCard: reporta su guía hacia el header fijo del chat en vez de dibujarla aquí mismo.
+  useEffect(() => {
+    if (!quizConGuia) return;
+    onLinuxGuiaChange?.(ahoraEvaluacion ? {
+      acciones: accionesEvaluacion,
+      hechas: hechasEvaluacion,
+      actual: accionEvaluacionActual,
+      ahora: mayuscula(ahoraEvaluacion),
+      etiqueta: 'Evaluación final',
+      numero: msg.meta?.linuxQuiz?.numero ?? msg.meta?.linuxQuiz?.total,
+      total: msg.meta?.linuxQuiz?.total,
+    } : null);
+  }, [quizConGuia, onLinuxGuiaChange, accionesEvaluacion, hechasEvaluacion, accionEvaluacionActual, ahoraEvaluacion]);
 
   return (
     <div className={`relative flex flex-col group/ai items-start w-full`}>
@@ -202,6 +219,7 @@ export default function AiMessageBubble({
               setLastCommand={setLastCommand}
               mode={mode}
               appearance={appearance}
+              modoPractica={!!linuxPracticeId}
             />
           )}
           {msg.meta?.toolAction && (
@@ -224,6 +242,7 @@ export default function AiMessageBubble({
               result={linuxResult}
               practiceId={linuxPracticeId}
               sessionId={sessionId}
+              onGuia={onLinuxGuiaChange}
             />
           )}
 
@@ -231,16 +250,10 @@ export default function AiMessageBubble({
             <div className="flex flex-col gap-2 mt-1">
               {msg.meta.linuxQuiz.total && (
                 <>
-                  <EncabezadoPaso
-                    numero={msg.meta.linuxQuiz.numero ?? msg.meta.linuxQuiz.total}
-                    total={msg.meta.linuxQuiz.total}
-                    titulo="Responde las preguntas"
-                  />
+                  <EncabezadoPaso titulo="Responde las preguntas" />
                   <Text fz="sm" style={{ lineHeight: 1.6 }}>
                     Ya hiciste la parte práctica. Para terminar el módulo responde estas preguntas aquí en el chat; no hay que escribir nada en la terminal.
                   </Text>
-                  <ListaAcciones acciones={accionesEvaluacion} hechas={hechasEvaluacion} actual={accionEvaluacionActual} />
-                  {ahoraEvaluacion && <FranjaAhora>{ahoraEvaluacion}</FranjaAhora>}
                 </>
               )}
               {msg.meta.linuxQuiz.blocks.map((block: any, i: number) => (
@@ -302,7 +315,8 @@ export default function AiMessageBubble({
             </div>
           )}
 
-          <div className={`flex items-center gap-1 mt-2 -ml-1 opacity-0 group-hover/ai:opacity-100 transition-opacity ${isLanding ? 'border-t pt-2' : ''}`}
+          {/* Copiar / Regenerar / Reintentar: no en la práctica, donde el chat es la guía y no una conversación libre. */}
+          {!linuxPracticeId && <div className={`flex items-center gap-1 mt-2 -ml-1 opacity-0 group-hover/ai:opacity-100 transition-opacity ${isLanding ? 'border-t pt-2' : ''}`}
             style={isLanding ? { borderColor: 'var(--border-subtle)' } : undefined}
           >
             <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onCopy(msg.text)} title="Copiar mensaje" className={actionBtnClass}>
@@ -325,7 +339,7 @@ export default function AiMessageBubble({
                 ~{wordCount} pal.
               </span>
             )}
-          </div>
+          </div>}
 
           {msg.meta?.fileEdit && (
             <div className="mt-3 border border-[var(--border-subtle)] bg-[var(--background-tertiary)] rounded-lg overflow-hidden">

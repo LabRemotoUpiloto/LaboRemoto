@@ -1,6 +1,6 @@
 import React from 'react';
 import { UnstyledButton, Collapse, Tooltip } from '@mantine/core';
-import { Clock, ChevronRight, Trash2, Monitor } from 'lucide-react';
+import { ChevronRight, Trash2 } from 'lucide-react';
 import { isRaspberryPi4 } from '../../constants/devices';
 
 export interface RecentConnection {
@@ -46,12 +46,9 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
         className="w-full flex items-center justify-between py-1 group cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-2">
-          <Clock size={14} style={{ color: 'var(--text-secondary)' }} />
-          <span className="text-xs font-semibold uppercase tracking-wider style={{ color: 'var(--text-secondary)' }}">
-            Recientes ({connections.length})
-          </span>
-        </div>
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          Recientes ({connections.length})
+        </span>
         <div className="flex items-center gap-1">
           {onClear && isExpanded && (
             <Tooltip label="Limpiar historial" position="left" withArrow openDelay={300}>
@@ -86,9 +83,6 @@ const RecentConnectionsPanel: React.FC<RecentConnectionsPanelProps> = ({
                 onClick={() => onSelect(conn)}
                 title={`${conn.user}@${displayHost}${showPort ? ':' + conn.port : ''}`}
               >
-                <div className="flex items-center justify-center w-6 h-6 shrink-0 transition-colors" style={{ backgroundColor: 'color-mix(in srgb, var(--border-subtle) 40%, transparent)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)' }}>
-                  <Monitor size={12} />
-                </div>
                 <div className="flex flex-col flex-1 min-w-0">
                   <span className="text-[12px] font-medium text-[var(--text-primary)] truncate leading-tight">
                     <span style={{ color: 'var(--accent-primary)' }}>{conn.user}</span>

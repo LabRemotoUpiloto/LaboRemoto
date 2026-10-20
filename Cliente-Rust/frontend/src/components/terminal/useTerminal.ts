@@ -38,7 +38,7 @@
  * truthiness, nunca se opera sobre la instancia en sí dentro de ese hook.
  */
 import { useEffect, useRef, RefObject } from 'react';
-import { Terminal } from 'xterm';
+import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { useTerminalResize } from './hooks/useTerminalResize';
@@ -57,6 +57,8 @@ export function useTerminal(
   onTerminalInput?: (data: string) => void,
   /** Comando ssh local equivalente (se muestra typeado al abrir la sesión embebida). */
   localSshCommand?: string | null,
+  /** Prácticas: sin autocompletar con Tab (ver hooks/bloqueoTab.ts). */
+  bloquearTab?: boolean,
 ) {
   // ── Refs compartidas entre sub-hooks (instancia xterm + addons) ──────────────
   const termRef = useRef<Terminal | null>(null);
@@ -116,6 +118,7 @@ export function useTerminal(
     sessionMetadataRef,
     onTerminalOutput,
     onTerminalInput,
+    bloquearTab,
     captureCurrentSession,
     captureSnapshot,
   });

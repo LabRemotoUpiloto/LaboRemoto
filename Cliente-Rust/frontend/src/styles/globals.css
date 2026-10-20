@@ -19,6 +19,43 @@
 @import "./themes/sunburst-rainbow.css";
 @import "./themes/legacy-themes.css";
 
+/* Animaciones custom — forma nativa de Tailwind v4 (CSS-first, @theme), NO vía tailwind.config.js.
+   HALLAZGO: el proyecto tenía un `tailwind.config.js` estilo v3 (fadeIn, popIn, confettiFall…) que nunca se
+   cargó — a Tailwind v4 le hace falta un `@config` explícito, y sin eso esas animaciones eran no-ops
+   silenciosos en producción. La causa real de por qué `@config` (o cualquier regla que no sea @import) "rompe"
+   los imports de Mantine que vienen después no es un bug de Tailwind: es CSS puro — las reglas @import deben
+   ir TODAS seguidas al inicio del archivo, antes de cualquier otra cosa; cualquier regla intermedia invalida
+   los @import que le siguen (por eso este bloque va aquí, DESPUÉS de todos los @import, no antes). El arreglo
+   real para las animaciones: viven en `@theme` nativo de v4 — `tailwind.config.js` ya no existe, no hacía
+   falta para nada más. Los del tour (tb-entrar, tb-chat-zoom, tb-insignia) van en CSS plano + sintaxis
+   arbitraria de Tailwind (`animate-[tbEntrar_0.45s_ease-out_both]`, ver tour/bienvenida/bienvenida.css) para
+   no acoplar el tour a este registro central. */
+@theme {
+  --animate-fadeIn: fadeIn 0.2s ease-out;
+  --animate-slideUp: slideUp 0.3s ease-out;
+  --animate-popIn: popIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-spinSlow: spinSlow 30s linear infinite;
+  --animate-confettiFall: confettiFall 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-fireworkRing: fireworkRing 2.2s ease-out infinite;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes popIn {
+  from { transform: scale(0.8) translateY(10px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes confettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(115vh) rotate(360deg); opacity: 0; }
+}
+@keyframes fireworkRing {
+  0% { transform: scale(0); opacity: 1; }
+  70% { opacity: 0.5; }
+  100% { transform: scale(7); opacity: 0; }
+}
+
 /* ============================================
    🎨 GLOBALS.CSS - Estilos Globales Compartidos
    ============================================ */
@@ -206,8 +243,13 @@
   
   --overlay-scrim: rgba(0,0,0,0.5);
   
-  --selection-bg: rgba(34,211,238,0.28);
-  --selection-fg: var(--text-primary);
+  /* Selección de texto: fondo SÓLIDO (no translúcido) con el acento del tema +
+     su contraste ya probado en los botones primarios (.dribbble-btn-primary),
+     en vez de --text-primary -- ese token no viene emparejado con
+     --selection-bg para garantizar contraste, y por eso un tema con texto
+     oscuro + selección oscura podía volver el texto seleccionado invisible. */
+  --selection-bg: var(--accent-primary);
+  --selection-fg: var(--accent-contrast, #ffffff);
   
   --ansi-black: #111827;    --ansi-red: #ef4444;   --ansi-green: #22c55e;  --ansi-yellow: #eab308;  --ansi-blue: #3b82f6;  --ansi-magenta: #d946ef;  --ansi-cyan: #22d3ee;  --ansi-white: #e5e7eb;
   --ansi-bright-black: #374151; --ansi-bright-red: #f87171; --ansi-bright-green: #4ade80; --ansi-bright-yellow: #facc15; --ansi-bright-blue: #60a5fa; --ansi-bright-magenta: #e879f9; --ansi-bright-cyan: #67e8f9; --ansi-bright-white: #ffffff;
@@ -1606,6 +1648,19 @@ pre, code, .terminal, .xterm-viewport, .content-area {
   scrollbar-color: var(--accent-primary) var(--panel);
 }
 
+/* La lista de mensajes del chat se desplaza sola todo el tiempo (streaming de respuestas, pasos nuevos):
+   el thumb rojo de acento quedaba como una barra vertical roja siempre encendida, sin aportar nada que el
+   propio scroll del chat no muestre ya. Acá, en vez del acento, un gris discreto. */
+.custom-scrollbar {
+  scrollbar-color: var(--border-subtle, rgba(255, 255, 255, 0.18)) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border-subtle, rgba(255, 255, 255, 0.18));
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary, #b0b0b0);
+}
+
 /* Restored themes (9) to reach 30 total */
 
 /* Polar Mint (light-fresh) */
@@ -2016,6 +2071,28 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .dribbble-btn-primary:not(:disabled):active {
   transform: translateY(1px) !important;
+}
+
+/* Acción principal de una tarjeta repetida muchas veces en una grilla (ej.
+   "Ver Logs" en cada SessionCard) -- mismo color de acento que el primary,
+   pero sin relleno sólido, para que no se sienta como N botones rojos
+   compitiendo entre sí. Sigue siendo claramente la acción principal (borde +
+   texto de acento) frente al secondary, que es neutro. */
+.dribbble-btn-outline {
+  background-color: color-mix(in srgb, var(--accent-primary) 6%, transparent) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent) !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+  font-family: var(--font-body);
+  transition: all var(--transition-speed) var(--transition-curve) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dribbble-btn-outline:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
+  border-color: var(--accent-primary) !important;
 }
 
 .dribbble-btn-secondary {

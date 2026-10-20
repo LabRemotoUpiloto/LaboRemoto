@@ -1,13 +1,12 @@
 import React from 'react';
 import { ActionIcon, Button, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { Camera, MessageSquare, ArrowRight } from 'lucide-react';
+import { Camera, ArrowRight } from 'lucide-react';
 
 interface PracticeCardProps {
     id: string;
     name: string;
     description: string;
     hasCamera: boolean;
-    hasChat: boolean;
     onStart: () => void;
     loading?: boolean;
     /** Insignia ya resuelta para esta práctica puntual (ver
@@ -19,7 +18,7 @@ interface PracticeCardProps {
     badge?: React.ReactNode | null;
 }
 
-const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, hasCamera, hasChat, onStart, loading = false, badge = null }) => {
+const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, hasCamera, onStart, loading = false, badge = null }) => {
     // El backend compone la descripción como "Módulo X · ~Y min" (ver
     // practicas.rs) -- el nivel de dificultad no se muestra más (no aportaba
     // nada); en su lugar, arriba va el módulo y abajo queda solo el tiempo.
@@ -44,13 +43,6 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, hasCamer
                             <Tooltip label="Cámara del laboratorio" withArrow position="top">
                                 <ActionIcon variant="subtle" style={{ color: 'var(--text-secondary)' }} size="sm" radius="md" aria-label="Cámara del laboratorio">
                                     <Camera size={14} />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                        {hasChat && (
-                            <Tooltip label="Chat del asistente" withArrow position="top">
-                                <ActionIcon variant="subtle" style={{ color: 'var(--text-secondary)' }} size="sm" radius="md" aria-label="Chat del asistente">
-                                    <MessageSquare size={14} />
                                 </ActionIcon>
                             </Tooltip>
                         )}

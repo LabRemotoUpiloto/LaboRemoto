@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { newLine, typeKeys, serverOutput, type ShellLine } from '../utils/shellLine'
 
 export interface CommandEntry {
@@ -52,8 +52,11 @@ export function useCommandHistory() {
     pushCommand(command)
   }, [pushCommand])
 
-  // commandHistory como string[] para compatibilidad con el resto del sistema
-  const commandHistory = commandEntries.map(e => e.cmd)
+  // commandHistory como string[] para compatibilidad con el resto del sistema.
+  // Memoizado: solo cambia de referencia cuando entra un comando nuevo. Sin esto
+  // era un arreglo nuevo en cada render y el efecto de TerminalView que lo
+  // reporta mandaba un POST /validate a la Pi por cada render.
+  const commandHistory = useMemo(() => commandEntries.map(e => e.cmd), [commandEntries])
 
   return {
     commandHistory,

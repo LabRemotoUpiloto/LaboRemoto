@@ -26,7 +26,7 @@
  *   pipeline de logs que SSH, vía `captureCurrentSession`).
  */
 import { useEffect, useState, MutableRefObject, RefObject } from 'react';
-import { Terminal } from 'xterm';
+import { Terminal } from '@xterm/xterm';
 import { listen } from '@tauri-apps/api/event';
 import {
   localTermSpawn,

@@ -23,7 +23,7 @@
  * terminal) puedan compartir el mismo estado sin duplicar lógica de guardado.
  */
 import { useEffect, MutableRefObject } from 'react';
-import { Terminal } from 'xterm';
+import { Terminal } from '@xterm/xterm';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { captureAndSaveSession, SessionMetadata } from '../../../services/session.service';
 import { TerminalSessionMetadata } from './terminalTypes';

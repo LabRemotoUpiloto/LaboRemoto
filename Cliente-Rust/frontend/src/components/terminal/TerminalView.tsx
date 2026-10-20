@@ -5,9 +5,11 @@ import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
 import Ev3Panel from '../ev3/Ev3Panel';
-import LinuxPracticeProgressBar from '../practicas/linux/LinuxPracticeProgressBar';
+import LinuxPracticeProgressBar, { type ProgresoPractica } from '../practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
 import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '../practicas/linux/ritmo';
+import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '../practicas/linux/ejecutarComando';
+import { sshStdin } from '../../services/ssh.service';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 
 interface TerminalViewProps {
@@ -43,6 +45,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   // estudiante puede alternar a la terminal SSH cruda sin perder la sesión.
   const [showEv3Panel, setShowEv3Panel] = useState(robotDashboardEnabled);
   const [chatWidth, setChatWidth] = useState(420);
+  // Lo reporta el chat: nombre de la práctica y el paso en que va (el mismo que muestra la guía).
+  const [progresoPractica, setProgresoPractica] = useState<ProgresoPractica | null>(null);
   const [cameraHeight, setCameraHeight] = useState(450);
   const [isResizingChat, setIsResizingChat] = useState(false);
   const [isResizingCamera, setIsResizingCamera] = useState(false);
@@ -57,12 +61,30 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   // useCommandHistory sin tocar disco) hacia useLinuxPracticeSession, que lo
   // lee en revalidate() -- reemplaza a extractSessionCommands, que leía
   // savedLogs/<id>.html, un archivo que nunca existe mientras la sesión
-  // sigue abierta.
+  // sigue abierta. Depende de `reportCommandHistory` (estable, useCallback) y
+  // no del objeto `linuxSession`, que es nuevo en cada render de App: con el
+  // objeto entero, cualquier re-render de la app volvía a reportar y a validar.
+  const reportCommandHistory = linuxSession?.reportCommandHistory;
   useEffect(() => {
-    if (practiceId && linuxSession) {
-      linuxSession.reportCommandHistory(sessionId, commandHistory);
+    if (practiceId && reportCommandHistory) {
+      reportCommandHistory(sessionId, commandHistory);
     }
-  }, [practiceId, linuxSession, sessionId, commandHistory]);
+  }, [practiceId, reportCommandHistory, sessionId, commandHistory]);
+
+  // Botón «Ejecutar comando» de un paso (ver practicas/linux/ejecutarComando.ts): se escribe por
+  // el mismo camino que el teclado -- historial (para validar el paso) y SSH.
+  useEffect(() => {
+    if (!practiceId) return;
+    const alPedir = (e: Event) => {
+      const detalle = (e as CustomEvent<DetalleEjecutarComando>).detail;
+      if (!detalle || detalle.practiceId !== practiceId) return;
+      const teclas = teclasDelComando(detalle.comando);
+      processTerminalInput(teclas);
+      sshStdin(sessionId, teclas).catch((err) => console.warn('[practica] no se pudo ejecutar el comando del paso', err));
+    };
+    window.addEventListener(EVENTO_EJECUTAR_COMANDO, alPedir);
+    return () => window.removeEventListener(EVENTO_EJECUTAR_COMANDO, alPedir);
+  }, [practiceId, sessionId, processTerminalInput]);
 
   // When camera panel opens/closes, xterm must re-fit to the new height
   useEffect(() => {
@@ -180,7 +202,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
 
         {/* ── Barra de progreso de la práctica de Linux — nunca en sesiones SSH normales (practiceId siempre null ahí) ── */}
         {showProgressBar && linuxResult && (
-          <LinuxPracticeProgressBar result={linuxResult} />
+          <LinuxPracticeProgressBar result={linuxResult} progreso={progresoPractica} />
         )}
 
         {/* ── Top: Camera Panel ── */}
@@ -213,6 +235,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
           }}>
             <div
               ref={terminalRef}
+              data-tour="practica-terminal"
               className={terminalGuiada ? 'terminal-guiada' : undefined}
               style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}
             >
@@ -220,6 +243,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
                 sessionId={sessionId}
                 onTerminalOutput={processTerminalData}
                 onTerminalInput={processTerminalInput}
+                bloquearTab={!!practiceId}
               />
               {terminalGuiada && cursor && (
                 <div
@@ -287,8 +311,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             className="side-resizer"
             onMouseDown={() => setIsResizingChat(true)}
           />
-          <div style={{ width: chatWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <ChatPane sessionId={sessionId} onClose={onCloseChat} practiceId={practiceId} practiceResult={linuxResult} linuxSession={linuxSession} />
+          <div data-tour="practica-chat" style={{ width: chatWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <ChatPane sessionId={sessionId} onClose={onCloseChat} practiceId={practiceId} practiceResult={linuxResult} linuxSession={linuxSession} onProgresoPractica={setProgresoPractica} />
           </div>
         </>
       )}

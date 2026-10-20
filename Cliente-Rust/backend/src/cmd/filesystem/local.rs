@@ -203,6 +203,51 @@ pub async fn save_text_file(content: String, default_name: String) -> Result<Str
   }
 }
 
+/// Guarda un archivo binario (p. ej. un Excel generado en el frontend) con el diálogo de
+/// «Guardar como». `contenido_base64` viaja en base64 porque el IPC de Tauri pasa JSON.
+/// Devuelve la ruta elegida.
+#[tauri::command]
+pub async fn save_binary_file(contenido_base64: String, default_name: String) -> Result<String, CommandError> {
+  use base64::Engine as _;
+  let bytes = base64::engine::general_purpose::STANDARD
+    .decode(contenido_base64.as_bytes())
+    .map_err(|e| CommandError::permanent("VALIDATION_FAILED", format!("Contenido inválido: {e}")))?;
+
+  let path = tokio::task::spawn_blocking(move || {
+    let default_dir = UserDirs::new()
+      .and_then(|u| u.document_dir().map(|p| p.to_path_buf()))
+      .unwrap_or_else(|| PathBuf::from("."));
+    let ext = std::path::Path::new(&default_name)
+      .extension()
+      .and_then(|e| e.to_str())
+      .unwrap_or("")
+      .to_lowercase();
+    let dialog = FileDialog::new()
+      .set_title("Guardar como…")
+      .set_file_name(&default_name)
+      .set_directory(&default_dir);
+    let dialog = match ext.as_str() {
+      "xlsx" => dialog.add_filter("Libro de Excel", &["xlsx"]),
+      _ => dialog,
+    };
+    dialog.add_filter("Todos los archivos", &["*"]).save_file()
+  })
+  .await
+  .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?;
+
+  match path {
+    None => Err(CommandError::permanent("VALIDATION_FAILED", "Operación cancelada por el usuario")),
+    Some(p) => {
+      tokio::task::spawn_blocking(move || {
+        fs::write(&p, &bytes).map_err(|e| map_io_error(e, "save_binary_file", &p.display().to_string()))?;
+        Ok(p.to_string_lossy().to_string())
+      })
+      .await
+      .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
+    }
+  }
+}
+
 // ── Historial de chats en disco (AppData) ──
 
 #[derive(Debug, Serialize, Deserialize)]

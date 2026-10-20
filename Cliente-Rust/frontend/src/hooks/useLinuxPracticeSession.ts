@@ -15,6 +15,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { sshConnect, waitForConnection, memPut } from '../services/ssh.service';
+import { EVENTO_TOUR_PRACTICA_LINUX, type DetalleTourPracticaLinux } from '../tours/tour_linux/TourPracticaLinux';
 import {
   isEv3Module,
   linuxConnectionTarget,
@@ -311,6 +312,11 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, setCameraOp
    * no dispara re-render, lo lee revalidate() en el próximo tick de polling.
    */
   const reportCommandHistory = useCallback((sessionId: string, commands: string[]) => {
+    // Mismo historial que ya teníamos (un re-render que lo reporta otra vez,
+    // StrictMode montando el efecto dos veces...): no hay comando nuevo, así
+    // que no hay nada que validar. El polling sigue cubriendo lo demás.
+    const previo = commandHistoryBySession.current[sessionId];
+    if (previo && previo.length === commands.length && previo.every((c, i) => c === commands[i])) return;
     commandHistoryBySession.current[sessionId] = commands;
     // Revalida apenas se ejecuta un comando nuevo, sin esperar el próximo
     // tick del polling (hasta REVALIDATE_INTERVAL_MS de rezago) -- el chat
@@ -440,6 +446,11 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, setCameraOp
         onNewSession({ id: sessionId, label: `${isEv3Module(module.id) ? 'EV3' : 'Linux'} — ${module.title}` });
         setChatOpen(true);
         setConnectedModules((prev) => ({ ...prev, [module.id]: true }));
+        // Ofrece el tour de la práctica (tours/tour_linux) — el listener decide si ya se vio o si
+        // corresponde (por ahora solo módulos de Linux, no Eve3).
+        window.dispatchEvent(new CustomEvent<DetalleTourPracticaLinux>(EVENTO_TOUR_PRACTICA_LINUX, {
+          detail: { moduleId: module.id, esEv3: isEv3Module(module.id) },
+        }));
 
         // practice_tutorial (el viejo "primer mensaje" fijo) ya no hace
         // falta: el contenido real del módulo (intro, video, primer comando

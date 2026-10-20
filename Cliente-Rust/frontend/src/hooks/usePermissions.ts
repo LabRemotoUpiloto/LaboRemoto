@@ -10,6 +10,7 @@
 // `docente` asignado desde Gestión de Usuarios.
 import { useSyncExternalStore } from 'react'
 import { useAuth } from './useAuth'
+import { useAppStore } from '../store/app'
 
 export type EffectiveRole =
   | 'admin_lab'
@@ -76,9 +77,10 @@ export const usaTemaInstitucional = (role: EffectiveRole) => INSTITUTIONAL_THEME
 export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   landing: EVERYONE,
   practices: EVERYONE,
-  // Reservas está desactivada mientras se termina: ningún rol la ve (ni en el menú ni abriéndola por id).
-  reservas: [],
-  'mis-cursos': EVERYONE,
+  // Reservas está en pruebas: por ahora la ve todo el mundo menos estudiante (ni en el menú ni abriéndola por id).
+  reservas: ROLE_ORDER.filter((r) => r !== 'estudiante'),
+  // El estudiante no la ve (ni en el menú ni abriéndola por id): llega a sus prácticas por Prácticas.
+  'mis-cursos': ROLE_ORDER.filter((r) => r !== 'estudiante'),
   themes: EVERYONE.filter((r) => !usaTemaInstitucional(r)),
   connect: TECHNICAL,
   // Terminal local (botón del sidebar y del header): solo semillerista y admin_lab.
@@ -90,6 +92,8 @@ export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   vigilancia: STAFF,
   dashboard: SUPERVISION,
   'admin-users': ['admin_lab'],
+  // Rendimiento de la Pi4 (CPU, RAM, red, procesos): solo el administrador.
+  rendimiento: ['admin_lab'],
 }
 
 /**
@@ -98,26 +102,24 @@ export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
  */
 export const puedeAdministrarCamaras = (role: EffectiveRole): boolean => role === 'admin_lab'
 
-// ── «Ver como» (solo en desarrollo) ──
-// Permite mirar la app con el menú de otro rol (p. ej. probar el tutorial de bienvenida como estudiante). Solo cambia lo que
-// se MUESTRA: el servidor sigue validando el token real. En la versión compilada no existe (import.meta.env.DEV es false).
-const CLAVE_VER_COMO = 'labo:dev:ver-como'
+// ── «Ver como» (solo administradores) ──
+// Permite a un administrador MIRAR la app con el menú de otro rol (p. ej. probar el tutorial como estudiante). Solo cambia lo
+// que se MUESTRA en esta ventana: no toca el rol real (Keycloak) ni el token, y el servidor sigue validando el token real.
+// - Solo existe para quien tiene el rol REAL admin_lab (se lee del token, nunca del rol que se está mirando).
+// - Vive en memoria: al reiniciar la app o cerrar sesión se vuelve al rol real.
+let verComoActual: EffectiveRole | null = null
 const oyentesVerComo = new Set<() => void>()
 
+/** ¿Esta persona es administradora de verdad? Solo ella ve y puede usar «Ver como». */
+export const puedeVerComo = (roles: string[] | undefined): boolean => getEffectiveRole(roles) === 'admin_lab'
+
 export function rolVerComo(): EffectiveRole | null {
-  if (!import.meta.env.DEV) return null
-  try {
-    const r = localStorage.getItem(CLAVE_VER_COMO) as EffectiveRole | null
-    return r && ROLE_ORDER.includes(r) ? r : null
-  } catch { return null }
+  return verComoActual && puedeVerComo(useAppStore.getState().user?.roles) ? verComoActual : null
 }
 
 export function setRolVerComo(rol: EffectiveRole | null) {
-  if (!import.meta.env.DEV) return
-  try {
-    if (rol) localStorage.setItem(CLAVE_VER_COMO, rol)
-    else localStorage.removeItem(CLAVE_VER_COMO)
-  } catch { /* sin almacenamiento: se queda el rol real */ }
+  if (rol !== null && !puedeVerComo(useAppStore.getState().user?.roles)) return
+  verComoActual = rol
   oyentesVerComo.forEach((f) => f())
 }
 

@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 // Información de una cámara remota (devuelta por multi_cam_server.py)
-#[derive(Serialize, Deserialize, Clone, TS)]
-#[ts(export)]
+// Nota: sin `TS`/`ts(export)` a propósito — el frontend no usa el binding generado
+// (useCameraGrid.ts define su propia interface local), así que no hace falta exportarlo.
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CameraInfo {
     pub id: String,
     pub name: String,
