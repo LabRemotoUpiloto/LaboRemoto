@@ -12,7 +12,24 @@ Leerlo antes de hacer uno nuevo. Ejemplos ya hechos: «Tu carpeta personal» (m�
   permisos va justo después de «Permiso denegado»).
 - Termina invitando a hacer algo en la terminal («Probalo vos: escribí…»).
 
-## Las 9 técnicas de animación (todas, en cada video)
+## Elegir, no acumular
+
+Las 9 técnicas de abajo son una caja de herramientas, **no una lista que haya que cumplir entera**. Para cada video
+se eligen las que le sirven a lo que se explica, y se usan con medida:
+
+- **Cuanto más texto hay en pantalla para leer (terminal, salidas, etiquetas), menos tiene que moverse.** El texto
+  que se lee nunca flota, nunca tiembla ni «respira».
+- **El micro-movimiento (9) es la excepción, no la regla:** como mucho uno o dos elementos decorativos en un momento
+  de pausa larga, casi imperceptible. Si se nota, sobra. El cursor que parpadea suele alcanzar.
+- **El rebote (6) va en los remates** (el chip que presenta una idea, el resultado que cierra una explicación), no
+  en cada elemento que entra. Una lista o una salida de terminal entra con un desliz corto sin rebote.
+- **El parallax (8)** solo cuando la cámara recorre distancias largas, y sutil (el fondo, sin capas que distraigan).
+- Ante la duda, menos. Un video tranquilo donde se mueve solo lo que se está explicando se entiende mejor.
+
+(Lección del video «Opciones»: con todas las técnicas a la vez y las letras flotando sin parar quedó feo y
+cansador; se rehizo quitando el micro-movimiento del texto, la capa de glifos y los rebotes en la salida.)
+
+## Las 9 técnicas de animación (elegir según el video)
 
 1. **Máscara de texto.** Títulos y frases no «aparecen»: suben desde abajo dentro de una ranura recortada
    (`overflow: hidden`), como si salieran de una rendija. Un `span` con `overflow: hidden` y, dentro, otro con
@@ -37,9 +54,9 @@ Leerlo antes de hacer uno nuevo. Ejemplos ya hechos: «Tu carpeta personal» (m�
 8. **Parallax: fondo, medio y frente.** El fondo (textura de panal), el medio (decoración, siluetas) y el frente
    (lo que se explica) se mueven a velocidades distintas cuando la cámara se mueve: el fondo poco (~0,3 de la
    cámara), el medio a ~0,6, el frente con la cámara. Da profundidad sin distraer.
-9. **Micro-movimiento en reposo.** Cuando no pasa nada (una pausa de la voz, el final), nada queda congelado: un
-   balanceo muy leve (flotar 2–4 px, «respirar» un 1–2 % de escala, el cursor que parpadea), en ciclos lentos de
-   3–5 s y desfasados entre elementos.
+9. **Micro-movimiento en reposo.** En una pausa larga, un detalle casi imperceptible para que la imagen no se vea
+   congelada: el cursor que parpadea, o un elemento decorativo que flota 1–2 px en un ciclo lento. **Nunca en texto
+   que se lee** ni en varios elementos a la vez (ver «Elegir, no acumular»).
 
 ## Estilo visual
 
