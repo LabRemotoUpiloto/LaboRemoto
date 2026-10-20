@@ -1,6 +1,5 @@
-// tours/tour_linux/tutorialPracticaLinux.ts — tour narrado que se ofrece la primera vez que un
-// estudiante entra a UNA práctica de Linux puntual (por módulo, no una sola vez por usuario como el
-// tour de bienvenida). Motor deliberadamente más simple que tutorialBienvenida.ts: todo lo que resalta
+// tours/tour_linux/tutorialPracticaLinux.ts — tour narrado que se muestra cada vez que un estudiante
+// entra a una práctica de Linux (ver TourPracticaLinux.tsx). Motor deliberadamente más simple que tutorialBienvenida.ts: todo lo que resalta
 // ya está en pantalla (la práctica ya está conectada), así que no hace falta navegar entre páginas ni
 // mostrar ventanas/escenas — solo esperar a que cada elemento exista y resaltarlo.
 import { driver, type Driver } from 'driver.js';
@@ -11,6 +10,12 @@ import { botonPausaNarrado, cuerpoNarrado, marcarPausa, tituloNarrado } from '..
 
 const PAUSA_ENTRE_PASOS_MS = 700;
 const ESPERA_ELEMENTO_MS = 3000;
+// Si el audio no suena (equipo sin parlantes, Linux sin códec de mp3) o nunca avisa que terminó, el tour
+// sigue igual con los subtítulos: espera lo que se tarda en leer el texto. Antes quedaba en pausa esperando
+// «Siguiente →», y quien no lo sabía veía las tarjetas quietas, como colgado.
+const MS_POR_PALABRA = 420;
+const LECTURA_MINIMA_MS = 3500;
+const MARGEN_FIN_AUDIO_MS = 2000;
 
 let drv: Driver | null = null;
 let audio: HTMLAudioElement | null = null;
@@ -71,25 +76,49 @@ function botonPausa(): HTMLButtonElement {
   return botonPausaNarrado(pausado, () => {
     pausado = !pausado;
     if (pausado) { limpiarTimer(); audio?.pause(); }
-    else if (audio && !audio.ended) void audio.play().catch(() => {});
+    else if (audio && !audio.ended) {
+      void audio.play().catch(() => {});
+      const resta = (audio.duration - audio.currentTime) * 1000;
+      programarSiguiente(indice, (Number.isFinite(resta) ? resta : tiempoDeLectura(PASOS_PRACTICA_LINUX[indice].texto)) + MARGEN_FIN_AUDIO_MS);
+    }
     else void ir(indice + 1);
     return pausado;
   });
 }
 
+/** Pasa al paso siguiente dentro de `ms`, solo si seguimos en el paso `desde` y nadie pausó. */
+function programarSiguiente(desde: number, ms: number) {
+  limpiarTimer();
+  if (desde === PASOS_PRACTICA_LINUX.length - 1) return; // el último se cierra con «¡Listo!»
+  siguienteTimer = setTimeout(() => {
+    if (pausado || desde !== indice) return;
+    void ir(desde + 1);
+  }, ms);
+}
+
+const tiempoDeLectura = (texto: string) => Math.max(LECTURA_MINIMA_MS, texto.split(/\s+/).length * MS_POR_PALABRA);
+
 function reproducir(i: number) {
   pararAudio();
-  const a = new Audio(`/tutorial/practica-linux/${PASOS_PRACTICA_LINUX[i].audio}`);
+  const paso = PASOS_PRACTICA_LINUX[i];
+  const a = new Audio(`/tutorial/practica-linux/${paso.audio}`);
   audio = a;
   a.onended = () => {
     marcarPausa(true);
-    if (pausado || i !== indice || i === PASOS_PRACTICA_LINUX.length - 1) return;
-    siguienteTimer = setTimeout(() => ir(i + 1), PAUSA_ENTRE_PASOS_MS);
+    programarSiguiente(i, PAUSA_ENTRE_PASOS_MS);
   };
-  // Sin salida de audio (o el sistema no deja reproducir): sigue con subtítulos y botones, en pausa.
   void a.play()
-    .then(() => marcarPausa(false))
-    .catch(() => { pausado = true; document.querySelector('.tn-pausa')?.replaceWith(botonPausa()); });
+    .then(() => {
+      marcarPausa(false);
+      // Red de seguridad: si `ended` nunca llega, avanza igual cuando el audio ya debió terminar.
+      const dur = Number.isFinite(a.duration) && a.duration > 0 ? a.duration * 1000 : tiempoDeLectura(paso.texto);
+      programarSiguiente(i, dur + MARGEN_FIN_AUDIO_MS);
+    })
+    .catch(() => {
+      // Sin audio: sigue con los subtítulos, al ritmo de lectura.
+      audio = null;
+      programarSiguiente(i, tiempoDeLectura(paso.texto));
+    });
 }
 
 async function ir(i: number) {
@@ -116,13 +145,13 @@ function resaltar(paso: PasoPracticaLinux, i: number, el: Element | null) {
       description: cuerpoNarrado(paso.texto, i, PASOS_PRACTICA_LINUX.length),
       side: el ? paso.lado : undefined,
       align: 'start',
-      showButtons: ['previous', 'next', 'close'],
+      // Sin «X»: el tour de la práctica no se puede cerrar, termina con «¡Listo!» en el último paso.
+      showButtons: ['previous', 'next'],
       disableButtons: i === 0 ? ['previous'] : [],
       prevBtnText: 'Anterior',
       nextBtnText: ultimo ? '¡Listo!' : 'Siguiente →',
       onNextClick: () => { void ir(i + 1); },
       onPrevClick: () => { void ir(i - 1); },
-      onCloseClick: () => cerrarTourPracticaLinux(),
       onPopoverRender: (popover) => { popover.footerButtons.prepend(botonPausa()); },
     },
   });
@@ -164,15 +193,4 @@ export function cerrarTourPracticaLinux() {
     alTerminar = null;
     fin?.();
   }
-}
-
-// ── Visto / no visto (por usuario Y por módulo de práctica, en este equipo) ──
-const clave = (usuario: string, moduleId: string) => `labo:tour-practica-linux:v1:${usuario}:${moduleId}`;
-
-export function tourPracticaLinuxYaVisto(usuario: string, moduleId: string): boolean {
-  try { return localStorage.getItem(clave(usuario, moduleId)) !== null; } catch { return true; }
-}
-
-export function marcarTourPracticaLinuxVisto(usuario: string, moduleId: string) {
-  try { localStorage.setItem(clave(usuario, moduleId), new Date().toISOString()); } catch { /* sin almacenamiento: se volverá a ofrecer */ }
 }

@@ -2220,6 +2220,14 @@ a:hover { text-decoration-thickness: 2px; }
   box-shadow: var(--shadow-card, none) !important;
 }
 
+/* Explicación de la salida de la terminal en una práctica (AiMessageBubble, meta.linuxExplica): verde
+   azulado para no confundirla con las instrucciones de los pasos. Los temas fijan .chat-bubble-ai con
+   !important, así que esta regla necesita más especificidad para ganarles a todos. */
+html:root .chat-bubble.chat-bubble-ai.burbuja-explica-salida {
+  background-color: color-mix(in srgb, #2B9C8F 11%, var(--background-secondary)) !important;
+  border-color: color-mix(in srgb, #2B9C8F 55%, transparent) !important;
+}
+
 /* File table UX improvements */
 .file-row:hover { background: var(--table-row-hover); }
 .file-name {

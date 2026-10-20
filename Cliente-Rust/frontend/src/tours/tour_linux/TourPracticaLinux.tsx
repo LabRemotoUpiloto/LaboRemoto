@@ -1,11 +1,10 @@
-// tours/tour_linux/TourPracticaLinux.tsx — arranca el tour de la práctica la primera vez que un
-// estudiante entra a UN módulo de Linux puntual. A diferencia de BienvenidaTutorial.tsx, no ofrece un
-// modal de "¿quieres verlo?": arranca directo (el estudiante ya decidió entrar a la práctica), y el
-// propio tour se puede cerrar con la X si no se quiere ver.
+// tours/tour_linux/TourPracticaLinux.tsx — arranca el tour de la práctica CADA VEZ que un estudiante
+// entra a un módulo de Linux (no solo la primera). A diferencia de BienvenidaTutorial.tsx, no ofrece un
+// modal de "¿quieres verlo?" ni se puede cerrar con la X: arranca directo y termina con «¡Listo!».
 import { useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useEffectiveRole, rolVerComo } from '../../hooks/usePermissions';
-import { iniciarTourPracticaLinux, marcarTourPracticaLinuxVisto, tourPracticaLinuxYaVisto } from './tutorialPracticaLinux';
+import { useEffectiveRole } from '../../hooks/usePermissions';
+import { iniciarTourPracticaLinux } from './tutorialPracticaLinux';
 
 /** Evento disparado por useLinuxPracticeSession al conectar un módulo (ver connect() ahí). */
 export const EVENTO_TOUR_PRACTICA_LINUX = 'app:tour-practica-linux';
@@ -26,16 +25,8 @@ export default function TourPracticaLinux() {
       const detalle = (e as CustomEvent<DetalleTourPracticaLinux>).detail;
       if (!detalle || detalle.esEv3) return; // por ahora, solo prácticas de Linux
       if (!isAuthenticated || !usuario || rol !== 'estudiante') return;
-      // "Ver como" (solo administradores, ver usePermissions.ts) es justo para esto: probar el tour las
-      // veces que haga falta sin que el "ya visto" se interponga. Un estudiante real (sin esa opción)
-      // sigue viéndolo una sola vez por módulo.
-      const previsualizando = rolVerComo() !== null;
-      if (!previsualizando && tourPracticaLinuxYaVisto(usuario, detalle.moduleId)) return;
       // Un instante para que el panel de chat/terminal recién abierto termine de montarse y animarse.
-      const t = setTimeout(() => {
-        if (!previsualizando) marcarTourPracticaLinuxVisto(usuario, detalle.moduleId);
-        iniciarTourPracticaLinux();
-      }, 600);
+      const t = setTimeout(() => iniciarTourPracticaLinux(), 600);
       return () => clearTimeout(t);
     };
     window.addEventListener(EVENTO_TOUR_PRACTICA_LINUX, alConectar);

@@ -36,7 +36,12 @@ export interface RankDef {
   code?: string;
 }
 
-/** Ranks según §4 de la investigación de diseño -- linux-m1, m2 y m3 existen hoy; M4 y M5 son "próximamente". */
+/**
+ * Ranks según §4 de la investigación de diseño, en el orden en que se cursan los módulos (el `order` de
+ * cada module.json en la Pi). Los ids de módulo no cambian aunque cambie el orden: la práctica de permisos
+ * se separó del módulo 2 como `linux-permisos` (va 3.º) y el editor sigue siendo `linux-m3` (va 4.º).
+ * M5 y M6 son "próximamente".
+ */
 export const RANKS: RankDef[] = [
   {
     id: 'acceso-basico',
@@ -48,28 +53,35 @@ export const RANKS: RankDef[] = [
   {
     id: 'explorador',
     title: 'Explorador',
-    description: 'Moverte por el sistema de archivos, crear archivos y entender los permisos.',
+    description: 'Moverte por el sistema de archivos y crear tus primeros archivos.',
     moduleId: 'linux-m2',
     code: 'M2',
+  },
+  {
+    id: 'guardian',
+    title: 'Guardián',
+    description: 'Leer y cambiar los permisos de tus archivos hasta ejecutar tu propio programa.',
+    moduleId: 'linux-permisos',
+    code: 'M3',
   },
   {
     id: 'editor',
     title: 'Editor',
     description: 'Editar archivos con nano y encadenar comandos con tuberías.',
     moduleId: 'linux-m3',
-    code: 'M3',
+    code: 'M4',
   },
   {
     id: 'administrador-jr',
     title: 'Administrador jr.',
     description: 'Crear, copiar, mover y borrar tu propio espacio de trabajo.',
-    code: 'M4',
+    code: 'M5',
   },
   {
     id: 'operador-jr',
     title: 'Operador Jr.',
     description: 'Tu primer incidente, resuelto sin andamiaje.',
-    code: 'M5',
+    code: 'M6',
   },
 ];
 
