@@ -6,7 +6,7 @@ import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { ActionIcon, Menu, Textarea } from '@mantine/core';
-import { Image, FileText, Send, Square, Plus, Paperclip, History, X, SquarePen } from 'lucide-react';
+import { Image, FileText, Send, Square, Plus, Paperclip, History, X, SquarePen, Lock } from 'lucide-react';
 import ModelSelect from './ModelSelect';
 import { ModelSelection } from '../chatModes/types';
 
@@ -44,8 +44,13 @@ interface Props {
   onToggleHistory?: () => void;
   onClose?: () => void;
   onNewChat?: () => void;
-  /** True durante una práctica guiada: oculta el selector de modo/modelo (queda fijo en modo tutor). */
+  /**
+   * True durante una práctica guiada: oculta el selector de modo/modelo (queda fijo en modo tutor) y los
+   * adjuntos (imagen y archivo, también pegando o arrastrando): sin esa fila el input queda en una línea.
+   */
   practiceLocked?: boolean;
+  /** Con texto, el chat no acepta preguntas (ej. durante la evaluación): ese texto va en lugar del placeholder. */
+  bloqueo?: string | null;
 }
 
 const ChatInput: React.FC<Props> = ({
@@ -67,6 +72,7 @@ const ChatInput: React.FC<Props> = ({
   onClose,
   onNewChat,
   practiceLocked = false,
+  bloqueo = null,
 }) => {
   const isPill = variant === 'pill';
   const pillPlaceholder = MODE_PLACEHOLDERS[mode];
@@ -163,6 +169,7 @@ const ChatInput: React.FC<Props> = ({
 
   // ── Drag & drop ──
   const handleDragOver = (e: React.DragEvent) => {
+    if (practiceLocked) return;
     if (!Array.from(e.dataTransfer.items).some((i: any) => i.kind === 'file')) return;
     e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setIsDragging(true);
   };
@@ -171,6 +178,7 @@ const ChatInput: React.FC<Props> = ({
   };
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false);
+    if (practiceLocked) return;
     const file = e.dataTransfer.files[0];
     if (!file) return;
     if (file.type.startsWith('image/')) handleImageFile(file); else await handleTextFile(file);
@@ -201,6 +209,21 @@ const ChatInput: React.FC<Props> = ({
   );
 
   const showModeRow = !footerMinimal && !practiceLocked && onModeSwitch && selectedModel && onModelChange;
+
+  // Enviar / cancelar del layout apilado: abajo a la derecha, o al lado del texto en la práctica.
+  const botonEnviar = !bloqueo && (input.trim().length > 0 || isSending) ? (
+    <ActionIcon
+      variant={isSending ? 'light' : 'filled'}
+      color={isSending ? 'red' : undefined}
+      onClick={isSending ? onCancel : onSend}
+      disabled={!isSending && !canSend}
+      aria-label={isSending ? 'Cancelar' : 'Enviar'}
+      className="!shrink-0 !w-7 !h-7 !min-w-[28px] !min-h-[28px] !rounded-lg !bg-[var(--accent-primary)] !text-[var(--accent-contrast,#fff)] hover:not(:disabled):!bg-[var(--accent-primary-hover)] disabled:!opacity-45 disabled:!bg-[var(--border-subtle)] animate-[scaleIn_0.15s_ease-out]"
+      size="sm"
+    >
+      {isSending ? <Square size={12} fill="currentColor" /> : <Send size={13} className="mr-[1px]" />}
+    </ActionIcon>
+  ) : null;
 
   return (
     <div
@@ -323,21 +346,23 @@ const ChatInput: React.FC<Props> = ({
         {!isPill ? (
           // STACKED LAYOUT (for active chat pane)
           <div className="flex flex-col w-full" data-tour="practica-pregunta">
-            {/* Top row: full-width Textarea */}
-            <div className="w-full">
+            {/* Top row: full-width Textarea (en la práctica, con el envío al lado) */}
+            <div className={practiceLocked ? 'flex items-end gap-1.5 w-full' : 'w-full'}>
+              {bloqueo && <Lock size={14} className="shrink-0 self-center ml-1.5 text-[var(--text-muted)]" aria-hidden />}
               <Textarea
                 ref={inputRef}
-                value={input}
+                value={bloqueo ? '' : input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={MODE_PLACEHOLDERS[mode]}
+                placeholder={bloqueo ?? MODE_PLACEHOLDERS[mode]}
+                disabled={!!bloqueo}
                 variant="unstyled"
                 autosize
                 minRows={1}
                 maxRows={10}
-                className="w-full"
+                className={practiceLocked ? 'flex-1 min-w-0' : 'w-full'}
                 classNames={{
                   wrapper: 'w-full',
-                  input: 'bg-transparent border-none text-[var(--text-primary)] text-[13.5px] leading-relaxed placeholder-[var(--placeholder-fg)] focus:ring-0 px-2 py-1.5 scrollbar-thin w-full',
+                  input: 'bg-transparent border-none text-[var(--text-primary)] text-[13.5px] leading-relaxed placeholder-[var(--placeholder-fg)] focus:ring-0 px-2 py-1.5 scrollbar-thin w-full disabled:!bg-transparent disabled:cursor-not-allowed',
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape' && isSending) { e.preventDefault(); onCancel(); return; }
@@ -348,12 +373,13 @@ const ChatInput: React.FC<Props> = ({
                   }
                   if (e.key === 'Enter' && !e.shiftKey && !isComposingRef.current) {
                     e.preventDefault();
-                    if (!isSending && canSend && input.trim().length > 0) onSend();
+                    if (!bloqueo && !isSending && canSend && input.trim().length > 0) onSend();
                   }
                 }}
                 onCompositionStart={() => { isComposingRef.current = true; }}
                 onCompositionEnd={() => { isComposingRef.current = false; }}
                 onPaste={(e) => {
+                  if (practiceLocked) return; // sin adjuntos en la práctica: se pega solo el texto
                   const items = Array.from(e.clipboardData?.items ?? [] as any) as DataTransferItem[];
                   const imgItem = items.find(it => it.type.startsWith('image/'));
                   if (!imgItem) return;
@@ -370,9 +396,11 @@ const ChatInput: React.FC<Props> = ({
                   reader.readAsDataURL(file);
                 }}
               />
+              {practiceLocked && <div className="shrink-0 pb-1 pr-0.5">{botonEnviar}</div>}
             </div>
-            
-            {/* Bottom row: actions on left, send on right */}
+
+            {/* Bottom row: actions on left, send on right (no en la práctica: no hay adjuntos) */}
+            {!practiceLocked && (
             <div className="flex items-center justify-between w-full px-2 border-t border-[var(--border-subtle)]/30 min-h-[28px]">
               {/* Left actions */}
               <div className="flex items-center gap-1.5">
@@ -397,22 +425,9 @@ const ChatInput: React.FC<Props> = ({
               </div>
 
               {/* Right actions (Send button) */}
-              <div className="flex items-center gap-1.5">
-                {(input.trim().length > 0 || isSending) && (
-                  <ActionIcon
-                    variant={isSending ? 'light' : 'filled'}
-                    color={isSending ? 'red' : undefined}
-                    onClick={isSending ? onCancel : onSend}
-                    disabled={!isSending && !canSend}
-                    aria-label={isSending ? 'Cancelar' : 'Enviar'}
-                    className="!shrink-0 !w-7 !h-7 !min-w-[28px] !min-h-[28px] !rounded-lg !bg-[var(--accent-primary)] !text-[var(--accent-contrast,#fff)] hover:not(:disabled):!bg-[var(--accent-primary-hover)] disabled:!opacity-45 disabled:!bg-[var(--border-subtle)] animate-[scaleIn_0.15s_ease-out]"
-                    size="sm"
-                  >
-                    {isSending ? <Square size={12} fill="currentColor" /> : <Send size={13} className="mr-[1px]" />}
-                  </ActionIcon>
-                )}
-              </div>
+              <div className="flex items-center gap-1.5">{botonEnviar}</div>
             </div>
+            )}
           </div>
         ) : (
           // ROW LAYOUT (for empty search-bar home-page pill)
@@ -462,7 +477,7 @@ const ChatInput: React.FC<Props> = ({
                 reader.readAsDataURL(file);
               }}
             />
-            
+
             <div className="flex items-center justify-center gap-2 shrink-0 pr-[2px]">
               {onModeSwitch && (
                 <div className="flex items-center shrink-0">

@@ -30,9 +30,15 @@ const REGISTRY: Record<string, React.ReactNode> = {
       <MedalIcon code="M2" tier={2} ringColor="#2B6E6E" discColor="#F7CD3D" burstColor="#2B6E6E" ariaLabel="" className="h-8 w-8" />
     </Insignia>
   ),
+  'linux-permisos': (
+    <Insignia label="Insignia ganada: Guardián (Módulo 3)" rotation={-8}>
+      <MedalIcon code="M3" tier={3} ringColor="#B4531B" discColor="#F7CD3D" burstColor="#B4531B" starColor="#F7CD3D" ariaLabel="" className="h-8 w-8" />
+    </Insignia>
+  ),
+  // El editor sigue siendo `linux-m3` (el id no cambia), pero ahora se cursa 4.º.
   'linux-m3': (
-    <Insignia label="Insignia ganada: Editor (Módulo 3)" rotation={-8}>
-      <MedalIcon code="M3" tier={3} ringColor="#5B3A8E" discColor="#F7CD3D" burstColor="#F7CD3D" starColor="#F7CD3D" ariaLabel="" className="h-8 w-8" />
+    <Insignia label="Insignia ganada: Editor (Módulo 4)" rotation={9}>
+      <MedalIcon code="M4" tier={3} ringColor="#5B3A8E" discColor="#F7CD3D" burstColor="#F7CD3D" starColor="#F7CD3D" ariaLabel="" className="h-8 w-8" />
     </Insignia>
   ),
 };

@@ -75,6 +75,8 @@ export interface MessageMeta {
    * Reemplaza a `linuxContentBlocks`, que queda solo para chats guardados antes.
    */
   linuxPaso?: { paso: PasoPractica; total: number };
+  /** Respuesta del tutor que explica la salida del comando que el estudiante acaba de correr (título y color propios). */
+  linuxExplica?: 'salida';
   /** Evaluación final de una práctica de Linux, solo aparece cuando ya se completaron los comandos obligatorios. */
   linuxQuiz?: { moduleId: string; moduleTitle?: string; blocks: any[]; numero?: number; total?: number };
 }

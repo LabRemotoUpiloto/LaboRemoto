@@ -6,7 +6,7 @@ import { Message, ChatMode } from '../chatModes/types';
 import { RelativeTime } from './RelativeTime';
 import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon, Button, Group, Text } from '@mantine/core';
-import { Copy, RefreshCw, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { Copy, RefreshCw, RotateCcw, ClipboardCheck, SquareTerminal } from 'lucide-react';
 import { BlockView, CLASE_RESALTADA } from '../practicas/linux/blocks/BlockRenderer';
 import { PasoCard, EncabezadoPaso, mayuscula, type DatosGuia } from '../practicas/linux/PasoCard';
 import { ModuleCompleteCelebration } from '../practicas/linux/ModuleCompleteCelebration';
@@ -166,6 +166,10 @@ export default function AiMessageBubble({
     } : null);
   }, [quizConGuia, onLinuxGuiaChange, accionesEvaluacion, hechasEvaluacion, accionEvaluacionActual, ahoraEvaluacion]);
 
+  // Explicación de la salida del comando: con título y color propios, para no confundirla con las
+  // instrucciones de los pasos (que usan la burbuja normal).
+  const esExplicacionSalida = msg.meta?.linuxExplica === 'salida' && !!linuxPracticeId && !isError;
+
   return (
     <div className={`relative flex flex-col group/ai items-start w-full`}>
       <div
@@ -177,7 +181,8 @@ export default function AiMessageBubble({
                 : 'border-[var(--border-subtle)] bg-[var(--background-secondary)] text-[var(--text-primary)]'
               }`
             : `chat-bubble chat-bubble-ai relative max-w-full border rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm text-[13px] leading-relaxed break-words
-              ${isError ? 'border-[var(--danger-border)] text-[var(--danger-text)] bg-[var(--danger-bg)]' : ''}`
+              ${isError ? 'border-[var(--danger-border)] text-[var(--danger-text)] bg-[var(--danger-bg)]' : ''}
+              ${esExplicacionSalida ? 'burbuja-explica-salida' : ''}`
         }
       >
         {!isLanding && (
@@ -203,6 +208,16 @@ export default function AiMessageBubble({
           <span className="block text-[9.5px] opacity-50 mb-1 font-mono tracking-wide">
             <RelativeTime timestamp={msg.timestamp} />
           </span>
+        )}
+
+        {esExplicacionSalida && (
+          <div
+            className="flex items-center gap-1.5 mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.05em]"
+            style={{ color: '#2B9C8F' }}
+          >
+            <SquareTerminal size={13} strokeWidth={2.2} aria-hidden />
+            Explicación de la salida de la terminal
+          </div>
         )}
 
         <div className="flex flex-col gap-2 overflow-hidden max-w-full">
