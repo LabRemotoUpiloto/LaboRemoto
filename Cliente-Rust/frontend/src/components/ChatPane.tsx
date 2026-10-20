@@ -751,7 +751,9 @@ const ChatPane: React.FC<Props> = ({
       }
       const res = envelope.data as AiResponseRaw;
       const displayText = cleanText(String((res as any).ai_response || (res as any).explanation || ''));
-      const cleanedMeta: any = { chat_mode: mode, ...(res as any) };
+      // `marca` (ej. linuxExplica) se vuelve a poner: el meta de la respuesta reemplaza al del mensaje y sin
+      // esto la explicación de la salida perdía su título y su color al terminar de llegar.
+      const cleanedMeta: any = { chat_mode: mode, ...(res as any), ...marca };
       delete cleanedMeta.code_output; delete cleanedMeta.suggestedCommands;
       setMessages(prev => prev.map(m => m.id === reqId ? { ...m, text: displayText, meta: cleanedMeta } : m));
     } catch (e) {
