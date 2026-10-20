@@ -222,6 +222,9 @@ const ChatPane: React.FC<Props> = ({
   const [linuxQuizAnswers, setLinuxQuizAnswers] = useState<Record<string, string>>({});
   const [linuxQuizSubmitting, setLinuxQuizSubmitting] = useState(false);
   const [linuxQuizSubmitted, setLinuxQuizSubmitted] = useState(false);
+  // Evaluación en pantalla y todavía sin aprobar (también mientras corrige respuestas): el chat no acepta
+  // preguntas, para que el estudiante no le pida las respuestas al tutor.
+  const evaluacionEnCurso = isPracticeSession && !practiceResult?.passed && messages.some((m) => m.meta?.linuxQuiz);
   useEffect(() => { setLinuxQuizAnswers({}); setLinuxQuizSubmitted(false); }, [practiceId]);
 
   const handleLinuxQuizAnswer = useCallback((questionId: string, optionId: string) => {
@@ -965,6 +968,7 @@ const ChatPane: React.FC<Props> = ({
 
   const handleSend = async (overrideText?: string) => {
     if (isSending || isSendingRef.current) return;
+    if (evaluacionEnCurso) return; // también las sugerencias: durante la evaluación no se le pregunta al tutor
     const trimmed = (overrideText ?? input).trim();
     if (!trimmed) return;
 
@@ -1110,6 +1114,7 @@ const ChatPane: React.FC<Props> = ({
       onClose={onClose}
       onNewChat={handleNewChat}
       practiceLocked={isPracticeSession}
+      bloqueo={evaluacionEnCurso ? 'Durante la evaluación el chat está en pausa: responde las preguntas por tu cuenta.' : null}
     />
   );
 
