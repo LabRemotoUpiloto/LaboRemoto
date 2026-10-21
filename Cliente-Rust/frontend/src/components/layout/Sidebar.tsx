@@ -230,7 +230,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               { id: 'admin-users', label: 'Usuarios', icon: Shield },
               { id: 'logs', label: 'Logs', icon: FileTextIcon },
               { id: 'vigilancia', label: 'Vigilancia', icon: CameraIcon },
-              { id: 'rendimiento', label: 'Rendimiento', icon: Gauge },
+              { id: 'rendimiento', label: 'Monitoreo', icon: Gauge },
             ],
           },
         ]
