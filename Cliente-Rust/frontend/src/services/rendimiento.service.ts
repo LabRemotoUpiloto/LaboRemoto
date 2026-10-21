@@ -38,6 +38,8 @@ export interface MuestraPi {
   sesiones_ssh: { estudiantes: number; estudiantes_distintos: number; tuneles_app: number; otras: number } | null;
   camaras: { total: number; por_camara: Record<string, number> } | null;
   api: ResumenApi;
+  /** Disco del sistema, en GiB (las unidades de `df -h`). Falta en versiones viejas de metrics_svc. */
+  disco?: { total_gb: number; usado_gb: number; pct: number } | null;
 }
 
 export interface ProcesoPi {
@@ -48,11 +50,32 @@ export interface ProcesoPi {
   procesos: number;
 }
 
+/** Un servicio de systemd vigilado en la Pi (se lee cada 15 s). */
+export interface ServicioPi {
+  unidad: string;
+  activo: boolean;
+  /** active | activating | failed | inactive */
+  estado: string | null;
+  /** running | auto-restart | dead… */
+  detalle: string | null;
+  reinicios: number | null;
+}
+
+export interface UsbPi {
+  id: string;
+  fabricante: string | null;
+  producto: string | null;
+}
+
 export interface InformePi {
   intervalo_s: number;
-  info: { modelo: string | null; nucleos: number | null; interfaz: string | null };
+  info: { modelo: string | null; nucleos: number | null; interfaz: string | null; encendida_desde?: number | null };
   muestras: MuestraPi[];
   procesos_top: ProcesoPi[];
+  /** Todos los procesos, ordenados por CPU (hasta 300). Los campos opcionales faltan en versiones viejas. */
+  procesos?: ProcesoPi[];
+  servicios?: ServicioPi[] | null;
+  usb?: UsbPi[] | null;
 }
 
 export const rendimientoPi = (desde?: number): Promise<InformePi> =>

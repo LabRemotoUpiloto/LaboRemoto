@@ -56,6 +56,37 @@
   100% { transform: scale(7); opacity: 0; }
 }
 
+/* Monitoreo (pages/rendimiento): colores como utilidades de Tailwind (text-mon-apagado, bg-mon-pista…).
+   `inline` hace que cada utilidad lea la variable del tema activo en tiempo de ejecución, así que funcionan
+   en todos los temas sin colores sueltos. Lo que los temas no traen se deriva con color-mix; --text-muted no
+   se usa porque varios temas no lo definen y el de :root está pensado para fondo oscuro. */
+@theme inline {
+  --color-mon-fondo: var(--background-primary);
+  --color-mon-superficie: var(--background-secondary);
+  --color-mon-terciario: var(--background-tertiary);
+  --color-mon-tinta: var(--text-primary);
+  --color-mon-tinta-2: var(--text-secondary);
+  --color-mon-apagado: color-mix(in srgb, var(--text-secondary) 62%, var(--background-secondary));
+  --color-mon-fantasma: color-mix(in srgb, var(--text-secondary) 35%, var(--background-secondary));
+  --color-mon-pista: color-mix(in srgb, var(--text-secondary) 16%, var(--background-secondary));
+  --color-mon-banda: color-mix(in srgb, var(--text-primary) 20%, var(--background-secondary));
+  --color-mon-rango: color-mix(in srgb, var(--text-primary) 45%, var(--background-secondary));
+  --color-mon-borde: var(--card-border-color, var(--border-color));
+  --color-mon-acento: var(--accent-primary);
+  --color-mon-hover: var(--interactive-hover, color-mix(in srgb, var(--text-secondary) 10%, transparent));
+  --color-mon-bien: var(--success);
+  --color-mon-bien-texto: var(--success-text, var(--success));
+  --color-mon-alerta: var(--warning);
+  --color-mon-alerta-texto: var(--warning-text, var(--warning));
+  --color-mon-critico: var(--danger);
+  --color-mon-critico-texto: var(--danger-text, var(--danger));
+  --color-mon-umbral-alerta: color-mix(in srgb, var(--warning) 70%, var(--background-secondary));
+  --color-mon-umbral-critico: color-mix(in srgb, var(--danger) 70%, var(--background-secondary));
+  --font-mon-num: var(--terminal-font-family, ui-monospace, monospace);
+  --font-mon-titulo: var(--font-heading, inherit);
+  --radius-mon: var(--radius-md, 8px);
+}
+
 /* ============================================
    🎨 GLOBALS.CSS - Estilos Globales Compartidos
    ============================================ */

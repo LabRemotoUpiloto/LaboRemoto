@@ -57,7 +57,7 @@ tauri-plugin-deep-link = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 # HTTP client y otros
-reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream", "gzip"] }
 futures-util = "0.3"
 dotenvy = "0.15"
 parking_lot = "0.12"

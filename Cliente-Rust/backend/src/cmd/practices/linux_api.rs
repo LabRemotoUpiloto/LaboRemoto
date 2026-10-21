@@ -466,7 +466,21 @@ pub async fn rendimiento_pi(
         Some(t) if t.is_finite() => format!("/system/metrics?desde={t}"),
         _ => "/system/metrics".to_string(),
     };
-    api_get(&config, &ruta).await
+    con_limite(api_get(&config, &ruta), &ruta).await
+}
+
+/// El panel consulta cada pocos segundos y el pedido siguiente espera a que termine el anterior: sin
+/// límite, un túnel trabado dejaba la página en «Conectando…» para siempre en vez de mostrar el error.
+const LIMITE_PANEL: std::time::Duration = std::time::Duration::from_secs(30);
+
+async fn con_limite(
+    pedido: impl std::future::Future<Output = Result<serde_json::Value, CommandError>>,
+    ruta: &str,
+) -> Result<serde_json::Value, CommandError> {
+    tokio::time::timeout(LIMITE_PANEL, pedido).await.unwrap_or_else(|_| {
+        Err(CommandError::transient("OPERATION_TIMEOUT", "La Pi no respondió en 30 s (el túnel puede estar lento o trabado)")
+            .with_context("linux_api_get", ruta))
+    })
 }
 
 /// Registros para el panel de Rendimiento (solo `admin_lab`): las últimas peticiones a
@@ -485,7 +499,7 @@ pub async fn rendimiento_logs(
         .filter_map(|(clave, valor)| valor.filter(|t| t.is_finite()).map(|t| format!("{clave}={t}")))
         .collect();
     let ruta = if consulta.is_empty() { "/system/logs".to_string() } else { format!("/system/logs?{}", consulta.join("&")) };
-    api_get(&config, &ruta).await
+    con_limite(api_get(&config, &ruta), &ruta).await
 }
 
 /// El panel de Rendimiento muestra datos internos de la Pi: solo para el administrador.

@@ -1,26 +1,28 @@
-// pages/rendimiento/RegistrosPanel.tsx — registros en vivo de la Pi para el panel de Rendimiento:
+// pages/rendimiento/RegistrosPanel.tsx — registros en vivo de la Pi para el panel de Monitoreo:
 // cada petición a la API de prácticas y cada evento de SSH (quién entró, contraseñas fallidas,
 // conexiones rechazadas por exceso o cortadas). Sirve para ver qué pasa justo cuando algo falla.
+// Paginado y agrupado por día (el auth.log abarca varios). En la página 1 se actualiza en vivo; en
+// las demás la lista se queda quieta para poder leerla, y avisa cuántos eventos nuevos llegaron.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Group, Paper, SegmentedControl, Switch, Table, Text } from '@mantine/core';
-import { Pause, Play } from 'lucide-react';
 import { rendimientoLogs, type EventoSsh, type RegistroApi } from '../../services/rendimiento.service';
 import {
   EVENTOS_SSH, claveApi, claveSsh, contarEventos, eventoConProblema, peticionConProblema, unirRegistros,
   type Gravedad,
 } from './registros';
+import { agruparPorDia, hora24, paginar } from './monitoreo';
+import { Boton, ETIQUETA, NOTA, Paginador, Selector, TARJETA } from './Piezas';
 
 const SONDEO_MS = 3000;
-const FILAS_A_LA_VISTA = 200;
+const POR_PAGINA = 15;
 
-const COLOR_GRAVEDAD: Record<Gravedad, string> = {
-  bueno: 'text-[#0ca30c]',
-  neutro: 'text-[var(--text-secondary)]',
-  alerta: 'text-[#b07700] [[data-mantine-color-scheme=dark]_&]:text-[#fab219]',
-  critico: 'text-[#d03b3b]',
+/** Color solo para lo que es problema; «Entró» va en negrita y «Salió» en gris. */
+const TEXTO_GRAVEDAD: Record<Gravedad, string> = {
+  bueno: 'font-semibold text-mon-tinta',
+  neutro: 'text-mon-tinta-2',
+  alerta: 'font-bold text-mon-alerta-texto',
+  critico: 'font-bold text-mon-critico-texto',
 };
 
-const hora = (t: number) => new Date(t * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const tamano = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${Math.round(b / 1024)} KB` : `${b} B`);
 
 function estadoPeticion(r: RegistroApi): Gravedad {
@@ -29,14 +31,19 @@ function estadoPeticion(r: RegistroApi): Gravedad {
   return 'bueno';
 }
 
+type Tipo = 'ssh' | 'api';
+
 const RegistrosPanel: React.FC = () => {
   const [api, setApi] = useState<RegistroApi[]>([]);
   const [ssh, setSsh] = useState<EventoSsh[]>([]);
   const [sinAuthLog, setSinAuthLog] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pestana, setPestana] = useState<'api' | 'ssh'>('ssh');
+  const [tipo, setTipo] = useState<Tipo>('ssh');
   const [soloProblemas, setSoloProblemas] = useState(false);
   const [pausado, setPausado] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  /** Fuera de la página 1, la lista se corta en este instante para que no se corra mientras se lee. */
+  const [corte, setCorte] = useState<number | null>(null);
   const ultimos = useRef<{ api?: number; ssh?: number }>({});
 
   useEffect(() => {
@@ -74,15 +81,26 @@ const RegistrosPanel: React.FC = () => {
 
   const cincoMin = Date.now() / 1000 - 300;
   const cuenta = useMemo(() => contarEventos(ssh, cincoMin), [ssh, Math.floor(cincoMin / 30)]); // eslint-disable-line react-hooks/exhaustive-deps
-  const filasApi = useMemo(
-    () => (soloProblemas ? api.filter(peticionConProblema) : api).slice(-FILAS_A_LA_VISTA).reverse(),
-    [api, soloProblemas],
-  );
-  const filasSsh = useMemo(
-    () => (soloProblemas ? ssh.filter(eventoConProblema) : ssh).slice(-FILAS_A_LA_VISTA).reverse(),
-    [ssh, soloProblemas],
-  );
   const problemasApi = useMemo(() => api.filter((r) => r.t >= cincoMin && peticionConProblema(r)).length, [api, Math.floor(cincoMin / 30)]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lo más nuevo primero, filtrado y cortado si se está leyendo una página vieja.
+  const todos = useMemo(() => {
+    const base = tipo === 'ssh'
+      ? (soloProblemas ? ssh.filter(eventoConProblema) : ssh)
+      : (soloProblemas ? api.filter(peticionConProblema) : api);
+    return [...base].reverse() as (EventoSsh | RegistroApi)[];
+  }, [tipo, soloProblemas, ssh, api]);
+  const visibles = corte == null ? todos : todos.filter((r) => r.t <= corte);
+  const nuevos = corte == null ? 0 : todos.length - visibles.length;
+  const pag = paginar(visibles, pagina, POR_PAGINA);
+
+  const irA = (p: number) => {
+    if (p <= 1) { setCorte(null); setPagina(1); return; }
+    if (corte == null) setCorte(todos.length ? todos[0].t : null);
+    setPagina(p);
+  };
+  // Cambiar de tipo o de filtro vuelve a la página 1, en vivo.
+  useEffect(() => { setPagina(1); setCorte(null); }, [tipo, soloProblemas]);
 
   const resumen: { texto: string; n: number; gravedad: Gravedad }[] = [
     { texto: 'entradas', n: cuenta.entrada ?? 0, gravedad: 'bueno' },
@@ -92,88 +110,107 @@ const RegistrosPanel: React.FC = () => {
     { texto: 'peticiones con problema', n: problemasApi, gravedad: 'alerta' },
   ];
 
+  const columnas = tipo === 'ssh'
+    ? ['Hora', 'Qué pasó', 'Usuario', 'Desde', 'Mensaje de sshd']
+    : ['Hora', 'Petición', 'Estado', 'Tiempo', 'Tamaño'];
+
+  const vacio = tipo === 'ssh' && sinAuthLog
+    ? 'La API no puede leer el auth.log de la Pi: el usuario del servicio necesita permiso de lectura (grupo adm).'
+    : pag.total === 0 ? (soloProblemas ? 'Sin problemas registrados.' : 'Todavía no hay registros.') : null;
+
   return (
-    <Paper withBorder radius="md" p="sm">
-      <Group justify="space-between" mb="xs" wrap="wrap" gap="sm">
-        <div>
-          <Text fw={600}>Registros</Text>
-          <Text fz="xs" c="dimmed">Lo que está pasando en la Pi, evento por evento. Se actualiza cada 3 s.</Text>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Selector<Tipo> nombre="Tipo de registro" valor={tipo} onCambio={setTipo}
+          opciones={[{ valor: 'ssh', etiqueta: 'Conexiones SSH' }, { valor: 'api', etiqueta: 'Peticiones a la API' }]} />
+        <div className="flex items-center gap-5">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-mon-tinta-2">
+            <input type="checkbox" checked={soloProblemas} onChange={(e) => setSoloProblemas(e.currentTarget.checked)} className="h-3.5 w-3.5 accent-[var(--text-primary)]" />
+            Solo problemas
+          </label>
+          <Boton onClick={() => setPausado((p) => !p)}>{pausado ? 'Seguir' : 'Pausar'}</Boton>
         </div>
-        <Group gap="sm">
-          <SegmentedControl size="xs" value={pestana} onChange={(v) => setPestana(v as 'api' | 'ssh')}
-            data={[{ value: 'ssh', label: 'Conexiones SSH' }, { value: 'api', label: 'Peticiones a la API' }]} aria-label="Tipo de registro" />
-          <Switch size="xs" label="Solo problemas" checked={soloProblemas} onChange={(e) => setSoloProblemas(e.currentTarget.checked)} />
-          <Button size="xs" variant="default" leftSection={pausado ? <Play size={13} /> : <Pause size={13} />} onClick={() => setPausado((p) => !p)}>
-            {pausado ? 'Seguir' : 'Pausar'}
-          </Button>
-        </Group>
-      </Group>
+      </div>
 
-      <Group gap="md" mb="sm" wrap="wrap">
-        <Text fz="xs" c="dimmed">Últimos 5 min:</Text>
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
+        <span className={ETIQUETA}>Últimos 5 min</span>
         {resumen.map((r) => (
-          <Text key={r.texto} fz="xs" className={r.n > 0 ? COLOR_GRAVEDAD[r.gravedad] : 'text-[var(--text-secondary)]'}>
-            <span className="font-semibold tabular-nums">{r.n}</span> {r.texto}
-          </Text>
+          <span key={r.texto} className={r.n > 0 && r.gravedad !== 'bueno' ? TEXTO_GRAVEDAD[r.gravedad] : 'text-mon-tinta-2'}>
+            <b className="font-mon-num font-bold">{r.n}</b> {r.texto}
+          </span>
         ))}
-      </Group>
+        <span className={`${NOTA} ml-auto`}>{pausado ? 'en pausa' : 'se actualiza cada 3 s'}</span>
+      </div>
 
-      {error && <Text fz="xs" className="mb-2 text-[#d03b3b]">No se pudieron leer los registros: {error}</Text>}
+      {error && <p className="m-0 text-xs text-mon-critico-texto">No se pudieron leer los registros: {error}</p>}
 
-      <div className="overflow-hidden rounded-md border border-[var(--border-subtle)]">
-        {pestana === 'ssh' ? (
-          sinAuthLog ? (
-            <Text fz="sm" c="dimmed" p="sm">La API no puede leer el auth.log de la Pi: el usuario del servicio necesita permiso de lectura (grupo adm).</Text>
-          ) : (
-            <Table stickyHeader verticalSpacing={4} fz="xs" className="[&_td]:tabular-nums">
-              <Table.Thead>
-                <Table.Tr><Table.Th>Hora</Table.Th><Table.Th>Qué pasó</Table.Th><Table.Th>Usuario</Table.Th><Table.Th>Desde</Table.Th><Table.Th>Mensaje de sshd</Table.Th></Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filasSsh.map((e) => {
-                  const info = EVENTOS_SSH[e.tipo] ?? { texto: e.tipo, gravedad: 'neutro' as Gravedad };
-                  return (
-                    <Table.Tr key={claveSsh(e)}>
-                      <Table.Td className="whitespace-nowrap">{hora(e.t)}</Table.Td>
-                      <Table.Td className={`whitespace-nowrap font-semibold ${COLOR_GRAVEDAD[info.gravedad]}`}>{info.texto}</Table.Td>
-                      <Table.Td>{e.usuario ?? '—'}</Table.Td>
-                      <Table.Td className="whitespace-nowrap">{e.ip ?? '—'}</Table.Td>
-                      <Table.Td className="max-w-[360px] truncate text-[var(--text-secondary)]" title={e.mensaje}>{e.mensaje}</Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-          )
+      <div className={TARJETA}>
+        {vacio ? (
+          <p className="m-0 px-6 py-5 text-[13px] text-mon-tinta-2">{vacio}</p>
         ) : (
-          <Table stickyHeader verticalSpacing={4} fz="xs" className="[&_td]:tabular-nums">
-            <Table.Thead>
-              <Table.Tr><Table.Th>Hora</Table.Th><Table.Th>Petición</Table.Th><Table.Th>Estado</Table.Th><Table.Th>Tiempo</Table.Th><Table.Th>Tamaño</Table.Th></Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {filasApi.map((r) => {
-                const g = estadoPeticion(r);
-                return (
-                  <Table.Tr key={claveApi(r)}>
-                    <Table.Td className="whitespace-nowrap">{hora(r.t)}</Table.Td>
-                    <Table.Td className="max-w-[360px] truncate" title={r.ruta ?? ''}>
-                      <Badge size="xs" variant="light" color="gray" mr={6}>{r.tipo}</Badge>
-                      <span className="font-mono">{r.metodo} {r.ruta}</span>
-                    </Table.Td>
-                    <Table.Td className={`font-semibold ${COLOR_GRAVEDAD[g]}`}>{r.estado === 0 ? 'falló' : r.estado}</Table.Td>
-                    <Table.Td className={r.ms > 1000 ? COLOR_GRAVEDAD.alerta : undefined}>{Math.round(r.ms)} ms</Table.Td>
-                    <Table.Td>{tamano(r.bytes)}</Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+          <table className="w-full table-fixed border-collapse text-[13px]">
+            <colgroup>
+              {(tipo === 'ssh' ? ['96px', '200px', '22%', '140px', 'auto'] : ['96px', 'auto', '90px', '90px', '90px']).map((w, i) => <col key={i} style={{ width: w }} />)}
+            </colgroup>
+            <thead>
+              <tr>
+                {columnas.map((c, i) => (
+                  <th key={c} className={`border-b border-mon-pista px-3 pb-2.5 pt-3.5 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-mon-apagado first:pl-6 last:pr-6 ${tipo === 'api' && i >= 2 ? 'text-right' : ''}`}>{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {agruparPorDia(pag.filas).map((g) => (
+                <React.Fragment key={g.dia + g.filas[0].t}>
+                  <tr>
+                    <td colSpan={5} className="bg-mon-terciario px-6 pb-2 pt-2.5 text-[10px] font-bold tracking-[0.08em] text-mon-tinta-2">{g.dia}</td>
+                  </tr>
+                  {g.filas.map((r) => {
+                    if (tipo === 'ssh') {
+                      const e = r as EventoSsh;
+                      const info = EVENTOS_SSH[e.tipo] ?? { texto: e.tipo, gravedad: 'neutro' as Gravedad };
+                      return (
+                        <tr key={claveSsh(e)} className="border-t border-mon-pista">
+                          <td className="py-[7px] pl-6 pr-3 font-mon-num text-xs text-mon-tinta-2">{hora24(e.t)}</td>
+                          <td className={`truncate px-3 ${TEXTO_GRAVEDAD[info.gravedad]}`}>{info.texto}</td>
+                          <td className="truncate px-3 text-mon-tinta" title={e.usuario ?? ''}>{e.usuario ?? <span className="text-mon-apagado">—</span>}</td>
+                          <td className="px-3 font-mon-num text-xs text-mon-tinta-2">{e.ip ?? <span className="text-mon-apagado">—</span>}</td>
+                          <td className="truncate px-3 pr-6 font-mon-num text-[11px] text-mon-apagado" title={e.mensaje}>{e.mensaje}</td>
+                        </tr>
+                      );
+                    }
+                    const p = r as RegistroApi;
+                    const g2 = estadoPeticion(p);
+                    return (
+                      <tr key={claveApi(p)} className="border-t border-mon-pista">
+                        <td className="py-[7px] pl-6 pr-3 font-mon-num text-xs text-mon-tinta-2">{hora24(p.t)}</td>
+                        <td className="truncate px-3 font-mon-num text-xs text-mon-tinta" title={p.ruta ?? ''}>
+                          <span className="mr-2 text-mon-apagado">{p.tipo}</span>{p.metodo} {p.ruta}
+                        </td>
+                        <td className={`px-3 text-right font-mon-num ${g2 === 'bueno' ? 'text-mon-tinta' : TEXTO_GRAVEDAD[g2]}`}>{p.estado === 0 ? 'falló' : p.estado}</td>
+                        <td className={`px-3 text-right font-mon-num ${p.ms > 1000 ? TEXTO_GRAVEDAD.alerta : 'text-mon-tinta'}`}>{Math.round(p.ms)} ms</td>
+                        <td className="px-3 pr-6 text-right font-mon-num text-mon-tinta-2">{tamano(p.bytes)}</td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
         )}
-        {((pestana === 'ssh' && !sinAuthLog && filasSsh.length === 0) || (pestana === 'api' && filasApi.length === 0)) && (
-          <Text fz="sm" c="dimmed" p="sm">{soloProblemas ? 'Sin problemas registrados.' : 'Todavía no hay registros.'}</Text>
+        {!vacio && (
+          <Paginador pagina={pag} onPagina={irA} unidad={tipo === 'ssh' ? (soloProblemas ? 'problemas' : 'eventos') : 'peticiones'}
+            extra={<>
+              {' · se guardan los últimos 500'}
+              {nuevos > 0 && (
+                <button type="button" onClick={() => irA(1)} className="ml-3 cursor-pointer border-none bg-transparent p-0 font-mon-num text-xs font-bold text-mon-tinta underline">
+                  {nuevos} nuevos
+                </button>
+              )}
+            </>} />
         )}
       </div>
-    </Paper>
+    </div>
   );
 };
 
