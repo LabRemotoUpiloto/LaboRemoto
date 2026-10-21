@@ -3,12 +3,15 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { ArrowLeft, Bot, Cpu, MessageSquareHeart, Terminal, X, type LucideIcon } from 'lucide-react';
+import { ActionIcon, Button, Modal, Container, Divider, Group, Paper, ScrollArea, SimpleGrid, Stack, Text, Title, Box } from '@mantine/core';
+import { ArrowLeft, MessageSquareHeart, X } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
+import { EsqueletoCategorias } from '../../components/practicas/EsqueletoPracticas';
 import PracticeCard from '../../components/practicas/PracticeCard';
 import { getInsigniaForPractice } from '../../components/practicas/badges/insigniaRegistry';
-import LinuxModulePage from './LinuxModulePage';
+import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
+import { linuxGetModule, type LinuxModule } from '../../services/linuxPractice.service';
+import { useEffectiveRole } from '../../hooks/usePermissions';
 import EncuestaPracticaModal from '../../components/practicas/EncuestaPracticaModal';
 import { encuestasService } from '../../services/encuestas.service';
 import type { Practice } from '../../types';
@@ -18,12 +21,6 @@ import { consumePendingPracticesFocus, consumePendingPracticeOpen, onPracticeOpe
 import { notifications } from '@mantine/notifications';
 
 export type { Practice };
-
-const categoryIconMap: Record<string, LucideIcon> = {
-    robot: Bot,
-    terminal: Terminal,
-    circuit: Cpu,
-};
 
 interface PracticeCategory {
     id: string;
@@ -45,12 +42,12 @@ interface PracticesPageProps {
     setChatOpen?: (open: boolean) => void;
     /**
      * Instancia única de useLinuxPracticeSession (vive a nivel de App, ver
-     * App.tsx) — se threadea hasta LinuxModulePage para que el polling de
-     * revalidación sobreviva a la navegación entre pestañas. Sirve a los
+     * App.tsx) — se usa al entrar a un módulo desde su tarjeta; vive arriba
+     * para que el polling de revalidación sobreviva a la navegación entre pestañas. Sirve a los
      * módulos de Linux y de EV3.
      */
     linuxSession?: LinuxPracticeSessionApi;
-    /** "Repetir" del administrador en LinuxModulePage -- ver App.tsx. */
+    /** «Repetir de cero» del administrador al reabrir un módulo completo -- ver App.tsx. */
     onRestartLinuxModule?: (moduleId: string) => Promise<void>;
 }
 
@@ -70,9 +67,15 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const [startingPractice, setStartingPractice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [setupLogs, setSetupLogs] = useState<LogEntry[]>([]);
-    // Módulo del servicio de la Pi (Linux o EV3) abierto en pantalla.
-    const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+    // Módulo de la Pi (Linux o EV3) que se está conectando: su título va en el modal de la contraseña.
+    const [moduloEnCurso, setModuloEnCurso] = useState<LinuxModule | null>(null);
+    // Admin que reabre un módulo ya completo: elige ver, repetir o salir antes de entrar.
+    const [eleccionAdmin, setEleccionAdmin] = useState<LinuxModule | null>(null);
+    const [repitiendo, setRepitiendo] = useState(false);
+    const rol = useEffectiveRole();
     const logEndRef = useRef<HTMLDivElement>(null);
+    // `abrirModulo` (más abajo) también lo usa el enlace desde Moodle, que se registra antes en un efecto.
+    const abrirModuloRef = useRef<(id: string) => Promise<void>>(async () => {});
 
     // Insignias ganadas -- keyed por el mismo id de práctica que usa la Pi
     // (ej. "linux-m1"), ver services/badges.service.ts. Reactivo: si el
@@ -130,7 +133,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
             return;
         }
         setSelectedCategory(cat);
-        if (cat.id === 'linux' || id.startsWith('ev3-')) setSelectedModuleId(id);
+        if (cat.id === 'linux' || id.startsWith('ev3-')) void abrirModuloRef.current(id);
     }, [categories]);
 
     useEffect(() => {
@@ -143,7 +146,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         if (categories.length === 0) return; // se aplica cuando terminen de cargar los temas
         const v = consumirVistaPracticas();
         if (!v) return;
-        setSelectedModuleId(null);
         setSelectedCategory(v.categoria ? categories.find(c => c.id === v.categoria) ?? null : null);
     }, [categories]);
 
@@ -233,41 +235,70 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const handleBack = () => {
         setSelectedCategory(null);
         setSetupLogs([]);
-        setSelectedModuleId(null);
     };
 
-    // Los módulos que sirve la Pi (todos los de Linux y los ev3-*) se abren en
-    // la pantalla de módulo; las demás prácticas (legacy, desde .env) arrancan
+    // Los módulos que sirve la Pi (todos los de Linux y los ev3-*) piden la
+    // contraseña directo desde su tarjeta (ver abrirModulo); las demás prácticas (legacy, desde .env) arrancan
     // con el flujo de setup + sesión compartida.
     const isServiceModule = (categoryId: string, practiceId: string) =>
         categoryId === 'linux' || practiceId.startsWith('ev3-');
 
-    if (selectedModuleId) {
-        if (!linuxSession) {
-            // No debería pasar en la app real (App.tsx siempre instancia y pasa
-            // useLinuxPracticeSession hacia acá) — guard defensivo para no
-            // reventar si algún día PracticesPage se usa sin ese hook arriba.
-            return (
-                <Container size="sm" py="xl">
-                    <Alert color="red" title="Práctica no disponible">
-                        No se pudo inicializar la sesión de la práctica.
-                    </Alert>
-                    <Button mt="md" variant="subtle" leftSection={<ArrowLeft size={14} />} onClick={() => setSelectedModuleId(null)}>
-                        Volver
-                    </Button>
-                </Container>
-            );
+    // Entrar a un módulo de la Pi (Linux o EV3) desde su tarjeta: sin página intermedia, directo a la contraseña.
+    //  - Si ya hay una sesión abierta de ese módulo, se va a su pestaña.
+    //  - El admin que reabre uno ya completo elige antes: ver, repetir de cero o salir.
+    const conectarModulo = async (module: LinuxModule) => {
+        if (!linuxSession) return;
+        setModuloEnCurso(module);
+        try {
+            await linuxSession.connect(module);
+        } catch (e) {
+            const mensaje = e instanceof Error ? e.message : String(e);
+            if (mensaje !== 'Conexión cancelada') {
+                notifications.show({ title: 'No se pudo entrar a la práctica', message: mensaje, color: 'red' });
+            }
+        } finally {
+            setModuloEnCurso(null);
         }
-        return (
-            <LinuxModulePage
-                practiceId={selectedModuleId}
-                categoryName={selectedCategory?.name ?? 'Prácticas'}
-                onBack={() => setSelectedModuleId(null)}
-                linuxSession={linuxSession}
-                onRestartModule={onRestartLinuxModule}
-            />
-        );
-    }
+    };
+
+    const abrirModulo = async (id: string) => {
+        if (!linuxSession || startingPractice) return;
+        const sesionAbierta = Object.entries(linuxSession.sessionModuleMap).find(([, mid]) => mid === id)?.[0];
+        if (sesionAbierta) {
+            onNewSession?.({ id: sesionAbierta, label: '' });
+            return;
+        }
+        setStartingPractice(id);
+        let module: LinuxModule;
+        try {
+            module = await linuxGetModule(id);
+        } catch (e) {
+            notifications.show({ title: 'No se pudo cargar el módulo', message: e instanceof Error ? e.message : String(e), color: 'red' });
+            return;
+        } finally {
+            setStartingPractice(null);
+        }
+        if (rol === 'admin_lab' && id in earnedBadges) {
+            setEleccionAdmin(module);
+            return;
+        }
+        void conectarModulo(module);
+    };
+    abrirModuloRef.current = abrirModulo;
+
+    const repetirModulo = async () => {
+        if (!eleccionAdmin || repitiendo) return;
+        setRepitiendo(true);
+        try {
+            await onRestartLinuxModule?.(eleccionAdmin.id);
+            const module = eleccionAdmin;
+            setEleccionAdmin(null);
+            void conectarModulo(module);
+        } finally {
+            setRepitiendo(false);
+        }
+    };
+
 
     const levelColor: Record<LogEntry['level'], string> = {
         info: 'gray',
@@ -293,10 +324,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                             // descripción ya se ven arriba. Antes un `if (loading) return ...`
                             // tapaba la página entera mientras practicas_list_categories
                             // esperaba a la Pi (hasta 20s si no responde).
-                            <Stack align="center" gap="md" py="xl">
-                                <Loader size="md" />
-                                <Text c="dimmed" size="sm">Cargando prácticas...</Text>
-                            </Stack>
+                            <EsqueletoCategorias />
                         ) : (
                             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md" data-tour="practicas-categorias">
                                 {categories.map(cat => (
@@ -338,9 +366,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                         {encuestaRespondida[selectedCategory.id] ? 'Cambiar mi opinión' : 'Dar mi opinión'}
                                     </Button>
                                 )}
-                                <Text size="xs" c="dimmed" fw={500} tt="uppercase" style={{ letterSpacing: '0.08em' }}>
-                                    {selectedCategory.practices.length} práctica{selectedCategory.practices.length !== 1 ? 's' : ''}
-                                </Text>
                             </Group>
                         </Group>
 
@@ -352,26 +377,18 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                             onEnviada={() => setEncuestaRespondida((r) => ({ ...r, [selectedCategory.id]: true }))}
                         />
 
-                        <Group gap="md" align="flex-start" wrap="nowrap">
-                            <ThemeIcon size={52} radius="lg" variant="light" color="blue">
-                                {(() => {
-                                    const Icon = categoryIconMap[selectedCategory.icon] || Terminal;
-                                    return <Icon size={26} />;
-                                })()}
-                            </ThemeIcon>
-                            <Stack gap={6}>
-                                <Title order={1} style={{ fontSize: '1.875rem', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-                                    {selectedCategory.name}
-                                </Title>
-                                <Text size="sm" c="dimmed" maw={620} style={{ lineHeight: 1.55 }}>
-                                    {selectedCategory.description}
-                                </Text>
-                            </Stack>
-                        </Group>
+                        <Stack gap={6}>
+                            <Title order={1} style={{ fontSize: '1.875rem', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+                                {selectedCategory.name}
+                            </Title>
+                            <Text size="sm" c="dimmed" maw={620} style={{ lineHeight: 1.55 }}>
+                                {selectedCategory.description}
+                            </Text>
+                        </Stack>
 
                         <Divider />
 
-                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                        <div className="grilla-fichas">
                             {selectedCategory.practices.map(practice => (
                                 <PracticeCard
                                     key={practice.id}
@@ -381,14 +398,16 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                     hasCamera={practice.panels.camera}
                                     onStart={() => (
                                         isServiceModule(selectedCategory.id, practice.id)
-                                            ? setSelectedModuleId(practice.id)
+                                            ? void abrirModulo(practice.id)
                                             : handleStartPractice(practice)
                                     )}
                                     loading={startingPractice === practice.id}
+                                    completada={practice.id in earnedBadges}
+                                    resumen={practice.resumen}
                                     badge={practice.id in earnedBadges ? getInsigniaForPractice(practice.id) : undefined}
                                 />
                             ))}
-                        </SimpleGrid>
+                        </div>
 
                         {setupLogs.length > 0 && (
                             <SetupLogPanel
@@ -402,6 +421,38 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                     </Stack>
                 )}
             </Container>
+
+            {/* Contraseña para entrar al módulo (la pide useLinuxPracticeSession.connect) */}
+            {linuxSession && (
+                <LinuxPasswordPrompt
+                    opened={!!linuxSession.passwordPrompt}
+                    username={linuxSession.passwordPrompt?.username ?? ''}
+                    modulo={moduloEnCurso?.title}
+                    loading={linuxSession.submittingPassword}
+                    errorMessage={linuxSession.connectError}
+                    onSubmit={linuxSession.submitPassword}
+                    onCancel={linuxSession.cancelPassword}
+                />
+            )}
+
+            {/* Admin que reabre un módulo ya completo */}
+            <Modal opened={!!eleccionAdmin} onClose={() => setEleccionAdmin(null)} title={eleccionAdmin?.title} centered size="md">
+                <Stack gap="lg">
+                    <Text size="sm" style={{ color: 'var(--text-secondary)' }}>
+                        Ya completaste este módulo. Como administrador, elige qué hacer para revisar comportamientos.
+                    </Text>
+                    <Group justify="flex-end" gap="sm">
+                        <Button variant="subtle" color="gray" onClick={() => setEleccionAdmin(null)}>Salir</Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => { const m = eleccionAdmin; setEleccionAdmin(null); if (m) void conectarModulo(m); }}
+                        >
+                            Ver
+                        </Button>
+                        <Button loading={repitiendo} onClick={() => void repetirModulo()}>Repetir de cero</Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Box>
     );
 };

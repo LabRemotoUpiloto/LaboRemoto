@@ -289,7 +289,7 @@ const AppMain: React.FC = () => {
     estabaAutenticado.current = isAuthenticated
   }, [isAuthenticated, cerrarTerminalesAbiertas])
 
-  // "Repetir" del administrador en LinuxModulePage (ver ese archivo): un rol
+  // «Repetir de cero» del administrador al reabrir un módulo completo (ver PracticesPage): un rol
   // operativo necesita poder rehacer un módulo ya completo para revisar
   // comportamientos -- por ahora es exclusivo de `admin` (ver
   // usePermissions.ts), a futuro se abre a una lista de roles configurable.

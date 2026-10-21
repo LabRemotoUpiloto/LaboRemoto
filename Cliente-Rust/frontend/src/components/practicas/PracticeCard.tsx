@@ -1,6 +1,5 @@
 import React from 'react';
-import { ActionIcon, Button, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { Camera, ArrowRight } from 'lucide-react';
+import './practiceCard.css';
 
 interface PracticeCardProps {
     id: string;
@@ -9,71 +8,56 @@ interface PracticeCardProps {
     hasCamera: boolean;
     onStart: () => void;
     loading?: boolean;
+    /** Ya la completó (tiene la insignia): la tarjeta invita a repetirla. */
+    completada?: boolean;
+    /** Una frase de qué vas a hacer, en palabras de alguien que empieza. */
+    resumen?: string;
     /** Insignia ya resuelta para esta práctica puntual (ver
      * badges/insigniaRegistry.tsx) -- `null` si todavía no se ganó o la
-     * práctica no tiene una propia. PracticeCard no sabe nada de insignias
-     * concretas, solo la pinta como hermana de la card (nunca como hija:
-     * Mantine le pone `overflow: hidden` a Card por defecto, y cualquier
-     * insignia que sobresalga de la esquina quedaría recortada). */
+     * práctica no tiene una propia. Se pinta como hermana de la tarjeta, para
+     * que el sello sobresalga de la esquina sin quedar recortado. */
     badge?: React.ReactNode | null;
 }
 
-const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, hasCamera, onStart, loading = false, badge = null }) => {
-    // El backend compone la descripción como "Módulo X · ~Y min" (ver
-    // practicas.rs) -- el nivel de dificultad no se muestra más (no aportaba
-    // nada); en su lugar, arriba va el módulo y abajo queda solo el tiempo.
-    const [moduleLabel, ...rest] = description.split(' · ');
-    const timeLabel = rest.join(' · ');
+/**
+ * Una práctica como ficha: número grande, duración, título y la acción como texto. La tarjeta entera es el botón
+ * (no hay un botón lleno repetido en cada una) y cada práctica es independiente, sin orden obligatorio.
+ */
+const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, hasCamera, onStart, loading = false, completada = false, resumen, badge = null }) => {
+    // El backend compone la descripción como «Módulo X · ~Y min» (ver practicas.rs).
+    const numero = /M[oó]dulo\s+(\d+)/i.exec(description)?.[1] ?? null;
+    const minutos = /~?\s*(\d+)\s*min/i.exec(description)?.[1] ?? null;
 
     return (
         <div className="relative h-full">
             {badge}
-            <Card
-                padding="lg"
-                className="animate-reveal dribbble-card flex flex-col justify-between"
-                style={{ minHeight: '100%' }}
+            <button
+                type="button"
+                className={`ficha animate-reveal${completada ? ' ficha--completada' : ''}`}
+                onClick={onStart}
+                disabled={loading}
+                data-tour="practica-iniciar"
+                aria-label={`${completada ? 'Repetir' : 'Empezar'} ${name}`}
             >
-                <Stack gap="md" h="100%" style={{ flex: 1, justifyContent: 'space-between' }}>
-                <Group justify="space-between" align="center" wrap="nowrap">
-                    <Text size="xs" style={{ color: 'var(--text-secondary)', letterSpacing: '0.06em', fontSize: 10.5 }} tt="uppercase" fw={600}>
-                        {moduleLabel}
-                    </Text>
-                    <Group gap={4}>
-                        {hasCamera && (
-                            <Tooltip label="Cámara del laboratorio" withArrow position="top">
-                                <ActionIcon variant="subtle" style={{ color: 'var(--text-secondary)' }} size="sm" radius="md" aria-label="Cámara del laboratorio">
-                                    <Camera size={14} />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </Group>
-                </Group>
-
-                <div style={{ flex: 1, marginTop: 4 }}>
-                    <Text fw={600} size="md" mb={6} lineClamp={2} style={{ lineHeight: 1.35, letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
-                        {name}
-                    </Text>
-                    {timeLabel && (
-                        <Text size="sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-                            {timeLabel}
-                        </Text>
-                    )}
-                </div>
-
-                <Button
-                    loading={loading}
-                    onClick={onStart}
-                    data-tour="practica-iniciar"
-                    className="dribbble-btn-primary h-9 text-xs w-full group"
-                    rightSection={
-                        <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-                    }
-                    mt="auto"
-                >
-                    {loading ? 'Preparando...' : 'Iniciar Práctica'}
-                </Button>
-                </Stack>
-            </Card>
+                <span className="ficha-arriba">
+                    {numero && <span className="ficha-numero">{numero.padStart(2, '0')}</span>}
+                    <span className="ficha-datos">
+                        {minutos && minutos !== '0' && <span>{minutos} min</span>}
+                        {hasCamera && <span>con cámara</span>}
+                    </span>
+                </span>
+                <span className="ficha-texto">
+                    <span className="ficha-titulo">{name}</span>
+                    {resumen && <span className="ficha-resumen">{resumen}</span>}
+                </span>
+                <span className="ficha-accion">
+                    {loading
+                        ? 'Preparando…'
+                        : completada
+                            ? <>Completada · <span className="ficha-enlace">Repetir</span></>
+                            : <span className="ficha-enlace">Empezar práctica</span>}
+                </span>
+            </button>
         </div>
     );
 };
