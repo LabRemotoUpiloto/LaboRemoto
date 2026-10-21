@@ -3,9 +3,10 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import { ActionIcon, Alert, Button, Container, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
+import { ActionIcon, Alert, Button, Container, Divider, Group, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
 import { ArrowLeft, Bot, Cpu, MessageSquareHeart, Terminal, X, type LucideIcon } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
+import { EsqueletoCategorias } from '../../components/practicas/EsqueletoPracticas';
 import PracticeCard from '../../components/practicas/PracticeCard';
 import { getInsigniaForPractice } from '../../components/practicas/badges/insigniaRegistry';
 import LinuxModulePage from './LinuxModulePage';
@@ -293,10 +294,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                             // descripción ya se ven arriba. Antes un `if (loading) return ...`
                             // tapaba la página entera mientras practicas_list_categories
                             // esperaba a la Pi (hasta 20s si no responde).
-                            <Stack align="center" gap="md" py="xl">
-                                <Loader size="md" />
-                                <Text c="dimmed" size="sm">Cargando prácticas...</Text>
-                            </Stack>
+                            <EsqueletoCategorias />
                         ) : (
                             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md" data-tour="practicas-categorias">
                                 {categories.map(cat => (

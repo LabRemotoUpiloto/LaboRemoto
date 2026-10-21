@@ -14,9 +14,10 @@
 // bloques de la práctica de Linux (ver BlockRenderer.tsx).
 
 import React, { useEffect, useState } from 'react';
-import { Box, Container, Stack, Title, Text, Button, Group, Paper, Loader, Alert } from '@mantine/core';
+import { Box, Container, Stack, Title, Text, Button, Group, Paper, Alert } from '@mantine/core';
 import { ArrowLeft, PlugZap, MonitorCheck, RotateCcw, Eye } from 'lucide-react';
 import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
+import { EsqueletoModulo } from '../../components/practicas/EsqueletoPracticas';
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
 import { linuxGetModule, type LinuxModule } from '../../services/linuxPractice.service';
 import { useEffectiveRole } from '../../hooks/usePermissions';
@@ -109,13 +110,7 @@ const LinuxModulePage: React.FC<Props> = ({ practiceId, categoryName, onBack, li
     );
   }
 
-  if (!module) {
-    return (
-      <Box w="100%" h="100%" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader size="md" />
-      </Box>
-    );
-  }
+  if (!module) return <EsqueletoModulo />;
 
   // Ya completaste este módulo: como admin, elegí qué hacer antes de entrar
   // (salir, repetirlo de cero para observar comportamientos, o solo verlo
