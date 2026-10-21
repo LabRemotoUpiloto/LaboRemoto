@@ -290,7 +290,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
     categories.push(PracticeCategory {
         id: "linux".into(),
         name: "Linux".into(),
-        description: "Fundamentos de administración y comandos Linux".into(),
+        description: "Maneja una computadora de verdad solo escribiendo. Empiezas de cero: no necesitas saber nada técnico.".into(),
         icon: "terminal".into(),
         color: "#f59e0b".into(),
         practices: Vec::new(),

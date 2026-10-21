@@ -3,8 +3,8 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import Swal from 'sweetalert2';
-import { ActionIcon, Alert, Button, Container, Divider, Group, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title, Box } from '@mantine/core';
-import { ArrowLeft, Bot, Cpu, MessageSquareHeart, Terminal, X, type LucideIcon } from 'lucide-react';
+import { ActionIcon, Alert, Button, Container, Divider, Group, Paper, ScrollArea, SimpleGrid, Stack, Text, Title, Box } from '@mantine/core';
+import { ArrowLeft, MessageSquareHeart, X } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
 import { EsqueletoCategorias } from '../../components/practicas/EsqueletoPracticas';
 import PracticeCard from '../../components/practicas/PracticeCard';
@@ -19,12 +19,6 @@ import { consumePendingPracticesFocus, consumePendingPracticeOpen, onPracticeOpe
 import { notifications } from '@mantine/notifications';
 
 export type { Practice };
-
-const categoryIconMap: Record<string, LucideIcon> = {
-    robot: Bot,
-    terminal: Terminal,
-    circuit: Cpu,
-};
 
 interface PracticeCategory {
     id: string;
@@ -336,9 +330,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                                         {encuestaRespondida[selectedCategory.id] ? 'Cambiar mi opinión' : 'Dar mi opinión'}
                                     </Button>
                                 )}
-                                <Text size="xs" c="dimmed" fw={500} tt="uppercase" style={{ letterSpacing: '0.08em' }}>
-                                    {selectedCategory.practices.length} práctica{selectedCategory.practices.length !== 1 ? 's' : ''}
-                                </Text>
                             </Group>
                         </Group>
 
@@ -350,22 +341,14 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                             onEnviada={() => setEncuestaRespondida((r) => ({ ...r, [selectedCategory.id]: true }))}
                         />
 
-                        <Group gap="md" align="flex-start" wrap="nowrap">
-                            <ThemeIcon size={52} radius="lg" variant="light" color="blue">
-                                {(() => {
-                                    const Icon = categoryIconMap[selectedCategory.icon] || Terminal;
-                                    return <Icon size={26} />;
-                                })()}
-                            </ThemeIcon>
-                            <Stack gap={6}>
-                                <Title order={1} style={{ fontSize: '1.875rem', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-                                    {selectedCategory.name}
-                                </Title>
-                                <Text size="sm" c="dimmed" maw={620} style={{ lineHeight: 1.55 }}>
-                                    {selectedCategory.description}
-                                </Text>
-                            </Stack>
-                        </Group>
+                        <Stack gap={6}>
+                            <Title order={1} style={{ fontSize: '1.875rem', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+                                {selectedCategory.name}
+                            </Title>
+                            <Text size="sm" c="dimmed" maw={620} style={{ lineHeight: 1.55 }}>
+                                {selectedCategory.description}
+                            </Text>
+                        </Stack>
 
                         <Divider />
 
