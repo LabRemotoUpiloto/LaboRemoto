@@ -36,6 +36,9 @@ pub struct Practice {
     pub connection: PracticeConnection,
     pub terminal: TerminalConfig,
     pub panels: PanelConfig,
+    /// Frase corta de qué vas a hacer (módulos de la Pi que la traen); va en la tarjeta de la práctica.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resumen: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -194,6 +197,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
             description: env_get(vars, "PRACTICE_EVE3_P1_DESC"),
             difficulty: env_get(vars, "PRACTICE_EVE3_P1_DIFFICULTY"),
             moodle_assignment_id: env_get_u32_opt(vars, "PRACTICE_EVE3_P1_MOODLE_ASSIGNMENT_ID"),
+            resumen: None,
             connection: PracticeConnection {
                 host: rpi_host.clone(),
                 port: rpi_port,
@@ -239,6 +243,7 @@ fn build_categories(vars: &HashMap<String, String>) -> Vec<PracticeCategory> {
             description: env_get(vars, "PRACTICE_EVE3_P2_DESC"),
             difficulty: env_get(vars, "PRACTICE_EVE3_P2_DIFFICULTY"),
             moodle_assignment_id: env_get_u32_opt(vars, "PRACTICE_EVE3_P2_MOODLE_ASSIGNMENT_ID"),
+            resumen: None,
             connection: PracticeConnection {
                 host: rpi_host.clone(),
                 port: rpi_port,
@@ -323,6 +328,7 @@ fn module_to_practice(s: crate::cmd::practices::linux_api::LinuxPracticeSummary)
         ),
         difficulty: s.difficulty,
         moodle_assignment_id: None,
+        resumen: s.resumen,
         connection: PracticeConnection {
             host: String::new(),
             port: 0,

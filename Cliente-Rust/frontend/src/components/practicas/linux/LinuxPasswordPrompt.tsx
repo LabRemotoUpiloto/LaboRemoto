@@ -18,10 +18,12 @@ interface Props {
   onCancel: () => void;
   /** Clase extra del cuadro (el tutorial de bienvenida la usa para resaltarlo). */
   contentClassName?: string;
+  /** Título del módulo al que se entra (se abre directo desde su tarjeta, sin página intermedia). */
+  modulo?: string;
 }
 
 const LinuxPasswordPrompt: React.FC<Props> = ({
-  opened, username, loading, errorMessage, onSubmit, onCancel, contentClassName,
+  opened, username, loading, errorMessage, onSubmit, onCancel, contentClassName, modulo,
 }) => {
   const [password, setPassword] = useState('');
 
@@ -42,6 +44,11 @@ const LinuxPasswordPrompt: React.FC<Props> = ({
       classNames={contentClassName ? { content: contentClassName } : undefined}
     >
       <Stack gap="md">
+        {modulo && (
+          <Text size="sm">
+            Vas a entrar a <strong>{modulo}</strong>.
+          </Text>
+        )}
         <Text size="sm" c="dimmed">
           Se conecta como <strong>{username}</strong> al equipo del laboratorio —
           es tu misma cuenta de la universidad. La contraseña se usa una sola vez para

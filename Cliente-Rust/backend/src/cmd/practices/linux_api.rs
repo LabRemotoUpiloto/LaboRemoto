@@ -27,6 +27,9 @@ pub struct LinuxPracticeSummary {
     pub title: String,
     pub difficulty: String,
     pub estimated_minutes: Option<u32>,
+    /// Una frase de qué vas a hacer en el módulo, para quien no sabe nada técnico (va en su tarjeta).
+    #[serde(default)]
+    pub resumen: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

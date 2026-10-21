@@ -36,7 +36,7 @@ type Props = {
   setChatOpen?: (open: boolean) => void
   /** Instancia única de useLinuxPracticeSession, ver App.tsx. */
   linuxSession?: LinuxPracticeSessionApi
-  /** "Repetir" del administrador en LinuxModulePage -- ver App.tsx. */
+  /** «Repetir de cero» del administrador al reabrir un módulo completo (PracticesPage) -- ver App.tsx. */
   onRestartLinuxModule?: (moduleId: string) => Promise<void>
 }
 

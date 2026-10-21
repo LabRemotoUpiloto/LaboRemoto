@@ -131,7 +131,7 @@ export function markModuleBadgeEarned(moduleId: string): { alreadyEarned: boolea
 
 /**
  * Borra la insignia de un módulo -- usado por el flujo de "Repetir" del
- * administrador (ver LinuxModulePage): un rol operativo necesita poder
+ * administrador (ver PracticesPage, al reabrir un módulo completo): un rol operativo necesita poder
  * volver a hacer una práctica ya completa para revisar comportamientos, sin
  * que quede marcada como completa para siempre. Reusa el mismo evento que
  * `markModuleBadgeEarned` (`useEarnedBadges` solo necesita saber "el store
