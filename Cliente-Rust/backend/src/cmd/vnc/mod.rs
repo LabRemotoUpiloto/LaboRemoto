@@ -50,6 +50,10 @@ pub enum VncStatusResponse {
 /// en vez de levantar un segundo Xvnc que choca en el display y el puerto del primero.
 static START_LOCKS: OnceLock<std::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>> = OnceLock::new();
 
+/// Último intento de escritorio por sesión SSH: (display, home remoto). Lo usa `vnc_logs` para leer los logs de
+/// un arranque que FALLÓ (en ese caso `vnc_session` nunca llega a guardarse).
+static LAST_START: OnceLock<std::sync::Mutex<HashMap<String, (u32, String)>>> = OnceLock::new();
+
 fn session_lock(session_id: &str) -> Result<Arc<tokio::sync::Mutex<()>>, CommandError> {
     let mut locks = START_LOCKS
         .get_or_init(Default::default)
@@ -104,6 +108,7 @@ pub async fn vnc_start(
     let u = user.clone();
     let p = password.clone();
     let r = res.clone();
+    let sid_attempt = session_id.clone();
 
     let setup_result: Result<(u32, u16, std::net::TcpListener, u16, bool, String), CommandError> =
         tokio::task::spawn_blocking(move || -> Result<(u32, u16, std::net::TcpListener, u16, bool, String), CommandError> {
@@ -117,6 +122,9 @@ pub async fn vnc_start(
             crate::cmd::state::run_pending_vnc_cleanups(&setup_sess);
             let (display, vnc_port) = utils::reserve_display_and_port(&setup_sess, &home_dir)
                 .map_err(|e| CommandError::transient("IO_ERROR", e))?;
+            if let Ok(mut last) = LAST_START.get_or_init(Default::default).lock() {
+                last.insert(sid_attempt, (display, home_dir.clone()));
+            }
             server::start_vnc_server(&setup_sess, display, vnc_port, &r, &home_dir)
                 .map_err(|e| CommandError::transient("IO_ERROR", e))?;
 
@@ -222,6 +230,50 @@ pub async fn vnc_start(
         display,
         vnc_port,
     })
+}
+
+/// Devuelve el final de los logs del último escritorio que se intentó levantar en esta sesión (Xvnc, preparación,
+/// openbox, panel, pcmanfm y arranque). Es lo que muestra el botón «Ver detalles» del panel de error.
+#[tauri::command]
+pub async fn vnc_logs(session_id: String) -> Result<String, CommandError> {
+    let (display, home_dir) = LAST_START
+        .get()
+        .and_then(|m| m.lock().ok().and_then(|m| m.get(&session_id).cloned()))
+        .ok_or_else(|| CommandError::permanent("NO_VNC_ATTEMPT", "Todavía no hay un intento de escritorio remoto en esta sesión."))?;
+
+    let (host, port, user, password) = {
+        let map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
+        let sess = map.get(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
+        (sess.host.clone(), sess.port, sess.user.clone(), sess.password.clone())
+    };
+
+    tokio::task::spawn_blocking(move || -> Result<String, CommandError> {
+        let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
+            .map_err(|e| CommandError::transient("SSH_ERROR", format!("No se pudo leer el log: {e}")))?;
+        let cmd = format!(
+            "for f in /tmp/xvnc{display}.log {home_dir}/.cache/labremoto/setup-{display}.log \
+                      /tmp/openbox{display}.log /tmp/lxpanel{display}.log /tmp/pcmanfm{display}.log \
+                      /tmp/lxsession{display}.log; do \
+               [ -f \"$f\" ] || continue; \
+               echo \"== $f\"; tail -n 15 \"$f\" 2>/dev/null; \
+             done; true"
+        );
+        let (_, out) = crate::ssh_core::exec::ssh_exec_session(&sess, &cmd)
+            .map_err(|e| CommandError::transient("SSH_ERROR", e))?;
+        let out = out.trim().to_string();
+        if out.is_empty() {
+            return Ok(format!("No hay logs del display :{display} en la Pi (todavía no se escribió ninguno)."));
+        }
+        // Tope: lo más reciente, para no llenar la interfaz.
+        const MAX: usize = 6000;
+        if out.chars().count() > MAX {
+            let skip = out.chars().count() - MAX;
+            return Ok(format!("…\n{}", out.chars().skip(skip).collect::<String>()));
+        }
+        Ok(out)
+    })
+    .await
+    .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
 /// Detiene la sesión gráfica activa.

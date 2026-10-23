@@ -1,6 +1,6 @@
 // components/desktop/DesktopPane.tsx — Escritorio gráfico remoto via noVNC
 
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useDesktopSession } from '../../hooks/useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
@@ -71,6 +71,10 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // usuario acaba de apretar Detener a propósito", y reconectaba solo
   // apenas terminaba de desconectar (Detener se sentía como un retry).
   const userStoppedRef = useRef(false)
+
+  // «Ver detalles» del panel de error: final de los logs de la Pi (Xvnc, preparación, panel...).
+  const [details, setDetails] = useState<string | null>(null)
+  const [detailsBusy, setDetailsBusy] = useState(false)
 
   // Portapapeles: texto copiado desde el escritorio remoto (sincronización automática)
   const remoteClipboardRef = useRef<string>('')
@@ -382,7 +386,20 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     }
   }
 
+  const handleDetails = async () => {
+    setDetailsBusy(true)
+    try {
+      setDetails(await invoke<string>('vnc_logs', { sessionId }))
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)
+      setDetails(`No se pudieron leer los logs: ${message}`)
+    } finally {
+      setDetailsBusy(false)
+    }
+  }
+
   const handleRetry = () => {
+    setDetails(null)
     userStoppedRef.current = false
     start(DESKTOP_RESOLUTION)
   }
@@ -425,7 +442,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         <div className="desktop-error">
           <p>No se pudo iniciar el escritorio remoto</p>
           <pre>{error}</pre>
-          <button onClick={handleRetry}>Reintentar</button>
+          {details && <pre className="desktop-error-details">{details}</pre>}
+          <div className="desktop-error-actions">
+            <button onClick={handleRetry}>Reintentar</button>
+            <button className="desktop-error-secondary" onClick={handleDetails} disabled={detailsBusy}>
+              {detailsBusy ? 'Cargando…' : details ? 'Actualizar detalles' : 'Ver detalles'}
+            </button>
+          </div>
         </div>
       )}
 

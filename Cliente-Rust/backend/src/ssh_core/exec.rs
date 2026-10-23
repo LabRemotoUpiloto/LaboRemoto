@@ -44,6 +44,22 @@ pub fn ssh_exec(id: &str, cmd: &str) -> Result<(i32, String), String> {
     ssh_exec_session(&guard.sess, cmd)
 }
 
+/// Ejecuta `cmd` en una sesión `ssh2::Session` ya abierta enviándole `input` por la entrada estándar
+/// (p. ej. `cat > script.sh && sh script.sh`). Sirve para scripts largos: así no dependen del tamaño máximo de
+/// un comando `exec` ni quedan a la vista en la lista de procesos. Devuelve `(exit_status, stdout)`.
+pub fn ssh_exec_with_stdin(sess: &ssh2::Session, cmd: &str, input: &str) -> Result<(i32, String), String> {
+    use std::io::Write;
+    let mut ch = sess.channel_session().map_err(|e| e.to_string())?;
+    ch.exec(cmd).map_err(|e| e.to_string())?;
+    ch.write_all(input.as_bytes()).map_err(|e| e.to_string())?;
+    ch.send_eof().map_err(|e| e.to_string())?;
+    let mut out = String::new();
+    ch.read_to_string(&mut out).map_err(|e| e.to_string())?;
+    let _ = ch.wait_close();
+    let code = ch.exit_status().unwrap_or(-1);
+    Ok((code, out))
+}
+
 /// Ejecuta un comando shell en una sesión `ssh2::Session` ya abierta.
 /// Devuelve `(exit_status, stdout)`.
 pub fn ssh_exec_session(sess: &ssh2::Session, cmd: &str) -> Result<(i32, String), String> {
