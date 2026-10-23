@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { adminService, KeycloakUser } from '../../services/admin.service';
+import { adminService, KeycloakUser } from './admin.service';
 import { Container, Title, Text, TextInput, Stack, Group, ActionIcon, Loader, Box, Select, Paper } from '@mantine/core';
 import { X, Search, Users } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import Swal from 'sweetalert2';
-import { ASSIGNABLE_ROLES, ROLE_LABELS, ROLE_ORDER, getEffectiveRole, type EffectiveRole } from '../../hooks/usePermissions';
+import { ASSIGNABLE_ROLES, ROLE_LABELS, ROLE_ORDER, getEffectiveRole, type EffectiveRole } from '@/hooks/usePermissions';
 
 // ─── Modelo: UN rol por persona ──────────────────────────────────────────────
 // Keycloak permite múltiples realm roles, pero aquí cada persona tiene un
