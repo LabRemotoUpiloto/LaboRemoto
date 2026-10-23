@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // `@/` = src/ (también en tsconfig.json y vitest.config.ts)
+  resolve: { alias: { '@': '/src' } },
   server: {
     strictPort: true,
     port: 5174,
