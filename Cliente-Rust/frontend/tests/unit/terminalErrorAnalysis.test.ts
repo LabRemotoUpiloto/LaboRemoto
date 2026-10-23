@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   analyzeTerminalContext,
   terminalContextLooksClean,
-} from '../../src/utils/terminalErrorAnalysis';
+} from '@/features/chat/terminalErrorAnalysis';
 
 const PROMPT = 'andres-gonzalez16@upiloto.edu@raspberrypi:~ $';
 

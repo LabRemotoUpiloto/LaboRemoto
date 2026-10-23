@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import './TerminalView.css';
 import TerminalPane from './TerminalPane';
-import ChatPane from '../ChatPane';
+import ChatPane from '@/features/chat/ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
 import Ev3Panel from '../ev3/Ev3Panel';
