@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Badge, Button, Group, Paper, Slider, Stack, Text } from '@mantine/core';
 import type { LinuxBlock, SensorZone } from '../../../../../services/linuxPractice.service';
 import { useEv3Status } from '../../../../../services/hardware/ev3Telemetry';
@@ -136,5 +136,3 @@ export function SensorDemoBlock({ block }: Props) {
     </Paper>
   );
 }
-
-export default SensorDemoBlock;

@@ -12,11 +12,11 @@ import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../
 import { linuxGetMedia, linuxGetMediaUrl } from '../../../../services/linuxPractice.service';
 import { ZoomableImage } from '../ZoomableImage';
 import { pedirEjecutarComando } from '../ejecutarComando';
-import WheelsSimBlock from './widgets/WheelsSim';
-import CalculatorBlock from './widgets/CalculatorBlock';
-import SensorDemoBlock from './widgets/SensorDemo';
-import StateMachineBlock from './widgets/StateMachineBlock';
-import ChecklistBlock from './widgets/ChecklistBlock';
+import { WheelsSimBlock } from './widgets/WheelsSim';
+import { CalculatorBlock } from './widgets/CalculatorBlock';
+import { SensorDemoBlock } from './widgets/SensorDemo';
+import { StateMachineBlock } from './widgets/StateMachineBlock';
+import { ChecklistBlock } from './widgets/ChecklistBlock';
 
 const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
 
@@ -425,7 +425,6 @@ function QuizBlock({
   block,
   passed,
   answered,
-  points,
   selected,
   onSelect,
   attempted,
@@ -438,7 +437,6 @@ function QuizBlock({
   resaltar?: boolean;
   passed: boolean;
   answered: boolean;
-  points?: number;
   selected?: string;
   onSelect: (optionId: string) => void;
   /** Ya se envió la evaluación al menos una vez -- antes de eso no hay feedback que mostrar. */
@@ -602,7 +600,6 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
           block={block}
           passed={!!ruleResult?.passed}
           answered={!!ruleResult}
-          points={rule?.points}
           selected={quizAnswers?.[block.id]}
           onSelect={(optionId) => onQuizAnswer?.(block.id, optionId)}
           attempted={!!quizLocked}

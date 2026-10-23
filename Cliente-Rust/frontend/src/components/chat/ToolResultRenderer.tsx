@@ -157,5 +157,3 @@ export const ToolResultRenderer: React.FC<ToolResultRendererProps> = ({ action, 
   }
   return null;
 };
-
-export default ToolResultRenderer;

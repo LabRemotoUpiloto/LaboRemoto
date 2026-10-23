@@ -146,7 +146,7 @@ export default function ChatMessageList({
             className={`message message-animate ${msg.sender} ${isUser ? 'message--user' : 'message--assistant'} ${mode}${isActiveMatch ? ' search-active-match' : isSearchMatch ? ' search-match' : ''}${isEditing ? ' editing-active' : ''} ${landingAlignmentClass}`}
           >
             {msg.sender === 'system' && !(msg.meta?.pendingCommand && !msg.meta?.processed) ? (
-              <SystemMessageBanner text={msg.text} appearance={appearance} />
+              <SystemMessageBanner text={msg.text} />
             ) : msg.sender === 'user' ? (
               <UserMessageBubble
                 msg={msg}
@@ -159,7 +159,6 @@ export default function ChatMessageList({
               <AiMessageBubble
                 appearance={appearance}
                 msg={msg}
-                mode={mode}
                 isSending={isSending}
                 sessionId={sessionId}
                 streamingMsgId={streamingMsgId}

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Loader, Button, Text } from '@mantine/core'
 import { useLoading } from '../../contexts/LoadingContext'
 

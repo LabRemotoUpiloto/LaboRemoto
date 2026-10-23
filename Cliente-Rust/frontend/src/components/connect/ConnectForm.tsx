@@ -34,7 +34,6 @@ const ConnectForm: React.FC<ConnectFormProps> = (props) => {
   const {
     host, port, user, password, showPassword,
     errors, isConnecting, isPulsing, isRaspberryPi,
-    saveModalOpen, setSaveModalOpen,
     successAlertOpen, successAlertMessage,
     setSuccessAlertOpen, setSuccessAlertMessage,
     isEditMode, isValid, hostName,

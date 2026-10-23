@@ -25,7 +25,6 @@ interface Props {
   onCleanupAll?: () => void
   onSendAltTab?: () => void
   sessionInfo: DesktopSessionInfo | null
-  onSendKey?: (keysym: number, code: string) => void
 }
 
 const DesktopToolbar: React.FC<Props> = ({
@@ -34,7 +33,6 @@ const DesktopToolbar: React.FC<Props> = ({
   onCleanupAll,
   onSendAltTab,
   sessionInfo,
-  onSendKey,
 }) => {
   return (
     <div className="desktop-toolbar">

@@ -9,7 +9,7 @@ function mentionsPi4Desktop(t: string): boolean {
 }
 
 /** El usuario pide entrar o trabajar en la Raspberry Pi 4 (terminal SSH, no VNC). */
-export function isPi4AccessIntent(text: string): boolean {
+function isPi4AccessIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
   if (isPi4DesktopIntent(text) || isPi4CamerasIntent(text)) return false;
@@ -20,7 +20,7 @@ export function isPi4AccessIntent(text: string): boolean {
 }
 
 /** El usuario pide el escritorio gráfico (VNC) de la Pi — no la terminal. */
-export function isPi4DesktopIntent(text: string): boolean {
+function isPi4DesktopIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
   if (!mentionsPi4Desktop(t)) return false;
@@ -33,7 +33,7 @@ export function isPi4DesktopIntent(text: string): boolean {
 }
 
 /** El usuario pide ver las cámaras de la Pi. */
-export function isPi4CamerasIntent(text: string): boolean {
+function isPi4CamerasIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
   if (/\b(muestra(r|me)?|mostrar|ver|abre|abrir|enseña|enseñame|listar|dame)\b/.test(t) && /\b(c[aá]maras?|cameras?|streams?)\b/.test(t)) {
@@ -43,18 +43,6 @@ export function isPi4CamerasIntent(text: string): boolean {
     return true;
   }
   return /\b(pi\s*4|pi4|raspberry|raspi)\b/.test(t) && /\b(c[aá]maras?|cameras?)\b/.test(t);
-}
-
-/** El agente verificó conexión exitosa con la tool conectar_raspberry. */
-export function agentOpenedPi4(steps?: AgentStep[]): boolean {
-  if (!steps?.length) return false;
-  return steps.some(
-    s =>
-      s.kind === 'tool_result' &&
-      s.name === 'conectar_raspberry' &&
-      typeof s.output === 'string' &&
-      (s.output.includes('CONEXION OK') || s.output.includes('Conectado a')),
-  );
 }
 
 export function shouldOpenPi4ChatDesktop(userMessage: string, _steps?: AgentStep[]): boolean {

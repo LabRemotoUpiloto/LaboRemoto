@@ -45,7 +45,7 @@ function guardar(p: PruebaRendimiento | null) {
 
 export const pruebaActual = (): PruebaRendimiento | null => actual;
 
-export function suscribirPrueba(oyente: () => void): () => void {
+function suscribirPrueba(oyente: () => void): () => void {
   oyentes.add(oyente);
   return () => oyentes.delete(oyente);
 }

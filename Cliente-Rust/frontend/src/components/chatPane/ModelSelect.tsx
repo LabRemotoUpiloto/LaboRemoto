@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Button, Box } from '@mantine/core';
+import { Menu, Button } from '@mantine/core';
 import { ModelSelection, AVAILABLE_MODELS } from '../chatModes/types';
 import { ChevronDown } from 'lucide-react';
 

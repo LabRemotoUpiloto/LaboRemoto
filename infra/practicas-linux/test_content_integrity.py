@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Suite de integridad estructural para el contenido de las prácticas
-(linux-m1/m2/m3, ev3-m1..m9): recorre cada carpeta <este_directorio>/<id>/
+(linux-m1/m2/m3 en esta carpeta y ev3-m1..m9 en ../practicas-ev3; las dos las sirve la misma
+API de la Pi): recorre cada carpeta <raíz>/<id>/
 que tenga module.json + quiz_answers.json y valida que las piezas que se
 referencian entre sí EXISTAN y CUADREN -- no juzga calidad pedagógica, eso
 lo decide un humano.
@@ -34,6 +35,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+# EV3 es otra práctica (otra carpeta en el repo), pero la sirve la misma API: se revisa igual.
+RAICES = [ROOT, ROOT.parent / "practicas-ev3"]
 
 failures: list[str] = []
 warnings: list[str] = []
@@ -49,8 +52,9 @@ def warn(module: str, msg: str) -> None:
 
 def discover_modules() -> list[Path]:
     return sorted(
-        p for p in ROOT.iterdir()
-        if p.is_dir() and (p / "module.json").exists() and (p / "quiz_answers.json").exists()
+        (p for raiz in RAICES if raiz.is_dir() for p in raiz.iterdir()
+         if p.is_dir() and (p / "module.json").exists() and (p / "quiz_answers.json").exists()),
+        key=lambda p: p.name,
     )
 
 

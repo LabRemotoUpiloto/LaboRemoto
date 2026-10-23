@@ -51,13 +51,14 @@ describe('CommandClient', () => {
 
     const [command, args] = invokeMock.mock.calls[0];
     expect(command).toBe('ssh_connect');
-    expect(args.request).toMatchObject({
+    // la clave es `req`: así se llama el parámetro en todos los comandos de Rust (backend/src/cmd/**)
+    expect(args.req).toMatchObject({
       version: '1.0',
       payload: { host: 'localhost', port: 22 },
     });
-    expect(typeof args.request.id).toBe('string');
-    expect(args.request.id.length).toBeGreaterThan(0);
-    expect(typeof args.request.timestamp_ms).toBe('number');
+    expect(typeof args.req.id).toBe('string');
+    expect(args.req.id.length).toBeGreaterThan(0);
+    expect(typeof args.req.timestamp_ms).toBe('number');
   });
 
   it('should retry on transient (retryable) error and eventually succeed', async () => {

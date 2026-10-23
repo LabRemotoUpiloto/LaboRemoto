@@ -374,13 +374,6 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         onSendAltTab={handleSendAltTab}
         onCleanupAll={handleCleanupAll}
         sessionInfo={sessionInfo}
-        onSendKey={(keysym, code) => {
-          if (!rfbRef.current) return
-          try {
-            rfbRef.current.sendKey(keysym, code, true)
-            rfbRef.current.sendKey(keysym, code, false)
-          } catch {}
-        }}
       />
 
       {/* idle solo se muestra tras un Detener explícito — la primera vez que

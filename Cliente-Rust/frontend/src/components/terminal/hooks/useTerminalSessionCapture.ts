@@ -23,16 +23,15 @@
  * terminal) puedan compartir el mismo estado sin duplicar lógica de guardado.
  */
 import { useEffect, MutableRefObject } from 'react';
-import { Terminal } from '@xterm/xterm';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { captureAndSaveSession, SessionMetadata } from '../../../services/session.service';
+import { SAVE_SESSION_BEFORE_CLOSE_EVENT } from '../../../services/ssh.service';
 import { TerminalSessionMetadata } from './terminalTypes';
 import { EVENTO_EXPORTAR_REGISTRO, type RegistroSesion } from '../../../utils/registroSesion';
 
 interface UseTerminalSessionCaptureParams {
   sessionId: string | null;
   localSshCommand?: string | null;
-  termRef: MutableRefObject<Terminal | null>;
   serializeRef: MutableRefObject<SerializeAddon | null>;
   sessionMetadataRef: MutableRefObject<TerminalSessionMetadata | null>;
   snapshotsHistoryRef: MutableRefObject<string[]>;
@@ -65,7 +64,6 @@ function metadataFinal(metadata: TerminalSessionMetadata, endTime: string): Sess
 export function useTerminalSessionCapture({
   sessionId,
   localSshCommand,
-  termRef,
   serializeRef,
   sessionMetadataRef,
   snapshotsHistoryRef,
@@ -165,11 +163,11 @@ export function useTerminalSessionCapture({
       }
     };
 
-    window.addEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
+    window.addEventListener(SAVE_SESSION_BEFORE_CLOSE_EVENT, handleSaveBeforeClose as EventListener);
     window.addEventListener(EVENTO_EXPORTAR_REGISTRO, handleExportLog as EventListener);
 
     return () => {
-      window.removeEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
+      window.removeEventListener(SAVE_SESSION_BEFORE_CLOSE_EVENT, handleSaveBeforeClose as EventListener);
       window.removeEventListener(EVENTO_EXPORTAR_REGISTRO, handleExportLog as EventListener);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

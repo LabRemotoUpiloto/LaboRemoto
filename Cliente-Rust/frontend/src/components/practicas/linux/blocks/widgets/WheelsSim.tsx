@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Group, Paper, Slider, Stack, Text } from '@mantine/core';
 import type { LinuxBlock } from '../../../../../services/linuxPractice.service';
 
 const LIMITE_PX = 60; // hasta dónde llega el robot antes de reaparecer del otro lado
 
 /** Qué le pasa al robot dado un par de potencias, en palabras simples. */
-export function describirMovimiento(izq: number, der: number): string {
+function describirMovimiento(izq: number, der: number): string {
   if (izq === 0 && der === 0) return 'El robot está detenido: ningún motor recibe potencia.';
   if (izq === der) {
     return izq > 0
@@ -92,5 +92,3 @@ export function WheelsSimBlock({ block }: { block: Extract<LinuxBlock, { type: '
     </Paper>
   );
 }
-
-export default WheelsSimBlock;

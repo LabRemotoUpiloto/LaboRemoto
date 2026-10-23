@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Group, Paper, Slider, Stack, Text } from '@mantine/core';
 import type { LinuxBlock } from '../../../../../services/linuxPractice.service';
 import { fillTemplate, formatNumber, tryEvaluateExpr, type MathVars } from '../../../../../utils/mathExpr';
@@ -72,5 +72,3 @@ export function CalculatorBlock({ block }: { block: Extract<LinuxBlock, { type: 
     </Paper>
   );
 }
-
-export default CalculatorBlock;

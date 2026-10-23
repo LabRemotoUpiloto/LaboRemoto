@@ -33,8 +33,6 @@ export const escenaTutorial = {
 let abrirPagina: (pagina: string) => void = () => {};
 let alTerminar: (() => void) | null = null;
 
-export const tutorialBienvenidaActivo = () => drv !== null;
-
 // Mientras dura el recorrido, nada de la app responde (aunque esté resaltado): solo el globo del tutorial. driver.js ya lo
 // hace con CSS (disableActiveInteraction), pero esto lo garantiza aunque otro estilo cambie los pointer-events.
 const EVENTOS_BLOQUEADOS = ['click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'contextmenu', 'keydown', 'keyup'] as const;
@@ -188,7 +186,7 @@ export function iniciarTutorialBienvenida(abrir: (pagina: string) => void, onTer
   void ir(0);
 }
 
-export function cerrarTutorialBienvenida() {
+function cerrarTutorialBienvenida() {
   limpiarTimer();
   pararAudio();
   document.body.classList.remove('tb-activo');

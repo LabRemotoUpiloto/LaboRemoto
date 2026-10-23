@@ -118,11 +118,11 @@ const AppMain: React.FC = () => {
     isSidebarOpen, setIsSidebarOpen,
     sessionMeta, setSessionMeta,
     pendingHost, setPendingHost,
-    selectedPage, setSelectedPage, activeTab,
-    openSession, closeTab, renameTab,
+    selectedPage, activeTab,
+    closeTab, renameTab,
     handleNewSession, openLogTab, openLocalTerminalTab,
-    openPanels, activePanel,
-    openPanel, closePanel: closePanelTab,
+    activePanel,
+    openPanel,
     activeView, setActiveView,
     isChatOpen, setIsChatOpen,
   } = useAppTabs()
@@ -135,7 +135,7 @@ const AppMain: React.FC = () => {
     isPinsPanelOpen, isCameraOpen, isDomoticaPanelOpen,
     togglePinsPanel, closePinsPanel,
     toggleCameraPanel, setCameraPanelOpen,
-    toggleDomoticaPanel, closeDomoticaPanel,
+    closeDomoticaPanel,
   } = useSidePanels()
 
   // ── Estado local residual ────────────────────────────────────────────────────
@@ -328,14 +328,6 @@ const AppMain: React.FC = () => {
         setActiveTabId(HOME_TAB_ID)
       }
     }
-  }
-
-  const handleClosePanel = (panelId: string) => {
-    if (panelId === 'terminal') {
-      const sessionTabs = tabs.filter(t => t.type === 'session' || t.type === 'local-terminal')
-      sessionTabs.forEach(t => handleCloseTab(t.id))
-    }
-    closePanelTab(panelId)
   }
 
   // ── Eventos globales ─────────────────────────────────────────────────────────

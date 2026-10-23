@@ -32,10 +32,6 @@
  * destruye el terminal (`term.dispose()`, dentro del cleanup de lifecycle), y
  * por último se remueve el listener SSH. Esto reproduce el orden interno del
  * efecto único original (resize se limpia ANTES que el dispose del terminal).
- * Se verificó que el hecho de que `useTerminalSessionCapture` lea `termRef.current`
- * antes de que `useTerminalLifecycle` haya creado la nueva instancia (en un cambio
- * de sesión) no afecta el comportamiento: esa lectura solo se usa como guard de
- * truthiness, nunca se opera sobre la instancia en sí dentro de ese hook.
  */
 import { useEffect, useRef, RefObject } from 'react';
 import { Terminal } from '@xterm/xterm';
@@ -79,7 +75,6 @@ export function useTerminal(
   const { captureCurrentSession, captureSnapshot } = useTerminalSessionCapture({
     sessionId,
     localSshCommand,
-    termRef,
     serializeRef,
     sessionMetadataRef,
     snapshotsHistoryRef,

@@ -28,11 +28,7 @@ export interface FilePanelToolbarProps {
   onNewFolder?: () => void
   onRename?: () => void
   canRename?: boolean
-  onUpload?: () => void
-  onDownload?: () => void
   onDelete?: () => void
-  canUpload?: boolean
-  canDownload?: boolean
   canDelete?: boolean
   disabled?: boolean
 
@@ -114,11 +110,7 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
   onNewFolder,
   onRename,
   canRename,
-  onUpload,
-  onDownload,
   onDelete,
-  canUpload,
-  canDownload,
   canDelete,
   disabled,
   filter,

@@ -5,7 +5,7 @@
 // tipó de forma laxa (`any` en los subcomponentes internos) para no
 // arriesgar una transcripción incorrecta de la física/render.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useRef, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Text, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';

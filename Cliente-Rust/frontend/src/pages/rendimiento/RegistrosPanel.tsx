@@ -10,17 +10,18 @@ import {
   type Gravedad,
 } from './registros';
 import { agruparPorDia, hora24, paginar } from './monitoreo';
-import { Boton, ETIQUETA, NOTA, Paginador, Selector, TARJETA } from './Piezas';
+import { Boton, ETIQUETA, NOTA, Selector, TARJETA } from '../../components/ui';
+import { Paginador } from './Piezas';
 
 const SONDEO_MS = 3000;
 const POR_PAGINA = 15;
 
 /** Color solo para lo que es problema; «Entró» va en negrita y «Salió» en gris. */
 const TEXTO_GRAVEDAD: Record<Gravedad, string> = {
-  bueno: 'font-semibold text-mon-tinta',
-  neutro: 'text-mon-tinta-2',
-  alerta: 'font-bold text-mon-alerta-texto',
-  critico: 'font-bold text-mon-critico-texto',
+  bueno: 'font-semibold text-ui-tinta',
+  neutro: 'text-ui-tinta-2',
+  alerta: 'font-bold text-ui-alerta-texto',
+  critico: 'font-bold text-ui-critico-texto',
 };
 
 const tamano = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${Math.round(b / 1024)} KB` : `${b} B`);
@@ -124,7 +125,7 @@ const RegistrosPanel: React.FC = () => {
         <Selector<Tipo> nombre="Tipo de registro" valor={tipo} onCambio={setTipo}
           opciones={[{ valor: 'ssh', etiqueta: 'Conexiones SSH' }, { valor: 'api', etiqueta: 'Peticiones a la API' }]} />
         <div className="flex items-center gap-5">
-          <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-mon-tinta-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-ui-tinta-2">
             <input type="checkbox" checked={soloProblemas} onChange={(e) => setSoloProblemas(e.currentTarget.checked)} className="h-3.5 w-3.5 accent-[var(--text-primary)]" />
             Solo problemas
           </label>
@@ -135,18 +136,18 @@ const RegistrosPanel: React.FC = () => {
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
         <span className={ETIQUETA}>Últimos 5 min</span>
         {resumen.map((r) => (
-          <span key={r.texto} className={r.n > 0 && r.gravedad !== 'bueno' ? TEXTO_GRAVEDAD[r.gravedad] : 'text-mon-tinta-2'}>
-            <b className="font-mon-num font-bold">{r.n}</b> {r.texto}
+          <span key={r.texto} className={r.n > 0 && r.gravedad !== 'bueno' ? TEXTO_GRAVEDAD[r.gravedad] : 'text-ui-tinta-2'}>
+            <b className="font-ui-num font-bold">{r.n}</b> {r.texto}
           </span>
         ))}
         <span className={`${NOTA} ml-auto`}>{pausado ? 'en pausa' : 'se actualiza cada 3 s'}</span>
       </div>
 
-      {error && <p className="m-0 text-xs text-mon-critico-texto">No se pudieron leer los registros: {error}</p>}
+      {error && <p className="m-0 text-xs text-ui-critico-texto">No se pudieron leer los registros: {error}</p>}
 
       <div className={TARJETA}>
         {vacio ? (
-          <p className="m-0 px-6 py-5 text-[13px] text-mon-tinta-2">{vacio}</p>
+          <p className="m-0 px-6 py-5 text-[13px] text-ui-tinta-2">{vacio}</p>
         ) : (
           <table className="w-full table-fixed border-collapse text-[13px]">
             <colgroup>
@@ -155,7 +156,7 @@ const RegistrosPanel: React.FC = () => {
             <thead>
               <tr>
                 {columnas.map((c, i) => (
-                  <th key={c} className={`border-b border-mon-pista px-3 pb-2.5 pt-3.5 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-mon-apagado first:pl-6 last:pr-6 ${tipo === 'api' && i >= 2 ? 'text-right' : ''}`}>{c}</th>
+                  <th key={c} className={`border-b border-ui-pista px-3 pb-2.5 pt-3.5 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-ui-apagado first:pl-6 last:pr-6 ${tipo === 'api' && i >= 2 ? 'text-right' : ''}`}>{c}</th>
                 ))}
               </tr>
             </thead>
@@ -163,33 +164,33 @@ const RegistrosPanel: React.FC = () => {
               {agruparPorDia(pag.filas).map((g) => (
                 <React.Fragment key={g.dia + g.filas[0].t}>
                   <tr>
-                    <td colSpan={5} className="bg-mon-terciario px-6 pb-2 pt-2.5 text-[10px] font-bold tracking-[0.08em] text-mon-tinta-2">{g.dia}</td>
+                    <td colSpan={5} className="bg-ui-terciario px-6 pb-2 pt-2.5 text-[10px] font-bold tracking-[0.08em] text-ui-tinta-2">{g.dia}</td>
                   </tr>
                   {g.filas.map((r) => {
                     if (tipo === 'ssh') {
                       const e = r as EventoSsh;
                       const info = EVENTOS_SSH[e.tipo] ?? { texto: e.tipo, gravedad: 'neutro' as Gravedad };
                       return (
-                        <tr key={claveSsh(e)} className="border-t border-mon-pista">
-                          <td className="py-[7px] pl-6 pr-3 font-mon-num text-xs text-mon-tinta-2">{hora24(e.t)}</td>
+                        <tr key={claveSsh(e)} className="border-t border-ui-pista">
+                          <td className="py-[7px] pl-6 pr-3 font-ui-num text-xs text-ui-tinta-2">{hora24(e.t)}</td>
                           <td className={`truncate px-3 ${TEXTO_GRAVEDAD[info.gravedad]}`}>{info.texto}</td>
-                          <td className="truncate px-3 text-mon-tinta" title={e.usuario ?? ''}>{e.usuario ?? <span className="text-mon-apagado">—</span>}</td>
-                          <td className="px-3 font-mon-num text-xs text-mon-tinta-2">{e.ip ?? <span className="text-mon-apagado">—</span>}</td>
-                          <td className="truncate px-3 pr-6 font-mon-num text-[11px] text-mon-apagado" title={e.mensaje}>{e.mensaje}</td>
+                          <td className="truncate px-3 text-ui-tinta" title={e.usuario ?? ''}>{e.usuario ?? <span className="text-ui-apagado">—</span>}</td>
+                          <td className="px-3 font-ui-num text-xs text-ui-tinta-2">{e.ip ?? <span className="text-ui-apagado">—</span>}</td>
+                          <td className="truncate px-3 pr-6 font-ui-num text-[11px] text-ui-apagado" title={e.mensaje}>{e.mensaje}</td>
                         </tr>
                       );
                     }
                     const p = r as RegistroApi;
                     const g2 = estadoPeticion(p);
                     return (
-                      <tr key={claveApi(p)} className="border-t border-mon-pista">
-                        <td className="py-[7px] pl-6 pr-3 font-mon-num text-xs text-mon-tinta-2">{hora24(p.t)}</td>
-                        <td className="truncate px-3 font-mon-num text-xs text-mon-tinta" title={p.ruta ?? ''}>
-                          <span className="mr-2 text-mon-apagado">{p.tipo}</span>{p.metodo} {p.ruta}
+                      <tr key={claveApi(p)} className="border-t border-ui-pista">
+                        <td className="py-[7px] pl-6 pr-3 font-ui-num text-xs text-ui-tinta-2">{hora24(p.t)}</td>
+                        <td className="truncate px-3 font-ui-num text-xs text-ui-tinta" title={p.ruta ?? ''}>
+                          <span className="mr-2 text-ui-apagado">{p.tipo}</span>{p.metodo} {p.ruta}
                         </td>
-                        <td className={`px-3 text-right font-mon-num ${g2 === 'bueno' ? 'text-mon-tinta' : TEXTO_GRAVEDAD[g2]}`}>{p.estado === 0 ? 'falló' : p.estado}</td>
-                        <td className={`px-3 text-right font-mon-num ${p.ms > 1000 ? TEXTO_GRAVEDAD.alerta : 'text-mon-tinta'}`}>{Math.round(p.ms)} ms</td>
-                        <td className="px-3 pr-6 text-right font-mon-num text-mon-tinta-2">{tamano(p.bytes)}</td>
+                        <td className={`px-3 text-right font-ui-num ${g2 === 'bueno' ? 'text-ui-tinta' : TEXTO_GRAVEDAD[g2]}`}>{p.estado === 0 ? 'falló' : p.estado}</td>
+                        <td className={`px-3 text-right font-ui-num ${p.ms > 1000 ? TEXTO_GRAVEDAD.alerta : 'text-ui-tinta'}`}>{Math.round(p.ms)} ms</td>
+                        <td className="px-3 pr-6 text-right font-ui-num text-ui-tinta-2">{tamano(p.bytes)}</td>
                       </tr>
                     );
                   })}
@@ -203,7 +204,7 @@ const RegistrosPanel: React.FC = () => {
             extra={<>
               {' · se guardan los últimos 500'}
               {nuevos > 0 && (
-                <button type="button" onClick={() => irA(1)} className="ml-3 cursor-pointer border-none bg-transparent p-0 font-mon-num text-xs font-bold text-mon-tinta underline">
+                <button type="button" onClick={() => irA(1)} className="ml-3 cursor-pointer border-none bg-transparent p-0 font-ui-num text-xs font-bold text-ui-tinta underline">
                   {nuevos} nuevos
                 </button>
               )}

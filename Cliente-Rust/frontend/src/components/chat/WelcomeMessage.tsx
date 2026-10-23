@@ -1,4 +1,3 @@
-import React from 'react';
 import { MODE_SUGGESTIONS } from '../chatPane/chatPane.constants';
 import { ChatMode } from '../chatModes/types';
 import { Terminal } from 'lucide-react';

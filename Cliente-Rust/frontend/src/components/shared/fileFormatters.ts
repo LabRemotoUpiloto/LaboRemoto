@@ -39,14 +39,3 @@ export function formatBytes(bytes?: number): string {
   return `${formatted}\u00A0${units[unitIndex]}`;
 }
 
-/**
- * Convierte un filtro con wildcards (* y ?) a RegExp
- * @param filter - String con wildcards
- */
-export function wildcardToRegex(filter: string): RegExp {
-  const escaped = filter
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*')
-    .replace(/\?/g, '.');
-  return new RegExp(`^${escaped}$`, 'i');
-}

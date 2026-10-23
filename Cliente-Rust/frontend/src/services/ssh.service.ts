@@ -12,7 +12,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { listen, emit, type UnlistenFn } from '@tauri-apps/api/event';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { commandClient } from './command.service';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -160,24 +160,17 @@ export const sshDisconnect = async (id: string): Promise<void> => {
   );
 };
 
-/** Conecta a un host previamente guardado (por su ID de almacenamiento). */
-export const sshConnectStored = (id: string, cols: number, rows: number): Promise<string> =>
-  invoke<string>('ssh_connect_stored', { id, cols, rows });
-
 /** Obtiene información de metadata de una sesión activa. */
 export const sshSessionInfo = (id: string): Promise<SshSessionInfo> =>
   invoke<SshSessionInfo>('ssh_session_info', { id });
 
 // ── VNC ──────────────────────────────────────────────────────────────────────
 
-export const vncStart = (sessionId: string, params: Record<string, unknown>) =>
-  invoke('vnc_start', { sessionId, ...params });
+export const vncStart = <T = unknown>(sessionId: string, resolution?: string): Promise<T> =>
+  invoke<T>('vnc_start', { sessionId, resolution });
 
 export const vncStop = (sessionId: string): Promise<void> =>
   invoke<void>('vnc_stop', { sessionId });
-
-export const vncStatus = (sessionId: string) =>
-  invoke('vnc_status', { sessionId });
 
 // ── Memoria efímera de sesión ─────────────────────────────────────────────────
 
@@ -201,21 +194,17 @@ export type SessionMemPatch = {
 export const memPut = (sessionId: string, patch: SessionMemPatch): Promise<void> =>
   invoke<void>('mem_put', { sessionId, patch });
 
-export const memGet = (sessionId: string) =>
-  invoke('mem_get', { sessionId });
+export const memGet = <T = unknown>(sessionId: string): Promise<T | null> =>
+  invoke<T | null>('mem_get', { sessionId });
 
 export const memClear = (sessionId: string): Promise<void> =>
   invoke<void>('mem_clear', { sessionId });
 
-export const memPushTerminalResult = (
-  sessionId: string,
-  stdoutTail: string,
-  stderrTail: string,
-  exitCode: number,
-): Promise<void> =>
-  invoke<void>('mem_push_terminal_result', { sessionId, stdoutTail, stderrTail, exitCode });
+// ── Eventos internos de la ventana (no pasan por Tauri) ───────────────────────
 
-// ── Emitters de eventos Tauri hacia el backend ────────────────────────────────
+export const SAVE_SESSION_BEFORE_CLOSE_EVENT = 'app:save-session-before-close';
 
-export const emitSaveSessionBeforeClose = (sessionId: string): Promise<void> =>
-  emit('app:save-session-before-close', { sessionId });
+/** Pide al terminal de `sessionId` que guarde su sesión antes de cerrarla (CustomEvent de window, detail: { sessionId }). */
+export const emitSaveSessionBeforeClose = (sessionId: string): void => {
+  window.dispatchEvent(new CustomEvent(SAVE_SESSION_BEFORE_CLOSE_EVENT, { detail: { sessionId } }));
+};

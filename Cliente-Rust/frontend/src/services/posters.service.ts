@@ -18,7 +18,7 @@ const STORAGE_KEY = 'linux-practice-posters';
  * patrón que BADGE_EARNED_EVENT, para que la Sala de Trofeos se actualice en
  * vivo si está montada en otra pestaña en el momento exacto en que se
  * completa el módulo. */
-export const POSTER_UNLOCKED_EVENT = 'linux-poster-unlocked';
+const POSTER_UNLOCKED_EVENT = 'linux-poster-unlocked';
 
 export interface PosterDef {
   /** Slug estable. */
@@ -67,10 +67,6 @@ function writeStore(store: Record<string, UnlockedPoster>) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch { /* localStorage no disponible -- el premio igual se anima esta sesión */ }
-}
-
-export function isPosterUnlocked(posterId: string): boolean {
-  return posterId in readStore();
 }
 
 /**

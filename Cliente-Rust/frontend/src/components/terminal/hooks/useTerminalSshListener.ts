@@ -25,9 +25,8 @@
 import { useEffect, useRef, useState, MutableRefObject, RefObject } from 'react';
 import { notifications } from '@mantine/notifications';
 import { Terminal } from '@xterm/xterm';
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { sshStdin, sshResize } from '../../../services/ssh.service';
+import { sshStdin, sshResize, sshUiReady, sshSessionInfo } from '../../../services/ssh.service';
 import { canRefocusTerminal, sanitizeSessionId } from './terminalDomUtils';
 import { esPulsacionTab, quitarTabs, tocaAvisarTab } from './bloqueoTab';
 import { TerminalSessionMetadata } from './terminalTypes';
@@ -92,7 +91,7 @@ export function useTerminalSshListener({
 
       (async () => {
         try {
-          const info = await invoke<{ host: string; port: number; user: string }>('ssh_session_info', { id: sessionId });
+          const info = await sshSessionInfo(sessionId);
           sessionMetadataRef.current = {
             sessionId,
             user: info.user || 'unknown',
@@ -246,7 +245,7 @@ export function useTerminalSshListener({
       }).then(un => { unlistenRef.current = un }).catch(() => {});
 
       sshResize(sessionId, term.cols, term.rows).catch(() => {});
-      invoke('ssh_ui_ready', { id: sessionId }).catch(() => {});
+      sshUiReady(sessionId).catch(() => {});
       try { if (canRefocusTerminal(containerRef)) { term.focus(); hasFocusedOnceRef.current = true; } } catch {}
 
       return () => {

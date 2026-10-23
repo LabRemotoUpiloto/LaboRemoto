@@ -62,20 +62,6 @@ export const PANEL_ICONS: Record<string, React.ReactNode> = {
   ),
 };
 
-export const PANEL_LABELS: Record<string, string> = {
-  landing: 'Inicio',
-  terminal: 'Terminal',
-  sftp: 'SFTP',
-  hosts: 'Hosts',
-  practices: 'Prácticas',
-  connect: 'Connect',
-  logs: 'Logs',
-  themes: 'Temas',
-  snippets: 'Snippets',
-  pines: 'Pines',
-  camara: 'Cámara',
-  escritorio: 'Escritorio'
-};
 
 import { X } from 'lucide-react';
 

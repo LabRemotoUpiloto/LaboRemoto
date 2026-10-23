@@ -5,7 +5,7 @@ import { isMacOS } from '../utils/platform';
 const DRAG_THRESHOLD_PX = 5;
 
 /** Elementos que deben recibir clic normal (no iniciar arrastre de ventana). */
-export const WINDOW_DRAG_INTERACTIVE_SELECTOR =
+const WINDOW_DRAG_INTERACTIVE_SELECTOR =
   'button, a, input, textarea, select, label, [role="button"], [role="tab"], [contenteditable="true"], [data-no-window-drag]';
 
 function isInteractiveTarget(target: EventTarget | null): boolean {

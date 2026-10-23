@@ -1,9 +1,8 @@
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { BaseModeHandler } from './BaseModeHandler';
 import { ModeHandlerContext, Message, AgentChatResponse, AgentStep } from '../types';
 import { PI4_AGENT_SESSION_ID } from '../../../constants/devices';
-import { pi4AgentReady } from '../../../services/ai.service';
+import { pi4AgentReady, agentChat } from '../../../services/ai.service';
 import {
   shouldOpenPi4ChatTerminal,
   shouldOpenPi4ChatCameras,
@@ -22,7 +21,7 @@ async function fakeStream(text: string, ctx: ModeHandlerContext): Promise<void> 
 export class AgenteModeHandler extends BaseModeHandler {
   help = 'Agente: ejecuta comandos en el servidor o en la Raspberry Pi (.env). Usa Claude con tools SSH reales.';
 
-  async send(finalInput: string, userMsg: Message, ctx: ModeHandlerContext) {
+  async send(finalInput: string, _userMsg: Message, ctx: ModeHandlerContext) {
     let effectiveSessionId = ctx.sessionId ?? ctx.pi4TerminalSessionId ?? null;
     if (!effectiveSessionId) {
       const ready = await pi4AgentReady();
@@ -64,14 +63,12 @@ export class AgenteModeHandler extends BaseModeHandler {
         }));
       });
 
-      const resp = await invoke<AgentChatResponse>('agent_chat', {
-        req: {
-          session_id: effectiveSessionId,
-          message: finalInput,
-          include_terminal_context: true,
-          terminal_lines: 80,
-          request_id: streamId,
-        },
+      const resp = await agentChat<AgentChatResponse>({
+        session_id: effectiveSessionId,
+        message: finalInput,
+        include_terminal_context: true,
+        terminal_lines: 80,
+        request_id: streamId,
       });
       unlistenStep?.();
       unlistenStep = null;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button, Group, Paper, Stack, Text } from '@mantine/core';
 import type { LinuxBlock } from '../../../../../services/linuxPractice.service';
 
@@ -51,5 +51,3 @@ export function StateMachineBlock({ block }: { block: Extract<LinuxBlock, { type
     </Paper>
   );
 }
-
-export default StateMachineBlock;

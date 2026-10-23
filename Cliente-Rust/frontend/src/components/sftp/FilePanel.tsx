@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback } from 'react'
 import AddressBar from './AddressBar'
 import FilePanelToolbar from './FilePanelToolbar'
 import FileList from './FileList'
@@ -50,8 +50,6 @@ export interface FilePanelProps {
   drives?: string[]
   currentDrive?: string
   onDriveChange?: (drive: string) => void
-  onUpload?: () => void
-  canUpload?: boolean
 
   // Toolbar - remote only
   sessions?: string[]
@@ -63,8 +61,6 @@ export interface FilePanelProps {
   canRename?: boolean
   onDelete?: () => void
   canDelete?: boolean
-  onDownload?: () => void
-  canDownload?: boolean
   disabled?: boolean
 
   // Doble clic (o Enter) sobre un archivo (no carpeta): abre con la app
@@ -115,8 +111,6 @@ const FilePanel: React.FC<FilePanelProps> = ({
   drives,
   currentDrive,
   onDriveChange,
-  onUpload,
-  canUpload,
   sessions,
   sessionId,
   sessionsMeta,
@@ -126,8 +120,6 @@ const FilePanel: React.FC<FilePanelProps> = ({
   canRename,
   onDelete,
   canDelete,
-  onDownload,
-  canDownload,
   disabled,
   onContextMenu,
   getEntryPath,
@@ -145,16 +137,6 @@ const FilePanel: React.FC<FilePanelProps> = ({
       }
     },
     [onNavigate, getEntryPath, onOpenFile]
-  )
-
-  const selectedEntries = useMemo(() => {
-    if (selectedPaths.size === 0) return []
-    return entries.filter((e) => selectedPaths.has(getEntryPath(e)))
-  }, [entries, selectedPaths, getEntryPath])
-
-  const totalSize = useMemo(
-    () => entries.reduce((sum, e) => sum + (e.kind === 'dir' ? 0 : e.size || 0), 0),
-    [entries]
   )
 
   return (
@@ -213,11 +195,7 @@ const FilePanel: React.FC<FilePanelProps> = ({
         onNewFolder={onNewFolder}
         onRename={onRename}
         canRename={canRename}
-        onUpload={onUpload}
-        onDownload={onDownload}
         onDelete={onDelete}
-        canUpload={canUpload}
-        canDownload={canDownload}
         canDelete={canDelete}
         disabled={disabled}
         filter={filter}

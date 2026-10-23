@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
+import { getTerminalContext } from '../../../services/ai.service';
 import {
   analyzeTerminalContext,
   analyzeTerminalPrompt,
@@ -21,7 +21,7 @@ export function useTerminalMonitor(sessionId?: string | null) {
     const id = sessionRef.current;
     if (!id) return;
     try {
-      const rawCtx = await invoke<string>('get_terminal_context', { sessionId: id, lines: 80 });
+      const rawCtx = await getTerminalContext(id, 80);
       // Si la pantalla fue limpiada (\x1b[2J), analizar el contenido posterior a la última limpieza
       let ctx = rawCtx;
       const lastClearIdx = rawCtx.lastIndexOf('\x1b[2J');

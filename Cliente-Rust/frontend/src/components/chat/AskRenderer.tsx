@@ -1,16 +1,10 @@
 import React from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { cleanText } from './chatUtils';
-import { Message } from '../chatModes/types';
-import CodeBlock from './CodeBlock';
-import type { ChatAppearance } from './ChatMessageList';
+import { CodeBlock } from './CodeBlock';
 
 interface AskRendererProps {
   content: string;
   sessionId?: string | null;
   setLastCommand?: (cmd: string) => Promise<void> | void;
-  mode?: string;
-  appearance?: ChatAppearance;
   /** Práctica guiada: nada de comandos para ejecutar (los da la práctica, paso a paso). */
   modoPractica?: boolean;
 }
@@ -78,9 +72,8 @@ const isExecutableCode = (code: string, precedingText: string): boolean => {
 };
 
 // Renderizador del modo ASK (reutilizable para respuestas AI)
-export const AskRenderer: React.FC<AskRendererProps> = ({ content: contenidoOriginal, sessionId, setLastCommand, mode, appearance = 'session', modoPractica = false }) => {
+export const AskRenderer: React.FC<AskRendererProps> = ({ content: contenidoOriginal, sessionId, setLastCommand, modoPractica = false }) => {
   const content = modoPractica ? limpiarParaPractica(contenidoOriginal) : contenidoOriginal;
-  const isLanding = appearance === 'landing';
   const blocks: Array<{ type: 'code' | 'para'; lang?: string; body: string; precedingText?: string }> = [];
   const fenceRe = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
 
@@ -403,5 +396,3 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content: contenidoOrig
     </div>
   );
 };
-
-export default AskRenderer;

@@ -42,7 +42,7 @@ const createDriverConfig = (): Config => ({
   allowClose: false,
   
   // Callback antes de avanzar al siguiente paso
-  onNextClick: (element, step, opts) => {
+  onNextClick: (_element, _step, opts) => {
 
     // Paso 4 (Formulario) → 5 (Hosts Rápidos):
     // Asegurar que estamos en la página de connect y el elemento existe
@@ -193,7 +193,7 @@ const createDriverConfig = (): Config => ({
   },
   
   // Callbacks para gestión de estado y navegación
-  onHighlighted: (element, step, opts) => {
+  onHighlighted: (element, _step, opts) => {
     // Obtener atributos del elemento destacado
   const htmlElement = element as any;
   // Driver.js puede exponer el nodo en distintas propiedades; cubrir variantes

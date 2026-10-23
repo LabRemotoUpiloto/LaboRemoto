@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { memGet, memClear, memPut as putSessionMem, type SessionMemPatch } from "../services/ssh.service";
 import { listen } from "@tauri-apps/api/event";
 
 export type SessionMem = {
@@ -15,23 +15,6 @@ export type SessionMem = {
   env?: { cwd?: string; shell?: string; os?: string };
   practiceContext?: string;
   practiceTutorial?: string;
-};
-
-type Patch = {
-  last_file?: string;
-  last_file_hash?: string;
-  last_file_snippet?: string;
-  last_command?: string;
-  last_stdout_tail?: string;
-  last_stderr_tail?: string;
-  last_exit_code?: number;
-  last_path?: string;
-  last_path_kind?: string; // 'file' | 'dir'
-  env_cwd?: string;
-  env_shell?: string;
-  env_os?: string;
-  practice_context?: string;
-  practice_tutorial?: string;
 };
 
 const MAX_SNIPPET_LINES = 50;
@@ -62,7 +45,7 @@ export function useSessionMemory(sessionId: string | null) {
   useEffect(() => {
     (async () => {
       try {
-        const data = await invoke<any>("mem_get", { sessionId: sessionId ?? "default" });
+        const data = await memGet<any>(sessionId ?? "default");
         if (data) {
           setMem(mapSessionMem(data));
         }
@@ -107,8 +90,8 @@ export function useSessionMemory(sessionId: string | null) {
     return () => { if (unlisten) unlisten(); };
   }, [sessionId]);
 
-  const memPut = async (patch: Patch) => {
-    await invoke("mem_put", { sessionId: sessionId ?? "default", patch });
+  const memPut = async (patch: SessionMemPatch) => {
+    await putSessionMem(sessionId ?? "default", patch);
   };
 
   const setLastFile = async (path: string, content: string, hash?: string) => {
@@ -139,7 +122,7 @@ export function useSessionMemory(sessionId: string | null) {
 
   const clear = async () => {
     setMem({});
-    await invoke("mem_clear", { sessionId: sessionId ?? "default" });
+    await memClear(sessionId ?? "default");
     try { sessionStorage.removeItem(key); } catch {}
   };
 

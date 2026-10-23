@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Text, Group, Box, Card, Stack } from '@mantine/core';
 

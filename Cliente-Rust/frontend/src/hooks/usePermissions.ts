@@ -74,7 +74,7 @@ export const usaTemaInstitucional = (role: EffectiveRole) => INSTITUTIONAL_THEME
 // Mapa page id -> roles que pueden verla. Consumido por Sidebar (qué mostrar)
 // y por HomeContainer (segunda verificación antes de renderizar, cierra el
 // hueco de un deep-link directo a un page id restringido).
-export const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
+const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   landing: EVERYONE,
   practices: EVERYONE,
   // Reservas está en pruebas: por ahora la ve todo el mundo menos estudiante (ni en el menú ni abriéndola por id).

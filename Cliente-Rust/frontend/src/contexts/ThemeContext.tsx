@@ -26,39 +26,6 @@ export type Theme =
   // Extra (nuevos temas CSS)
   | 'glass-water' | 'cosmic-latte' | 'ember-dawn' | 'nebula-ink' | 'sepia-paper'
 
-export type ThemePersonality = 'recolor' | 'personality' | 'special'
-
-export interface ThemeMeta {
-  id: Theme
-  label: string
-  personality: ThemePersonality
-  darkMode: boolean
-}
-
-/** Catálogo de temas consolidado a 12 personalidades */
-export const THEME_CATALOG: ThemeMeta[] = [
-  // Institucional — personality
-  { id: 'unipiloto',       label: 'UniPiloto',         personality: 'personality',  darkMode: false },
-  
-  // Claros — personality
-  { id: 'lavender-dream',  label: 'Lavender Dream',    personality: 'personality',  darkMode: false },
-  { id: 'polar-mint',      label: 'Polar Mint',        personality: 'personality',  darkMode: false },
-  { id: 'sepia-paper',     label: 'Sepia Paper',       personality: 'personality',  darkMode: false },
-  { id: 'pastel-dream',    label: 'Pastel Dream',      personality: 'personality',  darkMode: false },
-
-  // Oscuros — personality
-  { id: 'dracula',         label: 'Dracula Console',   personality: 'personality',  darkMode: true },
-  { id: 'neo-brutalist',   label: 'Brutalist Lime',    personality: 'personality',  darkMode: true },
-  { id: 'amber-night',     label: 'Amber Night',       personality: 'personality',  darkMode: true },
-  { id: 'oceanic-teal',    label: 'Oceanic Teal',      personality: 'personality',  darkMode: true },
-  { id: 'crimson-gold',    label: 'Crimson Gold',      personality: 'personality',  darkMode: true },
-  { id: 'obsidian-rose',   label: 'Obsidian Rose',     personality: 'personality',  darkMode: true },
-
-  // Especiales
-  { id: 'sunburst-rainbow', label: 'Sunburst Rainbow', personality: 'special',      darkMode: true },
-  { id: 'glass-water',     label: 'Liquid Glass',      personality: 'special',      darkMode: true },
-]
-
 /** Qué temas son light para Mantine */
 const LIGHT_THEMES = new Set<Theme>([
   'light', 'lavender-dream', 'polar-mint', 'peachy-sunrise',
@@ -67,7 +34,7 @@ const LIGHT_THEMES = new Set<Theme>([
   'pastel-dream'
 ])
 
-export function getMantineScheme(theme: Theme): 'light' | 'dark' {
+function getMantineScheme(theme: Theme): 'light' | 'dark' {
   return LIGHT_THEMES.has(theme) ? 'light' : 'dark'
 }
 
@@ -156,5 +123,3 @@ export const useTheme = () => {
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider')
   return ctx
 }
-
-export default ThemeContext

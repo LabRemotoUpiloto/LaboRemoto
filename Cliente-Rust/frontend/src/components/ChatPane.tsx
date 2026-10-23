@@ -1,12 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 import { consumePendingChatMessage } from '../utils/pendingChatMessage';
 
 import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext, ModelSelection } from './chatModes/types';
-import type { CommandResponse } from '../services/command.service';
 import { AskModeHandler } from './chatModes/classes/AskModeHandler';
 import { AgenteModeHandler } from './chatModes/classes/AgenteModeHandler';
 import { PlanModeHandler } from './chatModes/classes/PlanModeHandler';
@@ -18,12 +15,10 @@ import ChatInput from './chatPane/ChatInput';
 import ChatHistoryPanel from './chatPane/ChatHistoryPanel';
 import ChatModals from './chatPane/ChatModals';
 import TerminalBanners from './chatPane/TerminalBanners';
-import { MODEL_CONTEXT_WINDOW } from './chatPane/chatPane.constants';
 
 // Hooks extraídos
 import { useTerminalMonitor } from './chatPane/hooks/useTerminalMonitor';
 import { usePi4ChatSession } from './chatPane/hooks/usePi4ChatSession';
-import { useChatExport } from './chatPane/hooks/useChatExport';
 import { useChatStorage } from './chatPane/hooks/useChatStorage';
 import { useChatHistoryManager } from './chatPane/hooks/useChatHistoryManager';
 import { useChatModeSwitch } from './chatPane/hooks/useChatModeSwitch';
@@ -32,7 +27,7 @@ import AgentHomeHero from '../pages/home/AgentHomeHero';
 import ChatToast from './chat/ChatToast';
 import { useDisplayName } from '../pages/home/useDisplayName';
 import ChatFloatingActions from './chatPane/ChatFloatingActions';
-import { pi4AgentReady as fetchPi4AgentReady } from '../services/ai.service';
+import { pi4AgentReady as fetchPi4AgentReady, aiChat, cancelAiChat, getTerminalContext, listenAiChunks, type ChatHistoryItem } from '../services/ai.service';
 import { vncStop, sshSessionInfo } from '../services/ssh.service';
 import { useTour } from '../tours/tour_general/useTour';
 import { useQueryData } from '../hooks/useQueryData';
@@ -311,7 +306,6 @@ const ChatPane: React.FC<Props> = ({
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [streamedText, setStreamedText] = useState('');
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [showTokenPopover, setShowTokenPopover] = useState(false);
   // Estado de disponibilidad del agente Pi4 (PI4_USER/PI4_PASSWORD en .env):
   // dato de solo lectura, cacheado (Batch 3, REFACTOR #4) para no
   // re-consultar al backend en cada remontaje de ChatPane dentro del TTL.
@@ -517,8 +511,7 @@ const ChatPane: React.FC<Props> = ({
 
   // ── Custom Hooks ──
   const { errorBanner, setErrorBanner, promptBanner, setPromptBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(terminalMonitorSessionId);
-  const { handleExportMd, handleExportHtml } = useChatExport(messages, setToast);
-  const { sessionTokens, setSessionTokens } = useChatStorage(sessionId, mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
+  useChatStorage(sessionId, mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
 
   const {
     showHistory, setShowHistory, historyEntries, historySearch, setHistorySearch,
@@ -526,7 +519,7 @@ const ChatPane: React.FC<Props> = ({
     handleDeleteHistoryEntry, confirmDeleteHistoryEntry, cancelDeleteHistoryEntry,
     loadedHistoryIdRef, messageCountAtLoadRef
   } = useChatHistoryManager(
-    sessionId, hostKey, mode, messages, setMessages, setSessionTokens,
+    sessionId, hostKey, mode, messages, setMessages,
     setMode, setToast, skipRestoreRef, clearMemory, mem.practiceTutorial
   );
 
@@ -666,13 +659,13 @@ const ChatPane: React.FC<Props> = ({
   }, [searchMatchIndex, searchMatchIds]);
 
   // ── Envío IA ──
-  const invokeAsk = async ({ finalInput, mode, userMsg }: { finalInput: string; mode: ChatMode; userMsg: Message }) => {
+  const invokeAsk = async ({ mode, userMsg }: { finalInput: string; mode: ChatMode; userMsg: Message }) => {
     const getContent = (m: Message) => {
       let c = m.text;
       if (m.meta?.attachedFileContent) c += `\n\n📄 ${m.meta.attachedFileName}:\n\`\`\`text\n${m.meta.attachedFileContent}\n\`\`\``;
       return c;
     };
-    const history = messages
+    const history: ChatHistoryItem[] = messages
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: getContent(m) }));
 
@@ -694,14 +687,13 @@ const ChatPane: React.FC<Props> = ({
     marcaRespuestaRef.current = null;
     setMessages(prev => [...prev, { id: reqId, sender: 'ai', text: '', timestamp: Date.now(), meta: { chat_mode: mode, ...marca } }]);
 
-    const unlistenChunk = await listen<{ request_id: string; delta: string }>('ai:chunk', (ev) => {
-      if (ev.payload.request_id !== reqId) return;
+    const unlistenChunk = await listenAiChunks(reqId, (delta) => {
       // Este listener sigue vivo hasta que SU PROPIO invoke() resuelva --
       // si mientras tanto cancelaste y mandaste un pedido nuevo, seguir
       // escribiendo acá contaminaría el streamedText (compartido) del
       // pedido nuevo con texto del viejo ya cancelado.
       if (currentReqIdRef.current !== reqId) return;
-      setStreamedText(prev => prev + ev.payload.delta);
+      setStreamedText(prev => prev + delta);
     });
 
     // Modo Agente/Plan ya mandan el buffer real de la terminal (agent_chat/
@@ -714,22 +706,20 @@ const ChatPane: React.FC<Props> = ({
     let liveTerminalContext: string | null = null;
     if (contextSessionId) {
       try {
-        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+        liveTerminalContext = await getTerminalContext(contextSessionId, 80);
       } catch { /* sin contexto, no es fatal */ }
     }
 
     try {
-      const envelope = await invoke<CommandResponse<AiResponseRaw>>('ai_chat', {
-        req: {
-          id: reqId,
-          version: '1.0',
-          timestamp_ms: Date.now(),
-          payload: {
-            user_input: getContent(userMsg), mode, history, state: agentState, model_selection: effectiveModel,
-            image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
-            terminal_context: liveTerminalContext, request_id: reqId,
-          },
-        }
+      const envelope = await aiChat<AiResponseRaw>({
+        id: reqId,
+        version: '1.0',
+        timestamp_ms: Date.now(),
+        payload: {
+          user_input: getContent(userMsg), mode, history, state: agentState, model_selection: effectiveModel,
+          image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
+          terminal_context: liveTerminalContext, request_id: reqId,
+        },
       });
       unlistenChunk();
       // Chequeo por-pedido, no por bandera global: si cancelás y mandás otro
@@ -839,7 +829,7 @@ const ChatPane: React.FC<Props> = ({
     let liveTerminalContext: string | null = null;
     if (contextSessionId) {
       try {
-        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+        liveTerminalContext = await getTerminalContext(contextSessionId, 80);
       } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
     }
     const triggerText =
@@ -879,7 +869,7 @@ const ChatPane: React.FC<Props> = ({
     let liveTerminalContext: string | null = null;
     if (contextSessionId) {
       try {
-        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+        liveTerminalContext = await getTerminalContext(contextSessionId, 80);
       } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
     }
     const triggerText = textoComandoFueraDeLugar({
@@ -986,7 +976,7 @@ const ChatPane: React.FC<Props> = ({
       if (uMsgs === 0) { setMessages(prev => [...prev, { id: String(Date.now()), sender: 'system', text: '⚡ No hay historial que compactar.' }]); return; }
       const lines = messages.map(m => `${m.sender === 'user' ? 'U' : 'A'}: ${m.text.slice(0, 120)}${m.text.length > 120 ? '…' : ''}`);
       setMessages([{ id: String(Date.now()), sender: 'system', text: `🗜 Historial compactado (${uMsgs} turnos). Resumen:\n${lines.join('\n')}`, timestamp: Date.now() }]);
-      setSessionTokens({ input: 0, output: 0 }); return;
+      return;
     }
 
     const handler = modeHandlers[mode];
@@ -1031,14 +1021,7 @@ const ChatPane: React.FC<Props> = ({
     // silencioso la tragaba, así que el backend nunca se enteraba de la
     // cancelación y el pedido seguía corriendo hasta el final igual.
     if (cancelledReqId) {
-      invoke('cancel_ai_chat', {
-        req: {
-          id: crypto.randomUUID(),
-          version: '1.0',
-          timestamp_ms: Date.now(),
-          payload: { request_id: cancelledReqId },
-        },
-      }).catch(() => {});
+      cancelAiChat(cancelledReqId).catch(() => {});
     }
     currentReqIdRef.current = null;
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
@@ -1072,7 +1055,7 @@ const ChatPane: React.FC<Props> = ({
   const handleRetry = useCallback((id: string) => re_send_wrapper(id, false), [messages, mode, isSending]); /* eslint-disable-line */
   const handleRegenerate = useCallback((id: string) => re_send_wrapper(id, true), [messages, mode, isSending]); /* eslint-disable-line */
 
-  const handleAnalyzeCandidate = async (base: string, candidate: string, action: string = 'analyze', index?: number) => {
+  const handleAnalyzeCandidate = async (_base: string, candidate: string, action: string = 'analyze', index?: number) => {
     if (isSending) return;
     setIsSending(true);
     try {
@@ -1108,9 +1091,8 @@ const ChatPane: React.FC<Props> = ({
       attachedImage={attachedImage} setAttachedImage={setAttachedImage}
       attachedFile={attachedFile} setAttachedFile={setAttachedFile}
       inputRef={inputRef} isComposingRef={isComposingRef} messages={messages}
-      sessionTokens={sessionTokens} setSessionTokens={setSessionTokens} sessionId={sessionId}
-      ctxUsagePct={Math.min(100, (sessionTokens.input / (MODEL_CONTEXT_WINDOW[effectiveModel] || 200000)) * 100)}
-      setToast={setToast} showTokenPopover={showTokenPopover} setShowTokenPopover={setShowTokenPopover}
+      sessionId={sessionId}
+      setToast={setToast}
       variant={isHomeEmpty ? 'pill' : 'default'}
       selectedModel={selectedModel}
       onModelChange={setSelectedModel}

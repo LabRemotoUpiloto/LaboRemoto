@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { listen } from '@tauri-apps/api/event';
+import React, { useEffect } from 'react';
 import { Message, ChatMode } from '../../chatModes/types';
-import { CHAT_STORAGE_KEY, TOKEN_STORAGE_KEY } from '../chatPane.constants';
+import { CHAT_STORAGE_KEY } from '../chatPane.constants';
 
 export function useChatStorage(
   sessionId: string | null | undefined,
@@ -11,27 +10,6 @@ export function useChatStorage(
   practiceTutorial: string | undefined,
   skipRestoreRef: React.MutableRefObject<boolean>
 ) {
-  const [sessionTokens, setSessionTokens] = useState<{ input: number; output: number }>(() => {
-    try {
-      const saved = localStorage.getItem(TOKEN_STORAGE_KEY(sessionId ?? null));
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return { input: 0, output: 0 };
-  });
-
-  // Token tracking
-  useEffect(() => {
-    const unlisten = listen<{ request_id: string; input_tokens: number; output_tokens: number; model: string }>('ai:usage', (ev) => {
-      const { input_tokens, output_tokens } = ev.payload;
-      setSessionTokens(prev => {
-        const next = { input: prev.input + input_tokens, output: prev.output + output_tokens };
-        try { localStorage.setItem(TOKEN_STORAGE_KEY(sessionId ?? null), JSON.stringify(next)); } catch {}
-        return next;
-      });
-    });
-    return () => { unlisten.then(fn => fn()); };
-  }, [sessionId]);
-
   // Persist messages
   useEffect(() => {
     if (messages.length === 0) return;
@@ -72,6 +50,4 @@ export function useChatStorage(
       }]);
     }
   }, [sessionId, mode, practiceTutorial, setMessages, skipRestoreRef]);
-
-  return { sessionTokens, setSessionTokens };
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Message } from '../chatModes/types';
 import { RelativeTime } from './RelativeTime';
 import { ActionIcon, Textarea, Button, Group } from '@mantine/core';

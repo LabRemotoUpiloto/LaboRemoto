@@ -7,6 +7,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { CommandResponse } from './command.service';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ export interface AiChatPayload {
   user_input: string;
   mode: string;
   history: ChatHistoryItem[];
-  state: Record<string, unknown>;
+  state: object;
   model_selection: string;
   image_base64: string | null;
   image_media_type: string | null;
@@ -48,42 +49,60 @@ export interface AiChunkEvent {
   delta: string;
 }
 
+/** Refleja `AgentChatRequest` en backend/src/cmd/tools/tools.rs. */
+export interface AgentChatRequest {
+  session_id: string;
+  message: string;
+  include_terminal_context?: boolean;
+  terminal_lines?: number;
+  request_id?: string;
+}
+
+/** Refleja `PlanChatRequest` en backend/src/cmd/tools/tools.rs. */
+export interface PlanChatRequest {
+  session_id: string;
+  message: string;
+  request_id?: string;
+}
+
 // ── Comandos ──────────────────────────────────────────────────────────────────
 
 /**
  * Inicia un chat con la IA. Los chunks de respuesta llegan vía el evento `ai:chunk`.
  * Usa el envelope CommandRequest<AiChatPayload> que espera el backend.
  */
-export const aiChat = (req: AiChatRequest): Promise<AiChatResponse> =>
-  invoke<AiChatResponse>('ai_chat', { req });
+export const aiChat = <T = AiChatResponse>(req: AiChatRequest): Promise<CommandResponse<T>> =>
+  invoke<CommandResponse<T>>('ai_chat', { req });
 
-/** Cancela un request de IA en curso por su ID. */
-export const cancelAiChat = (requestId: string): Promise<void> =>
-  invoke<void>('cancel_ai_chat', { requestId });
+/**
+ * Cancela un request de IA en curso por su ID. El comando Rust espera el sobre
+ * CommandRequest<CancelAiChatPayload> completo, no un objeto suelto.
+ */
+export const cancelAiChat = (requestId: string): Promise<CommandResponse<{ ok: boolean }>> =>
+  invoke<CommandResponse<{ ok: boolean }>>('cancel_ai_chat', {
+    req: {
+      id: crypto.randomUUID(),
+      version: '1.0',
+      timestamp_ms: Date.now(),
+      payload: { request_id: requestId },
+    },
+  });
 
-/** Chat con el agente AI (herramientas + contexto de terminal). */
-export const agentChat = (params: Record<string, unknown>) =>
-  invoke('agent_chat', params);
+/** Chat con el agente AI (herramientas + contexto de terminal). `T` es la forma de la respuesta ({ answer, steps }). */
+export const agentChat = <T = unknown>(req: AgentChatRequest): Promise<T> =>
+  invoke<T>('agent_chat', { req });
 
-/** Chat en modo planificación. */
-export const planChat = (params: Record<string, unknown>) =>
-  invoke('plan_chat', params);
+/** Chat en modo planificación. `T` es la forma de la respuesta ({ answer, steps }). */
+export const planChat = <T = unknown>(req: PlanChatRequest): Promise<T> =>
+  invoke<T>('plan_chat', { req });
 
-/** Devuelve el contexto actual del terminal para el agente. */
-export const getTerminalContext = (sessionId: string) =>
-  invoke('get_terminal_context', { sessionId });
-
-/** Verifica el estado de configuración de las API keys de IA. */
-export const aiEnvStatus = () =>
-  invoke('ai_env_status');
+/** Devuelve las últimas `lines` líneas del buffer de la terminal (el backend usa 100 si se omite y topa en 300). */
+export const getTerminalContext = (sessionId: string, lines?: number): Promise<string> =>
+  invoke<string>('get_terminal_context', { sessionId, lines });
 
 /** True si PI4_USER y PI4_PASSWORD están en .env (agente sin SSH manual). */
 export const pi4AgentReady = (): Promise<boolean> =>
   invoke<boolean>('pi4_agent_ready');
-
-/** Prueba una API key específica. */
-export const aiTestKey = (provider: string, key: string) =>
-  invoke('ai_test_key', { provider, key });
 
 // ── Eventos de streaming ──────────────────────────────────────────────────────
 

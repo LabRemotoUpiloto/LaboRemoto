@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ChatMode, Message } from '../chatModes/types';
 import ModeSelect from './ModeSelect';
-import { MAX_CHAR_WARN, MODE_PLACEHOLDERS, TOKEN_STORAGE_KEY } from './chatPane.constants';
+import { MAX_CHAR_WARN, MODE_PLACEHOLDERS } from './chatPane.constants';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -27,13 +27,8 @@ interface Props {
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
   isComposingRef: React.MutableRefObject<boolean>;
   messages: Message[];
-  sessionTokens: { input: number; output: number };
-  setSessionTokens: React.Dispatch<React.SetStateAction<{ input: number; output: number }>>;
   sessionId: string | null;
-  ctxUsagePct: number;
   setToast: (v: string | null) => void;
-  showTokenPopover: boolean;
-  setShowTokenPopover: React.Dispatch<React.SetStateAction<boolean>>;
   variant?: 'default' | 'pill';
   selectedModel?: ModelSelection;
   onModelChange?: (m: ModelSelection) => void;
@@ -58,9 +53,8 @@ const ChatInput: React.FC<Props> = ({
   attachedImage, setAttachedImage,
   attachedFile, setAttachedFile,
   inputRef, isComposingRef,
-  messages, sessionTokens, setSessionTokens, sessionId,
-  ctxUsagePct, setToast,
-  showTokenPopover, setShowTokenPopover,
+  messages, sessionId,
+  setToast,
   variant = 'default',
   selectedModel,
   onModelChange,

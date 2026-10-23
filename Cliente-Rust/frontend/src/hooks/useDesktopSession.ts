@@ -1,7 +1,7 @@
 // hooks/useDesktopSession.ts — Ciclo de vida de una sesión gráfica VNC remota
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { vncStart, vncStop } from '../services/ssh.service'
 import { listen } from '@tauri-apps/api/event'
 import { useLifecycleStatus } from './useLifecycleStatus'
 import { setPendingChatMessage } from '../utils/pendingChatMessage'
@@ -39,10 +39,7 @@ export function useDesktopSession(sessionId: string) {
       if (isMounted()) setStatus('starting')
       if (isMounted()) setError(null)
       try {
-        const info = await invoke<DesktopSessionInfo>('vnc_start', {
-          sessionId,
-          resolution: resolution ?? '1280x720',
-        })
+        const info = await vncStart<DesktopSessionInfo>(sessionId, resolution ?? '1280x720')
         if (isMounted()) {
           setSessionInfo(info)
           setStatus('connected')
@@ -73,7 +70,7 @@ export function useDesktopSession(sessionId: string) {
       setSessionInfo(null)
     }
     try {
-      await invoke('vnc_stop', { sessionId })
+      await vncStop(sessionId)
     } catch {
       // ignore — backend limpia igualmente al cerrar sesión SSH
     }
