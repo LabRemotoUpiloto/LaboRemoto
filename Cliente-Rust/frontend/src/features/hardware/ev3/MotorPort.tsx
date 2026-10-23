@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { Ev3Motor } from '../../services/hardware/ev3.service';
+import type { Ev3Motor } from '../ev3.service';
 import './Port.css';
 
 interface MotorPortProps {

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Ev3Sensor } from '../../services/hardware/ev3.service';
+import type { Ev3Sensor } from '../ev3.service';
 import './Port.css';
 
 const SENSOR_LABELS: Record<string, string> = {

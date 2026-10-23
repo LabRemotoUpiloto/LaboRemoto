@@ -28,8 +28,8 @@ import {
   Search,
   X,
 } from 'lucide-react'
-import * as gpioService from '../../services/hardware/gpio.service'
-import type { GpioLine } from '../../services/hardware/gpio.service'
+import * as gpioService from '../gpio.service'
+import type { GpioLine } from '../gpio.service'
 
 type PinRole = 'power5' | 'power3' | 'ground' | 'gpio' | 'other'
 

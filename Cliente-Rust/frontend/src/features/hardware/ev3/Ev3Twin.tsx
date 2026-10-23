@@ -9,7 +9,7 @@ import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Text, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
-import type { Ev3Status } from '../../services/hardware/ev3.service';
+import type { Ev3Status } from '../ev3.service';
 import './Ev3Twin.css';
 
 // ─── Piso ─────────────────────────────────────────────────────────────────────

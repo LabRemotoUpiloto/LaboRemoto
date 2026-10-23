@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Ev3Status } from '../../services/hardware/ev3.service';
+import type { Ev3Status } from '../ev3.service';
 import MotorPort from './MotorPort';
 import SensorPort from './SensorPort';
 import KeyboardControl from './KeyboardControl';

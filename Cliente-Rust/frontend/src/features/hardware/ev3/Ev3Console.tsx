@@ -3,7 +3,7 @@ import {
   getEv3RunOutput,
   startEv3Program,
   stopEv3Program,
-} from '../../services/hardware/ev3.service';
+} from '../ev3.service';
 import { EV3_DEFAULT_CODE, EV3_EXAMPLES } from './ev3ConsoleExamples';
 import './Ev3Console.css';
 

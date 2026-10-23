@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getEv3Status, setEv3Motor, stopEv3Motors, type Ev3Status } from '../../services/hardware/ev3.service';
-import { publishEv3Status } from '../../services/hardware/ev3Telemetry';
+import { getEv3Status, setEv3Motor, stopEv3Motors, type Ev3Status } from '../ev3.service';
+import { publishEv3Status } from '../ev3Telemetry';
 import Ev3Dashboard from './Ev3Dashboard';
 import Ev3Twin from './Ev3Twin';
 import Ev3Console from './Ev3Console';

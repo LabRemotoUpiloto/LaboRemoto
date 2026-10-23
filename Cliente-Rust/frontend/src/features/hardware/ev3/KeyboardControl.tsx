@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import type { Ev3Status } from '../../services/hardware/ev3.service';
+import type { Ev3Status } from '../ev3.service';
 import './KeyboardControl.css';
 
 const PORTS = ['outA', 'outB', 'outC', 'outD'];

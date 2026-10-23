@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Badge, Button, Group, Paper, Slider, Stack, Text } from '@mantine/core';
 import type { LinuxBlock, SensorZone } from '../../../linuxPractice.service';
-import { useEv3Status } from '@/services/hardware/ev3Telemetry';
+import { useEv3Status } from '@/features/hardware/ev3Telemetry';
 import { fillTemplate } from '../../../mathExpr';
 
 type Props = { block: Extract<LinuxBlock, { type: 'sensor_demo' }> };

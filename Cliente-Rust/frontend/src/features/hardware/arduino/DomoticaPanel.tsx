@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import * as arduinoService from '../../services/hardware/arduino.service'
-import { BridgeStatus } from '../../services/hardware/arduino.service'
+import * as arduinoService from '../arduino.service'
+import { BridgeStatus } from '../arduino.service'
 
 /**
  * Panel de control para el tablero de domótica conectado al Arduino DUE de la Pi.

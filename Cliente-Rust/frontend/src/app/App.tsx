@@ -21,8 +21,8 @@ import LogTabsContainer from '@/components/layout/LogTabsContainer'
 
 // Panels
 import SidePanel from './SidePanel'
-import PinsPanel from '@/components/raspberry/PinsPanel'
-import DomoticaPanel from '@/components/arduino/DomoticaPanel'
+import PinsPanel from '@/features/hardware/gpio/PinsPanel'
+import DomoticaPanel from '@/features/hardware/arduino/DomoticaPanel'
 
 // Contexts
 import { LoadingProvider } from './providers/LoadingContext'
