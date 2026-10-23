@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import SnippetForm from '../../components/snippets/SnippetForm';
-import SnippetsList from '../../components/snippets/SnippetsList';
+import SnippetForm from './SnippetForm';
+import SnippetsList from './SnippetsList';
 import { useToasts } from '@/app/providers/ToastContext';
 import { modals } from '@mantine/modals';
 import { Box, Container, Stack, Title, Text, Group, TextInput, Select } from '@mantine/core';
