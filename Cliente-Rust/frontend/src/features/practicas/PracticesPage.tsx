@@ -12,7 +12,7 @@ import PracticeCard from './PracticeCard';
 import { getInsigniaForPractice } from './badges/insigniaRegistry';
 import LinuxPasswordPrompt from './linux/LinuxPasswordPrompt';
 import { linuxGetModule, type LinuxModule } from './linuxPractice.service';
-import { useEffectiveRole } from '@/hooks/usePermissions';
+import { useEffectiveRole } from '@/features/cuenta/usePermissions';
 import EncuestaPracticaModal from './EncuestaPracticaModal';
 import { encuestasService } from './encuestas.service';
 import type { Practice } from '@/types';

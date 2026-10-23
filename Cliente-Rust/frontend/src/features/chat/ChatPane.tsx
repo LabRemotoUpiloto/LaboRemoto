@@ -31,7 +31,7 @@ import { pi4AgentReady as fetchPi4AgentReady, aiChat, cancelAiChat, getTerminalC
 import { vncStop, sshSessionInfo } from '@/features/conexion/ssh.service';
 import { useTour } from './tour/useTour';
 import { useQueryData } from '@/lib/useQueryData';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/cuenta/useAuth';
 // NOTA de acoplamiento: ChatPane es en general genérico (por eso `practiceResult`
 // abajo usa un tipo estructural mínimo, no LinuxValidationResult) -- pero la
 // entrega de contenido en el chat (bloques de texto/media/quiz) sí es

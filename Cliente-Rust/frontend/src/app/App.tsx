@@ -47,10 +47,10 @@ import ResultadoMoodleAviso from '@/features/cursos/ResultadoMoodleAviso'
 import BienvenidaTutorial from '@/tours/tour_inicio/BienvenidaTutorial'
 import TourPracticaLinux from '@/features/practicas/tour/TourPracticaLinux'
 import { SesionPorPracticaContext } from '@/features/cursos/envioMoodle'
-import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { AuthProvider, useAuth } from '@/features/cuenta/AuthContext'
 import { useAppStore } from '@/store/app'
 import { useGrabadorPrueba } from '@/features/monitoreo/pruebaRendimiento'
-import { canAccessPage, useEffectiveRole } from '@/hooks/usePermissions'
+import { canAccessPage, useEffectiveRole } from '@/features/cuenta/usePermissions'
 import type { PracticeSessionMeta } from '@/types'
 
 // ── Mantine theme — color primario y fuentes reactivas al tema CSS activo ───────────────

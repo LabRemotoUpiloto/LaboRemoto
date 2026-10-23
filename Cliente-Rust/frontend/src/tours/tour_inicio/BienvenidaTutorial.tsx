@@ -4,8 +4,8 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { Volume2 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useEffectiveRole } from '../../hooks/usePermissions';
+import { useAuth } from '@/features/cuenta/AuthContext';
+import { useEffectiveRole } from '@/features/cuenta/usePermissions';
 import LinuxPasswordPrompt from '@/features/practicas/linux/LinuxPasswordPrompt';
 import { escenaTutorial, iniciarTutorialBienvenida, marcarTutorialVisto, tutorialYaVisto } from './tutorialBienvenida';
 

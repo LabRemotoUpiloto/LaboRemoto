@@ -1,6 +1,6 @@
 import React from 'react';
 import { GraduationCap } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/features/cuenta/AuthContext';
 import { unipilotoLogo } from '../../assets/logoBase64';
 
 interface AgentHomeHeroProps {

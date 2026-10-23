@@ -6,7 +6,7 @@ import { Box, Title, Group, Button } from '@mantine/core';
 import { Settings2 } from 'lucide-react';
 import CameraGrid, { PILOT_GROUP_KEY } from './CameraGrid';
 import CamarasAdminModal from './CamarasAdminModal';
-import { useEffectiveRole, puedeAdministrarCamaras } from '@/hooks/usePermissions';
+import { useEffectiveRole, puedeAdministrarCamaras } from '@/features/cuenta/usePermissions';
 
 const VigilanciaPage: React.FC = () => {
   const role = useEffectiveRole();

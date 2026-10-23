@@ -5,7 +5,7 @@
  */
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useAppStore } from '@/store/app'
-import { getEffectiveRole, usaTemaInstitucional } from '@/hooks/usePermissions'
+import { getEffectiveRole, usaTemaInstitucional } from '@/features/cuenta/usePermissions'
 
 export type Theme =
   // Oscuros

@@ -2,7 +2,7 @@ import React from 'react';
 import { Terminal } from 'lucide-react';
 import AgentHomeHero from './AgentHomeHero';
 import { useDisplayName } from './useDisplayName';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/features/cuenta/AuthContext';
 
 interface LandingPageProps {
   onStartTutorial?: () => void;

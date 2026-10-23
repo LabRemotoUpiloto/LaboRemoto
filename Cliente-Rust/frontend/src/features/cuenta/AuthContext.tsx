@@ -9,7 +9,7 @@
  *    dispara `initAuth()` del store una vez al montar, registrando los
  *    listeners de Tauri y haciendo cleanup al desmontar.
  *  - `useAuth` se re-exporta desde `hooks/useAuth.ts` (el wrapper sobre
- *    el store) para que los imports existentes (`from '../contexts/AuthContext'`)
+ *    el store) para que los imports existentes (`from './AuthContext'`)
  *    sigan funcionando sin cambios.
  *
  * TODO(REFACTOR #4 - batch futuro): una vez migrados todos los imports a
@@ -17,9 +17,9 @@
  * invocarse directamente en `App.tsx` sin necesidad de un Provider.
  */
 import React, { useEffect } from 'react'
-import { useAppStore } from '../store/app'
+import { useAppStore } from '@/store/app'
 
-export { useAuth } from '../hooks/useAuth'
+export { useAuth } from './useAuth'
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const initAuth = useAppStore((s) => s.initAuth)

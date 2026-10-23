@@ -10,7 +10,7 @@
 // `docente` asignado desde Gestión de Usuarios.
 import { useSyncExternalStore } from 'react'
 import { useAuth } from './useAuth'
-import { useAppStore } from '../store/app'
+import { useAppStore } from '@/store/app'
 
 export type EffectiveRole =
   | 'admin_lab'

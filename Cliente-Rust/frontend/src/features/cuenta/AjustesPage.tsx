@@ -6,7 +6,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { Palette, RefreshCw, LogOut, CheckCircle2 } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from './useAuth';
 import { useTheme } from '@/app/providers/ThemeContext';
 
 type CheckState = 'idle' | 'checking' | 'up-to-date' | 'available' | 'installing' | 'error';

@@ -12,10 +12,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Card, Text, Title, Group, Avatar, Badge, Stack, Divider, Loader } from '@mantine/core';
 import { User, Mail, ShieldCheck, AtSign, Camera } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
-import { useEffectiveRole, ROLE_LABELS } from '../../hooks/usePermissions';
-import { authService } from '../../services/auth.service';
-import { resizeImageToDataUrl } from '../../utils/resizeImage';
+import { useAuth } from './useAuth';
+import { useEffectiveRole, ROLE_LABELS } from './usePermissions';
+import { authService } from './auth.service';
+import { resizeImageToDataUrl } from './resizeImage';
 import { TrophyRoom } from '@/features/practicas/linux/TrophyRoom';
 
 const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (

@@ -6,8 +6,8 @@
  * necesite cambiar. La fuente de verdad ahora es el store de Zustand;
  * `AuthContext`/`AuthProvider` quedaron deprecados (ver contexts/AuthContext.tsx).
  */
-import { useAppStore } from '../store/app'
-import { AuthSessionInfo } from '../services/auth.service'
+import { useAppStore } from '@/store/app'
+import { AuthSessionInfo } from './auth.service'
 
 export interface UseAuthResult {
   user: AuthSessionInfo | null

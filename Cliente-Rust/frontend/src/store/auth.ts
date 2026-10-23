@@ -10,7 +10,7 @@
 import { StateCreator } from 'zustand'
 import { listen } from '@tauri-apps/api/event'
 import { notifications } from '@mantine/notifications'
-import { authService, AuthSessionInfo } from '../services/auth.service'
+import { authService, AuthSessionInfo } from '@/features/cuenta/auth.service'
 import { QueryCacheSlice } from './queryCache'
 
 export interface AuthSlice {
