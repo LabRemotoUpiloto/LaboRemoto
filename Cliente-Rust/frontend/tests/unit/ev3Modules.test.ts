@@ -3,19 +3,19 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { tryEvaluateExpr, type MathVars } from '../../src/utils/mathExpr';
 
-// Los módulos viven en infra/practicas/ev3/content/ev3-mN (se despliegan a la Pi);
+// Los módulos viven en infra/practicas-ev3/ev3-mN (se despliegan a la Pi);
 // aquí se comprueba que los bloques interactivos sean coherentes con lo que
 // la app sabe dibujar.
-const ROOT = resolve(__dirname, '../../../../infra/practicas/ev3/content');
+const ROOT = resolve(__dirname, '../../../../infra/practicas-ev3');
+// Si la carpeta se mueve otra vez, que falle claro (antes quedaba vacía y las pruebas no revisaban nada).
+if (!existsSync(ROOT)) throw new Error(`No están los módulos EV3 en ${ROOT}`);
 
 interface Block { type: string; id: string; [k: string]: any }
 
-const modules: { id: string; blocks: Block[] }[] = existsSync(ROOT)
-  ? readdirSync(ROOT)
-      .filter(d => /^ev3-m\d+$/.test(d))
-      .sort()
-      .map(d => JSON.parse(readFileSync(resolve(ROOT, d, 'module.json'), 'utf8')))
-  : [];
+const modules: { id: string; blocks: Block[] }[] = readdirSync(ROOT)
+  .filter(d => /^ev3-m\d+$/.test(d))
+  .sort()
+  .map(d => JSON.parse(readFileSync(resolve(ROOT, d, 'module.json'), 'utf8')));
 
 const KNOWN = new Set([
   'text', 'code_block', 'quiz', 'checkpoint',
