@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import LandingPage from '@/pages/home/LandingPage'
+import LandingPage from '@/features/inicio/LandingPage'
 import ConnectFormPage from '@/features/conexion/ConnectFormPage'
 import GuestConnectPage from '@/features/conexion/GuestConnectPage'
 import SavedHostsPage from '@/features/conexion/SavedHostsPage'

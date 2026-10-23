@@ -23,9 +23,9 @@ import { useChatStorage } from './panel/hooks/useChatStorage';
 import { useChatHistoryManager } from './panel/hooks/useChatHistoryManager';
 import { useChatModeSwitch } from './panel/hooks/useChatModeSwitch';
 
-import AgentHomeHero from '@/pages/home/AgentHomeHero';
+import AgentHomeHero from '@/features/inicio/AgentHomeHero';
 import ChatToast from './mensajes/ChatToast';
-import { useDisplayName } from '@/pages/home/useDisplayName';
+import { useDisplayName } from '@/features/inicio/useDisplayName';
 import ChatFloatingActions from './panel/ChatFloatingActions';
 import { pi4AgentReady as fetchPi4AgentReady, aiChat, cancelAiChat, getTerminalContext, listenAiChunks, type ChatHistoryItem } from './ai.service';
 import { vncStop, sshSessionInfo } from '@/features/conexion/ssh.service';
