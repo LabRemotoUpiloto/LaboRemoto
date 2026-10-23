@@ -1,4 +1,3 @@
-import React from 'react';
 import { Progress, Text, Button } from '@mantine/core';
 import type { UpdateProgress } from '../../hooks/useUpdateCheck';
 

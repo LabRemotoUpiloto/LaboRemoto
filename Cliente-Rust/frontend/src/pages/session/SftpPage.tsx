@@ -20,7 +20,6 @@ import {
   getParentLocalPath,
   getParentRemotePath,
 } from '../../components/shared/pathUtils'
-import { formatBytes } from '../../components/shared/fileFormatters'
 import type { SftpEntry, LocalEntry } from '../../types'
 
 type Props = {
@@ -1036,33 +1035,6 @@ const SftpPage: React.FC<Props> = ({
     handleRemoteBack,
   ])
 
-  // ── Header labels ──────────────────────────────────────────────────────────
-  const remoteSessionLabel = sessionId ? sessionsMeta?.[sessionId]?.label || sessionId : undefined
-  const remoteStatusColor = rerr ? 'var(--danger)' : canUse ? 'var(--success)' : 'var(--text-muted)'
-
-  const microLabelStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    fontSize: 11,
-    fontWeight: 700,
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
-    color: 'var(--text-secondary)',
-    flexShrink: 0,
-    minWidth: 0,
-  }
-
-  const renameDefaultValue = rSelectedEntries.length === 1 ? rSelectedEntries[0].name : ''
-
-  // ── Barra de estado global (pane activo) ───────────────────────────────────
-  const activeSelectedEntries = activePane === 'local' ? lSelectedEntries : rSelectedEntries
-  const activeTotalEntries = activePane === 'local' ? lrows.length : rrows.length
-  const activeSelectedSize = activeSelectedEntries.reduce(
-    (sum, e) => sum + (e.kind === 'dir' ? 0 : e.size || 0),
-    0
-  )
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
@@ -1121,8 +1093,6 @@ const SftpPage: React.FC<Props> = ({
           canRename={lSelectedPaths.size === 1}
           onDelete={doLocalDelete}
           canDelete={lSelectedPaths.size > 0}
-          onUpload={doUpload}
-          canUpload={!!sessionId && lSelectedPaths.size > 0}
           onContextMenu={handleLocalContextMenu}
           getEntryPath={getLocalEntryPath}
           onRowPointerDown={handleLocalRowPointerDown}
@@ -1171,8 +1141,6 @@ const SftpPage: React.FC<Props> = ({
           canRename={canUse && rSelectedPaths.size === 1}
           onDelete={doRemoteDelete}
           canDelete={canUse && rSelectedPaths.size > 0}
-          onDownload={doDownload}
-          canDownload={canUse && rSelectedPaths.size > 0}
           disabled={!canUse}
           onContextMenu={handleRemoteContextMenu}
           getEntryPath={getRemoteEntryPath}

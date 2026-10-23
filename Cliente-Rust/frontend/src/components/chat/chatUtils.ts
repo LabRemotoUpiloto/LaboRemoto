@@ -15,11 +15,3 @@ export const cleanText = (text: string) => {
     .replace(/^\s+|\s+$/g, '')
     .trim();
 };
-
-// Normalizador ligero para comparar contenido redundante
-export const norm = (s?: string | null) => (s || '')
-  .replace(/[`]/g, '')
-  .replace(/[.,;:!?¡¿"']+/g, '')
-  .replace(/\s+/g, ' ')
-  .trim()
-  .toLowerCase();

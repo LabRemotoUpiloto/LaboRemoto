@@ -1,19 +1,19 @@
 import { ERROR_PATTERNS, PROMPT_PATTERNS } from '../components/chatPane/chatPane.constants';
 
 /** Línea que parece prompt de shell (con o sin comando ya escrito). */
-export function isPromptLine(line: string): boolean {
+function isPromptLine(line: string): boolean {
   if (line.length >= 120) return false;
   return /[\$#%>](?:[ \t]{0,3}$|[ \t]\S)/.test(line);
 }
 
-export function stripTerminalAnsi(raw: string): string {
+function stripTerminalAnsi(raw: string): string {
   return raw
     .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
     .replace(/\x1b\][^\x07]*\x07/g, '');
 }
 
 /** Normaliza salida PTY: quita ANSI y deja el fragmento visible tras el último \\r de cada línea. */
-export function normalizeTerminalContext(raw: string): string[] {
+function normalizeTerminalContext(raw: string): string[] {
   const noAnsi = stripTerminalAnsi(raw);
   return noAnsi
     .split('\n')
@@ -113,7 +113,7 @@ export type TerminalErrorInsight = { snippet: string; hint?: string };
  * `findLastCommandOutput`). Escanea de atrás para adelante para quedarse con
  * la línea de error más reciente dentro de esa salida, si hay más de una.
  */
-export function analyzeTerminalLines(lines: string[]): TerminalErrorInsight | null {
+function analyzeTerminalLines(lines: string[]): TerminalErrorInsight | null {
   if (lines.length === 0) return null;
 
   const cmdOutput = findLastCommandOutput(lines);

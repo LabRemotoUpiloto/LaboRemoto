@@ -16,7 +16,7 @@ export const nombreEstudiante = (s: SesionPractica) => s.nombre || s.usuario;
 export const ubicacion = (s: SesionPractica) =>
   [s.ciudad, s.pais].filter(Boolean).join(', ') || 'Desconocida';
 
-export const esUbicacionAproximada = (s: SesionPractica) => s.fuente_ubicacion !== 'dispositivo';
+const esUbicacionAproximada = (s: SesionPractica) => s.fuente_ubicacion !== 'dispositivo';
 
 /** Cómo se obtuvo la ubicación, para mostrar al lado del lugar. */
 export function detalleUbicacion(s: SesionPractica): string | null {

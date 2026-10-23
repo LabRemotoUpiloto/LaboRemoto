@@ -26,7 +26,7 @@ export const SYNC_WINDOW_MS = 500;
 export const newLine = (): ShellLine => ({ text: '', cursor: 0, awaiting: null, stamp: 0, dirty: false });
 
 /** Limpia los códigos de escape ANSI/VT de una cadena (conserva \n). */
-export function stripAnsi(s: string): string {
+function stripAnsi(s: string): string {
   return s
     .replace(/\x1b\[[\d;?]*[a-zA-Z]/g, '')
     .replace(/\x1b\][^\x07]*\x07/g, '')

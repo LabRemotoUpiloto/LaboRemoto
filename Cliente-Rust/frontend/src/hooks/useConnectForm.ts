@@ -26,8 +26,6 @@ export function useConnectForm({
   onQuickHostCleared,
   onConnectionSuccess,
 }: ConnectFormProps) {
-  // UI state exclusivo del modal de guardado (no pertenece a ningún hook puro)
-  const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [successAlertOpen, setSuccessAlertOpen] = useState(false);
   const [successAlertMessage, setSuccessAlertMessage] = useState('');
 
@@ -53,7 +51,6 @@ export function useConnectForm({
     getTermSize,
     onConnected,
     onConnectionSuccess,
-    setSaveModalOpen,
     setSuccessAlertMessage,
     setSuccessAlertOpen,
   });
@@ -68,8 +65,6 @@ export function useConnectForm({
     cancelConnection: actions.cancelConnection,
     isConnecting: actions.isConnecting,
     // Estado de modales
-    saveModalOpen,
-    setSaveModalOpen,
     successAlertOpen,
     successAlertMessage,
     setSuccessAlertOpen,

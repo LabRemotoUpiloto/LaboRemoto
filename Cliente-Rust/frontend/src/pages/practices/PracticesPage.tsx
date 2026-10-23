@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import { ActionIcon, Button, Modal, Container, Divider, Group, Paper, ScrollArea, SimpleGrid, Stack, Text, Title, Box } from '@mantine/core';
 import { ArrowLeft, MessageSquareHeart, X } from 'lucide-react';
 import CategoryCard from '../../components/practicas/CategoryCard';
+import { Aviso, Boton } from '../../components/ui';
 import { EsqueletoCategorias } from '../../components/practicas/EsqueletoPracticas';
 import PracticeCard from '../../components/practicas/PracticeCard';
 import { getInsigniaForPractice } from '../../components/practicas/badges/insigniaRegistry';
@@ -60,7 +61,7 @@ interface LogEntry {
 /** Prácticas cuya encuesta ya se ofreció en esta sesión de la app (al decir «Ahora no» no se insiste hasta volver a abrirla). */
 const encuestaOfrecida = new Set<string>();
 
-const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, setChatOpen, linuxSession, onRestartLinuxModule }) => {
+const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, linuxSession, onRestartLinuxModule }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
@@ -175,11 +176,13 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const loadCategories = async () => {
         try {
             setLoading(true);
+            setError(null);
             const cats = await invoke<PracticeCategory[]>('practicas_list_categories');
             // Linux va primero (es la práctica de entrada); el resto, en el orden que manda la Pi.
             setCategories([...cats].sort((a, b) => Number(b.id === 'linux') - Number(a.id === 'linux')));
         } catch (err) {
-            setError(`Error cargando prácticas: ${err}`);
+            // Rust manda un CommandError ({ code, message, retryable }), no un Error de JS
+            setError((err as { message?: string } | null)?.message ?? String(err));
         } finally {
             setLoading(false);
         }
@@ -189,7 +192,6 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         if (startingPractice) return;
         setStartingPractice(practice.id);
         setSetupLogs([]); // Reset logs
-        setError(null);
 
         const addLog = (level: LogEntry['level'], message: string) => {
             const now = new Date();
@@ -325,6 +327,11 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                             // tapaba la página entera mientras practicas_list_categories
                             // esperaba a la Pi (hasta 20s si no responde).
                             <EsqueletoCategorias />
+                        ) : error ? (
+                            // Antes el error se guardaba y no se mostraba: si la Pi no respondía, la página quedaba vacía.
+                            <Aviso nivel="critico" titulo="No se pudieron cargar las prácticas"
+                                detalle={<>Revisa tu conexión y vuelve a intentarlo. Detalle: <span className="font-ui-num">{error}</span></>}
+                                accion={<Boton onClick={() => void loadCategories()}>Reintentar</Boton>} />
                         ) : (
                             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md" data-tour="practicas-categorias">
                                 {categories.map(cat => (

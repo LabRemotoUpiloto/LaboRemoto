@@ -25,7 +25,7 @@ import { useAppStore } from '../store/app'
 import { CommandError } from '../services/command.service'
 
 /** TTL por defecto de una entrada de cache (30 segundos). */
-export const DEFAULT_QUERY_TTL_MS = 30_000
+const DEFAULT_QUERY_TTL_MS = 30_000
 
 export interface UseQueryDataOptions {
   /** Tiempo de vida del cache en ms. Por defecto {@link DEFAULT_QUERY_TTL_MS}. */

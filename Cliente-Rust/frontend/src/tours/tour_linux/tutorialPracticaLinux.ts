@@ -24,8 +24,6 @@ let pausado = false;
 let siguienteTimer: ReturnType<typeof setTimeout> | null = null;
 let alTerminar: (() => void) | null = null;
 
-export const tourPracticaLinuxActivo = () => drv !== null;
-
 // Mismo bloqueo que el tour de bienvenida: mientras dura el recorrido, nada de la app responde (ni la
 // terminal ni el chat) salvo el globo del tour — ver tutorialBienvenida.ts para el razonamiento completo.
 const EVENTOS_BLOQUEADOS = ['click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'contextmenu', 'keydown', 'keyup'] as const;
@@ -180,7 +178,7 @@ export function iniciarTourPracticaLinux(onTerminar?: () => void) {
   void ir(0);
 }
 
-export function cerrarTourPracticaLinux() {
+function cerrarTourPracticaLinux() {
   limpiarTimer();
   pararAudio();
   document.body.classList.remove('tpl-activo');

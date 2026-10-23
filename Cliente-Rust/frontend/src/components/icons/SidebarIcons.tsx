@@ -93,23 +93,6 @@ export const CodeIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => 
   </svg>
 )
 
-export const PinIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-    className={className}
-  >
-    <line x1="12" y1="17" x2="12" y2="22" />
-    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
-  </svg>
-)
-
 export const CameraIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => (
   <svg 
     width={size} 
@@ -124,22 +107,6 @@ export const CameraIcon: React.FC<IconProps> = ({ size = 18, className = '' }) =
   >
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
     <circle cx="12" cy="13" r="4" />
-  </svg>
-)
-
-export const RefreshIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
   </svg>
 )
 
@@ -180,24 +147,6 @@ export const FileTextIcon: React.FC<IconProps> = ({ size = 18, className = '' })
   </svg>
 )
 
-export const DesktopIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <rect x="2" y="3" width="20" height="14" rx="2" />
-    <line x1="8" y1="21" x2="16" y2="21" />
-    <line x1="12" y1="17" x2="12" y2="21" />
-  </svg>
-)
-
 export const LabIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => (
   <svg
     width={size}
@@ -212,23 +161,6 @@ export const LabIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => (
   >
     <path d="M9 3h6M10 3v7.4a2 2 0 0 1-.5 1.3L4 19a2 2 0 0 0 1.5 3h13a2 2 0 0 0 1.5-3l-5.5-7.3A2 2 0 0 1 14 10.4V3" />
     <path d="M8.5 14h7" />
-  </svg>
-)
-
-export const MoodleIcon: React.FC<IconProps> = ({ size = 18, className = '' }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 )
 

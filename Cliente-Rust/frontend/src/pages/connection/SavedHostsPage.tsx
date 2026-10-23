@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { listHostEntries, deleteHostFile, type SavedHostFileEntry } from '../../services/storage.service'
 import { useLoading } from '../../contexts/LoadingContext'
 import { useToasts } from '../../contexts/ToastContext'
-import { Card, Text, Badge, ActionIcon, Menu, Button, Box, Container, SimpleGrid, Stack, Title, Loader, Tooltip } from '@mantine/core'
+import { Card, Text, ActionIcon, Menu, Button, Box, Container, SimpleGrid, Stack, Title } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { Monitor, MoreVertical, Pencil, Trash2, Plus, Server, Cpu, ArrowRight } from 'lucide-react'
 import { sshConnect } from '../../services/ssh.service'
@@ -182,7 +182,6 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
                 const portNum = Number(it.payload.port)
                 const displayName = getDeviceLabel(it.payload.host, portNum)
                 const hostLabel = `${it.payload.user ?? ''}@${displayName}`
-                const isKnown = isRaspberryPi4(it.payload.host, portNum)
                 const IconComponent = getHostIcon(it.payload.host, it.payload.port)
 
                 return (

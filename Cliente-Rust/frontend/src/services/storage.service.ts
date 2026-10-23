@@ -46,27 +46,9 @@ export const saveHostWithMaster = (id: string, payload: HostPayload): Promise<vo
   return invoke<void>('save_host_master', { id, jsonPayload });
 };
 
-/** Carga un host cifrado con la clave maestra. */
-export const loadHostWithMaster = (id: string): Promise<string> =>
-  invoke<string>('load_host_master', { id });
-
-/** Guarda un host con cifrado simple (sin clave maestra). */
-export const saveHostEncrypted = (id: string, payload: HostPayload): Promise<void> => {
-  const jsonPayload = JSON.stringify(payload);
-  return invoke<void>('save_host_encrypted', { id, jsonPayload });
-};
-
-/** Carga un host cifrado simple. */
-export const loadHostEncrypted = (id: string): Promise<string> =>
-  invoke<string>('load_host_encrypted', { id });
-
 /** Lista todas las entradas de hosts guardados. */
 export const listHostEntries = (): Promise<SavedHostFileEntry[]> =>
   invoke<SavedHostFileEntry[]>('list_hosts_entries');
-
-/** Lista los archivos de hosts disponibles. */
-export const listHostFiles = (): Promise<string[]> =>
-  invoke<string[]>('list_hosts_files');
 
 /** Elimina un archivo de host guardado. */
 export const deleteHostFile = (id: string): Promise<void> =>
@@ -85,10 +67,6 @@ export const localListDir = (path: string) =>
 /** Lista las unidades disponibles (Windows). */
 export const localListDrives = () =>
   invoke('local_list_drives');
-
-/** Guarda un archivo de texto en el FS local. */
-export const saveTextFile = (path: string, content: string): Promise<void> =>
-  invoke<void>('save_text_file', { path, content });
 
 // ── Historial de chat ─────────────────────────────────────────────────────────
 

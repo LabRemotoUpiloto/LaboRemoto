@@ -8,9 +8,6 @@ import { ChatMode } from '../chatModes/types';
 export const CHAT_STORAGE_KEY = (sid: string | null, mode: ChatMode) =>
   `chat-history:${sid ?? 'default'}:${mode}`;
 
-export const TOKEN_STORAGE_KEY = (sid: string | null) =>
-  `chat-tokens:${sid ?? 'default'}`;
-
 export const MAX_CHAR_WARN = 4000;
 
 export interface HistoryEntry {
@@ -86,19 +83,6 @@ export const MODE_SUGGESTIONS: Record<ChatMode, { text: string; icon: React.Reac
     { text: 'Instalar Docker paso a paso', icon: React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('path', { d: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' })) },
     { text: 'Monitorear el rendimiento del servidor', icon: React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '22 12 18 12 15 21 9 3 6 12 2 12' })) },
   ],
-};
-
-export const MODE_DESCRIPTIONS: Record<ChatMode, string> = {
-  ask:    'Explica, responde preguntas y genera código sin ejecutar nada',
-  agente: 'Ejecuta comandos reales en el servidor y analiza el output',
-  plan:   'Genera un plan estructurado por fases antes de ejecutar',
-};
-
-export const MODEL_CONTEXT_WINDOW: Record<string, number> = {
-  'openai/gpt-oss-120b': 131_072,
-  'openai/gpt-oss-20b': 131_072,
-  'groq/compound': 131_072,
-  'qwen/qwen3.8-27b': 131_072,
 };
 
 // ── Patrones de error del terminal ──

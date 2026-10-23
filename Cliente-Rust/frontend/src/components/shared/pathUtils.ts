@@ -45,12 +45,3 @@ export function getParentRemotePath(path: string): string | null {
   return idx <= 0 ? '/' : normalized.slice(0, idx);
 }
 
-/**
- * Extrae el nombre del archivo/carpeta de un path
- * @param path - Path completo
- */
-export function getBaseName(path: string): string {
-  const normalized = path.replace(/\\/g, '/').replace(/\/$/, '');
-  const idx = normalized.lastIndexOf('/');
-  return idx >= 0 ? normalized.slice(idx + 1) : normalized;
-}

@@ -61,5 +61,3 @@ export const useToasts = () => {
   if (!ctx) throw new Error('useToasts must be used within ToastProvider')
   return ctx
 }
-
-export default ToastContext

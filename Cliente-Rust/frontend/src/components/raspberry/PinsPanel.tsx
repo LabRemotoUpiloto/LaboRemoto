@@ -9,7 +9,6 @@ import {
   Button,
   ActionIcon,
   SegmentedControl,
-  Switch,
   TextInput,
   Tooltip,
   ScrollArea,
@@ -19,10 +18,8 @@ import {
   Alert,
 } from '@mantine/core'
 import {
-  RefreshCw,
   LayoutGrid,
   List,
-  ArrowLeft,
   Zap,
   Edit3,
   AlertTriangle,
@@ -122,7 +119,6 @@ const resolvePinColor = (pin: PinDefinition, line: GpioLine | undefined) => {
 const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const [data, setData] = useState<GpioLine[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const [selectedPin, setSelectedPin] = useState<number | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -165,15 +161,12 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   )
 
   const load = useCallback(async () => {
-    setLoading(true)
     setError(null)
     try {
       const res = await gpioService.getPinsStatus(sessionId)
       setData(res)
     } catch (e: any) {
       setError(e?.message ?? String(e))
-    } finally {
-      setLoading(false)
     }
   }, [sessionId])
 
@@ -296,22 +289,6 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       setMessage(e?.message ?? String(e))
     } finally {
       setActionLoading(false)
-    }
-  }
-
-  const readNow = async () => {
-    if (!selectedDefinition || selectedDefinition.gpio == null) return
-    try {
-      const updated = await gpioService.readPin(sessionId, selectedDefinition.gpio)
-      setData((prev) => {
-        const list = prev ? [...prev] : []
-        const idx = list.findIndex((x) => x.gpio === updated.gpio)
-        if (idx >= 0) list[idx] = updated
-        else list.push(updated)
-        return list
-      })
-    } catch (e: any) {
-      setMessage(e?.message ?? String(e))
     }
   }
 

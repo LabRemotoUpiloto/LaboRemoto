@@ -9,7 +9,7 @@ import rust from 'highlight.js/lib/languages/rust';
 import yaml from 'highlight.js/lib/languages/yaml';
 import json from 'highlight.js/lib/languages/json';
 import { Copy, Check, Play, Loader2, XCircle } from 'lucide-react';
-import { ActionIcon, Button, Group } from '@mantine/core';
+import { Button, Group } from '@mantine/core';
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('sh', bash);
@@ -160,5 +160,3 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
     </div>
   );
 };
-
-export default CodeBlock;

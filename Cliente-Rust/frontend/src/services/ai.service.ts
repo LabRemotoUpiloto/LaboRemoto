@@ -73,17 +73,9 @@ export const planChat = (params: Record<string, unknown>) =>
 export const getTerminalContext = (sessionId: string) =>
   invoke('get_terminal_context', { sessionId });
 
-/** Verifica el estado de configuración de las API keys de IA. */
-export const aiEnvStatus = () =>
-  invoke('ai_env_status');
-
 /** True si PI4_USER y PI4_PASSWORD están en .env (agente sin SSH manual). */
 export const pi4AgentReady = (): Promise<boolean> =>
   invoke<boolean>('pi4_agent_ready');
-
-/** Prueba una API key específica. */
-export const aiTestKey = (provider: string, key: string) =>
-  invoke('ai_test_key', { provider, key });
 
 // ── Eventos de streaming ──────────────────────────────────────────────────────
 

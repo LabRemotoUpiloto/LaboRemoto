@@ -42,5 +42,3 @@ export const LinuxPracticeProgressBar: React.FC<Props> = ({ result, progreso }) 
     </div>
   );
 };
-
-export default LinuxPracticeProgressBar;

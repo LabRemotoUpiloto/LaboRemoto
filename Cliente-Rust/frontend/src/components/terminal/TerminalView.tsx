@@ -5,7 +5,7 @@ import ChatPane from '../ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
 import Ev3Panel from '../ev3/Ev3Panel';
-import LinuxPracticeProgressBar, { type ProgresoPractica } from '../practicas/linux/LinuxPracticeProgressBar';
+import { LinuxPracticeProgressBar, type ProgresoPractica } from '../practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
 import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '../practicas/linux/ritmo';
 import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '../practicas/linux/ejecutarComando';
@@ -36,8 +36,6 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   onCloseChat = () => {},
   isTabActive = true,
   practiceId = null,
-  assignmentId,
-  student = null,
   robotDashboardEnabled = false,
   linuxSession,
 }) => {
@@ -51,7 +49,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   const [isResizingChat, setIsResizingChat] = useState(false);
   const [isResizingCamera, setIsResizingCamera] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { commandHistory, commandEntries, processTerminalData, processTerminalInput, clearHistory } = useCommandHistory();
+  const { commandHistory, processTerminalData, processTerminalInput, clearHistory } = useCommandHistory();
 
   useEffect(() => {
     clearHistory();

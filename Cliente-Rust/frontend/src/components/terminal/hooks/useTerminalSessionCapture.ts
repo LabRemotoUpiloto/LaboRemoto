@@ -23,7 +23,6 @@
  * terminal) puedan compartir el mismo estado sin duplicar lógica de guardado.
  */
 import { useEffect, MutableRefObject } from 'react';
-import { Terminal } from '@xterm/xterm';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { captureAndSaveSession, SessionMetadata } from '../../../services/session.service';
 import { TerminalSessionMetadata } from './terminalTypes';
@@ -32,7 +31,6 @@ import { EVENTO_EXPORTAR_REGISTRO, type RegistroSesion } from '../../../utils/re
 interface UseTerminalSessionCaptureParams {
   sessionId: string | null;
   localSshCommand?: string | null;
-  termRef: MutableRefObject<Terminal | null>;
   serializeRef: MutableRefObject<SerializeAddon | null>;
   sessionMetadataRef: MutableRefObject<TerminalSessionMetadata | null>;
   snapshotsHistoryRef: MutableRefObject<string[]>;
@@ -65,7 +63,6 @@ function metadataFinal(metadata: TerminalSessionMetadata, endTime: string): Sess
 export function useTerminalSessionCapture({
   sessionId,
   localSshCommand,
-  termRef,
   serializeRef,
   sessionMetadataRef,
   snapshotsHistoryRef,

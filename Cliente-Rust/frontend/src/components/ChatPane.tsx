@@ -18,12 +18,10 @@ import ChatInput from './chatPane/ChatInput';
 import ChatHistoryPanel from './chatPane/ChatHistoryPanel';
 import ChatModals from './chatPane/ChatModals';
 import TerminalBanners from './chatPane/TerminalBanners';
-import { MODEL_CONTEXT_WINDOW } from './chatPane/chatPane.constants';
 
 // Hooks extraídos
 import { useTerminalMonitor } from './chatPane/hooks/useTerminalMonitor';
 import { usePi4ChatSession } from './chatPane/hooks/usePi4ChatSession';
-import { useChatExport } from './chatPane/hooks/useChatExport';
 import { useChatStorage } from './chatPane/hooks/useChatStorage';
 import { useChatHistoryManager } from './chatPane/hooks/useChatHistoryManager';
 import { useChatModeSwitch } from './chatPane/hooks/useChatModeSwitch';
@@ -311,7 +309,6 @@ const ChatPane: React.FC<Props> = ({
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [streamedText, setStreamedText] = useState('');
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [showTokenPopover, setShowTokenPopover] = useState(false);
   // Estado de disponibilidad del agente Pi4 (PI4_USER/PI4_PASSWORD en .env):
   // dato de solo lectura, cacheado (Batch 3, REFACTOR #4) para no
   // re-consultar al backend en cada remontaje de ChatPane dentro del TTL.
@@ -517,8 +514,7 @@ const ChatPane: React.FC<Props> = ({
 
   // ── Custom Hooks ──
   const { errorBanner, setErrorBanner, promptBanner, setPromptBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(terminalMonitorSessionId);
-  const { handleExportMd, handleExportHtml } = useChatExport(messages, setToast);
-  const { sessionTokens, setSessionTokens } = useChatStorage(sessionId, mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
+  useChatStorage(sessionId, mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
 
   const {
     showHistory, setShowHistory, historyEntries, historySearch, setHistorySearch,
@@ -526,7 +522,7 @@ const ChatPane: React.FC<Props> = ({
     handleDeleteHistoryEntry, confirmDeleteHistoryEntry, cancelDeleteHistoryEntry,
     loadedHistoryIdRef, messageCountAtLoadRef
   } = useChatHistoryManager(
-    sessionId, hostKey, mode, messages, setMessages, setSessionTokens,
+    sessionId, hostKey, mode, messages, setMessages,
     setMode, setToast, skipRestoreRef, clearMemory, mem.practiceTutorial
   );
 
@@ -666,7 +662,7 @@ const ChatPane: React.FC<Props> = ({
   }, [searchMatchIndex, searchMatchIds]);
 
   // ── Envío IA ──
-  const invokeAsk = async ({ finalInput, mode, userMsg }: { finalInput: string; mode: ChatMode; userMsg: Message }) => {
+  const invokeAsk = async ({ mode, userMsg }: { finalInput: string; mode: ChatMode; userMsg: Message }) => {
     const getContent = (m: Message) => {
       let c = m.text;
       if (m.meta?.attachedFileContent) c += `\n\n📄 ${m.meta.attachedFileName}:\n\`\`\`text\n${m.meta.attachedFileContent}\n\`\`\``;
@@ -986,7 +982,7 @@ const ChatPane: React.FC<Props> = ({
       if (uMsgs === 0) { setMessages(prev => [...prev, { id: String(Date.now()), sender: 'system', text: '⚡ No hay historial que compactar.' }]); return; }
       const lines = messages.map(m => `${m.sender === 'user' ? 'U' : 'A'}: ${m.text.slice(0, 120)}${m.text.length > 120 ? '…' : ''}`);
       setMessages([{ id: String(Date.now()), sender: 'system', text: `🗜 Historial compactado (${uMsgs} turnos). Resumen:\n${lines.join('\n')}`, timestamp: Date.now() }]);
-      setSessionTokens({ input: 0, output: 0 }); return;
+      return;
     }
 
     const handler = modeHandlers[mode];
@@ -1072,7 +1068,7 @@ const ChatPane: React.FC<Props> = ({
   const handleRetry = useCallback((id: string) => re_send_wrapper(id, false), [messages, mode, isSending]); /* eslint-disable-line */
   const handleRegenerate = useCallback((id: string) => re_send_wrapper(id, true), [messages, mode, isSending]); /* eslint-disable-line */
 
-  const handleAnalyzeCandidate = async (base: string, candidate: string, action: string = 'analyze', index?: number) => {
+  const handleAnalyzeCandidate = async (_base: string, candidate: string, action: string = 'analyze', index?: number) => {
     if (isSending) return;
     setIsSending(true);
     try {
@@ -1108,9 +1104,8 @@ const ChatPane: React.FC<Props> = ({
       attachedImage={attachedImage} setAttachedImage={setAttachedImage}
       attachedFile={attachedFile} setAttachedFile={setAttachedFile}
       inputRef={inputRef} isComposingRef={isComposingRef} messages={messages}
-      sessionTokens={sessionTokens} setSessionTokens={setSessionTokens} sessionId={sessionId}
-      ctxUsagePct={Math.min(100, (sessionTokens.input / (MODEL_CONTEXT_WINDOW[effectiveModel] || 200000)) * 100)}
-      setToast={setToast} showTokenPopover={showTokenPopover} setShowTokenPopover={setShowTokenPopover}
+      sessionId={sessionId}
+      setToast={setToast}
       variant={isHomeEmpty ? 'pill' : 'default'}
       selectedModel={selectedModel}
       onModelChange={setSelectedModel}

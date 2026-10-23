@@ -10,14 +10,6 @@ import { invoke } from '@tauri-apps/api/core';
 
 // ── Tipos (reflejan linux_api.rs + el schema de bloques del servicio en la Pi) ──
 
-export interface LinuxPracticeSummary {
-  id: string;
-  order?: number;
-  title: string;
-  difficulty: string;
-  estimated_minutes?: number;
-}
-
 export interface LinuxConnectionTarget {
   host: string;
   port: number;
@@ -219,9 +211,6 @@ export interface LinuxValidationResult {
 }
 
 // ── Comandos ──────────────────────────────────────────────────────────────────
-
-export const linuxListModules = (): Promise<LinuxPracticeSummary[]> =>
-  invoke<LinuxPracticeSummary[]>('practicas_linux_list');
 
 /**
  * Dos (o más) command_step pueden pedir el MISMO comando en puntos distintos

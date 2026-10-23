@@ -22,7 +22,7 @@ async function fakeStream(text: string, ctx: ModeHandlerContext): Promise<void> 
 export class AgenteModeHandler extends BaseModeHandler {
   help = 'Agente: ejecuta comandos en el servidor o en la Raspberry Pi (.env). Usa Claude con tools SSH reales.';
 
-  async send(finalInput: string, userMsg: Message, ctx: ModeHandlerContext) {
+  async send(finalInput: string, _userMsg: Message, ctx: ModeHandlerContext) {
     let effectiveSessionId = ctx.sessionId ?? ctx.pi4TerminalSessionId ?? null;
     if (!effectiveSessionId) {
       const ready = await pi4AgentReady();

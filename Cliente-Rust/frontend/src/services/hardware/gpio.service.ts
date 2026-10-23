@@ -52,19 +52,6 @@ export const writePinLevel = (sessionId: string, gpio: number, level: 0 | 1): Pr
   invoke<void>('rpi_pin_write_level', { id: sessionId, gpio, level });
 
 /**
- * Lee el estado actual de un pin específico.
- */
-export async function readPin(sessionId: string, gpio: number): Promise<GpioLine> {
-  const r = await invoke<any>('rpi_pin_read', { id: sessionId, gpio });
-  return {
-    gpio: Number(r.gpio),
-    level: r.level == null ? null : Number(r.level),
-    func: String(r.func || ''),
-    pull: r.pull == null ? null : String(r.pull),
-  };
-}
-
-/**
  * Inicia el monitoreo continuo en segundo plano desde el backend Rust.
  */
 export async function startPinsMonitor(sessionId: string, intervalMs?: number): Promise<void> {

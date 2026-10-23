@@ -1,4 +1,4 @@
-import { ModeHandler, ModeHandlerContext, Message, ChatMode } from '../types';
+import { ModeHandler, ModeHandlerContext, Message } from '../types';
 
 export abstract class BaseModeHandler implements ModeHandler {
   help: string = '';

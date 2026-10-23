@@ -17,7 +17,7 @@ async function fakeStream(text: string, ctx: ModeHandlerContext): Promise<void> 
 export class PlanModeHandler extends BaseModeHandler {
   help = 'Plan: inspecciona el servidor y genera un plan estructurado en fases con comandos reales.';
 
-  async send(finalInput: string, userMsg: Message, ctx: ModeHandlerContext) {
+  async send(finalInput: string, _userMsg: Message, ctx: ModeHandlerContext) {
     let effectiveSessionId = ctx.sessionId ?? null;
     if (!effectiveSessionId) {
       const ready = await pi4AgentReady();

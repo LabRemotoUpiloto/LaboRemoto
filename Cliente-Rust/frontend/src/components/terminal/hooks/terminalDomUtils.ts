@@ -47,7 +47,7 @@ export function isPaneVisible(containerRef: RefObject<HTMLDivElement | null>): b
  */
 export function applyXtermTheme(
   termRef: MutableRefObject<Terminal | null>,
-  containerRef: RefObject<HTMLDivElement | null>,
+  _containerRef: RefObject<HTMLDivElement | null>,
 ): void {
   const term = termRef.current;
   if (!term) return;

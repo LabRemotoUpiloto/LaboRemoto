@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Button, Group, Box } from '@mantine/core';
+import { Menu, Button } from '@mantine/core';
 import { ChatMode } from '../chatModes/types';
 import { MODES, ModeIcons } from './chatPane.constants';
 import { ChevronDown, Lock } from 'lucide-react';

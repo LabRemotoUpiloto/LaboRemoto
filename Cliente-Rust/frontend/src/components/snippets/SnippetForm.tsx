@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { TextInput, Textarea, Button, Group, Badge, Paper, Text } from '@mantine/core';
 
 export interface SnippetFormProps {

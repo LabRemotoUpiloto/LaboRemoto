@@ -30,11 +30,3 @@ export function useDisplayName(): string {
     return 'Estudiante';
   }, []);
 }
-
-export function setDisplayName(name: string): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, name.trim());
-  } catch {
-    /* ignore */
-  }
-}

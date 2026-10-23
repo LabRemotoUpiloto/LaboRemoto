@@ -18,7 +18,7 @@ const STORAGE_KEY = 'linux-practice-badges';
 /** Nombre del CustomEvent que se dispara al ganar una insignia -- permite que
  * la Sala de Trofeos se actualice en vivo si está montada en otra pestaña de
  * la app en el momento exacto en que se completa un módulo. */
-export const BADGE_EARNED_EVENT = 'linux-badge-earned';
+const BADGE_EARNED_EVENT = 'linux-badge-earned';
 
 export interface RankDef {
   /** Slug estable, no cambia aunque cambie el título mostrado. */
@@ -103,14 +103,6 @@ function writeStore(store: Record<string, EarnedBadge>) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch { /* localStorage no disponible -- la insignia igual se anima esta sesión */ }
-}
-
-export function getEarnedBadges(): Record<string, EarnedBadge> {
-  return readStore();
-}
-
-export function isModuleBadgeEarned(moduleId: string): boolean {
-  return moduleId in readStore();
 }
 
 /**

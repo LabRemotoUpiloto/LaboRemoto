@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import AskRenderer from './AskRenderer';
-import ToolResultRenderer from './ToolResultRenderer';
+import { useEffect, useRef, useState } from 'react';
+import { AskRenderer } from './AskRenderer';
+import { ToolResultRenderer } from './ToolResultRenderer';
 import DiffView from '../analysis/DiffView';
-import { Message, ChatMode } from '../chatModes/types';
+import { Message } from '../chatModes/types';
 import { RelativeTime } from './RelativeTime';
 import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon, Button, Group, Text } from '@mantine/core';
@@ -17,7 +17,6 @@ import { posterForModule, markPosterUnlocked, downloadPoster } from '../../servi
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;
   msg: Message;
-  mode: ChatMode;
   isSending: boolean;
   sessionId?: string | null;
   streamingMsgId: string | null;
@@ -44,7 +43,7 @@ interface AiMessageBubbleProps {
 
 export default function AiMessageBubble({
   appearance = 'session',
-  msg, mode, isSending, sessionId, streamingMsgId, streamedText, setLastCommand,
+  msg, isSending, sessionId, streamingMsgId, streamedText, setLastCommand,
   onCopy, onRegenerate, onRetry, onAnalyzeCandidate, onSetInput, wordCount,
   linuxPracticeId, linuxRules = [], linuxResult = null,
   linuxQuizAnswers = {}, linuxQuizSubmitting = false, linuxQuizSubmitted = false,
@@ -232,8 +231,6 @@ export default function AiMessageBubble({
               content={answerText}
               sessionId={sessionId || undefined}
               setLastCommand={setLastCommand}
-              mode={mode}
-              appearance={appearance}
               modoPractica={!!linuxPracticeId}
             />
           )}

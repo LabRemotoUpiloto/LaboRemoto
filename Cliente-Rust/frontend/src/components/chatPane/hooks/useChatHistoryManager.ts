@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Message, ChatMode } from '../../chatModes/types';
-import { HistoryEntry, CHAT_STORAGE_KEY, TOKEN_STORAGE_KEY } from '../chatPane.constants';
+import { HistoryEntry, CHAT_STORAGE_KEY } from '../chatPane.constants';
 
 export function useChatHistoryManager(
   sessionId: string | null | undefined,
@@ -9,7 +9,6 @@ export function useChatHistoryManager(
   mode: ChatMode,
   messages: Message[],
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
-  setSessionTokens: React.Dispatch<React.SetStateAction<{ input: number; output: number }>>,
   setMode: React.Dispatch<React.SetStateAction<ChatMode>>,
   setToast: (msg: string | null) => void,
   skipRestoreRef: React.MutableRefObject<boolean>,
@@ -60,10 +59,8 @@ export function useChatHistoryManager(
     const saved = await archiveCurrentChatRef.current?.();
     loadedHistoryIdRef.current = null;
     messageCountAtLoadRef.current = 0;
-    setSessionTokens({ input: 0, output: 0 });
     try {
       localStorage.removeItem(CHAT_STORAGE_KEY(sessionId ?? null, mode));
-      localStorage.removeItem(TOKEN_STORAGE_KEY(sessionId ?? null));
     } catch {}
     clearMemory();
     
@@ -75,7 +72,7 @@ export function useChatHistoryManager(
     }] : []);
 
     if (saved) { setToast('Chat guardado en historial'); setTimeout(() => setToast(null), 2500); }
-  }, [sessionId, mode, clearMemory, practiceTutorial, setMessages, setSessionTokens, setToast]);
+  }, [sessionId, mode, clearMemory, practiceTutorial, setMessages, setToast]);
 
   const handleLoadHistory = useCallback(async (entry: HistoryEntry) => {
     await archiveCurrentChatRef.current?.(entry.id);

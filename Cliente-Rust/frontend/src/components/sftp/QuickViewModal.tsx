@@ -1,4 +1,3 @@
-import React from 'react'
 import { Modal, Text, Button, Group } from '@mantine/core'
 
 type Props = {

@@ -160,10 +160,6 @@ export const sshDisconnect = async (id: string): Promise<void> => {
   );
 };
 
-/** Conecta a un host previamente guardado (por su ID de almacenamiento). */
-export const sshConnectStored = (id: string, cols: number, rows: number): Promise<string> =>
-  invoke<string>('ssh_connect_stored', { id, cols, rows });
-
 /** Obtiene información de metadata de una sesión activa. */
 export const sshSessionInfo = (id: string): Promise<SshSessionInfo> =>
   invoke<SshSessionInfo>('ssh_session_info', { id });
@@ -175,9 +171,6 @@ export const vncStart = (sessionId: string, params: Record<string, unknown>) =>
 
 export const vncStop = (sessionId: string): Promise<void> =>
   invoke<void>('vnc_stop', { sessionId });
-
-export const vncStatus = (sessionId: string) =>
-  invoke('vnc_status', { sessionId });
 
 // ── Memoria efímera de sesión ─────────────────────────────────────────────────
 
@@ -206,14 +199,6 @@ export const memGet = (sessionId: string) =>
 
 export const memClear = (sessionId: string): Promise<void> =>
   invoke<void>('mem_clear', { sessionId });
-
-export const memPushTerminalResult = (
-  sessionId: string,
-  stdoutTail: string,
-  stderrTail: string,
-  exitCode: number,
-): Promise<void> =>
-  invoke<void>('mem_push_terminal_result', { sessionId, stdoutTail, stderrTail, exitCode });
 
 // ── Emitters de eventos Tauri hacia el backend ────────────────────────────────
 

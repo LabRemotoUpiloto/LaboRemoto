@@ -37,7 +37,6 @@ export function useLocalTerminal(
 
   const { captureCurrentSession, captureSnapshot } = useTerminalSessionCapture({
     sessionId: paneId,
-    termRef,
     serializeRef,
     sessionMetadataRef,
     snapshotsHistoryRef,

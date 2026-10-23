@@ -1,7 +1,7 @@
 // tour/bienvenida/BienvenidaTutorial.tsx — la primera vez que un estudiante inicia sesión en este equipo, le ofrece el
 // tutorial narrado. También lo arranca cuando alguien lo pide (evento `app:tutorial-bienvenida`, p. ej. «Iniciar recorrido»
 // en Inicio), para cualquier rol.
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { Volume2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,7 +9,7 @@ import { useEffectiveRole } from '../../hooks/usePermissions';
 import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
 import { escenaTutorial, iniciarTutorialBienvenida, marcarTutorialVisto, tutorialYaVisto } from './tutorialBienvenida';
 
-export const EVENTO_TUTORIAL_BIENVENIDA = 'app:tutorial-bienvenida';
+const EVENTO_TUTORIAL_BIENVENIDA = 'app:tutorial-bienvenida';
 
 /** Pide el tutorial desde cualquier parte de la app. */
 export const pedirTutorialBienvenida = () => window.dispatchEvent(new CustomEvent(EVENTO_TUTORIAL_BIENVENIDA));

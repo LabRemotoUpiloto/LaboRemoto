@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Group, Stack, Text, ThemeIcon, useMantineTheme } from '@mantine/core';
+import { Card, Group, Stack, Text, ThemeIcon } from '@mantine/core';
 import { Bot, Terminal, Cpu, ArrowRight, type LucideIcon } from 'lucide-react';
 
 interface CategoryCardProps {
@@ -21,7 +21,6 @@ const iconMap: Record<string, LucideIcon> = {
 const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, practiceCount, onClick }) => {
     const IconComponent = iconMap[icon] || Terminal;
     const isAvailable = practiceCount > 0;
-    const theme = useMantineTheme();
 
     return (
         <Card
