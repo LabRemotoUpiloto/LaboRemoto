@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commandClient } from '../../services/command.service'
+import { localListDir } from '../../services/storage.service'
 import { useMediaQuery } from '@mantine/hooks'
 import FilePanel from '../../components/sftp/FilePanel'
 import TransferQueue from '../../components/sftp/TransferQueue'
@@ -359,7 +360,7 @@ const SftpPage: React.FC<Props> = ({
       const remote = joinRemotePath(rpath, name)
       let isDir = false
       try {
-        await invoke('local_list_dir', { path: localPath })
+        await localListDir(localPath)
         isDir = true
       } catch {
         isDir = false

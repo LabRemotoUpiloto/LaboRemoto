@@ -10,7 +10,7 @@
 
 import { useCallback } from 'react';
 import type { Tab } from './useAppTabs';
-import { vncStop, sshDisconnect } from '../services/ssh.service';
+import { vncStop, sshDisconnect, emitSaveSessionBeforeClose } from '../services/ssh.service';
 import { localTermClose } from '../services/localTerminal.service';
 import { useAppStore } from '../store/app';
 
@@ -70,7 +70,7 @@ export function useTabLifecycle({ tabs, closeTab, clearPracticeMeta, stopLinuxSe
     if (tab?.type === 'local-terminal') {
       const paneIds = useAppStore.getState().localTerminalPanes[id] || [];
       await Promise.all(paneIds.map(async (paneId) => {
-        window.dispatchEvent(new CustomEvent('app:save-session-before-close', { detail: { sessionId: paneId } }));
+        emitSaveSessionBeforeClose(paneId);
         await waitForSessionSave(paneId);
       }));
       await Promise.all(paneIds.map((paneId) => localTermClose(paneId).catch(() => {})));
@@ -81,9 +81,7 @@ export function useTabLifecycle({ tabs, closeTab, clearPracticeMeta, stopLinuxSe
     }
 
     // 1. Señalar al TerminalView que guarde la sesión antes de cerrar
-    window.dispatchEvent(
-      new CustomEvent('app:save-session-before-close', { detail: { sessionId: id } })
-    );
+    emitSaveSessionBeforeClose(id);
 
     // 2. Esperar confirmación de guardado (o timeout)
     await waitForSessionSave(id);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { chatHistoryLoad, chatHistorySave, chatHistoryDeleteEntry } from '../../../services/storage.service';
 import { Message, ChatMode } from '../../chatModes/types';
 import { HistoryEntry, CHAT_STORAGE_KEY } from '../chatPane.constants';
 
@@ -33,7 +33,7 @@ export function useChatHistoryManager(
       ...(loadedHistoryIdRef.current ? [loadedHistoryIdRef.current] : []),
     ]);
     try {
-      const existing = await invoke<HistoryEntry[]>('chat_history_load', { sessionId: hostKey, mode });
+      const existing = await chatHistoryLoad<HistoryEntry>(hostKey, mode);
       const entry: HistoryEntry = {
         id: crypto.randomUUID(), date: Date.now(),
         preview: messages.find(m => m.sender === 'user')?.text?.slice(0, 100) ?? '',
@@ -48,7 +48,7 @@ export function useChatHistoryManager(
       const merged = [entry, ...existing.filter(e => !excludeIds.has(e.id))];
       const seenIds = new Set<string>();
       const updated = merged.filter(e => { if (seenIds.has(e.id)) return false; seenIds.add(e.id); return true; }).slice(0, 20);
-      await invoke('chat_history_save', { sessionId: hostKey, mode, entries: updated });
+      await chatHistorySave(hostKey, mode, updated);
       return true;
     } catch { return false; }
   }, [messages, hostKey, mode]);
@@ -90,7 +90,7 @@ export function useChatHistoryManager(
   const confirmDeleteHistoryEntry = useCallback(async (id: string, ev: React.MouseEvent) => {
     ev.stopPropagation();
     try {
-      const updated = await invoke<HistoryEntry[]>('chat_history_delete_entry', { sessionId: hostKey, mode, entryId: id });
+      const updated = await chatHistoryDeleteEntry<HistoryEntry>(hostKey, mode, id);
       setHistoryEntries(updated);
     } catch { } finally { setPendingDeleteId(null); }
   }, [hostKey, mode]);
@@ -103,7 +103,7 @@ export function useChatHistoryManager(
     if (!showHistory) return;
     Promise.all(
       (['ask', 'agente', 'plan'] as ChatMode[]).map(m =>
-        invoke<HistoryEntry[]>('chat_history_load', { sessionId: hostKey, mode: m })
+        chatHistoryLoad<HistoryEntry>(hostKey, m)
           .then(entries => entries.map(e => ({ ...e, mode: e.mode ?? m })))
           .catch(() => [] as HistoryEntry[])
       )

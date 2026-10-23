@@ -1,12 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { useSessionMemory } from '../hooks/useSessionMemory';
 import { consumePendingChatMessage } from '../utils/pendingChatMessage';
 
 import { ChatMode, Message, AgentState, AiResponseRaw, ModeHandlerContext, ModelSelection } from './chatModes/types';
-import type { CommandResponse } from '../services/command.service';
 import { AskModeHandler } from './chatModes/classes/AskModeHandler';
 import { AgenteModeHandler } from './chatModes/classes/AgenteModeHandler';
 import { PlanModeHandler } from './chatModes/classes/PlanModeHandler';
@@ -30,7 +27,7 @@ import AgentHomeHero from '../pages/home/AgentHomeHero';
 import ChatToast from './chat/ChatToast';
 import { useDisplayName } from '../pages/home/useDisplayName';
 import ChatFloatingActions from './chatPane/ChatFloatingActions';
-import { pi4AgentReady as fetchPi4AgentReady } from '../services/ai.service';
+import { pi4AgentReady as fetchPi4AgentReady, aiChat, cancelAiChat, getTerminalContext, listenAiChunks, type ChatHistoryItem } from '../services/ai.service';
 import { vncStop, sshSessionInfo } from '../services/ssh.service';
 import { useTour } from '../tours/tour_general/useTour';
 import { useQueryData } from '../hooks/useQueryData';
@@ -668,7 +665,7 @@ const ChatPane: React.FC<Props> = ({
       if (m.meta?.attachedFileContent) c += `\n\n📄 ${m.meta.attachedFileName}:\n\`\`\`text\n${m.meta.attachedFileContent}\n\`\`\``;
       return c;
     };
-    const history = messages
+    const history: ChatHistoryItem[] = messages
       .filter(m => m.sender !== 'system')
       .map(m => ({ role: m.sender === 'ai' ? 'assistant' : 'user', content: getContent(m) }));
 
@@ -690,14 +687,13 @@ const ChatPane: React.FC<Props> = ({
     marcaRespuestaRef.current = null;
     setMessages(prev => [...prev, { id: reqId, sender: 'ai', text: '', timestamp: Date.now(), meta: { chat_mode: mode, ...marca } }]);
 
-    const unlistenChunk = await listen<{ request_id: string; delta: string }>('ai:chunk', (ev) => {
-      if (ev.payload.request_id !== reqId) return;
+    const unlistenChunk = await listenAiChunks(reqId, (delta) => {
       // Este listener sigue vivo hasta que SU PROPIO invoke() resuelva --
       // si mientras tanto cancelaste y mandaste un pedido nuevo, seguir
       // escribiendo acá contaminaría el streamedText (compartido) del
       // pedido nuevo con texto del viejo ya cancelado.
       if (currentReqIdRef.current !== reqId) return;
-      setStreamedText(prev => prev + ev.payload.delta);
+      setStreamedText(prev => prev + delta);
     });
 
     // Modo Agente/Plan ya mandan el buffer real de la terminal (agent_chat/
@@ -710,22 +706,20 @@ const ChatPane: React.FC<Props> = ({
     let liveTerminalContext: string | null = null;
     if (contextSessionId) {
       try {
-        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+        liveTerminalContext = await getTerminalContext(contextSessionId, 80);
       } catch { /* sin contexto, no es fatal */ }
     }
 
     try {
-      const envelope = await invoke<CommandResponse<AiResponseRaw>>('ai_chat', {
-        req: {
-          id: reqId,
-          version: '1.0',
-          timestamp_ms: Date.now(),
-          payload: {
-            user_input: getContent(userMsg), mode, history, state: agentState, model_selection: effectiveModel,
-            image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
-            terminal_context: liveTerminalContext, request_id: reqId,
-          },
-        }
+      const envelope = await aiChat<AiResponseRaw>({
+        id: reqId,
+        version: '1.0',
+        timestamp_ms: Date.now(),
+        payload: {
+          user_input: getContent(userMsg), mode, history, state: agentState, model_selection: effectiveModel,
+          image_base64: imgSnap?.base64 ?? null, image_media_type: imgSnap?.mediaType ?? null,
+          terminal_context: liveTerminalContext, request_id: reqId,
+        },
       });
       unlistenChunk();
       // Chequeo por-pedido, no por bandera global: si cancelás y mandás otro
@@ -835,7 +829,7 @@ const ChatPane: React.FC<Props> = ({
     let liveTerminalContext: string | null = null;
     if (contextSessionId) {
       try {
-        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+        liveTerminalContext = await getTerminalContext(contextSessionId, 80);
       } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
     }
     const triggerText =
@@ -875,7 +869,7 @@ const ChatPane: React.FC<Props> = ({
     let liveTerminalContext: string | null = null;
     if (contextSessionId) {
       try {
-        liveTerminalContext = await invoke<string>('get_terminal_context', { sessionId: contextSessionId, lines: 80 });
+        liveTerminalContext = await getTerminalContext(contextSessionId, 80);
       } catch { /* sin contexto, no es fatal -- igual se intenta explicar */ }
     }
     const triggerText = textoComandoFueraDeLugar({
@@ -1027,14 +1021,7 @@ const ChatPane: React.FC<Props> = ({
     // silencioso la tragaba, así que el backend nunca se enteraba de la
     // cancelación y el pedido seguía corriendo hasta el final igual.
     if (cancelledReqId) {
-      invoke('cancel_ai_chat', {
-        req: {
-          id: crypto.randomUUID(),
-          version: '1.0',
-          timestamp_ms: Date.now(),
-          payload: { request_id: cancelledReqId },
-        },
-      }).catch(() => {});
+      cancelAiChat(cancelledReqId).catch(() => {});
     }
     currentReqIdRef.current = null;
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }

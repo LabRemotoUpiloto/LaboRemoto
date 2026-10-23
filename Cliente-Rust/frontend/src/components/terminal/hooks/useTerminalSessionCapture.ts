@@ -25,6 +25,7 @@
 import { useEffect, MutableRefObject } from 'react';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { captureAndSaveSession, SessionMetadata } from '../../../services/session.service';
+import { SAVE_SESSION_BEFORE_CLOSE_EVENT } from '../../../services/ssh.service';
 import { TerminalSessionMetadata } from './terminalTypes';
 import { EVENTO_EXPORTAR_REGISTRO, type RegistroSesion } from '../../../utils/registroSesion';
 
@@ -162,11 +163,11 @@ export function useTerminalSessionCapture({
       }
     };
 
-    window.addEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
+    window.addEventListener(SAVE_SESSION_BEFORE_CLOSE_EVENT, handleSaveBeforeClose as EventListener);
     window.addEventListener(EVENTO_EXPORTAR_REGISTRO, handleExportLog as EventListener);
 
     return () => {
-      window.removeEventListener('app:save-session-before-close', handleSaveBeforeClose as EventListener);
+      window.removeEventListener(SAVE_SESSION_BEFORE_CLOSE_EVENT, handleSaveBeforeClose as EventListener);
       window.removeEventListener(EVENTO_EXPORTAR_REGISTRO, handleExportLog as EventListener);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

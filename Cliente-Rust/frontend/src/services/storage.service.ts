@@ -6,6 +6,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import type { LocalEntry } from '../types';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -61,20 +62,22 @@ export const localHomeDir = (): Promise<string> =>
   invoke<string>('local_home_dir');
 
 /** Lista el contenido de un directorio local. */
-export const localListDir = (path: string) =>
-  invoke('local_list_dir', { path });
+export const localListDir = (path: string): Promise<LocalEntry[]> =>
+  invoke<LocalEntry[]>('local_list_dir', { path });
 
 /** Lista las unidades disponibles (Windows). */
-export const localListDrives = () =>
-  invoke('local_list_drives');
+export const localListDrives = (): Promise<string[]> =>
+  invoke<string[]>('local_list_drives');
 
 // ── Historial de chat ─────────────────────────────────────────────────────────
 
-export const chatHistoryLoad = (key: string) =>
-  invoke('chat_history_load', { key });
+/** Historial por sesión y modo (ver `chat_history_*` en backend/src/cmd/filesystem/local.rs). `T` es la forma de cada entrada. */
+export const chatHistoryLoad = <T = unknown>(sessionId: string, mode: string): Promise<T[]> =>
+  invoke<T[]>('chat_history_load', { sessionId, mode });
 
-export const chatHistorySave = (key: string, data: unknown): Promise<void> =>
-  invoke<void>('chat_history_save', { key, data: JSON.stringify(data) });
+export const chatHistorySave = (sessionId: string, mode: string, entries: unknown[]): Promise<void> =>
+  invoke<void>('chat_history_save', { sessionId, mode, entries });
 
-export const chatHistoryDeleteEntry = (key: string, entryId: string): Promise<void> =>
-  invoke<void>('chat_history_delete_entry', { key, entryId });
+/** Devuelve el historial que queda tras borrar la entrada. */
+export const chatHistoryDeleteEntry = <T = unknown>(sessionId: string, mode: string, entryId: string): Promise<T[]> =>
+  invoke<T[]>('chat_history_delete_entry', { sessionId, mode, entryId });

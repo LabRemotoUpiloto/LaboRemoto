@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { localHomeDir, localListDir, localListDrives } from "../services/storage.service";
 import type { LocalEntry } from "../types";
 import { useMultiSelection } from "./useMultiSelection";
 
@@ -33,16 +33,16 @@ export function useLocalFsBrowser() {
         setLoading(true);
         let root = nextRoot ?? path;
         if (!root) {
-          root = await invoke<string>("local_home_dir");
+          root = await localHomeDir();
           setPath(root);
         }
         if (drives.length === 0) {
           try {
-            const d = await invoke<string[]>("local_list_drives");
+            const d = await localListDrives();
             setDrives(d);
           } catch {}
         }
-        const list = await invoke<LocalEntry[]>("local_list_dir", { path: root });
+        const list = await localListDir(root);
         setRows(list || []);
       } finally {
         setLoading(false);

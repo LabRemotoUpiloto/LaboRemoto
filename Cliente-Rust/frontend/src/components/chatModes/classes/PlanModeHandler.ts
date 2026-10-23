@@ -1,9 +1,8 @@
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { BaseModeHandler } from './BaseModeHandler';
 import { ModeHandlerContext, Message, AgentChatResponse, AgentStep } from '../types';
 import { PI4_AGENT_SESSION_ID } from '../../../constants/devices';
-import { pi4AgentReady } from '../../../services/ai.service';
+import { pi4AgentReady, planChat } from '../../../services/ai.service';
 
 async function fakeStream(text: string, ctx: ModeHandlerContext): Promise<void> {
   const CHUNK = 20;
@@ -59,12 +58,10 @@ export class PlanModeHandler extends BaseModeHandler {
         }));
       });
 
-      const resp = await invoke<AgentChatResponse>('plan_chat', {
-        req: {
-          session_id: effectiveSessionId,
-          message: finalInput,
-          request_id: streamId,
-        },
+      const resp = await planChat<AgentChatResponse>({
+        session_id: effectiveSessionId,
+        message: finalInput,
+        request_id: streamId,
       });
       unlistenStep?.();
       unlistenStep = null;

@@ -1,9 +1,8 @@
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { BaseModeHandler } from './BaseModeHandler';
 import { ModeHandlerContext, Message, AgentChatResponse, AgentStep } from '../types';
 import { PI4_AGENT_SESSION_ID } from '../../../constants/devices';
-import { pi4AgentReady } from '../../../services/ai.service';
+import { pi4AgentReady, agentChat } from '../../../services/ai.service';
 import {
   shouldOpenPi4ChatTerminal,
   shouldOpenPi4ChatCameras,
@@ -64,14 +63,12 @@ export class AgenteModeHandler extends BaseModeHandler {
         }));
       });
 
-      const resp = await invoke<AgentChatResponse>('agent_chat', {
-        req: {
-          session_id: effectiveSessionId,
-          message: finalInput,
-          include_terminal_context: true,
-          terminal_lines: 80,
-          request_id: streamId,
-        },
+      const resp = await agentChat<AgentChatResponse>({
+        session_id: effectiveSessionId,
+        message: finalInput,
+        include_terminal_context: true,
+        terminal_lines: 80,
+        request_id: streamId,
       });
       unlistenStep?.();
       unlistenStep = null;
