@@ -1,8 +1,9 @@
 // pages/rendimiento/monitoreo.ts — cuentas de las vistas de Monitoreo (sin React, para probarlas aparte).
 import type { MuestraPi, ServicioPi } from '../../services/rendimiento.service';
 import { INDICADORES, estadoDe, estudiantesEn } from './rendimientoStats';
+import type { Nivel } from '../../components/ui/estilos';
 
-export type Nivel = 'bien' | 'alerta' | 'critico' | 'apagado';
+export type { Nivel };
 
 /** El disco no entra en la prueba de carga (no cambia con los estudiantes), pero sí en el estado. */
 export const DISCO = { alerta: 80, critico: 90 };

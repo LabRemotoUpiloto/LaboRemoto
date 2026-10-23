@@ -5,7 +5,7 @@ import type { ServicioPi } from '../../services/rendimiento.service';
 import type { PruebaRendimiento } from '../../services/pruebaRendimiento';
 import { ENLACE_SUBIDA_MBPS, INDICADORES, estadoDe, estudiantesEn, type ResumenPrueba } from './rendimientoStats';
 import { DISCO, duracion, formatoValor, frenadaAhora, hora24 } from './monitoreo';
-import { Barra, Boton, NOTA, Punto, Seccion, TARJETA, TEXTO_NIVEL, type Nivel } from './Piezas';
+import { Barra, Boton, NOTA, Punto, Seccion, TARJETA, TEXTO_NIVEL, type Nivel } from '../../components/ui';
 import type { DatosPi } from './useDatosLab';
 
 const NIVEL_DE: Record<string, Nivel> = { bueno: 'bien', alerta: 'alerta', critico: 'critico' };
@@ -42,15 +42,15 @@ interface Fila {
 
 function Filas({ filas }: { filas: Fila[] }) {
   return (
-    <div className={`${TARJETA} divide-y divide-mon-pista`}>
+    <div className={`${TARJETA} divide-y divide-ui-pista`}>
       {filas.map((f) => {
-        const tinta = f.nivel === 'critico' || f.nivel === 'alerta' ? TEXTO_NIVEL[f.nivel] : f.valor === '—' ? 'text-mon-apagado' : 'text-mon-tinta';
+        const tinta = f.nivel === 'critico' || f.nivel === 'alerta' ? TEXTO_NIVEL[f.nivel] : f.valor === '—' ? 'text-ui-apagado' : 'text-ui-tinta';
         return (
           <div key={f.nombre} className="mx-4 grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2 px-2 py-3.5 md:grid-cols-[200px_130px_260px_1fr]">
-            <span className="text-sm font-semibold text-mon-tinta">{f.nombre}</span>
-            <span className={`font-mon-num text-xl ${tinta}`}>{f.valor}</span>
+            <span className="text-sm font-semibold text-ui-tinta">{f.nombre}</span>
+            <span className={`font-ui-num text-xl ${tinta}`}>{f.valor}</span>
             {f.alerta != null || f.frac ? <Barra frac={f.frac} alerta={f.alerta} critico={f.critico} nivel={f.nivel} className="hidden md:block" /> : <span className="hidden md:block" />}
-            <span className="col-span-2 text-[13px] text-mon-tinta-2 md:col-span-1">
+            <span className="col-span-2 text-[13px] text-ui-tinta-2 md:col-span-1">
               {(f.nivel === 'alerta' || f.nivel === 'critico') && (
                 <b className={`mr-3 font-bold ${TEXTO_NIVEL[f.nivel]}`}>{f.nivel === 'alerta' ? 'Alerta' : 'Crítico'}</b>
               )}
@@ -83,13 +83,13 @@ function ResumenDePrueba({ resumen, onGuardar }: { resumen: ResumenPrueba; onGua
                 resto={`· ${a.indicador.titulo.toLowerCase()} pasó de ${formatoValor(a.indicador.alerta, a.indicador.unidad)}`} />
             )}
             {resumen.huboFrenado && <Punto nivel="alerta" fuerte="La Pi bajó su velocidad" resto="· por calor o voltaje; ese tramo no refleja su capacidad normal" />}
-            <p className="m-0 mt-2 text-[13px] text-mon-tinta-2">Abre «Gráficas → Por estudiantes» para ver cada medida contra la cantidad de estudiantes.</p>
+            <p className="m-0 mt-2 text-[13px] text-ui-tinta-2">Abre «Gráficas → Por estudiantes» para ver cada medida contra la cantidad de estudiantes.</p>
           </div>
           <Boton onClick={onGuardar}>Guardar Excel</Boton>
         </div>
         <table className="w-full border-collapse text-[13px]">
           <thead>
-            <tr className="border-y border-mon-pista text-left text-[10px] font-bold uppercase tracking-[0.08em] text-mon-apagado">
+            <tr className="border-y border-ui-pista text-left text-[10px] font-bold uppercase tracking-[0.08em] text-ui-apagado">
               <th className="py-2.5 pl-6 font-bold">Medida</th>
               <th className="py-2.5 text-right font-bold">Pico</th>
               <th className="py-2.5 pl-4 font-bold" />
@@ -97,23 +97,23 @@ function ResumenDePrueba({ resumen, onGuardar }: { resumen: ResumenPrueba; onGua
               <th className="py-2.5 pr-6 text-right font-bold">Estudiantes en ese momento</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-mon-pista">
+          <tbody className="divide-y divide-ui-pista">
             {resumen.picos.map((p) => {
               const e = estadoDe(p.indicador, p.valor);
               const nivel = e === 'critico' ? 'critico' : e === 'alerta' ? 'alerta' : null;
               return (
                 <tr key={p.indicador.id}>
-                  <td className="py-2 pl-6 text-mon-tinta">{p.indicador.titulo}</td>
-                  <td className={`py-2 text-right font-mon-num ${nivel ? `font-semibold ${TEXTO_NIVEL[nivel]}` : 'text-mon-tinta'}`}>{formatoValor(p.valor, p.indicador.unidad)}</td>
+                  <td className="py-2 pl-6 text-ui-tinta">{p.indicador.titulo}</td>
+                  <td className={`py-2 text-right font-ui-num ${nivel ? `font-semibold ${TEXTO_NIVEL[nivel]}` : 'text-ui-tinta'}`}>{formatoValor(p.valor, p.indicador.unidad)}</td>
                   <td className={`py-2 pl-4 text-xs font-bold ${nivel ? TEXTO_NIVEL[nivel] : ''}`}>{nivel === 'critico' ? 'Crítico' : nivel === 'alerta' ? 'Alerta' : ''}</td>
-                  <td className="py-2 text-right font-mon-num text-mon-tinta-2">{hora24(p.t)}</td>
-                  <td className="py-2 pr-6 text-right font-mon-num text-mon-tinta">{p.estudiantes ?? '—'}</td>
+                  <td className="py-2 text-right font-ui-num text-ui-tinta-2">{hora24(p.t)}</td>
+                  <td className="py-2 pr-6 text-right font-ui-num text-ui-tinta">{p.estudiantes ?? '—'}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        <p className={`${NOTA} m-0 border-t border-mon-pista px-6 py-3 text-xs`}>
+        <p className={`${NOTA} m-0 border-t border-ui-pista px-6 py-3 text-xs`}>
           {resumen.peticiones.toLocaleString('es-CO')} peticiones a la API, {resumen.errores.toLocaleString('es-CO')} con error.
         </p>
       </div>
@@ -173,9 +173,9 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
   return (
     <div className="flex flex-col gap-8">
       {frenadaAhora(ultima) && (
-        <div className={`${TARJETA} relative py-3.5 pl-7 pr-6 before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-mon-critico before:content-['']`}>
-          <p className="m-0 text-sm font-bold text-mon-critico-texto">La Pi está bajando su velocidad</p>
-          <p className="m-0 mt-1 text-[13px] text-mon-tinta-2">
+        <div className={`${TARJETA} relative py-3.5 pl-7 pr-6 before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-ui-critico before:content-['']`}>
+          <p className="m-0 text-sm font-bold text-ui-critico-texto">La Pi está bajando su velocidad</p>
+          <p className="m-0 mt-1 text-[13px] text-ui-tinta-2">
             {ultima.frenado!.bajo_voltaje ? 'Le llega voltaje bajo (revisar la fuente). ' : ''}
             {ultima.frenado!.frenada || ultima.frenado!.limite_temperatura ? 'Está caliente y se frena para protegerse. ' : ''}
             Lo que se mida ahora no refleja su capacidad normal.
@@ -193,13 +193,13 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
         <Seccion titulo="Servicios" derecha={<span className={NOTA}>{servicios.length - caidos.length} de {servicios.length} activos</span>}>
           <div className={`${TARJETA} grid md:grid-cols-2`}>
             {[servicios.slice(0, mitad), servicios.slice(mitad)].map((col, k) => (
-              <ul key={k} className={`m-0 list-none divide-y divide-mon-pista p-0 px-6 py-1 ${k ? 'md:border-l md:border-mon-pista' : ''}`}>
+              <ul key={k} className={`m-0 list-none divide-y divide-ui-pista p-0 px-6 py-1 ${k ? 'md:border-l md:border-ui-pista' : ''}`}>
                 {col.map((s) => (
                   <li key={s.unidad} className="grid grid-cols-[auto_1fr] items-center gap-x-3 py-2.5 text-xs sm:grid-cols-[auto_170px_1fr_auto]">
-                    <span aria-hidden className={`h-[7px] w-[7px] rounded-full ${s.activo ? 'bg-mon-bien' : 'bg-mon-critico'}`} />
-                    <span className="font-mon-num text-mon-tinta">{s.unidad}</span>
-                    <span className="hidden text-mon-tinta-2 sm:inline">{QUE_HACE[s.unidad] ?? ''}</span>
-                    {!s.activo && <b className="col-span-2 font-bold text-mon-critico-texto sm:col-span-1">{porQueCaido(s)}</b>}
+                    <span aria-hidden className={`h-[7px] w-[7px] rounded-full ${s.activo ? 'bg-ui-bien' : 'bg-ui-critico'}`} />
+                    <span className="font-ui-num text-ui-tinta">{s.unidad}</span>
+                    <span className="hidden text-ui-tinta-2 sm:inline">{QUE_HACE[s.unidad] ?? ''}</span>
+                    {!s.activo && <b className="col-span-2 font-bold text-ui-critico-texto sm:col-span-1">{porQueCaido(s)}</b>}
                   </li>
                 ))}
               </ul>
@@ -216,13 +216,13 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
             [ssh?.tuneles_app, 'apps conectadas'],
             [ultima.camaras?.total, 'conexiones viendo cámaras *'],
           ].map(([n, texto], i) => (
-            <div key={texto as string} className={`flex flex-col gap-1 px-6 py-5 ${i ? 'md:border-l md:border-mon-pista' : ''}`}>
-              <span className="font-mon-num text-[26px] leading-none text-mon-tinta">{n ?? '—'}</span>
-              <span className="text-[13px] text-mon-tinta-2">{texto}</span>
+            <div key={texto as string} className={`flex flex-col gap-1 px-6 py-5 ${i ? 'md:border-l md:border-ui-pista' : ''}`}>
+              <span className="font-ui-num text-[26px] leading-none text-ui-tinta">{n ?? '—'}</span>
+              <span className="text-[13px] text-ui-tinta-2">{texto}</span>
             </div>
           ))}
         </div>
-        <p className="m-0 text-[11px] text-mon-apagado">* incluye las grabaciones de Shinobi, aunque nadie esté mirando.</p>
+        <p className="m-0 text-[11px] text-ui-apagado">* incluye las grabaciones de Shinobi, aunque nadie esté mirando.</p>
       </Seccion>
 
       <Seccion titulo="Prueba de carga">
@@ -231,12 +231,12 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
             <div className="flex flex-col gap-1">
               <Punto nivel="critico" fuerte={`Grabando desde las ${hora24(prueba!.inicio)}`}
                 resto={`· ${duracion(ultima.t - prueba!.inicio)} · ${estudiantesEn(ultima) ?? 0} estudiantes ahora`} />
-              <span className="text-[13px] text-mon-tinta-2">Se sigue grabando aunque cambies de sección o cierres la app.</span>
+              <span className="text-[13px] text-ui-tinta-2">Se sigue grabando aunque cambies de sección o cierres la app.</span>
             </div>
           ) : (
             <div className="flex flex-col gap-1 text-[13px]">
-              <span className="text-mon-tinta">Graba todo desde que la inicias hasta que la terminas, aunque cambies de sección o cierres la app.</span>
-              <span className="text-mon-tinta-2">Al final dice con cuántos estudiantes algo llegó a crítico y se puede guardar en Excel.</span>
+              <span className="text-ui-tinta">Graba todo desde que la inicias hasta que la terminas, aunque cambies de sección o cierres la app.</span>
+              <span className="text-ui-tinta-2">Al final dice con cuántos estudiantes algo llegó a crítico y se puede guardar en Excel.</span>
             </div>
           )}
           {enCurso ? <Boton onClick={onTerminar}>Terminar prueba</Boton> : <Boton onClick={onIniciar} disabled={!!error}>Iniciar prueba</Boton>}

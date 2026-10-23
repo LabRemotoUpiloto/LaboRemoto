@@ -4,7 +4,7 @@ import React from 'react';
 import type { CamaraAdmin } from '../../services/camarasAdmin.service';
 import { INDICADORES, estadoDe } from './rendimientoStats';
 import { duracion, estadoPi, formatoValor, hora24 } from './monitoreo';
-import { Barra, Boton, ETIQUETA, NOTA, Punto, TARJETA, TARJETA_APAGADA, type Nivel } from './Piezas';
+import { Barra, Boton, ETIQUETA, NOTA, Punto, TARJETA, TARJETA_APAGADA, type Nivel } from '../../components/ui';
 import { Camara, ModuloDomotica, PlacaJetson, PlacaPi4, PlacaPi5 } from './Dibujos';
 import type { DatosCamaras, DatosPi } from './useDatosLab';
 
@@ -13,11 +13,11 @@ const NIVEL_DE: Record<string, Nivel> = { bueno: 'bien', alerta: 'alerta', criti
 function Lectura({ nombre, valor, frac, alerta, critico, nivel }: {
   nombre: string; valor: string; frac: number | null; alerta?: number; critico?: number; nivel?: Nivel | null;
 }) {
-  const tinta = nivel === 'critico' ? 'text-mon-critico-texto' : nivel === 'alerta' ? 'text-mon-alerta-texto' : valor === '—' ? 'text-mon-apagado' : 'text-mon-tinta';
+  const tinta = nivel === 'critico' ? 'text-ui-critico-texto' : nivel === 'alerta' ? 'text-ui-alerta-texto' : valor === '—' ? 'text-ui-apagado' : 'text-ui-tinta';
   return (
     <div className="flex min-w-[116px] flex-col gap-2">
       <span className={ETIQUETA}>{nombre}</span>
-      <span className={`font-mon-num text-[22px] leading-none ${tinta}`}>{valor}</span>
+      <span className={`font-ui-num text-[22px] leading-none ${tinta}`}>{valor}</span>
       <Barra frac={frac} alerta={alerta} critico={critico} nivel={nivel} className="mt-1 w-[116px]" />
     </div>
   );
@@ -59,8 +59,8 @@ function Pi4Tarjeta({ pi, onAbrir }: { pi: DatosPi; onAbrir: () => void }) {
       <div className="flex min-w-0 flex-col gap-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1.5">
-            <h2 className="m-0 font-mon-titulo text-xl font-bold text-mon-tinta">Raspberry Pi 4</h2>
-            <p className="m-0 text-[13px] text-mon-tinta-2">Servidor de prácticas: terminales, API y cámaras</p>
+            <h2 className="m-0 font-ui-titulo text-xl font-bold text-ui-tinta">Raspberry Pi 4</h2>
+            <p className="m-0 text-[13px] text-ui-tinta-2">Servidor de prácticas: terminales, API y cámaras</p>
             <Punto nivel={estado.nivel} fuerte={estado.fuerte} resto={estado.resto && `· ${estado.resto}`} />
           </div>
           <Boton onClick={onAbrir}>Abrir rendimiento</Boton>
@@ -72,7 +72,7 @@ function Pi4Tarjeta({ pi, onAbrir }: { pi: DatosPi; onAbrir: () => void }) {
           {lectura('subida', 25)}
           {lectura('latencia', 3500)}
         </div>
-        {pie && <p className={`${NOTA} m-0 border-t border-mon-pista pt-3`}>{pie}</p>}
+        {pie && <p className={`${NOTA} m-0 border-t border-ui-pista pt-3`}>{pie}</p>}
       </div>
     </article>
   );
@@ -110,8 +110,8 @@ function CamarasTarjeta({ datos, pi, onAbrir }: { datos: DatosCamaras; pi: Datos
       <div className="flex min-w-0 flex-col gap-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1.5">
-            <h2 className="m-0 font-mon-titulo text-xl font-bold text-mon-tinta">Cámaras</h2>
-            <p className="m-0 text-[13px] text-mon-tinta-2">Video en vivo para las prácticas y grabación del laboratorio</p>
+            <h2 className="m-0 font-ui-titulo text-xl font-bold text-ui-tinta">Cámaras</h2>
+            <p className="m-0 text-[13px] text-ui-tinta-2">Video en vivo para las prácticas y grabación del laboratorio</p>
             {resumen}
           </div>
           <Boton onClick={onAbrir}>Abrir vigilancia</Boton>
@@ -121,13 +121,13 @@ function CamarasTarjeta({ datos, pi, onAbrir }: { datos: DatosCamaras; pi: Datos
             {lista.map((c, i) => {
               const mal = sinVideo(c);
               return (
-                <div key={c.id} className={`flex flex-col gap-1 pr-4 ${i % 4 ? 'lg:border-l lg:border-mon-pista lg:pl-4' : ''}`}>
+                <div key={c.id} className={`flex flex-col gap-1 pr-4 ${i % 4 ? 'lg:border-l lg:border-ui-pista lg:pl-4' : ''}`}>
                   <span className={ETIQUETA}>{c.nombre}</span>
-                  <span className={`text-[15px] font-bold ${!c.habilitada ? 'text-mon-apagado' : mal ? 'text-mon-critico-texto' : 'text-mon-tinta'}`}>
+                  <span className={`text-[15px] font-bold ${!c.habilitada ? 'text-ui-apagado' : mal ? 'text-ui-critico-texto' : 'text-ui-tinta'}`}>
                     {!c.habilitada ? 'Deshabilitada' : mal ? 'Sin video' : 'Transmitiendo'}
                   </span>
                   {c.habilitada && (
-                    <span className={`text-xs ${c.estado && c.estado !== 'active' ? 'text-mon-critico-texto' : 'text-mon-tinta-2'}`}>
+                    <span className={`text-xs ${c.estado && c.estado !== 'active' ? 'text-ui-critico-texto' : 'text-ui-tinta-2'}`}>
                       Shinobi: {c.estado ? SHINOBI[c.estado] ?? c.estado : 'sin dato'}
                     </span>
                   )}
@@ -159,8 +159,8 @@ export default function EquiposVista({ pi, camaras, onAbrirPi4, onAbrirVigilanci
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
           <span className={ETIQUETA}>Monitoreo</span>
-          <h1 className="m-0 font-mon-titulo text-2xl font-bold text-mon-tinta">Equipos del laboratorio</h1>
-          <p className="m-0 text-[13px] text-mon-tinta-2">El hardware que usan las prácticas: cómo está cada equipo ahora mismo.</p>
+          <h1 className="m-0 font-ui-titulo text-2xl font-bold text-ui-tinta">Equipos del laboratorio</h1>
+          <p className="m-0 text-[13px] text-ui-tinta-2">El hardware que usan las prácticas: cómo está cada equipo ahora mismo.</p>
         </div>
         {pi.ultima && <span className={NOTA + ' text-xs'}>actualizado {hora24(pi.ultima.t)}</span>}
       </header>
@@ -176,14 +176,14 @@ export default function EquiposVista({ pi, camaras, onAbrirPi4, onAbrirVigilanci
         <div className="grid gap-4 md:grid-cols-3">
           {PROXIMOS.map(({ nombre, texto, Dibujo }) => (
             <article key={nombre} aria-disabled className={`${TARJETA_APAGADA} flex flex-col`}>
-              <div className="flex justify-center border-b border-mon-pista bg-mon-terciario px-5 py-5">
+              <div className="flex justify-center border-b border-ui-pista bg-ui-terciario px-5 py-5">
                 <Dibujo apagado className="w-[170px]" />
               </div>
               <div className="flex flex-1 flex-col gap-1 px-5 pt-5">
-                <h4 className="m-0 font-mon-titulo text-[15px] font-bold text-mon-tinta-2">{nombre}</h4>
-                <p className="m-0 text-xs text-mon-apagado">{texto}</p>
+                <h4 className="m-0 font-ui-titulo text-[15px] font-bold text-ui-tinta-2">{nombre}</h4>
+                <p className="m-0 text-xs text-ui-apagado">{texto}</p>
               </div>
-              <div className="mx-5 mt-8 border-t border-mon-pista py-3">
+              <div className="mx-5 mt-8 border-t border-ui-pista py-3">
                 <span className={ETIQUETA}>Próximamente</span>
               </div>
             </article>

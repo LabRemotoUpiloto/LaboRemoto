@@ -4,9 +4,9 @@
 
 function trazos(apagado: boolean) {
   return {
-    linea: apagado ? 'fill-none stroke-mon-fantasma [stroke-dasharray:3_3]' : 'fill-none stroke-mon-tinta-2',
-    relleno: apagado ? 'fill-mon-fantasma' : 'fill-mon-tinta-2',
-    chip: apagado ? 'fill-none stroke-mon-fantasma [stroke-dasharray:3_3]' : 'fill-mon-tinta',
+    linea: apagado ? 'fill-none stroke-ui-fantasma [stroke-dasharray:3_3]' : 'fill-none stroke-ui-tinta-2',
+    relleno: apagado ? 'fill-ui-fantasma' : 'fill-ui-tinta-2',
+    chip: apagado ? 'fill-none stroke-ui-fantasma [stroke-dasharray:3_3]' : 'fill-ui-tinta',
   };
 }
 
@@ -53,7 +53,7 @@ export function PlacaJetson({ apagado = false, className = '' }: { apagado?: boo
       <rect width={170} height={114} rx={8} className={linea} />
       <rect x={28} y={14} width={96} height={82} rx={4} className={linea} />
       {Array.from({ length: 9 }, (_, i) => <line key={i} x1={38 + i * 9.5} y1={22} x2={38 + i * 9.5} y2={88} className={linea} />)}
-      <circle cx={76} cy={55} r={22} className={apagado ? linea : `${linea} !fill-mon-superficie`} />
+      <circle cx={76} cy={55} r={22} className={apagado ? linea : `${linea} !fill-ui-superficie`} />
       <circle cx={76} cy={55} r={6} className={chip} />
       <rect x={144} y={16} width={32} height={26} rx={2} className={linea} />
       <rect x={144} y={50} width={32} height={26} rx={2} className={linea} />
@@ -95,9 +95,9 @@ export function Camara({ nombre, apagado = false, sinVideo = false }: { nombre: 
         <circle cx={30} cy={19} r={12} className={linea} />
         <circle cx={30} cy={19} r={4} className={relleno} />
         <rect x={48} y={6} width={8} height={4} className={linea} />
-        {sinVideo && <line x1={4} y1={34} x2={60} y2={4} className="stroke-mon-critico" strokeWidth={1.5} />}
+        {sinVideo && <line x1={4} y1={34} x2={60} y2={4} className="stroke-ui-critico" strokeWidth={1.5} />}
       </svg>
-      <figcaption className="font-mon-num text-[10px] text-mon-apagado">{nombre}</figcaption>
+      <figcaption className="font-ui-num text-[10px] text-ui-apagado">{nombre}</figcaption>
     </figure>
   );
 }

@@ -7,7 +7,7 @@ import type { MuestraPi } from '../../services/rendimiento.service';
 import type { PruebaRendimiento } from '../../services/pruebaRendimiento';
 import { INDICADORES, estudiantesEn, type Indicador, type ResumenPrueba } from './rendimientoStats';
 import { agruparPorEstudiantes, formatoValor, hora24, tramosEnElTiempo } from './monitoreo';
-import { NOTA, Punto, Selector, TARJETA } from './Piezas';
+import { NOTA, Punto, Selector, TARJETA } from '../../components/ui';
 
 type Vista = 'estudiantes' | 'tiempo';
 type Ventana = '300' | '900' | '1800' | 'prueba';
@@ -45,10 +45,10 @@ function Fila({ titulo, valor, techo, piso, unidad, alto, vacio, children }: {
   return (
     <div className="grid grid-cols-[150px_44px_1fr] items-stretch gap-x-3 px-6 md:grid-cols-[190px_56px_1fr]">
       <div className="flex flex-col justify-center gap-1 py-2">
-        <span className="text-[13px] font-semibold text-mon-tinta">{titulo}</span>
-        <span className="font-mon-num text-base text-mon-tinta">{valor}</span>
+        <span className="text-[13px] font-semibold text-ui-tinta">{titulo}</span>
+        <span className="font-ui-num text-base text-ui-tinta">{valor}</span>
       </div>
-      <div className="flex flex-col justify-between py-2 text-right font-mon-num text-[10px] text-mon-apagado">
+      <div className="flex flex-col justify-between py-2 text-right font-ui-num text-[10px] text-ui-apagado">
         <span>{techo}{unidad && ` ${unidad}`}</span>
         <span>{piso}</span>
       </div>
@@ -56,7 +56,7 @@ function Fila({ titulo, valor, techo, piso, unidad, alto, vacio, children }: {
         <svg viewBox={`0 0 ${ANCHO} ${alto}`} preserveAspectRatio="none" className="block h-full w-full overflow-visible py-2" style={{ height: alto + 16 }}>
           {children}
         </svg>
-        {vacio && <span className="absolute inset-0 flex items-center justify-center text-xs text-mon-apagado">{vacio}</span>}
+        {vacio && <span className="absolute inset-0 flex items-center justify-center text-xs text-ui-apagado">{vacio}</span>}
       </div>
     </div>
   );
@@ -67,7 +67,7 @@ function Umbrales({ m, Y }: { m: Medida; Y: (v: number) => number }) {
   if (!m.umbral) return null;
   return (
     <>
-      {[[m.umbral.alerta, 'stroke-mon-umbral-alerta'], [m.umbral.critico, 'stroke-mon-umbral-critico']].map(([u, clase]) =>
+      {[[m.umbral.alerta, 'stroke-ui-umbral-alerta'], [m.umbral.critico, 'stroke-ui-umbral-critico']].map(([u, clase]) =>
         (u as number) < m.techo ? (
           <line key={clase as string} x1={0} x2={ANCHO} y1={Y(u as number)} y2={Y(u as number)} className={`${clase} [stroke-dasharray:4_3]`} vectorEffect="non-scaling-stroke" />
         ) : null,
@@ -78,7 +78,7 @@ function Umbrales({ m, Y }: { m: Medida; Y: (v: number) => number }) {
 
 function Leyenda({ items }: { items: [string, React.ReactNode][] }) {
   return (
-    <div className="flex flex-wrap justify-end gap-x-5 gap-y-1 text-xs text-mon-tinta-2">
+    <div className="flex flex-wrap justify-end gap-x-5 gap-y-1 text-xs text-ui-tinta-2">
       {items.map(([texto, muestra]) => (
         <span key={texto} className="inline-flex items-center gap-2">{muestra}{texto}</span>
       ))}
@@ -87,8 +87,8 @@ function Leyenda({ items }: { items: [string, React.ReactNode][] }) {
 }
 const trazo = (clase: string) => <span aria-hidden className={`inline-block w-[18px] ${clase}`} />;
 const LEYENDA_UMBRALES: [string, React.ReactNode][] = [
-  ['alerta', trazo('border-t border-dashed border-mon-alerta')],
-  ['crítico', trazo('border-t border-dashed border-mon-critico')],
+  ['alerta', trazo('border-t border-dashed border-ui-alerta')],
+  ['crítico', trazo('border-t border-dashed border-ui-critico')],
 ];
 
 // ── Por estudiantes ──────────────────────────────────────────────────────
@@ -116,9 +116,9 @@ function PorEstudiantes({ muestras, resumen, enCurso }: { muestras: MuestraPi[];
           )}
         </div>
       )}
-      {enCurso && !resumen && <p className="m-0 text-[13px] text-mon-tinta-2">Prueba en curso: la gráfica se completa a medida que entran más estudiantes.</p>}
+      {enCurso && !resumen && <p className="m-0 text-[13px] text-ui-tinta-2">Prueba en curso: la gráfica se completa a medida que entran más estudiantes.</p>}
 
-      <div className={`${TARJETA} relative divide-y divide-mon-pista`}>
+      <div className={`${TARJETA} relative divide-y divide-ui-pista`}>
         {MEDIDAS.map((m) => {
           const grupos = agruparPorEstudiantes(muestras, m.valor);
           const Y = (v: number) => alto - ((Math.min(Math.max(v, m.piso), m.techo) - m.piso) / (m.techo - m.piso)) * alto;
@@ -126,37 +126,37 @@ function PorEstudiantes({ muestras, resumen, enCurso }: { muestras: MuestraPi[];
           const d = grupos.map((g, i) => `${i ? 'L' : 'M'}${X(g.estudiantes).toFixed(1)},${Y(g.mediana).toFixed(1)}`).join(' ');
           return (
             <Fila key={m.id} titulo={m.titulo} techo={m.techo} piso={m.piso} unidad={m.unidad} alto={alto}
-              valor={enQuiebre ? <span className="text-[13px] text-mon-tinta-2">con {quiebre}: {formatoValor(enQuiebre.maximo, m.unidad)}</span> : <span className="text-mon-apagado">—</span>}>
-              <line x1={0} x2={ANCHO} y1={alto} y2={alto} className="stroke-mon-pista" vectorEffect="non-scaling-stroke" />
+              valor={enQuiebre ? <span className="text-[13px] text-ui-tinta-2">con {quiebre}: {formatoValor(enQuiebre.maximo, m.unidad)}</span> : <span className="text-ui-apagado">—</span>}>
+              <line x1={0} x2={ANCHO} y1={alto} y2={alto} className="stroke-ui-pista" vectorEffect="non-scaling-stroke" />
               <Umbrales m={m} Y={Y} />
               {grupos.map((g) => {
-                const estado = m.umbral && g.maximo >= m.umbral.critico ? 'stroke-mon-critico' : m.umbral && g.maximo >= m.umbral.alerta ? 'stroke-mon-alerta' : 'stroke-mon-rango';
+                const estado = m.umbral && g.maximo >= m.umbral.critico ? 'stroke-ui-critico' : m.umbral && g.maximo >= m.umbral.alerta ? 'stroke-ui-alerta' : 'stroke-ui-rango';
                 return <line key={g.estudiantes} x1={X(g.estudiantes)} x2={X(g.estudiantes)} y1={Y(g.minimo)} y2={Math.min(Y(g.maximo), Y(g.minimo) - 1)} className={estado} strokeWidth={3} vectorEffect="non-scaling-stroke" />;
               })}
-              {d && <path d={d} className="fill-none stroke-mon-tinta [stroke-linejoin:round]" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
-              {quiebre != null && <line x1={X(quiebre)} x2={X(quiebre)} y1={-8} y2={alto + 8} className="stroke-mon-critico [stroke-dasharray:2_3]" vectorEffect="non-scaling-stroke" />}
+              {d && <path d={d} className="fill-none stroke-ui-tinta [stroke-linejoin:round]" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
+              {quiebre != null && <line x1={X(quiebre)} x2={X(quiebre)} y1={-8} y2={alto + 8} className="stroke-ui-critico [stroke-dasharray:2_3]" vectorEffect="non-scaling-stroke" />}
             </Fila>
           );
         })}
         <div className="grid grid-cols-[150px_44px_1fr] gap-x-3 px-6 pb-3 pt-2 md:grid-cols-[190px_56px_1fr]">
           <span />
           <span />
-          <div className="relative h-8 font-mon-num text-[11px] text-mon-apagado">
+          <div className="relative h-8 font-ui-num text-[11px] text-ui-apagado">
             {Array.from({ length: Math.floor(maxN / paso) + 1 }, (_, i) => i * paso).map((n) => (
               <span key={n} className="absolute -translate-x-1/2" style={{ left: `${(X(n) / ANCHO) * 100}%` }}>{n}</span>
             ))}
             {quiebre != null && (
-              <span className="absolute bottom-0 -translate-x-1/2 rounded-sm bg-mon-critico px-1.5 font-mon-num text-[11px] text-mon-superficie" style={{ left: `${(X(quiebre) / ANCHO) * 100}%` }}>
+              <span className="absolute bottom-0 -translate-x-1/2 rounded-sm bg-ui-critico px-1.5 font-ui-num text-[11px] text-ui-superficie" style={{ left: `${(X(quiebre) / ANCHO) * 100}%` }}>
                 se degradó con {quiebre}
               </span>
             )}
           </div>
         </div>
       </div>
-      <p className="m-0 text-right text-[11px] text-mon-apagado">eje horizontal: estudiantes conectados</p>
+      <p className="m-0 text-right text-[11px] text-ui-apagado">eje horizontal: estudiantes conectados</p>
       <Leyenda items={[
-        ['mediana', trazo('border-t-[1.5px] border-mon-tinta')],
-        ['mínimo a máximo', <span key="r" aria-hidden className="inline-block h-3 w-[3px] bg-mon-rango" />],
+        ['mediana', trazo('border-t-[1.5px] border-ui-tinta')],
+        ['mínimo a máximo', <span key="r" aria-hidden className="inline-block h-3 w-[3px] bg-ui-rango" />],
         ...LEYENDA_UMBRALES,
       ]} />
     </>
@@ -185,7 +185,7 @@ function EnElTiempo({ muestras, desde, hasta }: { muestras: MuestraPi[]; desde: 
 
   return (
     <>
-      <div className={`${TARJETA} relative divide-y divide-mon-pista`} onMouseMove={mover} onMouseLeave={() => setCursor(null)}>
+      <div className={`${TARJETA} relative divide-y divide-ui-pista`} onMouseMove={mover} onMouseLeave={() => setCursor(null)}>
         {filas.map((m) => {
           const tramos = tramosEnElTiempo(muestras, m.valor, desde, hasta);
           const Y = (v: number) => alto - ((Math.min(Math.max(v, m.piso), m.techo) - m.piso) / (m.techo - m.piso)) * alto;
@@ -198,18 +198,18 @@ function EnElTiempo({ muestras, desde, hasta }: { muestras: MuestraPi[]; desde: 
             <Fila key={m.id} titulo={m.titulo} techo={m.techo} piso={m.piso} unidad={m.unidad === '%' ? '' : m.unidad} alto={alto}
               valor={muestra ? formatoValor(m.valor(muestra), m.unidad) : '—'}
               vacio={tramos.length ? undefined : m.id === 'latencia' ? 'Sin pedidos en esta ventana' : 'Sin datos en esta ventana'}>
-              <line x1={0} x2={ANCHO} y1={alto} y2={alto} className="stroke-mon-pista" vectorEffect="non-scaling-stroke" />
+              <line x1={0} x2={ANCHO} y1={alto} y2={alto} className="stroke-ui-pista" vectorEffect="non-scaling-stroke" />
               <Umbrales m={m} Y={Y} />
-              {banda && <path d={banda} className="fill-mon-banda" />}
-              {linea && <path d={linea} className="fill-none stroke-mon-tinta [stroke-linejoin:round]" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
-              {enCursor && <line x1={X(enCursor.t)} x2={X(enCursor.t)} y1={-8} y2={alto + 8} className="stroke-mon-tinta-2" vectorEffect="non-scaling-stroke" />}
+              {banda && <path d={banda} className="fill-ui-banda" />}
+              {linea && <path d={linea} className="fill-none stroke-ui-tinta [stroke-linejoin:round]" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
+              {enCursor && <line x1={X(enCursor.t)} x2={X(enCursor.t)} y1={-8} y2={alto + 8} className="stroke-ui-tinta-2" vectorEffect="non-scaling-stroke" />}
             </Fila>
           );
         })}
         <div className="grid grid-cols-[150px_44px_1fr] gap-x-3 px-6 pb-3 pt-2 md:grid-cols-[190px_56px_1fr]">
           <span className={NOTA}>{enCursor ? hora24(enCursor.t) : ''}</span>
           <span />
-          <div className="relative h-5 font-mon-num text-[11px] text-mon-apagado">
+          <div className="relative h-5 font-ui-num text-[11px] text-ui-apagado">
             {marcas.map((t) => (
               <span key={t} className="absolute -translate-x-1/2" style={{ left: `${(X(t) / ANCHO) * 100}%` }}>{hora24(t).slice(0, 5)}</span>
             ))}
@@ -217,8 +217,8 @@ function EnElTiempo({ muestras, desde, hasta }: { muestras: MuestraPi[]; desde: 
         </div>
       </div>
       <Leyenda items={[
-        ['promedio cada 30 s', trazo('border-t-[1.5px] border-mon-tinta')],
-        ['mínimo a máximo', <span key="b" aria-hidden className="inline-block h-2.5 w-[18px] bg-mon-banda" />],
+        ['promedio cada 30 s', trazo('border-t-[1.5px] border-ui-tinta')],
+        ['mínimo a máximo', <span key="b" aria-hidden className="inline-block h-2.5 w-[18px] bg-ui-banda" />],
         ...LEYENDA_UMBRALES,
       ]} />
     </>
@@ -255,7 +255,7 @@ export default function GraficasPestana({ muestras, prueba, muestrasPrueba, resu
           opciones={[{ valor: 'estudiantes', etiqueta: 'Por estudiantes' }, { valor: 'tiempo', etiqueta: 'En el tiempo' }]} />
         {vista === 'tiempo' && (
           <>
-            <span aria-hidden className="h-5 w-px bg-mon-pista" />
+            <span aria-hidden className="h-5 w-px bg-ui-pista" />
             <Selector<Ventana> nombre="Ventana de tiempo" valor={ventana} onCambio={setVentana}
               opciones={[
                 { valor: '300', etiqueta: '5 min' }, { valor: '900', etiqueta: '15 min' }, { valor: '1800', etiqueta: '30 min' },
@@ -275,8 +275,8 @@ export default function GraficasPestana({ muestras, prueba, muestrasPrueba, resu
           <PorEstudiantes muestras={muestrasPrueba} resumen={prueba.fin ? resumen : null} enCurso={prueba.fin == null} />
         ) : (
           <div className={`${TARJETA} flex flex-col items-center gap-2 px-6 py-12 text-center`}>
-            <span className="font-mon-titulo text-[15px] font-bold text-mon-tinta">Todavía no hay ninguna prueba</span>
-            <span className="text-[13px] text-mon-tinta-2">Aquí se ve con cuántos estudiantes cada medida llega a crítico. Inicia una prueba desde Estado.</span>
+            <span className="font-ui-titulo text-[15px] font-bold text-ui-tinta">Todavía no hay ninguna prueba</span>
+            <span className="text-[13px] text-ui-tinta-2">Aquí se ve con cuántos estudiantes cada medida llega a crítico. Inicia una prueba desde Estado.</span>
           </div>
         )
       ) : (
