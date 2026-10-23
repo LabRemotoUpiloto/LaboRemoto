@@ -1,7 +1,7 @@
 import { driver, type Driver, type Config } from 'driver.js';
 import { tourSteps } from './tourSteps';
 import 'driver.js/dist/driver.css';
-import '@/tours/tourStyles.css';
+import '@/features/onboarding/tourStyles.css';
 
 let driverInstance: Driver | null = null;
 let onPageChangeCallback: ((page: string) => void) | null = null;

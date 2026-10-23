@@ -44,7 +44,7 @@ import { usePracticeActivityReporter, type PracticaAbierta } from '@/features/pr
 import { useUbicacionAppReporter } from '@/features/actividad/useUbicacionAppReporter'
 import { useEnlacesApp } from './hooks/useEnlacesApp'
 import ResultadoMoodleAviso from '@/features/cursos/ResultadoMoodleAviso'
-import BienvenidaTutorial from '@/tours/tour_inicio/BienvenidaTutorial'
+import BienvenidaTutorial from '@/features/onboarding/inicio/BienvenidaTutorial'
 import TourPracticaLinux from '@/features/practicas/tour/TourPracticaLinux'
 import { SesionPorPracticaContext } from '@/features/cursos/envioMoodle'
 import { AuthProvider, useAuth } from '@/features/cuenta/AuthContext'

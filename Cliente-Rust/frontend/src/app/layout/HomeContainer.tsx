@@ -20,7 +20,7 @@ import type { Tab } from '../hooks/useAppTabs'
 import type { SessionLog } from '@/features/logs/SessionCard'
 import { useEffectiveRole, canAccessPage } from '@/features/cuenta/usePermissions'
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession'
-import { pedirTutorialBienvenida } from '@/tours/tour_inicio/BienvenidaTutorial'
+import { pedirTutorialBienvenida } from '@/features/onboarding/inicio/BienvenidaTutorial'
 
 type Props = {
   tabs: Tab[]
