@@ -1,5 +1,5 @@
 // Formatos y agregaciones de la pestaña «Dispositivos» de Actividad.
-import type { ConexionDispositivo, DispositivoActividad } from '../../services/dispositivos.service';
+import type { ConexionDispositivo, DispositivoActividad } from './dispositivos.service';
 import type { PuntoUbicacion } from './dashboardStats';
 
 const dos = (n: number) => String(n).padStart(2, '0');

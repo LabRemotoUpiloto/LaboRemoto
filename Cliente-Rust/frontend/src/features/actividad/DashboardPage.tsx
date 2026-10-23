@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActionIcon, Box, Group, Loader, Paper, SegmentedControl, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip, UnstyledButton } from '@mantine/core';
 import { Activity, RefreshCw, Search, X } from 'lucide-react';
-import { sesionesService, type ResumenSesiones, type SesionPractica } from '../../services/sesiones.service';
+import { sesionesService, type ResumenSesiones, type SesionPractica } from './sesiones.service';
 import SesionesMapa from './SesionesMapa';
 import DispositivosPanel from './DispositivosPanel';
 import EncuestasPanel from './EncuestasPanel';

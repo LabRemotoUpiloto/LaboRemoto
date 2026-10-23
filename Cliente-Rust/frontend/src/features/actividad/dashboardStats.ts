@@ -1,5 +1,5 @@
 // Agregaciones del dashboard sobre la lista cruda de sesiones del broker.
-import type { SesionPractica } from '../../services/sesiones.service';
+import type { SesionPractica } from './sesiones.service';
 
 export const esActiva = (s: SesionPractica) => s.fin === null;
 

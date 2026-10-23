@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   duracionConexion, esIpLocal, estadoDispositivo, fechaExcel, haceTiempo, nombreConexion, porUsuario, puntosDeConexiones, ubicacionConexion,
-} from '../../src/pages/dashboard/dispositivosStats';
-import type { ConexionDispositivo } from '../../src/services/dispositivos.service';
+} from '@/features/actividad/dispositivosStats';
+import type { ConexionDispositivo } from '@/features/actividad/dispositivos.service';
 
 const base: ConexionDispositivo = {
   id: 'pi4:1:1', usuario: 'UPILOTO\\ana-perez', persona: 'ana-perez', nombre: null,

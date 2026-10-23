@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ResumenSesiones } from '../bindings/ResumenSesiones';
-import type { SesionPractica } from '../bindings/SesionPractica';
+import type { ResumenSesiones } from '@/bindings/ResumenSesiones';
+import type { SesionPractica } from '@/bindings/SesionPractica';
 
 export type { ResumenSesiones, SesionPractica };
 

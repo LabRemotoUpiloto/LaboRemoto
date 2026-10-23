@@ -2,8 +2,8 @@
 // sin necesidad de una práctica abierta. Así las conexiones SSH de esta misma IP (pestaña Dispositivos de Actividad) salen con la
 // ubicación real del equipo y no con la aproximada por IP. La ubicación ya sale redondeada (~110 m) de obtenerUbicacionDispositivo.
 import { useEffect } from 'react';
-import { sesionesService } from '../services/sesiones.service';
-import { obtenerUbicacionDispositivo } from '../utils/ubicacionDispositivo';
+import { sesionesService } from './sesiones.service';
+import { obtenerUbicacionDispositivo } from './ubicacionDispositivo';
 
 const CADA_MS = 5 * 60_000;
 

@@ -1,10 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ConexionDispositivo } from '../bindings/ConexionDispositivo';
-import type { CuentaCompartida } from '../bindings/CuentaCompartida';
-import type { CuentaNoReconocida } from '../bindings/CuentaNoReconocida';
-import type { DispositivoActividad } from '../bindings/DispositivoActividad';
-import type { NoReconocidas } from '../bindings/NoReconocidas';
-import type { ResumenDispositivos } from '../bindings/ResumenDispositivos';
+import type { ConexionDispositivo } from '@/bindings/ConexionDispositivo';
+import type { CuentaCompartida } from '@/bindings/CuentaCompartida';
+import type { CuentaNoReconocida } from '@/bindings/CuentaNoReconocida';
+import type { DispositivoActividad } from '@/bindings/DispositivoActividad';
+import type { NoReconocidas } from '@/bindings/NoReconocidas';
+import type { ResumenDispositivos } from '@/bindings/ResumenDispositivos';
 
 export type { ConexionDispositivo, CuentaCompartida, CuentaNoReconocida, DispositivoActividad, NoReconocidas, ResumenDispositivos };
 

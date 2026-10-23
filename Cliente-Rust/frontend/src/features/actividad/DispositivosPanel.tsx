@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActionIcon, Box, Collapse, Group, Loader, Paper, SegmentedControl, SimpleGrid, Stack, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { AlertTriangle, ChevronDown, ChevronRight, RefreshCw, Search, Server, X } from 'lucide-react';
-import { dispositivosService, type DispositivoActividad, type ResumenDispositivos } from '../../services/dispositivos.service';
+import { dispositivosService, type DispositivoActividad, type ResumenDispositivos } from './dispositivos.service';
 import SesionesMapa from './SesionesMapa';
 import { formatoDuracion } from './dashboardStats';
 import {

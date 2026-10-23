@@ -41,7 +41,7 @@ import { useLinuxPracticeSession } from '@/features/practicas/useLinuxPracticeSe
 import { requestPracticesFocus } from '@/features/practicas/practiceNavigation.service'
 import { clearModuleBadge } from '@/features/practicas/badges.service'
 import { usePracticeActivityReporter, type PracticaAbierta } from '@/features/practicas/usePracticeActivityReporter'
-import { useUbicacionAppReporter } from '@/hooks/useUbicacionAppReporter'
+import { useUbicacionAppReporter } from '@/features/actividad/useUbicacionAppReporter'
 import { useEnlacesApp } from './hooks/useEnlacesApp'
 import ResultadoMoodleAviso from '@/features/cursos/ResultadoMoodleAviso'
 import BienvenidaTutorial from '@/tours/tour_inicio/BienvenidaTutorial'

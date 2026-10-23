@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BORRADOR_VACIO, alternarProblema, respuestasDe } from '@/features/practicas/encuestas.service';
-import { nota5, problemasOrdenados, repartoDificultad } from '../../src/pages/dashboard/encuestasStats';
+import { nota5, problemasOrdenados, repartoDificultad } from '@/features/actividad/encuestasStats';
 
 describe('encuesta de la práctica', () => {
   it('«Ninguno» es excluyente con los demás problemas', () => {

@@ -4,8 +4,8 @@
 // cierra de golpe no llega el fin: el broker la da por terminada al dejar de
 // recibir latidos.
 import { useCallback, useEffect, useRef } from 'react';
-import { sesionesService } from '@/services/sesiones.service';
-import { obtenerUbicacionDispositivo } from '@/utils/ubicacionDispositivo';
+import { sesionesService } from '@/features/actividad/sesiones.service';
+import { obtenerUbicacionDispositivo } from '@/features/actividad/ubicacionDispositivo';
 
 const LATIDO_MS = 60_000;
 
