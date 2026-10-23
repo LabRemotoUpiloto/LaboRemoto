@@ -1,11 +1,11 @@
 import React from 'react'
-import TerminalView from '../terminal/TerminalView'
-import LocalTerminalGroup from '../terminal/LocalTerminalGroup'
-import SftpPage from '../../pages/session/SftpPage'
-import SnippetsPage from '../../pages/session/SnippetsPage'
-import LogsPage from '../../pages/logs/LogsPage'
+import TerminalView from './TerminalView'
+import LocalTerminalGroup from '@/components/terminal/LocalTerminalGroup'
+import SftpPage from '@/pages/session/SftpPage'
+import SnippetsPage from '@/pages/session/SnippetsPage'
+import LogsPage from '@/pages/logs/LogsPage'
 import type { Tab } from '@/app/hooks/useAppTabs'
-import type { SessionLog } from '../logs/SessionCard'
+import type { SessionLog } from '@/components/logs/SessionCard'
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession'
 
 type PracticeMeta = {

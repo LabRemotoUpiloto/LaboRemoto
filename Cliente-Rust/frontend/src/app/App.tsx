@@ -16,7 +16,7 @@ import { Notifications } from '@mantine/notifications'
 import Sidebar from './layout/Sidebar'
 import { MacWindowDragStrip } from './window/MacWindowDragStrip'
 import HomeContainer from './layout/HomeContainer'
-import SessionContainer from '@/components/layout/SessionContainer'
+import SessionContainer from '@/features/sesion/SessionContainer'
 import LogTabsContainer from '@/components/layout/LogTabsContainer'
 
 // Panels
