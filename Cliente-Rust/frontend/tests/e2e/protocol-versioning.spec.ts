@@ -52,7 +52,7 @@ test.describe('Protocol Versioning E2E', () => {
     // el backend; se espera que la UI muestre una notificación de error de
     // versión (CommandError::VersionMismatch) en vez de colgarse.
     await page.evaluate(async () => {
-      const { commandClient } = await import('/src/services/command.service.ts');
+      const { commandClient } = await import('/src/lib/command.service.ts');
       try {
         await commandClient.invoke('ssh_connect', { host: 'x', port: 22, user: 'x', password: 'x', cols: 80, rows: 24 }, { version: '99.0', retries: 0 });
       } catch {

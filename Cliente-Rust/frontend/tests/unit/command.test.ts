@@ -7,7 +7,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 // Import after mocking so CommandClient picks up the mocked `invoke`.
-import { CommandClient, CommandError } from '../../src/services/command.service';
+import { CommandClient, CommandError } from '@/lib/command.service';
 
 interface SshConnectPayload {
   host: string;

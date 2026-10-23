@@ -1,5 +1,5 @@
 import React from 'react';
-import { isMacOS } from '../../utils/platform';
+import { isMacOS } from '@/lib/platform';
 import { WindowDragZone } from './WindowDragZone';
 
 type MacWindowDragStripProps = {

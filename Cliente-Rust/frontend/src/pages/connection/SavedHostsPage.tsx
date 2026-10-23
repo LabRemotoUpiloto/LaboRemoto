@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { listHostEntries, deleteHostFile, type SavedHostFileEntry } from '../../services/storage.service'
+import { listHostEntries, deleteHostFile, type SavedHostFileEntry } from '@/lib/storage.service'
 import { useLoading } from '../../contexts/LoadingContext'
 import { useToasts } from '../../contexts/ToastContext'
 import { Card, Text, ActionIcon, Menu, Button, Box, Container, SimpleGrid, Stack, Title } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { Monitor, MoreVertical, Pencil, Trash2, Plus, Server, Cpu, ArrowRight } from 'lucide-react'
 import { sshConnect } from '../../services/ssh.service'
-import { isRaspberryPi4, getDeviceLabel } from '../../constants/devices'
+import { isRaspberryPi4, getDeviceLabel } from '@/lib/devices'
 
 interface SavedHostsPageProps {
   onConnected?: (sessionId: string, label: string) => void;

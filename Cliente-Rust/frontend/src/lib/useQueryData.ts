@@ -21,8 +21,8 @@
  * );
  */
 import { useCallback, useEffect, useRef } from 'react'
-import { useAppStore } from '../store/app'
-import { CommandError } from '../services/command.service'
+import { useAppStore } from '@/store/app'
+import { CommandError } from './command.service'
 
 /** TTL por defecto de una entrada de cache (30 segundos). */
 const DEFAULT_QUERY_TTL_MS = 30_000

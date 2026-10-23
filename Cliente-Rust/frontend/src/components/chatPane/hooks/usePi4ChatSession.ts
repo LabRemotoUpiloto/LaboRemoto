@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { pi4SshConnect, sshDisconnect } from '../../../services/ssh.service';
-import { KNOWN_DEVICES } from '../../../constants/devices';
+import { KNOWN_DEVICES } from '@/lib/devices';
 
 const EMBEDDED_COLS = 100;
 const EMBEDDED_ROWS = 14;

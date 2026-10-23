@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { chatHistoryLoad, chatHistorySave, chatHistoryDeleteEntry } from '../../../services/storage.service';
+import { chatHistoryLoad, chatHistorySave, chatHistoryDeleteEntry } from '@/lib/storage.service';
 import { Message, ChatMode } from '../../chatModes/types';
 import { HistoryEntry, CHAT_STORAGE_KEY } from '../chatPane.constants';
 

@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ConnectFormProps } from '../components/connect/ConnectForm';
-import { isRaspberryPi4 } from '../constants/devices';
+import { isRaspberryPi4 } from '@/lib/devices';
 
 export type FieldError = {
   host?: string;

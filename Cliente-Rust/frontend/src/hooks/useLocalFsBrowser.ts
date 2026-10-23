@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { localHomeDir, localListDir, localListDrives } from "../services/storage.service";
+import { localHomeDir, localListDir, localListDrives } from "@/lib/storage.service";
 import type { LocalEntry } from "../types";
 import { useMultiSelection } from "./useMultiSelection";
 

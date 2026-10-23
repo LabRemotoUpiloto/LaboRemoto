@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
-import { isMacOS } from '../../utils/platform';
+import { isMacOS } from '@/lib/platform';
 import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';

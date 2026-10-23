@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card, Group, Stack, Text, Button, ActionIcon, Box } from '@mantine/core'
 import { Clock, Terminal, Calendar, Eye, FileDown, Trash2 } from 'lucide-react'
-import { isRaspberryPi4, KNOWN_DEVICES } from '../../constants/devices'
+import { isRaspberryPi4, KNOWN_DEVICES } from '@/lib/devices'
 
 export interface SessionLog {
   id: string

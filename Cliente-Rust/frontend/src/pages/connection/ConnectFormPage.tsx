@@ -5,7 +5,7 @@ import ConnectForm from '../../components/connect/ConnectForm';
 import QuickHostsPanel, { QuickHost } from '../../components/hosts/QuickHostsPanel';
 import RecentConnectionsPanel, { RecentConnection } from '../../components/connect/RecentConnectionsPanel';
 import { useRecentConnections } from '../../hooks/useRecentConnections';
-import { KNOWN_DEVICES } from '../../constants/devices';
+import { KNOWN_DEVICES } from '@/lib/devices';
 
 interface ConnectFormPageProps {
   onConnected: (session: { id: string; label: string }) => void;

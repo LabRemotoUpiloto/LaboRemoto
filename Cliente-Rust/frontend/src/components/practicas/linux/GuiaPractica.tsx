@@ -11,7 +11,7 @@ import {
   Send, SlidersHorizontal, SquareTerminal,
 } from 'lucide-react';
 import type { DatosGuia } from './PasoCard';
-import { isMacOS } from '../../../utils/platform';
+import { isMacOS } from '@/lib/platform';
 import './guiaPractica.css';
 
 const ICONOS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {

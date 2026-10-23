@@ -30,7 +30,7 @@ import ChatFloatingActions from './chatPane/ChatFloatingActions';
 import { pi4AgentReady as fetchPi4AgentReady, aiChat, cancelAiChat, getTerminalContext, listenAiChunks, type ChatHistoryItem } from '../services/ai.service';
 import { vncStop, sshSessionInfo } from '../services/ssh.service';
 import { useTour } from '../tours/tour_general/useTour';
-import { useQueryData } from '../hooks/useQueryData';
+import { useQueryData } from '@/lib/useQueryData';
 import { useAuth } from '../hooks/useAuth';
 // NOTA de acoplamiento: ChatPane es en general genérico (por eso `practiceResult`
 // abajo usa un tipo estructural mínimo, no LinuxValidationResult) -- pero la

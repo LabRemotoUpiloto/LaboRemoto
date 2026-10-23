@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { isMacOS } from '../utils/platform';
+import { isMacOS } from '@/lib/platform';
 
 const DRAG_THRESHOLD_PX = 5;
 

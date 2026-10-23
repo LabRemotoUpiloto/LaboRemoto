@@ -6,7 +6,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { LocalEntry } from '../types';
+import type { LocalEntry } from '@/types';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 

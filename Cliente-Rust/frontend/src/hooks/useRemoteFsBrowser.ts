@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { commandClient } from "../services/command.service";
+import { commandClient } from "@/lib/command.service";
 import type { SftpEntry } from "../types";
 import { useMultiSelection } from "./useMultiSelection";
 

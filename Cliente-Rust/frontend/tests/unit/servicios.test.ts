@@ -11,7 +11,7 @@ import { agentChat, aiChat, cancelAiChat, getTerminalContext, planChat } from '.
 import {
   SAVE_SESSION_BEFORE_CLOSE_EVENT, emitSaveSessionBeforeClose, memClear, memGet, memPut, vncStart, vncStop,
 } from '../../src/services/ssh.service';
-import { chatHistoryDeleteEntry, chatHistoryLoad, chatHistorySave, localListDir } from '../../src/services/storage.service';
+import { chatHistoryDeleteEntry, chatHistoryLoad, chatHistorySave, localListDir } from '@/lib/storage.service';
 
 beforeEach(() => {
   invokeMock.mockReset();

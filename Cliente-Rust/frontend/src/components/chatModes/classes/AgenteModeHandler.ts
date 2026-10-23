@@ -1,7 +1,7 @@
 import { listen } from '@tauri-apps/api/event';
 import { BaseModeHandler } from './BaseModeHandler';
 import { ModeHandlerContext, Message, AgentChatResponse, AgentStep } from '../types';
-import { PI4_AGENT_SESSION_ID } from '../../../constants/devices';
+import { PI4_AGENT_SESSION_ID } from '@/lib/devices';
 import { pi4AgentReady, agentChat } from '../../../services/ai.service';
 import {
   shouldOpenPi4ChatTerminal,

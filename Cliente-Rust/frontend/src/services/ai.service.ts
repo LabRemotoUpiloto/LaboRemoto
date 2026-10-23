@@ -7,7 +7,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { CommandResponse } from './command.service';
+import type { CommandResponse } from '@/lib/command.service';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 

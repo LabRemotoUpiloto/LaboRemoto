@@ -15,9 +15,9 @@ import { useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useLoading } from '../contexts/LoadingContext';
 import { useToasts } from '../contexts/ToastContext';
-import { getDeviceLabel } from '../constants/devices';
+import { getDeviceLabel } from '@/lib/devices';
 import { sshConnect } from '../services/ssh.service';
-import { saveHostWithMaster, deleteHostFile } from '../services/storage.service';
+import { saveHostWithMaster, deleteHostFile } from '@/lib/storage.service';
 
 interface ConnectionSuccessResult {
   id: string;

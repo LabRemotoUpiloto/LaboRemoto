@@ -1,7 +1,7 @@
 import React from 'react';
 import { UnstyledButton, Collapse, Tooltip } from '@mantine/core';
 import { ChevronRight, Trash2 } from 'lucide-react';
-import { isRaspberryPi4 } from '../../constants/devices';
+import { isRaspberryPi4 } from '@/lib/devices';
 
 export interface RecentConnection {
   id: string;

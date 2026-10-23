@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { vncStart, vncStop } from '../services/ssh.service'
 import { listen } from '@tauri-apps/api/event'
-import { useLifecycleStatus } from './useLifecycleStatus'
+import { useLifecycleStatus } from '@/lib/useLifecycleStatus'
 import { setPendingChatMessage } from '../utils/pendingChatMessage'
 
 export type DesktopStatus =

@@ -7,7 +7,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { commandClient } from './command.service';
+import { commandClient } from '@/lib/command.service';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 

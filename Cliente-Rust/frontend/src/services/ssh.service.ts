@@ -13,7 +13,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { commandClient } from './command.service';
+import { commandClient } from '@/lib/command.service';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
