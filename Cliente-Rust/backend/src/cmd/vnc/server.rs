@@ -20,9 +20,12 @@ pub(crate) fn start_vnc_server(
     let _ = ssh_exec_session(
         sess,
         &format!(
-            "pkill -f 'Xvnc :{display} ' 2>/dev/null; pkill -f 'Xtigervnc :{display} ' 2>/dev/null; \
-             pkill -f 'Xvfb :{display} ' 2>/dev/null; pkill -f 'x11vnc.*:{display}' 2>/dev/null; \
-             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
+            "pkill -f '[X]vnc :{display} ' 2>/dev/null; pkill -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -f '[X]vnc-core :{display} ' 2>/dev/null; \
+             pkill -f '[X]vfb :{display} ' 2>/dev/null; pkill -f '[x]11vnc.*:{display}' 2>/dev/null; \
+             for p in $(ss -tlnpH 'sport = :{x_port}' 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do kill $p 2>/dev/null; done; \
+             sleep 0.5; \
+             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true",
+            x_port = 6000 + display
         ),
     );
 
@@ -32,24 +35,26 @@ pub(crate) fn start_vnc_server(
     crate::ssh_core::exec::ssh_exec_session(
         sess,
         &format!(
-            "XVNC_BIN=$(command -v Xvnc || command -v Xtigervnc); \
+            "XVNC_BIN=$(command -v Xtigervnc || command -v Xvnc); \
              nohup \"$XVNC_BIN\" :{display} -geometry {resolution} -depth 24 \
-             -rfbport {vnc_port} -SecurityTypes None -AlwaysShared -ac \
+             -rfbport {vnc_port} -SecurityTypes None -AlwaysShared -ac -nolisten tcp -localhost \
              >/tmp/xvnc{display}.log 2>&1 </dev/null & echo started"
         ),
     )?;
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
-
+    // Se espera a que el puerto VNC quede escuchando (hasta 5 s). No se busca el proceso por su nombre ni
+    // el archivo /tmp/.X11-unix/X<n>: el Xvnc de RealVNC (Raspberry Pi OS) se llama `Xvnc-core` y no crea ese
+    // archivo, y con esas pruebas la app daba por fallido un servidor que sí estaba corriendo.
     let (_, out) = ssh_exec_session(
         sess,
         &format!(
-            "{{ pgrep -f 'Xvnc :{display} ' >/dev/null || pgrep -f 'Xtigervnc :{display} ' >/dev/null; }} \
-             && [ -S /tmp/.X11-unix/X{display} ] \
-             && ss -tlnp 2>/dev/null | grep -q ':{vnc_port}' \
-             && echo ok || echo fail"
+            "for i in $(seq 1 25); do \
+               ss -tln 2>/dev/null | awk '{{print $4}}' | grep -qE ':{vnc_port}$' && {{ echo ok; exit 0; }}; \
+               sleep 0.2; \
+             done; echo fail"
         ),
     )?;
+    std::thread::sleep(std::time::Duration::from_millis(300));
     if out.trim() != "ok" {
         let (_, log_tail) = ssh_exec_session(
             sess,
@@ -72,7 +77,7 @@ pub(crate) fn start_vnc_server(
         &format!(
             "rm -f {home_dir}/.local/share/applications/browser-vnc-*.desktop \
                    {home_dir}/.local/share/applications/webserver-vnc-*.desktop \
-                   {home_dir}/Desktop/servidor-web*.desktop 2>/dev/null; \
+                   {home_dir}/Desktop/servidor-web*.desktop {home_dir}/Desktop/labremoto-*.desktop 2>/dev/null; \
              rm -rf {home_dir}/.config/lxpanel/lxde-pi-[0-9]* 2>/dev/null; \
              rm -rf {home_dir}/.config/pcmanfm/lxde-pi-[0-9]* 2>/dev/null; \
              update-desktop-database {home_dir}/.local/share/applications 2>/dev/null; true"
@@ -169,6 +174,39 @@ PREFS_EOF\ntrue"
         ),
     )?;
 
+    // En Raspberry Pi OS Trixie el libfm de Raspberry (+rpt) pide un argumento extra de escala en
+    // fm_pixbuf_from_icon_with_fallback, pero el lxpanel de Debian lo llama con la firma vieja: la escala llega
+    // en 0 y NINGÚN ícono de tema carga (y el panel puede caerse). Solo en ese caso se compila un parche mínimo
+    // (LD_PRELOAD) que añade escala 1. Sin desajuste no se toca nada; con desajuste y sin gcc no se pone la barra
+    // de accesos (saldría rota). El .so vive en ~/.cache (no en /tmp) para que nadie más pueda reemplazarlo.
+    let _ = ssh_exec_session(
+        sess,
+        &format!(
+            "C={home_dir}/.cache/labremoto; mkdir -p \"$C\" && chmod 700 \"$C\"; \
+             rm -f \"$C\"/fmfix-{display}.ok \"$C\"/fmfix-{display}.path; \
+             MISMATCH=0; \
+             if dpkg-query -W -f='${{Version}}\\n' 'libfm-gtk3-4*' 2>/dev/null | grep -q rpt \
+                && ! dpkg-query -W -f='${{Version}}\\n' lxpanel 2>/dev/null | grep -q rpt; then MISMATCH=1; fi; \
+             if [ $MISMATCH = 0 ]; then \
+               touch \"$C\"/fmfix-{display}.ok; \
+             elif command -v gcc >/dev/null 2>&1; then \
+               cat > \"$C\"/fmfix.c << 'FMFIX_EOF'\n\
+#define _GNU_SOURCE\n\
+#include <dlfcn.h>\n\
+typedef void *(*fn_t)(void *, unsigned, int, const char *);\n\
+void *fm_pixbuf_from_icon_with_fallback(void *icon, unsigned size, const char *fallback) {{\n\
+    static fn_t real;\n\
+    if (!real) real = (fn_t)dlsym(RTLD_NEXT, \"fm_pixbuf_from_icon_with_fallback\");\n\
+    return real(icon, size, 1, fallback);\n\
+}}\n\
+FMFIX_EOF\n\
+               gcc -shared -fPIC -O2 -o \"$C\"/fmfix.so \"$C\"/fmfix.c -ldl 2>/dev/null \
+                 && echo \"$C\"/fmfix.so > \"$C\"/fmfix-{display}.path \
+                 && touch \"$C\"/fmfix-{display}.ok; \
+             fi; true"
+        ),
+    );
+
     let _ = ssh_exec_session(
         sess,
         &format!(
@@ -201,31 +239,31 @@ Plugin {{\n\
   type=menu\n\
   Config {{\n\
     padding=4\n\
-    image=start-here\n\
+    image=__START_ICON__\n\
+    item {{\n\
+      name=Navegador web\n\
+      action={home_dir}/.local/bin/chromium-browser-{display}\n\
+    }}\n\
+    item {{\n\
+      name=Archivos\n\
+      action=pcmanfm\n\
+    }}\n\
+    item {{\n\
+      name=Terminal\n\
+      action=lxterminal\n\
+    }}\n\
+    separator {{\n\
+    }}\n\
     system {{\n\
     }}\n\
     separator {{\n\
     }}\n\
     item {{\n\
-      image=system-shutdown\n\
       command=logout\n\
     }}\n\
   }}\n\
 }}\n\
-Plugin {{\n\
-  type=launchbar\n\
-  Config {{\n\
-    Button {{\n\
-      id={browser_desktop}\n\
-    }}\n\
-    Button {{\n\
-      id=pcmanfm.desktop\n\
-    }}\n\
-    Button {{\n\
-      id=lxterminal.desktop\n\
-    }}\n\
-  }}\n\
-}}\n\
+__LAUNCHBAR__\n\
 Plugin {{\n\
   type=taskbar\n\
   expand=1\n\
@@ -242,6 +280,12 @@ Plugin {{\n\
   }}\n\
 }}\n\
 Plugin {{\n\
+  type=cpu\n\
+  Config {{\n\
+    Color=#00c800\n\
+  }}\n\
+}}\n\
+Plugin {{\n\
   type=dclock\n\
   Config {{\n\
     ClockFmt=%R\n\
@@ -253,6 +297,25 @@ Plugin {{\n\
 }}\n\
 PANEL_EOF\n\
              \n\
+             START_ICON=''; \
+             for F in /usr/share/icons/PiXtrix/48x48/places/start-here.png /usr/share/icons/*/48x48/places/start-here.png /usr/share/lxpanel/images/my-computer.png; do \
+               [ -f \"$F\" ] && START_ICON=\"$F\" && break; \
+             done; \
+             sed -i \"s#__START_ICON__#${{START_ICON:-start-here}}#\" {home_dir}/.config/lxpanel/{panel_profile}/panels/panel; \
+             PANEL_FILE={home_dir}/.config/lxpanel/{panel_profile}/panels/panel; \
+             if [ -f {home_dir}/.cache/labremoto/fmfix-{display}.ok ]; then \
+               LB={home_dir}/.cache/labremoto/launchbar-{display}.txt; \
+               printf 'Plugin {{\\ntype=launchbar\\nConfig {{\\n' > \"$LB\"; \
+               for D in {browser_desktop} /usr/share/applications/pcmanfm.desktop /usr/share/applications/lxterminal.desktop \
+                        /usr/share/applications/org.thonny.Thonny.desktop /usr/share/applications/thonny.desktop \
+                        /usr/share/applications/geany.desktop /usr/share/applications/code.desktop; do \
+                 [ -f \"$D\" ] && printf 'Button {{\\nid=%s\\n}}\\n' \"$D\" >> \"$LB\"; \
+               done; \
+               printf '}}\\n}}\\n' >> \"$LB\"; \
+               sed -i -e \"/__LAUNCHBAR__/{{r $LB\" -e 'd}}' \"$PANEL_FILE\"; \
+             else \
+               sed -i '/__LAUNCHBAR__/d' \"$PANEL_FILE\"; \
+             fi; \
              mkdir -p {home_dir}/.config/pcmanfm/{panel_profile} && \
              for SRC_PROFILE in LXDE-pi LXDE default; do \
                 if [ -d {home_dir}/.config/pcmanfm/$SRC_PROFILE ]; then \
@@ -301,6 +364,7 @@ PANEL_EOF\n\
              \
              if [ -z \"$REAL_WP\" ]; then \
                for TRYPATH in \
+                 $(ls /usr/share/rpd-wallpaper/*.jpg /usr/share/rpd-wallpaper/*.png 2>/dev/null | head -1) \
                  $(ls /usr/share/backgrounds/*.jpg /usr/share/backgrounds/*.png /usr/share/backgrounds/NVIDIA/*.jpg /usr/share/backgrounds/NVIDIA/*.png 2>/dev/null | head -1) \
                  $(ls {home_dir}/Pictures/*.jpg {home_dir}/Pictures/*.png 2>/dev/null | head -1); do \
                  [ -f \"$TRYPATH\" ] && REAL_WP=\"$TRYPATH\" && break; \
@@ -340,6 +404,20 @@ PANEL_EOF\n\
         ),
     )?;
 
+    // Ajustes de GTK propios de esta sesión (no se toca el ~/.config de la Pi). Sin ellos, en un Xvnc sin
+    // XSETTINGS, lxpanel no sabe qué tema de íconos usar y los lanzadores salen rotos.
+    let _ = ssh_exec_session(
+        sess,
+        &format!(
+            "mkdir -p /tmp/xdgcfg{display}/gtk-3.0 /tmp/xdgcfg{display}/gtk-2.0 && \
+             THEME=Adwaita; \
+             for T in PiXtrix Adwaita; do [ -f /usr/share/icons/$T/index.theme ] && THEME=$T && break; done; \
+             printf '[Settings]\\ngtk-icon-theme-name=%s\\ngtk-fallback-icon-theme=hicolor\\ngtk-cursor-theme-name=Adwaita\\ngtk-xft-dpi=98304\\n' \"$THEME\" \
+               > /tmp/xdgcfg{display}/gtk-3.0/settings.ini; \
+             printf 'gtk-icon-theme-name=\"%s\"\\n' \"$THEME\" > /tmp/xdgcfg{display}/gtk-2.0/gtkrc; true"
+        ),
+    );
+
     let xstartup_wp = wallpaper_path.replace('\'', "'\\''");
     let set_wp_cmd = if xstartup_wp.is_empty() {
         "pcmanfm --reconfigure 2>/dev/null || true".to_string()
@@ -361,13 +439,22 @@ export XDG_DATA_HOME={home_dir}/.local/share\\n\
 export XDG_DATA_DIRS={home_dir}/.local/share:/usr/local/share:/usr/share\\n\
 export PATH={home_dir}/.local/bin:/usr/local/bin:/usr/bin:/bin\\n\
 export XDG_SESSION_TYPE=x11\\n\
+export XDG_CONFIG_DIRS=/tmp/xdgcfg{display}:/etc/xdg\\n\
+export GTK2_RC_FILES=/tmp/xdgcfg{display}/gtk-2.0/gtkrc\\n\
+export GDK_SCALE=1\\n\
+export GDK_DPI_SCALE=1\\n\
+export GDK_BACKEND=x11\\n\
+export NO_AT_BRIDGE=1\\n\
+unset WAYLAND_DISPLAY\\n\
 unset DBUS_SESSION_BUS_ADDRESS\\n\
 unset DBUS_LAUNCHD_SESSION_BUS_SOCKET\\n\
 xsetroot -solid \\#2c3e50 2>/dev/null || true\\n\
 rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie {chromium_dir}/SingletonSocket 2>/dev/null\\n\
+command -v vncconfig >/dev/null 2>&1 && vncconfig -nowin >/tmp/vncconfig{display}.log 2>&1 &\\n\
 openbox >/tmp/openbox{display}.log 2>&1 & echo $! > /tmp/openbox-{display}.pid\\n\
 sleep 2\\n\
-lxpanel --profile {panel_profile} >/tmp/lxpanel{display}.log 2>&1 &\\n\
+OB=$(cat /tmp/openbox-{display}.pid)\\n\
+( while kill -0 $OB 2>/dev/null; do LD_PRELOAD=\"$(cat {home_dir}/.cache/labremoto/fmfix-{display}.path 2>/dev/null)\" lxpanel --profile {panel_profile} >>/tmp/lxpanel{display}.log 2>&1; sleep 2; done ) &\\n\
 pcmanfm --desktop --profile {panel_profile} >/tmp/pcmanfm{display}.log 2>&1 &\\n\
 sleep 2\\n\
 {set_wp_cmd}\\n\
@@ -431,6 +518,25 @@ wait\\n' \
         ),
     )?;
 
+    // Accesos a las herramientas en el escritorio. lxpanel no logra dibujar íconos de tema en Debian 13, pero
+    // pcmanfm --desktop sí, así que, cuando la barra de accesos no puede usarse (ver fmfix arriba), los accesos rápidos
+    // van como íconos del escritorio (solo los instalados). Con la barra funcionando no se crean.
+    let _ = ssh_exec_session(
+        sess,
+        &format!(
+            "[ -f {home_dir}/.cache/labremoto/fmfix-{display}.ok ] && exit 0; \
+             cp {browser_desktop} {home_dir}/Desktop/labremoto-navegador.desktop 2>/dev/null; \
+             for A in pcmanfm lxterminal org.thonny.Thonny thonny geany code; do \
+               F=/usr/share/applications/$A.desktop; \
+               [ -f \"$F\" ] && cp \"$F\" {home_dir}/Desktop/labremoto-$A.desktop 2>/dev/null; \
+             done; \
+             for D in {home_dir}/Desktop/labremoto-*.desktop; do \
+               [ -f \"$D\" ] || continue; \
+               chmod +x \"$D\" && gio set \"$D\" metadata::trusted true 2>/dev/null; \
+             done; true"
+        ),
+    )?;
+
     Ok(())
 }
 
@@ -451,15 +557,15 @@ pub(crate) fn stop_vnc_server(
              kill $(cat /tmp/openbox-{display}.pid 2>/dev/null) 2>/dev/null; \
              pkill -f 'lxpanel.*{panel_profile}' 2>/dev/null; \
              pkill -f 'pcmanfm.*{panel_profile}' 2>/dev/null; \
-             pkill -f 'Xvnc :{display} ' 2>/dev/null; \
-             pkill -f 'Xtigervnc :{display} ' 2>/dev/null; \
+             pkill -f '[X]vnc :{display} ' 2>/dev/null; \
+             pkill -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -f '[X]vnc-core :{display} ' 2>/dev/null; \
              sleep 0.5; \
-             pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; \
-             pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; \
+             pkill -9 -f '[X]vnc :{display} ' 2>/dev/null; \
+             pkill -9 -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -9 -f '[X]vnc-core :{display} ' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} \
                    {xstartup_path} /tmp/openbox-{display}.pid \
                    {browser_desktop} {webserver_desktop} \
-                   {home_dir}/Desktop/servidor-web.desktop 2>/dev/null; \
+                   {home_dir}/Desktop/servidor-web.desktop {home_dir}/Desktop/labremoto-*.desktop 2>/dev/null; \
              rm -rf /tmp/xdg{display} 2>/dev/null; \
              true"
         ),

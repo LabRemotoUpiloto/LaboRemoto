@@ -71,6 +71,19 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
 
   // Portapapeles: texto copiado desde el escritorio remoto (sincronización automática)
   const remoteClipboardRef = useRef<string>('')
+  // Último texto local enviado al escritorio remoto (evita reenviar lo mismo)
+  const lastSentClipboardRef = useRef<string>('')
+
+  // Portapapeles local → escritorio remoto: se envía al VNC lo que el usuario copió en su PC,
+  // para que Ctrl+V (o Ctrl+Shift+V en la terminal) lo pegue allá. Solo usa refs.
+  const syncLocalClipboard = () => {
+    if (!rfbRef.current || !navigator.clipboard?.readText) return
+    navigator.clipboard.readText().then(text => {
+      if (!text || text === lastSentClipboardRef.current || text === remoteClipboardRef.current) return
+      lastSentClipboardRef.current = text
+      rfbRef.current?.clipboardPasteFrom(text)
+    }).catch(() => {})
+  }
   // Rastrea el estado de CapsLock en el servidor remoto (null = no sincronizado aún)
   const remoteCapsRef = useRef<boolean | null>(null)
 
@@ -88,6 +101,9 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
 
       const canvas = canvasContainerRef.current?.querySelector('canvas')
       const canvasHasFocus = document.activeElement === canvas
+
+      // Antes de pegar, mandar el portapapeles local al escritorio remoto
+      if (e.ctrlKey && e.code === 'KeyV') syncLocalClipboard()
 
       if (e.code === 'CapsLock') {
         // Siempre interceptar CapsLock independientemente del foco
@@ -229,13 +245,20 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         rfb.viewOnly = false
         rfb.addEventListener('connect', () => {
           const canvas = container.querySelector('canvas')
-          if (canvas) (canvas as HTMLElement).focus()
+          if (canvas) {
+            ;(canvas as HTMLElement).focus()
+            // Al volver al escritorio remoto, enviarle lo último que se copió en el PC
+            canvas.addEventListener('focus', syncLocalClipboard)
+          }
+          window.addEventListener('focus', syncLocalClipboard)
+          syncLocalClipboard()
           // El servidor VNC remoto siempre arranca con CapsLock=OFF.
           // Resetear el tracker para que la próxima tecla sincronice el estado.
           remoteCapsRef.current = null
         })
         rfb.addEventListener('disconnect', (e: any) => {
           rfbRef.current = null
+          window.removeEventListener('focus', syncLocalClipboard)
           if (e.detail && e.detail.clean === false) stop()
         })
         rfb.addEventListener('credentialsrequired', () => rfb.sendCredentials({ password: '' }))

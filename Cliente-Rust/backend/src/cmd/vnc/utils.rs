@@ -148,25 +148,22 @@ pub(crate) fn stop_vnc_server_real(sess: &ssh2::Session, vnc_port: u16) -> Resul
 /// haría fallar a Xvnc con "server already running" al intentar reusar ese
 /// número.
 pub(crate) fn find_free_display(sess: &ssh2::Session) -> Result<u32, String> {
-    let _ = ssh_exec_session(
-        sess,
-        "for d in $(seq 20 99); do \
-           if pgrep -f \"Xvnc :$d \" >/dev/null 2>&1 || pgrep -f \"Xtigervnc :$d \" >/dev/null 2>&1 \
-              || pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 || pgrep -f \"x11vnc.*:$d\" >/dev/null 2>&1; then \
-             continue; \
-           fi; \
-           rm -f /tmp/.X$d-lock /tmp/.X11-unix/X$d 2>/dev/null; \
-         done; true"
-    );
-
+    // Una sola lectura de la lista de procesos. Antes eran ~800 `pgrep` (80 displays x 5 patrones x 2 pasadas): en
+    // una Pi 3 tardaba casi un minuto, y en ese rato el usuario o la interfaz lanzaban un segundo arranque que
+    // chocaba con el primero. Los corchetes ([v]) evitan que el propio comando se vea a sí mismo en `ps`.
     let (_, out) = ssh_exec_session(
         sess,
-        "for d in $(seq 20 99); do \
-           if pgrep -f \"Xvnc :$d \" >/dev/null 2>&1 || pgrep -f \"Xtigervnc :$d \" >/dev/null 2>&1 \
-              || pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 || pgrep -f \"x11vnc.*:$d\" >/dev/null 2>&1; then \
-             echo $d; \
-           fi; \
-         done; true"
+        "USED=$(ps -eo args= 2>/dev/null \
+                | grep -oE '(X[v]nc|X[t]igervnc|X[v]nc-core|X[v]fb) :[0-9]+|[x]11vnc.* :[0-9]+' \
+                | grep -oE ':[0-9]+$' | tr -d ':' | sort -un); \
+         for f in /tmp/.X*-lock; do \
+           [ -e \"$f\" ] || continue; \
+           n=${f#/tmp/.X}; n=${n%-lock}; \
+           case \"$n\" in ''|*[!0-9]*) continue;; esac; \
+           [ \"$n\" -ge 20 ] || continue; \
+           echo \"$USED\" | grep -qx \"$n\" || rm -f \"$f\" \"/tmp/.X11-unix/X$n\" 2>/dev/null; \
+         done; \
+         echo \"$USED\"; true"
     )?;
     let mut used: Vec<u32> = out
         .lines()

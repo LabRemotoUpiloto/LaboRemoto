@@ -12,7 +12,8 @@ pub mod bridge;
 pub mod server;
 pub mod utils;
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock};
 use std::sync::atomic::AtomicBool;
 
 use serde::{Deserialize, Serialize};
@@ -44,6 +45,11 @@ pub enum VncStatusResponse {
 // Comandos Tauri
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Un candado por sesión SSH: serializa los `vnc_start`. Si la interfaz (o el usuario) dispara dos arranques
+/// seguidos, el segundo espera al primero y, al entrar, ve `vnc_session` ya creada y devuelve esa misma sesión
+/// en vez de levantar un segundo Xvnc que choca en el display y el puerto del primero.
+static START_LOCKS: OnceLock<std::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>> = OnceLock::new();
+
 /// Inicia una sesión de escritorio gráfico sobre una conexión SSH activa.
 #[tauri::command]
 pub async fn vnc_start(
@@ -60,6 +66,15 @@ pub async fn vnc_start(
             format!("Resolución inválida '{res}'. Opciones: {}", VALID.join(", ")),
         ));
     }
+
+    let start_lock = {
+        let mut locks = START_LOCKS
+            .get_or_init(Default::default)
+            .lock()
+            .map_err(|_| CommandError::internal("LOCK_POISONED", "START_LOCKS lock poisoned"))?;
+        locks.entry(session_id.clone()).or_default().clone()
+    };
+    let _start_guard = start_lock.lock().await;
 
     let (host, port, user, password) = {
         let map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
@@ -224,8 +239,8 @@ pub async fn vnc_stop(session_id: String) -> Result<(), CommandError> {
         vnc.host     = "".to_string();
 
         let kill_cmd = format!(
-            "pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; \
-             pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; \
+            "pkill -9 -f '[X]vnc :{display} ' 2>/dev/null; \
+             pkill -9 -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -9 -f '[X]vnc-core :{display} ' 2>/dev/null; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n"
         );
         let _ = term_tx.send(crate::ssh_core::client::ChanCmd::Send(kill_cmd.into_bytes()));
@@ -255,12 +270,12 @@ pub async fn vnc_cleanup_all(session_id: String) -> Result<String, CommandError>
         let (_, out) = crate::ssh_core::exec::ssh_exec_session(
             &sess,
             "for d in $(seq 20 99); do \
-               if pgrep -f \"Xvnc :$d \" >/dev/null 2>&1 || pgrep -f \"Xtigervnc :$d \" >/dev/null 2>&1 \
+               if pgrep -f \"Xvnc :$d \" >/dev/null 2>&1 || pgrep -f \"Xtigervnc :$d \" >/dev/null 2>&1 || pgrep -f \"Xvnc-core :$d \" >/dev/null 2>&1 \
                   || pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 || pgrep -f \"x11vnc.*:$d\" >/dev/null 2>&1; then \
-                 pkill -9 -f \"Xvnc :$d \" 2>/dev/null; \
-                 pkill -9 -f \"Xtigervnc :$d \" 2>/dev/null; \
-                 pkill -9 -f \"Xvfb :$d \" 2>/dev/null; \
-                 pkill -9 -f \"x11vnc.*:$d\" 2>/dev/null; \
+                 pkill -9 -f \"[X]vnc :$d \" 2>/dev/null; \
+                 pkill -9 -f \"[X]tigervnc :$d \" 2>/dev/null; pkill -9 -f \"[X]vnc-core :$d \" 2>/dev/null; \
+                 pkill -9 -f \"[X]vfb :$d \" 2>/dev/null; \
+                 pkill -9 -f \"[x]11vnc.*:$d\" 2>/dev/null; \
                  rm -f /tmp/.X$d-lock /tmp/.X11-unix/X$d 2>/dev/null; \
                  echo \"killed :$d\"; \
                fi; \
@@ -316,7 +331,7 @@ pub fn cleanup_all_vnc_sessions() {
                     if is_virtual {
                         let _ = crate::ssh_core::exec::ssh_exec_session(
                             &sess,
-                            &format!("pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true")
+                            &format!("pkill -9 -f '[X]vnc :{display} ' 2>/dev/null; pkill -9 -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -9 -f '[X]vnc-core :{display} ' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true")
                         );
                     }
                 }
