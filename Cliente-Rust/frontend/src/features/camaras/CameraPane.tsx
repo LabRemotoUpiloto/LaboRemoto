@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import CameraVideo from './CameraVideo'
 import PtzControls from './PtzControls'
-import type { PtzOp } from '../../hooks/usePtzControl'
+import type { PtzOp } from './usePtzControl'
 
 interface Props {
   streamUrl?: string   // HLS via túnel SSH — http://127.0.0.1:localPort/camId/index.m3u8

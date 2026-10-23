@@ -3,7 +3,7 @@ import './TerminalView.css';
 import TerminalPane from '@/features/terminal/TerminalPane';
 import ChatPane from '@/features/chat/ChatPane';
 import DesktopPane from '@/features/escritorio/DesktopPane';
-import CameraGrid from '@/components/raspberry/CameraGrid';
+import CameraGrid from '@/features/camaras/CameraGrid';
 import Ev3Panel from '@/features/hardware/ev3/Ev3Panel';
 import { LinuxPracticeProgressBar, type ProgresoPractica } from '@/features/practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '@/features/terminal/useCommandHistory';

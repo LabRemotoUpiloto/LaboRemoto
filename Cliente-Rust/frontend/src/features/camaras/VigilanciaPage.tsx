@@ -4,9 +4,9 @@
 import React, { useState } from 'react';
 import { Box, Title, Group, Button } from '@mantine/core';
 import { Settings2 } from 'lucide-react';
-import CameraGrid, { PILOT_GROUP_KEY } from '../../components/raspberry/CameraGrid';
-import CamarasAdminModal from '../../components/raspberry/CamarasAdminModal';
-import { useEffectiveRole, puedeAdministrarCamaras } from '../../hooks/usePermissions';
+import CameraGrid, { PILOT_GROUP_KEY } from './CameraGrid';
+import CamarasAdminModal from './CamarasAdminModal';
+import { useEffectiveRole, puedeAdministrarCamaras } from '@/hooks/usePermissions';
 
 const VigilanciaPage: React.FC = () => {
   const role = useEffectiveRole();

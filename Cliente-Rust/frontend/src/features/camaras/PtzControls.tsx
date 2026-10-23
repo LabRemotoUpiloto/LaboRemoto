@@ -10,7 +10,7 @@
 // que confirma que la orden salió, independiente de cuándo se vea en video.
 import React, { useCallback, useRef, useState } from 'react'
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight, Plus, Minus, Move, X, Check } from 'lucide-react'
-import type { PtzOp } from '../../hooks/usePtzControl'
+import type { PtzOp } from './usePtzControl'
 
 interface Props {
   onCommand: (op: PtzOp) => void

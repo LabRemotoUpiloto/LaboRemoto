@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useLifecycleStatus } from '@/lib/useLifecycleStatus'
-import type { NvrCamera } from '../bindings/NvrCamera'
+import type { NvrCamera } from '@/bindings/NvrCamera'
 
 export type { NvrCamera }
 

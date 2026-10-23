@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describirPrueba, etiquetaCamara, soloCambios, textoErrores, type CamaraAdmin, type PruebaCamara } from '../../src/services/camarasAdmin.service';
+import { describirPrueba, etiquetaCamara, soloCambios, textoErrores, type CamaraAdmin, type PruebaCamara } from '@/features/camaras/camarasAdmin.service';
 
 const base: CamaraAdmin = {
   id: 'Camara05', nombre: 'Camara04', host: '172.16.34.13', puerto: 554, usuario: 'admin', tienePassword: true,

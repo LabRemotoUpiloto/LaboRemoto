@@ -1,10 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { CamaraAdmin } from '../bindings/CamaraAdmin';
-import type { CamaraEntrada } from '../bindings/CamaraEntrada';
-import type { CamarasAdminLista } from '../bindings/CamarasAdminLista';
-import type { PruebaCamara } from '../bindings/PruebaCamara';
-import type { ResultadoGuardado } from '../bindings/ResultadoGuardado';
-import type { ResultadoPrueba } from '../bindings/ResultadoPrueba';
+import type { CamaraAdmin } from '@/bindings/CamaraAdmin';
+import type { CamaraEntrada } from '@/bindings/CamaraEntrada';
+import type { CamarasAdminLista } from '@/bindings/CamarasAdminLista';
+import type { PruebaCamara } from '@/bindings/PruebaCamara';
+import type { ResultadoGuardado } from '@/bindings/ResultadoGuardado';
+import type { ResultadoPrueba } from '@/bindings/ResultadoPrueba';
 
 export type { CamaraAdmin, CamaraEntrada, CamarasAdminLista, PruebaCamara, ResultadoGuardado, ResultadoPrueba };
 

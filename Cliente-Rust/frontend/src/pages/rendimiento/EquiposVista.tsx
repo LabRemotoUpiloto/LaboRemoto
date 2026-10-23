@@ -1,7 +1,7 @@
 // pages/rendimiento/EquiposVista.tsx — «Equipos del laboratorio»: la primera vista de Monitoreo.
 // Arriba lo que ya envía datos (Pi 4 y cámaras); abajo lo que todavía no, como «Próximamente».
 import React from 'react';
-import type { CamaraAdmin } from '../../services/camarasAdmin.service';
+import type { CamaraAdmin } from '@/features/camaras/camarasAdmin.service';
 import { INDICADORES, estadoDe } from './rendimientoStats';
 import { duracion, estadoPi, formatoValor, hora24 } from './monitoreo';
 import { Barra, Boton, ETIQUETA, NOTA, Punto, TARJETA, TARJETA_APAGADA, type Nivel } from '../../components/ui';

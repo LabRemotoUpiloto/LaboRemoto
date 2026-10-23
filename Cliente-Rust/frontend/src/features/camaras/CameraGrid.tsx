@@ -1,7 +1,7 @@
 // components/raspberry/CameraGrid.tsx
 import React, { useEffect, useState } from 'react'
-import { useNvrCameras, NvrCamera } from '../../hooks/useNvrCameras'
-import { usePtzControl } from '../../hooks/usePtzControl'
+import { useNvrCameras, NvrCamera } from './useNvrCameras'
+import { usePtzControl } from './usePtzControl'
 import CameraPane from './CameraPane'
 
 interface Props {

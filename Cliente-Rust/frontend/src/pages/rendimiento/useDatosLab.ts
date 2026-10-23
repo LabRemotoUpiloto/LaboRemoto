@@ -2,7 +2,7 @@
 // (cada 2 s, solo lo nuevo) y el estado de las cámaras según el broker (cada 10 s).
 import { useEffect, useRef, useState } from 'react';
 import { rendimientoPi, type InformePi, type MuestraPi } from '../../services/rendimiento.service';
-import { camarasAdminService, type CamaraAdmin } from '../../services/camarasAdmin.service';
+import { camarasAdminService, type CamaraAdmin } from '@/features/camaras/camarasAdmin.service';
 import { unirMuestras } from './rendimientoStats';
 
 const SONDEO_PI_MS = 2000;

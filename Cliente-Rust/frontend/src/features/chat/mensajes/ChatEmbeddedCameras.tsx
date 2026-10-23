@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { ActionIcon, Loader } from '@mantine/core';
 import { Video, X } from 'lucide-react';
-import CameraGrid from '@/components/raspberry/CameraGrid';
+import CameraGrid from '@/features/camaras/CameraGrid';
 
 type Props = {
   sessionId: string | null;

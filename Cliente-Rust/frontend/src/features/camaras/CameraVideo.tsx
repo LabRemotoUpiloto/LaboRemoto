@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react'
 import HlsPlayer from './HlsPlayer'
 import WhepPlayer from './WhepPlayer'
-import { ESPERA_FALLO_DE_RED_MS, esFalloDeRed, esperaReintentoMs } from '../../utils/webrtcFallback'
+import { ESPERA_FALLO_DE_RED_MS, esFalloDeRed, esperaReintentoMs } from './webrtcFallback'
 
 interface Props {
   hlsUrl: string

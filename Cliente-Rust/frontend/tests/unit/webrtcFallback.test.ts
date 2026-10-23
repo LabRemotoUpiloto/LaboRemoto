@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ESPERA_FALLO_DE_RED_MS, esFalloDeRed, esperaReintentoMs } from '../../src/utils/webrtcFallback';
+import { ESPERA_FALLO_DE_RED_MS, esFalloDeRed, esperaReintentoMs } from '@/features/camaras/webrtcFallback';
 
 describe('esFalloDeRed', () => {
   it('es de red solo si la conexión NUNCA llegó a establecerse', () => {

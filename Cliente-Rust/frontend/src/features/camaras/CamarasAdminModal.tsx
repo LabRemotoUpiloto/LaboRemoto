@@ -7,7 +7,7 @@ import { Plus, Pencil, Trash2, Check, X, AlertTriangle } from 'lucide-react'
 import {
   camarasAdminService, describirPrueba, etiquetaCamara, soloCambios, textoErrores, RUTAS_RTSP,
   type CamaraAdmin, type CamaraEntrada, type PruebaCamara,
-} from '../../services/camarasAdmin.service'
+} from './camarasAdmin.service'
 
 const mensajeDe = (e: any) => e?.message ?? String(e)
 
