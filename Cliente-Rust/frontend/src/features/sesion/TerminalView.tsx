@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import './TerminalView.css';
 import TerminalPane from '@/features/terminal/TerminalPane';
 import ChatPane from '@/features/chat/ChatPane';
-import DesktopPane from '@/components/desktop/DesktopPane';
+import DesktopPane from '@/features/escritorio/DesktopPane';
 import CameraGrid from '@/components/raspberry/CameraGrid';
 import Ev3Panel from '@/components/ev3/Ev3Panel';
 import { LinuxPracticeProgressBar, type ProgresoPractica } from '@/features/practicas/linux/LinuxPracticeProgressBar';

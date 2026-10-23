@@ -1,7 +1,7 @@
 // components/desktop/DesktopToolbar.tsx — Barra de control del escritorio remoto
 
 import React from 'react'
-import type { DesktopStatus, DesktopSessionInfo } from '../../hooks/useDesktopSession'
+import type { DesktopStatus, DesktopSessionInfo } from './useDesktopSession'
 
 const STATUS_COLOR: Record<DesktopStatus, string> = {
   idle: 'var(--text-secondary)',

@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { useDesktopSession } from '../../hooks/useDesktopSession'
+import { useDesktopSession } from './useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
 import './DesktopPane.css'
 

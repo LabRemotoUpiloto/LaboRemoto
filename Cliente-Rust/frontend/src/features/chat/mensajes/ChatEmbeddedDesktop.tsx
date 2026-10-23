@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { ActionIcon, Loader } from '@mantine/core';
 import { Monitor, X } from 'lucide-react';
-import DesktopPane from '@/components/desktop/DesktopPane';
+import DesktopPane from '@/features/escritorio/DesktopPane';
 
 type Props = {
   sessionId: string | null;
