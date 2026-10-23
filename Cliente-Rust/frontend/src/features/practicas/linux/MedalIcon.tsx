@@ -1,4 +1,4 @@
-// components/practicas/linux/MedalIcon.tsx
+// features/practicas/linux/MedalIcon.tsx
 //
 // Insignia de medalla real -- path de Phosphor Icons ("medal", peso
 // duotone/fill; MIT, sin atribución requerida: https://github.com/phosphor-icons/core),

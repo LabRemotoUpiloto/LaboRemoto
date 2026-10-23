@@ -1,4 +1,4 @@
-// hooks/useNvrCameras.ts
+// features/camaras/useNvrCameras.ts
 // Reemplazo de useCameraGrid.ts: consume el NVR Shinobi por API HTTP
 // (cmd::nvr en el backend), no abre túnel SSH de video propio ni conoce
 // MediaMTX/WHEP. El backend ya devuelve `stream_url` lista para HlsPlayer.

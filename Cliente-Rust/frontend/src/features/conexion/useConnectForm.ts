@@ -7,8 +7,8 @@
  *
  * Migración interna: el código que usaba este hook no necesita cambiar.
  * Si quieres usar los hooks directamente, importa desde:
- *   - hooks/useConnectionForm.ts
- *   - hooks/useConnectionActions.ts
+ *   - features/conexion/useConnectionForm.ts
+ *   - features/conexion/useConnectionActions.ts
  */
 
 import { useState } from 'react';

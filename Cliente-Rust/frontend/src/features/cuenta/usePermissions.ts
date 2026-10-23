@@ -1,4 +1,4 @@
-// hooks/usePermissions.ts — punto único de verdad para gating de UI por rol.
+// features/cuenta/usePermissions.ts — punto único de verdad para gating de UI por rol.
 //
 // Cada persona tiene UN rol efectivo: el primero de ROLE_ORDER presente en
 // `AuthSessionInfo.roles` (realm roles de Keycloak). Estudiante es el fallback

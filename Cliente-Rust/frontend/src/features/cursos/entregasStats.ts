@@ -1,4 +1,4 @@
-// pages/cursos/entregasStats.ts — textos y conteos de la lista de entregas que ve el docente en «Mis cursos».
+// features/cursos/entregasStats.ts — textos y conteos de la lista de entregas que ve el docente en «Mis cursos».
 import type { EntregaEstudiante } from '@/bindings/EntregaEstudiante';
 import type { ResumenCurso } from '@/bindings/ResumenCurso';
 

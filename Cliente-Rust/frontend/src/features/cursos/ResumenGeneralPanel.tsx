@@ -1,4 +1,4 @@
-// pages/cursos/ResumenGeneralPanel.tsx — vista general de un curso para el docente: el porcentaje de cada estudiante en TODAS las
+// features/cursos/ResumenGeneralPanel.tsx — vista general de un curso para el docente: el porcentaje de cada estudiante en TODAS las
 // prácticas y cómo va en cada una. Los datos salen de Moodle (cmd::moodle_resumen_curso); las cuentas están en entregasStats.ts.
 import React, { useEffect, useState } from 'react';
 import { Box, Group, Loader, Paper, Progress, SimpleGrid, Table, Text, Tooltip } from '@mantine/core';

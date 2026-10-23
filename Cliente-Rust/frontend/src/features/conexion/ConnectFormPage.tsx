@@ -15,7 +15,7 @@ interface ConnectFormPageProps {
 const ConnectFormPage: React.FC<ConnectFormPageProps> = ({ onConnected, initialPayload }) => {
   const { recentConnections, saveConnection, clearConnections } = useRecentConnections();
 
-  // Quick Hosts tomados de constants/devices (sin hardcoding)
+  // Quick Hosts tomados de lib/devices (sin hardcoding)
   const quickHosts: QuickHost[] = [
     {
       id: 'pi4',

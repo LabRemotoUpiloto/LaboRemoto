@@ -1,4 +1,4 @@
-// hooks/useLifecycleStatus.ts — Estado compartido de lifecycle (status/error/mounted)
+// lib/useLifecycleStatus.ts — Estado compartido de lifecycle (status/error/mounted)
 // para hooks de sesión de medios (VNC, cámaras, etc).
 //
 // Extrae SOLO la parte verdaderamente idéntica entre useDesktopSession y useCameraGrid:

@@ -1,4 +1,4 @@
-// pages/rendimiento/RegistrosPanel.tsx — registros en vivo de la Pi para el panel de Monitoreo:
+// features/monitoreo/RegistrosPanel.tsx — registros en vivo de la Pi para el panel de Monitoreo:
 // cada petición a la API de prácticas y cada evento de SSH (quién entró, contraseñas fallidas,
 // conexiones rechazadas por exceso o cortadas). Sirve para ver qué pasa justo cuando algo falla.
 // Paginado y agrupado por día (el auth.log abarca varios). En la página 1 se actualiza en vivo; en

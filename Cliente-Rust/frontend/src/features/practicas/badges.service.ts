@@ -1,5 +1,5 @@
 /**
- * services/badges.service.ts
+ * features/practicas/badges.service.ts
  *
  * Catálogo de insignias de la práctica de Linux + su persistencia. Insignias
  * personales, nunca comparadas entre estudiantes (sin leaderboard) -- ver

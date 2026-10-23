@@ -1,4 +1,4 @@
-// pages/settings/PerfilPage.tsx — info de cuenta (viene de la sesión de
+// features/cuenta/PerfilPage.tsx — info de cuenta (viene de la sesión de
 // Keycloak ya activa, `AuthSessionInfo`) + foto de perfil editable. La foto
 // se guarda como atributo custom en Keycloak. Este realm federa usuarios
 // desde LDAP en modo solo-lectura, así que la API de cuenta propia

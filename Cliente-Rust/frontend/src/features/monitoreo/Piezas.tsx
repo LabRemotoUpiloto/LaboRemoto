@@ -1,4 +1,4 @@
-// pages/rendimiento/Piezas.tsx — lo propio de Monitoreo. Las piezas generales (tarjeta, rótulos, Punto, Selector,
+// features/monitoreo/Piezas.tsx — lo propio de Monitoreo. Las piezas generales (tarjeta, rótulos, Punto, Selector,
 // Barra, botones…) viven en components/ui.
 import React from 'react';
 import { NOTA, RADIO } from '@/components/ui';

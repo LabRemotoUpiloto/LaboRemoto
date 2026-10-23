@@ -1,4 +1,4 @@
-// components/practicas/badges/insigniaRegistry.tsx
+// features/practicas/badges/insigniaRegistry.tsx
 //
 // Qué insignia específica le corresponde a cada práctica -- un mapa
 // practiceId -> elemento ya armado. Cada entrada envuelve el marco común

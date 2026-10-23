@@ -1,7 +1,7 @@
-// components/practicas/linux/TrophyRoom.tsx
+// features/practicas/linux/TrophyRoom.tsx
 //
 // "Sala de trofeos" del Perfil: lista los rangos de la práctica de Linux
-// (ver services/badges.service.ts, RANKS) -- ganados (insignia sólida +
+// (ver features/practicas/badges.service.ts, RANKS) -- ganados (insignia sólida +
 // fecha), bloqueados (el módulo existe pero todavía no se completó) o
 // "próximamente" (el módulo todavía no existe en la Pi). Sin Mantine
 // `Badge` -- tarjetas propias, mismo criterio que el resto de bloques de la
@@ -9,7 +9,7 @@
 // (mismo criterio que el resto del proyecto) -- nada de .css por componente.
 //
 // Además, una segunda sección con los "pósters premio" (ver
-// services/posters.service.ts) -- coleccionables distintos de las
+// features/practicas/posters.service.ts) -- coleccionables distintos de las
 // insignias: una imagen real que el estudiante puede ver en grande y
 // descargar cuando quiera, no una medalla de rango.
 import React, { useEffect, useState } from 'react';

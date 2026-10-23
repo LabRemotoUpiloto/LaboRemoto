@@ -2,7 +2,7 @@
  * Utilidad para armar el reporte PDF de comandos de una sesión. La
  * extracción de los comandos en sí (`extractValidCommands`) corre ahora en
  * el backend (`cmd/logs/logs.rs::extract_session_commands`) — ver
- * `services/session.service.ts::extractSessionCommands`.
+ * `features/logs/session.service.ts::extractSessionCommands`.
  */
 
 import { unipilotoLogo } from '@/assets/logoBase64';

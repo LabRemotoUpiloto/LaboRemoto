@@ -1,4 +1,4 @@
-// pages/dashboard/EncuestasPanel.tsx — pestaña «Encuestas» de Actividad: lo que respondieron los estudiantes al terminar cada
+// features/actividad/EncuestasPanel.tsx — pestaña «Encuestas» de Actividad: lo que respondieron los estudiantes al terminar cada
 // práctica (aprendizaje y funcionamiento). Anónimo: el servidor nunca manda quién respondió.
 import { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';

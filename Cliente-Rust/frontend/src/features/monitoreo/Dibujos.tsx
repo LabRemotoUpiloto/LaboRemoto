@@ -1,4 +1,4 @@
-// pages/rendimiento/Dibujos.tsx — dibujos de línea de cada equipo, con la tinta del tema.
+// features/monitoreo/Dibujos.tsx — dibujos de línea de cada equipo, con la tinta del tema.
 // `apagado`: punteados y en gris, para los equipos que todavía no envían datos.
 
 

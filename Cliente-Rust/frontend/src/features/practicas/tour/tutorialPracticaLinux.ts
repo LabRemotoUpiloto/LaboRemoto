@@ -1,4 +1,4 @@
-// tours/tour_linux/tutorialPracticaLinux.ts — tour narrado que se muestra cada vez que un estudiante
+// features/practicas/tour/tutorialPracticaLinux.ts — tour narrado que se muestra cada vez que un estudiante
 // entra a una práctica de Linux (ver TourPracticaLinux.tsx). Motor deliberadamente más simple que tutorialBienvenida.ts: todo lo que resalta
 // ya está en pantalla (la práctica ya está conectada), así que no hace falta navegar entre páginas ni
 // mostrar ventanas/escenas — solo esperar a que cada elemento exista y resaltarlo.

@@ -58,7 +58,7 @@ export default function AiMessageBubble({
   const actionBtnClass = 'text-[var(--text-secondary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]';
 
   // Fuegos artificiales + insignia: una sola vez por módulo (persistido vía
-  // services/badges.service.ts -- misma fuente que lee la Sala de Trofeos
+  // features/practicas/badges.service.ts -- misma fuente que lee la Sala de Trofeos
   // del Perfil) -- nunca de nuevo en re-renders o remounts posteriores una
   // vez que ya se ganó la insignia.
   // Encadenado: medalla -> (si el módulo tiene póster) póster -> redirect.
@@ -91,7 +91,7 @@ export default function AiMessageBubble({
     if (poster) {
       // Se desbloquea en este momento (no antes): recién cuando el
       // estudiante YA vio la insignia es que pasa al póster -- ver
-      // services/posters.service.ts.
+      // features/practicas/posters.service.ts.
       markPosterUnlocked(poster.id);
       setCelebrationStep('poster');
     } else {

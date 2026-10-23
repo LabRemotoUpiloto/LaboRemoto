@@ -1,4 +1,4 @@
-// components/raspberry/HlsPlayer.tsx
+// features/camaras/HlsPlayer.tsx
 // Player HLS usando hls.js — funciona via túnel SSH TCP (127.0.0.1:localPort)
 import React, { useEffect, useRef, useState } from 'react'
 import Hls from 'hls.js'

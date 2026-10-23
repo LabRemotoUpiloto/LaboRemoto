@@ -28,7 +28,7 @@ no un porcentaje arbitrario.
 ## Qué pasa en el frontend al llegar al 100%
 
 1. **Insignia** — se marca ganada con
-   `markModuleBadgeEarned(practiceId)` (`src/services/badges.service.ts`).
+   `markModuleBadgeEarned(practiceId)` (`src/features/practicas/badges.service.ts`).
    El store es un simple `Record<practiceId, EarnedBadge>` en localStorage,
    así que cualquier práctica nueva solo necesita llamar a esa función con
    su propio `practiceId` real (el mismo id que usa su backend/catálogo) —
@@ -42,7 +42,7 @@ no un porcentaje arbitrario.
    llama al callback `onModuleCompleted` que se le pasa a
    `useLinuxPracticeSession` (ver `App.tsx`). Ese callback:
    - Llama a `requestPracticesFocus(categoryId)`
-     (`src/services/practiceNavigation.service.ts`) para que
+     (`src/features/practicas/practiceNavigation.service.ts`) para que
      `PracticesPage` abra esa categoría apenas se monte, en vez de la
      grilla de categorías genérica.
    - Vuelve a la pestaña de Inicio y selecciona la página "practices"
@@ -59,8 +59,8 @@ no un porcentaje arbitrario.
 Lo mínimo que hace falta:
 
 ```ts
-import { markModuleBadgeEarned } from '../services/badges.service';
-import { requestPracticesFocus } from '../services/practiceNavigation.service';
+import { markModuleBadgeEarned } from '@/features/practicas/badges.service';
+import { requestPracticesFocus } from '@/features/practicas/practiceNavigation.service';
 
 // cuando tu lógica de validación propia detecte "100%":
 const { alreadyEarned } = markModuleBadgeEarned(miPracticeIdReal);

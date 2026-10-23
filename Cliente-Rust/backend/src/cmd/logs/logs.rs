@@ -134,7 +134,7 @@ fn count_commands_in_html(html: &str) -> i32 {
 }
 
 /// Comandos comunes de Linux reconocidos — puerto 1:1 de `COMMON_COMMANDS`
-/// en `frontend/src/utils/commandParser.ts`. Se usa para filtrar qué líneas
+/// en `frontend/src/features/logs/commandParser.ts`. Se usa para filtrar qué líneas
 /// con prompt son realmente comandos válidos (a diferencia de
 /// `count_commands_in_html`, que cuenta toda línea con prompt sin filtrar).
 static COMMON_COMMANDS: once_cell::sync::Lazy<std::collections::HashSet<&'static str>> = once_cell::sync::Lazy::new(|| {
@@ -160,7 +160,7 @@ static COMMON_COMMANDS: once_cell::sync::Lazy<std::collections::HashSet<&'static
 
 /// Extrae la lista de comandos válidos detectados en el HTML de un log de
 /// sesión — puerto 1:1 de `extractValidCommands` en
-/// `frontend/src/utils/commandParser.ts`. Usado para el reporte PDF de
+/// `frontend/src/features/logs/commandParser.ts`. Usado para el reporte PDF de
 /// comandos (a diferencia de `count_commands_in_html`, que solo cuenta
 /// líneas con prompt para los metadatos, esta función además filtra contra
 /// `COMMON_COMMANDS` para no listar basura/typos como si fueran comandos).
@@ -534,7 +534,7 @@ pub async fn cleanup_old_session_logs(days: i64) -> Result<usize, CommandError> 
 
 /// Lee el HTML guardado de una sesión y extrae la lista de comandos
 /// válidos detectados — reemplaza `extractValidCommands` (antes en
-/// `frontend/src/utils/commandParser.ts`), usado para el reporte PDF.
+/// `frontend/src/features/logs/commandParser.ts`), usado para el reporte PDF.
 #[tauri::command]
 pub async fn extract_session_commands(session_id: String) -> Result<Vec<String>, CommandError> {
     tokio::task::spawn_blocking(move || {

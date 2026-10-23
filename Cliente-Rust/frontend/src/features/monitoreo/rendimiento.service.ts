@@ -1,4 +1,4 @@
-// services/rendimiento.service.ts — signos vitales de la Pi para el panel de Rendimiento (solo admin_lab).
+// features/monitoreo/rendimiento.service.ts — signos vitales de la Pi para el panel de Rendimiento (solo admin_lab).
 // Los calcula metrics_svc.py en la API de prácticas; el backend los trae por el túnel (`rendimiento_pi`).
 import { invoke } from '@tauri-apps/api/core';
 

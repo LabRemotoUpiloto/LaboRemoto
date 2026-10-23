@@ -1,5 +1,5 @@
 /**
- * services/practiceNavigation.service.ts
+ * features/practicas/practiceNavigation.service.ts
  *
  * Puente mínimo (sin prop-drilling por HomeContainer/PracticesPage) entre
  * "una práctica terminó" y "la vista de Prácticas debe abrir tal categoría

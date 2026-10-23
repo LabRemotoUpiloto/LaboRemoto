@@ -71,7 +71,7 @@ export interface MessageMeta {
    */
   linuxContentBlocks?: any[];
   /**
-   * Un paso de la práctica («Paso 3 de 8», ver components/practicas/linux/ritmo.ts).
+   * Un paso de la práctica («Paso 3 de 8», ver features/practicas/linux/ritmo.ts).
    * Reemplaza a `linuxContentBlocks`, que queda solo para chats guardados antes.
    */
   linuxPaso?: { paso: PasoPractica; total: number };

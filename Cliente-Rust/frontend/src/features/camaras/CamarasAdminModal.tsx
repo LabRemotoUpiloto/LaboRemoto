@@ -1,4 +1,4 @@
-// components/raspberry/CamarasAdminModal.tsx — administración de cámaras (solo admin_lab): lista, alta, edición y baja,
+// features/camaras/CamarasAdminModal.tsx — administración de cámaras (solo admin_lab): lista, alta, edición y baja,
 // con «Probar conexión» antes de guardar. El broker aplica el cambio en Shinobi, MediaMTX y su registro.
 import React, { useCallback, useEffect, useState } from 'react'
 import { Modal, Stack, Group, Button, Text, TextInput, PasswordInput, NumberInput, Select, Switch, Loader, Paper, ActionIcon, Box } from '@mantine/core'

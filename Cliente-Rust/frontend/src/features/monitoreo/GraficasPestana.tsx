@@ -1,4 +1,4 @@
-// pages/rendimiento/GraficasPestana.tsx — «Gráficas» de la Pi 4, en dos vistas:
+// features/monitoreo/GraficasPestana.tsx — «Gráficas» de la Pi 4, en dos vistas:
 // · Por estudiantes: cada medida contra cuántos estudiantes había (responde «¿con cuántos falla?»).
 // · En el tiempo: tramos de 30 s con promedio y rango, para cualquier prueba (también de software).
 // Escalas fijas (0–100 %, etc.): ajustarlas a los datos haría que un 4 % → 8 % pareciera una catástrofe.

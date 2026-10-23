@@ -1,4 +1,4 @@
-// utils/pendingChatMessage.ts — mensaje del asistente en espera de un ChatPane
+// features/chat/pendingChatMessage.ts — mensaje del asistente en espera de un ChatPane
 // montado para mostrarlo.
 //
 // Por qué existe: cuando algo fuera del chat necesita inyectarle un mensaje

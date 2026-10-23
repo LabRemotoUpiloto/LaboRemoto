@@ -1,4 +1,4 @@
-// components/desktop/DesktopToolbar.tsx — Barra de control del escritorio remoto
+// features/escritorio/DesktopToolbar.tsx — Barra de control del escritorio remoto
 
 import React from 'react'
 import type { DesktopStatus, DesktopSessionInfo } from './useDesktopSession'

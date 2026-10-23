@@ -1,4 +1,4 @@
-// components/raspberry/CameraPane.tsx
+// features/camaras/CameraPane.tsx
 import React, { useState } from 'react'
 import CameraVideo from './CameraVideo'
 import PtzControls from './PtzControls'

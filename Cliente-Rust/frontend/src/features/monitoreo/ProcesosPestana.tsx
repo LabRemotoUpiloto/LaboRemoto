@@ -1,4 +1,4 @@
-// pages/rendimiento/ProcesosPestana.tsx — «Procesos» de la Pi 4: todos los programas (paginados, por CPU
+// features/monitoreo/ProcesosPestana.tsx — «Procesos» de la Pi 4: todos los programas (paginados, por CPU
 // o por RAM) y las conexiones abiertas por servicio y por cámara.
 import { useMemo, useState } from 'react';
 import type { InformePi, MuestraPi } from './rendimiento.service';

@@ -1,8 +1,8 @@
-// components/practicas/linux/PosterUnlockCelebration.tsx
+// features/practicas/linux/PosterUnlockCelebration.tsx
 //
 // Pantalla de "póster premio" desbloqueado -- se muestra DESPUÉS de
 // ModuleCompleteCelebration cuando el módulo completado tiene un póster
-// asociado (ver services/posters.service.ts, POSTERS). A propósito tiene un
+// asociado (ver features/practicas/posters.service.ts, POSTERS). A propósito tiene un
 // lenguaje visual DISTINTO al de la insignia (pedido explícito): acá no gira
 // ninguna medalla -- el póster real se "desenrolla" como un pergamino, con
 // rayos de luz cálidos de fondo en vez de confeti/fuegos artificiales.

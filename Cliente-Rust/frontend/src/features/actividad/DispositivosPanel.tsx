@@ -1,4 +1,4 @@
-// pages/dashboard/DispositivosPanel.tsx — pestaña «Dispositivos» de Actividad: quién entra por SSH a cada Pi, con su ubicación.
+// features/actividad/DispositivosPanel.tsx — pestaña «Dispositivos» de Actividad: quién entra por SSH a cada Pi, con su ubicación.
 // Aparte de las prácticas. Los datos salen del agente de cada dispositivo (cmd::dispositivos) y solo cuentan las conexiones
 // nuevas, desde que el agente se activó: no hay historial anterior.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';

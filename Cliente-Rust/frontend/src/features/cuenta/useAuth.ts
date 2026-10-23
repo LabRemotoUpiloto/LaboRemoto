@@ -1,10 +1,10 @@
 /**
- * hooks/useAuth.ts — wrapper delgado sobre store/app.ts (Zustand).
+ * features/cuenta/useAuth.ts — wrapper delgado sobre store/app.ts (Zustand).
  *
  * Mantiene EXACTAMENTE el mismo contrato público que el `useAuth()` original
- * de `contexts/AuthContext.tsx` para que ningún componente consumidor
+ * de `features/cuenta/AuthContext.tsx` para que ningún componente consumidor
  * necesite cambiar. La fuente de verdad ahora es el store de Zustand;
- * `AuthContext`/`AuthProvider` quedaron deprecados (ver contexts/AuthContext.tsx).
+ * `AuthContext`/`AuthProvider` quedaron deprecados (ver features/cuenta/AuthContext.tsx).
  */
 import { useAppStore } from '@/store/app'
 import { AuthSessionInfo } from './auth.service'

@@ -1,4 +1,4 @@
-// utils/resizeImage.ts
+// features/cuenta/resizeImage.ts
 // Redimensiona/comprime una imagen del lado del cliente antes de subirla --
 // Keycloak guarda esto como atributo de usuario (texto), asi que tiene que
 // quedar chico. Recorta a cuadrado (cover) y reescala a `size`x`size`,

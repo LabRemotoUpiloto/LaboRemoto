@@ -1,4 +1,4 @@
-// pages/dashboard/DashboardPage.tsx — actividad del laboratorio para el
+// features/actividad/DashboardPage.tsx — actividad del laboratorio para el
 // personal de supervisión (jefe, coordinador, laboratorista, admin), en dos pestañas:
 //  - General: las prácticas que reporta la app (cmd::sesiones). En Fase 1 todos ven el laboratorio completo.
 //  - Dispositivos: quién entra por SSH a cada Pi, con su ubicación (cmd::dispositivos). Aparte de las prácticas.

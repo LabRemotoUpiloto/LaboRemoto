@@ -1,4 +1,4 @@
-// components/practicas/linux/LinuxPasswordPrompt.tsx
+// features/practicas/linux/LinuxPasswordPrompt.tsx
 //
 // Diálogo NATIVO (no navegador) para pedir la contraseña de Active Directory
 // una sola vez por sesión, justo antes de abrir el SSH a la Pi. Nunca se

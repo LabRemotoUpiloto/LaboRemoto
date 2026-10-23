@@ -1,4 +1,4 @@
-// pages/rendimiento/hojasPrueba.ts — el Excel de una prueba de rendimiento, hoja por hoja (sin librerías,
+// features/monitoreo/hojasPrueba.ts — el Excel de una prueba de rendimiento, hoja por hoja (sin librerías,
 // para probarlo aparte; exportarPrueba.ts lo convierte en .xlsx).
 //
 // El CSV anterior no se entendía: en Excel con configuración de Colombia la coma no separa columnas,

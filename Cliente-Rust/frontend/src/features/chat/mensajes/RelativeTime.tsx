@@ -1,4 +1,4 @@
-// components/chat/RelativeTime.tsx
+// features/chat/mensajes/RelativeTime.tsx
 //
 // `fmtTime(ts)` (chatPane.constants.ts) calcula bien "ahora"/"hace 3m"/hora
 // exacta según cuánto pasó -- pero lo llamaban una sola vez al renderizar el

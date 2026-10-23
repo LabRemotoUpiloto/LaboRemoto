@@ -1,4 +1,4 @@
-// components/practicas/linux/ritmo.ts — cómo se reparte un módulo en pasos.
+// features/practicas/linux/ritmo.ts — cómo se reparte un módulo en pasos.
 //
 // Los módulos de Linux llegan como una lista plana de bloques y el chat los
 // soltaba de golpe hasta el primer comando (texto, otro texto, imagen, video y

@@ -79,7 +79,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const abrirModuloRef = useRef<(id: string) => Promise<void>>(async () => {});
 
     // Insignias ganadas -- keyed por el mismo id de práctica que usa la Pi
-    // (ej. "linux-m1"), ver services/badges.service.ts. Reactivo: si el
+    // (ej. "linux-m1"), ver features/practicas/badges.service.ts. Reactivo: si el
     // estudiante termina un módulo y vuelve acá (ver App.tsx:
     // onModuleCompleted), la tarjeta ya muestra la medalla sin recargar.
     const earnedBadges = useEarnedBadges();
@@ -110,7 +110,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
         loadCategories();
     }, []);
 
-    // Ver services/practiceNavigation.service.ts -- al volver de terminar un
+    // Ver features/practicas/practiceNavigation.service.ts -- al volver de terminar un
     // módulo (App.tsx: onModuleCompleted), aterriza directo en su categoría
     // en vez de en la grilla de categorías, así el estudiante ve de una la
     // tarjeta con la medalla nueva.

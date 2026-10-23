@@ -1,5 +1,5 @@
 /**
- * hooks/useQueryData.ts — hook genérico de data-fetching con cache (Batch 3, REFACTOR #4).
+ * lib/useQueryData.ts — hook genérico de data-fetching con cache (Batch 3, REFACTOR #4).
  *
  * Envuelve una función `queryFn` (típicamente un `invoke()` de Tauri, directo
  * o vía `commandClient.invoke`) con:

@@ -1,4 +1,4 @@
-// pages/rendimiento/exportarPrueba.ts — guarda la prueba como Excel (.xlsx) con el diálogo de «Guardar como».
+// features/monitoreo/exportarPrueba.ts — guarda la prueba como Excel (.xlsx) con el diálogo de «Guardar como».
 import writeExcelFile from 'write-excel-file/browser';
 import { invoke } from '@tauri-apps/api/core';
 import type { MuestraPi } from './rendimiento.service';

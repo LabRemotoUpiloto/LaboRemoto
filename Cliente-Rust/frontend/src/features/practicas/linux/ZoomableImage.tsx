@@ -1,4 +1,4 @@
-// components/practicas/linux/ZoomableImage.tsx
+// features/practicas/linux/ZoomableImage.tsx
 //
 // Imagen con zoom real (no solo "ajustar a pantalla") -- rueda del mouse para
 // acercar/alejar, arrastrar para desplazarse una vez con zoom, doble click

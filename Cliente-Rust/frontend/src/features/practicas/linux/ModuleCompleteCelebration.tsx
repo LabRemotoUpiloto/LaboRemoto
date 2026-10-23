@@ -1,11 +1,11 @@
-// components/practicas/linux/ModuleCompleteCelebration.tsx
+// features/practicas/linux/ModuleCompleteCelebration.tsx
 //
 // Pantalla de cierre de un módulo de la práctica de Linux: fuegos
 // artificiales + confeti de ambiente mientras la insignia gira, "carga" (el
 // anillo se completa + destello) y cae sobre su pedestal. Coreografiado con
 // GSAP (misma librería que ya anima tabs/sidebar en el resto de la app, ver
 // App.tsx / SessionTabs.tsx). Se muestra una única vez por módulo -- ver
-// `markModuleBadgeEarned` en services/badges.service.ts, misma fuente de
+// `markModuleBadgeEarned` en features/practicas/badges.service.ts, misma fuente de
 // verdad que lee la Sala de Trofeos del Perfil.
 //
 // Estilos en Tailwind inline (mismo criterio que el resto del proyecto,

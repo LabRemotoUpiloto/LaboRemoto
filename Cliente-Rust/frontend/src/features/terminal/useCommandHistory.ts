@@ -8,7 +8,7 @@ export interface CommandEntry {
 
 export function useCommandHistory() {
   const [commandEntries, setCommandEntries] = useState<CommandEntry[]>([])
-  // Línea que se está editando (texto + cursor): ver utils/shellLine.ts
+  // Línea que se está editando (texto + cursor): ver features/terminal/shellLine.ts
   const lineRef    = useRef<ShellLine>(newLine())
   const lastCmdRef = useRef<string>('')
 

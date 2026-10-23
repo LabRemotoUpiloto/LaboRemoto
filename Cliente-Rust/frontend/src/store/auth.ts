@@ -1,5 +1,5 @@
 /**
- * store/auth.ts — slice de autenticación (migrado desde contexts/AuthContext.tsx).
+ * store/auth.ts — slice de autenticación (migrado desde features/cuenta/AuthContext.tsx).
  *
  * Contiene el estado y la lógica de negocio de la sesión de autenticación.
  * No crea el store por sí mismo: exporta un `StateCreator` (slice) que es

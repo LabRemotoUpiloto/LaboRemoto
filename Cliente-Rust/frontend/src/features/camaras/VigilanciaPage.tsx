@@ -1,4 +1,4 @@
-// pages/vigilancia/VigilanciaPage.tsx — grilla de cámaras NVR con PTZ para los
+// features/camaras/VigilanciaPage.tsx — grilla de cámaras NVR con PTZ para los
 // roles de personal. Restringida en Sidebar.tsx y HomeContainer.tsx vía
 // PAGE_ACCESS['vigilancia'] en usePermissions.ts.
 import React, { useState } from 'react';

@@ -1,4 +1,4 @@
-// hooks/usePracticeActivityReporter.ts — reporta al registro central de
+// features/practicas/usePracticeActivityReporter.ts — reporta al registro central de
 // sesiones (broker, ver cmd::sesiones) el inicio de cada práctica abierta, un
 // latido por minuto mientras siga abierta y el fin al cerrarla. Si la app se
 // cierra de golpe no llega el fin: el broker la da por terminada al dejar de

@@ -1,4 +1,4 @@
-// components/raspberry/CameraVideo.tsx
+// features/camaras/CameraVideo.tsx
 // Elige cómo mostrar una cámara: WebRTC (baja latencia) si el broker la tiene
 // mapeada y funciona en esta red; si no, HLS.
 import React, { useEffect, useState } from 'react'

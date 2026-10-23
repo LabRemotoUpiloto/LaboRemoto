@@ -6,7 +6,7 @@ import { fillTemplate, formatNumber, tryEvaluateExpr, type MathVars } from '../.
 /**
  * Calculadora configurable desde el módulo: sliders de entrada y resultados que
  * son fórmulas sobre esas entradas (y sobre resultados anteriores). La fórmula
- * se evalúa con `utils/mathExpr`, nunca con `eval`.
+ * se evalúa con `features/practicas/mathExpr`, nunca con `eval`.
  */
 export function CalculatorBlock({ block }: { block: Extract<LinuxBlock, { type: 'calculator' }> }) {
   const [values, setValues] = useState<Record<string, number>>(() =>

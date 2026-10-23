@@ -1,4 +1,4 @@
-// hooks/useUbicacionAppReporter.ts — mientras haya sesión, avisa al broker dónde está el equipo (al entrar y cada pocos minutos),
+// features/actividad/useUbicacionAppReporter.ts — mientras haya sesión, avisa al broker dónde está el equipo (al entrar y cada pocos minutos),
 // sin necesidad de una práctica abierta. Así las conexiones SSH de esta misma IP (pestaña Dispositivos de Actividad) salen con la
 // ubicación real del equipo y no con la aproximada por IP. La ubicación ya sale redondeada (~110 m) de obtenerUbicacionDispositivo.
 import { useEffect } from 'react';

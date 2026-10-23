@@ -1,4 +1,4 @@
-// pages/rendimiento/EstadoPestana.tsx — «Estado» de la Pi 4: cómo está ahora, sus servicios, quién
+// features/monitoreo/EstadoPestana.tsx — «Estado» de la Pi 4: cómo está ahora, sus servicios, quién
 // está conectado y la prueba de carga (en curso o su resumen).
 
 import type { ServicioPi } from './rendimiento.service';

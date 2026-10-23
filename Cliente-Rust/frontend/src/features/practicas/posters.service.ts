@@ -1,5 +1,5 @@
 /**
- * services/posters.service.ts
+ * features/practicas/posters.service.ts
  *
  * Catálogo de "pósters premio" ganados en la práctica de Linux + su
  * persistencia. Mismo principio que badges.service.ts (colección personal,

@@ -4,7 +4,7 @@
 //! Verifica la (de)serialización de `CommandRequest<T>` / `CommandResponse<T>`
 //! y el helper `wrap_result` usados por los comandos migrados en las Fases B/C/D,
 //! además del contrato plano `{code, message, retryable, retry_after_ms}` que
-//! consume `frontend/src/services/command.service.ts`.
+//! consume `frontend/src/lib/command.service.ts`.
 
 use app::cmd::protocol::{wrap_result, CommandError, CommandRequest, CommandResponse};
 

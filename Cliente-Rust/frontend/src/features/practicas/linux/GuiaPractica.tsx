@@ -1,4 +1,4 @@
-// components/practicas/linux/GuiaPractica.tsx — barra «qué toca ahora» de la práctica.
+// features/practicas/linux/GuiaPractica.tsx — barra «qué toca ahora» de la práctica.
 //
 // Es una fila más de la columna del chat (ver ChatPane), arriba de los
 // mensajes, con la misma forma que la caja del input de abajo pero teñida del

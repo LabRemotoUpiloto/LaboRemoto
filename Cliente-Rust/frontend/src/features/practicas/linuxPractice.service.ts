@@ -43,7 +43,7 @@ export interface CalcInput {
 export interface CalcOutput {
   id: string;
   label: string;
-  /** Fórmula aritmética sobre los ids de `inputs` y de `outputs` anteriores (ver utils/mathExpr). */
+  /** Fórmula aritmética sobre los ids de `inputs` y de `outputs` anteriores (ver features/practicas/mathExpr). */
   expr: string;
   decimals?: number;
   unit?: string;

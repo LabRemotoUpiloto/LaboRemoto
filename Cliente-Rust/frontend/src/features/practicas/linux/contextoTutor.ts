@@ -1,4 +1,4 @@
-// components/practicas/linux/contextoTutor.ts — lo que el modelo necesita saber de dónde va el estudiante.
+// features/practicas/linux/contextoTutor.ts — lo que el modelo necesita saber de dónde va el estudiante.
 //
 // Sin esto el tutor respondía a ciegas: si en la evaluación final el estudiante escribía `clear`, le
 // decía que era «de un paso posterior» (era de uno anterior) y le sugería listar archivos (tocaba

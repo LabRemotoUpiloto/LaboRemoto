@@ -1,4 +1,4 @@
-// tours/tour_linux/TourPracticaLinux.tsx — arranca el tour de la práctica CADA VEZ que un estudiante
+// features/practicas/tour/TourPracticaLinux.tsx — arranca el tour de la práctica CADA VEZ que un estudiante
 // entra a un módulo de Linux (no solo la primera). A diferencia de BienvenidaTutorial.tsx, no ofrece un
 // modal de "¿quieres verlo?" ni se puede cerrar con la X: arranca directo y termina con «¡Listo!».
 import { useEffect } from 'react';

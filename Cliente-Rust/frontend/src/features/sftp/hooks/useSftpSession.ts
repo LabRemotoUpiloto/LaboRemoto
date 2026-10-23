@@ -3,7 +3,7 @@
  *
  * REFACTOR #4 (Batch 4): envuelve `useSftpTransfers` (que ya tenía un buen patrón
  * de registro/limpieza de listener Tauri) en un hook de lifecycle consistente con
- * el patrón establecido en Batch 2 para el terminal (`components/terminal/useTerminal.ts`):
+ * el patrón establecido en Batch 2 para el terminal (`features/terminal/useTerminal.ts`):
  * un hook delgado de orquestación, documentado, con un único contrato público.
  *
  * A diferencia de `useTerminal`, `useSftpTransfers` no necesitó descomponerse en

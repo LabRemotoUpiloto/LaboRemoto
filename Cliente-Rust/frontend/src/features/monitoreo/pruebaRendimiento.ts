@@ -1,4 +1,4 @@
-// services/pruebaRendimiento.ts — la prueba de rendimiento en curso, guardada en el equipo.
+// features/monitoreo/pruebaRendimiento.ts — la prueba de rendimiento en curso, guardada en el equipo.
 //
 // La prueba tiene que sobrevivir a que el administrador cambie de sección o cierre la app a mitad
 // de camino: el inicio, el fin y las muestras se guardan en localStorage. Mientras haya una prueba

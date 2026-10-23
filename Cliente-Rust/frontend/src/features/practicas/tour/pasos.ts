@@ -1,4 +1,4 @@
-// tours/tour_linux/pasos.ts — pasos del tour narrado que se ofrece al entrar por primera vez a una
+// features/practicas/tour/pasos.ts — pasos del tour narrado que se ofrece al entrar por primera vez a una
 // práctica de Linux. Cada paso suena con su audio (public/tutorial/practica-linux/NN.mp3, voz clonada
 // del Profesor Bee con VoiceStudio, guion en Cliente-Rust/tools/practica-linux-tour/frases_elevenlabs.txt)
 // y resalta un elemento real de la pantalla de práctica (ya abierta — a diferencia del tour de bienvenida,

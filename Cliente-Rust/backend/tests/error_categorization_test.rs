@@ -3,7 +3,7 @@
 //! Verifica que el enum unificado (5 categorías + `ErrorContext`) se
 //! comporta correctamente y serializa el shape plano
 //! `{code, message, retryable, retry_after_ms}` que consume
-//! `frontend/src/services/command.service.ts`.
+//! `frontend/src/lib/command.service.ts`.
 
 use app::cmd::protocol::CommandError;
 

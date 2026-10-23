@@ -1,4 +1,4 @@
-// components/raspberry/WhepPlayer.tsx
+// features/camaras/WhepPlayer.tsx
 // Video por WebRTC (WHEP) contra MediaMTX, negociado a través del broker
 // (`nvr_whep`). Latencia ~0,5 s frente a los 6-15 s del HLS de Shinobi.
 // Si no logra conectar o se cae, avisa con `onFail` para que el contenedor

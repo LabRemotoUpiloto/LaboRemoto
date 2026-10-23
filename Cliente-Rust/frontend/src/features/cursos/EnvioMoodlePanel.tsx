@@ -1,4 +1,4 @@
-// components/cursos/EnvioMoodlePanel.tsx — bloque «¿Enviar a Moodle?» de una práctica aprobada: se muestra dentro del modal de la
+// features/cursos/EnvioMoodlePanel.tsx — bloque «¿Enviar a Moodle?» de una práctica aprobada: se muestra dentro del modal de la
 // insignia (ModuleCompleteCelebration) y en el aviso flotante de respaldo. Si la práctica no tiene tarea en Moodle, no muestra nada.
 import { Button, Checkbox, Group, Text } from '@mantine/core';
 import { notaYResumen, useEnvioMoodle, type EnvioMoodle, type ResultadoPractica } from './envioMoodle';

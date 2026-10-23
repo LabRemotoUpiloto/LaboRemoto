@@ -1,4 +1,4 @@
-// components/desktop/DesktopPane.tsx — Escritorio gráfico remoto via noVNC
+// features/escritorio/DesktopPane.tsx — Escritorio gráfico remoto via noVNC
 
 import React, { useRef, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'

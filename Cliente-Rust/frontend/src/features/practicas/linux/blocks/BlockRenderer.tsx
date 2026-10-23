@@ -1,4 +1,4 @@
-// components/practicas/linux/blocks/BlockRenderer.tsx
+// features/practicas/linux/blocks/BlockRenderer.tsx
 //
 // Despacha cada bloque del módulo (ver linuxPractice.service.ts) a su propio
 // componente. `checkpoint` no renderiza nada acá — es leído por

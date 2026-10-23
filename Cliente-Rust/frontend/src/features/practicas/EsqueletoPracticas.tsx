@@ -1,4 +1,4 @@
-// components/practicas/EsqueletoPracticas.tsx — lo que se ve mientras cargan las prácticas, en vez de un ícono
+// features/practicas/EsqueletoPracticas.tsx — lo que se ve mientras cargan las prácticas, en vez de un ícono
 // girando: la forma de lo que va a aparecer (las tarjetas de categoría), así el estudiante ve que algo viene y
 // dónde va a estar.
 import React from 'react';

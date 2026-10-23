@@ -1,4 +1,4 @@
-// components/practicas/EncuestaPracticaModal.tsx — encuesta al terminar una práctica completa (todos sus módulos): cómo le
+// features/practicas/EncuestaPracticaModal.tsx — encuesta al terminar una práctica completa (todos sus módulos): cómo le
 // fue aprendiendo y cómo funcionó la plataforma. Las respuestas llegan anónimas al personal del laboratorio (Actividad → Encuestas).
 import { useEffect, useState } from 'react';
 import { Button, Chip, Divider, Group, Modal, SegmentedControl, Stack, Text, Textarea } from '@mantine/core';

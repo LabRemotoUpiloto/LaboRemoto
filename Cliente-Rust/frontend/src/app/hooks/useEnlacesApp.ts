@@ -1,4 +1,4 @@
-// hooks/useEnlacesApp.ts — escucha los enlaces laboremoto://… (con la app ya abierta o al arrancar por uno) y los aplica cuando
+// app/hooks/useEnlacesApp.ts — escucha los enlaces laboremoto://… (con la app ya abierta o al arrancar por uno) y los aplica cuando
 // hay sesión: abre la vista de Prácticas en la práctica pedida. Si el enlace llega antes de iniciar sesión, espera al login.
 import { useEffect, useRef } from 'react';
 import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';

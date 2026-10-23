@@ -1,4 +1,4 @@
-// components/cursos/envioMoodle.ts — lógica compartida para enviar el resultado de una práctica a Moodle: buscar la tarea
+// features/cursos/envioMoodle.ts — lógica compartida para enviar el resultado de una práctica a Moodle: buscar la tarea
 // (ID number `labo:<práctica>`), armar la nota y el comentario, adjuntar el registro de la sesión y enviar. La usan el modal de
 // la insignia (EnvioMoodlePanel, dentro de ModuleCompleteCelebration) y el aviso flotante de respaldo (ResultadoMoodleAviso).
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from 'react';

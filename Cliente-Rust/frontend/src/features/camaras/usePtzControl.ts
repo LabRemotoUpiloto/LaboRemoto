@@ -1,4 +1,4 @@
-// hooks/usePtzControl.ts
+// features/camaras/usePtzControl.ts
 // Envía comandos PTZ (mover/zoom/detener) a una cámara vía el backend
 // (cmd::nvr::shinobi::nvr_ptz_control), que a su vez pasa por el broker en
 // la Pi -- nunca se habla directo con la cámara Reolink desde el cliente.

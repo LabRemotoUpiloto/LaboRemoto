@@ -1,4 +1,4 @@
-// pages/rendimiento/RendimientoPage.tsx — Monitoreo del laboratorio (solo admin_lab).
+// features/monitoreo/RendimientoPage.tsx — Monitoreo del laboratorio (solo admin_lab).
 //
 // Primero «Equipos del laboratorio» (Pi 4 y cámaras con datos; Pi 5, Jetson y domótica todavía no
 // envían). Desde la Pi 4 se abre su detalle en cuatro pestañas: Estado, Gráficas, Registros y Procesos.

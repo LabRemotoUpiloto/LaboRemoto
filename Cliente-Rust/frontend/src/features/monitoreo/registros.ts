@@ -1,4 +1,4 @@
-// pages/rendimiento/registros.ts — cuentas de los registros del panel de Rendimiento (sin React).
+// features/monitoreo/registros.ts — cuentas de los registros del panel de Rendimiento (sin React).
 import type { EventoSsh, RegistroApi, TipoEventoSsh } from './rendimiento.service';
 
 export type Gravedad = 'bueno' | 'neutro' | 'alerta' | 'critico';

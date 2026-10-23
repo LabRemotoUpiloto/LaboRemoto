@@ -1,4 +1,4 @@
-// pages/settings/AjustesPage.tsx — cuenta/sesion y app, no apariencia (eso ya
+// features/cuenta/AjustesPage.tsx — cuenta/sesion y app, no apariencia (eso ya
 // vive en su propia pagina, ThemesPage) para no duplicar superficie.
 import React, { useEffect, useState } from 'react';
 import { Box, Card, Text, Group, Stack, Button, Badge } from '@mantine/core';

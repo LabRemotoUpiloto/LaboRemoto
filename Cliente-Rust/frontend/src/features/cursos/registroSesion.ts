@@ -1,4 +1,4 @@
-// utils/registroSesion.ts — pide a la terminal abierta de una sesión su registro actual (sin guardarlo ni cerrar nada), para
+// features/cursos/registroSesion.ts — pide a la terminal abierta de una sesión su registro actual (sin guardarlo ni cerrar nada), para
 // adjuntarlo a la entrega de una práctica en Moodle. La terminal (useTerminalSessionCapture) responde al evento.
 
 /** Buffer crudo de la terminal y datos de la sesión; el backend arma con esto el mismo HTML que el log guardado. */

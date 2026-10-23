@@ -1,4 +1,4 @@
-// components/raspberry/PtzControls.tsx
+// features/camaras/PtzControls.tsx
 // Panel de control PTZ superpuesto sobre la vista expandida de una cámara.
 // Arranca colapsado en un solo botón flotante (el pad completo tapaba buena
 // parte del video permanentemente) -- clic para desplegar/ocultar.

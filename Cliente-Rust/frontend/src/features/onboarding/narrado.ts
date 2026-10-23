@@ -1,4 +1,4 @@
-// tours/narrado.ts — piezas del globo que comparten los tours narrados (tour_inicio y tour_linux).
+// features/onboarding/narrado.ts — piezas del globo que comparten los tours narrados (tour_inicio y tour_linux).
 // El estilo vive en tourNarrado.css bajo la clase común `tour-narrado` del popover.
 import './tourNarrado.css';
 

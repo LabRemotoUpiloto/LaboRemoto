@@ -1,4 +1,4 @@
-// components/practicas/badges/Insignia.tsx
+// features/practicas/badges/Insignia.tsx
 //
 // Marco común de toda insignia de práctica: disco de fondo + sombra +
 // rotación, como un sello apoyado sobre la esquina de una tarjeta. Nunca se

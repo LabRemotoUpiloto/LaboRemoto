@@ -1,4 +1,4 @@
-// components/practicas/linux/PasoCard.tsx — un paso de la práctica en el chat.
+// features/practicas/linux/PasoCard.tsx — un paso de la práctica en el chat.
 //
 // La guía (qué toca ahora + cuántas acciones del paso van listas) ya NO vive
 // aquí dentro: era una caja a mitad del mensaje y, apenas el estudiante bajaba

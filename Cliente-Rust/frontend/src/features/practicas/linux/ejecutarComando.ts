@@ -1,4 +1,4 @@
-// components/practicas/linux/ejecutarComando.ts — botón «Ejecutar comando» de un paso.
+// features/practicas/linux/ejecutarComando.ts — botón «Ejecutar comando» de un paso.
 //
 // La tarjeta del paso (BlockRenderer) no conoce la sesión SSH; la terminal (TerminalView) sí. Se
 // hablan por este evento: la terminal de esa práctica escribe el comando COMO SI SE TECLEARA, para

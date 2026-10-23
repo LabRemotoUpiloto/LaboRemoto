@@ -1,4 +1,4 @@
-// hooks/useDesktopSession.ts — Ciclo de vida de una sesión gráfica VNC remota
+// features/escritorio/useDesktopSession.ts — Ciclo de vida de una sesión gráfica VNC remota
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { vncStart, vncStop } from '@/features/conexion/ssh.service'
