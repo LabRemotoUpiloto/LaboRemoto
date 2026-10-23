@@ -10,7 +10,7 @@
 
 import { useCallback } from 'react';
 import type { Tab } from './useAppTabs';
-import { vncStop, sshDisconnect, emitSaveSessionBeforeClose } from '@/services/ssh.service';
+import { vncStop, sshDisconnect, emitSaveSessionBeforeClose } from '@/features/conexion/ssh.service';
 import { localTermClose } from '@/services/localTerminal.service';
 import { useAppStore } from '@/store/app';
 

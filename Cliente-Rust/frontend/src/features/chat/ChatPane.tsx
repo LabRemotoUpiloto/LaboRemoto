@@ -28,7 +28,7 @@ import ChatToast from './mensajes/ChatToast';
 import { useDisplayName } from '@/pages/home/useDisplayName';
 import ChatFloatingActions from './panel/ChatFloatingActions';
 import { pi4AgentReady as fetchPi4AgentReady, aiChat, cancelAiChat, getTerminalContext, listenAiChunks, type ChatHistoryItem } from './ai.service';
-import { vncStop, sshSessionInfo } from '@/services/ssh.service';
+import { vncStop, sshSessionInfo } from '@/features/conexion/ssh.service';
 import { useTour } from './tour/useTour';
 import { useQueryData } from '@/lib/useQueryData';
 import { useAuth } from '@/hooks/useAuth';

@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ConnectFormProps } from '../components/connect/ConnectForm';
+import type { ConnectFormProps } from './ConnectForm';
 import { isRaspberryPi4 } from '@/lib/devices';
 
 export type FieldError = {

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RecentConnection } from '../components/connect/RecentConnectionsPanel';
+import { RecentConnection } from './RecentConnectionsPanel';
 
 const STORAGE_KEY = 'ssh-recent-connections-v1';
 const MAX_RECENT_CONNECTIONS = 8;

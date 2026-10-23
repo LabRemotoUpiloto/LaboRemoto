@@ -10,7 +10,7 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(), emit: vi.fn() }));
 import { agentChat, aiChat, cancelAiChat, getTerminalContext, planChat } from '@/features/chat/ai.service';
 import {
   SAVE_SESSION_BEFORE_CLOSE_EVENT, emitSaveSessionBeforeClose, memClear, memGet, memPut, vncStart, vncStop,
-} from '../../src/services/ssh.service';
+} from '@/features/conexion/ssh.service';
 import { chatHistoryDeleteEntry, chatHistoryLoad, chatHistorySave, localListDir } from '@/lib/storage.service';
 
 beforeEach(() => {

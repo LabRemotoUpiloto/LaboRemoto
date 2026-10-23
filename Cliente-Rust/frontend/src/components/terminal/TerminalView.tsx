@@ -9,7 +9,7 @@ import { LinuxPracticeProgressBar, type ProgresoPractica } from '@/features/prac
 import { useCommandHistory } from '../../hooks/useCommandHistory';
 import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '@/features/practicas/linux/ritmo';
 import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '@/features/practicas/linux/ejecutarComando';
-import { sshStdin } from '../../services/ssh.service';
+import { sshStdin } from '@/features/conexion/ssh.service';
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession';
 
 interface TerminalViewProps {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { sshStdin } from '@/services/ssh.service';
+import { sshStdin } from '@/features/conexion/ssh.service';
 import hljs from 'highlight.js/lib/core';
 import bash from 'highlight.js/lib/languages/bash';
 import python from 'highlight.js/lib/languages/python';

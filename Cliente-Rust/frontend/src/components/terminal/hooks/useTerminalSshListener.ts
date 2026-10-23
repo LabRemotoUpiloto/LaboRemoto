@@ -26,7 +26,7 @@ import { useEffect, useRef, useState, MutableRefObject, RefObject } from 'react'
 import { notifications } from '@mantine/notifications';
 import { Terminal } from '@xterm/xterm';
 import { listen } from '@tauri-apps/api/event';
-import { sshStdin, sshResize, sshUiReady, sshSessionInfo } from '../../../services/ssh.service';
+import { sshStdin, sshResize, sshUiReady, sshSessionInfo } from '@/features/conexion/ssh.service';
 import { canRefocusTerminal, sanitizeSessionId } from './terminalDomUtils';
 import { esPulsacionTab, quitarTabs, tocaAvisarTab } from './bloqueoTab';
 import { TerminalSessionMetadata } from './terminalTypes';

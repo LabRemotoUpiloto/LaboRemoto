@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { sshConnect, waitForConnection, memPut } from '@/services/ssh.service';
+import { sshConnect, waitForConnection, memPut } from '@/features/conexion/ssh.service';
 import { EVENTO_TOUR_PRACTICA_LINUX, type DetalleTourPracticaLinux } from './tour/TourPracticaLinux';
 import {
   isEv3Module,

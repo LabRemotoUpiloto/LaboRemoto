@@ -25,7 +25,7 @@
 import { useEffect, MutableRefObject } from 'react';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { captureAndSaveSession, SessionMetadata } from '../../../services/session.service';
-import { SAVE_SESSION_BEFORE_CLOSE_EVENT } from '../../../services/ssh.service';
+import { SAVE_SESSION_BEFORE_CLOSE_EVENT } from '@/features/conexion/ssh.service';
 import { TerminalSessionMetadata } from './terminalTypes';
 import { EVENTO_EXPORTAR_REGISTRO, type RegistroSesion } from '../../../utils/registroSesion';
 

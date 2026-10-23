@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import type { ConnectFormProps } from '../components/connect/ConnectForm';
+import type { ConnectFormProps } from './ConnectForm';
 import { useConnectionForm } from './useConnectionForm';
 import { useConnectionActions } from './useConnectionActions';
 

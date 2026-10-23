@@ -15,7 +15,7 @@
 import { useCallback, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
 import type { PracticeLaunchPayload, PracticeSessionMeta } from '@/types';
-import { sshConnect, sshStdin, memPut } from '@/services/ssh.service';
+import { sshConnect, sshStdin, memPut } from '@/features/conexion/ssh.service';
 
 interface UsePracticeSessionParams {
   onNewSession: (info: { id: string; label: string }) => void;

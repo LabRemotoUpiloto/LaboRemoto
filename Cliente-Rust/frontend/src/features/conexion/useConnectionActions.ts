@@ -16,7 +16,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useLoading } from '@/app/providers/LoadingContext';
 import { useToasts } from '@/app/providers/ToastContext';
 import { getDeviceLabel } from '@/lib/devices';
-import { sshConnect } from '../services/ssh.service';
+import { sshConnect } from './ssh.service';
 import { saveHostWithMaster, deleteHostFile } from '@/lib/storage.service';
 
 interface ConnectionSuccessResult {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { memGet, memClear, memPut as putSessionMem, type SessionMemPatch } from "@/services/ssh.service";
+import { memGet, memClear, memPut as putSessionMem, type SessionMemPatch } from "@/features/conexion/ssh.service";
 import { listen } from "@tauri-apps/api/event";
 
 export type SessionMem = {

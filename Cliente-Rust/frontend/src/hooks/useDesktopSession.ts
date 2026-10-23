@@ -1,7 +1,7 @@
 // hooks/useDesktopSession.ts — Ciclo de vida de una sesión gráfica VNC remota
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { vncStart, vncStop } from '../services/ssh.service'
+import { vncStart, vncStop } from '@/features/conexion/ssh.service'
 import { listen } from '@tauri-apps/api/event'
 import { useLifecycleStatus } from '@/lib/useLifecycleStatus'
 import { setPendingChatMessage } from '@/features/chat/pendingChatMessage'

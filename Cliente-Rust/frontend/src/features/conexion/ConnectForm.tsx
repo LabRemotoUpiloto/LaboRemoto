@@ -5,8 +5,8 @@ import {
 import { modals } from '@mantine/modals';
 import { Terminal, Save, ArrowRight } from 'lucide-react';
 import { RecentConnection } from './RecentConnectionsPanel';
-import { ConnectionToSave } from '../../hooks/useRecentConnections';
-import { useConnectForm } from '../../hooks/useConnectForm';
+import { ConnectionToSave } from './useRecentConnections';
+import { useConnectForm } from './useConnectForm';
 
 interface QuickHost {
   id: string;

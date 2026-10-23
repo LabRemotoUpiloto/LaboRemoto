@@ -1,5 +1,5 @@
 import React from 'react';
-import { sshStdin } from '@/services/ssh.service';
+import { sshStdin } from '@/features/conexion/ssh.service';
 import { ChevronDown, ChevronRight, File, Folder, Search, FileText } from 'lucide-react';
 
 interface ToolResultRendererProps { action: any; sessionId?: string | null; }

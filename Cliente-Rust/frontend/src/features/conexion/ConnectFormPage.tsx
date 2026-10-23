@@ -1,10 +1,10 @@
 // Página de conexión SSH — layout unificado centrado
 import React, { useCallback, useState } from 'react';
 import { Paper, Divider } from '@mantine/core';
-import ConnectForm from '../../components/connect/ConnectForm';
-import QuickHostsPanel, { QuickHost } from '../../components/hosts/QuickHostsPanel';
-import RecentConnectionsPanel, { RecentConnection } from '../../components/connect/RecentConnectionsPanel';
-import { useRecentConnections } from '../../hooks/useRecentConnections';
+import ConnectForm from './ConnectForm';
+import QuickHostsPanel, { QuickHost } from './QuickHostsPanel';
+import RecentConnectionsPanel, { RecentConnection } from './RecentConnectionsPanel';
+import { useRecentConnections } from './useRecentConnections';
 import { KNOWN_DEVICES } from '@/lib/devices';
 
 interface ConnectFormPageProps {

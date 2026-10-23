@@ -5,7 +5,7 @@ import { useToasts } from '@/app/providers/ToastContext'
 import { Card, Text, ActionIcon, Menu, Button, Box, Container, SimpleGrid, Stack, Title } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { Monitor, MoreVertical, Pencil, Trash2, Plus, Server, Cpu, ArrowRight } from 'lucide-react'
-import { sshConnect } from '../../services/ssh.service'
+import { sshConnect } from './ssh.service'
 import { isRaspberryPi4, getDeviceLabel } from '@/lib/devices'
 
 interface SavedHostsPageProps {

@@ -4,7 +4,7 @@
 import React from 'react';
 import { Paper, UnstyledButton } from '@mantine/core';
 import { ArrowLeft } from 'lucide-react';
-import ConnectForm from '../../components/connect/ConnectForm';
+import ConnectForm from './ConnectForm';
 
 interface GuestConnectPageProps {
   onConnected: (session: { id: string; label: string }) => void;
