@@ -11,7 +11,7 @@
 import { useCallback } from 'react';
 import type { Tab } from './useAppTabs';
 import { vncStop, sshDisconnect, emitSaveSessionBeforeClose } from '@/features/conexion/ssh.service';
-import { localTermClose } from '@/services/localTerminal.service';
+import { localTermClose } from '@/features/terminal/localTerminal.service';
 import { useAppStore } from '@/store/app';
 
 const SAVE_TIMEOUT_MS = 2000;

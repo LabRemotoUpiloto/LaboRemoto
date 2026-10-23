@@ -15,7 +15,7 @@ import { useTerminalLifecycle } from './hooks/useTerminalLifecycle';
 import { useTerminalSessionCapture } from './hooks/useTerminalSessionCapture';
 import { useTerminalLocalListener } from './hooks/useTerminalLocalListener';
 import { TerminalSessionMetadata } from './hooks/terminalTypes';
-import { localTermResize } from '../../services/localTerminal.service';
+import { localTermResize } from './localTerminal.service';
 
 export function useLocalTerminal(
   paneId: string,

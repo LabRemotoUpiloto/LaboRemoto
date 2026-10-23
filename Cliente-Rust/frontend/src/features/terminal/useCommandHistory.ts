@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
-import { newLine, typeKeys, serverOutput, type ShellLine } from '../utils/shellLine'
+import { newLine, typeKeys, serverOutput, type ShellLine } from './shellLine'
 
 export interface CommandEntry {
   cmd: string

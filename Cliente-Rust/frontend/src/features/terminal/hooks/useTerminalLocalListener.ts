@@ -36,7 +36,7 @@ import {
   localTermSavePasteImage,
   localTermReadClipboard,
   localTermWriteClipboard,
-} from '../../../services/localTerminal.service';
+} from '../localTerminal.service';
 import { canRefocusTerminal, sanitizeSessionId } from './terminalDomUtils';
 import { TerminalSessionMetadata } from './terminalTypes';
 

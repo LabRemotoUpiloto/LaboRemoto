@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { ActionIcon, Loader } from '@mantine/core';
 import { X, Terminal } from 'lucide-react';
-import TerminalPane from '@/components/terminal/TerminalPane';
+import TerminalPane from '@/features/terminal/TerminalPane';
 import './ChatEmbeddedTerminal.css';
 
 type Props = {

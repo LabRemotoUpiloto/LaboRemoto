@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import './TerminalView.css';
-import TerminalPane from '@/components/terminal/TerminalPane';
+import TerminalPane from '@/features/terminal/TerminalPane';
 import ChatPane from '@/features/chat/ChatPane';
 import DesktopPane from '@/components/desktop/DesktopPane';
 import CameraGrid from '@/components/raspberry/CameraGrid';
 import Ev3Panel from '@/components/ev3/Ev3Panel';
 import { LinuxPracticeProgressBar, type ProgresoPractica } from '@/features/practicas/linux/LinuxPracticeProgressBar';
-import { useCommandHistory } from '@/hooks/useCommandHistory';
+import { useCommandHistory } from '@/features/terminal/useCommandHistory';
 import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '@/features/practicas/linux/ritmo';
 import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '@/features/practicas/linux/ejecutarComando';
 import { sshStdin } from '@/features/conexion/ssh.service';

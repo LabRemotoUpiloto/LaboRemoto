@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import LocalTerminalPane from './LocalTerminalPane';
 import './LocalTerminalGroup.css';
-import { localTermClose } from '../../services/localTerminal.service';
-import { useAppStore } from '../../store/app';
+import { localTermClose } from './localTerminal.service';
+import { useAppStore } from '@/store/app';
 
 type SplitNode =
   | { type: 'leaf'; id: string }

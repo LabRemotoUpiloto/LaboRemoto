@@ -1,6 +1,6 @@
 import React from 'react'
 import TerminalView from './TerminalView'
-import LocalTerminalGroup from '@/components/terminal/LocalTerminalGroup'
+import LocalTerminalGroup from '@/features/terminal/LocalTerminalGroup'
 import SftpPage from '@/pages/session/SftpPage'
 import SnippetsPage from '@/pages/session/SnippetsPage'
 import LogsPage from '@/pages/logs/LogsPage'
