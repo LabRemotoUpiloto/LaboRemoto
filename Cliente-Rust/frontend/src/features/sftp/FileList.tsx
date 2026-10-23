@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader, Text, ScrollArea } from '@mantine/core'
 import { AlertTriangle, FolderOpen } from 'lucide-react'
-import FileIcon from '../shared/FileIcon'
-import { formatDate, formatBytes } from '../shared/fileFormatters'
-import type { SftpEntry, LocalEntry } from '../../types'
+import FileIcon from './FileIcon'
+import { formatDate, formatBytes } from './fileFormatters'
+import type { SftpEntry, LocalEntry } from '@/types'
 
 // Altura fija de fila usada para el windowing manual (virtualización simple).
 const ROW_HEIGHT = 28

@@ -2,7 +2,7 @@ import React, { useCallback } from 'react'
 import AddressBar from './AddressBar'
 import FilePanelToolbar from './FilePanelToolbar'
 import FileList from './FileList'
-import type { SftpEntry, LocalEntry } from '../../types'
+import type { SftpEntry, LocalEntry } from '@/types'
 
 type FileEntry = SftpEntry | LocalEntry
 

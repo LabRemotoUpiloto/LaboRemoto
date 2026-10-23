@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { localHomeDir, localListDir, localListDrives } from "@/lib/storage.service";
-import type { LocalEntry } from "../types";
+import type { LocalEntry } from "@/types";
 import { useMultiSelection } from "./useMultiSelection";
 
 export type LocalSortKey = "name" | "mtime" | "size" | "kind";

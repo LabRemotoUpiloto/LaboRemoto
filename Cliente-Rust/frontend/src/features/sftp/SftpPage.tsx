@@ -4,24 +4,24 @@ import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commandClient } from '@/lib/command.service'
 import { localListDir } from '@/lib/storage.service'
 import { useMediaQuery } from '@mantine/hooks'
-import FilePanel from '../../components/sftp/FilePanel'
-import TransferQueue from '../../components/sftp/TransferQueue'
-import ContextMenu from '../../components/shared/ContextMenu'
-import ConfirmModal from '../../components/modals/ConfirmModal'
-import PromptModal from '../../components/modals/PromptModal'
-import QuickViewModal from '../../components/sftp/QuickViewModal'
-import { useLocalFsBrowser } from '../../hooks/useLocalFsBrowser'
-import { useRemoteFsBrowser } from '../../hooks/useRemoteFsBrowser'
-import { useSftpSession } from '../../hooks/useSftpSession'
-import { usePointerDrag } from '../../components/sftp/usePointerDrag'
+import FilePanel from './FilePanel'
+import TransferQueue from './TransferQueue'
+import ContextMenu from './ContextMenu'
+import ConfirmModal from './ConfirmModal'
+import PromptModal from './PromptModal'
+import QuickViewModal from './QuickViewModal'
+import { useLocalFsBrowser } from './hooks/useLocalFsBrowser'
+import { useRemoteFsBrowser } from './hooks/useRemoteFsBrowser'
+import { useSftpSession } from './hooks/useSftpSession'
+import { usePointerDrag } from './usePointerDrag'
 import { useToasts } from '@/app/providers/ToastContext'
 import {
   joinLocalPath,
   joinRemotePath,
   getParentLocalPath,
   getParentRemotePath,
-} from '../../components/shared/pathUtils'
-import type { SftpEntry, LocalEntry } from '../../types'
+} from './pathUtils'
+import type { SftpEntry, LocalEntry } from '@/types'
 
 type Props = {
   sessions: string[]

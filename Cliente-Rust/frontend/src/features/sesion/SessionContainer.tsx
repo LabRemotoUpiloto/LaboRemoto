@@ -1,7 +1,7 @@
 import React from 'react'
 import TerminalView from './TerminalView'
 import LocalTerminalGroup from '@/features/terminal/LocalTerminalGroup'
-import SftpPage from '@/pages/session/SftpPage'
+import SftpPage from '@/features/sftp/SftpPage'
 import SnippetsPage from '@/pages/session/SnippetsPage'
 import LogsPage from '@/pages/logs/LogsPage'
 import type { Tab } from '@/app/hooks/useAppTabs'

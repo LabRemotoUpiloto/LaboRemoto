@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { ActionIcon, ScrollArea, Text, Tooltip } from '@mantine/core'
 import { ChevronDown, ChevronUp, Trash2, X } from 'lucide-react'
-import { formatBytes } from '../shared/fileFormatters'
+import { formatBytes } from './fileFormatters'
 import type { Transfer } from './TransfersPanel'
 
 export interface TransferQueueProps {
