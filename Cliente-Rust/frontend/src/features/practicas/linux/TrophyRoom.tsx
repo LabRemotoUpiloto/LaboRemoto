@@ -14,9 +14,9 @@
 // descargar cuando quiera, no una medalla de rango.
 import React, { useEffect, useState } from 'react';
 import { Download, Lock, X } from 'lucide-react';
-import { RANKS, useEarnedBadges } from '../../../services/badges.service';
-import { POSTERS, useUnlockedPosters, downloadPoster, type PosterDef } from '../../../services/posters.service';
-import { linuxGetMedia } from '../../../services/linuxPractice.service';
+import { RANKS, useEarnedBadges } from '../badges.service';
+import { POSTERS, useUnlockedPosters, downloadPoster, type PosterDef } from '../posters.service';
+import { linuxGetMedia } from '../linuxPractice.service';
 import { MedalIcon } from './MedalIcon';
 import { ZoomableImage } from './ZoomableImage';
 

@@ -2,8 +2,8 @@
 // entra a un módulo de Linux (no solo la primera). A diferencia de BienvenidaTutorial.tsx, no ofrece un
 // modal de "¿quieres verlo?" ni se puede cerrar con la X: arranca directo y termina con «¡Listo!».
 import { useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useEffectiveRole } from '../../hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveRole } from '@/hooks/usePermissions';
 import { iniciarTourPracticaLinux } from './tutorialPracticaLinux';
 
 /** Evento disparado por useLinuxPracticeSession al conectar un módulo (ver connect() ahí). */

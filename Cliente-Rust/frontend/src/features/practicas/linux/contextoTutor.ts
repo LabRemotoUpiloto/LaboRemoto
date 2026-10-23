@@ -5,7 +5,7 @@
 // responder el quiz). Todo sale de lo mismo que ve el estudiante: la barra de la guía (DatosGuia) y
 // los comandos ya aprobados.
 
-import type { LinuxBlock, LinuxModule, LinuxValidationResult } from '../../../services/linuxPractice.service';
+import type { LinuxBlock, LinuxModule, LinuxValidationResult } from '../linuxPractice.service';
 import type { DatosGuia } from './PasoCard';
 
 type PasoComando = Extract<LinuxBlock, { type: 'command_step' }>;

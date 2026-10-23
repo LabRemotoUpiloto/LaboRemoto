@@ -5,12 +5,12 @@ import ChatPane from '@/features/chat/ChatPane';
 import DesktopPane from '../desktop/DesktopPane';
 import CameraGrid from '../raspberry/CameraGrid';
 import Ev3Panel from '../ev3/Ev3Panel';
-import { LinuxPracticeProgressBar, type ProgresoPractica } from '../practicas/linux/LinuxPracticeProgressBar';
+import { LinuxPracticeProgressBar, type ProgresoPractica } from '@/features/practicas/linux/LinuxPracticeProgressBar';
 import { useCommandHistory } from '../../hooks/useCommandHistory';
-import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '../practicas/linux/ritmo';
-import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '../practicas/linux/ejecutarComando';
+import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '@/features/practicas/linux/ritmo';
+import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '@/features/practicas/linux/ejecutarComando';
 import { sshStdin } from '../../services/ssh.service';
-import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession';
+import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession';
 
 interface TerminalViewProps {
   sessionId: string;

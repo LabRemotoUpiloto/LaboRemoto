@@ -1,5 +1,5 @@
 // Formatos de la pestaña «Encuestas» de Actividad.
-import { DIFICULTADES, PROBLEMAS, type ResumenPracticaEncuesta } from '../../services/encuestas.service';
+import { DIFICULTADES, PROBLEMAS, type ResumenPracticaEncuesta } from '@/features/practicas/encuestas.service';
 
 /** `4,2` (una cifra decimal, coma) o `—`. */
 export const nota5 = (v: number | null | undefined) => (v == null ? '—' : v.toFixed(1).replace('.', ','));

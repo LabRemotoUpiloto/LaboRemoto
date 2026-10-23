@@ -11,7 +11,7 @@ import SystemMessageBanner from './SystemMessageBanner';
 import { isNearBottom } from './chatUtils';
 import { ActionIcon } from '@mantine/core';
 import { ArrowDown } from 'lucide-react';
-import type { DatosGuia } from '@/components/practicas/linux/PasoCard';
+import type { DatosGuia } from '@/features/practicas/linux/PasoCard';
 
 export type ChatAppearance = 'landing' | 'session';
 

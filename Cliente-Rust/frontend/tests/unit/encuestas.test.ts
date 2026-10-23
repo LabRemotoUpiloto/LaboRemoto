@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BORRADOR_VACIO, alternarProblema, respuestasDe } from '../../src/services/encuestas.service';
+import { BORRADOR_VACIO, alternarProblema, respuestasDe } from '@/features/practicas/encuestas.service';
 import { nota5, problemasOrdenados, repartoDificultad } from '../../src/pages/dashboard/encuestasStats';
 
 describe('encuesta de la práctica', () => {

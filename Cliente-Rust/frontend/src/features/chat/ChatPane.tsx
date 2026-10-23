@@ -39,14 +39,14 @@ import { useAuth } from '@/hooks/useAuth';
 // contenido rico. Si el día de mañana otra categoría necesita lo mismo, ahí
 // vale la pena extraer una interfaz genérica; hoy sería abstraer sin un
 // segundo caso real que la valide.
-import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult, type LinuxValidationRule } from '@/services/linuxPractice.service';
-import { STEP_GATE_EVENT } from '@/components/practicas/linux/blocks/BlockRenderer';
-import { armarPlan, type PasoPractica } from '@/components/practicas/linux/ritmo';
-import type { DatosGuia } from '@/components/practicas/linux/PasoCard';
-import { GuiaPractica } from '@/components/practicas/linux/GuiaPractica';
-import type { ProgresoPractica } from '@/components/practicas/linux/LinuxPracticeProgressBar';
-import { contextoPractica, loQueTocaAhora, relacionDelComando, textoComandoFueraDeLugar, type RelacionComando } from '@/components/practicas/linux/contextoTutor';
-import type { LinuxPracticeSessionApi } from '@/hooks/useLinuxPracticeSession';
+import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult, type LinuxValidationRule } from '@/features/practicas/linuxPractice.service';
+import { STEP_GATE_EVENT } from '@/features/practicas/linux/blocks/BlockRenderer';
+import { armarPlan, type PasoPractica } from '@/features/practicas/linux/ritmo';
+import type { DatosGuia } from '@/features/practicas/linux/PasoCard';
+import { GuiaPractica } from '@/features/practicas/linux/GuiaPractica';
+import type { ProgresoPractica } from '@/features/practicas/linux/LinuxPracticeProgressBar';
+import { contextoPractica, loQueTocaAhora, relacionDelComando, textoComandoFueraDeLugar, type RelacionComando } from '@/features/practicas/linux/contextoTutor';
+import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession';
 
 const REGLAS_PRACTICA =
   'MODO PRÁCTICA (estas reglas mandan sobre el FORMATO DE RESPUESTA): le estás hablando a un estudiante que ' +

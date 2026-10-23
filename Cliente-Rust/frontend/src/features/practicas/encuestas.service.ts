@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { RespuestasEncuesta } from '../bindings/RespuestasEncuesta';
-import type { ResumenEncuestas } from '../bindings/ResumenEncuestas';
-import type { ResumenPracticaEncuesta } from '../bindings/ResumenPracticaEncuesta';
+import type { RespuestasEncuesta } from '@/bindings/RespuestasEncuesta';
+import type { ResumenEncuestas } from '@/bindings/ResumenEncuestas';
+import type { ResumenPracticaEncuesta } from '@/bindings/ResumenPracticaEncuesta';
 
 export type { RespuestasEncuesta, ResumenEncuestas, ResumenPracticaEncuesta };
 

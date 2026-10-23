@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Group, Paper, Slider, Stack, Text } from '@mantine/core';
-import type { LinuxBlock } from '../../../../../services/linuxPractice.service';
+import type { LinuxBlock } from '../../../linuxPractice.service';
 
 const LIMITE_PX = 60; // hasta dónde llega el robot antes de reaparecer del otro lado
 

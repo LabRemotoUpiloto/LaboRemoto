@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Group, Paper, Slider, Stack, Text } from '@mantine/core';
-import type { LinuxBlock } from '../../../../../services/linuxPractice.service';
-import { fillTemplate, formatNumber, tryEvaluateExpr, type MathVars } from '../../../../../utils/mathExpr';
+import type { LinuxBlock } from '../../../linuxPractice.service';
+import { fillTemplate, formatNumber, tryEvaluateExpr, type MathVars } from '../../../mathExpr';
 
 /**
  * Calculadora configurable desde el módulo: sliders de entrada y resultados que

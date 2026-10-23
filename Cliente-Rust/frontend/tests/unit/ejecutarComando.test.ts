@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { personalizarComandos, type LinuxModule } from '../../src/services/linuxPractice.service';
-import { teclasDelComando } from '../../src/components/practicas/linux/ejecutarComando';
+import { personalizarComandos, type LinuxModule } from '@/features/practicas/linuxPractice.service';
+import { teclasDelComando } from '@/features/practicas/linux/ejecutarComando';
 import { newLine, typeKeys } from '../../src/utils/shellLine';
 
 const modulo = {

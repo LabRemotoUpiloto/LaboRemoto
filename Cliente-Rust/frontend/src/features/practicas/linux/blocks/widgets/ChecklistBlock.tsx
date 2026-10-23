@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Checkbox, Paper, Stack, Text } from '@mantine/core';
-import type { LinuxBlock } from '../../../../../services/linuxPractice.service';
+import type { LinuxBlock } from '../../../linuxPractice.service';
 
 /** Lista de verificación para marcar (autoevaluación, buenas prácticas). No se califica. */
 export function ChecklistBlock({ block }: { block: Extract<LinuxBlock, { type: 'checklist' }> }) {

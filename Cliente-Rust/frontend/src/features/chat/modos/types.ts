@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { PasoPractica } from '@/components/practicas/linux/ritmo';
+import type { PasoPractica } from '@/features/practicas/linux/ritmo';
 
 // Tipos compartidos entre modos de chat
 export type ChatMode = 'ask' | 'agente' | 'plan';

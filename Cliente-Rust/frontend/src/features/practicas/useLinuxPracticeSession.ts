@@ -14,8 +14,8 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { sshConnect, waitForConnection, memPut } from '../services/ssh.service';
-import { EVENTO_TOUR_PRACTICA_LINUX, type DetalleTourPracticaLinux } from '../tours/tour_linux/TourPracticaLinux';
+import { sshConnect, waitForConnection, memPut } from '@/services/ssh.service';
+import { EVENTO_TOUR_PRACTICA_LINUX, type DetalleTourPracticaLinux } from './tour/TourPracticaLinux';
 import {
   isEv3Module,
   linuxConnectionTarget,
@@ -24,7 +24,7 @@ import {
   type LinuxBlock,
   type LinuxModule,
   type LinuxValidationResult,
-} from '../services/linuxPractice.service';
+} from './linuxPractice.service';
 
 interface UseLinuxPracticeSessionParams {
   onNewSession: (info: { id: string; label: string }) => void;

@@ -6,7 +6,7 @@ import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { Volume2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEffectiveRole } from '../../hooks/usePermissions';
-import LinuxPasswordPrompt from '../../components/practicas/linux/LinuxPasswordPrompt';
+import LinuxPasswordPrompt from '@/features/practicas/linux/LinuxPasswordPrompt';
 import { escenaTutorial, iniciarTutorialBienvenida, marcarTutorialVisto, tutorialYaVisto } from './tutorialBienvenida';
 
 const EVENTO_TUTORIAL_BIENVENIDA = 'app:tutorial-bienvenida';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { type LinuxValidationResult } from '../../../services/linuxPractice.service';
+import { type LinuxValidationResult } from '../linuxPractice.service';
 import './practicaProgreso.css';
 
 /**

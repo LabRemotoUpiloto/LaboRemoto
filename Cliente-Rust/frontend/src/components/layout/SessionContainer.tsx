@@ -6,7 +6,7 @@ import SnippetsPage from '../../pages/session/SnippetsPage'
 import LogsPage from '../../pages/logs/LogsPage'
 import type { Tab } from '@/app/hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
-import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession'
+import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession'
 
 type PracticeMeta = {
   practiceId: string

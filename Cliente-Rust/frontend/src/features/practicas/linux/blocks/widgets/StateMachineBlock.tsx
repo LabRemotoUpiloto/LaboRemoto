@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Group, Paper, Stack, Text } from '@mantine/core';
-import type { LinuxBlock } from '../../../../../services/linuxPractice.service';
+import type { LinuxBlock } from '../../../linuxPractice.service';
 
 /**
  * Máquina de estados configurable: los estados y los eventos que llevan de uno

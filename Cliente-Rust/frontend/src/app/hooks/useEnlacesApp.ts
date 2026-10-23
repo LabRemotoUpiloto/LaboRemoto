@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { leerEnlaceApp, type EnlaceApp } from '../enlacesApp';
-import { requestPracticeOpen } from '@/services/practiceNavigation.service';
+import { requestPracticeOpen } from '@/features/practicas/practiceNavigation.service';
 
 export function useEnlacesApp(isAuthenticated: boolean, abrirPracticas: () => void) {
   const pendiente = useRef<EnlaceApp | null>(null);

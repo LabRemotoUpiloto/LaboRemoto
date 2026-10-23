@@ -7,12 +7,12 @@ import { RelativeTime } from './RelativeTime';
 import type { ChatAppearance } from './ChatMessageList';
 import { ActionIcon, Button, Group, Text } from '@mantine/core';
 import { Copy, RefreshCw, RotateCcw, ClipboardCheck, SquareTerminal } from 'lucide-react';
-import { BlockView, CLASE_RESALTADA } from '@/components/practicas/linux/blocks/BlockRenderer';
-import { PasoCard, EncabezadoPaso, mayuscula, type DatosGuia } from '@/components/practicas/linux/PasoCard';
-import { ModuleCompleteCelebration } from '@/components/practicas/linux/ModuleCompleteCelebration';
-import { PosterUnlockCelebration } from '@/components/practicas/linux/PosterUnlockCelebration';
-import { markModuleBadgeEarned, rankForModule } from '@/services/badges.service';
-import { posterForModule, markPosterUnlocked, downloadPoster } from '@/services/posters.service';
+import { BlockView, CLASE_RESALTADA } from '@/features/practicas/linux/blocks/BlockRenderer';
+import { PasoCard, EncabezadoPaso, mayuscula, type DatosGuia } from '@/features/practicas/linux/PasoCard';
+import { ModuleCompleteCelebration } from '@/features/practicas/linux/ModuleCompleteCelebration';
+import { PosterUnlockCelebration } from '@/features/practicas/linux/PosterUnlockCelebration';
+import { markModuleBadgeEarned, rankForModule } from '@/features/practicas/badges.service';
+import { posterForModule, markPosterUnlocked, downloadPoster } from '@/features/practicas/posters.service';
 
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;

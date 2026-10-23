@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { ArrowRight, Check, ChevronDown, ChevronUp, Terminal } from 'lucide-react';
-import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../../services/linuxPractice.service';
+import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../linuxPractice.service';
 import { BlockView, CLASE_RESALTADA, STEP_GATE_EVENT } from './blocks/BlockRenderer';
 import { accionActual, accionesDelPaso, guiarTerminal, instruccion, tituloDelPaso, type AccionPaso, type PasoPractica } from './ritmo';
 import './pasos.css';

@@ -1,7 +1,7 @@
 // tour/bienvenida/pasos.ts — pasos del tutorial narrado de bienvenida (estudiantes). Cada paso suena con su audio
 // (public/tutorial/bienvenida/NN.mp3, voces de ElevenLabs, guion en Cliente-Rust/tools/video-bienvenida/frases_elevenlabs.txt)
 // y resalta un elemento real de la app. El texto es el subtítulo: debe decir lo mismo que el audio.
-import { pedirVistaPracticas } from '../../services/practiceNavigation.service';
+import { pedirVistaPracticas } from '@/features/practicas/practiceNavigation.service';
 
 /** Ventana real de la app que el tutorial muestra en un paso (solo para verla: no hace nada). */
 export type EscenaTutorial = 'contrasena';

@@ -14,10 +14,10 @@
 // respetar prefers-reduced-motion sin un media query a mano.
 import React, { useEffect, useMemo, useRef } from 'react';
 import { gsap } from 'gsap';
-import { RANKS, rankForModule } from '../../../services/badges.service';
+import { RANKS, rankForModule } from '../badges.service';
 import { MedalIcon } from './MedalIcon';
-import EnvioMoodlePanel from '../../cursos/EnvioMoodlePanel';
-import { celebracion } from '../../cursos/envioMoodle';
+import EnvioMoodlePanel from '@/components/cursos/EnvioMoodlePanel';
+import { celebracion } from '@/components/cursos/envioMoodle';
 
 const RING_RADIUS = 42;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;

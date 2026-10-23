@@ -5,7 +5,7 @@ import { Button, Chip, Divider, Group, Modal, SegmentedControl, Stack, Text, Tex
 import { notifications } from '@mantine/notifications';
 import {
   BORRADOR_VACIO, DIFICULTADES, PROBLEMAS, alternarProblema, encuestasService, respuestasDe, type BorradorEncuesta,
-} from '../../services/encuestas.service';
+} from './encuestas.service';
 
 const ESCALA = ['1', '2', '3', '4', '5'].map((v) => ({ value: v, label: v }));
 const mensajeDe = (e: any) => e?.message ?? String(e);

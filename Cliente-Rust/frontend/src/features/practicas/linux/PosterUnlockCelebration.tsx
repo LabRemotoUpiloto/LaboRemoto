@@ -13,8 +13,8 @@
 // para respetar prefers-reduced-motion sin un media query a mano.
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import type { PosterDef } from '../../../services/posters.service';
-import { linuxGetMedia } from '../../../services/linuxPractice.service';
+import type { PosterDef } from '../posters.service';
+import { linuxGetMedia } from '../linuxPractice.service';
 
 const RAY_COUNT = 10;
 

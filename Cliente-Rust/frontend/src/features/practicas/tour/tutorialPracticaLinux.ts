@@ -4,9 +4,9 @@
 // mostrar ventanas/escenas — solo esperar a que cada elemento exista y resaltarlo.
 import { driver, type Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
-import '../tourStyles.css';
+import '@/tours/tourStyles.css';
 import { PASOS_PRACTICA_LINUX, type PasoPracticaLinux } from './pasos';
-import { botonPausaNarrado, cuerpoNarrado, marcarPausa, tituloNarrado } from '../narrado';
+import { botonPausaNarrado, cuerpoNarrado, marcarPausa, tituloNarrado } from '@/tours/narrado';
 
 const PAUSA_ENTRE_PASOS_MS = 700;
 const ESPERA_ELEMENTO_MS = 3000;

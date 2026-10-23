@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { ActionIcon, Badge, Box, Group, Loader, Paper, Progress, SegmentedControl, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { RefreshCw } from 'lucide-react';
-import { encuestasService, type ResumenEncuestas, type ResumenPracticaEncuesta } from '../../services/encuestas.service';
+import { encuestasService, type ResumenEncuestas, type ResumenPracticaEncuesta } from '@/features/practicas/encuestas.service';
 import { colorNota5, nota5, problemasOrdenados, repartoDificultad } from './encuestasStats';
 
 const PERIODOS = [

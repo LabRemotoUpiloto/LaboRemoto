@@ -7,7 +7,7 @@
 // entrega de a uno, y cada paso lista sus acciones concretas (abrir la imagen,
 // mirar el video, escribir el comando...) para poder decir siempre «Ahora: ...».
 
-import type { LinuxBlock } from '../../../services/linuxPractice.service';
+import type { LinuxBlock } from '../linuxPractice.service';
 
 type Bloque<T extends LinuxBlock['type']> = Extract<LinuxBlock, { type: T }>;
 

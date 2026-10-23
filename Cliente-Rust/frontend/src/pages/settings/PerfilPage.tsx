@@ -16,7 +16,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useEffectiveRole, ROLE_LABELS } from '../../hooks/usePermissions';
 import { authService } from '../../services/auth.service';
 import { resizeImageToDataUrl } from '../../utils/resizeImage';
-import { TrophyRoom } from '../../components/practicas/linux/TrophyRoom';
+import { TrophyRoom } from '@/features/practicas/linux/TrophyRoom';
 
 const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
   <Group gap="sm" wrap="nowrap">

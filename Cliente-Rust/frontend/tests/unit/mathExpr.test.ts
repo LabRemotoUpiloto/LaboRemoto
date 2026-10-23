@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateExpr, fillTemplate, tryEvaluateExpr } from '../../src/utils/mathExpr';
+import { evaluateExpr, fillTemplate, tryEvaluateExpr } from '@/features/practicas/mathExpr';
 
 describe('mathExpr', () => {
   it('respeta precedencia y paréntesis', () => {
