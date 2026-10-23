@@ -1,6 +1,6 @@
 // components/desktop/DesktopPane.tsx — Escritorio gráfico remoto via noVNC
 
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useDesktopSession } from '../../hooks/useDesktopSession'
 import DesktopToolbar from './DesktopToolbar'
@@ -13,6 +13,9 @@ import './DesktopPane.css'
 // `connectRFB` ajusta visualmente el canvas al tamaño real del contenedor
 // sin importar a qué resolución esté corriendo la X remota.
 const DESKTOP_RESOLUTION = '1280x720'
+
+// Tope del portapapeles que se envía al escritorio remoto (caracteres).
+const MAX_CLIPBOARD_CHARS = 100_000
 
 // ── Mapa de keysyms X11 para teclas especiales ────────────────────────────────
 // Para caracteres imprimibles (e.key.length === 1) el keysym = código Unicode.
@@ -69,8 +72,27 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // apenas terminaba de desconectar (Detener se sentía como un retry).
   const userStoppedRef = useRef(false)
 
+  // «Ver detalles» del panel de error: final de los logs de la Pi (Xvnc, preparación, panel...).
+  const [details, setDetails] = useState<string | null>(null)
+  const [detailsBusy, setDetailsBusy] = useState(false)
+
   // Portapapeles: texto copiado desde el escritorio remoto (sincronización automática)
   const remoteClipboardRef = useRef<string>('')
+  // Último texto local enviado al escritorio remoto (evita reenviar lo mismo)
+  const lastSentClipboardRef = useRef<string>('')
+
+  // Portapapeles local → escritorio remoto: SOLO cuando el usuario pega (Ctrl+V o Ctrl+Shift+V en la
+  // terminal). No se manda al conectar ni al tomar el foco: lo que haya copiado (p. ej. una contraseña) no debe
+  // llegar a un escritorio que otros usuarios de la Pi pueden leer sin que el estudiante lo pida. Solo usa refs.
+  const syncLocalClipboard = () => {
+    if (!rfbRef.current || !navigator.clipboard?.readText) return
+    navigator.clipboard.readText().then(text => {
+      if (!text || text.length > MAX_CLIPBOARD_CHARS) return
+      if (text === lastSentClipboardRef.current || text === remoteClipboardRef.current) return
+      lastSentClipboardRef.current = text
+      rfbRef.current?.clipboardPasteFrom(text)
+    }).catch(() => {})
+  }
   // Rastrea el estado de CapsLock en el servidor remoto (null = no sincronizado aún)
   const remoteCapsRef = useRef<boolean | null>(null)
 
@@ -88,6 +110,9 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
 
       const canvas = canvasContainerRef.current?.querySelector('canvas')
       const canvasHasFocus = document.activeElement === canvas
+
+      // Antes de pegar, mandar el portapapeles local al escritorio remoto
+      if (e.ctrlKey && e.code === 'KeyV') syncLocalClipboard()
 
       if (e.code === 'CapsLock') {
         // Siempre interceptar CapsLock independientemente del foco
@@ -361,7 +386,20 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     }
   }
 
+  const handleDetails = async () => {
+    setDetailsBusy(true)
+    try {
+      setDetails(await invoke<string>('vnc_logs', { sessionId }))
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)
+      setDetails(`No se pudieron leer los logs: ${message}`)
+    } finally {
+      setDetailsBusy(false)
+    }
+  }
+
   const handleRetry = () => {
+    setDetails(null)
     userStoppedRef.current = false
     start(DESKTOP_RESOLUTION)
   }
@@ -397,7 +435,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         <div className="desktop-error">
           <p>No se pudo iniciar el escritorio remoto</p>
           <pre>{error}</pre>
-          <button onClick={handleRetry}>Reintentar</button>
+          {details && <pre className="desktop-error-details">{details}</pre>}
+          <div className="desktop-error-actions">
+            <button onClick={handleRetry}>Reintentar</button>
+            <button className="desktop-error-secondary" onClick={handleDetails} disabled={detailsBusy}>
+              {detailsBusy ? 'Cargando…' : details ? 'Actualizar detalles' : 'Ver detalles'}
+            </button>
+          </div>
         </div>
       )}
 

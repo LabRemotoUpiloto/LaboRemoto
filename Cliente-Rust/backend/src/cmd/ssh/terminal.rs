@@ -415,9 +415,8 @@ async fn ssh_disconnect_impl(state: tauri::State<'_, std::sync::Arc<dyn SessionM
       let display  = vnc.display_num;
       vnc.host = "".to_string();
       let kill_cmd = format!(
-          "pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; \
-           pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; \
-           rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n"
+          "{} rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n",
+          crate::cmd::vnc::utils::kill_display_cmd(&display.to_string(), "-9", false)
       );
       let _ = session.term.tx.send(ChanCmd::Send(kill_cmd.into_bytes()));
       tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
