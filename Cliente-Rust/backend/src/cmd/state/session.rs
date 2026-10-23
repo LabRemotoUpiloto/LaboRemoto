@@ -156,9 +156,8 @@ pub fn run_pending_vnc_cleanups(sess: &Ssh2Session) {
             .parse::<u32>().unwrap_or(0);
         if display < 20 { let _ = std::fs::remove_file(&path); continue; }
         let cmd = format!(
-            "pkill -9 -f '[X]vnc :{display} ' 2>/dev/null; \
-             pkill -9 -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -9 -f '[X]vnc-core :{display} ' 2>/dev/null; \
-             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
+            "{} rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true",
+            crate::cmd::vnc::utils::kill_display_cmd(&display.to_string(), "-9", false)
         );
         let _ = crate::ssh_core::exec::ssh_exec_session(sess, &cmd);
         let _ = std::fs::remove_file(&path);

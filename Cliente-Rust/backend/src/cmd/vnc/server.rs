@@ -1,4 +1,5 @@
 use crate::ssh_core::exec::ssh_exec_session;
+use super::utils::kill_display_cmd;
 
 /// Inicia Xvnc (display virtual + servidor VNC en un solo proceso) + entorno
 /// gráfico en el display/puerto dados.
@@ -20,11 +21,13 @@ pub(crate) fn start_vnc_server(
     let _ = ssh_exec_session(
         sess,
         &format!(
-            "pkill -f '[X]vnc :{display} ' 2>/dev/null; pkill -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -f '[X]vnc-core :{display} ' 2>/dev/null; \
-             pkill -f '[X]vfb :{display} ' 2>/dev/null; pkill -f '[x]11vnc.*:{display}' 2>/dev/null; \
-             for p in $(ss -tlnpH 'sport = :{x_port}' 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do kill $p 2>/dev/null; done; \
+            "{kill} \
+             for p in $(ss -tlnpH 'sport = :{x_port}' 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do \
+               case \"$(cat /proc/$p/comm 2>/dev/null)\" in Xvnc*|Xtigervnc*) kill $p 2>/dev/null;; esac; \
+             done; \
              sleep 0.5; \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true",
+            kill = kill_display_cmd(&display.to_string(), "", true),
             x_port = 6000 + display
         ),
     );
@@ -32,36 +35,63 @@ pub(crate) fn start_vnc_server(
     // El binario puede llamarse Xvnc o Xtigervnc según la distro — se
     // resuelve una vez y se usa esa ruta (ver check_dependencies en utils.rs,
     // que ya validó que al menos uno de los dos existe antes de llegar acá).
-    crate::ssh_core::exec::ssh_exec_session(
+    let (_, launched) = ssh_exec_session(
         sess,
         &format!(
             "XVNC_BIN=$(command -v Xtigervnc || command -v Xvnc); \
              nohup \"$XVNC_BIN\" :{display} -geometry {resolution} -depth 24 \
              -rfbport {vnc_port} -SecurityTypes None -AlwaysShared -ac -nolisten tcp -localhost \
-             >/tmp/xvnc{display}.log 2>&1 </dev/null & echo started"
+             >/tmp/xvnc{display}.log 2>&1 </dev/null & echo $!"
         ),
     )?;
+    let xvnc_pid: u32 = launched
+        .lines()
+        .last()
+        .and_then(|l| l.trim().parse().ok())
+        .ok_or_else(|| format!("No se pudo obtener el PID de Xvnc (salida: {})", launched.trim()))?;
 
-    // Se espera a que el puerto VNC quede escuchando (hasta 5 s). No se busca el proceso por su nombre ni
-    // el archivo /tmp/.X11-unix/X<n>: el Xvnc de RealVNC (Raspberry Pi OS) se llama `Xvnc-core` y no crea ese
-    // archivo, y con esas pruebas la app daba por fallido un servidor que sí estaba corriendo.
+    // Se espera (hasta 15 s; una Pi 3 es lenta) a que el puerto VNC lo escuche el Xvnc que ACABAMOS de lanzar (su
+    // PID, o un hijo directo suyo si el binario es un script envoltorio). Comprobar solo "algo escucha en el
+    // puerto" daba por bueno el Xvnc de OTRO estudiante, que no tiene contraseña. Tampoco se busca el proceso
+    // por nombre ni /tmp/.X11-unix/X<n>: el Xvnc de RealVNC (`Xvnc-core`) no crea ese archivo.
     let (_, out) = ssh_exec_session(
         sess,
         &format!(
-            "for i in $(seq 1 25); do \
-               ss -tln 2>/dev/null | awk '{{print $4}}' | grep -qE ':{vnc_port}$' && {{ echo ok; exit 0; }}; \
-               sleep 0.2; \
-             done; echo fail"
+            "PID={xvnc_pid}; \
+             for i in $(seq 1 60); do \
+               LP=$(ss -tlnpH 'sport = :{vnc_port}' 2>/dev/null | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2); \
+               if [ -n \"$LP\" ]; then \
+                 if [ \"$LP\" = \"$PID\" ] || [ \"$(ps -o ppid= -p $LP 2>/dev/null | tr -d ' ')\" = \"$PID\" ]; then echo ok; \
+                 else echo foreign; fi; \
+                 exit 0; \
+               fi; \
+               kill -0 $PID 2>/dev/null || {{ echo dead; exit 0; }}; \
+               sleep 0.25; \
+             done; echo timeout"
         ),
     )?;
     std::thread::sleep(std::time::Duration::from_millis(300));
-    if out.trim() != "ok" {
+    let verdict = out.trim().to_string();
+    if verdict != "ok" {
+        // No dejar un Xvnc huérfano si no arrancó bien.
+        let _ = ssh_exec_session(
+            sess,
+            &format!(
+                "kill {xvnc_pid} 2>/dev/null; sleep 0.3; kill -9 {xvnc_pid} 2>/dev/null; \
+                 rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
+            ),
+        );
         let (_, log_tail) = ssh_exec_session(
             sess,
             &format!("tail -8 /tmp/xvnc{display}.log 2>/dev/null"),
         ).unwrap_or((0, String::new()));
+        let motivo = match verdict.as_str() {
+            "foreign" => "el puerto lo ocupa otro proceso",
+            "dead" => "el proceso terminó",
+            _ => "no quedó escuchando a tiempo",
+        };
         return Err(format!(
-            "Xvnc no arrancó correctamente en el display :{display} / puerto {vnc_port}. Log: {}",
+            "Xvnc no arrancó correctamente ({motivo}) en el display :{display} / puerto {vnc_port}. Log: {}",
             log_tail.trim()
         ));
     }
@@ -193,7 +223,9 @@ PREFS_EOF\ntrue"
                cat > \"$C\"/fmfix.c << 'FMFIX_EOF'\n\
 #define _GNU_SOURCE\n\
 #include <dlfcn.h>\n\
+#include <stdlib.h>\n\
 typedef void *(*fn_t)(void *, unsigned, int, const char *);\n\
+__attribute__((constructor)) static void fmfix_init(void) {{ unsetenv(\"LD_PRELOAD\"); }}\n\
 void *fm_pixbuf_from_icon_with_fallback(void *icon, unsigned size, const char *fallback) {{\n\
     static fn_t real;\n\
     if (!real) real = (fn_t)dlsym(RTLD_NEXT, \"fm_pixbuf_from_icon_with_fallback\");\n\
@@ -553,21 +585,21 @@ pub(crate) fn stop_vnc_server(
     let _ = ssh_exec_session(
         sess,
         &format!(
-            "pkill -f '{xstartup_path}' 2>/dev/null; \
+            "pkill -f '[/]tmp/vnc-xstartup-{display}.sh$' 2>/dev/null; \
              kill $(cat /tmp/openbox-{display}.pid 2>/dev/null) 2>/dev/null; \
-             pkill -f 'lxpanel.*{panel_profile}' 2>/dev/null; \
-             pkill -f 'pcmanfm.*{panel_profile}' 2>/dev/null; \
-             pkill -f '[X]vnc :{display} ' 2>/dev/null; \
-             pkill -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -f '[X]vnc-core :{display} ' 2>/dev/null; \
+             pkill -f '[l]xpanel --profile {panel_profile}$' 2>/dev/null; \
+             pkill -f '[p]cmanfm --desktop --profile {panel_profile}$' 2>/dev/null; \
+             {kill_term} \
              sleep 0.5; \
-             pkill -9 -f '[X]vnc :{display} ' 2>/dev/null; \
-             pkill -9 -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -9 -f '[X]vnc-core :{display} ' 2>/dev/null; \
+             {kill_9} \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} \
                    {xstartup_path} /tmp/openbox-{display}.pid \
                    {browser_desktop} {webserver_desktop} \
                    {home_dir}/Desktop/servidor-web.desktop {home_dir}/Desktop/labremoto-*.desktop 2>/dev/null; \
              rm -rf /tmp/xdg{display} 2>/dev/null; \
-             true"
+             true",
+            kill_term = kill_display_cmd(&display.to_string(), "", false),
+            kill_9 = kill_display_cmd(&display.to_string(), "-9", false)
         ),
     );
     Ok(())

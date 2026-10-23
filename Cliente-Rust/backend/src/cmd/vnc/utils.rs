@@ -134,65 +134,72 @@ pub(crate) fn check_dependencies(sess: &ssh2::Session, virtual_mode: bool) -> Re
 pub(crate) fn stop_vnc_server_real(sess: &ssh2::Session, vnc_port: u16) -> Result<(), String> {
     let _ = ssh_exec_session(
         sess,
-        &format!("pkill -f 'x11vnc.*rfbport {vnc_port}' 2>/dev/null; true"),
+        &format!("pkill -f '[x]11vnc.*rfbport {vnc_port}' 2>/dev/null; true"),
     );
     Ok(())
 }
 
-/// Busca un display virtual libre entre :20 y :99.
-///
-/// También chequea `Xvfb`/`x11vnc` (el combo que Xvnc reemplazó) — no porque
-/// haga falta para el flujo normal, sino como red de seguridad transicional:
-/// un huérfano de una sesión de ANTES de la migración a Xvnc puede seguir
-/// vivo en un display, invisible si solo buscáramos el patrón nuevo, y
-/// haría fallar a Xvnc con "server already running" al intentar reusar ese
-/// número.
-pub(crate) fn find_free_display(sess: &ssh2::Session) -> Result<u32, String> {
-    // Una sola lectura de la lista de procesos. Antes eran ~800 `pgrep` (80 displays x 5 patrones x 2 pasadas): en
-    // una Pi 3 tardaba casi un minuto, y en ese rato el usuario o la interfaz lanzaban un segundo arranque que
-    // chocaba con el primero. Los corchetes ([v]) evitan que el propio comando se vea a sí mismo en `ps`.
-    let (_, out) = ssh_exec_session(
-        sess,
-        "USED=$(ps -eo args= 2>/dev/null \
-                | grep -oE '(X[v]nc|X[t]igervnc|X[v]nc-core|X[v]fb) :[0-9]+|[x]11vnc.* :[0-9]+' \
-                | grep -oE ':[0-9]+$' | tr -d ':' | sort -un); \
-         for f in /tmp/.X*-lock; do \
-           [ -e \"$f\" ] || continue; \
-           n=${f#/tmp/.X}; n=${n%-lock}; \
-           case \"$n\" in ''|*[!0-9]*) continue;; esac; \
-           [ \"$n\" -ge 20 ] || continue; \
-           echo \"$USED\" | grep -qx \"$n\" || rm -f \"$f\" \"/tmp/.X11-unix/X$n\" 2>/dev/null; \
-         done; \
-         echo \"$USED\"; true"
-    )?;
-    let mut used: Vec<u32> = out
-        .lines()
-        .filter_map(|l| l.trim().parse::<u32>().ok())
-        .collect();
-    used.sort();
-    used.dedup();
-    for n in 20u32..100 {
-        if !used.contains(&n) {
-            return Ok(n);
-        }
+/// Comando de shell que termina los servidores X/VNC de un display (`display` puede ser un número o `$d`).
+/// Es la única lista de `pkill` del proyecto. Los corchetes ([X]vnc) evitan que el patrón de `pkill -f` coincida
+/// con la propia línea de comandos del `sh -c` que lo ejecuta y se mate a sí mismo (con lo que la limpieza no
+/// terminaba). `signal` es "" o "-9"; `legacy` incluye también Xvfb/x11vnc (huérfanos de antes de Xvnc).
+pub(crate) fn kill_display_cmd(display: &str, signal: &str, legacy: bool) -> String {
+    let mut cmd = format!(
+        "pkill {signal} -f \"[X]vnc :{display} \" 2>/dev/null; \
+         pkill {signal} -f \"[X]tigervnc :{display} \" 2>/dev/null; \
+         pkill {signal} -f \"[X]vnc-core :{display} \" 2>/dev/null; "
+    );
+    if legacy {
+        cmd.push_str(&format!(
+            "pkill {signal} -f \"[X]vfb :{display} \" 2>/dev/null; \
+             pkill {signal} -f \"[x]11vnc.*:{display}\" 2>/dev/null; "
+        ));
     }
-    Err("No hay display virtual libre (:20–:99 todos en uso)".to_string())
+    cmd
 }
 
-/// Busca un puerto VNC libre entre 5900 y 5998.
-pub(crate) fn find_free_vnc_port(sess: &ssh2::Session) -> Result<u16, String> {
+/// Reserva un display virtual (:20–:99) y un puerto VNC (5900–5998) libres en la Pi.
+///
+/// La reserva es un `mkdir` (atómico) en ~/.cache/labremoto/claims: si dos estudiantes arrancan casi al mismo
+/// tiempo, el segundo no puede obtener el mismo display ni el mismo puerto que el primero. Antes cada uno miraba
+/// "qué está libre" por separado y los dos recibían el mismo número; el segundo terminaba conectado al escritorio
+/// (sin contraseña) del primero. Las reservas caducan a los 3 min (para entonces Xvnc ya se ve en `ps`/`ss`).
+///
+/// También mira Xvfb/x11vnc (el combo que Xvnc reemplazó): un huérfano de antes de la migración puede seguir
+/// vivo en un display. Una sola lectura de `ps` (antes eran ~800 `pgrep`: casi un minuto en una Pi 3). Los
+/// locks viejos solo se limpian de displays >= 20, nunca el :0 de la pantalla física.
+pub(crate) fn reserve_display_and_port(sess: &ssh2::Session, home_dir: &str) -> Result<(u32, u16), String> {
     let (_, out) = ssh_exec_session(
         sess,
-        "ss -tlnp 2>/dev/null | awk '{print $4}' \
-         | grep -oE ':[0-9]+$' | tr -d ':' || true",
+        &format!(
+            "C={home_dir}/.cache/labremoto/claims; mkdir -p \"$C\" && chmod 700 {home_dir}/.cache/labremoto \"$C\" 2>/dev/null; \
+             find \"$C\" -maxdepth 1 -name '[dp]-*' -mmin +3 -exec rmdir {{}} + 2>/dev/null; \
+             USED_D=$(ps -eo args= 2>/dev/null \
+                      | grep -oE '(X[v]nc|X[t]igervnc|X[v]nc-core|X[v]fb) :[0-9]+|[x]11vnc.* :[0-9]+' \
+                      | grep -oE ':[0-9]+$' | tr -d ':' | sort -un); \
+             for f in /tmp/.X*-lock; do \
+               [ -e \"$f\" ] || continue; \
+               n=${{f#/tmp/.X}}; n=${{n%-lock}}; \
+               case \"$n\" in ''|*[!0-9]*) continue;; esac; \
+               [ \"$n\" -ge 20 ] || continue; \
+               echo \"$USED_D\" | grep -qx \"$n\" || rm -f \"$f\" \"/tmp/.X11-unix/X$n\" 2>/dev/null; \
+             done; \
+             USED_P=$(ss -tln 2>/dev/null | awk '{{print $4}}' | grep -oE ':[0-9]+$' | tr -d ':' | sort -un); \
+             D=''; for d in $(seq 20 99); do \
+               echo \"$USED_D\" | grep -qx \"$d\" && continue; \
+               mkdir \"$C/d-$d\" 2>/dev/null && {{ D=$d; break; }}; \
+             done; \
+             P=''; for p in $(seq 5900 5998); do \
+               echo \"$USED_P\" | grep -qx \"$p\" && continue; \
+               mkdir \"$C/p-$p\" 2>/dev/null && {{ P=$p; break; }}; \
+             done; \
+             echo \"$D $P\""
+        ),
     )?;
-    let used: Vec<u16> = out.lines().filter_map(|l| l.trim().parse().ok()).collect();
-    for p in 5900u16..5999 {
-        if !used.contains(&p) {
-            return Ok(p);
-        }
-    }
-    Err("No hay puerto VNC libre (5900–5998 todos en uso)".to_string())
+    let mut it = out.split_whitespace().filter_map(|t| t.parse::<u32>().ok());
+    let display = it.next().ok_or_else(|| "No hay display virtual libre (:20–:99 todos en uso o reservados)".to_string())?;
+    let port = it.next().ok_or_else(|| "No hay puerto VNC libre (5900–5998 todos en uso o reservados)".to_string())?;
+    Ok((display, port as u16))
 }
 
 /// Obtiene el directorio home del usuario remoto.

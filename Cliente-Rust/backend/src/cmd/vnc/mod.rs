@@ -50,6 +50,14 @@ pub enum VncStatusResponse {
 /// en vez de levantar un segundo Xvnc que choca en el display y el puerto del primero.
 static START_LOCKS: OnceLock<std::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>> = OnceLock::new();
 
+fn session_lock(session_id: &str) -> Result<Arc<tokio::sync::Mutex<()>>, CommandError> {
+    let mut locks = START_LOCKS
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| CommandError::internal("LOCK_POISONED", "START_LOCKS lock poisoned"))?;
+    Ok(locks.entry(session_id.to_string()).or_default().clone())
+}
+
 /// Inicia una sesión de escritorio gráfico sobre una conexión SSH activa.
 #[tauri::command]
 pub async fn vnc_start(
@@ -67,13 +75,7 @@ pub async fn vnc_start(
         ));
     }
 
-    let start_lock = {
-        let mut locks = START_LOCKS
-            .get_or_init(Default::default)
-            .lock()
-            .map_err(|_| CommandError::internal("LOCK_POISONED", "START_LOCKS lock poisoned"))?;
-        locks.entry(session_id.clone()).or_default().clone()
-    };
+    let start_lock = session_lock(&session_id)?;
     let _start_guard = start_lock.lock().await;
 
     let (host, port, user, password) = {
@@ -113,8 +115,8 @@ pub async fn vnc_start(
             utils::check_dependencies(&setup_sess, true)
                 .map_err(|e| CommandError::permanent("VNC_DEPS_MISSING", e))?;
             crate::cmd::state::run_pending_vnc_cleanups(&setup_sess);
-            let display  = utils::find_free_display(&setup_sess).map_err(|e| CommandError::transient("IO_ERROR", e))?;
-            let vnc_port = utils::find_free_vnc_port(&setup_sess).map_err(|e| CommandError::transient("IO_ERROR", e))?;
+            let (display, vnc_port) = utils::reserve_display_and_port(&setup_sess, &home_dir)
+                .map_err(|e| CommandError::transient("IO_ERROR", e))?;
             server::start_vnc_server(&setup_sess, display, vnc_port, &r, &home_dir)
                 .map_err(|e| CommandError::transient("IO_ERROR", e))?;
 
@@ -225,6 +227,9 @@ pub async fn vnc_start(
 /// Detiene la sesión gráfica activa.
 #[tauri::command]
 pub async fn vnc_stop(session_id: String) -> Result<(), CommandError> {
+    // Mismo candado que vnc_start: «Detener» espera a que termine un arranque en curso en vez de pisarlo.
+    let stop_lock = session_lock(&session_id)?;
+    let _stop_guard = stop_lock.lock().await;
     let (vnc_opt, term_tx) = {
         let mut map = crate::cmd::state::SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
         let sess = map.get_mut(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
@@ -239,9 +244,8 @@ pub async fn vnc_stop(session_id: String) -> Result<(), CommandError> {
         vnc.host     = "".to_string();
 
         let kill_cmd = format!(
-            "pkill -9 -f '[X]vnc :{display} ' 2>/dev/null; \
-             pkill -9 -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -9 -f '[X]vnc-core :{display} ' 2>/dev/null; \
-             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n"
+            "{} rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n",
+            utils::kill_display_cmd(&display.to_string(), "-9", false)
         );
         let _ = term_tx.send(crate::ssh_core::client::ChanCmd::Send(kill_cmd.into_bytes()));
 
@@ -269,17 +273,17 @@ pub async fn vnc_cleanup_all(session_id: String) -> Result<String, CommandError>
         // con "server already running" sin que este código los vea.
         let (_, out) = crate::ssh_core::exec::ssh_exec_session(
             &sess,
-            "for d in $(seq 20 99); do \
-               if pgrep -f \"Xvnc :$d \" >/dev/null 2>&1 || pgrep -f \"Xtigervnc :$d \" >/dev/null 2>&1 || pgrep -f \"Xvnc-core :$d \" >/dev/null 2>&1 \
-                  || pgrep -f \"Xvfb :$d \" >/dev/null 2>&1 || pgrep -f \"x11vnc.*:$d\" >/dev/null 2>&1; then \
-                 pkill -9 -f \"[X]vnc :$d \" 2>/dev/null; \
-                 pkill -9 -f \"[X]tigervnc :$d \" 2>/dev/null; pkill -9 -f \"[X]vnc-core :$d \" 2>/dev/null; \
-                 pkill -9 -f \"[X]vfb :$d \" 2>/dev/null; \
-                 pkill -9 -f \"[x]11vnc.*:$d\" 2>/dev/null; \
-                 rm -f /tmp/.X$d-lock /tmp/.X11-unix/X$d 2>/dev/null; \
-                 echo \"killed :$d\"; \
-               fi; \
-             done; true"
+            &format!(
+                "for d in $(seq 20 99); do \
+                   if pgrep -f \"[X]vnc :$d \" >/dev/null 2>&1 || pgrep -f \"[X]tigervnc :$d \" >/dev/null 2>&1 || pgrep -f \"[X]vnc-core :$d \" >/dev/null 2>&1 \
+                      || pgrep -f \"[X]vfb :$d \" >/dev/null 2>&1 || pgrep -f \"[x]11vnc.*:$d\" >/dev/null 2>&1; then \
+                     {} \
+                     rm -f /tmp/.X$d-lock /tmp/.X11-unix/X$d 2>/dev/null; \
+                     echo \"killed :$d\"; \
+                   fi; \
+                 done; true",
+                utils::kill_display_cmd("$d", "-9", true)
+            ),
         ).map_err(|e| CommandError::transient("SSH_ERROR", e))?;
         Ok(out.trim().to_string())
     }).await.map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))??;
@@ -331,7 +335,7 @@ pub fn cleanup_all_vnc_sessions() {
                     if is_virtual {
                         let _ = crate::ssh_core::exec::ssh_exec_session(
                             &sess,
-                            &format!("pkill -9 -f '[X]vnc :{display} ' 2>/dev/null; pkill -9 -f '[X]tigervnc :{display} ' 2>/dev/null; pkill -9 -f '[X]vnc-core :{display} ' 2>/dev/null; rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true")
+                            &format!("{} rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true", utils::kill_display_cmd(&display.to_string(), "-9", false))
                         );
                     }
                 }

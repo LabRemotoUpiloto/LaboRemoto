@@ -14,6 +14,9 @@ import './DesktopPane.css'
 // sin importar a qué resolución esté corriendo la X remota.
 const DESKTOP_RESOLUTION = '1280x720'
 
+// Tope del portapapeles que se envía al escritorio remoto (caracteres).
+const MAX_CLIPBOARD_CHARS = 100_000
+
 // ── Mapa de keysyms X11 para teclas especiales ────────────────────────────────
 // Para caracteres imprimibles (e.key.length === 1) el keysym = código Unicode.
 // Esto cubre letras, dígitos, puntuación, mayúsculas (Shift+letra) sin caso especial.
@@ -74,12 +77,14 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
   // Último texto local enviado al escritorio remoto (evita reenviar lo mismo)
   const lastSentClipboardRef = useRef<string>('')
 
-  // Portapapeles local → escritorio remoto: se envía al VNC lo que el usuario copió en su PC,
-  // para que Ctrl+V (o Ctrl+Shift+V en la terminal) lo pegue allá. Solo usa refs.
+  // Portapapeles local → escritorio remoto: SOLO cuando el usuario pega (Ctrl+V o Ctrl+Shift+V en la
+  // terminal). No se manda al conectar ni al tomar el foco: lo que haya copiado (p. ej. una contraseña) no debe
+  // llegar a un escritorio que otros usuarios de la Pi pueden leer sin que el estudiante lo pida. Solo usa refs.
   const syncLocalClipboard = () => {
     if (!rfbRef.current || !navigator.clipboard?.readText) return
     navigator.clipboard.readText().then(text => {
-      if (!text || text === lastSentClipboardRef.current || text === remoteClipboardRef.current) return
+      if (!text || text.length > MAX_CLIPBOARD_CHARS) return
+      if (text === lastSentClipboardRef.current || text === remoteClipboardRef.current) return
       lastSentClipboardRef.current = text
       rfbRef.current?.clipboardPasteFrom(text)
     }).catch(() => {})
@@ -245,20 +250,13 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
         rfb.viewOnly = false
         rfb.addEventListener('connect', () => {
           const canvas = container.querySelector('canvas')
-          if (canvas) {
-            ;(canvas as HTMLElement).focus()
-            // Al volver al escritorio remoto, enviarle lo último que se copió en el PC
-            canvas.addEventListener('focus', syncLocalClipboard)
-          }
-          window.addEventListener('focus', syncLocalClipboard)
-          syncLocalClipboard()
+          if (canvas) (canvas as HTMLElement).focus()
           // El servidor VNC remoto siempre arranca con CapsLock=OFF.
           // Resetear el tracker para que la próxima tecla sincronice el estado.
           remoteCapsRef.current = null
         })
         rfb.addEventListener('disconnect', (e: any) => {
           rfbRef.current = null
-          window.removeEventListener('focus', syncLocalClipboard)
           if (e.detail && e.detail.clean === false) stop()
         })
         rfb.addEventListener('credentialsrequired', () => rfb.sendCredentials({ password: '' }))
