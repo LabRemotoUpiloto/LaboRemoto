@@ -2,8 +2,8 @@
 // (ID number `labo:<práctica>`), armar la nota y el comentario, adjuntar el registro de la sesión y enviar. La usan el modal de
 // la insignia (EnvioMoodlePanel, dentro de ModuleCompleteCelebration) y el aviso flotante de respaldo (ResultadoMoodleAviso).
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from 'react';
-import { moodleCursosService, type MoodlePractica } from '../../services/moodleCursos.service';
-import { pedirRegistroSesion } from '../../utils/registroSesion';
+import { moodleCursosService, type MoodlePractica } from './moodleCursos.service';
+import { pedirRegistroSesion } from './registroSesion';
 
 /** Lo mínimo que se necesita del resultado de validación (ver LinuxValidationResult). */
 export interface ResultadoPractica {

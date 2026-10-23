@@ -2,7 +2,7 @@
 // prácticas y cómo va en cada una. Los datos salen de Moodle (cmd::moodle_resumen_curso); las cuentas están en entregasStats.ts.
 import React, { useEffect, useState } from 'react';
 import { Box, Group, Loader, Paper, Progress, SimpleGrid, Table, Text, Tooltip } from '@mantine/core';
-import { moodleCursosService, type ResumenCurso } from '../../services/moodleCursos.service';
+import { moodleCursosService, type ResumenCurso } from './moodleCursos.service';
 import { etiquetaEstadoDocente, resumenGeneral, textoNota } from './entregasStats';
 
 const mensajeDe = (e: any) => e?.message ?? String(e);

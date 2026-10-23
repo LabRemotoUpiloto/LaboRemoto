@@ -16,8 +16,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { gsap } from 'gsap';
 import { RANKS, rankForModule } from '../badges.service';
 import { MedalIcon } from './MedalIcon';
-import EnvioMoodlePanel from '@/components/cursos/EnvioMoodlePanel';
-import { celebracion } from '@/components/cursos/envioMoodle';
+import EnvioMoodlePanel from '@/features/cursos/EnvioMoodlePanel';
+import { celebracion } from '@/features/cursos/envioMoodle';
 
 const RING_RADIUS = 42;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;

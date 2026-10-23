@@ -27,7 +27,7 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import { captureAndSaveSession, SessionMetadata } from '@/features/logs/session.service';
 import { SAVE_SESSION_BEFORE_CLOSE_EVENT } from '@/features/conexion/ssh.service';
 import { TerminalSessionMetadata } from './terminalTypes';
-import { EVENTO_EXPORTAR_REGISTRO, type RegistroSesion } from '@/utils/registroSesion';
+import { EVENTO_EXPORTAR_REGISTRO, type RegistroSesion } from '@/features/cursos/registroSesion';
 
 interface UseTerminalSessionCaptureParams {
   sessionId: string | null;

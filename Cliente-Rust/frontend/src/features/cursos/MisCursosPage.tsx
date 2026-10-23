@@ -5,7 +5,7 @@ import { notifications } from '@mantine/notifications';
 import {
   moodleCursosService, etiquetaEstado,
   type EntregasPractica, type MisCursos, type MoodlePractica, type PracticasCurso,
-} from '../../services/moodleCursos.service';
+} from './moodleCursos.service';
 import { etiquetaEstadoDocente, resumenEntregas, textoNota, yaEntrego } from './entregasStats';
 import ResumenGeneralPanel from './ResumenGeneralPanel';
 

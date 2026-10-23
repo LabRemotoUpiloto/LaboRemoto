@@ -1,12 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { MisCursos } from '../bindings/MisCursos';
-import type { MoodleCurso } from '../bindings/MoodleCurso';
-import type { MoodlePractica } from '../bindings/MoodlePractica';
-import type { PracticasCurso } from '../bindings/PracticasCurso';
-import type { EntregasPractica } from '../bindings/EntregasPractica';
-import type { EntregaEstudiante } from '../bindings/EntregaEstudiante';
-import type { ResumenCurso } from '../bindings/ResumenCurso';
-import type { RegistroSesion } from '../utils/registroSesion';
+import type { MisCursos } from '@/bindings/MisCursos';
+import type { MoodleCurso } from '@/bindings/MoodleCurso';
+import type { MoodlePractica } from '@/bindings/MoodlePractica';
+import type { PracticasCurso } from '@/bindings/PracticasCurso';
+import type { EntregasPractica } from '@/bindings/EntregasPractica';
+import type { EntregaEstudiante } from '@/bindings/EntregaEstudiante';
+import type { ResumenCurso } from '@/bindings/ResumenCurso';
+import type { RegistroSesion } from './registroSesion';
 
 export type { MisCursos, MoodleCurso, MoodlePractica, PracticasCurso, EntregasPractica, EntregaEstudiante, ResumenCurso };
 

@@ -1,6 +1,6 @@
 // pages/cursos/entregasStats.ts — textos y conteos de la lista de entregas que ve el docente en «Mis cursos».
-import type { EntregaEstudiante } from '../../bindings/EntregaEstudiante';
-import type { ResumenCurso } from '../../bindings/ResumenCurso';
+import type { EntregaEstudiante } from '@/bindings/EntregaEstudiante';
+import type { ResumenCurso } from '@/bindings/ResumenCurso';
 
 /** El estudiante ya mandó algo a Moodle (hay estado de revisión o nota). */
 export const yaEntrego = (e: Pick<EntregaEstudiante, 'estado' | 'nota'>) =>
