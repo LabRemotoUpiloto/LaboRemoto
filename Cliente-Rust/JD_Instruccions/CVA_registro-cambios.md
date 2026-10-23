@@ -1035,8 +1035,59 @@ Rama: `cva-camara-laboratorio`
   * Total suite CVA: 51 pasados, 0 fallados.
 
 ### Estado:
-* **En progreso / Pendiente de mediciones físicas y validación de campo**:
-  * Código e integración de interfaz completados con pruebas unitarias e integración en verde.
-  * Pendiente: Medición real del retraso HLS (cronómetro frente a la cámara, 5 repeticiones), consumo de CPU real con dos cámaras vs. una, prueba con usuario no administrador y capturas de mano real en centro y 4 bordes.
+* **Completado y aprobado en commit 7fed252.**
+
+---
+
+## Estabilidad y Operación Continua (3 Horas)
+Fecha: 2026-10-23
+Rama: `cva-estabilidad-3h` (partiendo de `cva-camara-laboratorio` en `7fed252`)
+
+### Archivos creados:
+1. **[cvaSessionDiagnostics.ts](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/utils/cvaSessionDiagnostics.ts)**:
+   * **Propósito**: Módulo de telemetría y diagnóstico continuo en búfer circular (`BoundedCircularBuffer<CvaDiagnosticSnapshot>`) acotado a 1.200 muestras (~3.3 horas a 10s por muestra). Rastrea uso de memoria JS heap (`performance.memory`), detección de tareas largas en el hilo principal (`LongTaskTracker` vía `PerformanceObserver`), cuadros enviados, descartados y fallidos, y exportación descargable a CSV.
+2. **[cvaStability3h.test.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/tests/unit/cvaStability3h.test.tsx)**:
+   * **Propósito**: Suite de 6 pruebas unitarias y de integración para validar la estabilidad de 3 horas (guardia de frame en vuelo, no reasignación de dimensiones de canvas, adaptación de tasa y costo de MediaPipe con histéresis, recuperación ante errores en runtime, invariancia de búfer circular acotado y badges/exportación CSV en UI).
+
+### Archivos modificados:
+1. **[useHandSkeleton.ts](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/hooks/useHandSkeleton.ts)**:
+   * **Defectos A & B**: Límite superior configurable de detección (15 FPS por defecto). Medición de costo real de detección y trazado mediante `performance.now()`, con promedio móvil exponencial (EMA) y adaptación escalonada con histéresis (15 -> 10 -> 5 -> 0 FPS). Autopausa inmediata por prioridad de transmisión si `cpuLoad > 70%`.
+   * **Defecto D**: Control de errores consecutivos en tiempo de ejecución (umbral: 3). Transición a estado `recuperando` y ciclo de recreación con retroceso exponencial (`1000ms * 2^(intento-1)`). En caso de agotar 3 intentos, pasa a estado `error`, deshabilita el esqueleto y suprime los `console.warn` continuos por frame.
+   * **Exposición de estado**: Expone `{ isDisabled, skeletonColor, setSkeletonColor, processAndDrawFrame, status, currentFps, measuredCostMs }`.
+2. **[CVA_GesturePracticePage.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/pages/cva-gestures/CVA_GesturePracticePage.tsx)**:
+   * **Defecto E**: Guardia de cuadro en vuelo (`isSendingRef` + contador `droppedFrames`). Si un frame previo está en tránsito IPC o vaciado de socket, se descartan los cuadros subsiguientes para garantizar un máximo de 1 frame en vuelo a la vez y evitar acumulaciones de tareas Tokio en el backend.
+   * **Defecto C**: Guardia de dimensiones de canvas tanto en el bucle RAF (`renderLoop`) como en el muestreo de envío (320x240), reasignando `width`/`height` solo si cambiaron de valor para prevenir reset de contexto 2D y presión sobre el recolector de basura.
+   * **Defecto A**: Documentación clara en comentarios explicando que `cpuLoad` representa el factor de ocupación del ciclo de transmisión (`((t_encode + t_ipc) / t_intervalo) * 100`) y no el porcentaje de procesador del sistema operativo del host.
+   * **Defecto F**: Integración de intervalo de diagnóstico de 10s conectado al búfer circular de 1.200 muestras y conexión del exportador CSV al sidebar de configuración.
+3. **[CVA_ConfigSidebar.tsx](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/frontend/src/components/cva-gestures/CVA_ConfigSidebar.tsx)**:
+   * Badge dinámico de estado del esqueleto de mano (`Activo`, `Pausado por carga`, `Recuperando`, `Error`).
+   * Nueva sección "Diagnóstico de Sesión" con contador de muestras en búfer circular y botón "Exportar registro (CSV)".
+4. **[CVA_arquitectura.md](file:///c:/Desarrollo/Anti%20Gravity/Cliente-SSH/LaboRemoto/Cliente-Rust/JD_Instruccions/CVA_arquitectura.md)**:
+   * Incorporación de la Sección 6 ("Estabilidad en sesión continua (hasta 3 horas)") detallando la métrica `cpuLoad`, la guardia de cuadro en vuelo, el esqueleto adaptativo con histéresis, la resiliencia en tiempo de ejecución, la prevención de reset de canvas y la telemetría en búfer circular acotado.
+
+### Decisiones técnicas y puntos de control:
+* **Comportamiento Mutex en Backend Rust (Defecto E)**:
+  Se verificó en `backend/src/cmd/cva_gestures/session.rs` que `CVA_TCP_CONNECTIONS` protege `write_half` con `Arc<tokio::sync::Mutex<WriteHalf<TcpStream>>>`. Las llamadas concurrentes compiten por el lock en orden FIFO. La guardia `isSendingRef` en el frontend impide que se acumulen llamadas esperando el lock, manteniendo el socket y Tokio completamente despejados.
+* **Contrato Pi -> Cliente**:
+  Se preservó intacto el formato de línea de telemetría de instrucciones (`gesto: <nombre>, confianza: <0.00>`). No se modificó el contrato de red ni el parser.
+* **Invarianza de etiquetas UI**:
+  La etiqueta "CPU Cliente" se mantiene idéntica en la barra superior de métricas según instrucción, clarificando su definición técnica en código y documentación arquitectónica.
+
+### Tests corridos y resultado:
+* `cargo test --test cva_gestures_test --test session_manager_test --test error_categorization_test --test protocol_test --test session_manager_flow_test`:
+  * 40 pruebas en backend Rust: 40 pasadas, 0 falladas (100% ok).
+* `npx vitest run tests/unit/cvaStability3h.test.tsx tests/unit/useHandSkeleton.test.ts tests/unit/cvaRestoredBehaviors.test.tsx tests/unit/cvaGestures.test.tsx tests/unit/cvaLabCameraPanel.test.tsx tests/unit/cvaPiInstructionLog.test.tsx tests/unit/useCvaAutoConnect.test.ts`:
+  * 7 archivos de pruebas unitarias/integración CVA en frontend: 46 pasadas, 0 falladas (100% ok).
+  * `cvaStability3h.test.tsx`: 6 pasadas (100% ok).
+  * `useHandSkeleton.test.ts`: 6 pasadas (100% ok).
+  * `cvaRestoredBehaviors.test.tsx`: 3 pasadas (100% ok).
+  * `cvaGestures.test.tsx`: 15 pasadas (100% ok).
+  * `cvaLabCameraPanel.test.tsx`: 8 pasadas (100% ok).
+  * `cvaPiInstructionLog.test.tsx`: 4 pasadas (100% ok).
+  * `useCvaAutoConnect.test.ts`: 4 pasadas (100% ok).
+
+### Estado:
+* **Listo para revisión**: Código, documentación y suite de pruebas de estabilidad 3h completados sin errores.
+
 
 

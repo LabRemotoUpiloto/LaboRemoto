@@ -10,6 +10,13 @@ import CVA_ConfigSidebar from '../../components/cva-gestures/CVA_ConfigSidebar';
 import CVA_LabCameraPanel from '../../components/cva-gestures/CVA_LabCameraPanel';
 import { getCvaModuleConfig } from '../../config/cvaModulesConfig';
 import { computeLocalVideoBoxStyle } from '../../utils/cvaVideoLayout';
+import {
+    BoundedCircularBuffer,
+    CvaDiagnosticSnapshot,
+    exportDiagnosticsToCsv,
+    getJsHeapMemoryMb,
+    LongTaskTracker,
+} from '../../utils/cvaSessionDiagnostics';
 
 interface CVA_GesturePracticePageProps {
     moduleId: 'robot' | 'domotica';
@@ -48,6 +55,7 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
     const [sessionError, setSessionError] = useState<string | null>(null);
     const [sessionActive, setSessionActive] = useState(false);
     const [emergencyStopped, setEmergencyStopped] = useState(false);
+    const [droppedFrames, setDroppedFrames] = useState(0);
 
     // Estados de UI y Configuración Sidebar
     const [sidebarOpened, setSidebarOpened] = useState(false);
@@ -60,6 +68,14 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const skeletonCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
+    // Control de flujo para estabilidad de 3 horas (Defectos C, E, F)
+    const isSendingRef = useRef(false);
+    const droppedFramesCountRef = useRef(0);
+    const failedFramesCountRef = useRef(0);
+    const diagnosticsBufferRef = useRef(new BoundedCircularBuffer<CvaDiagnosticSnapshot>(1200));
+    const longTaskTrackerRef = useRef<LongTaskTracker | null>(null);
+    const [diagnosticsCount, setDiagnosticsCount] = useState(0);
+
     const handleLoadedMetadata = () => {
         const video = videoRef.current;
         if (video && video.videoWidth > 0 && video.videoHeight > 0) {
@@ -67,8 +83,15 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
         }
     };
 
-    // Hook de Esqueleto de Mano Decorativo (MediaPipe)
-    const { processAndDrawFrame, skeletonColor, setSkeletonColor } = useHandSkeleton(camera.active && showSkeleton);
+    // Hook de Esqueleto de Mano Decorativo (MediaPipe adaptativo con histéresis y resiliencia)
+    const {
+        processAndDrawFrame,
+        skeletonColor,
+        setSkeletonColor,
+        status: skeletonStatus,
+        currentFps: skeletonFps,
+        measuredCostMs,
+    } = useHandSkeleton(camera.active && showSkeleton);
 
     // Loop de renderizado del esqueleto decorativo
     useEffect(() => {
@@ -78,8 +101,9 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
             const video = videoRef.current;
             const canvas = skeletonCanvasRef.current;
             if (showSkeleton && camera.active && video && canvas && !video.paused && !video.ended && video.videoWidth > 0) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+                // Reasignar dimensiones solo si cambiaron para no invalidar el contexto 2D ni causar recolección de basura continua
+                if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
+                if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -200,11 +224,21 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
             if (!video || !canvas || video.paused || video.ended) return;
 
             if (video.videoWidth > 0 && video.videoHeight > 0) {
+                // Guardia de frame en vuelo: si el IPC o el socket aún no concluyen el envío previo,
+                // se descarta el cuadro actual para prevenir acumulación de tareas Tokio en backend
+                // y latencias en cascada (máximo 1 frame en vuelo a la vez).
+                if (isSendingRef.current) {
+                    droppedFramesCountRef.current += 1;
+                    setDroppedFrames(droppedFramesCountRef.current);
+                    return;
+                }
+
+                isSendingRef.current = true;
                 const encodeStart = performance.now();
 
-                // Muestreo a 320x240 JPEG
-                canvas.width = 320;
-                canvas.height = 240;
+                // Muestreo a 320x240 JPEG - Reasignar solo si cambió de dimensión para evitar recolección de basura
+                if (canvas.width !== 320) canvas.width = 320;
+                if (canvas.height !== 240) canvas.height = 240;
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -222,7 +256,10 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                             const ipcDuration = performance.now() - ipcStart;
                             const totalProcessingTime = encodeDuration + ipcDuration;
 
-                            // Cálculo de la métrica de Carga CPU / Tiempo de procesamiento del cliente
+                            // cpuLoad: Representa el factor de ocupación del ciclo de muestreo:
+                            // ((tiempo_encode_jpeg + latencia_ipc) / intervalo_muestreo) * 100.
+                            // NOTA ARQUITECTÓNICA: No mide el uso del procesador del host a nivel SO,
+                            // sino qué fracción del intervalo de transmisión se consumió procesando y transmitiendo.
                             const estimatedCpuPercent = Math.min(100, Math.round((totalProcessingTime / intervalMs) * 100));
 
                             setLatency(Math.round(ipcDuration));
@@ -232,18 +269,67 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                             setCpuLoad(estimatedCpuPercent);
                             setSessionError(null);
                         } catch (err: any) {
+                            failedFramesCountRef.current += 1;
                             const errMsg = typeof err === 'string' ? err : err?.message || 'Error de transmisión de frame';
                             setSessionError(`Falla en envío de frame: ${errMsg}`);
+                        } finally {
+                            isSendingRef.current = false;
                         }
+                    } else {
+                        isSendingRef.current = false;
                     }
+                } else {
+                    isSendingRef.current = false;
                 }
             }
         }, intervalMs);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            isSendingRef.current = false;
+        };
     }, [camera.active, emergencyStopped, sensitivity, sessionId, sessionActive, sessionError]);
 
+    // Inicializar rastreador de tareas largas (Long Tasks del hilo principal)
+    useEffect(() => {
+        longTaskTrackerRef.current = new LongTaskTracker();
+        return () => {
+            longTaskTrackerRef.current?.disconnect();
+            longTaskTrackerRef.current = null;
+        };
+    }, []);
+
+    // Intervalo de registro de diagnóstico continuo cada 10 segundos (Búfer circular acotado a 1.200 muestras)
+    useEffect(() => {
+        if (!sessionActive || emergencyStopped) return;
+
+        const diagInterval = setInterval(() => {
+            const buffer = diagnosticsBufferRef.current;
+            const tracker = longTaskTrackerRef.current;
+            buffer.push({
+                timestamp: new Date().toISOString(),
+                envioCargaPct: cpuLoad,
+                esqueletoCostoMs: Math.round(measuredCostMs * 10) / 10,
+                esqueletoFps: skeletonFps,
+                esqueletoEstado: skeletonStatus,
+                cuadrosEnviados: totalFrames,
+                cuadrosDescartados: droppedFramesCountRef.current,
+                cuadrosFallidos: failedFramesCountRef.current,
+                memoriaJsMb: getJsHeapMemoryMb(),
+                tareasLargasCount: tracker ? tracker.getCount() : 0,
+            });
+            setDiagnosticsCount(buffer.size());
+        }, 10000);
+
+        return () => clearInterval(diagInterval);
+    }, [sessionActive, emergencyStopped, cpuLoad, measuredCostMs, skeletonFps, skeletonStatus, totalFrames]);
+
+    const handleExportDiagnostics = () => {
+        exportDiagnosticsToCsv(diagnosticsBufferRef.current.getAll());
+    };
+
     const handleEmergencyStop = async () => {
+        isSendingRef.current = false;
         setEmergencyStopped(true);
         if (sessionId) {
             try {
@@ -254,6 +340,7 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
     };
 
     const handleReset = async () => {
+        isSendingRef.current = false;
         setEmergencyStopped(false);
         if (sessionId) {
             try {
@@ -440,8 +527,11 @@ const CVA_GesturePracticePage: React.FC<CVA_GesturePracticePageProps> = ({
                 onToggleShowSkeleton={setShowSkeleton}
                 skeletonColor={skeletonColor}
                 onChangeSkeletonColor={setSkeletonColor}
+                skeletonStatus={skeletonStatus}
                 sensitivity={sensitivity}
                 onChangeSensitivity={setSensitivity}
+                onExportDiagnostics={handleExportDiagnostics}
+                diagnosticsCount={diagnosticsCount}
             />
 
             {/* Canvas Oculto para muestreo de frames */}

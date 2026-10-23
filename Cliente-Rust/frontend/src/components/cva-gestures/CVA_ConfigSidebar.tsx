@@ -1,7 +1,9 @@
 import React from 'react';
 import { Drawer, Stack, Text, SegmentedControl, Group, Button, Card, Badge, Box, Switch } from '@mantine/core';
-import { Settings, Activity, Palette } from 'lucide-react';
+import { Settings, Activity, Palette, Download } from 'lucide-react';
 import SkeletonColorPicker from './SkeletonColorPicker';
+
+export type HandSkeletonStatus = 'activo' | 'pausado por carga' | 'recuperando' | 'error';
 
 interface CVA_ConfigSidebarProps {
     opened: boolean;
@@ -14,8 +16,11 @@ interface CVA_ConfigSidebarProps {
     onToggleShowSkeleton?: (val: boolean) => void;
     skeletonColor: string;
     onChangeSkeletonColor: (color: string) => void;
+    skeletonStatus?: HandSkeletonStatus;
     sensitivity: string;
     onChangeSensitivity: (val: string) => void;
+    onExportDiagnostics?: () => void;
+    diagnosticsCount?: number;
 }
 
 export const CVA_ConfigSidebar: React.FC<CVA_ConfigSidebarProps> = ({
@@ -27,8 +32,11 @@ export const CVA_ConfigSidebar: React.FC<CVA_ConfigSidebarProps> = ({
     onToggleShowSkeleton,
     skeletonColor,
     onChangeSkeletonColor,
+    skeletonStatus = 'activo',
     sensitivity,
     onChangeSensitivity,
+    onExportDiagnostics,
+    diagnosticsCount = 0,
 }) => {
     return (
         <Drawer
@@ -117,9 +125,23 @@ export const CVA_ConfigSidebar: React.FC<CVA_ConfigSidebarProps> = ({
                                     Esqueleto de Mano
                                 </Text>
                             </Group>
-                            <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--accent-primary)', background: 'transparent' }}>
-                                MediaPipe
-                            </Badge>
+                            {skeletonStatus === 'pausado por carga' ? (
+                                <Badge size="xs" variant="outline" style={{ border: '1px solid var(--accent-warm, #F59E0B)', color: 'var(--accent-warm, #F59E0B)', background: 'transparent' }}>
+                                    Pausado por carga
+                                </Badge>
+                            ) : skeletonStatus === 'recuperando' ? (
+                                <Badge size="xs" variant="outline" style={{ border: '1px solid var(--accent-warm, #F59E0B)', color: 'var(--accent-warm, #F59E0B)', background: 'transparent' }}>
+                                    Recuperando
+                                </Badge>
+                            ) : skeletonStatus === 'error' ? (
+                                <Badge size="xs" variant="outline" style={{ border: '1px solid var(--danger, #EF4444)', color: 'var(--danger, #EF4444)', background: 'transparent' }}>
+                                    Error
+                                </Badge>
+                            ) : (
+                                <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--accent-primary)', background: 'transparent' }}>
+                                    Activo
+                                </Badge>
+                            )}
                         </Group>
 
                         <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
@@ -143,6 +165,45 @@ export const CVA_ConfigSidebar: React.FC<CVA_ConfigSidebarProps> = ({
                             <Box mt="xs">
                                 <SkeletonColorPicker color={skeletonColor} onChange={onChangeSkeletonColor} />
                             </Box>
+                        )}
+                    </Stack>
+                </Card>
+
+                {/* 3. SECCIÓN: Diagnóstico de Estabilidad (3 horas) */}
+                <Card padding="sm" radius="md" className="dribbble-card">
+                    <Stack gap="xs">
+                        <Group justify="space-between" align="center">
+                            <Group gap="xs">
+                                <Activity size={16} style={{ color: 'var(--accent-primary)' }} />
+                                <Text fw={600} size="sm" style={{ color: 'var(--text-primary)' }}>
+                                    Diagnóstico de Sesión
+                                </Text>
+                            </Group>
+                            <Badge size="xs" variant="outline" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', background: 'transparent' }}>
+                                {diagnosticsCount} muestras
+                            </Badge>
+                        </Group>
+
+                        <Text size="xs" style={{ color: 'var(--text-secondary)' }}>
+                            Registro continuo en búfer circular (hasta 1.200 muestras, ~3.3 h) de métricas de IPC, tasa de cuadros, tareas largas y memoria JS.
+                        </Text>
+
+                        {onExportDiagnostics && (
+                            <Button
+                                variant="subtle"
+                                size="xs"
+                                radius="md"
+                                leftSection={<Download size={14} />}
+                                onClick={onExportDiagnostics}
+                                disabled={diagnosticsCount === 0}
+                                style={{
+                                    border: '1px solid var(--border-subtle)',
+                                    color: 'var(--text-primary)',
+                                    marginTop: 4,
+                                }}
+                            >
+                                Exportar registro (CSV)
+                            </Button>
                         )}
                     </Stack>
                 </Card>
