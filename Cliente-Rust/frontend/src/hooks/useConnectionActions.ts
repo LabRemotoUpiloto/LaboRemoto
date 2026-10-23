@@ -13,8 +13,8 @@
 
 import { useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { useLoading } from '../contexts/LoadingContext';
-import { useToasts } from '../contexts/ToastContext';
+import { useLoading } from '@/app/providers/LoadingContext';
+import { useToasts } from '@/app/providers/ToastContext';
 import { getDeviceLabel } from '@/lib/devices';
 import { sshConnect } from '../services/ssh.service';
 import { saveHostWithMaster, deleteHostFile } from '@/lib/storage.service';

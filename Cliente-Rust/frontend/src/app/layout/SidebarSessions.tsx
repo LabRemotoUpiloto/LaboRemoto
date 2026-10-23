@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActionIcon, Menu, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { Monitor, Pencil, SquareTerminal, type LucideIcon } from 'lucide-react';
-import type { Tab } from '../../hooks/useAppTabs';
-import { CloseIcon } from './header/HeaderConstants';
+import type { Tab } from '../hooks/useAppTabs';
+import { CloseIcon } from './HeaderConstants';
 
 type Props = {
   tabs: Tab[];

@@ -1,5 +1,5 @@
 import { Loader, Button, Text } from '@mantine/core'
-import { useLoading } from '../../contexts/LoadingContext'
+import { useLoading } from './providers/LoadingContext'
 
 export default function GlobalLoader() {
   const { loading, label, onCancel } = useLoading()

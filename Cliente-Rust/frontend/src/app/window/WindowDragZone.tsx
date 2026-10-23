@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSmartWindowDrag } from '../../hooks/useSmartWindowDrag';
+import { useSmartWindowDrag } from '../hooks/useSmartWindowDrag';
 
 // `React.ElementType` a secas (sin parámetro de props) colapsa a `never`
 // para cualquier prop extra al usarse como tag de JSX (quirk conocido de

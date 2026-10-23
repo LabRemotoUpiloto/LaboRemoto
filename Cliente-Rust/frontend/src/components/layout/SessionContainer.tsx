@@ -4,7 +4,7 @@ import LocalTerminalGroup from '../terminal/LocalTerminalGroup'
 import SftpPage from '../../pages/session/SftpPage'
 import SnippetsPage from '../../pages/session/SnippetsPage'
 import LogsPage from '../../pages/logs/LogsPage'
-import type { Tab } from '../../hooks/useAppTabs'
+import type { Tab } from '@/app/hooks/useAppTabs'
 import type { SessionLog } from '../logs/SessionCard'
 import type { LinuxPracticeSessionApi } from '../../hooks/useLinuxPracticeSession'
 

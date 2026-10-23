@@ -2,8 +2,8 @@
 // hay sesión: abre la vista de Prácticas en la práctica pedida. Si el enlace llega antes de iniciar sesión, espera al login.
 import { useEffect, useRef } from 'react';
 import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
-import { leerEnlaceApp, type EnlaceApp } from '../utils/enlacesApp';
-import { requestPracticeOpen } from '../services/practiceNavigation.service';
+import { leerEnlaceApp, type EnlaceApp } from '../enlacesApp';
+import { requestPracticeOpen } from '@/services/practiceNavigation.service';
 
 export function useEnlacesApp(isAuthenticated: boolean, abrirPracticas: () => void) {
   const pendiente = useRef<EnlaceApp | null>(null);

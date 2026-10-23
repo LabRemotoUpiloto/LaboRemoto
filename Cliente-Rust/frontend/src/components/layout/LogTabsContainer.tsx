@@ -1,6 +1,6 @@
 import React from 'react'
 import LogDetailPage from '../../pages/logs/LogDetailPage'
-import type { Tab } from '../../hooks/useAppTabs'
+import type { Tab } from '@/app/hooks/useAppTabs'
 
 type Props = {
   tabs: Tab[]

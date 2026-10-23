@@ -14,7 +14,7 @@ import { useLocalFsBrowser } from '../../hooks/useLocalFsBrowser'
 import { useRemoteFsBrowser } from '../../hooks/useRemoteFsBrowser'
 import { useSftpSession } from '../../hooks/useSftpSession'
 import { usePointerDrag } from '../../components/sftp/usePointerDrag'
-import { useToasts } from '../../contexts/ToastContext'
+import { useToasts } from '@/app/providers/ToastContext'
 import {
   joinLocalPath,
   joinRemotePath,

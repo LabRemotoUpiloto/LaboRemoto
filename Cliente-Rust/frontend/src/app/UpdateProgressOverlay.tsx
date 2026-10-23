@@ -1,5 +1,5 @@
 import { Progress, Text, Button } from '@mantine/core';
-import type { UpdateProgress } from '../../hooks/useUpdateCheck';
+import type { UpdateProgress } from './hooks/useUpdateCheck';
 
 const PHASE_LABEL: Record<UpdateProgress['phase'], string> = {
   downloading: 'Descargando actualización…',

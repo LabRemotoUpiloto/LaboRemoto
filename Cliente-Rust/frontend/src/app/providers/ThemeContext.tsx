@@ -4,8 +4,8 @@
  * Agrega `mantineColorScheme` para que MantineProvider sepa si es dark/light.
  */
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { useAppStore } from '../store/app'
-import { getEffectiveRole, usaTemaInstitucional } from '../hooks/usePermissions'
+import { useAppStore } from '@/store/app'
+import { getEffectiveRole, usaTemaInstitucional } from '@/hooks/usePermissions'
 
 export type Theme =
   // Oscuros

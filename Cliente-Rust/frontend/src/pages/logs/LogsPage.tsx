@@ -7,7 +7,7 @@ import SessionsGrid from '../../components/logs/SessionsGrid'
 import type { SessionLog } from '../../components/logs/SessionCard'
 import { listSessionLogs, deleteSessionLog, extractSessionCommands, type SessionLogMetadata } from '../../services/session.service'
 import html2pdf from 'html2pdf.js'
-import { useToasts } from '../../contexts/ToastContext'
+import { useToasts } from '@/app/providers/ToastContext'
 import { buildCommandsReportHtml } from '../../utils/commandParser'
 
 type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import '@xterm/xterm/css/xterm.css';
 import './TerminalPane.css';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '@/app/providers/ThemeContext';
 import { useTerminal } from './useTerminal';
 
 type Props = {

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Group, ActionIcon, Menu, Text, UnstyledButton } from '@mantine/core';
 import { MessageSquare } from 'lucide-react';
-import type { ActiveView } from '../../hooks/useAppTabs';
-import { PANEL_ICONS } from './header/HeaderConstants';
+import type { ActiveView } from '../hooks/useAppTabs';
+import { PANEL_ICONS } from './HeaderConstants';
 
 type Props = {
   activeView: ActiveView;

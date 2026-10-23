@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { SessionLog } from "../components/logs/SessionCard";
-import { useEffectiveRole, canAccessPage } from "./usePermissions";
+import type { SessionLog } from "@/components/logs/SessionCard";
+import { useEffectiveRole, canAccessPage } from "@/hooks/usePermissions";
 
 export type Tab = {
   id: string;

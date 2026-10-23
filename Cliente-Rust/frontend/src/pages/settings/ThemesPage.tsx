@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '@/app/providers/ThemeContext';
 import { Text, Group, Box, Card, Stack } from '@mantine/core';
 
 interface ThemeInfo {

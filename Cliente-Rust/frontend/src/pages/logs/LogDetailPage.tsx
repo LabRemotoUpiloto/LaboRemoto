@@ -4,7 +4,7 @@ import { ChevronLeft, FileDown } from 'lucide-react'
 import type { SessionLog } from '../../components/logs/SessionCard'
 import { getSessionLogContent, extractSessionCommands } from '../../services/session.service'
 import { invoke } from '@tauri-apps/api/core'
-import { useToasts } from '../../contexts/ToastContext'
+import { useToasts } from '@/app/providers/ToastContext'
 import html2pdf from 'html2pdf.js'
 import { buildCommandsReportHtml } from '../../utils/commandParser'
 
