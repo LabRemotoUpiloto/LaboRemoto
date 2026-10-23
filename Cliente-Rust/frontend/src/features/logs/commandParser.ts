@@ -5,7 +5,7 @@
  * `services/session.service.ts::extractSessionCommands`.
  */
 
-import { unipilotoLogo } from '../assets/logoBase64';
+import { unipilotoLogo } from '@/assets/logoBase64';
 
 /**
  * Builds the HTML content for the Commands Report PDF.

@@ -3,9 +3,9 @@ import TerminalView from './TerminalView'
 import LocalTerminalGroup from '@/features/terminal/LocalTerminalGroup'
 import SftpPage from '@/features/sftp/SftpPage'
 import SnippetsPage from '@/features/snippets/SnippetsPage'
-import LogsPage from '@/pages/logs/LogsPage'
+import LogsPage from '@/features/logs/LogsPage'
 import type { Tab } from '@/app/hooks/useAppTabs'
-import type { SessionLog } from '@/components/logs/SessionCard'
+import type { SessionLog } from '@/features/logs/SessionCard'
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession'
 
 type PracticeMeta = {

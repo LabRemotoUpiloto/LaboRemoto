@@ -17,7 +17,7 @@ import Sidebar from './layout/Sidebar'
 import { MacWindowDragStrip } from './window/MacWindowDragStrip'
 import HomeContainer from './layout/HomeContainer'
 import SessionContainer from '@/features/sesion/SessionContainer'
-import LogTabsContainer from '@/components/layout/LogTabsContainer'
+import LogTabsContainer from '@/features/logs/LogTabsContainer'
 
 // Panels
 import SidePanel from './SidePanel'

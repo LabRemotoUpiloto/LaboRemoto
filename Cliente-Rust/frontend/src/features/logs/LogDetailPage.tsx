@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { Box, Group, Stack, Title, Text, Button, ActionIcon, Tooltip, Loader } from '@mantine/core'
 import { ChevronLeft, FileDown } from 'lucide-react'
-import type { SessionLog } from '../../components/logs/SessionCard'
-import { getSessionLogContent, extractSessionCommands } from '../../services/session.service'
+import type { SessionLog } from './SessionCard'
+import { getSessionLogContent, extractSessionCommands } from './session.service'
 import { invoke } from '@tauri-apps/api/core'
 import { useToasts } from '@/app/providers/ToastContext'
 import html2pdf from 'html2pdf.js'
-import { buildCommandsReportHtml } from '../../utils/commandParser'
+import { buildCommandsReportHtml } from './commandParser'
 
 interface LogDetailPageProps {
   session: SessionLog
