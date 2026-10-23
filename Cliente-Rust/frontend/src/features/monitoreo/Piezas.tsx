@@ -1,7 +1,7 @@
 // pages/rendimiento/Piezas.tsx — lo propio de Monitoreo. Las piezas generales (tarjeta, rótulos, Punto, Selector,
 // Barra, botones…) viven en components/ui.
 import React from 'react';
-import { NOTA, RADIO } from '../../components/ui';
+import { NOTA, RADIO } from '@/components/ui';
 import { paginasVisibles, type Pagina } from './monitoreo';
 
 /** Pie de una lista paginada: «1–15 de 214 eventos» y las páginas. */

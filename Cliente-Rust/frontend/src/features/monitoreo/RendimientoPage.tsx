@@ -5,7 +5,7 @@
 // «Iniciar prueba» marca el comienzo de una prueba de carga; al terminar se ve con cuántos estudiantes
 // algo llegó a crítico y se puede guardar en Excel. Los datos salen de metrics_svc.py en la Pi.
 import React, { useMemo, useState } from 'react';
-import { iniciarPrueba, terminarPrueba, usePrueba } from '../../services/pruebaRendimiento';
+import { iniciarPrueba, terminarPrueba, usePrueba } from './pruebaRendimiento';
 import RegistrosPanel from './RegistrosPanel';
 import EquiposVista from './EquiposVista';
 import EstadoPestana from './EstadoPestana';
@@ -14,7 +14,7 @@ import ProcesosPestana from './ProcesosPestana';
 import { guardarExcelDePrueba } from './exportarPrueba';
 import { resumirPrueba, unirMuestras } from './rendimientoStats';
 import { duracion, estadoPi, hora24 } from './monitoreo';
-import { ETIQUETA, Punto } from '../../components/ui';
+import { ETIQUETA, Punto } from '@/components/ui';
 import { useCamaras, useInformePi } from './useDatosLab';
 
 type Vista = 'equipos' | 'pi4';

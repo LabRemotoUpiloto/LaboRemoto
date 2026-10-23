@@ -1,7 +1,7 @@
 // pages/rendimiento/exportarPrueba.ts — guarda la prueba como Excel (.xlsx) con el diálogo de «Guardar como».
 import writeExcelFile from 'write-excel-file/browser';
 import { invoke } from '@tauri-apps/api/core';
-import type { MuestraPi } from '../../services/rendimiento.service';
+import type { MuestraPi } from './rendimiento.service';
 import type { ResumenPrueba } from './rendimientoStats';
 import { hojasDePrueba } from './hojasPrueba';
 

@@ -4,7 +4,7 @@
 // El CSV anterior no se entendía: en Excel con configuración de Colombia la coma no separa columnas,
 // y los nombres (`api_p95_ms`, `red_tx`…) no decían qué se medía. Acá cada columna lleva un título
 // claro con su unidad, y una hoja aparte explica qué mide cada dato y cuándo es bueno o malo.
-import type { MuestraPi } from '../../services/rendimiento.service';
+import type { MuestraPi } from './rendimiento.service';
 import { INDICADORES, estadoDe, estudiantesEn, type Estado, type ResumenPrueba } from './rendimientoStats';
 
 /** Celda en el formato de write-excel-file (solo lo que se usa acá). */

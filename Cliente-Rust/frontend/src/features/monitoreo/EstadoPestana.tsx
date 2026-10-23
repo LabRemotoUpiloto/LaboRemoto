@@ -1,11 +1,11 @@
 // pages/rendimiento/EstadoPestana.tsx — «Estado» de la Pi 4: cómo está ahora, sus servicios, quién
 // está conectado y la prueba de carga (en curso o su resumen).
 
-import type { ServicioPi } from '../../services/rendimiento.service';
-import type { PruebaRendimiento } from '../../services/pruebaRendimiento';
+import type { ServicioPi } from './rendimiento.service';
+import type { PruebaRendimiento } from './pruebaRendimiento';
 import { ENLACE_SUBIDA_MBPS, INDICADORES, estadoDe, estudiantesEn, type ResumenPrueba } from './rendimientoStats';
 import { DISCO, duracion, formatoValor, frenadaAhora, hora24 } from './monitoreo';
-import { Barra, Boton, NOTA, Punto, Seccion, TARJETA, TEXTO_NIVEL, type Nivel } from '../../components/ui';
+import { Barra, Boton, NOTA, Punto, Seccion, TARJETA, TEXTO_NIVEL, type Nivel } from '@/components/ui';
 import type { DatosPi } from './useDatosLab';
 
 const NIVEL_DE: Record<string, Nivel> = { bueno: 'bien', alerta: 'alerta', critico: 'critico' };

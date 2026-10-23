@@ -1,7 +1,7 @@
 // pages/rendimiento/useDatosLab.ts — lo que la página de Monitoreo pide en vivo: el informe de la Pi 4
 // (cada 2 s, solo lo nuevo) y el estado de las cámaras según el broker (cada 10 s).
 import { useEffect, useRef, useState } from 'react';
-import { rendimientoPi, type InformePi, type MuestraPi } from '../../services/rendimiento.service';
+import { rendimientoPi, type InformePi, type MuestraPi } from './rendimiento.service';
 import { camarasAdminService, type CamaraAdmin } from '@/features/camaras/camarasAdmin.service';
 import { unirMuestras } from './rendimientoStats';
 

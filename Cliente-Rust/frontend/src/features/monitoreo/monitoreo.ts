@@ -1,7 +1,7 @@
 // pages/rendimiento/monitoreo.ts — cuentas de las vistas de Monitoreo (sin React, para probarlas aparte).
-import type { MuestraPi, ServicioPi } from '../../services/rendimiento.service';
+import type { MuestraPi, ServicioPi } from './rendimiento.service';
 import { INDICADORES, estadoDe, estudiantesEn } from './rendimientoStats';
-import type { Nivel } from '../../components/ui/estilos';
+import type { Nivel } from '@/components/ui/estilos';
 
 export type { Nivel };
 

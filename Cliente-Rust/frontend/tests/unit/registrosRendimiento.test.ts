@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import type { EventoSsh, RegistroApi } from '../../src/services/rendimiento.service';
+import type { EventoSsh, RegistroApi } from '@/features/monitoreo/rendimiento.service';
 import {
   claveApi, claveSsh, contarEventos, eventoConProblema, peticionConProblema, unirRegistros,
-} from '../../src/pages/rendimiento/registros';
+} from '@/features/monitoreo/registros';
 
 const pet = (t: number, estado = 200, ms = 50): RegistroApi => ({ t, metodo: 'GET', ruta: `/practices/x${t}`, tipo: 'modulo', estado, ms, bytes: 100 });
 const ev = (t: number, tipo: EventoSsh['tipo'], mensaje = `m${t}`): EventoSsh => ({ t, tipo, usuario: 'u', ip: '1.2.3.4', mensaje });

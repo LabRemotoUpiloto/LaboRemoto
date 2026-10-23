@@ -3,11 +3,11 @@
 // · En el tiempo: tramos de 30 s con promedio y rango, para cualquier prueba (también de software).
 // Escalas fijas (0–100 %, etc.): ajustarlas a los datos haría que un 4 % → 8 % pareciera una catástrofe.
 import React, { useMemo, useState } from 'react';
-import type { MuestraPi } from '../../services/rendimiento.service';
-import type { PruebaRendimiento } from '../../services/pruebaRendimiento';
+import type { MuestraPi } from './rendimiento.service';
+import type { PruebaRendimiento } from './pruebaRendimiento';
 import { INDICADORES, estudiantesEn, type Indicador, type ResumenPrueba } from './rendimientoStats';
 import { agruparPorEstudiantes, formatoValor, hora24, tramosEnElTiempo } from './monitoreo';
-import { NOTA, Punto, Selector, TARJETA } from '../../components/ui';
+import { NOTA, Punto, Selector, TARJETA } from '@/components/ui';
 
 type Vista = 'estudiantes' | 'tiempo';
 type Ventana = '300' | '900' | '1800' | 'prueba';

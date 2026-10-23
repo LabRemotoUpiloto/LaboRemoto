@@ -1,9 +1,9 @@
 // pages/rendimiento/ProcesosPestana.tsx — «Procesos» de la Pi 4: todos los programas (paginados, por CPU
 // o por RAM) y las conexiones abiertas por servicio y por cámara.
 import { useMemo, useState } from 'react';
-import type { InformePi, MuestraPi } from '../../services/rendimiento.service';
+import type { InformePi, MuestraPi } from './rendimiento.service';
 import { paginar } from './monitoreo';
-import { NOTA, Seccion, Selector, TARJETA } from '../../components/ui';
+import { NOTA, Seccion, Selector, TARJETA } from '@/components/ui';
 import { Paginador } from './Piezas';
 
 const POR_PAGINA = 10;

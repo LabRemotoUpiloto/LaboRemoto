@@ -1,5 +1,5 @@
 // pages/rendimiento/rendimientoStats.ts — cuentas del panel de Rendimiento (sin React, para probarlas aparte).
-import type { MuestraPi } from '../../services/rendimiento.service';
+import type { MuestraPi } from './rendimiento.service';
 
 export type Estado = 'bueno' | 'alerta' | 'critico';
 

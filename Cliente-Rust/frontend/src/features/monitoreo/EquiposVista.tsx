@@ -4,7 +4,7 @@ import React from 'react';
 import type { CamaraAdmin } from '@/features/camaras/camarasAdmin.service';
 import { INDICADORES, estadoDe } from './rendimientoStats';
 import { duracion, estadoPi, formatoValor, hora24 } from './monitoreo';
-import { Barra, Boton, ETIQUETA, NOTA, Punto, TARJETA, TARJETA_APAGADA, type Nivel } from '../../components/ui';
+import { Barra, Boton, ETIQUETA, NOTA, Punto, TARJETA, TARJETA_APAGADA, type Nivel } from '@/components/ui';
 import { Camara, ModuloDomotica, PlacaJetson, PlacaPi4, PlacaPi5 } from './Dibujos';
 import type { DatosCamaras, DatosPi } from './useDatosLab';
 

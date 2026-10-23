@@ -49,7 +49,7 @@ import TourPracticaLinux from '@/features/practicas/tour/TourPracticaLinux'
 import { SesionPorPracticaContext } from '@/features/cursos/envioMoodle'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { useAppStore } from '@/store/app'
-import { useGrabadorPrueba } from '@/services/pruebaRendimiento'
+import { useGrabadorPrueba } from '@/features/monitoreo/pruebaRendimiento'
 import { canAccessPage, useEffectiveRole } from '@/hooks/usePermissions'
 import type { PracticeSessionMeta } from '@/types'
 

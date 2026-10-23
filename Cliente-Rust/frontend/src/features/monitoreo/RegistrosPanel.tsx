@@ -4,13 +4,13 @@
 // Paginado y agrupado por día (el auth.log abarca varios). En la página 1 se actualiza en vivo; en
 // las demás la lista se queda quieta para poder leerla, y avisa cuántos eventos nuevos llegaron.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { rendimientoLogs, type EventoSsh, type RegistroApi } from '../../services/rendimiento.service';
+import { rendimientoLogs, type EventoSsh, type RegistroApi } from './rendimiento.service';
 import {
   EVENTOS_SSH, claveApi, claveSsh, contarEventos, eventoConProblema, peticionConProblema, unirRegistros,
   type Gravedad,
 } from './registros';
 import { agruparPorDia, hora24, paginar } from './monitoreo';
-import { Boton, ETIQUETA, NOTA, Selector, TARJETA } from '../../components/ui';
+import { Boton, ETIQUETA, NOTA, Selector, TARJETA } from '@/components/ui';
 import { Paginador } from './Piezas';
 
 const SONDEO_MS = 3000;
