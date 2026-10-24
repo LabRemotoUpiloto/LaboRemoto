@@ -435,7 +435,7 @@ const AppMain: React.FC = () => {
           )}
           <div className="main-content">
             <MacWindowDragStrip />
-            <main className="content-area">
+            <main id="contenido" tabIndex={-1} className="content-area">
               {activeTab.type === 'home' && (
                 <div style={{ height: '100%' }}>
                   <HomeContainer

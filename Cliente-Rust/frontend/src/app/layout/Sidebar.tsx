@@ -12,7 +12,6 @@ import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, s
 import {
   MonitorIcon,
   CompassIcon,
-  PaletteIcon,
   FolderIcon,
   CodeIcon,
   FileTextIcon,
@@ -46,32 +45,43 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
 }
 
+// Secciones por lo que la persona viene a hacer. Cada rol ve solo los ítems de canAccessPage
+// (una sección sin ítems no se muestra). «Temas» es una preferencia: vive en el menú del usuario.
 const sections = [
   {
-    label: 'General',
+    label: 'Aprender',
     items: [
-      { id: 'landing',   label: 'Inicio',    icon: HomeIcon },
-      { id: 'practices', label: 'Prácticas', icon: LabIcon },
+      { id: 'landing',    label: 'Inicio',     icon: HomeIcon },
+      { id: 'practices',  label: 'Prácticas',  icon: LabIcon },
       { id: 'mis-cursos', label: 'Mis cursos', icon: BookOpen },
-      { id: 'reservas',  label: 'Reservas',  icon: CalendarIcon },
+      { id: 'reservas',   label: 'Reservas',   icon: CalendarIcon },
     ],
   },
   {
-    label: 'Conexión',
+    label: 'Conectar',
     items: [
-      { id: 'connect', label: 'Connect', icon: MonitorIcon },
-      { id: 'hosts',   label: 'Hosts',   icon: CompassIcon },
+      { id: 'connect', label: 'Nueva conexión',    icon: MonitorIcon },
+      { id: 'hosts',   label: 'Equipos guardados', icon: CompassIcon },
       // No es una página de `onOpenPanel`: crea y abre directamente un tab
       // "Terminal local" nuevo — ver caso especial en el onClick del item.
       { id: 'local-terminal-new', label: 'Terminal local', icon: SquareTerminal },
+      { id: 'sftp',     label: 'Archivos (SFTP)', icon: FolderIcon },
+      { id: 'snippets', label: 'Mis comandos',    icon: CodeIcon },
     ],
   },
   {
-    label: 'Herramientas',
+    label: 'Laboratorio',
     items: [
-      { id: 'sftp',     label: 'SFTP',     icon: FolderIcon },
-      { id: 'snippets', label: 'Snippets', icon: CodeIcon },
-      { id: 'themes',   label: 'Temas',    icon: PaletteIcon },
+      { id: 'rendimiento', label: 'Monitoreo',  icon: Gauge },
+      { id: 'vigilancia',  label: 'Vigilancia', icon: CameraIcon },
+    ],
+  },
+  {
+    label: 'Personas',
+    items: [
+      { id: 'dashboard',   label: 'Actividad',    icon: Activity },
+      { id: 'admin-users', label: 'Usuarios',     icon: Shield },
+      { id: 'logs',        label: 'Sesiones SSH', icon: FileTextIcon },
     ],
   },
 ];
@@ -108,9 +118,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, []);
 
   return (
+    <>
+    {/* Primer elemento al tabular: salta la navegación y va directo al contenido (main#contenido en App). */}
+    <a href="#contenido" onClick={(e) => { e.preventDefault(); document.getElementById('contenido')?.focus(); }}
+      className="fixed left-4 top-4 z-[2200] -translate-y-20 rounded-ui bg-ui-acento px-4 py-2 text-[13px] font-semibold !text-[var(--accent-contrast,var(--text-inverse,#fff))] !no-underline focus-visible:translate-y-0">
+      Saltar al contenido
+    </a>
     <Box
       component="aside"
-      aria-label="Main navigation"
+      aria-label="Navegación principal"
       // Ancho SIN transición CSS: lo anima GSAP en App.tsx vía --sidebar-width,
       // en un solo sistema (evita el "doble motor" de animación). overflow-x
       // hidden recorta los textos que se desvanecen mientras el rail se angosta
@@ -145,11 +161,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       <Box
         className="shrink-0 flex items-center border-b"
         style={{ height: '52px', borderColor: 'var(--border-subtle)' }}
+        data-tour="sidebar-header"
       >
         <Tooltip label={collapsed ? 'Expandir' : 'Colapsar'} position="right" withArrow openDelay={300}>
           <UnstyledButton
             onClick={onToggleCollapse}
-            aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+            aria-label={collapsed ? 'Expandir la barra lateral' : 'Contraer la barra lateral'}
             className="flex items-center transition-opacity duration-150 hover:opacity-80"
             style={{ height: '100%', width: '100%', paddingLeft: '11px', gap: '10px' }}
           >
@@ -219,21 +236,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         style={{ overscrollBehavior: 'contain' }}
         data-tour="sidebar-navigation"
         role="navigation"
-        aria-label="Sidebar navigation"
+        aria-label="Secciones"
       >
-        {[
-          ...sections,
-          {
-            label: 'Administración',
-            items: [
-              { id: 'dashboard', label: 'Actividad', icon: Activity },
-              { id: 'admin-users', label: 'Usuarios', icon: Shield },
-              { id: 'logs', label: 'Logs', icon: FileTextIcon },
-              { id: 'vigilancia', label: 'Vigilancia', icon: CameraIcon },
-              { id: 'rendimiento', label: 'Monitoreo', icon: Gauge },
-            ],
-          },
-        ]
+        {sections
           .map(section => ({ ...section, items: section.items.filter(item => canAccessPage(item.id, role)) }))
           .filter(section => section.items.length > 0)
           .map((section, si, arr) => (
@@ -244,7 +249,8 @@ const Sidebar: React.FC<SidebarProps> = ({
               fw={600}
               px={16}
               style={{
-                color: 'var(--text-muted)',
+                // --text-muted daba 1,9–2,8:1 en 8 temas; el secundario pasa AA en los 13
+                color: 'var(--text-secondary)',
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 fontSize: '10px',
@@ -277,8 +283,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                       height: '34px',
                       paddingLeft: '19px',
                       gap: '12px',
-                      color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                      backgroundColor: isActive ? 'var(--accent-primary-subtle)' : 'transparent',
+                      // --accent-text: el acento oscurecido donde el puro no pasa AA sobre su fondo (Polar Mint, Sepia…)
+                      color: isActive ? 'var(--accent-text, var(--accent-primary))' : 'var(--text-secondary)',
+                      // Mezcla del acento al 8 %: varios temas no definen --accent-primary-subtle y heredaban
+                      // un verde que no es el suyo; con 8 % el texto activo pasa AA en los 13 temas.
+                      backgroundColor: isActive ? 'color-mix(in srgb, var(--accent-primary) 8%, transparent)' : 'transparent',
                       borderRadius: '6px',
                       margin: '1px 6px',
                       width: 'calc(100% - 12px)',
@@ -377,6 +386,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Menu.Label>Usuario</Menu.Label>
             <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('perfil')}>Perfil</Menu.Item>
             <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('ajustes')}>Ajustes</Menu.Item>
+            {canAccessPage('themes', role) && <Menu.Item c="var(--mantine-color-text)" onClick={() => onOpenPanel('themes')}>Temas</Menu.Item>}
             {puedeVerComo(user?.roles) && (
               <>
                 <Menu.Divider />
@@ -390,11 +400,12 @@ const Sidebar: React.FC<SidebarProps> = ({
               </>
             )}
             <Menu.Divider />
-            <Menu.Item color="red" onClick={() => { setRolVerComo(null); logout(); }}>Cerrar Sesión</Menu.Item>
+            <Menu.Item color="red" onClick={() => { setRolVerComo(null); logout(); }}>Cerrar sesión</Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Box>
     </Box>
+    </>
   );
 };
 
