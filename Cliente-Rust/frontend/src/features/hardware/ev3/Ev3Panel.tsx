@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { getEv3Status, setEv3Motor, stopEv3Motors, type Ev3Status } from '../ev3.service';
 import { publishEv3Status } from '../ev3Telemetry';
 import Ev3Dashboard from './Ev3Dashboard';
-import Ev3Twin from './Ev3Twin';
+// el gemelo 3D trae three.js (cerca de 1,7 MB): se carga aparte, ver app/diferidos.ts
+import { Ev3Twin, precargar } from '@/app/diferidos';
 import Ev3Console from './Ev3Console';
 import './Ev3Panel.css';
 
@@ -56,6 +57,8 @@ const Ev3Panel: React.FC<Ev3PanelProps> = ({ sessionId }) => {
 
   // La telemetría también la leen los bloques interactivos del chat.
   useEffect(() => { publishEv3Status(status); }, [status]);
+  // el gemelo 3D se adelanta en cuanto hay panel del robot, antes de que alguien abra su pestaña
+  useEffect(() => { precargar('ev3'); }, []);
   useEffect(() => () => publishEv3Status(null), []);
 
   useEffect(() => {
@@ -100,7 +103,11 @@ const Ev3Panel: React.FC<Ev3PanelProps> = ({ sessionId }) => {
         {view === 'dashboard' && (
           <Ev3Dashboard status={status} onSetSpeed={handleSetSpeed} onStopAll={handleStopAll} />
         )}
-        {view === 'twin' && <Ev3Twin status={status} />}
+        {view === 'twin' && (
+          <Suspense fallback={<p className="m-0 p-4 text-[13px] text-ui-apagado" role="status">Cargando el modelo 3D…</p>}>
+            <Ev3Twin status={status} />
+          </Suspense>
+        )}
         <div className="ev3-panel-pane" style={pane('consola')}>
           <Ev3Console sessionId={sessionId} />
         </div>

@@ -21,6 +21,7 @@ import type { LinuxPracticeSessionApi } from './useLinuxPracticeSession';
 import { useEarnedBadges } from './badges.service';
 import { consumePendingPracticesFocus, consumePendingPracticeOpen, onPracticeOpenRequest, consumirVistaPracticas, alPedirVistaPracticas } from './practiceNavigation.service';
 import { notifications } from '@mantine/notifications';
+import { precargar } from '@/app/diferidos';
 
 export type { Practice };
 
@@ -83,6 +84,8 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const [pestana, setPestana] = useState<Pestana>(pestanaInicial);
     // Volver a abrir «Encuestas» desde otro lado (p. ej. un enlace viejo a la página) cambia la pestaña
     useEffect(() => { setPestana(pestanaInicial); }, [pestanaInicial]);
+    // quien abre Prácticas suele empezar una: la terminal y el chat se adelantan (app/diferidos.ts)
+    useEffect(() => { precargar('sesion', 'lectores'); }, []);
     const logEndRef = useRef<HTMLDivElement>(null);
     // `abrirModulo` (más abajo) también lo usa el enlace desde Moodle, que se registra antes en un efecto.
     const abrirModuloRef = useRef<(id: string) => Promise<void>>(async () => {});

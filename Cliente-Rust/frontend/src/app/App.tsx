@@ -1,5 +1,5 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { gsap } from 'gsap'
 import './App.css'
 
@@ -16,13 +16,11 @@ import { Notifications } from '@mantine/notifications'
 import Sidebar from './layout/Sidebar'
 import { MacWindowDragStrip } from './window/MacWindowDragStrip'
 import HomeContainer from './layout/HomeContainer'
-import SessionContainer from '@/features/sesion/SessionContainer'
-import LogTabsContainer from '@/features/logs/LogTabsContainer'
 
 // Panels
 import SidePanel from './SidePanel'
-import PinsPanel from '@/features/hardware/gpio/PinsPanel'
-import DomoticaPanel from '@/features/hardware/arduino/DomoticaPanel'
+// sesiones, registros y paneles de hardware se cargan aparte; ver app/diferidos.ts
+import { DomoticaPanel, LogTabsContainer, PinsPanel, SessionContainer, precargarEnReposo } from './diferidos'
 
 // Contexts
 import { LoadingProvider } from './providers/LoadingContext'
@@ -371,6 +369,9 @@ const AppMain: React.FC = () => {
     })
   }, [isSidebarOpen, isAuthenticated])
 
+  // Ya pintada la app, lo demás se baja de fondo (app/diferidos.ts)
+  useEffect(() => { if (!isLoading) precargarEnReposo() }, [isLoading])
+
   // ── Visibilidad de paneles ───────────────────────────────────────────────────
   const isPinsVisible = isPinsPanelOpen && activeTab.type === 'session'
   const isDomoticaVisible = isDomoticaPanelOpen && activeTab.type === 'session'
@@ -454,7 +455,8 @@ const AppMain: React.FC = () => {
                   />
                 </div>
               )}
-              <SessionContainer
+              <Suspense fallback={null}>
+              {hasSessionTabs && <SessionContainer
                 tabs={tabs}
                 activeTabId={activeTabId}
                 selectedPage={selectedPage}
@@ -466,20 +468,21 @@ const AppMain: React.FC = () => {
                 practiceMeta={combinedPracticeMeta}
                 onCloseTab={handleCloseTab}
                 linuxSession={linuxSession}
-              />
-              <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />
+              />}
+              {tabs.some(t => t.type === 'log') && <LogTabsContainer tabs={tabs} activeTabId={activeTabId} closeTab={handleCloseTab} />}
+              </Suspense>
             </main>
           </div>
 
           {isPinsVisible && (
             <SidePanel title="Control de Pines GPIO" ariaLabel="Panel de pines GPIO" onClose={closePinsPanel}>
-              <PinsPanel sessionId={activeTab.id} />
+              <Suspense fallback={null}><PinsPanel sessionId={activeTab.id} /></Suspense>
             </SidePanel>
           )}
 
           {isDomoticaVisible && (
             <SidePanel title="Domótica (Arduino)" ariaLabel="Panel de Domótica" onClose={closeDomoticaPanel}>
-              <DomoticaPanel sessionId={activeTab.id} />
+              <Suspense fallback={null}><DomoticaPanel sessionId={activeTab.id} /></Suspense>
             </SidePanel>
           )}
         </div>

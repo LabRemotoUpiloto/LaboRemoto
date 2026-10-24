@@ -1,17 +1,10 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import LandingPage from '@/features/inicio/LandingPage'
-import ConexionesPage from '@/features/conexion/ConexionesPage'
-import GuestConnectPage from '@/features/conexion/GuestConnectPage'
-import ThemesPage from '@/features/cuenta/ThemesPage'
-import PerfilPage from '@/features/cuenta/PerfilPage'
-import AjustesPage from '@/features/cuenta/AjustesPage'
-import PracticesPage from '@/features/practicas/PracticesPage'
-import ReservasPage from '@/features/reservas/ReservasPage'
-import MisCursosPage from '@/features/cursos/MisCursosPage'
-import UserManagementPage from '@/features/usuarios/UserManagementPage'
-import VigilanciaPage from '@/features/camaras/VigilanciaPage'
-import DashboardPage from '@/features/actividad/DashboardPage'
-import RendimientoPage from '@/features/monitoreo/RendimientoPage'
+// Inicio llega con la app; las demás páginas se cargan aparte (app/diferidos.ts), casi siempre antes de que alguien las abra
+import {
+  AjustesPage, ConexionesPage, DashboardPage, GuestConnectPage, MisCursosPage, PerfilPage, PracticesPage, ReservasPage,
+  RendimientoPage, ThemesPage, UserManagementPage, VigilanciaPage,
+} from '@/app/diferidos'
 import type { SessionLog } from '@/features/logs/sesiones'
 import { useEffectiveRole, canAccessPage } from '@/features/cuenta/usePermissions'
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession'
@@ -49,6 +42,7 @@ const HomeContainer: React.FC<Props> = ({
 
   return (
     <div style={{ height: '100%' }}>
+      <Suspense fallback={<CargandoPagina />}>
       {effectivePage === 'landing' ? (
         <LandingPage
           onStartTutorial={pedirTutorialBienvenida}
@@ -86,6 +80,16 @@ const HomeContainer: React.FC<Props> = ({
           onOpenPanel={onOpenPanel}
         />
       )}
+      </Suspense>
+    </div>
+  )
+}
+
+/** Si la página todavía no había terminado de cargar de fondo: un instante, con el fondo de la página. */
+function CargandoPagina() {
+  return (
+    <div role="status" className="flex h-full items-center justify-center bg-ui-fondo text-[13px] text-ui-apagado">
+      Cargando…
     </div>
   )
 }

@@ -20,11 +20,11 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist",
     rollupOptions: {
       output: {
+        // Sin grupos a mano para three, pdf y xterm: al juntarlos, Rollup metía ahí también lo que comparten con el resto
+        // (react-dom terminaba en el paquete de three) y todo se cargaba al arrancar. Ahora cada pieza diferida
+        // (src/app/diferidos.ts) sale en su propio paquete.
         manualChunks: {
           mantine: ["@mantine/core", "@mantine/hooks", "@mantine/modals", "@mantine/notifications"],
-          three: ["three", "@react-three/fiber", "@react-three/drei"],
-          pdf: ["pdfjs-dist", "mammoth", "html2pdf.js"],
-          xterm: ["@xterm/xterm", "@xterm/addon-fit", "@xterm/addon-serialize", "@xterm/addon-web-links"],
         },
       },
     },

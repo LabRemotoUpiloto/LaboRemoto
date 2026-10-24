@@ -27,7 +27,8 @@ interface Props {
   showPtz?: boolean
 }
 
-export const PILOT_GROUP_KEY = 'pilabpiloto'
+import { PILOT_GROUP_KEY } from './grupos'
+export { PILOT_GROUP_KEY }
 
 const CameraIcon = () => (
   <svg viewBox="0 0 44 44" fill="none" width="40" height="40">
