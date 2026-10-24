@@ -37,15 +37,17 @@ export function paginasVisibles(actual: number, paginas: number): (number | '…
 }
 
 /** Pie de una lista paginada: «1–15 de 214 eventos» y las páginas. */
-export function Paginador<T>({ pagina, onPagina, unidad, extra }: {
+export function Paginador<T>({ pagina, onPagina, unidad, extra, margen = 'px-6' }: {
   pagina: PaginaDeLista<T>;
   onPagina: (p: number) => void;
   unidad: string;
   extra?: React.ReactNode;
+  /** Margen a los lados: dentro de un panel que ya tiene el suyo, 'px-0'. */
+  margen?: string;
 }) {
   const boton = `inline-flex h-7 min-w-[30px] items-center justify-center ${RADIO} border-[length:var(--card-border-width,1px)] border-transparent font-ui-num text-[13px]`;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ui-pista px-6 py-3">
+    <div className={`flex flex-wrap items-center justify-between gap-3 border-t border-ui-pista ${margen} py-3`}>
       <span className={NOTA + ' text-xs'}>
         {pagina.total ? `${pagina.desde}–${pagina.hasta} de ${pagina.total} ${unidad}` : `0 ${unidad}`}
         {extra}

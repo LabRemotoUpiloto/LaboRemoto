@@ -1,5 +1,9 @@
+// features/inicio/AgentHomeHero.tsx — la portada de Inicio (y del chat vacío): logo, «Laboratorio remoto», la bienvenida y la
+// abeja. Sin sesión, el botón es «Iniciar sesión» (y, mientras se espera al navegador, abrirlo de nuevo o cancelar); con sesión,
+// «Iniciar recorrido».
 import React from 'react';
 import { GraduationCap } from 'lucide-react';
+import { Boton, BotonPrincipal, TARJETA } from '@/components/ui';
 import { useAuth } from '@/features/cuenta/AuthContext';
 import { unipilotoLogo } from '@/assets/logoBase64';
 
@@ -9,106 +13,54 @@ interface AgentHomeHeroProps {
   onStartTutorial?: () => void;
 }
 
-const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
-  displayName,
-  onStartTutorial,
-}) => {
+const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({ displayName, onStartTutorial }) => {
   const { isAuthenticated, login, cancelLogin, isLoading, isLoggingIn } = useAuth();
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[1.15fr_0.85fr] gap-8 md:gap-16 items-center w-full h-full max-w-[1120px] mx-auto px-4 py-6 md:p-10 box-border animate-[agent-home-in_0.55s_ease-out_both]">
-      {/* Columna Izquierda: Contenido e información */}
-      <div className="flex flex-col items-center text-center md:items-start md:text-left">
-        <div className="inline-flex items-center gap-3 mb-5 md:mb-6 text-[11px] font-extrabold tracking-[0.16em] uppercase text-[var(--text-secondary)]">
-          <img src={unipilotoLogo} alt="Universidad Piloto de Colombia" className="w-[34px] h-[34px] object-contain bg-white rounded-lg p-1 border border-[var(--border-subtle)]" />
-          <span>Laboratorio remoto Unipiloto</span>
-        </div>
+    <section className="mx-auto grid w-full max-w-[1080px] grid-cols-1 items-center gap-8 px-4 py-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] md:gap-12 md:px-8">
+      <div className="flex flex-col items-center gap-6 text-center md:items-start md:text-left">
+        <span className="inline-flex items-center gap-3 text-[11px] font-extrabold uppercase tracking-[0.16em] text-ui-tinta-2">
+          <img src={unipilotoLogo} alt="Universidad Piloto de Colombia" className="h-[34px] w-[34px] rounded-ui border border-ui-borde bg-white object-contain p-1" />
+          Laboratorio remoto Unipiloto
+        </span>
 
-        <h1 id="landing-title" className="m-0 max-w-[680px] text-[clamp(2.55rem,10vw,4.1rem)] md:text-[clamp(3.2rem,7.4vw,5.5rem)] font-[850] tracking-[-0.075em] leading-[0.94] text-[var(--text-primary)] flex flex-col items-center text-center md:items-start md:text-left">
-          Laboratorio
-          <span className="flex items-center justify-center md:justify-start gap-3 md:gap-[clamp(16px,2.4vw,28px)] text-[#d51f22]">
-            <span>remoto</span>
-          </span>
+        <h1 id="landing-title" className="m-0 flex flex-col font-ui-titulo text-[clamp(2.55rem,10vw,4.1rem)] font-extrabold leading-[0.94] tracking-[-0.06em] text-ui-tinta md:text-[clamp(3.2rem,7.4vw,5.5rem)]">
+          Laboratorio<span className="text-ui-acento-texto">remoto</span>
         </h1>
 
-        <p className="mt-4 mb-6 md:mt-6 md:mb-8 max-w-[540px] text-[0.95rem] md:text-[1.05rem] leading-[1.6] text-[var(--text-secondary)] text-center md:text-left">
+        <p className="m-0 max-w-[540px] text-[15px] leading-relaxed text-ui-tinta-2 md:text-[16px]">
           {displayName ? `${displayName}, bienvenido` : 'Bienvenido'} a tu espacio de prácticas. Aquí podrás interactuar de forma real y segura con equipos de laboratorio para complementar tu formación académica.
         </p>
 
         {!isAuthenticated && isLoggingIn ? (
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex flex-col items-center md:items-start gap-3 w-full max-w-[460px] p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--background-secondary)]"
-          >
-            <p className="m-0 text-[13.5px] leading-[1.5] text-[var(--text-secondary)] text-center md:text-left">
-              <span className="text-[var(--text-primary)]">Esperando el inicio de sesión en tu navegador…</span>
+          <div role="status" aria-live="polite" className={`${TARJETA} flex w-full max-w-[460px] flex-col gap-3 px-5 py-4 text-left`}>
+            <p className="m-0 text-[13px] leading-normal text-ui-tinta-2">
+              <span className="text-ui-tinta">Esperando el inicio de sesión en tu navegador…</span>
               <br />
               ¿Cerraste la ventana o no se abrió? Puedes volver a abrirla.
             </p>
-            <div className="flex flex-wrap justify-center md:justify-start gap-2.5">
-              <button
-                type="button"
-                className="inline-flex items-center px-5 py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white border-none rounded-full text-[13px] font-bold cursor-pointer transition-colors duration-200"
-                onClick={login}
-              >
-                Abrir de nuevo
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center px-5 py-2.5 bg-transparent text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-full text-[13px] font-semibold cursor-pointer transition-colors duration-200 hover:text-[var(--text-primary)]"
-                onClick={cancelLogin}
-              >
-                Cancelar
-              </button>
+            <div className="flex flex-wrap gap-2">
+              <BotonPrincipal onClick={login}>Abrir de nuevo</BotonPrincipal>
+              <Boton onClick={cancelLogin}>Cancelar</Boton>
             </div>
           </div>
         ) : !isAuthenticated ? (
-          <div className="flex justify-center md:justify-start w-full">
-            <button
-              type="button"
-              className="group inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:translate-y-0 active:shadow-[0_4px_10px_-2px_var(--accent-guard-shadow,rgba(0,0,0,0.3))] text-white border-none rounded-full text-[13.5px] font-bold cursor-pointer shadow-[0_6px_16px_-4px_var(--accent-guard-shadow,rgba(0,0,0,0.3))] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_var(--accent-guard-shadow,rgba(0,0,0,0.45))] disabled:opacity-70 disabled:cursor-not-allowed"
-              onClick={login}
-              disabled={isLoading}
-            >
-              <span>{isLoading ? 'Cargando...' : 'Iniciar sesión'}</span>
-            </button>
-          </div>
-        ) : (
-          onStartTutorial && (
-            <div className="flex justify-center md:justify-start w-full">
-              <button
-                type="button"
-                className="group inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:translate-y-0 active:shadow-[0_4px_10px_-2px_rgba(213,31,34,0.3)] text-white border-none rounded-full text-[13.5px] font-bold cursor-pointer shadow-[0_6px_16px_-4px_rgba(213,31,34,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_rgba(213,31,34,0.45)]"
-                onClick={onStartTutorial}
-                data-tour="inicio-tutorial"
-              >
-                <GraduationCap size={18} strokeWidth={2} className="text-white transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
-                <span>Iniciar recorrido</span>
-              </button>
-            </div>
-          )
+          <BotonPrincipal onClick={login} disabled={isLoading} className="h-[42px] px-6 text-[14px]">
+            {isLoading ? 'Cargando…' : 'Iniciar sesión'}
+          </BotonPrincipal>
+        ) : onStartTutorial && (
+          <BotonPrincipal onClick={onStartTutorial} data-tour="inicio-tutorial" className="h-[42px] px-5 text-[14px]">
+            <GraduationCap size={18} aria-hidden /> Iniciar recorrido
+          </BotonPrincipal>
         )}
       </div>
 
-      {/* Columna Derecha: Composición de la Mascota */}
-      <div className="flex justify-center items-center w-full">
-        <div className="relative w-[240px] h-[240px] md:w-[320px] md:h-[320px] flex items-center justify-center">
-          {/* Ejes (Crosshair) */}
-          <div className="absolute z-0 left-0 right-0 top-1/2 h-[1px] bg-[var(--border-subtle)] opacity-40 pointer-events-none" />
-          <div className="absolute z-0 top-0 bottom-0 left-1/2 w-[1px] bg-[var(--border-subtle)] opacity-40 pointer-events-none" />
-
-          {/* Anillos orbitales */}
-          <div className="absolute z-0 w-[210px] h-[210px] md:w-[280px] md:h-[280px] rounded-full border border-dashed border-[var(--accent-primary)] opacity-25 pointer-events-none" />
-          <div className="absolute z-0 w-[176px] h-[176px] md:w-[236px] md:h-[236px] rounded-full border border-[var(--border-subtle)] opacity-50 pointer-events-none" />
-
-          {/* Círculo central con Mascota */}
-          <div className="relative z-10 w-[140px] h-[140px] md:w-[190px] md:h-[190px] rounded-full bg-[var(--background-secondary)] border border-[var(--border-strong)] flex items-center justify-center overflow-hidden shadow-[0_20px_40px_-15px_rgba(0,0,0,0.22),_inset_0_2px_4px_rgba(255,255,255,0.05)] transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent-primary)]">
-            <img src="/abeja1.webp" alt="Mascota Abeja" className="w-[96px] h-[96px] md:w-[130px] md:h-[130px] object-contain rounded-full" />
-          </div>
-        </div>
+      <div className="flex justify-center">
+        <span className="flex h-[180px] w-[180px] items-center justify-center rounded-full border border-ui-borde bg-ui-superficie md:h-[240px] md:w-[240px]">
+          <img src="/abeja1.webp" alt="Mascota del laboratorio" className="h-[112px] w-[112px] object-contain md:h-[150px] md:w-[150px]" />
+        </span>
       </div>
-    </div>
+    </section>
   );
 };
 
