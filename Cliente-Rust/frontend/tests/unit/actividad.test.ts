@@ -156,8 +156,9 @@ describe('para revisar', () => {
       act('6', 'beto', 'ssh', 20, 10, { operador: 'AS14061 DigitalOcean, LLC', ip: '159.89.1.1' }),
     ]);
     expect(items.map((x) => [x.motivo, x.persona, x.veces])).toEqual([['servidor', 'beto', 1], ['pais', 'ana', 1], ['dudosa', 'haider', 2]]);
-    expect(items[1].texto).toBe('entró desde Brasil; lo habitual es Colombia');
-    expect(items[0].texto).toBe('entró desde un servidor o VPN: DigitalOcean, LLC, IP 159.89.1.1');
+    expect(items[1].lineas).toEqual(['Esta vez: São Paulo, Brasil', 'Lo habitual: Colombia']);
+    expect(items[0].lineas).toEqual(['Operador: DigitalOcean, LLC', 'IP: 159.89.1.1, Bogotá, CO']);
+    expect(items[2].lineas).toEqual(['Equipo: Mariara, Venezuela', 'IP: Bogotá, Colombia (Telmex Colombia S.A.)']);
   });
 
   it('sin nada raro, nada que revisar; el operador se muestra sin el número de AS', () => {

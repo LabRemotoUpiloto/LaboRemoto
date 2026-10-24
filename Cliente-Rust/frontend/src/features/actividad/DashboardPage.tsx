@@ -14,7 +14,7 @@ import { useResumen } from './useResumen';
 import MapaActividad, { type PuntoMapa } from './MapaActividad';
 import {
   cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, diaCorto, enVivo, fechaCorta, lapso, lugares, nombreOperador,
-  paraRevisar, personas, porDia, recientes, TEXTO_TIPO, total, type Actividad, type Filtro, type Tipo,
+  paraRevisar, personas, porDia, recientes, TEXTO_MOTIVO, TEXTO_TIPO, total, type Actividad, type Filtro, type Tipo,
 } from './actividad';
 
 type Cuando = 'vivo' | 'historico';
@@ -214,20 +214,20 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
       </p>
       {revisar.length > 0 && (
         <Seccion titulo="Para revisar">
-          <div className={`${TARJETA} border-l-[3px] border-l-ui-alerta`}>
-            <ul className="m-0 list-none p-0">
-              {pagRevisar.filas.map((x, i) => (
-                <li key={x.id} className={i ? 'border-t border-ui-pista' : ''}>
-                  <button type="button" onClick={() => { setElegido(x.persona); setLugar(x.lugar); }}
-                    className="flex w-full flex-col gap-0.5 px-5 py-2.5 text-left hover:bg-ui-hover">
-                    <span className="text-[13px] text-ui-tinta"><span className="font-semibold">{x.nombre}</span> {x.texto}.</span>
-                    <span className={NOTA}>{x.veces} {x.veces === 1 ? 'vez' : 'veces'}, la última el {fechaCorta(x.ultima)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {revisar.length > POR_PAGINA_REVISAR && <Paginador pagina={pagRevisar} onPagina={setPaginaRevisar} unidad="avisos" />}
-          </div>
+          <Tabla
+            plantilla="grid-cols-[minmax(0,1fr)_140px_minmax(0,1.6fr)_60px_110px_70px]"
+            columnas={[{ titulo: 'Persona' }, { titulo: 'Motivo' }, { titulo: 'Lo que se vio' }, { titulo: 'Veces', derecha: true }, { titulo: 'Última', derecha: true }, { titulo: '' }]}
+            claves={pagRevisar.filas.map((x) => x.id)}
+            filas={pagRevisar.filas.map((x) => [
+              <span className="block truncate font-semibold text-ui-tinta" title={x.nombre}>{x.nombre}</span>,
+              <span>{TEXTO_MOTIVO[x.motivo]}</span>,
+              <span className="flex min-w-0 flex-col">{x.lineas.map((l) => <span key={l} className="block truncate" title={l}>{l}</span>)}</span>,
+              <Num>{x.veces}</Num>,
+              <Num>{fechaCorta(x.ultima)}</Num>,
+              <span className="flex justify-end"><Boton onClick={() => { setElegido(x.persona); setLugar(x.lugar); }}>Ver</Boton></span>,
+            ])}
+            pie={revisar.length > POR_PAGINA_REVISAR && <Paginador pagina={pagRevisar} onPagina={setPaginaRevisar} unidad="avisos" />}
+          />
         </Seccion>
       )}
 

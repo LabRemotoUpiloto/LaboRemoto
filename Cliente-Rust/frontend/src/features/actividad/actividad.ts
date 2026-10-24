@@ -215,12 +215,16 @@ const SERVIDOR = /amazon|aws|google cloud|google llc|microsoft|azure|digitalocea
 /** «AS10620 Telmex Colombia S.A.» → «Telmex Colombia S.A.». */
 export const nombreOperador = (org: string | null) => (org ? org.replace(/^AS\d+\s+/, '') : null);
 
+export type Motivo = 'dudosa' | 'pais' | 'servidor';
+export const TEXTO_MOTIVO: Record<Motivo, string> = { dudosa: 'Ubicación dudosa', pais: 'Otro país', servidor: 'Servidor o VPN' };
+
 export interface ParaRevisar {
   id: string;
-  motivo: 'dudosa' | 'pais' | 'servidor';
+  motivo: Motivo;
   persona: string;
   nombre: string;
-  texto: string;
+  /** Lo que se vio, una cosa por línea («Equipo: …», «IP: …»). */
+  lineas: string[];
   veces: number;
   ultima: number;
   /** El lugar del mapa al que lleva. */
@@ -233,8 +237,8 @@ export interface ParaRevisar {
  */
 export function paraRevisar(actividades: Actividad[]): ParaRevisar[] {
   const grupos = new Map<string, ParaRevisar>();
-  const sumar = (clave: string, a: Actividad, motivo: ParaRevisar['motivo'], texto: string) => {
-    const g = grupos.get(clave) ?? { id: clave, motivo, persona: a.persona, nombre: a.nombre, texto, veces: 0, ultima: 0, lugar: a.lugar };
+  const sumar = (clave: string, a: Actividad, motivo: Motivo, lineas: string[]) => {
+    const g = grupos.get(clave) ?? { id: clave, motivo, persona: a.persona, nombre: a.nombre, lineas, veces: 0, ultima: 0, lugar: a.lugar };
     g.veces++;
     g.ultima = Math.max(g.ultima, a.inicio);
     grupos.set(clave, g);
@@ -253,14 +257,14 @@ export function paraRevisar(actividades: Actividad[]): ParaRevisar[] {
   for (const a of actividades) {
     if (a.dudosa) {
       sumar(`dudosa:${a.persona}:${a.lugarEquipo}:${a.lugar}`, a, 'dudosa',
-        `el equipo dijo ${a.lugarEquipo} y la IP es de ${a.lugar}${a.operador ? ` (${nombreOperador(a.operador)})` : ''}`);
+        [`Equipo: ${a.lugarEquipo}`, `IP: ${a.lugar}${a.operador ? ` (${nombreOperador(a.operador)})` : ''}`]);
     }
     if (a.operador && SERVIDOR.test(a.operador)) {
-      sumar(`servidor:${a.persona}:${a.operador}`, a, 'servidor', `entró desde un servidor o VPN: ${nombreOperador(a.operador)}, IP ${a.ip}`);
+      sumar(`servidor:${a.persona}:${a.operador}`, a, 'servidor', [`Operador: ${nombreOperador(a.operador)}`, `IP: ${a.ip}, ${a.lugar}`]);
     }
     const h = habitual(a.persona);
     if (a.pais && h && a.pais !== h) {
-      sumar(`pais:${a.persona}:${a.pais}`, a, 'pais', `entró desde ${nombrePais(a.pais)}; lo habitual es ${nombrePais(h)}`);
+      sumar(`pais:${a.persona}:${a.pais}`, a, 'pais', [`Esta vez: ${a.lugar}`, `Lo habitual: ${nombrePais(h)}`]);
     }
   }
   return [...grupos.values()].sort((a, b) => b.ultima - a.ultima);
