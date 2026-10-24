@@ -172,7 +172,7 @@ export function useConnectionActions({
 
   // ── Guardar host cifrado ──────────────────────────────────────────────────────
 
-  const handleSaveHost = async (name: string) => {
+  const handleSaveHost = async (name: string, description = '') => {
     if (!validateForm()) {
       push({ type: 'error', message: 'Corrige los errores antes de guardar' });
       return;
@@ -183,7 +183,10 @@ export function useConnectionActions({
       if (isEditMode && originalHostFile && originalHostFile !== newHostId) {
         try { await deleteHostFile(originalHostFile); } catch { /* ignorar */ }
       }
-      await saveHostWithMaster(newHostId, { host: host.trim(), port: safePort, user: user.trim(), password, name: name.trim() || undefined });
+      await saveHostWithMaster(newHostId, {
+        host: host.trim(), port: safePort, user: user.trim(), password,
+        name: name.trim() || undefined, description: description.trim() || undefined,
+      });
       setSuccessAlertMessage(isEditMode ? 'Host editado correctamente' : 'Host guardado correctamente');
       // El reset de isEditMode/originalHostFile pasa por clearForm(), que
       // dispara el modal de éxito de ConnectForm.tsx al confirmar/cerrar --

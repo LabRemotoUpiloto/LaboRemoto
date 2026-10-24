@@ -14,8 +14,8 @@ vi.mock('@/app/providers/LoadingContext', () => ({ useLoading: () => ({ setLoadi
 import ConexionesPage from '@/features/conexion/ConexionesPage';
 import { useAppStore } from '@/store/app';
 
-const guardado = (file: string, name: string, host: string, user: string) =>
-  ({ file, payload: { name, host, port: 22, user, password: 'x' } });
+const guardado = (file: string, name: string, host: string, user: string, description?: string) =>
+  ({ file, payload: { name, host, port: 22, user, password: 'x', description } });
 
 beforeAll(() => {
   window.matchMedia ??= ((q: string) => ({
@@ -28,7 +28,7 @@ beforeEach(() => {
   try { window.localStorage.removeItem('ssh-recent-connections-v1'); } catch { /* Node 25 trae un localStorage a medias */ }
   invoke.mockReset();
   invoke.mockImplementation(async (cmd: string) => {
-    if (cmd === 'list_hosts_entries') return [guardado('a.json.enc', 'Servidor de pruebas', '10.0.0.5', 'ubuntu')];
+    if (cmd === 'list_hosts_entries') return [guardado('a.json.enc', 'Servidor de pruebas', '10.0.0.5', 'ubuntu', 'Docker del semillero')];
     if (cmd === 'list_session_logs') return [];
     return null;
   });
@@ -95,6 +95,27 @@ describe('Conexiones', () => {
     const dialogo = await screen.findByRole('dialog');
     expect(within(dialogo).getByText('Conectar a la Raspberry Pi 4')).toBeTruthy();
     expect(within(dialogo).queryByLabelText('Host')).toBeNull();
+  });
+
+  it('cada equipo guardado muestra su descripción y se puede buscar por ella', async () => {
+    armar(['admin_lab']);
+    expect(await screen.findByText('Docker del semillero')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Buscar equipos guardados'), { target: { value: 'semillero' } });
+    expect(screen.getByText('Servidor de pruebas')).toBeTruthy();
+  });
+
+  it('editar un equipo trae su nombre y su descripción, y los guarda', async () => {
+    armar(['admin_lab']);
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar Servidor de pruebas' }));
+    const dialogo = await screen.findByRole('dialog');
+    expect((within(dialogo).getByLabelText('Nombre') as HTMLInputElement).value).toBe('Servidor de pruebas');
+    const descripcion = within(dialogo).getByLabelText('Descripción') as HTMLTextAreaElement;
+    expect(descripcion.value).toBe('Docker del semillero');
+    fireEvent.change(descripcion, { target: { value: 'Docker y Kubernetes del semillero' } });
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('save_host_master', expect.objectContaining({ id: '10.0.0.5:22:ubuntu' })));
+    const guardadoJson = JSON.parse(invoke.mock.calls.find((c) => c[0] === 'save_host_master')![1].jsonPayload);
+    expect(guardadoJson).toMatchObject({ name: 'Servidor de pruebas', description: 'Docker y Kubernetes del semillero' });
   });
 
   it('eliminar un equipo pide confirmación y lo borra', async () => {

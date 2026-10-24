@@ -26,6 +26,22 @@ interface Props {
   onGuardado?: () => void;
 }
 
+/** Nombre y descripción con que se guarda el equipo (al crearlo son opcionales). */
+function DatosDelEquipo({ nombre, onNombre, descripcion, onDescripcion, deshabilitado, opcionales = false }: {
+  nombre: string; onNombre: (v: string) => void; descripcion: string; onDescripcion: (v: string) => void;
+  deshabilitado: boolean; opcionales?: boolean;
+}) {
+  const sufijo = opcionales ? ' (opcional)' : '';
+  return (
+    <>
+      <Campo etiqueta={`Nombre${sufijo}`} placeholder="Por ejemplo: servidor de pruebas" disabled={deshabilitado} value={nombre}
+        onChange={(e) => onNombre(e.currentTarget.value)} />
+      <Campo etiqueta={`Descripción${sufijo}`} placeholder="Para qué es, quién lo usa, algo que conviene recordar" filas={2}
+        disabled={deshabilitado} value={descripcion} maxLength={200} onChange={(e) => onDescripcion(e.currentTarget.value)} />
+    </>
+  );
+}
+
 /** Mensaje de validación debajo del campo, en el color de error del tema. */
 const ErrorCampo = ({ id, texto }: { id: string; texto?: string }) =>
   texto ? <span id={id} className="-mt-2.5 text-[12px] text-ui-critico-texto">{texto}</span> : null;
@@ -38,6 +54,7 @@ export default function NuevaConexionDialogo({
   const [error, setError] = useState<string | null>(null);
   const [guardar, setGuardar] = useState(false);
   const [nombre, setNombre] = useState('');
+  const [descripcionEquipo, setDescripcionEquipo] = useState('');
 
   const f = useConnectForm({
     onConnected: (s) => { onCerrar(); onConnected({ id: s.id, label: s.label ?? s.id }); },
@@ -52,8 +69,12 @@ export default function NuevaConexionDialogo({
   const esPi = f.isRaspberryPi();
   const conectando = f.isConnecting;
 
-  // Al editar, el nombre que ya tenía
-  useEffect(() => { if (edicion) setNombre(f.hostName); }, [edicion, f.hostName]);
+  // Al editar, el nombre y la descripción que ya tenía
+  useEffect(() => {
+    if (!edicion) return;
+    setNombre(f.hostName);
+    setDescripcionEquipo(f.hostDescription);
+  }, [edicion, f.hostName, f.hostDescription]);
 
   // useConnectionActions avisa el guardado con este par de estados (antes abría un modal de «¡Éxito!»)
   useEffect(() => {
@@ -69,7 +90,7 @@ export default function NuevaConexionDialogo({
   const conectar = async () => {
     if (!f.isValid || conectando) return;
     setError(null);
-    if (guardar && !edicion) await f.handleSaveHost(nombre);
+    if (guardar && !edicion) await f.handleSaveHost(nombre, descripcionEquipo);
     await f.connect();
   };
 
@@ -85,7 +106,7 @@ export default function NuevaConexionDialogo({
     <Dialogo titulo={titulo} descripcion={descripcion} onCerrar={onCerrar}
       acciones={<>
         <Boton onClick={onCerrar}>Cancelar</Boton>
-        {edicion && <Boton onClick={() => void f.handleSaveHost(nombre)} disabled={conectando}>Guardar cambios</Boton>}
+        {edicion && <Boton onClick={() => void f.handleSaveHost(nombre, descripcionEquipo)} disabled={conectando}>Guardar cambios</Boton>}
         <BotonPrincipal type="submit" form="nueva-conexion" disabled={!f.isValid || conectando}>
           {conectando ? 'Conectando…' : <>Conectar <ArrowRight size={15} aria-hidden /></>}
         </BotonPrincipal>
@@ -140,8 +161,8 @@ export default function NuevaConexionDialogo({
         <ErrorCampo id="error-clave" texto={f.errors.password} />
 
         {edicion ? (
-          <Campo etiqueta="Nombre" placeholder="Por ejemplo: Raspberry del laboratorio" disabled={conectando} value={nombre}
-            onChange={(e) => setNombre(e.currentTarget.value)} />
+          <DatosDelEquipo nombre={nombre} onNombre={setNombre} descripcion={descripcionEquipo} onDescripcion={setDescripcionEquipo}
+            deshabilitado={conectando} />
         ) : !esPi && (
           <>
             <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] text-ui-tinta-2">
@@ -150,8 +171,8 @@ export default function NuevaConexionDialogo({
               Guardar en mis equipos (la contraseña queda cifrada)
             </label>
             {guardar && (
-              <Campo etiqueta="Nombre (opcional)" placeholder="Por ejemplo: servidor de pruebas" disabled={conectando} value={nombre}
-                onChange={(e) => setNombre(e.currentTarget.value)} />
+              <DatosDelEquipo nombre={nombre} onNombre={setNombre} descripcion={descripcionEquipo} onDescripcion={setDescripcionEquipo}
+                deshabilitado={conectando} opcionales />
             )}
           </>
         )}

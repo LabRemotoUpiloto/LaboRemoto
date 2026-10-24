@@ -42,6 +42,7 @@ export function useConnectionForm({
   const [isEditMode, setIsEditMode] = useState(false);
   const [originalHostFile, setOriginalHostFile] = useState<string | null>(null);
   const [hostName, setHostName] = useState('');
+  const [hostDescription, setHostDescription] = useState('');
 
   // ── Detección de tipo de dispositivo ─────────────────────────────────────────
 
@@ -111,6 +112,7 @@ export function useConnectionForm({
       setIsEditMode(isEdit);
       if (isEdit && p._originalFile) setOriginalHostFile(p._originalFile);
       setHostName(isEdit && p.name ? p.name : '');
+      setHostDescription(isEdit && p.description ? p.description : '');
     } else {
       setHost('');
       setPort('22');
@@ -121,6 +123,7 @@ export function useConnectionForm({
       setIsEditMode(false);
       setOriginalHostFile(null);
       setHostName('');
+      setHostDescription('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -194,6 +197,7 @@ export function useConnectionForm({
     setIsEditMode(false);
     setOriginalHostFile(null);
     setHostName('');
+    setHostDescription('');
     onQuickHostCleared?.();
   }, [onQuickHostCleared]);
 
@@ -212,7 +216,7 @@ export function useConnectionForm({
     // Handlers con validación
     handleHostChange, handlePortChange,
     // Estado derivado
-    errors, isValid, isPulsing, isEditMode, originalHostFile, hostName, isRaspberryPi: isRaspberryPiConnection,
+    errors, isValid, isPulsing, isEditMode, originalHostFile, hostName, hostDescription, isRaspberryPi: isRaspberryPiConnection,
     // Acciones de formulario
     validateForm, clearForm,
     // Helpers para acciones de conexión

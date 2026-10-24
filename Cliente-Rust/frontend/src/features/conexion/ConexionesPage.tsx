@@ -112,7 +112,7 @@ function Equipos({ onConnected }: { onConnected: Props['onConnected'] }) {
 
   const visibles = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return (entradas ?? []).filter(({ payload: h }) => !t || `${h.name ?? ''} ${h.host} ${h.user ?? ''}`.toLowerCase().includes(t));
+    return (entradas ?? []).filter(({ payload: h }) => !t || `${h.name ?? ''} ${h.description ?? ''} ${h.host} ${h.user ?? ''}`.toLowerCase().includes(t));
   }, [entradas, q]);
   const pag = paginar(visibles, pagina, POR_PAGINA);
 
@@ -152,7 +152,7 @@ function Equipos({ onConnected }: { onConnected: Props['onConnected'] }) {
       </Seccion>
 
       <Seccion titulo="Guardados" derecha={!!entradas?.length &&
-        <Buscador icono={Search} valor={q} onCambio={setQ} placeholder="Buscar por nombre o IP" etiqueta="Buscar equipos guardados" />}>
+        <Buscador icono={Search} valor={q} onCambio={setQ} placeholder="Buscar por nombre, descripción o IP" ancho="w-[260px]" etiqueta="Buscar equipos guardados" />}>
         {entradas === null ? (
           <FilasCargando plantilla="grid-cols-[minmax(0,1fr)_minmax(0,1fr)_200px]" columnas={3} filas={3} />
         ) : errorLista ? (
@@ -163,7 +163,7 @@ function Equipos({ onConnected }: { onConnected: Props['onConnected'] }) {
             detalle="Al conectarte a un servidor puedes guardarlo para entrar con un clic. La contraseña queda cifrada en este computador."
             accion={<Boton onClick={() => setDialogo({ tipo: 'nueva' })}><Plus size={14} aria-hidden /> Nueva conexión</Boton>} />
         ) : visibles.length === 0 ? (
-          <Aviso titulo="Ningún equipo coincide con la búsqueda" detalle="Prueba con otra parte del nombre, del usuario o de la IP." />
+          <Aviso titulo="Ningún equipo coincide con la búsqueda" detalle="Prueba con otra parte del nombre, de la descripción, del usuario o de la IP." />
         ) : (
           <Tabla plantilla="grid-cols-[minmax(0,1fr)_minmax(0,1fr)_200px]"
             columnas={[{ titulo: 'Nombre' }, { titulo: 'Usuario y dirección' }, { titulo: '' }]}
@@ -173,7 +173,9 @@ function Equipos({ onConnected }: { onConnected: Props['onConnected'] }) {
               return [
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-ui-tinta" title={nombreDe(e)}>{nombreDe(e)}</span>
-                  {isRaspberryPi4(h.host, Number(h.port)) && <span className="text-[11px] text-ui-apagado">Raspberry Pi 4 del laboratorio</span>}
+                  {h.description
+                    ? <span className="truncate text-[11px] text-ui-apagado" title={h.description}>{h.description}</span>
+                    : isRaspberryPi4(h.host, Number(h.port)) && <span className="text-[11px] text-ui-apagado">Raspberry Pi 4 del laboratorio</span>}
                 </span>,
                 <span className="block truncate font-ui-num text-[12px] text-ui-tinta" title={`${h.user ?? ''}@${h.host}:${h.port}`}>
                   {h.user}<span className="text-ui-apagado">@</span>{h.host}<span className="text-ui-apagado">:{h.port}</span>
