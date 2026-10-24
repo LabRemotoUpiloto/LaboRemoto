@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { informePaquetes } from './vite.informe'
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ command, mode }) => ({
   // `vite build --mode informe` (npm run build:informe): qué pesa cada paquete y qué se carga al arrancar
   plugins: [react(), ...(mode === 'informe' ? [informePaquetes()] : [])],
   // `@/` = src/ (también en tsconfig.json y vitest.config.ts)
@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => ({
   preview: {
     port: 5174
   },
+  // En el build los console.* no van (antes se apagaban al arrancar, en main.tsx, pero el código seguía en el paquete)
+  esbuild: command === 'build' ? { drop: ['console', 'debugger'] } : undefined,
   build: {
     target: ["esnext"],
     outDir: "dist",

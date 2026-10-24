@@ -112,7 +112,7 @@ export const PASOS_BIENVENIDA: PasoBienvenida[] = [
   {
     audio: '01.mp3', titulo: 'Bienvenido a LaboRemoto', pagina: 'landing',
     texto: 'Hola, soy el Profesor Bee. Bienvenido a LaboRemoto, el laboratorio remoto de la Universidad Piloto.',
-    ilustracion: img('/abeja-Profesor.jpeg', 'Profesor Bee'),
+    ilustracion: img('/abeja-profesor.webp', 'Profesor Bee'),
   },
   {
     audio: '02.mp3', titulo: 'Un laboratorio real, desde tu computador',
@@ -171,6 +171,6 @@ export const PASOS_BIENVENIDA: PasoBienvenida[] = [
   {
     audio: '13.mp3', titulo: '¡A practicar!', pagina: 'landing',
     texto: 'Y ya está. Elige tu primera práctica y empieza a aprender haciendo.',
-    ilustracion: img('/abeja-Profesor.jpeg', 'Profesor Bee'),
+    ilustracion: img('/abeja-profesor.webp', 'Profesor Bee'),
   },
 ];
