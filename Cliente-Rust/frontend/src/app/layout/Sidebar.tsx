@@ -129,7 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     <Box
       component="aside"
       aria-label="Navegación principal"
-      // Ancho SIN transición CSS: lo anima GSAP en App.tsx vía --sidebar-width,
+      // Ancho SIN transición propia: lo anima la transición de --sidebar-width en App.css,
       // en un solo sistema (evita el "doble motor" de animación). overflow-x
       // hidden recorta los textos que se desvanecen mientras el rail se angosta
       // (así la transición se ve como "esconderse", no como un corte brusco).

@@ -1,6 +1,5 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
 import React, { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
-import { gsap } from 'gsap'
 import './App.css'
 
 // Anchos de la sidebar (deben coincidir con --sidebar-width por defecto en App.css).
@@ -106,7 +105,6 @@ const UpdateModal: React.FC<{
 
 // ── AppMain — lógica principal ───────────────────────────────────────────────
 const AppMain: React.FC = () => {
-  const appContainerRef = useRef<HTMLDivElement>(null)
   const { mantineColorScheme, theme } = useTheme()
 
   const mantineTheme = buildMantineTheme(theme === 'unipiloto' ? 'unipiloto-red' : 'blue')
@@ -353,22 +351,6 @@ const AppMain: React.FC = () => {
     }
   }, [isAuthenticated, openPanel, setActiveTabId])
 
-  // ── Colapsar/expandir sidebar (GSAP, no CSS transition) ──────────────────────
-  // --sidebar-width alimenta el offset de .app-header y .main-content además del
-  // ancho de la propia sidebar (ver App.css) — animarla acá con GSAP mueve las
-  // tres cosas en un solo sistema sincronizado, en vez de que cada elemento la
-  // persiga por separado con su propia `transition: all` (eso era lo que se veía
-  // "sucio": dos motores de animación compitiendo por la misma propiedad).
-  useEffect(() => {
-    const el = appContainerRef.current
-    if (!el || !isAuthenticated) return
-    gsap.to(el, {
-      '--sidebar-width': `${isSidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED}px`,
-      duration: 0.4,
-      ease: 'power3.inOut',
-    })
-  }, [isSidebarOpen, isAuthenticated])
-
   // Ya pintada la app, lo demás se baja de fondo (app/diferidos.ts)
   useEffect(() => { if (!isLoading) precargarEnReposo() }, [isLoading])
 
@@ -404,7 +386,6 @@ const AppMain: React.FC = () => {
         <GlobalLoader />
 
         <div
-          ref={appContainerRef}
           className={[
             'app-container',
             isPinsVisible ? 'pins-open' : '',
@@ -412,6 +393,10 @@ const AppMain: React.FC = () => {
             isH2Visible ? 'h2-visible' : '',
             !isAuthenticated ? 'no-sidebar' : '',
           ].filter(Boolean).join(' ')}
+          // --sidebar-width mueve a la vez la barra, el encabezado y el contenido; la transición está en App.css
+          style={isAuthenticated
+            ? { '--sidebar-width': `${isSidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED}px` } as React.CSSProperties
+            : undefined}
         >
           {isAuthenticated && (
             <Sidebar
