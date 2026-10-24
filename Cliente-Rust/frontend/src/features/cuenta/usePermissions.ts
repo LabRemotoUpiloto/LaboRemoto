@@ -88,6 +88,7 @@ const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   // Terminal local (botón del sidebar y del header): solo semillerista y admin_lab.
   'local-terminal-new': TECHNICAL,
   hosts: TECHNICAL,
+  // Herramientas de la sesión (paneles Archivos y Comandos), ya no páginas
   sftp: TECHNICAL,
   snippets: TECHNICAL,
   logs: LOGS,

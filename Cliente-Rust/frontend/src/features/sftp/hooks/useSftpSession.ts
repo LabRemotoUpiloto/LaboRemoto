@@ -16,11 +16,11 @@
  * El estado de transferencias (`transfers`) permanece interno al hook (useState
  * dentro de `useSftpTransfers`), NO se migra a un slice de Zustand.
  * Motivo (mismo criterio que Batch 2 para el terminal): a día de hoy el único
- * consumidor es `SftpPage.tsx` (una sola instancia montada a la vez), que pasa
+ * consumidor es `ArchivosSftp.tsx` (una sola instancia montada a la vez), que pasa
  * `transfers` hacia abajo por props a `TransferQueue`. No hay ningún otro punto
  * de la UI que necesite leer la lista de transferencias de forma independiente.
  * Si en el futuro se agrega, p. ej., un widget global de progreso visible fuera
- * de `SftpPage`, ese es el momento de extraer un slice `store/sftp.ts` siguiendo
+ * de `ArchivosSftp`, ese es el momento de extraer un slice `store/sftp.ts` siguiendo
  * el patrón de `store/app.ts` (Batch 1/3) — no antes, para evitar estado global
  * innecesario.
  *

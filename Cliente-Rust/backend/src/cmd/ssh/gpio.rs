@@ -48,19 +48,20 @@ fn task_join_error(e: tokio::task::JoinError) -> CommandError {
   CommandError::internal("TASK_JOIN_ERROR", e.to_string())
 }
 
-#[tauri::command]
-pub async fn rpi_pins_status(id: String) -> Result<Vec<RpiGpioLine>, CommandError> {
-  tokio::task::spawn_blocking(move || -> Result<Vec<RpiGpioLine>, CommandError> {
-    let arc_cached = get_or_connect_cached(&id)?;
+/// Lee el estado de todos los GPIO (`raspi-gpio get`) por la conexión ssh2 de la sesión. Bloqueante: la usan el panel
+/// (vía `rpi_pins_status`) y la herramienta `leer_pines` del chat.
+pub fn leer_pines(id: &str) -> Result<Vec<RpiGpioLine>, CommandError> {
+  {
+    let arc_cached = get_or_connect_cached(id)?;
 
     let out = {
       let guard = arc_cached.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "ssh2 lock poisoned"))?;
       let mut ch = guard.sess.channel_session()
         .map_err(CommandError::from)
-        .map_err(|e| e.with_context("gpio_pins_status", &id))?;
+        .map_err(|e| e.with_context("gpio_pins_status", id))?;
       ch.exec("raspi-gpio get")
         .map_err(CommandError::from)
-        .map_err(|e| e.with_context("gpio_pins_status", &id))?;
+        .map_err(|e| e.with_context("gpio_pins_status", id))?;
       use std::io::Read;
       let mut buf = String::new();
       let _ = ch.read_to_string(&mut buf);
@@ -81,7 +82,12 @@ pub async fn rpi_pins_status(id: String) -> Result<Vec<RpiGpioLine>, CommandErro
       }
     }
     Ok(res)
-  }).await.map_err(task_join_error)?
+  }
+}
+
+#[tauri::command]
+pub async fn rpi_pins_status(id: String) -> Result<Vec<RpiGpioLine>, CommandError> {
+  tokio::task::spawn_blocking(move || leer_pines(&id)).await.map_err(task_join_error)?
 }
 
 #[tauri::command]
@@ -301,4 +307,4 @@ pub async fn rpi_pins_monitor_stop(id: String) -> Result<(), CommandError> {
   }
   Ok(())
 }
-
+

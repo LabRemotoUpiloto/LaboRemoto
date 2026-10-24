@@ -45,6 +45,7 @@ export interface FilePanelProps {
 
   // Toolbar - shared
   onRefresh: () => void
+  onIrACarpetaTerminal?: () => void
 
   // Toolbar - local only
   drives?: string[]
@@ -74,7 +75,7 @@ export interface FilePanelProps {
   getEntryPath: (entry: FileEntry) => string
 
   // Drag & drop interno por puntero: inicia un arrastre desde una fila ya
-  // seleccionada (ver usePointerDrag en SftpPage).
+  // seleccionada (ver usePointerDrag en ArchivosSftp).
   onRowPointerDown?: (entry: FileEntry, e: React.MouseEvent) => void
   consumeSuppressedClick?: () => boolean
 
@@ -127,6 +128,7 @@ const FilePanel: React.FC<FilePanelProps> = ({
   consumeSuppressedClick,
   forceDragOver,
   onOpenFile,
+  onIrACarpetaTerminal,
 }) => {
   const handleOpen = useCallback(
     (entry: FileEntry) => {
@@ -192,6 +194,7 @@ const FilePanel: React.FC<FilePanelProps> = ({
         sessionsMeta={sessionsMeta}
         onSessionChange={onSessionChange}
         onRefresh={onRefresh}
+        onIrACarpetaTerminal={onIrACarpetaTerminal}
         onNewFolder={onNewFolder}
         onRename={onRename}
         canRename={canRename}

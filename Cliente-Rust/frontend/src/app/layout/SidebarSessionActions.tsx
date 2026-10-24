@@ -1,14 +1,10 @@
 import React from 'react';
 import { Group, ActionIcon, Menu, Text, UnstyledButton } from '@mantine/core';
-import { MessageSquare, FolderOpen, Code2 } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import type { ActiveView } from '../hooks/useAppTabs';
 import { PANEL_ICONS } from './HeaderConstants';
-import { canAccessPage, useEffectiveRole } from '@/features/cuenta/usePermissions';
 
 type Props = {
-  /** Archivos y Mis comandos son herramientas de la conexión abierta: se abren dentro de la sesión. */
-  activePanel: string | null;
-  onOpenPanel: (id: string) => void;
   activeView: ActiveView;
   onViewChange: (view: ActiveView) => void;
   isChatOpen: boolean;
@@ -27,11 +23,9 @@ const ChatSvg: React.FC<{ size?: number }> = ({ size = 15 }) => (
   </svg>
 );
 
-/** «Esta sesión»: acciones de la sesión SSH abierta en el sidebar (sustituye la barra superior). Orden:
- *  Chat, Cámara, Escritorio remoto, Pines, Archivos, Mis comandos — igual en expandido y colapsado. */
+/** «Esta sesión» en una práctica (la sesión de uso normal usa SidebarHerramientasSesion). Orden:
+ *  Chat, Cámara, Escritorio remoto, Pines — igual en expandido y colapsado. */
 const SidebarSessionActions: React.FC<Props> = ({
-  activePanel,
-  onOpenPanel,
   activeView,
   onViewChange,
   isChatOpen,
@@ -61,17 +55,12 @@ const SidebarSessionActions: React.FC<Props> = ({
   });
 
   const isEscritorioActive = activeView === 'escritorio';
-  const role = useEffectiveRole();
-  const conArchivos = canAccessPage('sftp', role);
-  const conComandos = canAccessPage('snippets', role);
-  const isArchivos = activePanel === 'sftp';
-  const isComandos = activePanel === 'snippets';
   const onToggleEscritorio = () => onViewChange(activeView === 'terminal' ? 'escritorio' : 'terminal');
 
   // ── Rail colapsado: un solo botón (ícono de chat) que despliega las
   //    opciones en menú — misma estrategia que el grupo de sesiones. ──
   if (collapsed) {
-    const anyActive = isChatOpen || isCameraActive || isEscritorioActive || isPinsActive || isArchivos || isComandos;
+    const anyActive = isChatOpen || isCameraActive || isEscritorioActive || isPinsActive;
     return (
       <div className="pb-2 mb-1 border-b flex flex-col" style={{ borderColor: 'var(--border-subtle)' }}>
         <Menu shadow="md" width={190} position="right-start" withinPortal offset={8}>
@@ -110,17 +99,6 @@ const SidebarSessionActions: React.FC<Props> = ({
             <Menu.Item {...activeItemProps(isPinsActive)} leftSection={<div className="w-4 h-4">{PANEL_ICONS['pines']}</div>} onClick={onTogglePins}>
               GPIO / Pines
             </Menu.Item>
-            {(conArchivos || conComandos) && <Menu.Divider />}
-            {conArchivos && (
-              <Menu.Item data-page="sftp" {...activeItemProps(isArchivos)} leftSection={<FolderOpen size={15} />} onClick={() => onOpenPanel('sftp')}>
-                Archivos
-              </Menu.Item>
-            )}
-            {conComandos && (
-              <Menu.Item data-page="snippets" {...activeItemProps(isComandos)} leftSection={<Code2 size={15} />} onClick={() => onOpenPanel('snippets')}>
-                Mis comandos
-              </Menu.Item>
-            )}
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -138,8 +116,7 @@ const SidebarSessionActions: React.FC<Props> = ({
       >
         Esta sesión
       </Text>
-      {/* Seis botones en el ancho del sidebar: repartidos, sin espacio fijo entre ellos */}
-      <Group gap={0} px={4} wrap="nowrap" justify="space-between">
+      <Group gap={4} px={4} wrap="nowrap">
         <ActionIcon
           data-no-window-drag
           size="md"
@@ -180,35 +157,6 @@ const SidebarSessionActions: React.FC<Props> = ({
         >
           <div className="w-4 h-4">{PANEL_ICONS['pines']}</div>
         </ActionIcon>
-        {/* data-page: el recorrido guiado (chat/tour) los encuentra igual que cuando eran entradas del menú */}
-        {conArchivos && (
-          <ActionIcon
-            data-no-window-drag
-            data-page="sftp"
-            size="md"
-            onClick={() => onOpenPanel('sftp')}
-            title="Archivos"
-            aria-label="Archivos"
-            style={iconStyle(isArchivos)}
-            className="hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)] transition-colors duration-150"
-          >
-            <FolderOpen size={16} />
-          </ActionIcon>
-        )}
-        {conComandos && (
-          <ActionIcon
-            data-no-window-drag
-            data-page="snippets"
-            size="md"
-            onClick={() => onOpenPanel('snippets')}
-            title="Mis comandos"
-            aria-label="Mis comandos"
-            style={iconStyle(isComandos)}
-            className="hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)] transition-colors duration-150"
-          >
-            <Code2 size={16} />
-          </ActionIcon>
-        )}
       </Group>
     </div>
   );

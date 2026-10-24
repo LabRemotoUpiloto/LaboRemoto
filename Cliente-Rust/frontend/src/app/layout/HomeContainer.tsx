@@ -5,8 +5,6 @@ import GuestConnectPage from '@/features/conexion/GuestConnectPage'
 import ThemesPage from '@/features/cuenta/ThemesPage'
 import PerfilPage from '@/features/cuenta/PerfilPage'
 import AjustesPage from '@/features/cuenta/AjustesPage'
-import SftpPage from '@/features/sftp/SftpPage'
-import SnippetsPage from '@/features/snippets/SnippetsPage'
 import PracticesPage from '@/features/practicas/PracticesPage'
 import ReservasPage from '@/features/reservas/ReservasPage'
 import MisCursosPage from '@/features/cursos/MisCursosPage'
@@ -14,15 +12,12 @@ import UserManagementPage from '@/features/usuarios/UserManagementPage'
 import VigilanciaPage from '@/features/camaras/VigilanciaPage'
 import DashboardPage from '@/features/actividad/DashboardPage'
 import RendimientoPage from '@/features/monitoreo/RendimientoPage'
-import type { Tab } from '../hooks/useAppTabs'
 import type { SessionLog } from '@/features/logs/sesiones'
 import { useEffectiveRole, canAccessPage } from '@/features/cuenta/usePermissions'
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession'
 import { pedirTutorialBienvenida } from '@/features/onboarding/inicio/BienvenidaTutorial'
 
 type Props = {
-  tabs: Tab[]
-  sessionMeta: Record<string, { label: string }>
   selectedPage: string
   onOpenPanel: (panelId: string) => void
   onConnectedFromConnect: (info: { id: string; label?: string } | null) => void
@@ -36,8 +31,6 @@ type Props = {
 }
 
 const HomeContainer: React.FC<Props> = ({
-  tabs,
-  sessionMeta,
   selectedPage,
   onOpenPanel,
   onConnectedFromConnect,
@@ -69,17 +62,6 @@ const HomeContainer: React.FC<Props> = ({
         <GuestConnectPage onConnected={onConnectedFromConnect} onBack={() => onOpenPanel('landing')} />
       ) : effectivePage === 'themes' ? (
         <ThemesPage />
-      ) : effectivePage === 'sftp' ? (
-        <SftpPage
-          sessions={tabs.filter(t => t.type === 'session').map(t => t.id)}
-          sessionsMeta={sessionMeta}
-          activeSessionId={(() => {
-            const sessionTabs = tabs.filter(t => t.type === 'session')
-            return sessionTabs.length > 0 ? sessionTabs[0].id : undefined
-          })()}
-        />
-      ) : effectivePage === 'snippets' ? (
-        <SnippetsPage />
       ) : effectivePage === 'practices' || effectivePage === 'encuestas' ? (
         <PracticesPage pestanaInicial={effectivePage === 'encuestas' ? 'encuestas' : 'practicas'} onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} setChatOpen={setChatOpen} linuxSession={linuxSession} onRestartLinuxModule={onRestartLinuxModule} />
       ) : effectivePage === 'reservas' ? (

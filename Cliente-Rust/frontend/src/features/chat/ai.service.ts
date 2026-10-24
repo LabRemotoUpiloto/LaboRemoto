@@ -56,6 +56,10 @@ export interface AgentChatRequest {
   include_terminal_context?: boolean;
   terminal_lines?: number;
   request_id?: string;
+  /** Lo que la app sabe de la sesión (equipo, terminal, pines…), en texto. */
+  contexto?: string;
+  /** La conversación anterior, lo más viejo primero. */
+  historial?: { rol: 'user' | 'assistant'; texto: string }[];
 }
 
 /** Refleja `PlanChatRequest` en backend/src/cmd/tools/tools.rs. */
