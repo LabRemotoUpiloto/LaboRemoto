@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AskRenderer } from './AskRenderer';
 import { ToolResultRenderer } from './ToolResultRenderer';
+import AccionesAgente from './AccionesAgente';
 import DiffView from './DiffView';
 import { Message } from '../modos/types';
 import { RelativeTime } from './RelativeTime';
@@ -237,6 +238,7 @@ export default function AiMessageBubble({
           {msg.meta?.toolAction && (
             <ToolResultRenderer action={msg.meta.toolAction} sessionId={sessionId || undefined} />
           )}
+          {!!msg.meta?.toolSteps?.length && <AccionesAgente pasos={msg.meta.toolSteps} sessionId={sessionId} />}
 
           {msg.meta?.linuxContentBlocks && linuxPracticeId && (
             <div className="flex flex-col gap-2 mt-1">

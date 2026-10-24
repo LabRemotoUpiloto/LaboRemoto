@@ -137,6 +137,8 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
         "info_sistema"         => tool_info_sistema(session_id),
         "reiniciar_servicio"   => tool_reiniciar_servicio(session_id, input),
         "get_terminal_output"  => tool_get_terminal_output(session_id, input),
+        "leer_pines"           => tool_leer_pines(session_id),
+        "cambiar_pin"          => tool_cambiar_pin(input),
         other => {
             // Intentar resolverlo como tool MCP registrada
             if let Some((output, ok)) = crate::cmd::integration::mcp_client::exec_mcp_call(other, input) {
@@ -145,6 +147,72 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
                 ToolResult { tool: other.to_string(), output: format!("Tool desconocida: {other}"), ok: false }
             }
         }
+    }
+}
+
+// ── guardar_comando / leer_pines / cambiar_pin ────────────────────────────────
+
+const INSTRUCCIONES_COMANDOS_Y_PINES: &str = "\n\n\
+COMANDOS GUARDADOS: si la persona pide guardar algo como comando (o snippet), usa `guardar_comando` con un nombre corto y \
+el comando exacto. La app lo agrega a su panel Comandos.\n\
+PINES (Raspberry Pi): para saber el estado de los GPIO usa `leer_pines` (incluye lo que la persona describió de cada uno). \
+Para cambiar un pin usa `cambiar_pin`: NO lo aplica, la app le pide a la persona que confirme con Aplicar. Dile qué va a \
+cambiar y que lo confirme; nunca digas que ya quedó aplicado.";
+
+fn tool_guardar_comando(app: &AppHandle, input: &serde_json::Value) -> ToolResult {
+    let texto = |k: &str| input.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let comando = crate::cmd::comandos::Comando {
+        id: String::new(),
+        titulo: texto("titulo"),
+        comando: texto("comando"),
+        categoria: Some(texto("categoria")).filter(|c| !c.trim().is_empty()),
+        terminal: Some(texto("terminal")).filter(|t| t == "linux" || t == "powershell"),
+        creado: 0.0,
+        actualizado: None,
+    };
+    match crate::cmd::comandos::guardar(app, comando) {
+        Ok(c) => ToolResult { tool: "guardar_comando".into(), output: format!("Guardado en Comandos: «{}» ({})", c.titulo, c.comando), ok: true },
+        Err(e) => ToolResult { tool: "guardar_comando".into(), output: format!("No se pudo guardar: {e}"), ok: false },
+    }
+}
+
+fn tool_leer_pines(session_id: &str) -> ToolResult {
+    match crate::cmd::ssh::gpio::leer_pines(session_id) {
+        Ok(pines) if pines.is_empty() => ToolResult { tool: "leer_pines".into(), output: "raspi-gpio no devolvió pines (¿es una Raspberry Pi?)".into(), ok: false },
+        Ok(pines) => {
+            let lineas: Vec<String> = pines.iter().filter(|p| p.gpio <= 27).map(|p| format!(
+                "GPIO {}: {}, nivel {}, pull {}",
+                p.gpio,
+                match p.func.as_str() { "INPUT" => "entrada", "OUTPUT" => "salida", f => f },
+                p.level.map(|l| if l == 1 { "alto (1)" } else { "bajo (0)" }).unwrap_or("?"),
+                p.pull.as_deref().unwrap_or("?"),
+            )).collect();
+            ToolResult { tool: "leer_pines".into(), output: lineas.join("\n"), ok: true }
+        }
+        Err(e) => ToolResult { tool: "leer_pines".into(), output: format!("No se pudieron leer los pines: {}", e.message), ok: false },
+    }
+}
+
+/// Valida el cambio pedido y lo deja PENDIENTE: la app muestra Aplicar/Cancelar y es la persona quien lo aplica.
+fn tool_cambiar_pin(input: &serde_json::Value) -> ToolResult {
+    let gpio = input.get("gpio").and_then(|v| v.as_u64());
+    let modo = input.get("modo").and_then(|v| v.as_str());
+    let pull = input.get("pull").and_then(|v| v.as_str());
+    let nivel = input.get("nivel").and_then(|v| v.as_u64());
+    let error = |m: &str| ToolResult { tool: "cambiar_pin".into(), output: m.to_string(), ok: false };
+    let Some(gpio) = gpio.filter(|g| *g <= 27) else { return error("GPIO inválido: debe ser un número BCM de 0 a 27") };
+    if modo.is_some_and(|m| m != "entrada" && m != "salida") { return error("modo debe ser «entrada» o «salida»"); }
+    if pull.is_some_and(|p| p != "arriba" && p != "abajo" && p != "ninguno") { return error("pull debe ser «arriba», «abajo» o «ninguno»"); }
+    if nivel.is_some_and(|n| n > 1) { return error("nivel debe ser 0 o 1"); }
+    if modo.is_none() && pull.is_none() && nivel.is_none() { return error("No hay nada que cambiar: indica modo, pull o nivel"); }
+    let mut partes = vec![];
+    if let Some(m) = modo { partes.push(format!("modo {m}")); }
+    if let Some(p) = pull { partes.push(format!("pull {p}")); }
+    if let Some(n) = nivel { partes.push(format!("nivel {}", if n == 1 { "alto" } else { "bajo" })); }
+    ToolResult {
+        tool: "cambiar_pin".into(),
+        output: format!("PENDIENTE DE CONFIRMAR: GPIO {gpio}, {}. La app le muestra a la persona Aplicar y Cancelar; todavía no está aplicado.", partes.join(", ")),
+        ok: true,
     }
 }
 
@@ -481,6 +549,39 @@ fn tool_definitions() -> serde_json::Value {
             }
         },
         {
+            "name": "guardar_comando",
+            "description": "Guarda un comando en el panel Comandos de la persona (sus comandos guardados, antes snippets), para ejecutarlo luego con un clic. Úsalo cuando pida guardar algo como comando o snippet.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "titulo": { "type": "string", "description": "Nombre corto (p. ej. «Temperatura»)" },
+                    "comando": { "type": "string", "description": "El comando exacto" },
+                    "categoria": { "type": "string", "description": "Opcional (p. ej. «Servicios»)" },
+                    "terminal": { "type": "string", "enum": ["linux", "powershell"], "description": "Dónde sirve; omítelo si sirve en cualquiera" }
+                },
+                "required": ["titulo", "comando"]
+            }
+        },
+        {
+            "name": "leer_pines",
+            "description": "Lee el estado actual de los pines GPIO de la Raspberry Pi de la sesión (modo, nivel y pull de cada uno). Úsalo antes de explicar o cambiar pines.",
+            "input_schema": { "type": "object", "properties": {}, "required": [] }
+        },
+        {
+            "name": "cambiar_pin",
+            "description": "Propone cambiar un pin GPIO (numeración BCM). NO lo aplica: la app le pide a la persona que confirme. Indica al menos uno de modo, pull o nivel.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "gpio": { "type": "integer", "description": "Número BCM (0 a 27)" },
+                    "modo": { "type": "string", "enum": ["entrada", "salida"] },
+                    "pull": { "type": "string", "enum": ["arriba", "abajo", "ninguno"] },
+                    "nivel": { "type": "integer", "enum": [0, 1], "description": "Solo para salida: 1 alto, 0 bajo" }
+                },
+                "required": ["gpio"]
+            }
+        },
+        {
             "name": "get_terminal_output",
             "description": "Lee las últimas N líneas del buffer de la terminal interactiva del usuario. Úsalo cuando el usuario mencione un error, un comando que falló, o pida analizar lo que pasó en la terminal. NO lo uses si la pregunta es teórica o no está relacionada con la terminal activa.",
             "input_schema": {
@@ -506,6 +607,48 @@ pub struct AgentChatRequest {
     pub terminal_lines: Option<usize>,
     /// ID del mensaje en el chat; habilita eventos `agent:step` en vivo.
     pub request_id: Option<String>,
+    /// Lo que la app sabe de la sesión (equipo, usuario, tipo de terminal, descripciones de los pines…), en texto.
+    pub contexto: Option<String>,
+    /// La conversación anterior (sin el mensaje actual), lo más viejo primero.
+    pub historial: Option<Vec<MensajeHistorial>>,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct MensajeHistorial {
+    /// "user" o "assistant"
+    pub rol: String,
+    pub texto: String,
+}
+
+/// La conversación anterior en el formato de la API: empieza por la persona, alterna roles (se juntan los seguidos del
+/// mismo rol), recorta textos largos y se queda con los últimos.
+fn mensajes_previos(historial: &[MensajeHistorial]) -> Vec<serde_json::Value> {
+    let mut salida: Vec<(String, String)> = vec![];
+    for m in historial.iter().rev().take(12).collect::<Vec<_>>().into_iter().rev() {
+        let rol = if m.rol == "assistant" { "assistant" } else { "user" };
+        let texto: String = m.texto.trim().chars().take(2000).collect();
+        if texto.is_empty() { continue; }
+        match salida.last_mut() {
+            Some((r, t)) if r == rol => { t.push_str("\n\n"); t.push_str(&texto); }
+            _ => salida.push((rol.to_string(), texto)),
+        }
+    }
+    while salida.first().map(|(r, _)| r == "assistant").unwrap_or(false) { salida.remove(0); }
+    // El mensaje actual es de la persona: lo anterior tiene que terminar en el asistente
+    if salida.last().map(|(r, _)| r == "user").unwrap_or(false) { salida.pop(); }
+    salida.into_iter().map(|(r, t)| serde_json::json!({ "role": r, "content": t })).collect()
+}
+
+/// Lo último que mostró la terminal, sin códigos de color, para que el agente sepa dónde está parada la persona.
+fn terminal_reciente(session_id: &str, lineas: usize) -> Option<String> {
+    static ANSI: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\r").unwrap());
+    let crudo = get_terminal_context(session_id.to_string(), Some(120)).ok()?;
+    let limpio = ANSI.replace_all(&crudo, "");
+    let todas: Vec<&str> = limpio.lines().filter(|l| !l.trim().is_empty()).collect();
+    let desde = todas.len().saturating_sub(lineas);
+    let texto = todas[desde..].join("\n");
+    let texto: String = texto.chars().rev().take(3000).collect::<Vec<_>>().into_iter().rev().collect();
+    if texto.trim().is_empty() { None } else { Some(texto) }
 }
 
 #[tauri::command]
@@ -513,14 +656,23 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
     let request_id = req.request_id.as_deref();
     let api_key = get_claude_api_key().ok_or("No hay Claude API key configurada")?;
 
-    // El contexto de terminal ya NO se inyecta en el system prompt.
-    // Claude lo pedirá llamando a la tool `get_terminal_output` solo cuando lo necesite.
-    let system_prompt = build_system_prompt(None);
+    // Lo último de la terminal va en el prompt (corto); si necesita más, el agente usa `get_terminal_output`.
+    let terminal = if req.include_terminal_context.unwrap_or(false) {
+        terminal_reciente(&req.session_id, req.terminal_lines.unwrap_or(40).min(80))
+    } else {
+        None
+    };
+    let mut system_prompt = build_system_prompt(terminal.as_deref());
+    if let Some(ctx) = req.contexto.as_deref().filter(|c| !c.trim().is_empty()) {
+        system_prompt.push_str("\n\n=== SESIÓN ===\n");
+        system_prompt.push_str(ctx);
+        system_prompt.push_str("\n=== FIN DE LA SESIÓN ===");
+    }
+    system_prompt.push_str(INSTRUCCIONES_COMANDOS_Y_PINES);
 
-    // Mensajes iniciales
-    let mut messages: Vec<serde_json::Value> = vec![
-        serde_json::json!({ "role": "user", "content": req.message })
-    ];
+    // La conversación anterior y el mensaje actual
+    let mut messages: Vec<serde_json::Value> = mensajes_previos(req.historial.as_deref().unwrap_or(&[]));
+    messages.push(serde_json::json!({ "role": "user", "content": req.message }));
 
     let client = &*HTTP_CLIENT;
     let mut steps: Vec<AgentStep> = vec![];
@@ -598,13 +750,17 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
                 steps.push(call_step.clone());
                 emit_agent_step(&app, request_id, &call_step);
 
-                // Ejecutar en hilo bloqueante (run_ssh_exec usa ssh2 sync)
-                let sid = req.session_id.clone();
-                let tn  = tool_name.clone();
-                let inp = input.clone();
-                let result = tokio::task::spawn_blocking(move || exec_tool(&sid, &tn, &inp))
-                    .await
-                    .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false });
+                // Ejecutar en hilo bloqueante (run_ssh_exec usa ssh2 sync). Guardar un comando necesita la app (avisa al panel).
+                let result = if tool_name == "guardar_comando" {
+                    tool_guardar_comando(&app, &input)
+                } else {
+                    let sid = req.session_id.clone();
+                    let tn  = tool_name.clone();
+                    let inp = input.clone();
+                    tokio::task::spawn_blocking(move || exec_tool(&sid, &tn, &inp))
+                        .await
+                        .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false })
+                };
 
                 let result_step = AgentStep {
                     kind: "tool_result".into(),
@@ -871,4 +1027,31 @@ fn build_system_prompt(terminal_ctx: Option<&str>) -> String {
         s.push_str("\n=== FIN DEL CONTEXTO ===");
     }
     s
+}
+
+#[cfg(test)]
+mod pruebas_agente {
+    use super::*;
+
+    fn m(rol: &str, texto: &str) -> MensajeHistorial { MensajeHistorial { rol: rol.into(), texto: texto.into() } }
+
+    #[test]
+    fn el_historial_empieza_por_la_persona_alterna_y_termina_en_el_asistente() {
+        let h = vec![m("assistant", "hola"), m("user", "a"), m("user", "b"), m("assistant", "c"), m("user", "colgado")];
+        let v = mensajes_previos(&h);
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[0]["role"], "user");
+        assert_eq!(v[0]["content"], "a\n\nb");
+        assert_eq!(v[1]["role"], "assistant");
+    }
+
+    #[test]
+    fn cambiar_pin_valida_y_queda_pendiente() {
+        let ok = tool_cambiar_pin(&serde_json::json!({ "gpio": 17, "modo": "salida", "nivel": 1 }));
+        assert!(ok.ok);
+        assert!(ok.output.starts_with("PENDIENTE DE CONFIRMAR: GPIO 17, modo salida, nivel alto"));
+        assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 40, "nivel": 1 })).ok);
+        assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 4 })).ok);
+        assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 4, "modo": "pwm" })).ok);
+    }
 }

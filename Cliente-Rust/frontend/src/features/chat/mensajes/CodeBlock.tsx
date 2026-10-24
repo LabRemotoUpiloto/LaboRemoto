@@ -8,8 +8,10 @@ import typescript from 'highlight.js/lib/languages/typescript';
 import rust from 'highlight.js/lib/languages/rust';
 import yaml from 'highlight.js/lib/languages/yaml';
 import json from 'highlight.js/lib/languages/json';
-import { Copy, Check, Play, Loader2, XCircle } from 'lucide-react';
+import { Copy, Check, Play, Plus, Loader2, XCircle } from 'lucide-react';
 import { Button, Group } from '@mantine/core';
+import { canAccessPage, useEffectiveRole } from '@/features/cuenta/usePermissions';
+import { guardarComando, nuevoComando } from '@/features/comandos/comandos';
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('sh', bash);
@@ -33,6 +35,19 @@ interface CodeBlockProps {
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId, setLastCommand, hideActions = false }) => {
+  // «Guardar como comando»: para quien tiene Comandos (semillerista y administrador)
+  const puedeGuardar = canAccessPage('snippets', useEffectiveRole());
+  const [guardado, setGuardado] = useState(false);
+  const guardarComoComando = async () => {
+    try {
+      const primera = code.trim().split('\n')[0];
+      await guardarComando(nuevoComando({ titulo: primera.length > 40 ? `${primera.slice(0, 40)}…` : primera, comando: code.trim() }));
+      setGuardado(true);
+      setTimeout(() => setGuardado(false), 2000);
+    } catch (e) {
+      console.warn('[chat] no se pudo guardar el comando', e);
+    }
+  };
   const [copied, setCopied] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -125,6 +140,19 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
               {copied ? 'Copiado' : 'Copiar'}
             </Button>
             
+            {puedeGuardar && (
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                color={guardado ? "green" : "gray"}
+                onClick={() => void guardarComoComando()}
+                leftSection={guardado ? <Check size={12} /> : <Plus size={12} />}
+                className={`font-medium h-6 px-2.5 ${guardado ? 'text-green-400 bg-green-400/10' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+              >
+                {guardado ? 'Guardado' : 'Guardar como comando'}
+              </Button>
+            )}
+
             {sessionId && (
               <Button
                 size="compact-xs"
