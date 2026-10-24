@@ -8,7 +8,7 @@ const invoke = vi.fn(async () => null);
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (c: string, a?: unknown) => invoke(c, a) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: () => Promise.resolve(() => {}) }));
 
-import AccionesAgente, { cambiosPropuestos, comandosGuardados, textoCambio } from '@/features/chat/mensajes/AccionesAgente';
+import AccionesAgente, { cambiosPropuestos, comandosGuardados, descargasEmpezadas, subidasPropuestas, textoCambio } from '@/features/chat/mensajes/AccionesAgente';
 import { historialPara } from '@/features/chat/contextoAgente';
 import type { AgentStep } from '@/features/chat/modos/types';
 
@@ -48,6 +48,31 @@ describe('lo que el agente hizo', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.getByText(/no cambió/)).toBeTruthy();
     expect(invoke).not.toHaveBeenCalled();
+  });
+});
+
+describe('archivos', () => {
+  it('reconoce las descargas que empezó y dónde quedan', () => {
+    expect(descargasEmpezadas([resultado('descargar_archivo', 'DESCARGANDO a C:\\Users\\ana\\Downloads\\datos (1).csv (desde /home/pi/datos.csv). El progreso se ve en Archivos.')]))
+      .toEqual(['C:\\Users\\ana\\Downloads\\datos (1).csv']);
+  });
+
+  it('la subida solo se hace al pulsar Aplicar, y con el mismo nombre si el destino es una carpeta', async () => {
+    invoke.mockClear();
+    invoke.mockImplementation(async (c: string) => {
+      if (c === 'local_list_dir') throw new Error('no es carpeta');
+      if (c === 'sftp_upload_start') return { status: 'success', data: { transfer_id: 't1' } } as never;
+      return null;
+    });
+    const pasos = [llamada('subir_archivo', { ruta_local: 'C:\\Users\\ana\\leds.py', ruta_remota: '/home/pi/proyecto/' }), resultado('subir_archivo', 'PENDIENTE DE CONFIRMAR: subir')];
+    expect(subidasPropuestas(pasos)).toEqual([{ local: 'C:\\Users\\ana\\leds.py', remota: '/home/pi/proyecto/leds.py' }]);
+    render(<AccionesAgente sessionId="s1" pasos={pasos} />);
+    expect(invoke).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+    await waitFor(() => expect(screen.getByText(/Subiendo «leds.py»/)).toBeTruthy());
+    expect(invoke).toHaveBeenCalledWith('sftp_upload_start', expect.objectContaining({
+      req: expect.objectContaining({ payload: { id: 's1', local_path: 'C:\\Users\\ana\\leds.py', remote_path: '/home/pi/proyecto/leds.py' } }),
+    }));
   });
 });
 

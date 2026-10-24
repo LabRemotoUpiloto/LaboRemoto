@@ -139,6 +139,7 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
         "get_terminal_output"  => tool_get_terminal_output(session_id, input),
         "leer_pines"           => tool_leer_pines(session_id),
         "cambiar_pin"          => tool_cambiar_pin(input),
+        "subir_archivo"        => tool_subir_archivo(input),
         other => {
             // Intentar resolverlo como tool MCP registrada
             if let Some((output, ok)) = crate::cmd::integration::mcp_client::exec_mcp_call(other, input) {
@@ -157,7 +158,10 @@ COMANDOS GUARDADOS: si la persona pide guardar algo como comando (o snippet), us
 el comando exacto. La app lo agrega a su panel Comandos.\n\
 PINES (Raspberry Pi): para saber el estado de los GPIO usa `leer_pines` (incluye lo que la persona describió de cada uno). \
 Para cambiar un pin usa `cambiar_pin`: NO lo aplica, la app le pide a la persona que confirme con Aplicar. Dile qué va a \
-cambiar y que lo confirme; nunca digas que ya quedó aplicado.";
+cambiar y que lo confirme; nunca digas que ya quedó aplicado.\n\
+ARCHIVOS (SFTP): para crear o editar un archivo en el servidor usa `escribir_archivo`. Para bajar un archivo o carpeta del \
+servidor al computador de la persona usa `descargar_archivo` (queda en su carpeta Descargas). Para subir algo del computador \
+al servidor usa `subir_archivo`: NO lo sube, la app le pide confirmar con Aplicar.";
 
 fn tool_guardar_comando(app: &AppHandle, input: &serde_json::Value) -> ToolResult {
     let texto = |k: &str| input.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -212,6 +216,84 @@ fn tool_cambiar_pin(input: &serde_json::Value) -> ToolResult {
     ToolResult {
         tool: "cambiar_pin".into(),
         output: format!("PENDIENTE DE CONFIRMAR: GPIO {gpio}, {}. La app le muestra a la persona Aplicar y Cancelar; todavía no está aplicado.", partes.join(", ")),
+        ok: true,
+    }
+}
+
+// ── descargar_archivo / subir_archivo ─────────────────────────────────────────
+
+/// Nombre libre en `carpeta`: si `nombre` ya existe, «nombre (1).ext», «nombre (2).ext»…
+fn nombre_libre(carpeta: &std::path::Path, nombre: &str) -> std::path::PathBuf {
+    let primero = carpeta.join(nombre);
+    if !primero.exists() { return primero; }
+    let (base, ext) = match nombre.rfind('.') {
+        Some(i) if i > 0 => (&nombre[..i], &nombre[i..]),
+        _ => (nombre, ""),
+    };
+    (1..1000).map(|n| carpeta.join(format!("{base} ({n}){ext}"))).find(|p| !p.exists()).unwrap_or(primero)
+}
+
+fn carpeta_descargas() -> Option<std::path::PathBuf> {
+    let dirs = directories::UserDirs::new()?;
+    Some(dirs.download_dir().map(|d| d.to_path_buf()).unwrap_or_else(|| dirs.home_dir().to_path_buf()))
+}
+
+/// Comillas simples para el shell remoto.
+fn comillas(s: &str) -> String { format!("'{}'", s.replace('\'', "'\\''")) }
+
+/// Baja un archivo o una carpeta del servidor a Descargas, con la misma transferencia de la vista Archivos.
+async fn tool_descargar_archivo(app: &AppHandle, session_id: &str, input: &serde_json::Value) -> ToolResult {
+    let fallo = |m: String| ToolResult { tool: "descargar_archivo".into(), output: m, ok: false };
+    let Some(ruta) = input.get("ruta_remota").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()) else {
+        return fallo("Falta 'ruta_remota'".into());
+    };
+    // ~ y rutas relativas: desde la carpeta personal en el servidor
+    let sid = session_id.to_string();
+    let r = ruta.clone();
+    let consulta = tokio::task::spawn_blocking(move || {
+        let ruta_shell = if r == "~" { "\"$HOME\"".to_string() } else if let Some(resto) = r.strip_prefix("~/") { format!("\"$HOME\"/{}", comillas(resto)) } else { comillas(&r) };
+        run_ssh_exec(&sid, &format!("cd ~ && p=$(realpath -e -- {ruta_shell} 2>/dev/null) && {{ [ -d \"$p\" ] && echo \"dir $p\" || echo \"file $p\"; }} || echo nada"))
+    }).await;
+    let salida = match consulta {
+        Ok(Ok(s)) => s.trim().to_string(),
+        Ok(Err(e)) => return fallo(format!("No se pudo revisar la ruta en el servidor: {e}")),
+        Err(_) => return fallo("Error interno".into()),
+    };
+    let (es_carpeta, absoluta) = match salida.split_once(' ') {
+        Some(("dir", p)) => (true, p.to_string()),
+        Some(("file", p)) => (false, p.to_string()),
+        _ => return fallo(format!("No existe en el servidor: {ruta}")),
+    };
+    let Some(destino) = carpeta_descargas() else { return fallo("No se encontró la carpeta Descargas".into()) };
+    let nombre = absoluta.rsplit('/').next().filter(|n| !n.is_empty()).unwrap_or("descarga").to_string();
+    let local = nombre_libre(&destino, &nombre).to_string_lossy().to_string();
+    let inicio = if es_carpeta {
+        crate::cmd::sftp::transfers::sftp_download_dir_start(app.clone(), session_id.to_string(), absoluta.clone(), local.clone()).await
+    } else {
+        crate::cmd::sftp::transfers::sftp_download_start_impl(app.clone(), session_id.to_string(), absoluta.clone(), local.clone()).await
+    };
+    match inicio {
+        Ok(_) => ToolResult {
+            tool: "descargar_archivo".into(),
+            output: format!("DESCARGANDO a {local} (desde {absoluta}). El progreso se ve en Archivos."),
+            ok: true,
+        },
+        Err(e) => fallo(format!("No se pudo descargar: {e}")),
+    }
+}
+
+/// Valida lo pedido y lo deja PENDIENTE: la app muestra Aplicar/Cancelar y es la persona quien sube.
+fn tool_subir_archivo(input: &serde_json::Value) -> ToolResult {
+    let fallo = |m: &str| ToolResult { tool: "subir_archivo".into(), output: m.to_string(), ok: false };
+    let local = input.get("ruta_local").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let remota = input.get("ruta_remota").and_then(|v| v.as_str()).unwrap_or("").trim();
+    if local.is_empty() || remota.is_empty() { return fallo("Faltan 'ruta_local' y 'ruta_remota'"); }
+    let ruta = std::path::Path::new(local);
+    let Ok(meta) = std::fs::metadata(ruta) else { return fallo("Ese archivo no existe en el computador de la persona") };
+    let que = if meta.is_dir() { "la carpeta".to_string() } else { format!("el archivo ({} bytes)", meta.len()) };
+    ToolResult {
+        tool: "subir_archivo".into(),
+        output: format!("PENDIENTE DE CONFIRMAR: subir {que} {local} a {remota}. La app le muestra a la persona Aplicar y Cancelar; todavía no se subió."),
         ok: true,
     }
 }
@@ -563,6 +645,27 @@ fn tool_definitions() -> serde_json::Value {
             }
         },
         {
+            "name": "descargar_archivo",
+            "description": "Baja un archivo o una carpeta del servidor de la sesión al computador de la persona (a su carpeta Descargas, sin pisar nada). Acepta rutas absolutas, con ~ o relativas a la carpeta personal.",
+            "input_schema": {
+                "type": "object",
+                "properties": { "ruta_remota": { "type": "string", "description": "Ruta en el servidor (p. ej. ~/proyecto/datos.csv)" } },
+                "required": ["ruta_remota"]
+            }
+        },
+        {
+            "name": "subir_archivo",
+            "description": "Propone subir un archivo o carpeta del computador de la persona al servidor. NO lo sube: la app le pide confirmar. Si la ruta remota termina en /, se sube dentro de esa carpeta con el mismo nombre.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "ruta_local": { "type": "string", "description": "Ruta completa en el computador de la persona (p. ej. C:\\Users\\ana\\Desktop\\leds.py)" },
+                    "ruta_remota": { "type": "string", "description": "Destino en el servidor (absoluto, p. ej. /home/pi/proyecto/ o /home/pi/proyecto/leds.py)" }
+                },
+                "required": ["ruta_local", "ruta_remota"]
+            }
+        },
+        {
             "name": "leer_pines",
             "description": "Lee el estado actual de los pines GPIO de la Raspberry Pi de la sesión (modo, nivel y pull de cada uno). Úsalo antes de explicar o cambiar pines.",
             "input_schema": { "type": "object", "properties": {}, "required": [] }
@@ -753,6 +856,8 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
                 // Ejecutar en hilo bloqueante (run_ssh_exec usa ssh2 sync). Guardar un comando necesita la app (avisa al panel).
                 let result = if tool_name == "guardar_comando" {
                     tool_guardar_comando(&app, &input)
+                } else if tool_name == "descargar_archivo" {
+                    tool_descargar_archivo(&app, &req.session_id, &input).await
                 } else {
                     let sid = req.session_id.clone();
                     let tn  = tool_name.clone();
@@ -1053,5 +1158,28 @@ mod pruebas_agente {
         assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 40, "nivel": 1 })).ok);
         assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 4 })).ok);
         assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 4, "modo": "pwm" })).ok);
+    }
+
+    #[test]
+    fn descargar_no_pisa_lo_que_ya_esta() {
+        let dir = std::env::temp_dir().join(format!("laboremoto-descargas-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(nombre_libre(&dir, "datos.csv"), dir.join("datos.csv"));
+        std::fs::write(dir.join("datos.csv"), "x").unwrap();
+        std::fs::write(dir.join("datos (1).csv"), "x").unwrap();
+        assert_eq!(nombre_libre(&dir, "datos.csv"), dir.join("datos (2).csv"));
+        std::fs::write(dir.join("Makefile"), "x").unwrap();
+        assert_eq!(nombre_libre(&dir, "Makefile"), dir.join("Makefile (1)"));
+    }
+
+    #[test]
+    fn subir_queda_pendiente_y_solo_si_el_archivo_existe() {
+        let archivo = std::env::temp_dir().join(format!("laboremoto-subir-{}.txt", uuid::Uuid::new_v4()));
+        std::fs::write(&archivo, "hola").unwrap();
+        let ok = tool_subir_archivo(&serde_json::json!({ "ruta_local": archivo.to_string_lossy(), "ruta_remota": "/home/pi/" }));
+        assert!(ok.ok);
+        assert!(ok.output.starts_with("PENDIENTE DE CONFIRMAR: subir el archivo (4 bytes)"));
+        assert!(!tool_subir_archivo(&serde_json::json!({ "ruta_local": "C:/no/existe.txt", "ruta_remota": "/tmp/" })).ok);
+        assert!(!tool_subir_archivo(&serde_json::json!({ "ruta_local": "", "ruta_remota": "/tmp/" })).ok);
     }
 }
