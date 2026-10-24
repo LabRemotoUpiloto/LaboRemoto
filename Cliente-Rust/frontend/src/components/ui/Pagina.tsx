@@ -1,13 +1,13 @@
 // components/ui/Pagina.tsx — el marco de cada página: ancho de lectura, encabezado y pestañas, iguales en todas.
 import React from 'react';
 
-/** Página: ancho de lectura y el mismo margen en todas. `main#contenido` es el destino de «Saltar al contenido». */
+/** Página: ancho de lectura y el mismo margen en todas. Va dentro de main#contenido (App), destino de «Saltar al contenido». */
 export function Pagina({ children, ancho = 'max-w-[1080px]' }: { children: React.ReactNode; ancho?: string }) {
   return (
     <div className="h-full overflow-auto bg-ui-fondo">
-      <main id="contenido" tabIndex={-1} className={`mx-auto flex w-full ${ancho} flex-col gap-7 px-8 pb-12 pt-7 outline-none`}>
+      <div className={`mx-auto flex w-full ${ancho} flex-col gap-7 px-8 pb-12 pt-7`}>
         {children}
-      </main>
+      </div>
     </div>
   );
 }

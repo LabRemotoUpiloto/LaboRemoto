@@ -69,4 +69,14 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('menuitem', { name: 'Temas' })).toBeNull();
   });
 
+  it('«Saltar al contenido» lleva el foco a main#contenido', () => {
+    armar(['admin_lab']);
+    const main = document.createElement('main');
+    main.id = 'contenido';
+    main.tabIndex = -1;
+    document.body.appendChild(main);
+    fireEvent.click(screen.getByRole('link', { name: 'Saltar al contenido' }));
+    expect(document.activeElement).toBe(main);
+    main.remove();
+  });
 });

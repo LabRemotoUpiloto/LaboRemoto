@@ -81,7 +81,9 @@
   overflow: hidden;
 }
 
+/* main#contenido: destino de «Saltar al contenido» (recibe foco por script, sin anillo). */
 .content-area {
+  outline: none;
   flex-grow: 1;
   overflow: hidden;
   padding: 0;

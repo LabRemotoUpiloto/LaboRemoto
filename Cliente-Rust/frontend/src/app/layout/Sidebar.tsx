@@ -118,6 +118,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, []);
 
   return (
+    <>
+    {/* Primer elemento al tabular: salta la navegación y va directo al contenido (main#contenido en App). */}
+    <a href="#contenido" onClick={(e) => { e.preventDefault(); document.getElementById('contenido')?.focus(); }}
+      className="fixed left-4 top-4 z-[2200] -translate-y-20 rounded-ui bg-ui-acento px-4 py-2 text-[13px] font-semibold !text-[var(--accent-contrast,var(--text-inverse,#fff))] !no-underline focus-visible:translate-y-0">
+      Saltar al contenido
+    </a>
     <Box
       component="aside"
       aria-label="Navegación principal"
@@ -399,6 +405,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         </Menu>
       </Box>
     </Box>
+    </>
   );
 };
 
