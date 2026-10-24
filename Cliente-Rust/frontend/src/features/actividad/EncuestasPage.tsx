@@ -1,6 +1,6 @@
 // features/actividad/EncuestasPage.tsx — Encuestas: lo que respondieron los estudiantes al terminar cada práctica (aprendizaje y
 // funcionamiento). Anónimo: el servidor nunca manda quién respondió. Antes era una pestaña de Actividad; no es actividad.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { RefreshCw } from 'lucide-react';
 import {
@@ -23,7 +23,8 @@ const PREGUNTAS: { clave: keyof ResumenPracticaEncuesta['promedios']; etiqueta: 
   { clave: 'satisfaccion', etiqueta: 'Satisfacción general' },
 ];
 
-export default function EncuestasPage() {
+/** `incrustada`: pestaña de Prácticas (sin marco ni título propios; los controles van en una fila). */
+export default function EncuestasPage({ incrustada = false }: { incrustada?: boolean }) {
   // Las encuestas se juntan más despacio que la actividad: el período va de 30 días a un año.
   const [dias, setDias] = useState('90');
   const [recarga, setRecarga] = useState(0);
@@ -37,15 +38,27 @@ export default function EncuestasPage() {
       .catch(() => {});
   }, []);
 
+  const controles = (
+    <>
+      <Desplegable etiqueta="Período" valor={dias} onCambio={setDias} className="w-[180px]"
+        opciones={[{ valor: '30', etiqueta: 'Últimos 30 días' }, { valor: '90', etiqueta: 'Últimos 90 días' }, { valor: '365', etiqueta: 'Último año' }]} />
+      <Boton onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={14} aria-hidden /> Actualizar</Boton>
+    </>
+  );
+  const Marco = incrustada ? Incrustada : Pagina;
+
   return (
-    <Pagina>
-      <Encabezado titulo="Encuestas"
-        descripcion="Lo que opinan los estudiantes al terminar cada práctica. Son anónimas: no se muestra quién respondió."
-        derecha={<>
-          <Desplegable etiqueta="Período" valor={dias} onCambio={setDias} className="w-[180px]"
-            opciones={[{ valor: '30', etiqueta: 'Últimos 30 días' }, { valor: '90', etiqueta: 'Últimos 90 días' }, { valor: '365', etiqueta: 'Último año' }]} />
-          <Boton onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={14} aria-hidden /> Actualizar</Boton>
-        </>} />
+    <Marco>
+      {incrustada ? (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="m-0 text-[13px] text-ui-tinta-2">Son anónimas: no se muestra quién respondió.</p>
+          <div className="flex items-center gap-3">{controles}</div>
+        </div>
+      ) : (
+        <Encabezado titulo="Encuestas"
+          descripcion="Lo que opinan los estudiantes al terminar cada práctica. Son anónimas: no se muestra quién respondió."
+          derecha={controles} />
+      )}
       {cargando && !datos ? (
         <div className={`${TARJETA} h-[240px] bg-ui-pista`} role="status" aria-busy="true"><span className="sr-only">Cargando…</span></div>
       ) : error && !datos ? (
@@ -57,9 +70,11 @@ export default function EncuestasPage() {
       ) : (
         datos.practicas.map((p) => <Practica key={p.practica} p={p} nombre={nombres[p.practica] ?? p.practica} />)
       )}
-    </Pagina>
+    </Marco>
   );
 }
+
+const Incrustada = ({ children }: { children: ReactNode }) => <div className="flex flex-col gap-7">{children}</div>;
 
 function Practica({ p, nombre }: { p: ResumenPracticaEncuesta; nombre: string }) {
   const problemas = problemasOrdenados(p.problemas);
