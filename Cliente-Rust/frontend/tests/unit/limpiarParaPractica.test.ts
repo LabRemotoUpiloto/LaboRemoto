@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { limpiarParaPractica } from '../../src/components/chat/AskRenderer';
+import { limpiarParaPractica } from '@/features/chat/mensajes/AskRenderer';
 
 describe('limpiarParaPractica', () => {
   it('quita el título Explicación y la sección Comandos con su bloque', () => {

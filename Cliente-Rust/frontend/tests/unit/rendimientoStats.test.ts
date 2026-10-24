@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { MuestraPi } from '../../src/services/rendimiento.service';
-import { INDICADORES, estadoDe, resumirPrueba, unirMuestras } from '../../src/pages/rendimiento/rendimientoStats';
+import type { MuestraPi } from '@/features/monitoreo/rendimiento.service';
+import { INDICADORES, estadoDe, resumirPrueba, unirMuestras } from '@/features/monitoreo/rendimientoStats';
 
 /** Muestra mínima: lo que no se pasa queda «sano». */
 function muestra(t: number, o: { estudiantes?: number; cpu?: number | null; temp?: number; p95?: number | null; errores?: number; peticiones?: number; frenada?: boolean } = {}): MuestraPi {

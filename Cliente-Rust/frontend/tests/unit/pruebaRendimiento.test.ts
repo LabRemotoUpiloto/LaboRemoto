@@ -9,10 +9,10 @@ vi.stubGlobal('localStorage', {
 });
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 
-import type { MuestraPi } from '../../src/services/rendimiento.service';
+import type { MuestraPi } from '@/features/monitoreo/rendimiento.service';
 import {
   agregarMuestras, descartarPrueba, iniciarPrueba, pruebaActual, terminarPrueba,
-} from '../../src/services/pruebaRendimiento';
+} from '@/features/monitoreo/pruebaRendimiento';
 
 const m = (t: number) => ({ t, api: { peticiones: 0, errores: 0 } }) as unknown as MuestraPi;
 const guardada = () => JSON.parse(almacen.get('labo:rendimiento:prueba:v1') ?? 'null');

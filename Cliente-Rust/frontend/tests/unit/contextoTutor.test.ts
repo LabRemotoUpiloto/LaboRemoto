@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { LinuxModule, LinuxValidationResult } from '../../src/services/linuxPractice.service';
-import type { DatosGuia } from '../../src/components/practicas/linux/PasoCard';
+import type { LinuxModule, LinuxValidationResult } from '@/features/practicas/linuxPractice.service';
+import type { DatosGuia } from '@/features/practicas/linux/PasoCard';
 import {
   contextoPractica, loQueTocaAhora, relacionDelComando, textoComandoFueraDeLugar,
-} from '../../src/components/practicas/linux/contextoTutor';
+} from '@/features/practicas/linux/contextoTutor';
 
 const paso = (id: string, command: string) => ({ type: 'command_step', id, command, explain_md: '', rule_id: `r-${id}` });
 const modulo = {

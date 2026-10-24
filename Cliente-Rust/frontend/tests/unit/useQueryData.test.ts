@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAppStore } from '../../src/store/app';
-import { fetchQueryData } from '../../src/hooks/useQueryData';
+import { fetchQueryData } from '@/lib/useQueryData';
 
 /**
  * Tests de `fetchQueryData` (Batch 3 fixes): deduplicación de fetches

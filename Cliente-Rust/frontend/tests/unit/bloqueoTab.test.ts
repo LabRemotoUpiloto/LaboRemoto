@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVISO_TAB_CADA_MS, esPulsacionTab, quitarTabs, tocaAvisarTab } from '../../src/components/terminal/hooks/bloqueoTab';
+import { AVISO_TAB_CADA_MS, esPulsacionTab, quitarTabs, tocaAvisarTab } from '@/features/terminal/hooks/bloqueoTab';
 
 describe('Tab desactivado en las prácticas', () => {
   it('reconoce la pulsación de Tab (también con Mayús) y solo al bajar la tecla', () => {

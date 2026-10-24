@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { etiquetaEstadoDocente, resumenEntregas, resumenGeneral, textoNota, yaEntrego } from '../../src/pages/cursos/entregasStats';
+import { etiquetaEstadoDocente, resumenEntregas, resumenGeneral, textoNota, yaEntrego } from '@/features/cursos/entregasStats';
 
 const e = (estado: string, nota: number | null = null) => ({ estado, nota });
 

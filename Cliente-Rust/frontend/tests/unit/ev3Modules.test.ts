@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { tryEvaluateExpr, type MathVars } from '../../src/utils/mathExpr';
+import { tryEvaluateExpr, type MathVars } from '@/features/practicas/mathExpr';
 
 // Los módulos viven en infra/practicas-ev3/ev3-mN (se despliegan a la Pi);
 // aquí se comprueba que los bloques interactivos sean coherentes con lo que

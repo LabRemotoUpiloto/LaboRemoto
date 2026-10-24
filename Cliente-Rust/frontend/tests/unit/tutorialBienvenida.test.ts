@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { PASOS_BIENVENIDA } from '../../src/tours/tour_inicio/pasos';
+import { PASOS_BIENVENIDA } from '@/features/onboarding/inicio/pasos';
 
 const PUBLIC = resolve(__dirname, '../../public/tutorial/bienvenida');
 const GUION = resolve(__dirname, '../../../tools/video-bienvenida/frases_elevenlabs.txt');

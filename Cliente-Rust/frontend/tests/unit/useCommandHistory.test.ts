@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useCommandHistory } from '../../src/hooks/useCommandHistory';
+import { useCommandHistory } from '@/features/terminal/useCommandHistory';
 
 // TerminalView reporta `commandHistory` en un efecto, y cada reporte puede terminar en un
 // POST /validate a la Pi: la referencia solo puede cambiar cuando entra un comando nuevo.

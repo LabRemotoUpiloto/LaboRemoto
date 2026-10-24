@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newLine, serverOutput, typeKeys, SYNC_WINDOW_MS, type ShellLine } from '../../src/utils/shellLine';
+import { newLine, serverOutput, typeKeys, SYNC_WINDOW_MS, type ShellLine } from '@/features/terminal/shellLine';
 
 const UP = '\x1b[A';
 const DOWN = '\x1b[B';

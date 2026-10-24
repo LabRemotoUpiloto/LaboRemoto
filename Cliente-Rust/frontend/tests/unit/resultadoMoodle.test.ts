@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { notaYResumen, textoRegistro, yaEnviada } from '../../src/components/cursos/ResultadoMoodleAviso';
+import { notaYResumen, textoRegistro, yaEnviada } from '@/features/cursos/ResultadoMoodleAviso';
 
 const r = { practice_id: 'ev3-m3', total_points: 8, earned_points: 7, percentage: 87.5, passed: true };
 

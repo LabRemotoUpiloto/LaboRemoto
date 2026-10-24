@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import type { MuestraPi } from '../../src/services/rendimiento.service';
+import type { MuestraPi } from '@/features/monitoreo/rendimiento.service';
 import {
   agruparPorDia, agruparPorEstudiantes, duracion, etiquetaDia, paginar, paginasVisibles, tramosEnElTiempo,
-} from '../../src/pages/rendimiento/monitoreo';
+} from '@/features/monitoreo/monitoreo';
 
 /** Muestra mínima con lo que usan estas cuentas: estudiantes y CPU. */
 function muestra(t: number, estudiantes: number, cpu: number | null): MuestraPi {

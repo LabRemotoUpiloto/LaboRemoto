@@ -1,0 +1,32 @@
+/**
+ * features/cuenta/useAuth.ts — wrapper delgado sobre store/app.ts (Zustand).
+ *
+ * Mantiene EXACTAMENTE el mismo contrato público que el `useAuth()` original
+ * de `features/cuenta/AuthContext.tsx` para que ningún componente consumidor
+ * necesite cambiar. La fuente de verdad ahora es el store de Zustand;
+ * `AuthContext`/`AuthProvider` quedaron deprecados (ver features/cuenta/AuthContext.tsx).
+ */
+import { useAppStore } from '@/store/app'
+import { AuthSessionInfo } from './auth.service'
+
+export interface UseAuthResult {
+  user: AuthSessionInfo | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  isLoggingIn: boolean
+  login: () => Promise<void>
+  cancelLogin: () => Promise<void>
+  logout: () => Promise<void>
+}
+
+export const useAuth = (): UseAuthResult => {
+  const user = useAppStore((s) => s.user)
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated)
+  const isLoading = useAppStore((s) => s.isLoading)
+  const isLoggingIn = useAppStore((s) => s.isLoggingIn)
+  const login = useAppStore((s) => s.login)
+  const cancelLogin = useAppStore((s) => s.cancelLogin)
+  const logout = useAppStore((s) => s.logout)
+
+  return { user, isAuthenticated, isLoading, isLoggingIn, login, cancelLogin, logout }
+}

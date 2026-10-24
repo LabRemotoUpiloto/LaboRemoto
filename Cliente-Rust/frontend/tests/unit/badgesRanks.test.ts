@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { RANKS, rankForModule } from '../../src/services/badges.service';
-import { getInsigniaForPractice } from '../../src/components/practicas/badges/insigniaRegistry';
+import { RANKS, rankForModule } from '@/features/practicas/badges.service';
+import { getInsigniaForPractice } from '@/features/practicas/badges/insigniaRegistry';
 
 // Un módulo sin rango se completa, pero no da insignia ni cierra el flujo de «fin de práctica»
 // (ver AiMessageBubble): todo módulo de Linux que exista en la Pi tiene que estar acá.

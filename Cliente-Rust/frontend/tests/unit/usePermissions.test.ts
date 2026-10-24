@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { ASSIGNABLE_ROLES, canAccessPage, getEffectiveRole, puedeAdministrarCamaras, puedeVerComo, rolVerComo, setRolVerComo } from '../../src/hooks/usePermissions';
+import { ASSIGNABLE_ROLES, canAccessPage, getEffectiveRole, puedeAdministrarCamaras, puedeVerComo, rolVerComo, setRolVerComo } from '@/features/cuenta/usePermissions';
 import { useAppStore } from '../../src/store/app';
 
 describe('rol docente', () => {
