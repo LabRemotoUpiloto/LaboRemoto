@@ -57,7 +57,7 @@ export function useLocalFsBrowser() {
   // volvía a disparar este efecto y duplicaba `local_list_drives`/
   // `local_list_dir` en cada apertura del panel local. La navegación
   // posterior ya la disparan explícitamente los callers (ver
-  // `handleLocalNavigate` en SftpPage), así que no hace falta reaccionar
+  // `handleLocalNavigate` en ArchivosSftp), así que no hace falta reaccionar
   // a cambios de `path` aquí.
   useEffect(() => {
     refresh();

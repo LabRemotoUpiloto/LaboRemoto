@@ -100,6 +100,45 @@ pub struct AgentStep {
     pub name: Option<String>,
     pub input: Option<String>,
     pub output: Option<String>,
+    /// Lo que la app tiene que mostrar o pedirle a la persona por este paso (el `output` es solo para el modelo).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accion: Option<AccionAgente>,
+}
+
+/// Lo que hizo o propuso el agente, con datos para la interfaz (el chat no lee el texto que va para el modelo).
+/// Los cambios de pin y las subidas quedan pendientes: los aplica la persona con Aplicar.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ts_rs::TS)]
+#[serde(tag = "tipo")]
+#[ts(export)]
+pub enum AccionAgente {
+    #[serde(rename = "comandoGuardado")]
+    ComandoGuardado { titulo: String, comando: String, descripcion: Option<String> },
+    #[serde(rename = "cambioPin")]
+    CambioPin {
+        gpio: u32,
+        /// "entrada" | "salida"
+        modo: Option<String>,
+        /// "arriba" | "abajo" | "ninguno"
+        pull: Option<String>,
+        nivel: Option<u8>,
+    },
+    #[serde(rename = "descarga")]
+    Descarga {
+        #[serde(rename = "rutaLocal")]
+        ruta_local: String,
+        #[serde(rename = "rutaRemota")]
+        ruta_remota: String,
+    },
+    #[serde(rename = "subida")]
+    Subida {
+        #[serde(rename = "rutaLocal")]
+        ruta_local: String,
+        /// Ya con el nombre del archivo si se pidió subir «dentro» de una carpeta (terminada en /).
+        #[serde(rename = "rutaRemota")]
+        ruta_remota: String,
+        #[serde(rename = "esCarpeta")]
+        es_carpeta: bool,
+    },
 }
 
 // ─── Respuesta final del agent_chat ──────────────────────────────────────────
@@ -137,6 +176,7 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
         "info_sistema"         => tool_info_sistema(session_id),
         "reiniciar_servicio"   => tool_reiniciar_servicio(session_id, input),
         "get_terminal_output"  => tool_get_terminal_output(session_id, input),
+        "leer_pines"           => tool_leer_pines(session_id),
         other => {
             // Intentar resolverlo como tool MCP registrada
             if let Some((output, ok)) = crate::cmd::integration::mcp_client::exec_mcp_call(other, input) {
@@ -146,6 +186,167 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
             }
         }
     }
+}
+
+// ── guardar_comando / leer_pines / cambiar_pin ────────────────────────────────
+
+const INSTRUCCIONES_COMANDOS_Y_PINES: &str = "\n\n\
+COMANDOS GUARDADOS: si la persona pide guardar algo como comando (o snippet), usa `guardar_comando` con un nombre corto y \
+el comando exacto, y una descripción de para qué sirve. La app lo agrega a su panel Comandos.\n\
+PINES (Raspberry Pi): para saber el estado de los GPIO usa `leer_pines` (incluye lo que la persona describió de cada uno). \
+Para cambiar un pin usa `cambiar_pin`: NO lo aplica, la app le pide a la persona que confirme con Aplicar. Dile qué va a \
+cambiar y que lo confirme; nunca digas que ya quedó aplicado.\n\
+ARCHIVOS (SFTP): para crear o editar un archivo en el servidor usa `escribir_archivo`. Para bajar un archivo o carpeta del \
+servidor al computador de la persona usa `descargar_archivo` (queda en su carpeta Descargas). Para subir algo del computador \
+al servidor usa `subir_archivo`: NO lo sube, la app le pide confirmar con Aplicar.";
+
+fn tool_guardar_comando(app: &AppHandle, input: &serde_json::Value) -> (ToolResult, Option<AccionAgente>) {
+    let texto = |k: &str| input.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let comando = crate::cmd::comandos::Comando {
+        id: String::new(),
+        titulo: texto("titulo"),
+        comando: texto("comando"),
+        descripcion: Some(texto("descripcion")).filter(|d| !d.trim().is_empty()),
+        categoria: Some(texto("categoria")).filter(|c| !c.trim().is_empty()),
+        terminal: Some(texto("terminal")).filter(|t| t == "linux" || t == "powershell"),
+        creado: 0.0,
+        actualizado: None,
+    };
+    match crate::cmd::comandos::guardar(app, comando) {
+        Ok(c) => (
+            ToolResult { tool: "guardar_comando".into(), output: format!("Guardado en Comandos: «{}» ({})", c.titulo, c.comando), ok: true },
+            Some(AccionAgente::ComandoGuardado { titulo: c.titulo, comando: c.comando, descripcion: c.descripcion }),
+        ),
+        Err(e) => (ToolResult { tool: "guardar_comando".into(), output: format!("No se pudo guardar: {e}"), ok: false }, None),
+    }
+}
+
+fn tool_leer_pines(session_id: &str) -> ToolResult {
+    match crate::cmd::ssh::gpio::leer_pines(session_id) {
+        Ok(pines) if pines.is_empty() => ToolResult { tool: "leer_pines".into(), output: "raspi-gpio no devolvió pines (¿es una Raspberry Pi?)".into(), ok: false },
+        Ok(pines) => {
+            let lineas: Vec<String> = pines.iter().filter(|p| p.gpio <= 27).map(|p| format!(
+                "GPIO {}: {}, nivel {}, pull {}",
+                p.gpio,
+                match p.func.as_str() { "INPUT" => "entrada", "OUTPUT" => "salida", f => f },
+                p.level.map(|l| if l == 1 { "alto (1)" } else { "bajo (0)" }).unwrap_or("?"),
+                p.pull.as_deref().unwrap_or("?"),
+            )).collect();
+            ToolResult { tool: "leer_pines".into(), output: lineas.join("\n"), ok: true }
+        }
+        Err(e) => ToolResult { tool: "leer_pines".into(), output: format!("No se pudieron leer los pines: {}", e.message), ok: false },
+    }
+}
+
+/// Valida el cambio pedido y lo deja PENDIENTE: la app muestra Aplicar/Cancelar y es la persona quien lo aplica.
+fn tool_cambiar_pin(input: &serde_json::Value) -> (ToolResult, Option<AccionAgente>) {
+    let gpio = input.get("gpio").and_then(|v| v.as_u64());
+    let modo = input.get("modo").and_then(|v| v.as_str());
+    let pull = input.get("pull").and_then(|v| v.as_str());
+    let nivel = input.get("nivel").and_then(|v| v.as_u64());
+    let error = |m: &str| (ToolResult { tool: "cambiar_pin".into(), output: m.to_string(), ok: false }, None);
+    let Some(gpio) = gpio.filter(|g| *g <= 27) else { return error("GPIO inválido: debe ser un número BCM de 0 a 27") };
+    if modo.is_some_and(|m| m != "entrada" && m != "salida") { return error("modo debe ser «entrada» o «salida»"); }
+    if pull.is_some_and(|p| p != "arriba" && p != "abajo" && p != "ninguno") { return error("pull debe ser «arriba», «abajo» o «ninguno»"); }
+    if nivel.is_some_and(|n| n > 1) { return error("nivel debe ser 0 o 1"); }
+    if modo.is_none() && pull.is_none() && nivel.is_none() { return error("No hay nada que cambiar: indica modo, pull o nivel"); }
+    let mut partes = vec![];
+    if let Some(m) = modo { partes.push(format!("modo {m}")); }
+    if let Some(p) = pull { partes.push(format!("pull {p}")); }
+    if let Some(n) = nivel { partes.push(format!("nivel {}", if n == 1 { "alto" } else { "bajo" })); }
+    (
+        ToolResult {
+            tool: "cambiar_pin".into(),
+            output: format!("PENDIENTE DE CONFIRMAR: GPIO {gpio}, {}. La app le muestra a la persona Aplicar y Cancelar; todavía no está aplicado.", partes.join(", ")),
+            ok: true,
+        },
+        Some(AccionAgente::CambioPin { gpio: gpio as u32, modo: modo.map(String::from), pull: pull.map(String::from), nivel: nivel.map(|n| n as u8) }),
+    )
+}
+
+// ── descargar_archivo / subir_archivo ─────────────────────────────────────────
+
+/// Nombre libre en `carpeta`: si `nombre` ya existe, «nombre (1).ext», «nombre (2).ext»…
+fn nombre_libre(carpeta: &std::path::Path, nombre: &str) -> std::path::PathBuf {
+    let primero = carpeta.join(nombre);
+    if !primero.exists() { return primero; }
+    let (base, ext) = match nombre.rfind('.') {
+        Some(i) if i > 0 => (&nombre[..i], &nombre[i..]),
+        _ => (nombre, ""),
+    };
+    (1..1000).map(|n| carpeta.join(format!("{base} ({n}){ext}"))).find(|p| !p.exists()).unwrap_or(primero)
+}
+
+fn carpeta_descargas() -> Option<std::path::PathBuf> {
+    let dirs = directories::UserDirs::new()?;
+    Some(dirs.download_dir().map(|d| d.to_path_buf()).unwrap_or_else(|| dirs.home_dir().to_path_buf()))
+}
+
+/// Comillas simples para el shell remoto.
+fn comillas(s: &str) -> String { format!("'{}'", s.replace('\'', "'\\''")) }
+
+/// Baja un archivo o una carpeta del servidor a Descargas, con la misma transferencia de la vista Archivos.
+async fn tool_descargar_archivo(app: &AppHandle, session_id: &str, input: &serde_json::Value) -> (ToolResult, Option<AccionAgente>) {
+    let fallo = |m: String| (ToolResult { tool: "descargar_archivo".into(), output: m, ok: false }, None);
+    let Some(ruta) = input.get("ruta_remota").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()) else {
+        return fallo("Falta 'ruta_remota'".into());
+    };
+    // ~ y rutas relativas: desde la carpeta personal en el servidor
+    let sid = session_id.to_string();
+    let r = ruta.clone();
+    let consulta = tokio::task::spawn_blocking(move || {
+        let ruta_shell = if r == "~" { "\"$HOME\"".to_string() } else if let Some(resto) = r.strip_prefix("~/") { format!("\"$HOME\"/{}", comillas(resto)) } else { comillas(&r) };
+        run_ssh_exec(&sid, &format!("cd ~ && p=$(realpath -e -- {ruta_shell} 2>/dev/null) && {{ [ -d \"$p\" ] && echo \"dir $p\" || echo \"file $p\"; }} || echo nada"))
+    }).await;
+    let salida = match consulta {
+        Ok(Ok(s)) => s.trim().to_string(),
+        Ok(Err(e)) => return fallo(format!("No se pudo revisar la ruta en el servidor: {e}")),
+        Err(_) => return fallo("Error interno".into()),
+    };
+    let (es_carpeta, absoluta) = match salida.split_once(' ') {
+        Some(("dir", p)) => (true, p.to_string()),
+        Some(("file", p)) => (false, p.to_string()),
+        _ => return fallo(format!("No existe en el servidor: {ruta}")),
+    };
+    let Some(destino) = carpeta_descargas() else { return fallo("No se encontró la carpeta Descargas".into()) };
+    let nombre = absoluta.rsplit('/').next().filter(|n| !n.is_empty()).unwrap_or("descarga").to_string();
+    let local = nombre_libre(&destino, &nombre).to_string_lossy().to_string();
+    let inicio = if es_carpeta {
+        crate::cmd::sftp::transfers::sftp_download_dir_start(app.clone(), session_id.to_string(), absoluta.clone(), local.clone()).await
+    } else {
+        crate::cmd::sftp::transfers::sftp_download_start_impl(app.clone(), session_id.to_string(), absoluta.clone(), local.clone()).await
+    };
+    match inicio {
+        Ok(_) => (
+            ToolResult {
+                tool: "descargar_archivo".into(),
+                output: format!("Descargando a {local} (desde {absoluta}). El progreso se ve en Archivos."),
+                ok: true,
+            },
+            Some(AccionAgente::Descarga { ruta_local: local, ruta_remota: absoluta }),
+        ),
+        Err(e) => fallo(format!("No se pudo descargar: {e}")),
+    }
+}
+
+/// Valida lo pedido y lo deja PENDIENTE: la app muestra Aplicar/Cancelar y es la persona quien sube.
+fn tool_subir_archivo(input: &serde_json::Value) -> (ToolResult, Option<AccionAgente>) {
+    let fallo = |m: &str| (ToolResult { tool: "subir_archivo".into(), output: m.to_string(), ok: false }, None);
+    let local = input.get("ruta_local").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let remota = input.get("ruta_remota").and_then(|v| v.as_str()).unwrap_or("").trim();
+    if local.is_empty() || remota.is_empty() { return fallo("Faltan 'ruta_local' y 'ruta_remota'"); }
+    let ruta = std::path::Path::new(local);
+    let Ok(meta) = std::fs::metadata(ruta) else { return fallo("Ese archivo no existe en el computador de la persona") };
+    let que = if meta.is_dir() { "la carpeta".to_string() } else { format!("el archivo ({} bytes)", meta.len()) };
+    let destino = crate::cmd::sftp::transfers::destino_remoto(local, remota);
+    (
+        ToolResult {
+            tool: "subir_archivo".into(),
+            output: format!("PENDIENTE DE CONFIRMAR: subir {que} {local} a {destino}. La app le muestra a la persona Aplicar y Cancelar; todavía no se subió."),
+            ok: true,
+        },
+        Some(AccionAgente::Subida { ruta_local: local.to_string(), ruta_remota: destino, es_carpeta: meta.is_dir() }),
+    )
 }
 
 // ── conectar_raspberry / estado_raspberry ─────────────────────────────────────
@@ -481,6 +682,61 @@ fn tool_definitions() -> serde_json::Value {
             }
         },
         {
+            "name": "guardar_comando",
+            "description": "Guarda un comando en el panel Comandos de la persona (sus comandos guardados, antes snippets), para ejecutarlo luego con un clic. Úsalo cuando pida guardar algo como comando o snippet.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "titulo": { "type": "string", "description": "Nombre corto (p. ej. «Temperatura»)" },
+                    "comando": { "type": "string", "description": "El comando exacto" },
+                    "descripcion": { "type": "string", "description": "Para qué sirve, en una frase clara para la persona (p. ej. «Muestra la temperatura del procesador de la Pi»)" },
+                    "categoria": { "type": "string", "description": "Opcional (p. ej. «Servicios»)" },
+                    "terminal": { "type": "string", "enum": ["linux", "powershell"], "description": "Dónde sirve; omítelo si sirve en cualquiera" }
+                },
+                "required": ["titulo", "comando", "descripcion"]
+            }
+        },
+        {
+            "name": "descargar_archivo",
+            "description": "Baja un archivo o una carpeta del servidor de la sesión al computador de la persona (a su carpeta Descargas, sin pisar nada). Acepta rutas absolutas, con ~ o relativas a la carpeta personal.",
+            "input_schema": {
+                "type": "object",
+                "properties": { "ruta_remota": { "type": "string", "description": "Ruta en el servidor (p. ej. ~/proyecto/datos.csv)" } },
+                "required": ["ruta_remota"]
+            }
+        },
+        {
+            "name": "subir_archivo",
+            "description": "Propone subir un archivo o carpeta del computador de la persona al servidor. NO lo sube: la app le pide confirmar. Si la ruta remota termina en /, se sube dentro de esa carpeta con el mismo nombre.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "ruta_local": { "type": "string", "description": "Ruta completa en el computador de la persona (p. ej. C:\\Users\\ana\\Desktop\\leds.py)" },
+                    "ruta_remota": { "type": "string", "description": "Destino en el servidor (absoluto, p. ej. /home/pi/proyecto/ o /home/pi/proyecto/leds.py)" }
+                },
+                "required": ["ruta_local", "ruta_remota"]
+            }
+        },
+        {
+            "name": "leer_pines",
+            "description": "Lee el estado actual de los pines GPIO de la Raspberry Pi de la sesión (modo, nivel y pull de cada uno). Úsalo antes de explicar o cambiar pines.",
+            "input_schema": { "type": "object", "properties": {}, "required": [] }
+        },
+        {
+            "name": "cambiar_pin",
+            "description": "Propone cambiar un pin GPIO (numeración BCM). NO lo aplica: la app le pide a la persona que confirme. Indica al menos uno de modo, pull o nivel.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "gpio": { "type": "integer", "description": "Número BCM (0 a 27)" },
+                    "modo": { "type": "string", "enum": ["entrada", "salida"] },
+                    "pull": { "type": "string", "enum": ["arriba", "abajo", "ninguno"] },
+                    "nivel": { "type": "integer", "enum": [0, 1], "description": "Solo para salida: 1 alto, 0 bajo" }
+                },
+                "required": ["gpio"]
+            }
+        },
+        {
             "name": "get_terminal_output",
             "description": "Lee las últimas N líneas del buffer de la terminal interactiva del usuario. Úsalo cuando el usuario mencione un error, un comando que falló, o pida analizar lo que pasó en la terminal. NO lo uses si la pregunta es teórica o no está relacionada con la terminal activa.",
             "input_schema": {
@@ -506,6 +762,63 @@ pub struct AgentChatRequest {
     pub terminal_lines: Option<usize>,
     /// ID del mensaje en el chat; habilita eventos `agent:step` en vivo.
     pub request_id: Option<String>,
+    /// Lo que la app sabe de la sesión (equipo, usuario, tipo de terminal, descripciones de los pines…), en texto.
+    pub contexto: Option<String>,
+    /// La conversación anterior (sin el mensaje actual), lo más viejo primero.
+    pub historial: Option<Vec<MensajeHistorial>>,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct MensajeHistorial {
+    /// "user" o "assistant"
+    pub rol: String,
+    pub texto: String,
+}
+
+/// La conversación anterior en el formato de la API: empieza por la persona, alterna roles (se juntan los seguidos del
+/// mismo rol), recorta textos largos y se queda con los últimos.
+fn mensajes_previos(historial: &[MensajeHistorial]) -> Vec<serde_json::Value> {
+    let mut salida: Vec<(String, String)> = vec![];
+    for m in historial.iter().rev().take(12).collect::<Vec<_>>().into_iter().rev() {
+        let rol = if m.rol == "assistant" { "assistant" } else { "user" };
+        let texto: String = m.texto.trim().chars().take(2000).collect();
+        if texto.is_empty() { continue; }
+        match salida.last_mut() {
+            Some((r, t)) if r == rol => { t.push_str("\n\n"); t.push_str(&texto); }
+            _ => salida.push((rol.to_string(), texto)),
+        }
+    }
+    while salida.first().map(|(r, _)| r == "assistant").unwrap_or(false) { salida.remove(0); }
+    // El mensaje actual es de la persona: lo anterior tiene que terminar en el asistente
+    if salida.last().map(|(r, _)| r == "user").unwrap_or(false) { salida.pop(); }
+    salida.into_iter().map(|(r, t)| serde_json::json!({ "role": r, "content": t })).collect()
+}
+
+/// Lo que el agente sabe de la sesión: equipo y usuario (el backend los tiene), el tipo de terminal, y lo que manda la app
+/// (lo que solo ella sabe, como las descripciones de los pines).
+fn contexto_de_sesion(session_id: &str, de_la_app: Option<&str>) -> String {
+    let mut lineas = vec![];
+    if let Ok(map) = SESSIONS.lock() {
+        if let Some(s) = map.get(session_id) {
+            lineas.push(format!("Equipo: {}@{}:{}", s.user, s.host, s.port));
+        }
+    }
+    lineas.push("Terminal: Linux, por SSH (la terminal interactiva de la persona).".to_string());
+    if let Some(extra) = de_la_app.map(str::trim).filter(|c| !c.is_empty()) {
+        lineas.push(extra.to_string());
+    }
+    lineas.join("\n")
+}
+
+/// Lo último que mostró la terminal, sin códigos de color, para que el agente sepa dónde está parada la persona.
+fn terminal_reciente(session_id: &str, lineas: usize) -> Option<String> {
+    let crudo = get_terminal_context(session_id.to_string(), Some(120)).ok()?;
+    let limpio = crate::cmd::ssh::carpeta::limpiar_ansi(&crudo);
+    let todas: Vec<&str> = limpio.lines().filter(|l| !l.trim().is_empty()).collect();
+    let desde = todas.len().saturating_sub(lineas);
+    let texto = todas[desde..].join("\n");
+    let texto: String = texto.chars().rev().take(3000).collect::<Vec<_>>().into_iter().rev().collect();
+    if texto.trim().is_empty() { None } else { Some(texto) }
 }
 
 #[tauri::command]
@@ -513,14 +826,24 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
     let request_id = req.request_id.as_deref();
     let api_key = get_claude_api_key().ok_or("No hay Claude API key configurada")?;
 
-    // El contexto de terminal ya NO se inyecta en el system prompt.
-    // Claude lo pedirá llamando a la tool `get_terminal_output` solo cuando lo necesite.
-    let system_prompt = build_system_prompt(None);
+    // Lo último de la terminal va en el prompt (corto); si necesita más, el agente usa `get_terminal_output`.
+    let terminal = if req.include_terminal_context.unwrap_or(false) {
+        terminal_reciente(&req.session_id, req.terminal_lines.unwrap_or(40).min(80))
+    } else {
+        None
+    };
+    let mut system_prompt = build_system_prompt(terminal.as_deref());
+    let sesion = contexto_de_sesion(&req.session_id, req.contexto.as_deref());
+    if !sesion.is_empty() {
+        system_prompt.push_str("\n\n=== SESIÓN ===\n");
+        system_prompt.push_str(&sesion);
+        system_prompt.push_str("\n=== FIN DE LA SESIÓN ===");
+    }
+    system_prompt.push_str(INSTRUCCIONES_COMANDOS_Y_PINES);
 
-    // Mensajes iniciales
-    let mut messages: Vec<serde_json::Value> = vec![
-        serde_json::json!({ "role": "user", "content": req.message })
-    ];
+    // La conversación anterior y el mensaje actual
+    let mut messages: Vec<serde_json::Value> = mensajes_previos(req.historial.as_deref().unwrap_or(&[]));
+    messages.push(serde_json::json!({ "role": "user", "content": req.message }));
 
     let client = &*HTTP_CLIENT;
     let mut steps: Vec<AgentStep> = vec![];
@@ -594,23 +917,35 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
                     name: Some(tool_name.clone()),
                     input: Some(tool_call_input_for_timeline(&tool_name, &input)),
                     output: None,
+                    accion: None,
                 };
                 steps.push(call_step.clone());
                 emit_agent_step(&app, request_id, &call_step);
 
-                // Ejecutar en hilo bloqueante (run_ssh_exec usa ssh2 sync)
-                let sid = req.session_id.clone();
-                let tn  = tool_name.clone();
-                let inp = input.clone();
-                let result = tokio::task::spawn_blocking(move || exec_tool(&sid, &tn, &inp))
-                    .await
-                    .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false });
+                // Las herramientas que la app tiene que mostrar devuelven además su acción (datos para la interfaz). Las demás
+                // corren en un hilo bloqueante (run_ssh_exec usa ssh2 sync).
+                let (result, accion) = match tool_name.as_str() {
+                    "guardar_comando" => tool_guardar_comando(&app, &input),
+                    "descargar_archivo" => tool_descargar_archivo(&app, &req.session_id, &input).await,
+                    "cambiar_pin" => tool_cambiar_pin(&input),
+                    "subir_archivo" => tool_subir_archivo(&input),
+                    _ => {
+                        let sid = req.session_id.clone();
+                        let tn  = tool_name.clone();
+                        let inp = input.clone();
+                        let r = tokio::task::spawn_blocking(move || exec_tool(&sid, &tn, &inp))
+                            .await
+                            .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false });
+                        (r, None)
+                    }
+                };
 
                 let result_step = AgentStep {
                     kind: "tool_result".into(),
                     name: Some(tool_name.clone()),
                     input: None,
                     output: Some(result.output.clone()),
+                    accion,
                 };
                 steps.push(result_step.clone());
                 emit_agent_step(&app, request_id, &result_step);
@@ -805,6 +1140,7 @@ pub async fn plan_chat(app: AppHandle, req: PlanChatRequest) -> Result<AgentChat
                     name: Some(tool_name.clone()),
                     input: Some(tool_call_input_for_timeline(&tool_name, &input)),
                     output: None,
+                    accion: None,
                 };
                 steps.push(call_step.clone());
                 emit_agent_step(&app, request_id, &call_step);
@@ -821,6 +1157,7 @@ pub async fn plan_chat(app: AppHandle, req: PlanChatRequest) -> Result<AgentChat
                     name: Some(tool_name.clone()),
                     input: None,
                     output: Some(result.output.clone()),
+                    accion: None,
                 };
                 steps.push(result_step.clone());
                 emit_agent_step(&app, request_id, &result_step);
@@ -871,4 +1208,67 @@ fn build_system_prompt(terminal_ctx: Option<&str>) -> String {
         s.push_str("\n=== FIN DEL CONTEXTO ===");
     }
     s
+}
+
+#[cfg(test)]
+mod pruebas_agente {
+    use super::*;
+
+    fn m(rol: &str, texto: &str) -> MensajeHistorial { MensajeHistorial { rol: rol.into(), texto: texto.into() } }
+
+    #[test]
+    fn la_accion_llega_a_la_app_con_su_tipo() {
+        let v = serde_json::to_value(AccionAgente::Descarga { ruta_local: "C:/d/a.csv".into(), ruta_remota: "/home/pi/a.csv".into() }).unwrap();
+        assert_eq!(v, serde_json::json!({ "tipo": "descarga", "rutaLocal": "C:/d/a.csv", "rutaRemota": "/home/pi/a.csv" }));
+        // Los pasos sin acción no la mandan
+        let paso = AgentStep { kind: "tool_result".into(), name: None, input: None, output: None, accion: None };
+        assert!(serde_json::to_value(paso).unwrap().get("accion").is_none());
+    }
+
+    #[test]
+    fn el_historial_empieza_por_la_persona_alterna_y_termina_en_el_asistente() {
+        let h = vec![m("assistant", "hola"), m("user", "a"), m("user", "b"), m("assistant", "c"), m("user", "colgado")];
+        let v = mensajes_previos(&h);
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[0]["role"], "user");
+        assert_eq!(v[0]["content"], "a\n\nb");
+        assert_eq!(v[1]["role"], "assistant");
+    }
+
+    #[test]
+    fn cambiar_pin_valida_y_queda_pendiente() {
+        let (ok, accion) = tool_cambiar_pin(&serde_json::json!({ "gpio": 17, "modo": "salida", "nivel": 1 }));
+        assert!(ok.ok);
+        assert!(ok.output.starts_with("PENDIENTE DE CONFIRMAR: GPIO 17, modo salida, nivel alto"));
+        assert_eq!(accion, Some(AccionAgente::CambioPin { gpio: 17, modo: Some("salida".into()), pull: None, nivel: Some(1) }));
+        for malo in [serde_json::json!({ "gpio": 40, "nivel": 1 }), serde_json::json!({ "gpio": 4 }), serde_json::json!({ "gpio": 4, "modo": "pwm" })] {
+            let (r, a) = tool_cambiar_pin(&malo);
+            assert!(!r.ok && a.is_none());
+        }
+    }
+
+    #[test]
+    fn descargar_no_pisa_lo_que_ya_esta() {
+        let dir = std::env::temp_dir().join(format!("laboremoto-descargas-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(nombre_libre(&dir, "datos.csv"), dir.join("datos.csv"));
+        std::fs::write(dir.join("datos.csv"), "x").unwrap();
+        std::fs::write(dir.join("datos (1).csv"), "x").unwrap();
+        assert_eq!(nombre_libre(&dir, "datos.csv"), dir.join("datos (2).csv"));
+        std::fs::write(dir.join("Makefile"), "x").unwrap();
+        assert_eq!(nombre_libre(&dir, "Makefile"), dir.join("Makefile (1)"));
+    }
+
+    #[test]
+    fn subir_queda_pendiente_y_solo_si_el_archivo_existe() {
+        let archivo = std::env::temp_dir().join(format!("laboremoto-subir-{}.txt", uuid::Uuid::new_v4()));
+        std::fs::write(&archivo, "hola").unwrap();
+        let (ok, accion) = tool_subir_archivo(&serde_json::json!({ "ruta_local": archivo.to_string_lossy(), "ruta_remota": "/home/pi/" }));
+        assert!(ok.ok);
+        assert!(ok.output.starts_with("PENDIENTE DE CONFIRMAR: subir el archivo (4 bytes)"));
+        let nombre = archivo.file_name().unwrap().to_string_lossy().to_string();
+        assert_eq!(accion, Some(AccionAgente::Subida { ruta_local: archivo.to_string_lossy().to_string(), ruta_remota: format!("/home/pi/{nombre}"), es_carpeta: false }));
+        assert!(!tool_subir_archivo(&serde_json::json!({ "ruta_local": "C:/no/existe.txt", "ruta_remota": "/tmp/" })).0.ok);
+        assert!(!tool_subir_archivo(&serde_json::json!({ "ruta_local": "", "ruta_remota": "/tmp/" })).0.ok);
+    }
 }

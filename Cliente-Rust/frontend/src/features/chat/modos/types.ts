@@ -1,3 +1,4 @@
+import type { AccionAgente } from '@/bindings/AccionAgente';
 import type React from 'react';
 import type { PasoPractica } from '@/features/practicas/linux/ritmo';
 
@@ -124,6 +125,8 @@ export interface AgentStep {
   name?: string;
   input?: string;
   output?: string;
+  /** Lo que la app muestra o le pide a la persona por este paso (el `output` es para el modelo). */
+  accion?: AccionAgente;
 }
 
 export interface AgentChatResponse {

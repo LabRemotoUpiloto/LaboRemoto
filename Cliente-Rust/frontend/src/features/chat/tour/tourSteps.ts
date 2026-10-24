@@ -235,16 +235,15 @@ export const tourSteps: DriveStep[] = [
 
   // ── 14 · Transferir archivos ─────────────────────────────────────────────
   {
-    element: '.sftp-icon-btn--primary',
+    element: '[data-tour="sftp-transferencias"]',
     popover: {
       title: icon('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>') + 'Transferir archivos',
       description:
-        '📤 Subir y descargar archivos<br/><br/>' +
-        'Los botones con flechas transfieren archivos:<br/>' +
-        '• ↑ Subir: Transfiere archivos de tu PC (izq.) al servidor (der.)<br/>' +
-        '• ↓ Descargar: Trae archivos del servidor a tu computadora<br/><br/>' +
-        '<em>Selecciona uno o más archivos y haz clic en el botón correspondiente.</em>',
-      side: 'bottom',
+        'Subir y descargar archivos:<br/>' +
+        '• Arrastra archivos de un panel al otro (o desde el Explorador de Windows al del servidor)<br/>' +
+        '• O usa el clic derecho: «Subir al remoto» y «Descargar»<br/><br/>' +
+        'Aquí abajo se ve el progreso de cada transferencia. También puedes pedirle al chat que baje o suba un archivo.',
+      side: 'top',
       align: 'center',
     },
   },

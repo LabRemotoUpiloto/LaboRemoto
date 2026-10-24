@@ -312,25 +312,13 @@ const createDriverConfig = (): Config => ({
       }, 300);
     }
 
-    //    - Si el elemento destacado es la página SFTP, navegar a SFTP
-    if (domEl?.classList?.contains('sftp-page')) {
-      if (onPageChangeCallback) {
-        setTimeout(() => onPageChangeCallback('sftp'), 50);
-      }
-    }
-
-    //    - Si el elemento destacado es un panel SFTP, navegar a SFTP
-    if (domEl?.classList?.contains('sftp-panel') || domEl?.classList?.contains('sftp-icon-btn--primary')) {
-      if (onPageChangeCallback) {
-        setTimeout(() => onPageChangeCallback('sftp'), 50);
-      }
-    }
-
-
     //    - Para elementos de la barra lateral (data-page), seleccionar ese botón y cambiar de página
     if (pageAttr) {
-      // Disparar el onClick real sobre el owner del atributo data-page
-      try { setTimeout(() => pageHost?.click?.(), 25); } catch {}
+      // Disparar el onClick real sobre el owner del atributo data-page. Los de «Esta sesión» (Archivos, Comandos) muestran
+      // u ocultan un panel: si ya está a la vista (aria-pressed), no se toca para no cerrarlo.
+      if (pageHost?.getAttribute?.('aria-pressed') !== 'true') {
+        try { setTimeout(() => pageHost?.click?.(), 25); } catch {}
+      }
       // Además, invocar el callback de navegación para asegurar el estado
       if (onPageChangeCallback) {
         setTimeout(() => onPageChangeCallback(pageAttr), 50);

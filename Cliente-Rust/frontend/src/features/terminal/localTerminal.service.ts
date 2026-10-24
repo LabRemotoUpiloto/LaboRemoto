@@ -7,6 +7,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import type { ShellLocal } from '@/bindings/ShellLocal';
 import { commandClient } from '@/lib/command.service';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -67,6 +68,12 @@ export const localTermSpawn = async (id: string, cols: number, rows: number): Pr
 export const localTermUiReady = (id: string): Promise<void> =>
   invoke<void>('local_term_ui_ready', { id });
 
+/** Lo que el chat de la terminal local necesita: la shell, lo último que mostró el panel y las instrucciones para el modelo. */
+export interface LocalTermContexto { shell: string; sistema: string; texto: string; instrucciones: string }
+
+export const localTermContexto = (id: string, trozos = 80): Promise<LocalTermContexto> =>
+  invoke<LocalTermContexto>('local_term_contexto', { id, trozos });
+
 /**
  * Envía datos (stdin) a un panel de terminal local activo.
  * `retries: 0` a propósito: reintentar stdin puede duplicar teclas si el
@@ -125,3 +132,7 @@ export const localTermClose = async (id: string): Promise<void> => {
     { version: '1.0', retries: 0 },
   );
 };
+
+/** La shell que abre la terminal local en este computador (no cambia mientras la app está abierta: se pide una vez). */
+let shellLocal: Promise<ShellLocal> | null = null;
+export const localTermShell = (): Promise<ShellLocal> => (shellLocal ??= invoke<ShellLocal>('local_term_shell'));

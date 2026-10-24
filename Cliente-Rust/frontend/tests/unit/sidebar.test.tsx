@@ -95,30 +95,42 @@ describe('Sidebar', () => {
   });
 });
 
-describe('Esta sesión', () => {
-  function sesion(roles: string[]) {
-    act(() => useAppStore.setState({ user: { preferred_username: 'ana', roles } as never }));
-    const onOpenPanel = vi.fn();
+describe('Esta sesión en una práctica', () => {
+  it('solo las vistas de la práctica: Archivos y Comandos ya no son páginas (son paneles del mosaico)', () => {
+    act(() => useAppStore.setState({ user: { preferred_username: 'ana', roles: ['semillerista'] } as never }));
     render(
       <MantineProvider>
-        <Sidebar activePanel="terminal" onOpenPanel={onOpenPanel} showSessionActions onViewChange={() => {}} onToggleChat={() => {}} />
+        <Sidebar activePanel="terminal" onOpenPanel={() => {}} showSessionActions onViewChange={() => {}} onToggleChat={() => {}} />
       </MantineProvider>,
     );
-    return { onOpenPanel };
-  }
-
-  it('Archivos y Mis comandos se abren desde la sesión abierta (ya no son entradas del menú)', () => {
-    const { onOpenPanel } = sesion(['semillerista']);
     screen.getByText('Esta sesión');
-    fireEvent.click(screen.getByRole('button', { name: 'Archivos' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Mis comandos' }));
-    expect(onOpenPanel.mock.calls).toEqual([['sftp'], ['snippets']]);
-  });
-
-  it('quien no opera equipos no los ve', () => {
-    sesion(['laboratorista']);
-    screen.getByText('Esta sesión');
+    expect(screen.getByTitle('Chat')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Archivos' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Mis comandos' })).toBeNull();
+  });
+});
+
+describe('Esta sesión en un mosaico', () => {
+  function mosaico(roles: string[], local: boolean) {
+    act(() => useAppStore.setState({ user: { preferred_username: 'ana', roles } as never }));
+    render(
+      <MantineProvider>
+        <Sidebar activePanel="terminal" onOpenPanel={() => {}} sesionMosaico="s1" sesionMosaicoLocal={local} />
+      </MantineProvider>,
+    );
+    return screen.getAllByRole('button', { pressed: undefined }).filter((b) => b.hasAttribute('aria-pressed')).map((b) => b.getAttribute('aria-label'));
+  }
+
+  it('en una sesión SSH: las siete herramientas, con la terminal visible al empezar', () => {
+    expect(mosaico(['admin_lab'], false)).toEqual(['Terminal', 'Chat', 'Cámara', 'Escritorio remoto', 'Pines', 'Archivos del servidor', 'Comandos']);
+    expect(screen.getByRole('button', { name: 'Terminal' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('en la terminal local: Terminal, Chat y Comandos', () => {
+    expect(mosaico(['admin_lab'], true)).toEqual(['Terminal', 'Chat', 'Comandos']);
+  });
+
+  it('quien no opera equipos no ve Archivos ni Comandos', () => {
+    expect(mosaico(['laboratorista'], false)).toEqual(['Terminal', 'Chat', 'Cámara', 'Escritorio remoto', 'Pines']);
   });
 });

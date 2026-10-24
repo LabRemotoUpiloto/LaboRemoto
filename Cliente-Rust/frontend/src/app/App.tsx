@@ -1,5 +1,5 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { gsap } from 'gsap'
 import './App.css'
 
@@ -117,7 +117,6 @@ const AppMain: React.FC = () => {
   const {
     tabs, activeTabId, setActiveTabId,
     isSidebarOpen, setIsSidebarOpen,
-    sessionMeta,
     selectedPage, activeTab,
     closeTab, renameTab,
     handleNewSession, openLogTab,
@@ -139,7 +138,6 @@ const AppMain: React.FC = () => {
   } = useSidePanels()
 
   // ── Estado local residual ────────────────────────────────────────────────────
-  const [sftpPaths, setSftpPaths] = useState<Record<string, string>>({})
 
   // ── Prácticas de laboratorio ─────────────────────────────────────────────────
   const { practiceMeta, handleStartPractice, clearPracticeMeta } = usePracticeSession({
@@ -309,8 +307,8 @@ const AppMain: React.FC = () => {
   }, [linuxSession.sessionModuleMap, handleCloseTab])
 
   // ── Páginas de contexto ──────────────────────────────────────────────────────
-  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'sftp', 'snippets', 'practices', 'moodle-test', 'reservas', 'mis-cursos', 'admin-users', 'vigilancia', 'dashboard', 'rendimiento']
-  const SESSION_PAGES = ['sftp', 'snippets', 'logs']
+  const HOME_PAGES = ['landing', 'connect', 'ssh-guest', 'hosts', 'themes', 'logs', 'practices', 'moodle-test', 'reservas', 'mis-cursos', 'admin-users', 'vigilancia', 'dashboard', 'rendimiento']
+  const SESSION_PAGES = ['logs']
 
   const handleTabClick = (id: string) => {
     setActiveTabId(id)
@@ -422,6 +420,8 @@ const AppMain: React.FC = () => {
               onCloseTab={handleCloseTab}
               onRenameTab={renameTab}
               showSessionActions={isSessionActive}
+              sesionMosaico={(isSessionActive && !combinedPracticeMeta?.[activeTab.id]) || activeTab.type === 'local-terminal' ? activeTab.id : null}
+              sesionMosaicoLocal={activeTab.type === 'local-terminal'}
               activeView={activeView}
               onViewChange={setActiveView}
               isChatOpen={isChatOpen}
@@ -441,8 +441,6 @@ const AppMain: React.FC = () => {
               {activeTab.type === 'home' && (
                 <div style={{ height: '100%' }}>
                   <HomeContainer
-                    tabs={tabs}
-                    sessionMeta={sessionMeta}
                     selectedPage={selectedPage}
                     onOpenPanel={handleOpenPanel}
                     onConnectedFromConnect={handleNewSession}
@@ -462,10 +460,7 @@ const AppMain: React.FC = () => {
                 isCameraOpen={isCameraOpen}
                 isChatOpen={isChatOpen}
                 onCloseChat={() => setIsChatOpen(false)}
-                sessionMeta={sessionMeta}
                 onOpenLog={openLogTab}
-                sftpPaths={sftpPaths}
-                setSftpPaths={setSftpPaths}
                 practiceMeta={combinedPracticeMeta}
                 onCloseTab={handleCloseTab}
                 linuxSession={linuxSession}

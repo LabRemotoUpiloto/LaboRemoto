@@ -44,6 +44,8 @@ interface Props {
    * adjuntos (imagen y archivo, también pegando o arrastrando): sin esa fila el input queda en una línea.
    */
   practiceLocked?: boolean;
+  /** Solo modo Consulta (terminal local: las herramientas del Agente son del servidor). */
+  soloConsulta?: boolean;
   /** Con texto, el chat no acepta preguntas (ej. durante la evaluación): ese texto va en lugar del placeholder. */
   bloqueo?: string | null;
 }
@@ -66,6 +68,7 @@ const ChatInput: React.FC<Props> = ({
   onClose,
   onNewChat,
   practiceLocked = false,
+  soloConsulta = false,
   bloqueo = null,
 }) => {
   const isPill = variant === 'pill';
@@ -232,7 +235,7 @@ const ChatInput: React.FC<Props> = ({
     >
       {showModeRow && (
         <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <ModeSelect value={mode} onChange={onModeSwitch} sessionId={sessionId} pi4AgentReady={pi4AgentReady} />
+          {!soloConsulta && <ModeSelect value={mode} onChange={onModeSwitch} sessionId={sessionId} pi4AgentReady={pi4AgentReady} />}
           <ModelSelect value={selectedModel} onChange={onModelChange} />
           <div className="flex items-center gap-0.5 ml-auto">
             {onToggleHistory && (
@@ -347,7 +350,7 @@ const ChatInput: React.FC<Props> = ({
                 ref={inputRef}
                 value={bloqueo ? '' : input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={bloqueo ?? MODE_PLACEHOLDERS[mode]}
+                placeholder={bloqueo ?? (soloConsulta ? 'Pregunta sobre tu terminal o pide un comando…' : MODE_PLACEHOLDERS[mode])}
                 disabled={!!bloqueo}
                 variant="unstyled"
                 autosize

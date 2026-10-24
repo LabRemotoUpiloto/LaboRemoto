@@ -1,9 +1,9 @@
+// features/sftp/ArchivosSftp.tsx — los archivos de una sesión: este equipo y el servidor, con transferencias, arrastrar entre
+// los dos y desde el Explorador. Es el panel «Archivos del servidor» del mosaico de la sesión (ya no es una página).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commandClient } from '@/lib/command.service'
-import { localListDir } from '@/lib/storage.service'
-import { useMediaQuery } from '@mantine/hooks'
 import FilePanel from './FilePanel'
 import TransferQueue from './TransferQueue'
 import ContextMenu from './ContextMenu'
@@ -22,6 +22,7 @@ import {
   getParentRemotePath,
 } from './pathUtils'
 import type { SftpEntry, LocalEntry } from '@/types'
+import { carpetaDeLaTerminal } from '@/features/sesion/carpetaTerminal'
 
 type Props = {
   sessions: string[]
@@ -53,7 +54,7 @@ function isTextFileName(name: string): boolean {
   return TEXT_EXTENSIONS.has(ext)
 }
 
-const SftpPage: React.FC<Props> = ({
+const ArchivosSftp: React.FC<Props> = ({
   sessions,
   activeSessionId,
   sessionsMeta,
@@ -63,7 +64,17 @@ const SftpPage: React.FC<Props> = ({
   const { push } = useToasts()
   const [sessionId, setSessionId] = useState<string | undefined>(activeSessionId)
   const [activePane, setActivePane] = useState<'local' | 'remote'>('local')
-  const isNarrow = useMediaQuery('(max-width: 1099px)')
+  // Angosto según el espacio que tiene (página o panel del mosaico de la sesión), no según la ventana:
+  // con poco ancho, Este equipo queda arriba y el servidor abajo.
+  const [raiz, setRaiz] = useState<HTMLDivElement | null>(null)
+  const [ancho, setAncho] = useState(Number.POSITIVE_INFINITY)
+  useEffect(() => {
+    if (!raiz) return
+    const ro = new ResizeObserver(([e]) => setAncho(e.contentRect.width))
+    ro.observe(raiz)
+    return () => ro.disconnect()
+  }, [raiz])
+  const isNarrow = ancho < 900
 
   useEffect(() => setSessionId(activeSessionId), [activeSessionId])
 
@@ -261,6 +272,18 @@ const SftpPage: React.FC<Props> = ({
     [setRpath]
   )
 
+  // La carpeta en la que está la terminal (leída de su prompt)
+  const irACarpetaTerminal = useCallback(async () => {
+    if (!sessionId) return
+    try {
+      const carpeta = await carpetaDeLaTerminal(sessionId)
+      if (carpeta) setRpath(carpeta)
+      else push({ type: 'info', message: 'No se pudo saber en qué carpeta está la terminal: su prompt no muestra la ruta.' })
+    } catch (e: any) {
+      push({ type: 'error', message: 'No se pudo leer la terminal: ' + (e?.message ?? String(e)) })
+    }
+  }, [sessionId, setRpath, push])
+
   const handleRemoteBack = useCallback(() => {
     const parent = getParentRemotePath(rpath)
     if (parent) setRpath(parent)
@@ -356,32 +379,9 @@ const SftpPage: React.FC<Props> = ({
         push({ type: 'error', message: 'Ruta local inválida' })
         return
       }
-      const name = localPath.split(/[\\/]/).filter(Boolean).pop() || localPath
-      const remote = joinRemotePath(rpath, name)
-      let isDir = false
+      // El backend decide si es archivo o carpeta y le pone el mismo nombre dentro de la carpeta actual (sftp_subir)
       try {
-        await localListDir(localPath)
-        isDir = true
-      } catch {
-        isDir = false
-      }
-      try {
-        if (isDir) {
-          await invoke('sftp_upload_dir_start', {
-            id: sessionId,
-            localPath,
-            remotePath: remote,
-          })
-        } else {
-          await commandClient.invoke<
-            { id: string; local_path: string; remote_path: string },
-            { transfer_id: string }
-          >('sftp_upload_start', {
-            id: sessionId,
-            local_path: localPath,
-            remote_path: remote,
-          })
-        }
+        await invoke('sftp_subir', { id: sessionId, rutaLocal: localPath, rutaRemota: rpath.endsWith('/') ? rpath : `${rpath}/` })
       } catch (e: any) {
         push({ type: 'error', message: 'Error al subir: ' + (e?.toString?.() || e) })
       }
@@ -1039,6 +1039,7 @@ const SftpPage: React.FC<Props> = ({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
+      ref={setRaiz}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -1061,6 +1062,7 @@ const SftpPage: React.FC<Props> = ({
       {/* Local column */}
       <div
         ref={localPanelRef}
+        data-tour="sftp-panel-local"
         style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: isNarrow ? 320 : 0, minWidth: 0 }}
       >
         <FilePanel
@@ -1106,10 +1108,12 @@ const SftpPage: React.FC<Props> = ({
       {/* Remote column */}
       <div
         ref={remotePanelRef}
+        data-tour="sftp-panel-remote"
         style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: isNarrow ? 320 : 0, minWidth: 0 }}
       >
         <FilePanel
           side="remote"
+          onIrACarpetaTerminal={sessionId ? () => void irACarpetaTerminal() : undefined}
           active={activePane === 'remote'}
           onClick={handleSetActivePaneRemote}
           path={rpath}
@@ -1154,7 +1158,9 @@ const SftpPage: React.FC<Props> = ({
       </div>
 
       {/* Cola de transferencias (ancho completo, colapsable) */}
-      <TransferQueue transfers={transfers} onCancel={doCancel} onClear={doClearTransfers} />
+      <div data-tour="sftp-transferencias">
+        <TransferQueue transfers={transfers} onCancel={doCancel} onClear={doClearTransfers} />
+      </div>
 
 
 
@@ -1252,4 +1258,4 @@ const SftpPage: React.FC<Props> = ({
   )
 }
 
-export default SftpPage
+export default ArchivosSftp
