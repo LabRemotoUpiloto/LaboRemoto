@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { RefreshCw } from 'lucide-react';
 import {
-  Aviso, Barra, Boton, BarraAcento, BotonIcono, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Seccion, TARJETA,
+  Aviso, Barra, Boton, BarraAcento, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Seccion, TARJETA,
   TEXTO_NIVEL, paginar,
 } from '@/components/ui';
 import { encuestasService, type ResumenPracticaEncuesta } from '@/features/practicas/encuestas.service';
@@ -44,7 +44,7 @@ export default function EncuestasPage() {
         derecha={<>
           <Desplegable etiqueta="Período" valor={dias} onCambio={setDias} className="w-[180px]"
             opciones={[{ valor: '30', etiqueta: 'Últimos 30 días' }, { valor: '90', etiqueta: 'Últimos 90 días' }, { valor: '365', etiqueta: 'Último año' }]} />
-          <BotonIcono etiqueta="Actualizar" onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={15} /></BotonIcono>
+          <Boton onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={14} aria-hidden /> Actualizar</Boton>
         </>} />
       {cargando && !datos ? (
         <div className={`${TARJETA} h-[240px] bg-ui-pista`} role="status" aria-busy="true"><span className="sr-only">Cargando…</span></div>

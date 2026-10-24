@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Search } from 'lucide-react';
 import {
-  Aviso, Boton, BotonIcono, Buscador, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Punto, Seccion, Selector,
+  Aviso, Boton, Buscador, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Punto, Seccion, Selector,
   TARJETA, Tabla, paginar,
 } from '@/components/ui';
 import { sesionesService } from './sesiones.service';
@@ -59,7 +59,7 @@ export default function DashboardPage() {
             <Desplegable etiqueta="Período" valor={dias} onCambio={setDias} className="w-[180px]"
               opciones={[{ valor: '7', etiqueta: 'Últimos 7 días' }, { valor: '30', etiqueta: 'Últimos 30 días' }, { valor: '90', etiqueta: 'Últimos 90 días' }]} />
           )}
-          <BotonIcono etiqueta="Actualizar" onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={15} /></BotonIcono>
+          <Boton onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={14} aria-hidden /> Actualizar</Boton>
         </>}
       />
 
@@ -260,11 +260,11 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
 
 // ── Piezas ────────────────────────────────────────────────────────────────────
 
-/** La marca de cada tipo, igual que en el mapa: relleno = práctica, contorno = SSH, gris = app. */
+/** La marca de cada tipo, igual que en el mapa: círculo relleno = práctica, contorno = SSH, cuadrado = app. */
 const MARCA: Record<Tipo, string> = {
-  practica: 'bg-ui-acento-texto',
-  ssh: 'bg-ui-superficie ring-2 ring-inset ring-ui-acento-texto',
-  app: 'bg-ui-tinta-2',
+  practica: 'rounded-full bg-ui-acento-texto',
+  ssh: 'rounded-full bg-ui-superficie ring-2 ring-inset ring-ui-acento-texto',
+  app: 'rounded-[2px] border-2 border-ui-acento-texto bg-[color-mix(in_srgb,var(--accent-primary)_40%,transparent)]',
 };
 /** En las barras: práctica en el acento, SSH en el acento suave y la app en gris. */
 const BARRA: Record<Tipo, string> = {
@@ -274,7 +274,7 @@ const BARRA: Record<Tipo, string> = {
 };
 
 function Marca({ tipo }: { tipo: Tipo }) {
-  return <span aria-label={TEXTO_TIPO[tipo]} className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${MARCA[tipo]}`} />;
+  return <span aria-label={TEXTO_TIPO[tipo]} className={`mt-1 h-2.5 w-2.5 shrink-0 ${MARCA[tipo]}`} />;
 }
 
 function Leyenda({ lugares: deLugares }: { lugares?: boolean }) {
