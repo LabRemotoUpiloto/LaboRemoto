@@ -48,12 +48,6 @@ export function armarPersonas(porRol: Partial<Record<EffectiveRole, KeycloakUser
     ROLE_ORDER.indexOf(a.rol) - ROLE_ORDER.indexOf(b.rol) || nombreDe(a.user).localeCompare(nombreDe(b.user)));
 }
 
-export function contarPorRol(personas: Persona[]): Partial<Record<EffectiveRole, number>> {
-  const c: Partial<Record<EffectiveRole, number>> = {};
-  for (const p of personas) c[p.rol] = (c[p.rol] ?? 0) + 1;
-  return c;
-}
-
 /** Filtro por rol ('todos' = sin filtro) y búsqueda por usuario, correo o nombre. */
 export function filtrarPersonas(personas: Persona[], rol: EffectiveRole | 'todos', consulta: string): Persona[] {
   const q = consulta.trim().toLowerCase();

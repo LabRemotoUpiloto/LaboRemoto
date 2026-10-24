@@ -1,7 +1,7 @@
 // Usuarios: de las listas de Keycloak a una fila por persona con UN rol efectivo.
 import { describe, expect, it } from 'vitest';
 import {
-  armarPersonas, contarPorRol, esDocenteDeDirectorio, filtrarPersonas, inicialesDe, nombreDe,
+  armarPersonas, esDocenteDeDirectorio, filtrarPersonas, inicialesDe, nombreDe,
 } from '@/features/usuarios/personas';
 import type { KeycloakUser } from '@/features/usuarios/admin.service';
 
@@ -34,12 +34,8 @@ describe('armarPersonas', () => {
   });
 });
 
-describe('conteo y filtro', () => {
+describe('filtro', () => {
   const personas = armarPersonas({ admin_lab: [ana] }, [ana, beto, carla]);
-
-  it('cuenta cuántas personas hay de cada rol', () => {
-    expect(contarPorRol(personas)).toEqual({ admin_lab: 1, estudiante: 2 });
-  });
 
   it('filtra por rol y busca por nombre, usuario o correo sin importar mayúsculas', () => {
     expect(filtrarPersonas(personas, 'estudiante', '').map((p) => p.user.id)).toEqual(['2', '3']);

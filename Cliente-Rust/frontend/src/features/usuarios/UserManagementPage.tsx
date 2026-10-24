@@ -1,15 +1,14 @@
 // features/usuarios/UserManagementPage.tsx — Usuarios: quién usa la app y qué rol tiene cada persona.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '@/features/cuenta/useAuth';
 import { ASSIGNABLE_ROLES, ROLE_LABELS, ROLE_ORDER, type EffectiveRole } from '@/features/cuenta/usePermissions';
 import {
-  Aviso, Boton, BotonPrincipal, Buscador, Dialogo, Encabezado, FilasCargando, NOTA, Num, Pagina, RADIO, Selector, SUAVE, Tabla,
-  type Opcion,
+  Aviso, Boton, BotonPrincipal, Buscador, Desplegable, Dialogo, Encabezado, FilasCargando, Num, Pagina, SUAVE, Tabla,
 } from '@/components/ui';
 import { adminService, type KeycloakUser } from './admin.service';
-import { armarPersonas, contarPorRol, esDocenteDeDirectorio, filtrarPersonas, fotoDe, inicialesDe, nombreDe, type Persona } from './personas';
+import { armarPersonas, esDocenteDeDirectorio, filtrarPersonas, fotoDe, inicialesDe, nombreDe, type Persona } from './personas';
 
 const PLANTILLA = 'grid-cols-[minmax(0,1fr)_120px_210px]';
 const COLUMNAS = [{ titulo: 'Persona' }, { titulo: 'Registro', derecha: true }, { titulo: 'Rol' }];
@@ -60,7 +59,6 @@ export default function UserManagementPage() {
   useEffect(() => { void cargar(); }, [cargar]);
 
   const personas = useMemo(() => armarPersonas(porRol, todos), [porRol, todos]);
-  const conteo = useMemo(() => contarPorRol(personas), [personas]);
   const visibles = useMemo(() => filtrarPersonas(personas, filtro, busqueda), [personas, filtro, busqueda]);
 
   const pedirCambio = (persona: Persona, nuevo: EffectiveRole) => {
@@ -90,16 +88,14 @@ export default function UserManagementPage() {
     }
   };
 
-  const opcionesFiltro: Opcion<EffectiveRole | 'todos'>[] = [
-    { valor: 'todos', etiqueta: `Todos · ${personas.length}` },
-    // los roles sin nadie no aparecen, salvo el que está elegido (para poder volver)
-    ...ROLE_ORDER.filter((r) => conteo[r] || r === filtro).map((r) => ({ valor: r, etiqueta: `${ROLE_LABELS[r]} · ${conteo[r] ?? 0}` })),
+  const opcionesFiltro = [
+    { valor: 'todos' as const, etiqueta: 'Todos los roles' },
+    ...ROLE_ORDER.map((r) => ({ valor: r, etiqueta: ROLE_LABELS[r] })),
   ];
 
   return (
     <Pagina>
-      <Encabezado titulo="Usuarios" descripcion="Quién usa la app y qué puede hacer cada persona."
-        derecha={!cargando && !error && <span className={NOTA}>{personas.length} {personas.length === 1 ? 'persona' : 'personas'}</span>} />
+      <Encabezado titulo="Usuarios" descripcion="Quién usa la app y qué puede hacer cada persona." />
 
       {error ? (
         <Aviso nivel="critico" titulo="No se pudo cargar la lista de usuarios" detalle={error}
@@ -107,7 +103,7 @@ export default function UserManagementPage() {
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            {cargando ? <span /> : <Selector<EffectiveRole | 'todos'> nombre="Filtrar por rol" valor={filtro} onCambio={setFiltro} opciones={opcionesFiltro} />}
+            <Desplegable<EffectiveRole | 'todos'> etiqueta="Filtrar por rol" valor={filtro} onCambio={setFiltro} opciones={opcionesFiltro} className="w-[220px]" />
             <Buscador icono={Search} valor={busqueda} onCambio={setBusqueda} placeholder="Buscar por nombre o correo" />
           </div>
 
@@ -171,24 +167,20 @@ function PersonaCelda({ persona: { user }, yo }: { persona: Persona; yo: boolean
   );
 }
 
-/** Selector nativo con la forma del diseño: accesible con teclado y lector de pantalla sin piezas extra. */
+/** El rol de una persona: a un docente del directorio no se le puede quitar «Docente» (sí dar uno de más jerarquía). */
 function RolSelector({ persona, onCambio }: { persona: Persona; onCambio: (r: EffectiveRole) => void }) {
   const docenteDirectorio = esDocenteDeDirectorio(persona.user);
   return (
-    <span className="relative flex items-center">
-      <select
-        aria-label={`Rol de ${nombreDe(persona.user)}`}
-        value={persona.rol}
-        onChange={(e) => { const r = e.target.value as EffectiveRole; if (r !== persona.rol) onCambio(r); }}
-        className={`h-8 w-full cursor-pointer appearance-none ${RADIO} border-[length:var(--card-border-width,1px)] border-ui-borde-campo bg-ui-superficie pl-3 pr-8 text-[13px] text-ui-tinta transition-colors hover:border-ui-acento-texto [&>option]:bg-ui-superficie [&>option]:text-ui-tinta`}
-      >
-        {ROLE_ORDER.map((r) => (
-          <option key={r} value={r} disabled={r === 'estudiante' && docenteDirectorio}>
-            {ROLE_LABELS[r]}{r === 'estudiante' && docenteDirectorio ? ' (es docente en el directorio)' : ''}
-          </option>
-        ))}
-      </select>
-      <ChevronDown size={14} aria-hidden className="pointer-events-none absolute right-2.5 text-ui-apagado" />
-    </span>
+    <Desplegable<EffectiveRole>
+      etiqueta={`Rol de ${nombreDe(persona.user)}`}
+      valor={persona.rol}
+      onCambio={(r) => { if (r !== persona.rol) onCambio(r); }}
+      className="w-full"
+      opciones={ROLE_ORDER.map((r) => ({
+        valor: r,
+        etiqueta: r === 'estudiante' && docenteDirectorio ? `${ROLE_LABELS[r]} (es docente en el directorio)` : ROLE_LABELS[r],
+        deshabilitada: r === 'estudiante' && docenteDirectorio,
+      }))}
+    />
   );
 }
