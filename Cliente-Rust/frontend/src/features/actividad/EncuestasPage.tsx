@@ -1,12 +1,17 @@
-// features/actividad/EncuestasPanel.tsx — pestaña «Encuestas» de Actividad: lo que respondieron los estudiantes al terminar cada
-// práctica (aprendizaje y funcionamiento). Anónimo: el servidor nunca manda quién respondió.
+// features/actividad/EncuestasPage.tsx — Encuestas: lo que respondieron los estudiantes al terminar cada práctica (aprendizaje y
+// funcionamiento). Anónimo: el servidor nunca manda quién respondió. Antes era una pestaña de Actividad; no es actividad.
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Aviso, Barra, Boton, BarraAcento, ETIQUETA, NOTA, Num, Seccion, TARJETA, TEXTO_NIVEL } from '@/components/ui';
+import { RefreshCw } from 'lucide-react';
+import {
+  Aviso, Barra, Boton, BarraAcento, BotonIcono, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Seccion, TARJETA,
+  TEXTO_NIVEL, paginar,
+} from '@/components/ui';
 import { encuestasService, type ResumenPracticaEncuesta } from '@/features/practicas/encuestas.service';
 import { nivelNota5, nota5, problemasOrdenados, repartoDificultad } from './encuestasStats';
-import type { PropsPestana } from './piezas';
 import { useResumen } from './useResumen';
+
+const COMENTARIOS_POR_PAGINA = 5;
 
 const fecha = (iso: string) => new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
 
@@ -18,8 +23,11 @@ const PREGUNTAS: { clave: keyof ResumenPracticaEncuesta['promedios']; etiqueta: 
   { clave: 'satisfaccion', etiqueta: 'Satisfacción general' },
 ];
 
-export default function EncuestasPanel({ dias, recarga, reintentar }: PropsPestana) {
-  const { datos, error, cargando } = useResumen(encuestasService.resumen, dias, recarga);
+export default function EncuestasPage() {
+  // Las encuestas se juntan más despacio que la actividad: el período va de 30 días a un año.
+  const [dias, setDias] = useState('90');
+  const [recarga, setRecarga] = useState(0);
+  const { datos, error, cargando } = useResumen(encuestasService.resumen, Number(dias), recarga);
   const [nombres, setNombres] = useState<Record<string, string>>({});
 
   // Nombre de cada práctica (las encuestas llegan con el id, p. ej. «linux»).
@@ -29,17 +37,27 @@ export default function EncuestasPanel({ dias, recarga, reintentar }: PropsPesta
       .catch(() => {});
   }, []);
 
-  if (cargando && !datos) return <div className={`${TARJETA} h-[240px] bg-ui-pista`} role="status" aria-busy="true"><span className="sr-only">Cargando…</span></div>;
-  if (error && !datos) return <Aviso nivel="critico" titulo="No se pudieron cargar las encuestas" detalle={error} accion={<Boton onClick={reintentar}>Reintentar</Boton>} />;
-  if (!datos?.practicas.length) {
-    return <Aviso titulo="Todavía no hay encuestas en este período"
-      detalle="Aparecen cuando un estudiante termina todos los módulos de una práctica. Son anónimas: no se muestra quién respondió." />;
-  }
   return (
-    <>
-      <p className="m-0 text-[13px] text-ui-tinta-2">Lo que opinan los estudiantes al terminar cada práctica. Anónimo: no se muestra quién respondió.</p>
-      {datos.practicas.map((p) => <Practica key={p.practica} p={p} nombre={nombres[p.practica] ?? p.practica} />)}
-    </>
+    <Pagina>
+      <Encabezado titulo="Encuestas"
+        descripcion="Lo que opinan los estudiantes al terminar cada práctica. Son anónimas: no se muestra quién respondió."
+        derecha={<>
+          <Desplegable etiqueta="Período" valor={dias} onCambio={setDias} className="w-[180px]"
+            opciones={[{ valor: '30', etiqueta: 'Últimos 30 días' }, { valor: '90', etiqueta: 'Últimos 90 días' }, { valor: '365', etiqueta: 'Último año' }]} />
+          <BotonIcono etiqueta="Actualizar" onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={15} /></BotonIcono>
+        </>} />
+      {cargando && !datos ? (
+        <div className={`${TARJETA} h-[240px] bg-ui-pista`} role="status" aria-busy="true"><span className="sr-only">Cargando…</span></div>
+      ) : error && !datos ? (
+        <Aviso nivel="critico" titulo="No se pudieron cargar las encuestas" detalle={error}
+          accion={<Boton onClick={() => setRecarga((n) => n + 1)}>Reintentar</Boton>} />
+      ) : !datos?.practicas.length ? (
+        <Aviso titulo="Todavía no hay encuestas en este período"
+          detalle="Aparecen cuando un estudiante termina todos los módulos de una práctica." />
+      ) : (
+        datos.practicas.map((p) => <Practica key={p.practica} p={p} nombre={nombres[p.practica] ?? p.practica} />)
+      )}
+    </Pagina>
   );
 }
 
@@ -47,6 +65,8 @@ function Practica({ p, nombre }: { p: ResumenPracticaEncuesta; nombre: string })
   const problemas = problemasOrdenados(p.problemas);
   const dificultad = repartoDificultad(p.dificultad, p.respuestas).filter((d) => d.veces > 0);
   const sinProblemas = p.problemas.ninguno ?? 0;
+  const [pagina, setPagina] = useState(1);
+  const comentarios = paginar(p.comentarios, pagina, COMENTARIOS_POR_PAGINA);
   return (
     <Seccion titulo={nombre}>
       <div className={`${TARJETA} grid gap-x-10 gap-y-6 px-5 py-4 md:grid-cols-2`}>
@@ -89,15 +109,16 @@ function Practica({ p, nombre }: { p: ResumenPracticaEncuesta; nombre: string })
         </div>
       </div>
 
-      <div className={`${TARJETA} flex max-h-[320px] flex-col overflow-auto`}>
+      <div className={`${TARJETA} flex flex-col`}>
         <h4 className={`${ETIQUETA} border-b border-ui-borde px-5 py-2.5`}>Comentarios</h4>
-        {p.comentarios.length ? p.comentarios.map((c, i) => (
+        {p.comentarios.length ? comentarios.filas.map((c, i) => (
           <div key={i} className={`flex flex-col gap-1 px-5 py-3 text-[13px] ${i ? 'border-t border-ui-pista' : ''}`}>
             <span className={NOTA}>{fecha(c.fecha)}</span>
             {c.gusto && <span className="text-ui-tinta-2">Le gustó: {c.gusto}</span>}
             {c.mejorar && <span className="text-ui-tinta-2">Mejoraría: {c.mejorar}</span>}
           </div>
         )) : <span className="px-5 py-3 text-[13px] text-ui-tinta-2">Sin comentarios escritos.</span>}
+        {p.comentarios.length > COMENTARIOS_POR_PAGINA && <Paginador pagina={comentarios} onPagina={setPagina} unidad="comentarios" />}
       </div>
     </Seccion>
   );

@@ -91,6 +91,8 @@ const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   logs: LOGS,
   vigilancia: STAFF,
   dashboard: SUPERVISION,
+  // Las encuestas las lee el mismo personal que Actividad (el broker exige los mismos roles).
+  encuestas: SUPERVISION,
   'admin-users': ['admin_lab'],
   // Rendimiento de la Pi4 (CPU, RAM, red, procesos): solo el administrador.
   rendimiento: ['admin_lab'],
