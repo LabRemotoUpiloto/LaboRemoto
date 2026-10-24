@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Aviso, Boton, BotonPeligro, Buscador, Campo, Dialogo, Pestanas, Selector } from '../../src/components/ui';
+import { Aviso, Boton, BotonPeligro, Buscador, Campo, Desplegable, Dialogo, Pestanas, Selector } from '../../src/components/ui';
 
 afterEach(cleanup);
 
@@ -124,5 +124,17 @@ describe('Buscador', () => {
     render(<Buscador icono={Icono} valor="" onCambio={onCambio} placeholder="Buscar por nombre o IP" />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Buscar por nombre o IP' }), { target: { value: 'pi4' } });
     expect(onCambio).toHaveBeenCalledWith('pi4');
+  });
+});
+
+describe('Desplegable', () => {
+  it('es un select con nombre accesible; avisa el valor elegido y respeta las opciones deshabilitadas', () => {
+    const onCambio = vi.fn();
+    render(<Desplegable etiqueta="Filtrar por rol" valor="todos" onCambio={onCambio}
+      opciones={[{ valor: 'todos', etiqueta: 'Todos los roles' }, { valor: 'docente', etiqueta: 'Docente' }, { valor: 'estudiante', etiqueta: 'Estudiante', deshabilitada: true }]} />);
+    const select = screen.getByRole('combobox', { name: 'Filtrar por rol' });
+    fireEvent.change(select, { target: { value: 'docente' } });
+    expect(onCambio).toHaveBeenCalledWith('docente');
+    expect((screen.getByRole('option', { name: 'Estudiante' }) as HTMLOptionElement).disabled).toBe(true);
   });
 });

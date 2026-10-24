@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { MuestraPi } from '@/features/monitoreo/rendimiento.service';
 import {
-  agruparPorDia, agruparPorEstudiantes, duracion, etiquetaDia, paginar, paginasVisibles, tramosEnElTiempo,
+  agruparPorDia, agruparPorEstudiantes, duracion, etiquetaDia, tramosEnElTiempo,
 } from '@/features/monitoreo/monitoreo';
+import { paginar, paginasVisibles } from '@/components/ui';
 
 /** Muestra mínima con lo que usan estas cuentas: estudiantes y CPU. */
 function muestra(t: number, estudiantes: number, cpu: number | null): MuestraPi {
@@ -73,8 +74,8 @@ describe('días y duraciones', () => {
   const el = (dia: number, hora: number) => new Date(2026, 9, dia, hora, 0, 0).getTime() / 1000;
 
   it('dice hoy y ayer; los demás días solo con la fecha', () => {
-    expect(etiquetaDia(el(21, 8), ahora)).toMatch(/^HOY · /);
-    expect(etiquetaDia(el(20, 23), ahora)).toMatch(/^AYER · /);
+    expect(etiquetaDia(el(21, 8), ahora)).toMatch(/^HOY, /);
+    expect(etiquetaDia(el(20, 23), ahora)).toMatch(/^AYER, /);
     expect(etiquetaDia(el(19, 21), ahora)).not.toMatch(/HOY|AYER/);
   });
 

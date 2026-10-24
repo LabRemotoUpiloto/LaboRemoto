@@ -9,9 +9,9 @@ import {
   EVENTOS_SSH, claveApi, claveSsh, contarEventos, eventoConProblema, peticionConProblema, unirRegistros,
   type Gravedad,
 } from './registros';
-import { agruparPorDia, hora24, paginar } from './monitoreo';
+import { Paginador, paginar } from '@/components/ui';
+import { agruparPorDia, hora24 } from './monitoreo';
 import { Boton, ETIQUETA, NOTA, Selector, TARJETA } from '@/components/ui';
-import { Paginador } from './Piezas';
 
 const SONDEO_MS = 3000;
 const POR_PAGINA = 15;
@@ -202,7 +202,7 @@ const RegistrosPanel: React.FC = () => {
         {!vacio && (
           <Paginador pagina={pag} onPagina={irA} unidad={tipo === 'ssh' ? (soloProblemas ? 'problemas' : 'eventos') : 'peticiones'}
             extra={<>
-              {' · se guardan los últimos 500'}
+              {' (se guardan los últimos 500)'}
               {nuevos > 0 && (
                 <button type="button" onClick={() => irA(1)} className="ml-3 cursor-pointer border-none bg-transparent p-0 font-ui-num text-xs font-bold text-ui-tinta underline">
                   {nuevos} nuevos
