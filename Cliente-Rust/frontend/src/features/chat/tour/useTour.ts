@@ -312,21 +312,6 @@ const createDriverConfig = (): Config => ({
       }, 300);
     }
 
-    //    - Si el elemento destacado es la página SFTP, navegar a SFTP
-    if (domEl?.classList?.contains('sftp-page')) {
-      if (onPageChangeCallback) {
-        setTimeout(() => onPageChangeCallback('sftp'), 50);
-      }
-    }
-
-    //    - Si el elemento destacado es un panel SFTP, navegar a SFTP
-    if (domEl?.classList?.contains('sftp-panel') || domEl?.classList?.contains('sftp-icon-btn--primary')) {
-      if (onPageChangeCallback) {
-        setTimeout(() => onPageChangeCallback('sftp'), 50);
-      }
-    }
-
-
     //    - Para elementos de la barra lateral (data-page), seleccionar ese botón y cambiar de página
     if (pageAttr) {
       // Disparar el onClick real sobre el owner del atributo data-page

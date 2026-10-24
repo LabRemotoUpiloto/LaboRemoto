@@ -1,9 +1,10 @@
+// features/sftp/ArchivosSftp.tsx — los archivos de una sesión: este equipo y el servidor, con transferencias, arrastrar entre
+// los dos y desde el Explorador. Es el panel «Archivos del servidor» del mosaico de la sesión (ya no es una página).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commandClient } from '@/lib/command.service'
 import { localListDir } from '@/lib/storage.service'
-import { useMediaQuery } from '@mantine/hooks'
 import FilePanel from './FilePanel'
 import TransferQueue from './TransferQueue'
 import ContextMenu from './ContextMenu'
@@ -53,7 +54,7 @@ function isTextFileName(name: string): boolean {
   return TEXT_EXTENSIONS.has(ext)
 }
 
-const SftpPage: React.FC<Props> = ({
+const ArchivosSftp: React.FC<Props> = ({
   sessions,
   activeSessionId,
   sessionsMeta,
@@ -63,7 +64,17 @@ const SftpPage: React.FC<Props> = ({
   const { push } = useToasts()
   const [sessionId, setSessionId] = useState<string | undefined>(activeSessionId)
   const [activePane, setActivePane] = useState<'local' | 'remote'>('local')
-  const isNarrow = useMediaQuery('(max-width: 1099px)')
+  // Angosto según el espacio que tiene (página o panel del mosaico de la sesión), no según la ventana:
+  // con poco ancho, Este equipo queda arriba y el servidor abajo.
+  const [raiz, setRaiz] = useState<HTMLDivElement | null>(null)
+  const [ancho, setAncho] = useState(Number.POSITIVE_INFINITY)
+  useEffect(() => {
+    if (!raiz) return
+    const ro = new ResizeObserver(([e]) => setAncho(e.contentRect.width))
+    ro.observe(raiz)
+    return () => ro.disconnect()
+  }, [raiz])
+  const isNarrow = ancho < 900
 
   useEffect(() => setSessionId(activeSessionId), [activeSessionId])
 
@@ -1039,6 +1050,7 @@ const SftpPage: React.FC<Props> = ({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
+      ref={setRaiz}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -1252,4 +1264,4 @@ const SftpPage: React.FC<Props> = ({
   )
 }
 
-export default SftpPage
+export default ArchivosSftp

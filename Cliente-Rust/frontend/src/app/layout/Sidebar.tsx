@@ -218,8 +218,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {!sesionMosaico && showSessionActions && role !== 'estudiante' && onViewChange && onToggleChat && (
         <SidebarSessionActions
-          activePanel={activePanel}
-          onOpenPanel={onOpenPanel}
           activeView={activeView}
           onViewChange={onViewChange}
           isChatOpen={isChatOpen}

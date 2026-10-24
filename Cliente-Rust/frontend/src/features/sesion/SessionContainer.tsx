@@ -1,9 +1,6 @@
 import React from 'react'
 import TerminalView from './TerminalView'
 import SesionLocalMosaico from './SesionLocalMosaico'
-import SftpPage from '@/features/sftp/SftpPage'
-import ComandosPage from '@/features/comandos/ComandosPage'
-import { ejecutarEnTerminal, pegarEnTerminal } from './escribirEnTerminal'
 import LogsPage from '@/features/logs/LogsPage'
 import type { Tab } from '@/app/hooks/useAppTabs'
 import type { SessionLog } from '@/features/logs/sesiones'
@@ -28,10 +25,7 @@ type Props = {
   isCameraOpen: (sessionId: string) => boolean
   isChatOpen: boolean
   onCloseChat: () => void
-  sessionMeta: Record<string, { label: string }>
   onOpenLog: (session: SessionLog) => void
-  sftpPaths: Record<string, string>
-  setSftpPaths: React.Dispatch<React.SetStateAction<Record<string, string>>>
   onCloseTab: (id: string) => void
   /** Instancia única de useLinuxPracticeSession (ver App.tsx) — se threadea hasta TerminalView. */
   linuxSession?: LinuxPracticeSessionApi
@@ -46,10 +40,7 @@ const SessionContainer: React.FC<Props> = ({
   isCameraOpen,
   isChatOpen,
   onCloseChat,
-  sessionMeta,
   onOpenLog,
-  sftpPaths,
-  setSftpPaths,
   onCloseTab,
   linuxSession
 }) => {
@@ -64,7 +55,7 @@ const SessionContainer: React.FC<Props> = ({
         <div key={t.id} style={{ display: activeTabId === t.id ? 'block' : 'none', height: '100%', width: '100%' }}>
           <div
             style={
-              selectedPage === 'sftp' || selectedPage === 'snippets' || selectedPage === 'logs'
+              selectedPage === 'logs'
                 ? { position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -10, width: '100%', height: '100%', overflow: 'hidden' }
                 : { height: '100%', width: '100%' }
             }
@@ -83,18 +74,6 @@ const SessionContainer: React.FC<Props> = ({
               linuxSession={linuxSession}
             />
           </div>
-          {selectedPage === 'sftp' && activeTabId === t.id && (
-            <SftpPage
-              sessions={tabs.filter(tt => tt.type === 'session').map(tt => tt.id)}
-              sessionsMeta={sessionMeta}
-              activeSessionId={t.id}
-              initialPath={sftpPaths[t.id]}
-              onPathChange={(path) => setSftpPaths(prev => ({ ...prev, [t.id]: path }))}
-            />
-          )}
-          {selectedPage === 'snippets' && activeTabId === t.id && (
-            <ComandosPage onEjecutar={(c) => ejecutarEnTerminal(t.id, c)} onPegar={(c) => pegarEnTerminal(t.id, c)} />
-          )}
           {selectedPage === 'logs' && activeTabId === t.id && <LogsPage onOpenLog={onOpenLog} />}
         </div>
       ))}

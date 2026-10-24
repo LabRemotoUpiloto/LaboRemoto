@@ -144,7 +144,6 @@ pub fn run() {
       cmd::filesystem::local::local_open_path,
       cmd::filesystem::local::local_reveal_in_explorer,
       cmd::filesystem::local::local_temp_dir,
-      cmd::filesystem::local::local_downloads_dir,
       cmd::filesystem::local::local_mkdir,
       cmd::filesystem::local::local_rename,
       cmd::filesystem::local::local_delete,

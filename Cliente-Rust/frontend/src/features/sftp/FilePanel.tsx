@@ -74,7 +74,7 @@ export interface FilePanelProps {
   getEntryPath: (entry: FileEntry) => string
 
   // Drag & drop interno por puntero: inicia un arrastre desde una fila ya
-  // seleccionada (ver usePointerDrag en SftpPage).
+  // seleccionada (ver usePointerDrag en ArchivosSftp).
   onRowPointerDown?: (entry: FileEntry, e: React.MouseEvent) => void
   consumeSuppressedClick?: () => boolean
 

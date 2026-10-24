@@ -11,7 +11,7 @@ import CameraGrid from '@/features/camaras/CameraGrid';
 import DesktopPane from '@/features/escritorio/DesktopPane';
 import PinsPanel from '@/features/hardware/gpio/PinsPanel';
 import PanelComandos from '@/features/comandos/PanelComandos';
-import PanelArchivos, { cdA } from '@/features/sftp/PanelArchivos';
+import ArchivosSftp from '@/features/sftp/ArchivosSftp';
 import { ejecutarEnTerminal, pegarEnTerminal } from './escribirEnTerminal';
 import { abrir, fijarArbol, marcarVisible, ocultar, sesionQueSeVe, TITULOS, useArbolSesion } from './herramientasSesion';
 
@@ -34,6 +34,7 @@ export default function SesionMosaico({ sessionId, isTabActive, terminalHost }: 
   const [chatMontado, setChatMontado] = useState(false);
   const [archivosMontado, setArchivosMontado] = useState(false);
   const [pedirComando, setPedirComando] = useState(0);
+  const [rutaArchivos, setRutaArchivos] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (visibles.has('chat')) setChatMontado(true);
     if (visibles.has('archivos')) setArchivosMontado(true);
@@ -62,8 +63,10 @@ export default function SesionMosaico({ sessionId, isTabActive, terminalHost }: 
     herramientas.archivos = {
       titulo: TITULOS.archivos,
       contenido: (
-        <PanelArchivos sessionId={sessionId} isActive={isTabActive && visibles.has('archivos')}
-          onIrEnTerminal={(carpeta) => ejecutarEnTerminal(sessionId, cdA(carpeta))} />
+        // Las dos vistas de siempre (este equipo y el servidor) con sus transferencias; se acomodan al ancho del panel
+        <div className="flex min-h-0 flex-1 flex-col">
+          <ArchivosSftp sessions={[sessionId]} activeSessionId={sessionId} initialPath={rutaArchivos} onPathChange={setRutaArchivos} />
+        </div>
       ),
     };
   }
