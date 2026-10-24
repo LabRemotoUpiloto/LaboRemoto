@@ -124,7 +124,7 @@ const CamarasAdminModal: React.FC<Props> = ({ opened, onClose, onCambio }) => {
         />
       ) : aEliminar ? (
         <Stack gap="md">
-          <Text size="sm">¿Eliminar <strong>{aEliminar.nombre}</strong> ({aEliminar.host})? Se quita de Shinobi, de MediaMTX y del registro. Esta acción no se puede deshacer.</Text>
+          <Text size="sm">¿Eliminar «{aEliminar.nombre}» ({aEliminar.host})? Se quita de Shinobi, de MediaMTX y del registro. Esta acción no se puede deshacer.</Text>
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setAEliminar(null)} disabled={eliminando}>Cancelar</Button>
             <Button color="red" onClick={() => void eliminar()} loading={eliminando}>Eliminar</Button>

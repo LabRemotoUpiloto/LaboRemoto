@@ -130,7 +130,7 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
       {borrar && (
         <Dialogo
           titulo="¿Eliminar el registro?"
-          descripcion={<>Se borra la sesión de <strong className="text-ui-tinta">{borrar.user}</strong> del{' '}
+          descripcion={<>Se borra la sesión de {borrar.user} del{' '}
             {new Date(borrar.startedAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}, con sus comandos. No se puede deshacer.</>}
           onCerrar={() => setBorrar(null)}
           acciones={<>
@@ -159,7 +159,7 @@ function FilaSesion({ sesion: s, primera, onVer, onPdf, onBorrar }: {
         {s.endedAt ? <Num>{duracionTexto(s.duration ?? 0)}</Num> : <span className="text-ui-bien-texto">en curso</span>}
       </span>
       <span role="cell" className={`text-right ${s.totalCommands ? '' : 'text-ui-apagado'}`}>
-        <Num acento={s.totalCommands > 0}>{s.totalCommands}</Num>
+        <Num>{s.totalCommands}</Num>
       </span>
       <span role="cell" className="flex justify-end gap-1">
         <BotonIcono etiqueta="Ver registro" onClick={onVer}><ScrollText size={15} /></BotonIcono>

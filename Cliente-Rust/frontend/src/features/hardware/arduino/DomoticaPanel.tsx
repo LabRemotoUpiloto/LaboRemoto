@@ -320,7 +320,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               disabled={busy}
               className="flex-1 accent-[var(--accent-primary)] cursor-pointer h-1.5 rounded-[3px]"
             />
-            <span className="min-w-[44px] text-right tabular-nums font-bold text-[14px] text-accent">{motor}</span>
+            <span className="min-w-[44px] text-right tabular-nums text-[14px] text-primary">{motor}</span>
           </div>
           <div className="flex gap-2">
             <button className="flex-1 flex flex-col items-center gap-1 py-2.5 px-1.5 rounded-[10px] border border-color bg-[var(--background-secondary)] text-primary text-[11px] font-semibold cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-default hover:not(:disabled):border-accent hover:not(:disabled):bg-[color-mix(in_srgb,var(--accent-primary)_8%,var(--background-secondary))] hover:not(:disabled):-translate-y-[1px]" disabled={busy} onClick={() => commitMotor(0)}>
@@ -479,7 +479,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
           {log.map((e, i) => (
             <div key={i} className="grid grid-cols-[64px_16px_1fr] gap-1.5 py-[1px] px-0.5">
               <span className="text-secondary tabular-nums">{e.ts}</span>
-              <span className={`text-center font-bold ${e.direction === 'tx' ? 'text-accent' : e.direction === 'rx' ? 'text-success' : e.direction === 'err' ? 'text-danger' : 'text-secondary'}`}>
+              <span className={`text-center ${e.direction === 'tx' ? 'text-accent' : e.direction === 'rx' ? 'text-success' : e.direction === 'err' ? 'text-danger' : 'text-secondary'}`}>
                 {e.direction === 'tx' ? '→' : e.direction === 'rx' ? '←' : e.direction === 'err' ? '⚠' : 'i'}
               </span>
               <span className={e.direction === 'err' ? 'text-danger' : ''}>{e.text}</span>

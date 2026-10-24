@@ -14,12 +14,12 @@ export function Seccion({ titulo, derecha, children }: { titulo: string; derecha
   );
 }
 
-/** Punto + palabra en el color del nivel; el resto de la línea en texto normal. */
+/** Punto + palabra en el color del nivel (sin negrita); el resto de la línea en texto normal. */
 export function Punto({ nivel, fuerte, resto }: { nivel: Nivel; fuerte: string; resto?: React.ReactNode }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-2 text-[13px] text-ui-tinta-2">
       <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${PUNTO_NIVEL[nivel]}`} />
-      <b className={`font-bold ${TEXTO_NIVEL[nivel]}`}>{fuerte}</b>
+      <span className={TEXTO_NIVEL[nivel]}>{fuerte}</span>
       {resto && <span>{resto}</span>}
     </span>
   );
@@ -89,10 +89,10 @@ export function BarraAcento({ frac }: { frac: number }) {
   );
 }
 
-/** Número o dato de máquina (IP, duración, hora) en el monoespaciado del tema. «acento» para la cifra que importa. */
-export function Num({ children, fuerte, acento }: { children: React.ReactNode; fuerte?: boolean; acento?: boolean }) {
+/** Número o dato de máquina (IP, duración, hora) en el monoespaciado del tema. Sin resaltar: ni negrita ni color. */
+export function Num({ children }: { children: React.ReactNode }) {
   return (
-    <span className={`font-ui-num tabular-nums ${acento ? 'font-bold text-ui-acento-texto' : fuerte ? 'font-bold text-ui-tinta' : ''}`}>
+    <span className="font-ui-num tabular-nums">
       {children}
     </span>
   );

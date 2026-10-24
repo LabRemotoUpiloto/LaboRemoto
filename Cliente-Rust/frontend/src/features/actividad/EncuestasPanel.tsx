@@ -59,7 +59,7 @@ function Practica({ p, nombre }: { p: ResumenPracticaEncuesta; nombre: string })
               <div key={clave} className="grid grid-cols-[minmax(0,1fr)_120px_32px] items-center gap-4 text-[13px]">
                 <span className="truncate text-ui-tinta">{etiqueta}</span>
                 <Barra frac={v == null ? null : v / 5} nivel={nivel} />
-                <span className={`text-right font-ui-num font-bold ${nivel === 'bien' ? 'text-ui-tinta' : TEXTO_NIVEL[nivel]}`}>{nota5(v)}</span>
+                <span className={`text-right font-ui-num ${nivel === 'bien' ? 'text-ui-tinta' : TEXTO_NIVEL[nivel]}`}>{nota5(v)}</span>
               </div>
             );
           })}
@@ -81,7 +81,7 @@ function Practica({ p, nombre }: { p: ResumenPracticaEncuesta; nombre: string })
             <h4 className={ETIQUETA}>Problemas reportados</h4>
             {problemas.length ? problemas.map((x) => (
               <div key={x.valor} className="flex justify-between text-[13px]">
-                <span className="text-ui-tinta">{x.etiqueta}</span><Num fuerte>{x.veces}</Num>
+                <span className="text-ui-tinta">{x.etiqueta}</span><Num>{x.veces}</Num>
               </div>
             )) : <span className="text-[13px] text-ui-tinta-2">Nadie reportó problemas.</span>}
             {sinProblemas > 0 && problemas.length > 0 && <span className={NOTA}>{sinProblemas} sin ningún problema.</span>}
@@ -94,8 +94,8 @@ function Practica({ p, nombre }: { p: ResumenPracticaEncuesta; nombre: string })
         {p.comentarios.length ? p.comentarios.map((c, i) => (
           <div key={i} className={`flex flex-col gap-1 px-5 py-3 text-[13px] ${i ? 'border-t border-ui-pista' : ''}`}>
             <span className={NOTA}>{fecha(c.fecha)}</span>
-            {c.gusto && <span className="text-ui-tinta-2"><b className="font-semibold text-ui-bien-texto">Le gustó: </b>{c.gusto}</span>}
-            {c.mejorar && <span className="text-ui-tinta-2"><b className="font-semibold text-ui-alerta-texto">Mejoraría: </b>{c.mejorar}</span>}
+            {c.gusto && <span className="text-ui-tinta-2">Le gustó: {c.gusto}</span>}
+            {c.mejorar && <span className="text-ui-tinta-2">Mejoraría: {c.mejorar}</span>}
           </div>
         )) : <span className="px-5 py-3 text-[13px] text-ui-tinta-2">Sin comentarios escritos.</span>}
       </div>

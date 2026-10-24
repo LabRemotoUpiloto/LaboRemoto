@@ -529,7 +529,7 @@ const ReservasPage: React.FC = () => {
                       <Text size="xs" fw={600} tt="uppercase" style={{ letterSpacing: '0.06em', color: 'var(--accent-primary)' }}>
                         Próximo horario disponible
                       </Text>
-                      <Text size="lg" fw={700} style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                      <Text size="lg" style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                         {proximoDisponible} – {String(parseInt(proximoDisponible) + 1).padStart(2, '0')}:00
                       </Text>
                     </Stack>

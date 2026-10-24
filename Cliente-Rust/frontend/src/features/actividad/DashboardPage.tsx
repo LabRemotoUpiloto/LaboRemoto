@@ -87,10 +87,10 @@ function General({ dias, recarga, reintentar }: PropsPestana) {
 
       <section className="flex flex-col gap-2">
         <p className="m-0 max-w-[760px] text-[15px] leading-relaxed text-ui-tinta-2">
-          En los últimos <Num>{dias}</Num> días hubo <Num acento>{g.total}</Num> {g.total === 1 ? 'sesión' : 'sesiones'} de{' '}
-          <Num acento>{g.estudiantes}</Num> {g.estudiantes === 1 ? 'estudiante' : 'estudiantes'}
-          {g.duracionPromedioMs != null && <>, de <Num acento>{formatoDuracion(g.duracionPromedioMs)}</Num> en promedio</>}.
-          {g.practicaTop && <> La más usada fue <b className="font-semibold text-ui-tinta">{g.practicaTop}</b>.</>}
+          En los últimos <Num>{dias}</Num> días hubo <Num>{g.total}</Num> {g.total === 1 ? 'sesión' : 'sesiones'} de{' '}
+          <Num>{g.estudiantes}</Num> {g.estudiantes === 1 ? 'estudiante' : 'estudiantes'}
+          {g.duracionPromedioMs != null && <>, de <Num>{formatoDuracion(g.duracionPromedioMs)}</Num> en promedio</>}.
+          {g.practicaTop && <> La más usada fue {g.practicaTop}.</>}
         </p>
         {activas.length
           ? <Punto nivel="bien" fuerte={`${activas.length} en práctica`} resto="ahora mismo" />
@@ -124,7 +124,7 @@ function General({ dias, recarga, reintentar }: PropsPestana) {
             <div key={p.nombre} className={`grid grid-cols-[minmax(0,1fr)_minmax(120px,260px)_40px] items-center gap-5 py-2.5 text-[13px] ${i ? 'border-t border-ui-pista' : ''}`}>
               <span className="truncate text-ui-tinta">{p.nombre}</span>
               <BarraAcento frac={p.total / practicas[0].total} />
-              <span className="text-right"><Num fuerte>{p.total}</Num></span>
+              <span className="text-right"><Num>{p.total}</Num></span>
             </div>
           ))}
         </div>

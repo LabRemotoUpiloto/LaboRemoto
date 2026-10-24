@@ -120,7 +120,7 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
     <>
       {paso.primerComando && (
         <span>
-          La <strong>terminal</strong> es un recuadro donde le das órdenes al computador escribiéndolas, en vez de usar el mouse.
+          La terminal es un recuadro donde le das órdenes al computador escribiéndolas, en vez de usar el mouse.
           Es el recuadro grande a la izquierda de este chat: ahí verás el aviso «Escribe aquí» junto al cursor.
         </span>
       )}

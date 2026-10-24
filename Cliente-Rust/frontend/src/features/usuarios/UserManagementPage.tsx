@@ -135,9 +135,9 @@ export default function UserManagementPage() {
         <Dialogo
           titulo="¿Cambiar el rol?"
           descripcion={<>
-            <strong className="text-ui-tinta">{nombreDe(cambio.persona.user)}</strong> pasará de{' '}
-            <strong className="text-ui-tinta">{ROLE_LABELS[cambio.persona.rol]}</strong> a{' '}
-            <strong className="text-ui-tinta">{ROLE_LABELS[cambio.nuevo]}</strong>. Esto cambia lo que puede ver y hacer en la aplicación.
+            {nombreDe(cambio.persona.user)} pasará de{' '}
+            {ROLE_LABELS[cambio.persona.rol]} a{' '}
+            {ROLE_LABELS[cambio.nuevo]}. Esto cambia lo que puede ver y hacer en la aplicación.
           </>}
           onCerrar={() => { if (!guardando) setCambio(null); }}
           acciones={<>

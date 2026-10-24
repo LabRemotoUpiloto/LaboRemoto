@@ -49,9 +49,9 @@ function Dispositivo({ d, dias, ahora }: { d: DispositivoActividad; dias: number
           <Punto nivel={estado.ok === true ? 'bien' : estado.ok === false ? 'critico' : 'apagado'} fuerte={estado.texto} />
         </div>
         <p className="m-0 max-w-[760px] text-[15px] leading-relaxed text-ui-tinta-2">
-          En los últimos <Num>{dias}</Num> días hubo <Num acento>{d.totalConexiones}</Num> {d.totalConexiones === 1 ? 'entrada' : 'entradas'} por SSH
-          de <Num acento>{d.personasDistintas}</Num> {d.personasDistintas === 1 ? 'persona' : 'personas'};{' '}
-          <Num fuerte>{d.cuentaCompartida.conexiones}</Num> con la cuenta compartida <span className="font-ui-num text-ui-tinta">{d.cuentaCompartida.nombre}</span>
+          En los últimos <Num>{dias}</Num> días hubo <Num>{d.totalConexiones}</Num> {d.totalConexiones === 1 ? 'entrada' : 'entradas'} por SSH
+          de <Num>{d.personasDistintas}</Num> {d.personasDistintas === 1 ? 'persona' : 'personas'};{' '}
+          <Num>{d.cuentaCompartida.conexiones}</Num> con la cuenta compartida <span className="font-ui-num text-ui-tinta">{d.cuentaCompartida.nombre}</span>
           {d.cuentaCompartida.activas > 0 && <> (<Num>{d.cuentaCompartida.activas}</Num> abiertas ahora)</>}.
         </p>
         {d.conectados.length
@@ -132,7 +132,7 @@ function TablaConexiones({ conexiones, ahora }: { conexiones: ConexionDispositiv
       filas={conexiones.map((c) => [
         <Num>{fechaExcel(c.inicio)}</Num>,
         c.activa
-          ? <span className="font-semibold text-ui-bien-texto">Lleva <Num>{duracionConexion(c, ahora)}</Num> conectado</span>
+          ? <span className="text-ui-bien-texto">Lleva <Num>{duracionConexion(c, ahora)}</Num> conectado</span>
           : <span><Num>{fechaExcel(c.fin)}</Num>{c.cierre === 'sin_cierre' && <span className="ml-1 text-[11px] text-ui-apagado">(sin cierre)</span>}</span>,
         <span className="font-ui-num text-[12px]">{c.ip}</span>,
         <span className="block truncate">{ubicacionConexion(c)}</span>,

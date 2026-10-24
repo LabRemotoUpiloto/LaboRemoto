@@ -52,7 +52,7 @@ function Filas({ filas }: { filas: Fila[] }) {
             {f.alerta != null || f.frac ? <Barra frac={f.frac} alerta={f.alerta} critico={f.critico} nivel={f.nivel} className="hidden md:block" /> : <span className="hidden md:block" />}
             <span className="col-span-2 text-[13px] text-ui-tinta-2 md:col-span-1">
               {(f.nivel === 'alerta' || f.nivel === 'critico') && (
-                <b className={`mr-3 font-bold ${TEXTO_NIVEL[f.nivel]}`}>{f.nivel === 'alerta' ? 'Alerta' : 'Crítico'}</b>
+                <span className={`mr-3 ${TEXTO_NIVEL[f.nivel]}`}>{f.nivel === 'alerta' ? 'Alerta' : 'Crítico'}</span>
               )}
               {f.detalle}
             </span>
@@ -104,8 +104,8 @@ function ResumenDePrueba({ resumen, onGuardar }: { resumen: ResumenPrueba; onGua
               return (
                 <tr key={p.indicador.id}>
                   <td className="py-2 pl-6 text-ui-tinta">{p.indicador.titulo}</td>
-                  <td className={`py-2 text-right font-ui-num ${nivel ? `font-semibold ${TEXTO_NIVEL[nivel]}` : 'text-ui-tinta'}`}>{formatoValor(p.valor, p.indicador.unidad)}</td>
-                  <td className={`py-2 pl-4 text-xs font-bold ${nivel ? TEXTO_NIVEL[nivel] : ''}`}>{nivel === 'critico' ? 'Crítico' : nivel === 'alerta' ? 'Alerta' : ''}</td>
+                  <td className={`py-2 text-right font-ui-num ${nivel ? TEXTO_NIVEL[nivel] : 'text-ui-tinta'}`}>{formatoValor(p.valor, p.indicador.unidad)}</td>
+                  <td className={`py-2 pl-4 text-xs ${nivel ? TEXTO_NIVEL[nivel] : ''}`}>{nivel === 'critico' ? 'Crítico' : nivel === 'alerta' ? 'Alerta' : ''}</td>
                   <td className="py-2 text-right font-ui-num text-ui-tinta-2">{hora24(p.t)}</td>
                   <td className="py-2 pr-6 text-right font-ui-num text-ui-tinta">{p.estudiantes ?? '—'}</td>
                 </tr>
@@ -199,7 +199,7 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
                     <span aria-hidden className={`h-[7px] w-[7px] rounded-full ${s.activo ? 'bg-ui-bien' : 'bg-ui-critico'}`} />
                     <span className="font-ui-num text-ui-tinta">{s.unidad}</span>
                     <span className="hidden text-ui-tinta-2 sm:inline">{QUE_HACE[s.unidad] ?? ''}</span>
-                    {!s.activo && <b className="col-span-2 font-bold text-ui-critico-texto sm:col-span-1">{porQueCaido(s)}</b>}
+                    {!s.activo && <span className="col-span-2 text-ui-critico-texto sm:col-span-1">{porQueCaido(s)}</span>}
                   </li>
                 ))}
               </ul>

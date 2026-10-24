@@ -29,7 +29,7 @@ const ChatModals: React.FC<Props> = ({
       }}
     >
       <Text size="sm" c="dimmed" mb="lg">
-        Cambiar a <strong style={{ color: 'var(--text-primary)' }}>{MODES.find(m => m.value === showModeConfirm)?.label}</strong> borrará los mensajes actuales.
+        Cambiar a {MODES.find(m => m.value === showModeConfirm)?.label} borrará los mensajes actuales.
       </Text>
       <Group justify="flex-end">
         <Button variant="default" onClick={cancelModeSwitch}>

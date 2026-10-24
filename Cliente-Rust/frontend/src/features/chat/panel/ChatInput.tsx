@@ -531,7 +531,7 @@ const ChatInput: React.FC<Props> = ({
                     : 'Modo consulta: conecta SSH o configura PI4 en .env para Agente')}
             </span>
           ) : input.length === 0 ? null : (
-            <span className={`${input.length > MAX_CHAR_WARN ? 'text-red-400 font-semibold' : 'text-secondary/50 font-medium'}`}>
+            <span className={`${input.length > MAX_CHAR_WARN ? 'text-red-400' : 'text-secondary/50'}`}>
               {input.length > MAX_CHAR_WARN
                 ? `⚠ ${input.length.toLocaleString()} car. — mensaje muy largo`
                 : `${input.length} car.`}
