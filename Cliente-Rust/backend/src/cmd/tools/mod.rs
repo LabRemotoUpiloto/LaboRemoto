@@ -5,6 +5,8 @@
 //! - search_shared.rs: Búsqueda compartida
 
 pub mod tools;
+mod ssh_helpers;
+mod definitions;
 pub mod search_shared;
 pub mod pi4_config;
 
