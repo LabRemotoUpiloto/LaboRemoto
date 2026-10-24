@@ -125,6 +125,7 @@ fn spawn_reader_thread(
   mut reader: Box<dyn Read + Send>,
   out_buffer: Arc<Mutex<Option<String>>>,
   ui_ready: Arc<AtomicBool>,
+  historial: Arc<Mutex<std::collections::VecDeque<String>>>,
 ) {
   let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
 
@@ -151,6 +152,12 @@ fn spawn_reader_thread(
     let emit_str = |s: String| {
       if s.is_empty() {
         return;
+      }
+      if let Ok(mut h) = historial.lock() {
+        h.push_back(s.clone());
+        while h.len() > crate::cmd::state::local_terminal::HISTORIAL_MAXIMO {
+          h.pop_front();
+        }
       }
       if ui_ready.load(Ordering::SeqCst) {
         let _ = app.emit(&format!("local_term_out_{}", id), Some(s));
@@ -192,6 +199,25 @@ fn spawn_reader_thread(
 }
 
 // ── Comandos ──────────────────────────────────────────────────────────────
+
+/// Lo que el chat de la terminal local necesita: qué shell es y lo último que mostró el panel.
+#[derive(serde::Serialize)]
+pub struct LocalTermContexto {
+  pub shell: String,
+  pub sistema: String,
+  pub texto: String,
+}
+
+/// Los últimos `trozos` de salida de un panel de la terminal local (máximo 300), con su shell.
+#[tauri::command]
+pub fn local_term_contexto(id: String, trozos: Option<usize>) -> Result<LocalTermContexto, String> {
+  let map = LOCAL_TERM_SESSIONS.lock().map_err(|e| e.to_string())?;
+  let sesion = map.get(&id).ok_or("Ese panel de terminal ya no existe")?;
+  let h = sesion.historial.lock().map_err(|e| e.to_string())?;
+  let n = trozos.unwrap_or(80).min(crate::cmd::state::local_terminal::HISTORIAL_MAXIMO);
+  let texto: String = h.iter().skip(h.len().saturating_sub(n)).cloned().collect();
+  Ok(LocalTermContexto { shell: sesion.shell_label.clone(), sistema: std::env::consts::OS.to_string(), texto })
+}
 
 #[tauri::command]
 pub async fn local_term_spawn(
@@ -253,6 +279,7 @@ async fn local_term_spawn_impl(app: AppHandle, requested_id: Option<String>, col
 
     let out_buffer: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(Some(String::new())));
     let ui_ready = Arc::new(AtomicBool::new(false));
+    let historial = Arc::new(Mutex::new(std::collections::VecDeque::new()));
 
     {
       let mut map = LOCAL_TERM_SESSIONS.lock().map_err(|e| e.to_string())?;
@@ -263,10 +290,11 @@ async fn local_term_spawn_impl(app: AppHandle, requested_id: Option<String>, col
         ui_ready: ui_ready.clone(),
         out_buffer: out_buffer.clone(),
         shell_label: shell_for_thread.clone(),
+        historial: historial.clone(),
       });
     }
 
-    spawn_reader_thread(app.clone(), id_for_thread, reader, out_buffer, ui_ready);
+    spawn_reader_thread(app.clone(), id_for_thread, reader, out_buffer, ui_ready, historial);
 
     Ok(())
   })

@@ -13,6 +13,7 @@ import {
 import LocalTerminalPane from './LocalTerminalPane';
 import './LocalTerminalGroup.css';
 import { localTermClose, localTermStdin } from './localTerminal.service';
+import { marcarPanelActivo } from './panelesLocales';
 import { useAppStore } from '@/store/app';
 
 type SplitNode =
@@ -177,6 +178,10 @@ const LocalTerminalGroup: React.FC<Props> = ({ tabId, onEmptyGroup }) => {
       return next;
     });
   }, [onEmptyGroup]);
+
+  // El chat y Comandos leen y escriben en el panel donde está trabajando la persona
+  useEffect(() => { marcarPanelActivo(tabId, activePaneId ?? collectLeafIds(tree)[0] ?? null); }, [tabId, activePaneId, tree]);
+  useEffect(() => () => marcarPanelActivo(tabId, null), [tabId]);
 
   // Comandos (panel del mosaico) escribe en el panel de terminal activo de este grupo
   useEffect(() => {

@@ -67,6 +67,12 @@ export const localTermSpawn = async (id: string, cols: number, rows: number): Pr
 export const localTermUiReady = (id: string): Promise<void> =>
   invoke<void>('local_term_ui_ready', { id });
 
+/** Lo que el chat de la terminal local necesita: la shell, el sistema y lo último que mostró el panel. */
+export interface LocalTermContexto { shell: string; sistema: string; texto: string }
+
+export const localTermContexto = (id: string, trozos = 80): Promise<LocalTermContexto> =>
+  invoke<LocalTermContexto>('local_term_contexto', { id, trozos });
+
 /**
  * Envía datos (stdin) a un panel de terminal local activo.
  * `retries: 0` a propósito: reintentar stdin puede duplicar teclas si el

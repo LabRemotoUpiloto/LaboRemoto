@@ -1,6 +1,6 @@
-// features/sesion/SesionLocalMosaico.tsx — la terminal local como mosaico: la terminal (con sus propias divisiones) y
-// Comandos, que se ejecutan en el panel de terminal activo. Como en las sesiones SSH, ocultar la terminal no la cierra.
-// El chat para la terminal local queda para después (necesita guardar lo que muestra la terminal, que hoy no se registra).
+// features/sesion/SesionLocalMosaico.tsx — la terminal local como mosaico: la terminal (con sus propias divisiones), el
+// chat (sabe qué shell es y ve lo último del panel activo) y Comandos; lo que ejecutan va al panel de terminal activo. Como
+// en las sesiones SSH, ocultar la terminal no la cierra.
 import { useEffect, useState } from 'react';
 import { Plus, SquareTerminal } from 'lucide-react';
 import { Boton, BotonIcono } from '@/components/ui';
@@ -9,8 +9,9 @@ import { hojas } from '@/components/mosaico/arbol';
 import PanelComandos from '@/features/comandos/PanelComandos';
 import type { TipoTerminal } from '@/features/comandos/comandos';
 import LocalTerminalGroup from '@/features/terminal/LocalTerminalGroup';
+import ChatPane from '@/features/chat/ChatPane';
 import { teclasDelComando } from '@/features/practicas/linux/ejecutarComando';
-import { abrir, fijarArbol, marcarVisible, sesionQueSeVe, useArbolSesion } from './herramientasSesion';
+import { abrir, fijarArbol, marcarVisible, ocultar, sesionQueSeVe, useArbolSesion } from './herramientasSesion';
 
 export const EVENTO_ESCRIBIR_LOCAL = 'local-term:escribir';
 export interface DetalleEscribirLocal { tabId: string; teclas: string }
@@ -29,6 +30,9 @@ export default function SesionLocalMosaico({ tabId, isTabActive, onEmptyGroup }:
 }) {
   const arbol = useArbolSesion(tabId);
   const [pedirComando, setPedirComando] = useState(0);
+  const [chatMontado, setChatMontado] = useState(false);
+  const visibleChat = hojas(arbol).includes('chat');
+  useEffect(() => { if (visibleChat) setChatMontado(true); }, [visibleChat]);
   useEffect(() => {
     if (isTabActive) marcarVisible(tabId);
     else if (sesionQueSeVe() === tabId) marcarVisible(null);
@@ -37,6 +41,17 @@ export default function SesionLocalMosaico({ tabId, isTabActive, onEmptyGroup }:
   const herramientas: Record<string, Herramienta> = {
     terminal: { titulo: TITULO_TERMINAL_LOCAL, contenido: <LocalTerminalGroup tabId={tabId} onEmptyGroup={onEmptyGroup} /> },
   };
+  if (chatMontado || visibleChat) {
+    herramientas.chat = {
+      titulo: TERMINAL_LOCAL === 'powershell' ? 'Chat (PowerShell)' : 'Chat',
+      contenido: (
+        <div className="chat-pane-host flex min-h-0 flex-1 flex-col">
+          <ChatPane onClose={() => ocultar(tabId, 'chat')}
+            terminalLocal={{ tabId, ejecutar: (c) => escribir(tabId, teclasDelComando(c)) }} />
+        </div>
+      ),
+    };
+  }
   if (hojas(arbol).includes('comandos')) {
     herramientas.comandos = {
       titulo: 'Comandos',

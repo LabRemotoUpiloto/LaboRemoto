@@ -117,6 +117,7 @@ pub fn run() {
       cmd::ssh::gpio::rpi_pins_monitor_stop,
       // Terminal local (PTY embebido)
       cmd::terminal_local::local_term_spawn,
+      cmd::terminal_local::local_term_contexto,
       cmd::terminal_local::local_term_ui_ready,
       cmd::terminal_local::local_term_stdin,
       cmd::terminal_local::local_term_resize,

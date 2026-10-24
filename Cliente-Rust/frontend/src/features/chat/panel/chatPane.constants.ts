@@ -63,7 +63,6 @@ export const MODE_PLACEHOLDERS: Record<ChatMode, string> = {
   plan:   'Describe el objetivo para generar un plan…',
 };
 
-// ── Sugerencias rápidas por modo (welcome state) ──
 
 // ── Patrones de error del terminal ──
 export const ERROR_PATTERNS: RegExp[] = [

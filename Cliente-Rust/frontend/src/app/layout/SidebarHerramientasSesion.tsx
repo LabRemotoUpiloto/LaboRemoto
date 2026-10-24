@@ -10,7 +10,7 @@ import { alternar, TITULOS, useAbiertas, type IdHerramienta } from '@/features/s
 type Boton = { id: IdHerramienta; Icono: React.ComponentType<{ size?: number }>; permiso?: string; local?: boolean };
 const BOTONES: Boton[] = [
   { id: 'terminal', Icono: SquareTerminal, local: true },
-  { id: 'chat', Icono: MessageSquare },
+  { id: 'chat', Icono: MessageSquare, local: true },
   { id: 'camara', Icono: Camera },
   { id: 'escritorio', Icono: Monitor },
   { id: 'pines', Icono: Cpu },
@@ -27,7 +27,7 @@ const estilo = (abierta: boolean): React.CSSProperties => ({
 export default function SidebarHerramientasSesion({ sesion, local = false, collapsed = false }: { sesion: string; local?: boolean; collapsed?: boolean }) {
   const role = useEffectiveRole();
   const abiertas = useAbiertas(sesion);
-  // En la terminal local: Terminal y Comandos (el chat local queda para después)
+  // En la terminal local: Terminal, Chat y Comandos
   const lista = BOTONES.filter((b) => (!b.permiso || canAccessPage(b.permiso, role)) && (!local || b.local));
   const usar = (id: IdHerramienta) => alternar(sesion, id);
 

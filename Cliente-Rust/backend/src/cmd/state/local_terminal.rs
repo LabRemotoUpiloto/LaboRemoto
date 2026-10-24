@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::sync::atomic::AtomicBool;
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
 use portable_pty::{Child, MasterPty};
@@ -19,4 +20,9 @@ pub struct LocalTermSession {
   pub out_buffer: Arc<Mutex<Option<String>>>,
   // Shell resuelta para este panel (ej. "pwsh", "powershell.exe", "/bin/bash") — debugging/UI
   pub shell_label: String,
+  /// Lo último que mostró el panel (trozos de salida, máximo `HISTORIAL_MAXIMO`): lo lee el chat de la terminal local.
+  pub historial: Arc<Mutex<VecDeque<String>>>,
 }
+
+/// Trozos de salida que se guardan por panel para el chat (como `terminal_buf` en las sesiones SSH).
+pub const HISTORIAL_MAXIMO: usize = 300;

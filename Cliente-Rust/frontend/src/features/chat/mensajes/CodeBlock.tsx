@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
+import { EjecutorTerminal } from '../ejecutorTerminal';
 import { sshStdin } from '@/features/conexion/ssh.service';
 import hljs from 'highlight.js/lib/core';
 import bash from 'highlight.js/lib/languages/bash';
@@ -35,6 +36,7 @@ interface CodeBlockProps {
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId, setLastCommand, hideActions = false }) => {
+  const ejecutorLocal = useContext(EjecutorTerminal);
   // «Guardar como comando»: para quien tiene Comandos (semillerista y administrador)
   const puedeGuardar = canAccessPage('snippets', useEffectiveRole());
   const [guardado, setGuardado] = useState(false);
@@ -84,6 +86,14 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
     const toSendRaw = sanitizeForTerminal(code || '');
     if (!toSendRaw) return;
     
+    // Terminal local: lo escribe en su panel activo
+    if (ejecutorLocal) {
+      ejecutorLocal(toSendRaw);
+      setExecutionStatus('success');
+      setTimeout(() => setExecutionStatus('idle'), 2000);
+      return;
+    }
+
     if (!sessionId) {
       alert('No hay sesión SSH activa');
       return;
@@ -153,7 +163,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, sessionId,
               </Button>
             )}
 
-            {sessionId && (
+            {(sessionId || ejecutorLocal) && (
               <Button
                 size="compact-xs"
                 variant={executionStatus === 'idle' ? "light" : "filled"}

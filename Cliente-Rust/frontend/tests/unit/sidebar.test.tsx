@@ -126,8 +126,8 @@ describe('Esta sesión en un mosaico', () => {
     expect(screen.getByRole('button', { name: 'Terminal' }).getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('en la terminal local: solo Terminal y Comandos', () => {
-    expect(mosaico(['admin_lab'], true)).toEqual(['Terminal', 'Comandos']);
+  it('en la terminal local: Terminal, Chat y Comandos', () => {
+    expect(mosaico(['admin_lab'], true)).toEqual(['Terminal', 'Chat', 'Comandos']);
   });
 
   it('quien no opera equipos no ve Archivos ni Comandos', () => {
