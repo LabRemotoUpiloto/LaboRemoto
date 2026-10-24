@@ -186,13 +186,13 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 11 · Hosts Guardados ─────────────────────────────────────────────────
+  // ── 11 · Equipos guardados ───────────────────────────────────────────────
   {
     element: '[data-page="hosts"]',
     popover: {
-      title: icon('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>') + 'Hosts Guardados',
+      title: icon('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>') + 'Equipos guardados',
       description:
-        'Gestiona tus conexiones SSH guardadas con <strong>contraseñas cifradas</strong> (ChaCha20Poly1305). Crea, edita y elimina hosts y conéctate con un clic desde aquí.',
+        'Gestiona tus conexiones SSH guardadas con <strong>contraseñas cifradas</strong> (ChaCha20Poly1305). Crea, edita y elimina equipos y conéctate con un clic desde aquí.',
       side: 'right',
       align: 'start',
     },
@@ -305,11 +305,11 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 19 · Logs de sesión ──────────────────────────────────────────────────
+  // ── 19 · Sesiones SSH ────────────────────────────────────────────────────
   {
     element: '[data-page="logs"]',
     popover: {
-      title: icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>') + 'Historial de Logs',
+      title: icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>') + 'Sesiones SSH',
       description:
         'Aquí se guardan todas tus sesiones SSH. Puedes:<br/>' +
         '• Revisar el historial de comandos de sesiones anteriores<br/>' +
@@ -321,25 +321,25 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 20 · Snippets ────────────────────────────────────────────────────────
+  // ── 20 · Mis comandos ────────────────────────────────────────────────────
   {
     element: '[data-page="snippets"]',
     popover: {
-      title: icon('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>') + 'Snippets',
+      title: icon('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>') + 'Mis comandos',
       description:
-        'Guarda comandos útiles como snippets para reutilizarlos fácilmente. Organízalos con etiquetas y ejecútalos con un clic desde el terminal.',
+        'Guarda comandos útiles para reutilizarlos fácilmente. Organízalos con etiquetas y ejecútalos con un clic desde el terminal.',
       side: 'right',
       align: 'start',
     },
   },
 
-  // ── 21 · Temas ───────────────────────────────────────────────────────────
+  // ── 21 · Temas (en el menú del usuario, abajo en la barra) ───────────────
   {
-    element: '[data-page="themes"]',
+    element: '[data-tour="sidebar-usuario"]',
     popover: {
       title: icon('<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>') + 'Temas',
       description:
-        'Personaliza la apariencia de la aplicación con múltiples temas. Incluye opciones de colores, tipografías y estilos del terminal.',
+        'Personaliza la apariencia de la aplicación con múltiples temas: abre el menú de tu usuario y elige <strong>Temas</strong>. Incluye opciones de colores, tipografías y estilos del terminal.',
       side: 'right',
       align: 'start',
     },
