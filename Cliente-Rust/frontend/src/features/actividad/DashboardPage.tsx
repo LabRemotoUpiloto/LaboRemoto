@@ -13,8 +13,8 @@ import { haceTiempo } from './dispositivosStats';
 import { useResumen } from './useResumen';
 import MapaActividad, { type PuntoMapa } from './MapaActividad';
 import {
-  cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, diaCorto, enVivo, fechaCorta, lapso, lugares, personas,
-  porDia, recientes, TEXTO_TIPO, total, type Actividad, type Filtro, type Tipo,
+  cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, diaCorto, enVivo, fechaCorta, lapso, lugares, nombreOperador,
+  paraRevisar, personas, porDia, recientes, TEXTO_TIPO, total, type Actividad, type Filtro, type Tipo,
 } from './actividad';
 
 type Cuando = 'vivo' | 'historico';
@@ -22,6 +22,7 @@ const ALTO = 'h-[min(640px,calc(100vh-300px))] min-h-[440px]';
 const POR_PAGINA_VIVO = 8;
 const POR_PAGINA_PERSONAS = 10;
 const POR_PAGINA_HISTORIAL = 10;
+const POR_PAGINA_REVISAR = 5;
 
 export default function DashboardPage() {
   const [cuando, setCuando] = useState<Cuando>('vivo');
@@ -172,13 +173,20 @@ function Fila({ a, nota }: { a: Actividad; nota: string }) {
 
 function Historico({ actividades, dias, ahora, filtro }: { actividades: Actividad[]; dias: number; ahora: number; filtro: Filtro }) {
   const [elegido, setElegido] = useState<string | null>(null);
+  // Tocar un lugar del mapa muestra las conexiones desde ahí (con IP, operador y cómo se ubicó).
+  const [lugar, setLugar] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [paginaPersonas, setPaginaPersonas] = useState(1);
   const [paginaHistorial, setPaginaHistorial] = useState(1);
+  const [paginaRevisar, setPaginaRevisar] = useState(1);
   useEffect(() => { setPaginaPersonas(1); }, [busqueda, filtro, dias]);
-  useEffect(() => { setPaginaHistorial(1); }, [elegido, filtro, dias]);
+  useEffect(() => { setPaginaHistorial(1); }, [elegido, lugar, filtro, dias]);
+  useEffect(() => { setPaginaRevisar(1); }, [filtro, dias]);
 
-  const vista = useMemo(() => (elegido ? actividades.filter((a) => a.persona === elegido) : actividades), [actividades, elegido]);
+  const dePersona = useMemo(() => (elegido ? actividades.filter((a) => a.persona === elegido) : actividades), [actividades, elegido]);
+  const vista = useMemo(() => (lugar ? dePersona.filter((a) => a.lugar === lugar) : dePersona), [dePersona, lugar]);
+  const revisar = useMemo(() => paraRevisar(actividades), [actividades]);
+  const pagRevisar = paginar(revisar, paginaRevisar, POR_PAGINA_REVISAR);
   const todasLasPersonas = useMemo(() => personas(actividades, ahora), [actividades, ahora]);
   const lista = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -186,10 +194,10 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
   }, [todasLasPersonas, busqueda]);
   const pagPersonas = paginar(lista, paginaPersonas, POR_PAGINA_PERSONAS);
   const puntos: PuntoMapa[] = useMemo(() => {
-    const ls = lugares(vista);
+    const ls = lugares(dePersona);
     const max = Math.max(1, ...ls.map((l) => l.veces));
     return ls.map((l) => ({ id: l.id, lat: l.lat, lon: l.lon, etiqueta: `${l.lugar}, ${l.veces}`, peso: l.veces / max }));
-  }, [vista]);
+  }, [dePersona]);
   const elegidoNombre = todasLasPersonas.find((p) => p.persona === elegido)?.nombre;
   const historial = useMemo(() => [...vista].sort((a, b) => b.inicio - a.inicio), [vista]);
   const pagHistorial = paginar(historial, paginaHistorial, POR_PAGINA_HISTORIAL);
@@ -200,16 +208,35 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
   return (
     <>
       <p className="m-0 text-[15px] text-ui-tinta-2">
-        {elegido
-          ? <>{elegidoNombre}: {vista.length} {vista.length === 1 ? 'vez' : 'veces'} en los últimos {dias} días, {total(vista.reduce((s, a) => s + Math.max(0, (a.fin ?? ahora) - a.inicio), 0))} en total.</>
+        {elegido || lugar
+          ? <>{[elegidoNombre, lugar && `desde ${lugar}`].filter(Boolean).join(' ')}: {vista.length} {vista.length === 1 ? 'vez' : 'veces'} en los últimos {dias} días, {total(vista.reduce((s, a) => s + Math.max(0, (a.fin ?? ahora) - a.inicio), 0))} en total.</>
           : <>En los últimos {dias} días, {todasLasPersonas.length} {todasLasPersonas.length === 1 ? 'persona usó' : 'personas usaron'} el laboratorio {actividades.length} {actividades.length === 1 ? 'vez' : 'veces'}.</>}
       </p>
+      {revisar.length > 0 && (
+        <Seccion titulo="Para revisar">
+          <div className={`${TARJETA} border-l-[3px] border-l-ui-alerta`}>
+            <ul className="m-0 list-none p-0">
+              {pagRevisar.filas.map((x, i) => (
+                <li key={x.id} className={i ? 'border-t border-ui-pista' : ''}>
+                  <button type="button" onClick={() => { setElegido(x.persona); setLugar(x.lugar); }}
+                    className="flex w-full flex-col gap-0.5 px-5 py-2.5 text-left hover:bg-ui-hover">
+                    <span className="text-[13px] text-ui-tinta"><span className="font-semibold">{x.nombre}</span> {x.texto}.</span>
+                    <span className={NOTA}>{x.veces} {x.veces === 1 ? 'vez' : 'veces'}, la última el {fechaCorta(x.ultima)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {revisar.length > POR_PAGINA_REVISAR && <Paginador pagina={pagRevisar} onPagina={setPaginaRevisar} unidad="avisos" />}
+          </div>
+        </Seccion>
+      )}
+
       <div className={`grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] ${ALTO}`}>
-        <MapaActividad puntos={puntos} vacio="Sin ubicación en el período." />
+        <MapaActividad puntos={puntos} marcado={lugar} onMarcar={(id) => setLugar((l) => (l === id ? null : id))} vacio="Sin ubicación en el período." />
         <div className={`${TARJETA} flex min-h-0 flex-col`}>
           <div className="flex items-center justify-between gap-2 border-b border-ui-borde px-5 py-2.5">
             <h3 className={ETIQUETA}>Personas</h3>
-            {elegido && <Boton onClick={() => setElegido(null)}>Ver a todas</Boton>}
+            {(elegido || lugar) && <Boton onClick={() => { setElegido(null); setLugar(null); }}>Ver a todas</Boton>}
           </div>
           <div className="px-4 py-3"><Buscador icono={Search} valor={busqueda} onCambio={setBusqueda} placeholder="Buscar persona" ancho="w-full" /></div>
           <ul className="m-0 flex-1 list-none overflow-auto p-0">
@@ -229,21 +256,11 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
       </div>
       <Leyenda lugares />
 
-      {elegido ? (
-        <Seccion titulo={`Historial de ${elegidoNombre}`}>
-          <Tabla
-            plantilla="grid-cols-[130px_170px_minmax(0,1fr)_110px_minmax(0,160px)]"
-            columnas={[{ titulo: 'Cuándo' }, { titulo: 'Qué' }, { titulo: 'Detalle' }, { titulo: 'Duración', derecha: true }, { titulo: 'Desde' }]}
-            claves={pagHistorial.filas.map((a) => a.id)}
-            filas={pagHistorial.filas.map((a) => [
-              <Num>{fechaCorta(a.inicio)}</Num>,
-              <span className="flex items-center gap-2"><Marca tipo={a.tipo} />{TEXTO_TIPO[a.tipo]}</span>,
-              <span className="block truncate" title={a.detalle}>{a.detalle}</span>,
-              a.fin === null ? <span className="text-ui-bien-texto">en curso</span> : <Num>{lapso(a.fin - a.inicio)}</Num>,
-              <span className="block truncate">{a.lugar}</span>,
-            ])}
-            pie={<Paginador pagina={pagHistorial} onPagina={setPaginaHistorial} unidad="registros" />}
-          />
+      {elegido || lugar ? (
+        <Seccion titulo={elegido && lugar ? `${elegidoNombre} desde ${lugar}` : elegido ? `Historial de ${elegidoNombre}` : `Conexiones desde ${lugar}`}
+          derecha={lugar && <Boton onClick={() => setLugar(null)}>Quitar el lugar</Boton>}>
+          <TablaConexiones filas={pagHistorial.filas} conQuien={!elegido} ahora={ahora}
+            pie={<Paginador pagina={pagHistorial} onPagina={setPaginaHistorial} unidad="registros" />} />
         </Seccion>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
@@ -256,6 +273,42 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
 }
 
 // ── Piezas ────────────────────────────────────────────────────────────────────
+
+/** Cada conexión con lo necesario para entender de dónde vino: IP, operador de la red y cómo se ubicó. */
+function TablaConexiones({ filas, conQuien, ahora, pie }: { filas: Actividad[]; conQuien: boolean; ahora: number; pie: React.ReactNode }) {
+  return (
+    <Tabla
+      plantilla={conQuien
+        ? 'grid-cols-[110px_minmax(0,1fr)_minmax(0,1.2fr)_90px_minmax(0,1fr)_minmax(0,1.2fr)]'
+        : 'grid-cols-[110px_minmax(0,1.2fr)_90px_minmax(0,1fr)_minmax(0,1.2fr)]'}
+      columnas={[
+        { titulo: 'Cuándo' }, ...(conQuien ? [{ titulo: 'Quién' }] : []), { titulo: 'Qué' }, { titulo: 'Duración', derecha: true },
+        { titulo: 'IP y operador' }, { titulo: 'Ubicación' },
+      ]}
+      claves={filas.map((a) => a.id)}
+      filas={filas.map((a) => [
+        <Num>{fechaCorta(a.inicio)}</Num>,
+        ...(conQuien ? [<span className="block truncate text-ui-tinta" title={a.nombre}>{a.nombre}</span>] : []),
+        <span className="flex min-w-0 items-start gap-2"><Marca tipo={a.tipo} /><span className="block truncate" title={a.detalle}>{a.detalle}</span></span>,
+        a.fin === null ? <span className="text-ui-bien-texto">en curso</span> : <Num>{lapso((a.fin ?? ahora) - a.inicio)}</Num>,
+        <span className="flex min-w-0 flex-col">
+          <span className="block truncate font-ui-num text-[12px] text-ui-tinta">{a.ip ?? 'Sin IP'}</span>
+          {a.operador && <span className="block truncate text-[11px] text-ui-apagado" title={a.operador}>{nombreOperador(a.operador)}</span>}
+        </span>,
+        <span className="flex min-w-0 flex-col">
+          <span className="block truncate">{a.lugar}</span>
+          <span className={`block truncate text-[11px] ${a.dudosa ? 'text-ui-alerta-texto' : 'text-ui-apagado'}`}
+            title={a.dudosa ? `El equipo dijo ${a.lugarEquipo}` : undefined}>
+            {a.dudosa ? `Dudosa: el equipo dijo ${a.lugarEquipo}`
+              : a.ubicadoPor === 'equipo' ? `Por el equipo${a.precisionM ? `, ±${Math.max(a.precisionM, 110)} m` : ''}`
+              : a.ubicadoPor === 'ip' ? 'Por la IP (ciudad)' : ''}
+          </span>
+        </span>,
+      ])}
+      pie={pie}
+    />
+  );
+}
 
 /** La marca de cada tipo, igual que en el mapa: círculo relleno = práctica, contorno = SSH, cuadrado = app. */
 const MARCA: Record<Tipo, string> = {
