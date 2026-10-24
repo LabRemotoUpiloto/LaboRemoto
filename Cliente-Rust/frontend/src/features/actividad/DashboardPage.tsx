@@ -4,12 +4,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Search } from 'lucide-react';
 import {
-  Aviso, Boton, Buscador, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Punto, Seccion, Selector,
+  Aviso, Boton, Buscador, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Seccion, Selector,
   TARJETA, Tabla, paginar,
 } from '@/components/ui';
 import { sesionesService } from './sesiones.service';
-import { dispositivosService, type DispositivoActividad } from './dispositivos.service';
-import { estadoDispositivo, haceTiempo } from './dispositivosStats';
+import { dispositivosService } from './dispositivos.service';
+import { haceTiempo } from './dispositivosStats';
 import { useResumen } from './useResumen';
 import MapaActividad, { type PuntoMapa } from './MapaActividad';
 import {
@@ -63,10 +63,10 @@ export default function DashboardPage() {
         </>}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* El estado de los equipos (en línea o no) está en Monitoreo: aquí solo quién los usa. */}
+      <div>
         <Selector<Filtro> nombre="Qué actividad" valor={filtro} onCambio={setFiltro}
           opciones={[{ valor: 'todo', etiqueta: 'Todo' }, { valor: 'practica', etiqueta: 'Prácticas' }, { valor: 'ssh', etiqueta: 'Trabajando por SSH' }, { valor: 'app', etiqueta: 'En la app' }]} />
-        <span className="flex flex-wrap gap-4">{dispositivos.map((d) => <EstadoEquipo key={d.id} d={d} ahora={ahora} />)}</span>
       </div>
 
       {dispositivos.filter((d) => d.noReconocidas.conexiones > 0).map((d) => (
@@ -94,11 +94,6 @@ export default function DashboardPage() {
       )}
     </Pagina>
   );
-}
-
-function EstadoEquipo({ d, ahora }: { d: DispositivoActividad; ahora: number }) {
-  const e = estadoDispositivo(d, ahora);
-  return <Punto nivel={e.ok === true ? 'bien' : e.ok === false ? 'critico' : 'apagado'} fuerte={`${d.nombre}: ${e.texto.charAt(0).toLowerCase()}${e.texto.slice(1)}`} />;
 }
 
 // ── En vivo ───────────────────────────────────────────────────────────────────
@@ -133,7 +128,9 @@ function EnVivo({ todas, ahora }: { todas: Actividad[]; ahora: number }) {
                   </button>
                 </li>
               ))
-              : ultimas.map((a, i) => (
+              : !ultimas.length
+                ? <li className="px-5 py-3 text-[13px] text-ui-tinta-2">Todavía no hay registros de este tipo.</li>
+                : ultimas.map((a, i) => (
                 // Sin nadie conectado: lo último que pasó, para saber cuándo se usó por última vez y quién
                 <li key={a.id} className={`flex gap-3 px-5 py-3 ${i ? 'border-t border-ui-pista' : ''}`}>
                   <Fila a={a} nota={`terminó hace ${lapso(ahora - a.fin!)}, ${a.lugar}`} />

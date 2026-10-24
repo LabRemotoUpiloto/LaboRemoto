@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { esIpLocal, estadoDispositivo, haceTiempo } from '@/features/actividad/dispositivosStats';
+import { esIpLocal, haceTiempo } from '@/features/actividad/dispositivosStats';
 
 describe('red local', () => {
   it('reconoce las redes locales', () => {
@@ -16,14 +16,5 @@ describe('tiempos', () => {
     expect(haceTiempo('2026-10-04T12:00:00.000Z', ahora)).toBe('hace 3 h');
     expect(haceTiempo('2026-10-01T15:00:00.000Z', ahora)).toBe('hace 3 d');
     expect(haceTiempo(null, ahora)).toBe('nunca');
-  });
-});
-
-describe('estadoDispositivo', () => {
-  const ahora = Date.parse('2026-10-04T15:00:00.000Z');
-  it('en línea, sin conexión (con el último aviso) y sin agente todavía', () => {
-    expect(estadoDispositivo({ enLinea: true, ultimoLatido: '2026-10-04T14:59:50.000Z' }, ahora)).toEqual({ texto: 'En línea', ok: true });
-    expect(estadoDispositivo({ enLinea: false, ultimoLatido: '2026-10-04T14:50:00.000Z' }, ahora)).toEqual({ texto: 'Sin conexión desde hace 10 min', ok: false });
-    expect(estadoDispositivo({ enLinea: false, ultimoLatido: null }, ahora)).toEqual({ texto: 'Aún no ha reportado', ok: null });
   });
 });
