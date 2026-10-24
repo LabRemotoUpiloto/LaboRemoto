@@ -422,7 +422,8 @@ const AppMain: React.FC = () => {
               onCloseTab={handleCloseTab}
               onRenameTab={renameTab}
               showSessionActions={isSessionActive}
-              sesionMosaico={isSessionActive && !combinedPracticeMeta?.[activeTab.id] ? activeTab.id : null}
+              sesionMosaico={(isSessionActive && !combinedPracticeMeta?.[activeTab.id]) || activeTab.type === 'local-terminal' ? activeTab.id : null}
+              sesionMosaicoLocal={activeTab.type === 'local-terminal'}
               activeView={activeView}
               onViewChange={setActiveView}
               isChatOpen={isChatOpen}

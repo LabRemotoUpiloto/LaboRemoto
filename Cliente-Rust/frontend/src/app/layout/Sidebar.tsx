@@ -30,6 +30,8 @@ interface SidebarProps {
   showSessionActions?: boolean;
   /** Sesión de uso normal que se está viendo: «Esta sesión» maneja su mosaico. Si es null y hay acciones, es una práctica. */
   sesionMosaico?: string | null;
+  /** La sesión del mosaico es una terminal local (solo Terminal y Comandos). */
+  sesionMosaicoLocal?: boolean;
   activeView?: ActiveView;
   onViewChange?: (view: ActiveView) => void;
   isChatOpen?: boolean;
@@ -95,6 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   hasSessions = false,
   showSessionActions = false,
   sesionMosaico = null,
+  sesionMosaicoLocal = false,
   activeView = 'terminal',
   onViewChange,
   isChatOpen = false,
@@ -211,7 +214,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           El estudiante no la ve: en la práctica el chat y la terminal ya
           vienen armados, y cámara/escritorio/pines son del laboratorio. */}
       {/* Sesión de uso normal: cada herramienta es un panel del mosaico de esa sesión */}
-      {sesionMosaico && role !== 'estudiante' && <SidebarHerramientasSesion sesion={sesionMosaico} collapsed={collapsed} />}
+      {sesionMosaico && role !== 'estudiante' && <SidebarHerramientasSesion sesion={sesionMosaico} local={sesionMosaicoLocal} collapsed={collapsed} />}
 
       {!sesionMosaico && showSessionActions && role !== 'estudiante' && onViewChange && onToggleChat && (
         <SidebarSessionActions

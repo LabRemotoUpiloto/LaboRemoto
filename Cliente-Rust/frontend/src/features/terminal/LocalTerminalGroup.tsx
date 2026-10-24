@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import LocalTerminalPane from './LocalTerminalPane';
 import './LocalTerminalGroup.css';
-import { localTermClose } from './localTerminal.service';
+import { localTermClose, localTermStdin } from './localTerminal.service';
 import { useAppStore } from '@/store/app';
 
 type SplitNode =
@@ -177,6 +177,18 @@ const LocalTerminalGroup: React.FC<Props> = ({ tabId, onEmptyGroup }) => {
       return next;
     });
   }, [onEmptyGroup]);
+
+  // Comandos (panel del mosaico) escribe en el panel de terminal activo de este grupo
+  useEffect(() => {
+    const alPedir = (e: Event) => {
+      const d = (e as CustomEvent<{ tabId: string; teclas: string }>).detail;
+      if (!d || d.tabId !== tabId) return;
+      const destino = activePaneId ?? collectLeafIds(tree)[0];
+      if (destino) localTermStdin(destino, d.teclas).catch((err) => console.warn('[terminal local] no se pudo escribir', err));
+    };
+    window.addEventListener('local-term:escribir', alPedir);
+    return () => window.removeEventListener('local-term:escribir', alPedir);
+  }, [tabId, activePaneId, tree]);
 
   const openNewTerminalTab = useCallback(() => {
     window.dispatchEvent(new CustomEvent('app:open-local-terminal'));

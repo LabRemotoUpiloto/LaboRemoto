@@ -1,6 +1,6 @@
 import React from 'react'
 import TerminalView from './TerminalView'
-import LocalTerminalGroup from '@/features/terminal/LocalTerminalGroup'
+import SesionLocalMosaico from './SesionLocalMosaico'
 import SftpPage from '@/features/sftp/SftpPage'
 import ComandosPage from '@/features/comandos/ComandosPage'
 import { ejecutarEnTerminal, pegarEnTerminal } from './escribirEnTerminal'
@@ -57,7 +57,7 @@ const SessionContainer: React.FC<Props> = ({
     <>
       {tabs.filter(t => t.type === 'local-terminal').map(t => (
         <div key={t.id} style={{ display: activeTabId === t.id ? 'block' : 'none', height: '100%', width: '100%' }}>
-          <LocalTerminalGroup tabId={t.id} onEmptyGroup={() => onCloseTab(t.id)} />
+          <SesionLocalMosaico tabId={t.id} isTabActive={activeTabId === t.id} onEmptyGroup={() => onCloseTab(t.id)} />
         </div>
       ))}
       {tabs.filter(t => t.type === 'session').map(t => (

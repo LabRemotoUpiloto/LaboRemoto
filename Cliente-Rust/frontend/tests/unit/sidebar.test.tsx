@@ -122,3 +122,28 @@ describe('Esta sesión', () => {
     expect(screen.queryByRole('button', { name: 'Mis comandos' })).toBeNull();
   });
 });
+
+describe('Esta sesión en un mosaico', () => {
+  function mosaico(roles: string[], local: boolean) {
+    act(() => useAppStore.setState({ user: { preferred_username: 'ana', roles } as never }));
+    render(
+      <MantineProvider>
+        <Sidebar activePanel="terminal" onOpenPanel={() => {}} sesionMosaico="s1" sesionMosaicoLocal={local} />
+      </MantineProvider>,
+    );
+    return screen.getAllByRole('button', { pressed: undefined }).filter((b) => b.hasAttribute('aria-pressed')).map((b) => b.getAttribute('aria-label'));
+  }
+
+  it('en una sesión SSH: las siete herramientas, con la terminal visible al empezar', () => {
+    expect(mosaico(['admin_lab'], false)).toEqual(['Terminal', 'Chat', 'Cámara', 'Escritorio remoto', 'Pines', 'Archivos del servidor', 'Comandos']);
+    expect(screen.getByRole('button', { name: 'Terminal' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('en la terminal local: solo Terminal y Comandos', () => {
+    expect(mosaico(['admin_lab'], true)).toEqual(['Terminal', 'Comandos']);
+  });
+
+  it('quien no opera equipos no ve Archivos ni Comandos', () => {
+    expect(mosaico(['laboratorista'], false)).toEqual(['Terminal', 'Chat', 'Cámara', 'Escritorio remoto', 'Pines']);
+  });
+});

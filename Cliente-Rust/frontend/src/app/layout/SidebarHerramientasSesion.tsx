@@ -7,15 +7,15 @@ import { Camera, Code2, Cpu, FolderOpen, LayoutGrid, MessageSquare, Monitor, Squ
 import { canAccessPage, useEffectiveRole } from '@/features/cuenta/usePermissions';
 import { alternar, TITULOS, useAbiertas, type IdHerramienta } from '@/features/sesion/herramientasSesion';
 
-type Boton = { id: IdHerramienta; Icono: React.ComponentType<{ size?: number }>; permiso?: string };
+type Boton = { id: IdHerramienta; Icono: React.ComponentType<{ size?: number }>; permiso?: string; local?: boolean };
 const BOTONES: Boton[] = [
-  { id: 'terminal', Icono: SquareTerminal },
+  { id: 'terminal', Icono: SquareTerminal, local: true },
   { id: 'chat', Icono: MessageSquare },
   { id: 'camara', Icono: Camera },
   { id: 'escritorio', Icono: Monitor },
   { id: 'pines', Icono: Cpu },
   { id: 'archivos', Icono: FolderOpen, permiso: 'sftp' },
-  { id: 'comandos', Icono: Code2, permiso: 'snippets' },
+  { id: 'comandos', Icono: Code2, permiso: 'snippets', local: true },
 ];
 
 const estilo = (abierta: boolean): React.CSSProperties => ({
@@ -24,10 +24,11 @@ const estilo = (abierta: boolean): React.CSSProperties => ({
   border: abierta ? '1px solid var(--accent-primary)' : '1px solid transparent',
 });
 
-export default function SidebarHerramientasSesion({ sesion, collapsed = false }: { sesion: string; collapsed?: boolean }) {
+export default function SidebarHerramientasSesion({ sesion, local = false, collapsed = false }: { sesion: string; local?: boolean; collapsed?: boolean }) {
   const role = useEffectiveRole();
   const abiertas = useAbiertas(sesion);
-  const lista = BOTONES.filter((b) => !b.permiso || canAccessPage(b.permiso, role));
+  // En la terminal local: Terminal y Comandos (el chat local queda para después)
+  const lista = BOTONES.filter((b) => (!b.permiso || canAccessPage(b.permiso, role)) && (!local || b.local));
   const usar = (id: IdHerramienta) => alternar(sesion, id);
 
   if (collapsed) {
@@ -62,7 +63,7 @@ export default function SidebarHerramientasSesion({ sesion, collapsed = false }:
     <div className="px-2 pb-2 mb-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
       <Text size="xs" fw={500} px={11} mb={4} style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>Esta sesión</Text>
       {/* Siete botones en el ancho del sidebar: repartidos, a 25 px para que entren */}
-      <div className="flex justify-between px-1">
+      <div className={`flex px-1 ${local ? 'gap-1.5' : 'justify-between'}`}>
         {lista.map(({ id, Icono }) => {
           const abierta = abiertas.includes(id);
           return (
