@@ -4,8 +4,7 @@ import {
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { Terminal, Save, ArrowRight } from 'lucide-react';
-import { RecentConnection } from './RecentConnectionsPanel';
-import { ConnectionToSave } from './useRecentConnections';
+import type { ConnectionToSave, RecentConnection } from './useRecentConnections';
 import { useConnectForm } from './useConnectForm';
 
 interface QuickHost {
@@ -27,6 +26,8 @@ export interface ConnectFormProps {
   /** Oculta "Guardar host" -- ej. en la conexión de invitado (sin sesión),
    *  donde no tiene sentido ofrecer guardar hosts locales. */
   hideSaveHost?: boolean;
+  /** Si está, el error de conexión se le entrega (para mostrarlo en el formulario) en vez de salir como notificación. */
+  onConnectError?: (mensaje: string) => void;
 }
 
 const ConnectForm: React.FC<ConnectFormProps> = (props) => {

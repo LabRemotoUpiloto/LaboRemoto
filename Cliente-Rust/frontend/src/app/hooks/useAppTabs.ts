@@ -20,7 +20,6 @@ export function useAppTabs() {
   // true = sidebar expandida (iconos + texto); false = colapsada (solo iconos).
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sessionMeta, setSessionMeta] = useState<Record<string, { label: string }>>({});
-  const [pendingHost, setPendingHost] = useState<any | null>(null);
   const [selectedPage, setSelectedPage] = useState<string>("landing");
 
   // ── Dual-header panel state ──
@@ -216,8 +215,6 @@ export function useAppTabs() {
     setIsSidebarOpen,
     sessionMeta,
     setSessionMeta,
-    pendingHost,
-    setPendingHost,
     selectedPage,
     setSelectedPage,
     activeTab,

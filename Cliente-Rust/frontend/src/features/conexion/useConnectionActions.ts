@@ -37,6 +37,8 @@ interface UseConnectionActionsParams {
   getTermSize?: () => { cols: number; rows: number };
   onConnected: (result: ConnectionSuccessResult) => void;
   onConnectionSuccess?: (info: { host: string; port: number; user: string }) => void;
+  /** Si está, recibe el error de conexión en vez de mostrarlo como notificación. */
+  onConnectError?: (mensaje: string) => void;
   // Setters para acciones post-guardado
   setSuccessAlertMessage: (v: string) => void;
   setSuccessAlertOpen: (v: boolean) => void;
@@ -50,6 +52,7 @@ export function useConnectionActions({
   getTermSize,
   onConnected,
   onConnectionSuccess,
+  onConnectError,
   setSuccessAlertMessage,
   setSuccessAlertOpen,
 }: UseConnectionActionsParams) {
@@ -65,6 +68,11 @@ export function useConnectionActions({
   };
 
   // ── Cancelar conexión en curso ────────────────────────────────────────────────
+
+  const avisarError = (mensaje: string) => {
+    if (onConnectError) onConnectError(mensaje);
+    else push({ type: 'error', message: mensaje });
+  };
 
   const cancelConnection = () => {
     connectionAbortController?.abort();
@@ -130,7 +138,7 @@ export function useConnectionActions({
           unlistenSuccess?.(); unlistenError?.();
           setLoading(false, null, null);
           setConnectionAbortController(null);
-          push({ type: 'error', message: 'Tiempo de espera agotado (30s)' });
+          avisarError('Tiempo de espera agotado (30 s)');
         }
       }, 30000);
 
@@ -155,7 +163,7 @@ export function useConnectionActions({
       if (timeoutId) clearTimeout(timeoutId);
       unlistenSuccess?.(); unlistenError?.();
       if (!abortController.signal.aborted) {
-        push({ type: 'error', message: e?.message || 'Error conectando' });
+        avisarError(e?.message || 'Error conectando');
         setLoading(false, null, null);
         setConnectionAbortController(null);
       }

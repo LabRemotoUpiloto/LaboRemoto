@@ -91,15 +91,8 @@ export function useConnectionForm({
 
   // ── Auto-relleno desde initialPayload (edición de host guardado) ─────────────
   //
-  // Deps vacías a propósito: initialPayload viene de un estado que vive en el
-  // padre (pendingHost en useAppTabs) y NO se limpia solo al consumirse -- si
-  // este efecto reaccionara a cada cambio de initialPayload, volver a "Conexión"
-  // después de una edición (sin pasar de nuevo por "Editar") reaplicaría los
-  // datos viejos y dejaría el formulario pegado en modo edición, con riesgo de
-  // borrar sin querer el host editado la última vez al guardar uno nuevo
-  // encima. Como esta página se remonta entera en cada cambio de sección (ver
-  // HomeContainer), leer initialPayload solo una vez al montar alcanza y evita
-  // ese arrastre de estado stale entre visitas.
+  // Deps vacías a propósito: initialPayload (el equipo guardado que se edita) se lee una sola vez al montar.
+  // El diálogo de Conexiones se monta de nuevo en cada apertura, así que no arrastra datos de una visita a otra.
 
   useEffect(() => {
     if (initialPayload) {

@@ -1,5 +1,5 @@
 // features/logs/LogsPage.tsx — Sesiones SSH: una tabla por día (hora local), una fila por sesión.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FileDown, Monitor, RefreshCw, ScrollText, Search, Trash2 } from 'lucide-react';
 import { useToasts } from '@/app/providers/ToastContext';
 import {
@@ -17,9 +17,11 @@ const POR_PAGINA = 20;
 
 interface LogsPageProps {
   onOpenLog?: (session: SessionLog) => void;
+  /** Dentro de Conexiones (pestaña Registros): sin marco ni encabezado propios; «Recargar» va con los filtros. */
+  incrustada?: boolean;
 }
 
-export default function LogsPage({ onOpenLog }: LogsPageProps) {
+export default function LogsPage({ onOpenLog, incrustada = false }: LogsPageProps) {
   const { push } = useToasts();
   const [sesiones, setSesiones] = useState<SessionLog[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -74,14 +76,18 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
   };
 
   const filtrando = !!(usuario.trim() || equipo.trim());
+  const recargar = <Boton onClick={() => void cargar()} disabled={cargando}><RefreshCw size={14} aria-hidden /> Recargar</Boton>;
+  const Marco = incrustada ? Incrustada : Pagina;
 
   return (
-    <Pagina>
-      <Encabezado
-        titulo="Sesiones SSH"
-        descripcion="Historial de las sesiones SSH: quién entró, a qué equipo, cuánto duró y qué comandos usó."
-        derecha={!error && <Boton onClick={() => void cargar()} disabled={cargando}><RefreshCw size={14} aria-hidden /> Recargar</Boton>}
-      />
+    <Marco>
+      {!incrustada && (
+        <Encabezado
+          titulo="Sesiones SSH"
+          descripcion="Historial de las sesiones SSH: quién entró, a qué equipo, cuánto duró y qué comandos usó."
+          derecha={!error && recargar}
+        />
+      )}
 
       {error ? (
         <Aviso nivel="critico" titulo="No se pudo leer el historial de sesiones"
@@ -94,6 +100,7 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
             <Buscador icono={Monitor} valor={equipo} onCambio={setEquipo} placeholder="Equipo o IP" etiqueta="Buscar por equipo o IP" ancho="w-[180px]" />
             <Selector<Orden> nombre="Orden" valor={orden} onCambio={setOrden}
               opciones={[{ valor: 'recientes', etiqueta: 'Más recientes' }, { valor: 'largas', etiqueta: 'Más largas' }]} />
+            {incrustada && <><span className="flex-1" />{recargar}</>}
           </div>
 
           {cargando ? (
@@ -139,9 +146,11 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
           </>}
         />
       )}
-    </Pagina>
+    </Marco>
   );
 }
+
+const Incrustada = ({ children }: { children: ReactNode }) => <div className="flex flex-col gap-7">{children}</div>;
 
 function FilaSesion({ sesion: s, primera, onVer, onPdf, onBorrar }: {
   sesion: SessionLog; primera: boolean; onVer: () => void; onPdf: () => void; onBorrar: () => void;

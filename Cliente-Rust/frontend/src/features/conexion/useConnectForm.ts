@@ -25,6 +25,7 @@ export function useConnectForm({
   recentConnections = [],
   onQuickHostCleared,
   onConnectionSuccess,
+  onConnectError,
 }: ConnectFormProps) {
   const [successAlertOpen, setSuccessAlertOpen] = useState(false);
   const [successAlertMessage, setSuccessAlertMessage] = useState('');
@@ -51,6 +52,7 @@ export function useConnectForm({
     getTermSize,
     onConnected,
     onConnectionSuccess,
+    onConnectError,
     setSuccessAlertMessage,
     setSuccessAlertOpen,
   });
