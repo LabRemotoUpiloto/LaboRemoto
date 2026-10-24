@@ -1,148 +1,149 @@
-// features/cuenta/PerfilPage.tsx — info de cuenta (viene de la sesión de
-// Keycloak ya activa, `AuthSessionInfo`) + foto de perfil editable. La foto
-// se guarda como atributo custom en Keycloak. Este realm federa usuarios
-// desde LDAP en modo solo-lectura, así que la API de cuenta propia
-// (self-service) rechaza cualquier escritura (`readOnlyUserMessage`) --
-// terminó escribiéndose vía la Admin API en el backend (ver doc en
-// `account_set_avatar`, auth/commands.rs), que sí puede tocar atributos
-// custom aunque el usuario sea de solo lectura, pero requiere admin_lab.
-// Por eso el control de subida solo se muestra para ese rol -- para el
-// resto sería un botón que siempre falla. Editar nombre/email/password
-// sigue fuera de alcance.
+// features/cuenta/PerfilPage.tsx — la cuenta como lista de datos (de la sesión de Keycloak, `AuthSessionInfo`) y lo que se
+// va ganando en las prácticas: insignias y pósters como filas con su estado.
+//
+// La foto se guarda como atributo custom en Keycloak. Este realm federa usuarios desde LDAP en modo solo lectura, así que la
+// API de cuenta propia rechaza cualquier escritura (`readOnlyUserMessage`): se escribe con la Admin API en el backend (ver
+// `account_set_avatar`, auth/commands.rs), que puede tocar atributos custom pero requiere admin_lab. Por eso «Cambiar foto»
+// solo aparece para ese rol; para el resto sería un botón que siempre falla. Editar nombre, correo o clave sigue fuera de alcance.
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Card, Text, Title, Group, Avatar, Badge, Stack, Divider, Loader } from '@mantine/core';
-import { User, Mail, ShieldCheck, AtSign, Camera } from 'lucide-react';
+import { Camera, Download, User } from 'lucide-react';
+import { Boton, Encabezado, NOTA, Pagina, Seccion, TARJETA } from '@/components/ui';
+import { RANKS, useEarnedBadges } from '@/features/practicas/badges.service';
+import { POSTERS, downloadPoster, useUnlockedPosters, type PosterDef } from '@/features/practicas/posters.service';
+import { MedalIcon } from '@/features/practicas/linux/MedalIcon';
+import VisorPoster from '@/features/practicas/linux/VisorPoster';
 import { useAuth } from './useAuth';
-import { useEffectiveRole, ROLE_LABELS } from './usePermissions';
+import { ROLE_LABELS, useEffectiveRole } from './usePermissions';
 import { authService } from './auth.service';
 import { resizeImageToDataUrl } from './resizeImage';
-import { TrophyRoom } from '@/features/practicas/linux/TrophyRoom';
 
-const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
-  <Group gap="sm" wrap="nowrap">
-    <Box
-      className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-      style={{ color: 'var(--accent-primary)', backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}
-    >
-      {icon}
-    </Box>
-    <Stack gap={0}>
-      <Text size="xs" c="dimmed">{label}</Text>
-      <Text size="sm" fw={500}>{value}</Text>
-    </Stack>
-  </Group>
-);
+// Los colores de la medalla son parte del dibujo (como un ícono de marca), no del tema
+const MEDALLA_ARO = '#e21f19';
+const MEDALLA_DISCO = '#f7cd3d';
+
+const fecha = (t: number) => new Date(t).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+
+function Dato({ etiqueta, children, mono }: { etiqueta: string; children: React.ReactNode; mono?: boolean }) {
+  return (
+    <div className="grid grid-cols-[140px_minmax(0,1fr)] items-baseline gap-4 border-t border-ui-pista px-5 py-3">
+      <dt className="text-[13px] text-ui-apagado">{etiqueta}</dt>
+      <dd className={`m-0 truncate text-[13px] text-ui-tinta ${mono ? 'font-ui-num' : ''}`}>{children}</dd>
+    </div>
+  );
+}
 
 export default function PerfilPage() {
   const { user } = useAuth();
   const role = useEffectiveRole();
-  const canEditAvatar = role === 'admin_lab';
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const puedeCambiarFoto = role === 'admin_lab';
+  const ganadas = useEarnedBadges();
+  const posters = useUnlockedPosters();
+  const archivo = useRef<HTMLInputElement>(null);
+  const [foto, setFoto] = useState<string | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viendo, setViendo] = useState<PosterDef | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    authService.getAvatar().then((url) => {
-      if (!cancelled) setAvatar(url);
-    }).catch(() => { /* sin avatar todavía, no es un error real */ });
-    return () => { cancelled = true; };
+    let vivo = true;
+    authService.getAvatar().then((url) => { if (vivo) setFoto(url); }).catch(() => { /* sin foto todavía */ });
+    return () => { vivo = false; };
   }, []);
 
-  const fullName = [user?.given_name, user?.family_name].filter(Boolean).join(' ') || user?.name || user?.preferred_username || 'Usuario';
-  const roleLabel = ROLE_LABELS[role];
+  const nombre = [user?.given_name, user?.family_name].filter(Boolean).join(' ') || user?.name || user?.preferred_username || 'Usuario';
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // permite volver a elegir el mismo archivo despues
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setError('Elige un archivo de imagen');
-      return;
-    }
-
+  const elegirFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = ''; // permite volver a elegir el mismo archivo
+    if (!f) return;
+    if (!f.type.startsWith('image/')) { setError('Elige un archivo de imagen'); return; }
     setError(null);
-    setUploading(true);
+    setSubiendo(true);
     try {
-      const dataUrl = await resizeImageToDataUrl(file);
+      const dataUrl = await resizeImageToDataUrl(f);
       await authService.setAvatar(dataUrl);
-      setAvatar(dataUrl);
+      setFoto(dataUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setUploading(false);
+      setSubiendo(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <header className="page-header-integrated border-b pb-4" style={{ borderColor: 'var(--border-subtle)' }}>
-        <h2 className="page-header-title">Perfil</h2>
-        <div className="page-header-content">
-          <p className="page-header-description">
-            Información de tu cuenta institucional.
-          </p>
-        </div>
-      </header>
+    <Pagina ancho="max-w-[760px]">
+      <Encabezado titulo="Perfil" descripcion="Tu cuenta institucional y lo que vas ganando en las prácticas." />
 
-      <div className="flex-1 overflow-y-auto p-6 scroll-smooth custom-scrollbar">
-        <div className="max-w-[560px] mx-auto">
-          <Card padding="lg" radius="md" withBorder>
-            <Group gap="md" mb="lg">
-              <Box
-                className={canEditAvatar ? 'relative cursor-pointer group' : 'relative'}
-                onClick={() => canEditAvatar && !uploading && fileInputRef.current?.click()}
-                title={canEditAvatar ? 'Cambiar foto de perfil' : undefined}
-              >
-                <Avatar size={56} radius="xl" color="var(--accent-primary)" src={avatar || undefined}>
-                  <User size={26} />
-                </Avatar>
-                {canEditAvatar && (
-                  <div
-                    className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
-                  >
-                    {uploading ? <Loader size={16} color="white" /> : <Camera size={16} color="white" />}
-                  </div>
-                )}
-                {canEditAvatar && (
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                )}
-              </Box>
-              <Stack gap={2}>
-                <Title order={4}>{fullName}</Title>
-                <Badge variant="light" size="sm" radius="xl">{roleLabel}</Badge>
-              </Stack>
-            </Group>
+      <Seccion titulo="Cuenta">
+        <dl className={`${TARJETA} m-0`}>
+          <div className="flex items-center gap-4 px-5 py-4">
+            {foto
+              ? <img src={foto} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+              : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--accent-primary)_9%,transparent)] text-ui-acento-texto"><User size={22} aria-hidden /></span>}
+            <span className="min-w-0 flex-1 truncate font-ui-titulo text-[16px] font-bold text-ui-tinta">{nombre}</span>
+            {puedeCambiarFoto && (
+              <>
+                <Boton disabled={subiendo} onClick={() => archivo.current?.click()}>
+                  <Camera size={14} aria-hidden /> {subiendo ? 'Subiendo…' : 'Cambiar foto'}
+                </Boton>
+                <input ref={archivo} type="file" accept="image/*" className="hidden" onChange={(e) => void elegirFoto(e)} />
+              </>
+            )}
+          </div>
+          {error && <p className="m-0 border-t border-ui-pista px-5 py-2 text-[12px] text-ui-critico-texto" role="alert">No se pudo cambiar la foto: {error}</p>}
+          <Dato etiqueta="Usuario" mono>{user?.preferred_username || 'Sin usuario'}</Dato>
+          {user?.email && <Dato etiqueta="Correo">{user.email}</Dato>}
+          <Dato etiqueta="Rol">{ROLE_LABELS[role]}</Dato>
+        </dl>
+      </Seccion>
 
-            {error && <Text size="xs" c="red" mb="md">{error}</Text>}
+      <Seccion titulo="Insignias de Linux" derecha={<span className={NOTA}>solo tú las ves</span>}>
+        <ul className={`${TARJETA} m-0 list-none p-0`}>
+          {RANKS.map((r, i) => {
+            const g = r.moduleId ? ganadas[r.moduleId] : undefined;
+            return (
+              <li key={r.id} className={`flex items-center gap-4 px-5 py-3 ${i ? 'border-t border-ui-pista' : ''}`}>
+                <MedalIcon locked={!g} ringColor={MEDALLA_ARO} discColor={MEDALLA_DISCO} code={r.code}
+                  className={`h-9 w-9 shrink-0 ${g ? '' : 'text-ui-fantasma opacity-60'}`} />
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className={`text-[13px] font-semibold ${r.moduleId ? 'text-ui-tinta' : 'text-ui-apagado'}`}>{r.title}</span>
+                  <span className="text-[12px] text-ui-apagado">{r.description}</span>
+                </span>
+                <span className={`shrink-0 text-right text-[12px] ${g ? 'text-ui-bien-texto' : 'text-ui-apagado'}`}>
+                  {g ? `Ganada el ${fecha(g.earnedAt)}` : r.moduleId ? `Al terminar el módulo ${r.code}` : 'Próximamente'}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Seccion>
 
-            <Divider mb="lg" />
+      {POSTERS.length > 0 && (
+        <Seccion titulo="Pósters">
+          <ul className={`${TARJETA} m-0 list-none p-0`}>
+            {POSTERS.map((p, i) => {
+              const libre = p.id in posters;
+              const modulo = RANKS.find((r) => r.moduleId === p.moduleId)?.code ?? '';
+              return (
+                <li key={p.id} className={`flex items-center gap-4 px-5 py-3 ${i ? 'border-t border-ui-pista' : ''}`}>
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className={`text-[13px] font-semibold ${libre ? 'text-ui-tinta' : 'text-ui-apagado'}`}>{p.title}</span>
+                    <span className="text-[12px] text-ui-apagado">{libre ? p.description : `Se desbloquea al terminar el módulo ${modulo}.`}</span>
+                  </span>
+                  {libre && (
+                    <span className="flex shrink-0 gap-2">
+                      <Boton onClick={() => setViendo(p)}>Ver</Boton>
+                      <Boton onClick={() => void downloadPoster(p)}><Download size={14} aria-hidden /> Descargar</Boton>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Seccion>
+      )}
 
-            <Stack gap="md">
-              <InfoRow icon={<AtSign size={15} />} label="Usuario" value={user?.preferred_username || '—'} />
-              {user?.email && <InfoRow icon={<Mail size={15} />} label="Correo" value={user.email} />}
-              <InfoRow icon={<ShieldCheck size={15} />} label="Rol" value={roleLabel} />
-            </Stack>
-          </Card>
-
-          <Card padding="lg" radius="md" withBorder mt="lg">
-            <Title order={5} mb={4}>Sala de trofeos</Title>
-            <Text size="xs" c="dimmed" mb="lg">
-              Las insignias que vas ganando en la práctica de Linux — personales, nadie más las ve.
-            </Text>
-            <TrophyRoom />
-          </Card>
-        </div>
-      </div>
-    </div>
+      {viendo && <VisorPoster poster={viendo} onCerrar={() => setViendo(null)} />}
+    </Pagina>
   );
 }

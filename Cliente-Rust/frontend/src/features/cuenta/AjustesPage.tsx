@@ -1,155 +1,95 @@
-// features/cuenta/AjustesPage.tsx — cuenta/sesion y app, no apariencia (eso ya
-// vive en su propia pagina, ThemesPage) para no duplicar superficie.
+// features/cuenta/AjustesPage.tsx — la aplicación (versión y actualizaciones, apariencia) y la sesión. El tema se elige en su
+// propia página (Temas); aquí solo se dice cuál está en uso.
 import React, { useEffect, useState } from 'react';
-import { Box, Card, Text, Group, Stack, Button, Badge } from '@mantine/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { Palette, RefreshCw, LogOut, CheckCircle2 } from 'lucide-react';
-import { useAuth } from './useAuth';
+import { LogOut, RefreshCw } from 'lucide-react';
+import { Boton, BotonPrincipal, Encabezado, Pagina, Seccion, TARJETA } from '@/components/ui';
 import { useTheme } from '@/app/providers/ThemeContext';
+import { useAuth } from './useAuth';
+import { TEMAS } from './ThemesPage';
 
-type CheckState = 'idle' | 'checking' | 'up-to-date' | 'available' | 'installing' | 'error';
+type Busqueda = 'nada' | 'buscando' | 'al-dia' | 'disponible' | 'instalando' | 'error';
 
 interface Props {
   onOpenPanel?: (panelId: string) => void;
 }
 
-const SettingsRow: React.FC<{ icon: React.ReactNode; title: string; description: string; action: React.ReactNode }> = ({ icon, title, description, action }) => (
-  <Group justify="space-between" wrap="nowrap" gap="md">
-    <Group gap="sm" wrap="nowrap">
-      <Box
-        className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-        style={{ color: 'var(--accent-primary)', backgroundColor: 'var(--interactive-hover)', border: '1px solid var(--border-subtle)' }}
-      >
-        {icon}
-      </Box>
-      <Stack gap={0}>
-        <Text size="sm" fw={500}>{title}</Text>
-        <Text size="xs" c="dimmed">{description}</Text>
-      </Stack>
-    </Group>
-    {action}
-  </Group>
-);
+function Opcion({ titulo, detalle, accion }: { titulo: string; detalle: React.ReactNode; accion?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-4 border-t border-ui-pista px-5 py-4 first:border-t-0">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-[14px] font-semibold text-ui-tinta">{titulo}</span>
+        <span className="text-[13px] text-ui-tinta-2">{detalle}</span>
+      </div>
+      {accion}
+    </div>
+  );
+}
 
 export default function AjustesPage({ onOpenPanel }: Props) {
   const { logout } = useAuth();
-  const { temaFijo } = useTheme();
-  const [appVersion, setAppVersion] = useState('');
-  const [checkState, setCheckState] = useState<CheckState>('idle');
-  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
+  const { theme, temaFijo } = useTheme();
+  const [version, setVersion] = useState('');
+  const [busqueda, setBusqueda] = useState<Busqueda>('nada');
+  const [nueva, setNueva] = useState<string | null>(null);
 
-  useEffect(() => {
-    getVersion().then(setAppVersion).catch(() => setAppVersion(''));
-  }, []);
+  useEffect(() => { getVersion().then(setVersion).catch(() => setVersion('')); }, []);
 
-  const handleCheckUpdate = async () => {
-    setCheckState('checking');
+  const buscar = async () => {
+    setBusqueda('buscando');
     try {
       const upd = await check();
-      if (upd) {
-        setAvailableVersion(upd.version);
-        setCheckState('available');
-      } else {
-        setCheckState('up-to-date');
-      }
+      if (upd) { setNueva(upd.version); setBusqueda('disponible'); } else setBusqueda('al-dia');
     } catch {
-      setCheckState('error');
+      setBusqueda('error');
     }
   };
 
-  const handleInstallUpdate = async () => {
-    setCheckState('installing');
+  const instalar = async () => {
+    setBusqueda('instalando');
     try {
       const upd = await check();
-      if (upd) {
-        await upd.downloadAndInstall();
-        await relaunch();
-      } else {
-        setCheckState('up-to-date');
-      }
+      if (upd) { await upd.downloadAndInstall(); await relaunch(); } else setBusqueda('al-dia');
     } catch {
-      setCheckState('error');
+      setBusqueda('error');
     }
+  };
+
+  const tema = TEMAS.find((t) => t.id === theme)?.label ?? theme;
+  const textoVersion: Record<Busqueda, React.ReactNode> = {
+    nada: <>Tienes la <span className="font-ui-num text-ui-tinta">v{version}</span>. Revisa si hay una más nueva.</>,
+    buscando: 'Buscando actualizaciones…',
+    'al-dia': <>Tienes la última versión (<span className="font-ui-num text-ui-tinta">v{version}</span>).</>,
+    disponible: <>Hay una versión nueva: <span className="font-ui-num text-ui-tinta">v{nueva}</span>. Se instala y la aplicación se reinicia.</>,
+    instalando: 'Descargando e instalando…',
+    error: <span className="text-ui-critico-texto">No se pudo revisar: sin conexión con el servidor de actualizaciones.</span>,
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <header className="page-header-integrated border-b pb-4" style={{ borderColor: 'var(--border-subtle)' }}>
-        <h2 className="page-header-title">Ajustes</h2>
-        <div className="page-header-content">
-          <p className="page-header-description">
-            Preferencias de cuenta y de la aplicación.
-          </p>
+    <Pagina ancho="max-w-[760px]">
+      <Encabezado titulo="Ajustes" descripcion="Preferencias de tu cuenta y de la aplicación." />
+
+      <Seccion titulo="Aplicación">
+        <div className={TARJETA}>
+          <Opcion titulo="Versión" detalle={textoVersion[busqueda]}
+            accion={busqueda === 'disponible' || busqueda === 'instalando'
+              ? <BotonPrincipal disabled={busqueda === 'instalando'} onClick={() => void instalar()}>{busqueda === 'instalando' ? 'Instalando…' : 'Instalar y reiniciar'}</BotonPrincipal>
+              : busqueda === 'al-dia' ? undefined
+              : <Boton disabled={busqueda === 'buscando'} onClick={() => void buscar()}><RefreshCw size={14} aria-hidden /> Buscar actualización</Boton>} />
+          <Opcion titulo="Apariencia"
+            detalle={temaFijo ? 'Tu rol usa el tema institucional de la universidad.' : <>Tema actual: {tema}.</>}
+            accion={!temaFijo && <Boton onClick={() => onOpenPanel?.('themes')}>Cambiar tema</Boton>} />
         </div>
-      </header>
+      </Seccion>
 
-      <div className="flex-1 overflow-y-auto p-6 scroll-smooth custom-scrollbar">
-        <div className="max-w-[560px] mx-auto">
-          <Card padding="lg" radius="md" withBorder mb="md">
-            <Stack gap="lg">
-              <SettingsRow
-                icon={<Badge variant="transparent" p={0} size="xs">{appVersion ? `v${appVersion}` : '—'}</Badge>}
-                title="Versión de la aplicación"
-                description={
-                  checkState === 'checking' ? 'Buscando actualizaciones…'
-                  : checkState === 'up-to-date' ? 'Ya tienes la última versión'
-                  : checkState === 'available' ? `Nueva versión disponible: v${availableVersion}`
-                  : checkState === 'installing' ? 'Descargando e instalando…'
-                  : checkState === 'error' ? 'No se pudo verificar (sin conexión)'
-                  : 'Revisa si hay una actualización nueva'
-                }
-                action={
-                  checkState === 'available' ? (
-                    <Button size="xs" variant="filled" onClick={handleInstallUpdate} loading={false}>
-                      Instalar y reiniciar
-                    </Button>
-                  ) : checkState === 'up-to-date' ? (
-                    <CheckCircle2 size={18} color="var(--success, #4ade80)" />
-                  ) : (
-                    <Button
-                      size="xs"
-                      variant="light"
-                      leftSection={<RefreshCw size={13} />}
-                      onClick={handleCheckUpdate}
-                      loading={checkState === 'checking' || checkState === 'installing'}
-                    >
-                      Buscar
-                    </Button>
-                  )
-                }
-              />
-
-              <SettingsRow
-                icon={<Palette size={15} />}
-                title="Apariencia"
-                description={temaFijo
-                  ? 'Los roles administrativos usan el tema institucional de la universidad'
-                  : 'Elige el tema visual de la aplicación'}
-                action={temaFijo ? null : (
-                  <Button size="xs" variant="light" onClick={() => onOpenPanel?.('themes')}>
-                    Ir a Temas
-                  </Button>
-                )}
-              />
-            </Stack>
-          </Card>
-
-          <Card padding="lg" radius="md" withBorder>
-            <SettingsRow
-              icon={<LogOut size={15} />}
-              title="Cerrar sesión"
-              description="Termina tu sesión actual en este equipo"
-              action={
-                <Button size="xs" color="red" variant="light" onClick={logout}>
-                  Cerrar sesión
-                </Button>
-              }
-            />
-          </Card>
+      <Seccion titulo="Sesión">
+        <div className={TARJETA}>
+          <Opcion titulo="Cerrar sesión" detalle="Termina tu sesión en este equipo."
+            accion={<Boton onClick={logout} className="hover:enabled:border-ui-critico hover:enabled:text-ui-critico-texto"><LogOut size={14} aria-hidden /> Cerrar sesión</Boton>} />
         </div>
-      </div>
-    </div>
+      </Seccion>
+    </Pagina>
   );
 }

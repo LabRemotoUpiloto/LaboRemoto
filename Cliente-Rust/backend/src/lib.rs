@@ -92,6 +92,7 @@ pub fn run() {
       cmd::ssh::terminal::ssh_ui_ready,
       cmd::ssh::terminal::ssh_session_info,
       cmd::ssh::terminal::ssh_connect_stored,
+      cmd::ssh::carpeta::ssh_carpeta_terminal,
       cmd::ssh::gpio::rpi_pins_status,
       cmd::ssh::gpio::rpi_pin_set_mode,
       cmd::ssh::gpio::rpi_pin_set_pull,
@@ -101,6 +102,8 @@ pub fn run() {
       cmd::ssh::gpio::rpi_pins_monitor_stop,
       // Terminal local (PTY embebido)
       cmd::terminal_local::local_term_spawn,
+      cmd::terminal_local::local_term_contexto,
+      cmd::terminal_local::local_term_shell,
       cmd::terminal_local::local_term_ui_ready,
       cmd::terminal_local::local_term_stdin,
       cmd::terminal_local::local_term_resize,
@@ -117,6 +120,7 @@ pub fn run() {
       cmd::sftp::operations::sftp_remove,
       cmd::sftp::transfers::sftp_download_start,
       cmd::sftp::transfers::sftp_upload_start,
+      cmd::sftp::transfers::sftp_subir,
       cmd::sftp::operations::sftp_cancel,
       cmd::sftp::transfers::sftp_upload_dir_start,
       cmd::sftp::transfers::sftp_download_dir_start,
@@ -144,6 +148,11 @@ pub fn run() {
       cmd::ai::ai_utils::ai_test_key,
       // File analysis & edit
       // Storage (hosts)
+      // Comandos guardados (antes snippets)
+      cmd::comandos::comandos_listar,
+      cmd::comandos::comandos_guardar,
+      cmd::comandos::comandos_borrar,
+      cmd::comandos::comandos_importar,
       cmd::state::hosts::save_host_encrypted,
       cmd::state::hosts::load_host_encrypted,
       cmd::state::hosts::save_host_master,

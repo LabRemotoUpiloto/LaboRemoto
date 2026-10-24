@@ -1,8 +1,6 @@
 import React from 'react'
 import TerminalView from './TerminalView'
-import LocalTerminalGroup from '@/features/terminal/LocalTerminalGroup'
-import SftpPage from '@/features/sftp/SftpPage'
-import SnippetsPage from '@/features/snippets/SnippetsPage'
+import SesionLocalMosaico from './SesionLocalMosaico'
 import LogsPage from '@/features/logs/LogsPage'
 import type { Tab } from '@/app/hooks/useAppTabs'
 import type { SessionLog } from '@/features/logs/sesiones'
@@ -27,10 +25,7 @@ type Props = {
   isCameraOpen: (sessionId: string) => boolean
   isChatOpen: boolean
   onCloseChat: () => void
-  sessionMeta: Record<string, { label: string }>
   onOpenLog: (session: SessionLog) => void
-  sftpPaths: Record<string, string>
-  setSftpPaths: React.Dispatch<React.SetStateAction<Record<string, string>>>
   onCloseTab: (id: string) => void
   /** Instancia única de useLinuxPracticeSession (ver App.tsx) — se threadea hasta TerminalView. */
   linuxSession?: LinuxPracticeSessionApi
@@ -45,10 +40,7 @@ const SessionContainer: React.FC<Props> = ({
   isCameraOpen,
   isChatOpen,
   onCloseChat,
-  sessionMeta,
   onOpenLog,
-  sftpPaths,
-  setSftpPaths,
   onCloseTab,
   linuxSession
 }) => {
@@ -56,14 +48,14 @@ const SessionContainer: React.FC<Props> = ({
     <>
       {tabs.filter(t => t.type === 'local-terminal').map(t => (
         <div key={t.id} style={{ display: activeTabId === t.id ? 'block' : 'none', height: '100%', width: '100%' }}>
-          <LocalTerminalGroup tabId={t.id} onEmptyGroup={() => onCloseTab(t.id)} />
+          <SesionLocalMosaico tabId={t.id} isTabActive={activeTabId === t.id} onEmptyGroup={() => onCloseTab(t.id)} />
         </div>
       ))}
       {tabs.filter(t => t.type === 'session').map(t => (
         <div key={t.id} style={{ display: activeTabId === t.id ? 'block' : 'none', height: '100%', width: '100%' }}>
           <div
             style={
-              selectedPage === 'sftp' || selectedPage === 'snippets' || selectedPage === 'logs'
+              selectedPage === 'logs'
                 ? { position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -10, width: '100%', height: '100%', overflow: 'hidden' }
                 : { height: '100%', width: '100%' }
             }
@@ -82,16 +74,6 @@ const SessionContainer: React.FC<Props> = ({
               linuxSession={linuxSession}
             />
           </div>
-          {selectedPage === 'sftp' && activeTabId === t.id && (
-            <SftpPage
-              sessions={tabs.filter(tt => tt.type === 'session').map(tt => tt.id)}
-              sessionsMeta={sessionMeta}
-              activeSessionId={t.id}
-              initialPath={sftpPaths[t.id]}
-              onPathChange={(path) => setSftpPaths(prev => ({ ...prev, [t.id]: path }))}
-            />
-          )}
-          {selectedPage === 'snippets' && activeTabId === t.id && <SnippetsPage />}
           {selectedPage === 'logs' && activeTabId === t.id && <LogsPage onOpenLog={onOpenLog} />}
         </div>
       ))}

@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
  * Drag & drop interno por puntero entre los paneles local/remoto del
  * explorador SFTP. Reemplaza el drag & drop HTML5 nativo del navegador
  * (roto en este proyecto porque Tauri necesita `dragDropEnabled` para el
- * drop nativo de archivos de Windows — ver onDragDropEvent en SftpPage).
+ * drop nativo de archivos de Windows — ver onDragDropEvent en ArchivosSftp).
  *
  * Uso: cada fila ya seleccionada llama a `startPress(side, count, event)` en
  * su `onMouseDown`. A partir de ahí este hook escucha mousemove/mouseup a

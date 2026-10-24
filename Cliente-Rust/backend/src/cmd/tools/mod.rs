@@ -5,6 +5,7 @@
 //! - search_shared.rs: Búsqueda compartida
 
 pub mod tools;
+mod ejecucion;
 mod ssh_helpers;
 mod definitions;
 pub mod search_shared;

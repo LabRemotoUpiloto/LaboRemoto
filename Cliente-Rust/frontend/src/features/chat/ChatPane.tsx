@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
+import { EjecutorTerminal } from './ejecutorTerminal';
+import { localTermContexto } from '@/features/terminal/localTerminal.service';
+import { panelActivo } from '@/features/terminal/panelesLocales';
+
 import { useSessionMemory } from './useSessionMemory';
 import { consumePendingChatMessage } from './pendingChatMessage';
 
@@ -86,6 +90,8 @@ type Props = {
   linuxSession?: LinuxPracticeSessionApi;
   /** Avance de la práctica (nombre + paso actual de la guía) para la cabecera de arriba de la terminal. */
   onProgresoPractica?: (p: ProgresoPractica | null) => void;
+  /** Chat de una terminal local (no SSH): modo Consulta, sabe qué shell es y ejecuta en el panel activo. */
+  terminalLocal?: { tabId: string; ejecutar: (comando: string) => void };
 };
 
 const ChatPane: React.FC<Props> = ({
@@ -97,6 +103,7 @@ const ChatPane: React.FC<Props> = ({
   practiceResult = null,
   linuxSession,
   onProgresoPractica,
+  terminalLocal,
 }) => {
   const isHome = layout === 'home';
   // Durante una práctica el chat queda fijo en modo tutor (Consulta) -- no se
@@ -122,8 +129,8 @@ const ChatPane: React.FC<Props> = ({
   // mientras practiceLocked (ver más abajo), pero esto cubre también los
   // caminos que llaman setMode directamente desde adentro de este componente.
   useEffect(() => {
-    if (isPracticeSession && mode !== 'ask') setMode('ask');
-  }, [isPracticeSession, mode]);
+    if ((isPracticeSession || terminalLocal) && mode !== 'ask') setMode('ask');
+  }, [isPracticeSession, terminalLocal, mode]);
   const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
     const saved = localStorage.getItem('chatSelectedModel');
     const deprecated: Record<string, string> = {
@@ -511,7 +518,8 @@ const ChatPane: React.FC<Props> = ({
 
   // ── Custom Hooks ──
   const { errorBanner, setErrorBanner, promptBanner, setPromptBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(terminalMonitorSessionId);
-  useChatStorage(sessionId, mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
+  // La terminal local guarda su conversación aparte (no se mezcla con el chat de Inicio)
+  useChatStorage(sessionId ?? (terminalLocal ? `local:${terminalLocal.tabId}` : null), mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
 
   const {
     showHistory, setShowHistory, historyEntries, historySearch, setHistorySearch,
@@ -704,7 +712,17 @@ const ChatPane: React.FC<Props> = ({
     // contexto en vez de bloquear el envío del mensaje.
     const contextSessionId = sessionId ?? pi4ChatSessionId;
     let liveTerminalContext: string | null = null;
-    if (contextSessionId) {
+    if (terminalLocal) {
+      // Terminal local: qué shell es (PowerShell, pwsh, bash…) y lo último que mostró el panel activo
+      const panel = panelActivo(terminalLocal.tabId);
+      try {
+        const ctx = panel ? await localTermContexto(panel, 80) : null;
+        if (ctx) {
+          liveTerminalContext = ctx.texto;
+          history.unshift({ role: 'system', content: ctx.instrucciones });
+        }
+      } catch { /* sin contexto, no es fatal */ }
+    } else if (contextSessionId) {
       try {
         liveTerminalContext = await getTerminalContext(contextSessionId, 80);
       } catch { /* sin contexto, no es fatal */ }
@@ -1104,12 +1122,14 @@ const ChatPane: React.FC<Props> = ({
       onClose={onClose}
       onNewChat={handleNewChat}
       practiceLocked={isPracticeSession}
+      soloConsulta={!!terminalLocal}
       bloqueo={evaluacionEnCurso ? 'Durante la evaluación el chat está en pausa: responde las preguntas por tu cuenta.' : null}
     />
   );
 
   // ── Render ──
   return (
+    <EjecutorTerminal.Provider value={terminalLocal?.ejecutar ?? null}>
     <div
       className={[
         isHome
@@ -1166,7 +1186,6 @@ const ChatPane: React.FC<Props> = ({
           sessionId={sessionId} showScrollToBottom={showScrollToBottom}
           messagesRef={messagesRef} setShowScrollToBottom={setShowScrollToBottom}
           onScrollToBottom={scrollMessagesToBottom}
-          handleSuggestionClick={text => handleSendRef.current?.(text)}
           onDeleteMsg={handleDeleteMsg} onSaveEditMsg={handleSaveEditMsg}
           onCopyMsg={async text => { try { await navigator.clipboard.writeText(text); setToast('Copiado al portapapeles'); setTimeout(() => setToast(null), 2000); } catch {} }}
           onRegenerateMsg={handleRegenerate} onRetryMsg={handleRetry} onAnalyzeCandidate={handleAnalyzeCandidate}
@@ -1289,6 +1308,7 @@ const ChatPane: React.FC<Props> = ({
         showShortcuts={showShortcuts} setShowShortcuts={setShowShortcuts}
       />
     </div>
+    </EjecutorTerminal.Provider>
   );
 };
 

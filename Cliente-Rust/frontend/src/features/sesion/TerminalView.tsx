@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import './TerminalView.css';
 import TerminalPane from '@/features/terminal/TerminalPane';
 import ChatPane from '@/features/chat/ChatPane';
@@ -11,6 +12,9 @@ import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '@/features/pract
 import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '@/features/practicas/linux/ejecutarComando';
 import { sshStdin } from '@/features/conexion/ssh.service';
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession';
+import SesionMosaico from './SesionMosaico';
+import { olvidar } from './herramientasSesion';
+import { EVENTO_ESCRIBIR, type DetalleEscribir } from './escribirEnTerminal';
 
 interface TerminalViewProps {
   sessionId: string;
@@ -28,27 +32,13 @@ interface TerminalViewProps {
   linuxSession?: LinuxPracticeSessionApi;
 }
 
-const TerminalView: React.FC<TerminalViewProps> = ({
-  sessionId,
-  activeView = 'terminal',
-  isCameraOpen = false,
-  isChatOpen = false,
-  onCloseChat = () => {},
-  isTabActive = true,
-  practiceId = null,
-  robotDashboardEnabled = false,
-  linuxSession,
-}) => {
-  // La práctica arranca mostrando el dashboard del robot (si aplica); el
-  // estudiante puede alternar a la terminal SSH cruda sin perder la sesión.
-  const [showEv3Panel, setShowEv3Panel] = useState(robotDashboardEnabled);
-  const [chatWidth, setChatWidth] = useState(420);
-  // Lo reporta el chat: nombre de la práctica y el paso en que va (el mismo que muestra la guía).
-  const [progresoPractica, setProgresoPractica] = useState<ProgresoPractica | null>(null);
-  const [cameraHeight, setCameraHeight] = useState(450);
-  const [isResizingChat, setIsResizingChat] = useState(false);
-  const [isResizingCamera, setIsResizingCamera] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+/**
+ * La vista de una sesión SSH. Las prácticas usan la vista de siempre (terminal, cámara arriba, chat a la derecha); el uso
+ * normal, un mosaico de herramientas por sesión (SesionMosaico). La terminal se monta una sola vez aquí, en un host estable
+ * que cualquiera de las dos vistas adopta: si la sesión cambia de una a otra, la terminal no se reinicia.
+ */
+const TerminalView: React.FC<TerminalViewProps> = (props) => {
+  const { sessionId, practiceId = null, linuxSession, isTabActive = true } = props;
   const { commandHistory, processTerminalData, processTerminalInput, clearHistory } = useCommandHistory();
 
   useEffect(() => {
@@ -83,6 +73,69 @@ const TerminalView: React.FC<TerminalViewProps> = ({
     window.addEventListener(EVENTO_EJECUTAR_COMANDO, alPedir);
     return () => window.removeEventListener(EVENTO_EJECUTAR_COMANDO, alPedir);
   }, [practiceId, sessionId, processTerminalInput]);
+
+  // Comandos y chat escriben en esta terminal (ver escribirEnTerminal.ts): por el historial y por SSH, como el teclado.
+  useEffect(() => {
+    const alPedir = (e: Event) => {
+      const d = (e as CustomEvent<DetalleEscribir>).detail;
+      if (!d || d.sessionId !== sessionId) return;
+      processTerminalInput(d.teclas);
+      sshStdin(sessionId, d.teclas).catch((err) => console.warn('[terminal] no se pudo escribir el comando', err));
+    };
+    window.addEventListener(EVENTO_ESCRIBIR, alPedir);
+    return () => window.removeEventListener(EVENTO_ESCRIBIR, alPedir);
+  }, [sessionId, processTerminalInput]);
+
+  // Al cerrar la sesión se olvida su mosaico
+  useEffect(() => () => olvidar(sessionId), [sessionId]);
+
+  const [terminalHost] = useState(() => {
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex;flex-direction:column;flex:1;width:100%;height:100%;min-width:0;min-height:0';
+    return el;
+  });
+
+  return (
+    <>
+      {practiceId
+        ? <VistaPractica {...props} terminalHost={terminalHost} />
+        : <SesionMosaico sessionId={sessionId} isTabActive={isTabActive} terminalHost={terminalHost} />}
+      {createPortal(
+        <TerminalPane
+          sessionId={sessionId}
+          onTerminalOutput={processTerminalData}
+          onTerminalInput={processTerminalInput}
+          bloquearTab={!!practiceId}
+        />,
+        terminalHost,
+      )}
+    </>
+  );
+};
+
+/** La vista de práctica (la de siempre): barra de progreso, cámara arriba, terminal o escritorio, y el chat a la derecha. */
+const VistaPractica: React.FC<TerminalViewProps & { terminalHost: HTMLElement }> = ({
+  sessionId,
+  terminalHost,
+  activeView = 'terminal',
+  isCameraOpen = false,
+  isChatOpen = false,
+  onCloseChat = () => {},
+  isTabActive = true,
+  practiceId = null,
+  robotDashboardEnabled = false,
+  linuxSession,
+}) => {
+  // La práctica arranca mostrando el dashboard del robot (si aplica); el
+  // estudiante puede alternar a la terminal SSH cruda sin perder la sesión.
+  const [showEv3Panel, setShowEv3Panel] = useState(robotDashboardEnabled);
+  const [chatWidth, setChatWidth] = useState(420);
+  // Lo reporta el chat: nombre de la práctica y el paso en que va (el mismo que muestra la guía).
+  const [progresoPractica, setProgresoPractica] = useState<ProgresoPractica | null>(null);
+  const [cameraHeight, setCameraHeight] = useState(450);
+  const [isResizingChat, setIsResizingChat] = useState(false);
+  const [isResizingCamera, setIsResizingCamera] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // When camera panel opens/closes, xterm must re-fit to the new height
   useEffect(() => {
@@ -232,17 +285,15 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             minHeight: 0
           }}>
             <div
-              ref={terminalRef}
+              ref={(el) => {
+                terminalRef.current = el;
+                // Adopta la terminal que montó TerminalView (ver arriba)
+                if (el && terminalHost.parentElement !== el) el.prepend(terminalHost);
+              }}
               data-tour="practica-terminal"
               className={terminalGuiada ? 'terminal-guiada' : undefined}
               style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}
             >
-              <TerminalPane
-                sessionId={sessionId}
-                onTerminalOutput={processTerminalData}
-                onTerminalInput={processTerminalInput}
-                bloquearTab={!!practiceId}
-              />
               {terminalGuiada && cursor && (
                 <div
                   key={destello}

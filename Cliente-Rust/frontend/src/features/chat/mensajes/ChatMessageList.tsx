@@ -31,7 +31,6 @@ interface ChatMessageListProps {
   messagesRef: React.RefObject<HTMLDivElement>;
   setShowScrollToBottom: (val: boolean) => void;
   onScrollToBottom: () => void;
-  handleSuggestionClick: (text: string) => void;
   onDeleteMsg: (id: string) => void;
   onSaveEditMsg: (id: string, draft: string) => void;
   onCopyMsg: (text: string) => void;
@@ -85,7 +84,7 @@ export default function ChatMessageList({
   appearance = 'session',
   messages, mode, isSending, searchMatchIds, searchMatchIndex, streamingMsgId, streamedText,
   sessionId, showScrollToBottom, messagesRef, setShowScrollToBottom, onScrollToBottom,
-  handleSuggestionClick, onDeleteMsg, onSaveEditMsg, onCopyMsg, onRegenerateMsg, onRetryMsg,
+  onDeleteMsg, onSaveEditMsg, onCopyMsg, onRegenerateMsg, onRetryMsg,
   onAnalyzeCandidate, onSetInput, setLastCommand,
   embeddedTerminal = null,
   embeddedCameras = null,
@@ -123,7 +122,7 @@ export default function ChatMessageList({
     >
       {/* Welcome state */}
       {messages.length === 0 && !isSending && !hideWelcome && (
-        <WelcomeMessage mode={mode} handleSuggestionClick={handleSuggestionClick} />
+        <WelcomeMessage mode={mode} />
       )}
 
       {/* Message list */}

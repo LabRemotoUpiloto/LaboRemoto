@@ -2,8 +2,8 @@
 // tutorial narrado. También lo arranca cuando alguien lo pide (evento `app:tutorial-bienvenida`, p. ej. «Iniciar recorrido»
 // en Inicio), para cualquier rol.
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Button, Group, Modal, Stack, Text } from '@mantine/core';
-import { Volume2 } from 'lucide-react';
+import { GraduationCap, Volume2 } from 'lucide-react';
+import { Boton, BotonPrincipal, Dialogo } from '@/components/ui';
 import { useAuth } from '@/features/cuenta/AuthContext';
 import { useEffectiveRole } from '@/features/cuenta/usePermissions';
 import LinuxPasswordPrompt from '@/features/practicas/linux/LinuxPasswordPrompt';
@@ -59,24 +59,22 @@ export default function BienvenidaTutorial({ abrirPagina }: { abrirPagina: (pagi
   return (
     <>
     <EscenaTutorial usuario={usuario} />
-    <Modal opened={ofrecer} onClose={ahoraNo} centered radius="lg" size="md" withCloseButton={false} zIndex={3000}>
-      <Stack gap="md" align="center" ta="center" py="sm">
-        <img src="/abeja-Profesor.jpeg" alt="Profesor Bee" style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'contain', background: '#fff' }} />
-        <Text fw={800} size="xl">¡Bienvenido a LaboRemoto!</Text>
-        <Text size="sm" c="dimmed">
-          En un minuto y medio te mostramos qué hay en la aplicación y cómo hacer tu primera práctica.
-        </Text>
-        <Group gap={6} justify="center">
-          <Volume2 size={16} aria-hidden />
-          <Text size="xs" c="dimmed">Tiene voz: sube el volumen.</Text>
-        </Group>
-        <Group justify="center" mt="xs">
-          <Button variant="subtle" color="gray" onClick={ahoraNo}>Ahora no</Button>
-          <Button onClick={pedirTutorialBienvenida}>Empezar el recorrido</Button>
-        </Group>
-        <Text size="xs" c="dimmed">Puedes verlo cuando quieras con «Iniciar recorrido», en Inicio.</Text>
-      </Stack>
-    </Modal>
+    {ofrecer && (
+      <Dialogo ancho="w-[440px]" titulo="¡Bienvenido a LaboRemoto!" onCerrar={ahoraNo}
+        descripcion="En un minuto y medio te mostramos qué hay en la aplicación y cómo hacer tu primera práctica."
+        acciones={<>
+          <Boton onClick={ahoraNo}>Ahora no</Boton>
+          <BotonPrincipal onClick={pedirTutorialBienvenida}><GraduationCap size={16} aria-hidden /> Empezar el recorrido</BotonPrincipal>
+        </>}>
+        <div className="flex items-center gap-4">
+          <img src="/abeja-Profesor.jpeg" alt="" className="h-16 w-16 shrink-0 rounded-full bg-white object-contain" />
+          <div className="flex flex-col gap-1">
+            <span className="inline-flex items-center gap-1.5 text-[13px] text-ui-tinta-2"><Volume2 size={15} aria-hidden /> Tiene voz: sube el volumen.</span>
+            <span className="text-[12px] text-ui-apagado">Puedes verlo cuando quieras con «Iniciar recorrido», en Inicio.</span>
+          </div>
+        </div>
+      </Dialogo>
+    )}
     </>
   );
 }

@@ -135,8 +135,6 @@ export type PanelId =
   | 'hosts'
   | 'themes'
   | 'logs'
-  | 'sftp'
-  | 'snippets'
   | 'practices'
   | 'terminal'
   | 'moodle-test';

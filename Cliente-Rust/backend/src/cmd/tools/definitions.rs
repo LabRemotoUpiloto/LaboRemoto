@@ -78,6 +78,61 @@ pub(super) fn tool_definitions() -> serde_json::Value {
             }
         },
         {
+            "name": "guardar_comando",
+            "description": "Guarda un comando en el panel Comandos de la persona (sus comandos guardados, antes snippets), para ejecutarlo luego con un clic. Úsalo cuando pida guardar algo como comando o snippet.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "titulo": { "type": "string", "description": "Nombre corto (p. ej. «Temperatura»)" },
+                    "comando": { "type": "string", "description": "El comando exacto" },
+                    "descripcion": { "type": "string", "description": "Para qué sirve, en una frase clara para la persona (p. ej. «Muestra la temperatura del procesador de la Pi»)" },
+                    "categoria": { "type": "string", "description": "Opcional (p. ej. «Servicios»)" },
+                    "terminal": { "type": "string", "enum": ["linux", "powershell"], "description": "Dónde sirve; omítelo si sirve en cualquiera" }
+                },
+                "required": ["titulo", "comando", "descripcion"]
+            }
+        },
+        {
+            "name": "descargar_archivo",
+            "description": "Baja un archivo o una carpeta del servidor de la sesión al computador de la persona (a su carpeta Descargas, sin pisar nada). Acepta rutas absolutas, con ~ o relativas a la carpeta personal.",
+            "input_schema": {
+                "type": "object",
+                "properties": { "ruta_remota": { "type": "string", "description": "Ruta en el servidor (p. ej. ~/proyecto/datos.csv)" } },
+                "required": ["ruta_remota"]
+            }
+        },
+        {
+            "name": "subir_archivo",
+            "description": "Propone subir un archivo o carpeta del computador de la persona al servidor. NO lo sube: la app le pide confirmar. Si la ruta remota termina en /, se sube dentro de esa carpeta con el mismo nombre.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "ruta_local": { "type": "string", "description": "Ruta completa en el computador de la persona (p. ej. C:\\Users\\ana\\Desktop\\leds.py)" },
+                    "ruta_remota": { "type": "string", "description": "Destino en el servidor (absoluto, p. ej. /home/pi/proyecto/ o /home/pi/proyecto/leds.py)" }
+                },
+                "required": ["ruta_local", "ruta_remota"]
+            }
+        },
+        {
+            "name": "leer_pines",
+            "description": "Lee el estado actual de los pines GPIO de la Raspberry Pi de la sesión (modo, nivel y pull de cada uno). Úsalo antes de explicar o cambiar pines.",
+            "input_schema": { "type": "object", "properties": {}, "required": [] }
+        },
+        {
+            "name": "cambiar_pin",
+            "description": "Propone cambiar un pin GPIO (numeración BCM). NO lo aplica: la app le pide a la persona que confirme. Indica al menos uno de modo, pull o nivel.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "gpio": { "type": "integer", "description": "Número BCM (0 a 27)" },
+                    "modo": { "type": "string", "enum": ["entrada", "salida"] },
+                    "pull": { "type": "string", "enum": ["arriba", "abajo", "ninguno"] },
+                    "nivel": { "type": "integer", "enum": [0, 1], "description": "Solo para salida: 1 alto, 0 bajo" }
+                },
+                "required": ["gpio"]
+            }
+        },
+        {
             "name": "get_terminal_output",
             "description": "Lee las últimas N líneas del buffer de la terminal interactiva del usuario. Úsalo cuando el usuario mencione un error, un comando que falló, o pida analizar lo que pasó en la terminal. NO lo uses si la pregunta es teórica o no está relacionada con la terminal activa.",
             "input_schema": {
