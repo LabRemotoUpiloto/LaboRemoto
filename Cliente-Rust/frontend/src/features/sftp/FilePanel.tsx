@@ -45,6 +45,7 @@ export interface FilePanelProps {
 
   // Toolbar - shared
   onRefresh: () => void
+  onIrACarpetaTerminal?: () => void
 
   // Toolbar - local only
   drives?: string[]
@@ -127,6 +128,7 @@ const FilePanel: React.FC<FilePanelProps> = ({
   consumeSuppressedClick,
   forceDragOver,
   onOpenFile,
+  onIrACarpetaTerminal,
 }) => {
   const handleOpen = useCallback(
     (entry: FileEntry) => {
@@ -192,6 +194,7 @@ const FilePanel: React.FC<FilePanelProps> = ({
         sessionsMeta={sessionsMeta}
         onSessionChange={onSessionChange}
         onRefresh={onRefresh}
+        onIrACarpetaTerminal={onIrACarpetaTerminal}
         onNewFolder={onNewFolder}
         onRename={onRename}
         canRename={canRename}

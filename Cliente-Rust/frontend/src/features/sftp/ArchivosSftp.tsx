@@ -23,6 +23,7 @@ import {
   getParentRemotePath,
 } from './pathUtils'
 import type { SftpEntry, LocalEntry } from '@/types'
+import { carpetaDeLaTerminal } from '@/features/sesion/carpetaTerminal'
 
 type Props = {
   sessions: string[]
@@ -271,6 +272,18 @@ const ArchivosSftp: React.FC<Props> = ({
     (p: string) => setRpath(p),
     [setRpath]
   )
+
+  // La carpeta en la que está la terminal (leída de su prompt)
+  const irACarpetaTerminal = useCallback(async () => {
+    if (!sessionId) return
+    try {
+      const carpeta = await carpetaDeLaTerminal(sessionId)
+      if (carpeta) setRpath(carpeta)
+      else push({ type: 'info', message: 'No se pudo saber en qué carpeta está la terminal: su prompt no muestra la ruta.' })
+    } catch (e: any) {
+      push({ type: 'error', message: 'No se pudo leer la terminal: ' + (e?.message ?? String(e)) })
+    }
+  }, [sessionId, setRpath, push])
 
   const handleRemoteBack = useCallback(() => {
     const parent = getParentRemotePath(rpath)
@@ -1122,6 +1135,7 @@ const ArchivosSftp: React.FC<Props> = ({
       >
         <FilePanel
           side="remote"
+          onIrACarpetaTerminal={sessionId ? () => void irACarpetaTerminal() : undefined}
           active={activePane === 'remote'}
           onClick={handleSetActivePaneRemote}
           path={rpath}

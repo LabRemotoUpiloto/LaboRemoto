@@ -7,6 +7,7 @@ import {
   Trash2,
   Search,
   X,
+  SquareTerminal,
 } from 'lucide-react'
 
 export interface FilePanelToolbarProps {
@@ -25,6 +26,8 @@ export interface FilePanelToolbarProps {
 
   // Actions
   onRefresh: () => void
+  /** Solo servidor: ir a la carpeta en la que está la terminal de la sesión. */
+  onIrACarpetaTerminal?: () => void
   onNewFolder?: () => void
   onRename?: () => void
   canRename?: boolean
@@ -107,6 +110,7 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
   sessionsMeta,
   onSessionChange,
   onRefresh,
+  onIrACarpetaTerminal,
   onNewFolder,
   onRename,
   canRename,
@@ -155,6 +159,10 @@ const FilePanelToolbar: React.FC<FilePanelToolbarProps> = ({
         )}
 
         <ToolbarButton icon={<RefreshCw size={14} />} label="Actualizar" onClick={onRefresh} disabled={disabled} />
+
+        {onIrACarpetaTerminal && (
+          <ToolbarButton icon={<SquareTerminal size={14} />} label="Ir a la carpeta de la terminal" onClick={onIrACarpetaTerminal} disabled={disabled} />
+        )}
       </Group>
 
       <ToolbarSeparator />
