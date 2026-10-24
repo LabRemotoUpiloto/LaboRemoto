@@ -130,6 +130,16 @@ pub async fn local_temp_dir() -> Result<String, CommandError> {
   Ok(std::env::temp_dir().to_string_lossy().to_string())
 }
 
+/// Carpeta de Descargas de la persona (si el sistema no la define, su carpeta personal). Ahí deja sus descargas el panel
+/// Archivos de una sesión.
+#[tauri::command]
+pub async fn local_downloads_dir() -> Result<String, CommandError> {
+  let dirs = directories::UserDirs::new()
+    .ok_or_else(|| CommandError::internal("NO_HOME", "No se encontró la carpeta personal".to_string()))?;
+  let dir = dirs.download_dir().unwrap_or_else(|| dirs.home_dir());
+  Ok(dir.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 pub async fn local_list_drives() -> Result<Vec<String>, CommandError> {
   tokio::task::spawn_blocking(|| {

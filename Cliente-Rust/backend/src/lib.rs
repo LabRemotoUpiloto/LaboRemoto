@@ -144,6 +144,7 @@ pub fn run() {
       cmd::filesystem::local::local_open_path,
       cmd::filesystem::local::local_reveal_in_explorer,
       cmd::filesystem::local::local_temp_dir,
+      cmd::filesystem::local::local_downloads_dir,
       cmd::filesystem::local::local_mkdir,
       cmd::filesystem::local::local_rename,
       cmd::filesystem::local::local_delete,
@@ -167,6 +168,11 @@ pub fn run() {
       cmd::editor::file_edit::revert_file,
       cmd::editor::file_edit::ai_remote_edit_file,
       // Storage (hosts)
+      // Comandos guardados (antes snippets)
+      cmd::comandos::comandos_listar,
+      cmd::comandos::comandos_guardar,
+      cmd::comandos::comandos_borrar,
+      cmd::comandos::comandos_importar,
       cmd::state::hosts::save_host_encrypted,
       cmd::state::hosts::load_host_encrypted,
       cmd::state::hosts::save_host_master,
