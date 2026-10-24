@@ -148,7 +148,12 @@ export type LinuxBlock =
   // se detiene acá hasta que el estudiante pulsa el botón, como con un
   // `command_step` sin resolver. Mientras queden frenos sin abrir, el quiz
   // final tampoco se entrega.
-  | { type: 'step_gate'; id: string; label?: string };
+  | { type: 'step_gate'; id: string; label?: string }
+  // Escritorio remoto de la sesión (ver practicas/linux/escritorioPractica.ts): abrir un programa en la
+  // interfaz gráfica (se completa sola cuando la app detecta la ventana) y cerrar el escritorio para volver
+  // a la terminal. Una app anterior a estos bloques los ignora.
+  | { type: 'desktop_task'; id: string; programa: 'terminal'; goal_md: string; done_md?: string }
+  | { type: 'desktop_close'; id: string; label?: string };
 
 export interface LinuxValidationRule {
   id: string;

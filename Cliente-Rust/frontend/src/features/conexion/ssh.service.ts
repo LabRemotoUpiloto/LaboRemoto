@@ -166,8 +166,15 @@ export const sshSessionInfo = (id: string): Promise<SshSessionInfo> =>
 
 // ── VNC ──────────────────────────────────────────────────────────────────────
 
-export const vncStart = <T = unknown>(sessionId: string, resolution?: string): Promise<T> =>
-  invoke<T>('vnc_start', { sessionId, resolution });
+/** `practica`: escritorio acotado de las prácticas (solo la terminal). Sin perfil, el escritorio completo. */
+export type PerfilEscritorio = 'completo' | 'practica';
+
+export const vncStart = <T = unknown>(sessionId: string, resolution?: string, perfil?: PerfilEscritorio): Promise<T> =>
+  invoke<T>('vnc_start', { sessionId, resolution, perfil });
+
+/** ¿El estudiante abrió `programa` en el escritorio remoto de la sesión? (falso si no hay escritorio). */
+export const vncProgramaAbierto = (sessionId: string, programa: 'terminal'): Promise<boolean> =>
+  invoke<boolean>('vnc_programa_abierto', { sessionId, programa });
 
 export const vncStop = (sessionId: string): Promise<void> =>
   invoke<void>('vnc_stop', { sessionId });

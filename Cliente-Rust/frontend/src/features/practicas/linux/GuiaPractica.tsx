@@ -7,7 +7,7 @@
 
 import React from 'react';
 import {
-  ArrowRight, BookOpen, CircleHelp, Flag, Image as ImageIcon, MessageCircle, Play, Pointer,
+  ArrowRight, BookOpen, CircleHelp, Flag, Image as ImageIcon, MessageCircle, Monitor, Play, Pointer,
   Send, SlidersHorizontal, SquareTerminal,
 } from 'lucide-react';
 import type { DatosGuia } from './PasoCard';
@@ -21,6 +21,8 @@ const ICONOS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: 
   ejercicio: SlidersHorizontal,
   comando: SquareTerminal,
   reto: Flag,
+  escritorio: Monitor,
+  volver: SquareTerminal,
   siguiente: ArrowRight,
   pregunta: CircleHelp,
   enviar: Send,

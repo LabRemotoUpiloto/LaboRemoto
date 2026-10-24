@@ -11,12 +11,16 @@ use super::utils::kill_display_cmd;
 /// píxeles cambiaron sin polling ni extensión xdamage de por medio — más
 /// liviano en CPU y sin el problema de "regiones que quedan viejas" que
 /// tuvimos que parchear con -fixscreen en x11vnc.
+///
+/// `practica`: escritorio acotado para las prácticas (ver `setup_steps_1`): sin menú de inicio, sin navegador ni
+/// explorador de archivos, solo el acceso a la terminal.
 pub(crate) fn start_vnc_server(
     sess: &ssh2::Session,
     display: u32,
     vnc_port: u16,
     resolution: &str,
     home_dir: &str,
+    practica: bool,
 ) -> Result<(), String> {
     // Limpieza previa + lanzamiento en una sola llamada SSH (el PID sale en la última línea).
     let cleanup = format!(
@@ -89,9 +93,9 @@ pub(crate) fn start_vnc_server(
         ));
     }
 
-    let out1 = run_batch(sess, display, home_dir, &setup_steps_1(display, home_dir), false)?;
+    let out1 = run_batch(sess, display, home_dir, &setup_steps_1(display, home_dir, practica), false)?;
     let wallpaper = section(&out1, "fondo-detectar");
-    run_batch(sess, display, home_dir, &setup_steps_2(display, home_dir, &wallpaper), true)?;
+    run_batch(sess, display, home_dir, &setup_steps_2(display, home_dir, &wallpaper, practica), true)?;
 
     Ok(())
 }
@@ -176,7 +180,11 @@ fn section(out: &str, name: &str) -> String {
 
 /// Primer script: carpetas, accesos, navegador, parche de íconos, panel y detección del fondo de pantalla
 /// (el único paso cuya salida necesita Rust para armar el segundo script).
-pub(crate) fn setup_steps_1(display: u32, home_dir: &str) -> Vec<Step> {
+///
+/// Con `practica` el escritorio queda acotado a la tarea de la práctica: no se preparan el navegador ni sus accesos,
+/// la barra no tiene menú de inicio y solo lleva el acceso a la terminal. Es para enfocar al estudiante, no una
+/// barrera de seguridad: esa terminal da exactamente lo mismo que la terminal de la práctica.
+pub(crate) fn setup_steps_1(display: u32, home_dir: &str, practica: bool) -> Vec<Step> {
     let chromium_dir = format!("/tmp/chromium-vnc-{display}");
     let panel_profile = format!("lxde-pi-{display}");
     let browser_desktop = format!("{home_dir}/.local/share/applications/browser-vnc-{display}.desktop");
@@ -211,67 +219,69 @@ pub(crate) fn setup_steps_1(display: u32, home_dir: &str) -> Vec<Step> {
              printf '[config]\\nquick_exec=1\\n' >> {home_dir}/.config/libfm/libfm.conf; true"
         )));
 
-    steps.push(step("navegador-wrapper", format!(
-            "cat > {home_dir}/.local/bin/chromium-browser-{display} << 'WRAPPER_EOF'\n\
-#!/bin/sh\n\
-# Limpiar singleton locks del perfil aislado\n\
-rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie {chromium_dir}/SingletonSocket 2>/dev/null\n\
-# Aislar completamente del display fisico\n\
-export DISPLAY=:{display}\n\
-export XDG_RUNTIME_DIR=/tmp/xdg{display}\n\
-export DBUS_SESSION_BUS_ADDRESS=\n\
-export XDG_SESSION_TYPE=x11\n\
-LOG=/tmp/browser-{display}.log\n\
-UDIR={chromium_dir}\n\
-CARGS='--no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars'\n\
-for BROWSER in chromium-browser chromium google-chrome-stable google-chrome firefox-esr firefox midori x-www-browser; do\n\
-  if command -v \"$BROWSER\" >/dev/null 2>&1; then\n\
-    case \"$BROWSER\" in\n\
-      *chrom*|*google*) exec \"$BROWSER\" $CARGS --user-data-dir=\"$UDIR\" \"$@\" 2>>\"$LOG\" ;;\n\
-      *firefox*) exec \"$BROWSER\" --no-remote --profile \"$UDIR\" --display=:{display} \"$@\" 2>>\"$LOG\" ;;\n\
-      *) exec \"$BROWSER\" \"$@\" 2>>\"$LOG\" ;;\n\
-    esac\n\
-  fi\n\
-done\n\
-echo no-browser-found >> \"$LOG\"\n\
-WRAPPER_EOF\n\
-chmod +x {home_dir}/.local/bin/chromium-browser-{display}; true"
-        )));
+    if !practica {
+        steps.push(step("navegador-wrapper", format!(
+                "cat > {home_dir}/.local/bin/chromium-browser-{display} << 'WRAPPER_EOF'\n\
+    #!/bin/sh\n\
+    # Limpiar singleton locks del perfil aislado\n\
+    rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie {chromium_dir}/SingletonSocket 2>/dev/null\n\
+    # Aislar completamente del display fisico\n\
+    export DISPLAY=:{display}\n\
+    export XDG_RUNTIME_DIR=/tmp/xdg{display}\n\
+    export DBUS_SESSION_BUS_ADDRESS=\n\
+    export XDG_SESSION_TYPE=x11\n\
+    LOG=/tmp/browser-{display}.log\n\
+    UDIR={chromium_dir}\n\
+    CARGS='--no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars'\n\
+    for BROWSER in chromium-browser chromium google-chrome-stable google-chrome firefox-esr firefox midori x-www-browser; do\n\
+      if command -v \"$BROWSER\" >/dev/null 2>&1; then\n\
+        case \"$BROWSER\" in\n\
+          *chrom*|*google*) exec \"$BROWSER\" $CARGS --user-data-dir=\"$UDIR\" \"$@\" 2>>\"$LOG\" ;;\n\
+          *firefox*) exec \"$BROWSER\" --no-remote --profile \"$UDIR\" --display=:{display} \"$@\" 2>>\"$LOG\" ;;\n\
+          *) exec \"$BROWSER\" \"$@\" 2>>\"$LOG\" ;;\n\
+        esac\n\
+      fi\n\
+    done\n\
+    echo no-browser-found >> \"$LOG\"\n\
+    WRAPPER_EOF\n\
+    chmod +x {home_dir}/.local/bin/chromium-browser-{display}; true"
+            )));
 
-    steps.push(step("navegador-prefs", format!(
-            "cat > {chromium_dir}/Default/Preferences << 'PREFS_EOF'\n\
-{{\n\
-  \"browser\": {{\n\
-    \"has_seen_welcome_page\": true,\n\
-    \"check_default_browser\": false\n\
-  }},\n\
-  \"session\": {{\n\
-    \"restore_on_startup\": 4,\n\
-    \"startup_urls\": [\"http://localhost:10000\"]\n\
-  }},\n\
-  \"distribution\": {{\n\
-    \"skip_first_run_ui\": true,\n\
-    \"suppress_first_run_default_browser_prompt\": true\n\
-  }}\n\
-}}\n\
-PREFS_EOF\ntrue"
-        )));
+        steps.push(step("navegador-prefs", format!(
+                "cat > {chromium_dir}/Default/Preferences << 'PREFS_EOF'\n\
+    {{\n\
+      \"browser\": {{\n\
+        \"has_seen_welcome_page\": true,\n\
+        \"check_default_browser\": false\n\
+      }},\n\
+      \"session\": {{\n\
+        \"restore_on_startup\": 4,\n\
+        \"startup_urls\": [\"http://localhost:10000\"]\n\
+      }},\n\
+      \"distribution\": {{\n\
+        \"skip_first_run_ui\": true,\n\
+        \"suppress_first_run_default_browser_prompt\": true\n\
+      }}\n\
+    }}\n\
+    PREFS_EOF\ntrue"
+            )));
 
-    steps.push(step("acceso-navegador", format!(
-            "mkdir -p {home_dir}/.local/share/applications && \
-             printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec={home_dir}/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nTerminal=false\\nCategories=Network;WebBrowser;\\n' \
-             > {browser_desktop} && chmod +x {browser_desktop} && \
-             gio set {browser_desktop} metadata::trusted true 2>/dev/null; true"
-        )));
+        steps.push(step("acceso-navegador", format!(
+                "mkdir -p {home_dir}/.local/share/applications && \
+                 printf '[Desktop Entry]\\nVersion=1.0\\nName=Web Browser\\nExec={home_dir}/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nTerminal=false\\nCategories=Network;WebBrowser;\\n' \
+                 > {browser_desktop} && chmod +x {browser_desktop} && \
+                 gio set {browser_desktop} metadata::trusted true 2>/dev/null; true"
+            )));
 
-    steps.push(step("acceso-servidor-web", format!(
-            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver paginas de Apache (localhost:10000)\\nExec={home_dir}/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nTerminal=false\\nCategories=Network;WebBrowser;\\n' \
-             > {webserver_desktop} && chmod +x {webserver_desktop} && \
-             gio set {webserver_desktop} metadata::trusted true 2>/dev/null && \
-             cp {webserver_desktop} {home_dir}/Desktop/servidor-web.desktop 2>/dev/null && \
-             chmod +x {home_dir}/Desktop/servidor-web.desktop && \
-             gio set {home_dir}/Desktop/servidor-web.desktop metadata::trusted true 2>/dev/null; true"
-        )));
+        steps.push(step("acceso-servidor-web", format!(
+                "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver paginas de Apache (localhost:10000)\\nExec={home_dir}/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nTerminal=false\\nCategories=Network;WebBrowser;\\n' \
+                 > {webserver_desktop} && chmod +x {webserver_desktop} && \
+                 gio set {webserver_desktop} metadata::trusted true 2>/dev/null && \
+                 cp {webserver_desktop} {home_dir}/Desktop/servidor-web.desktop 2>/dev/null && \
+                 chmod +x {home_dir}/Desktop/servidor-web.desktop && \
+                 gio set {home_dir}/Desktop/servidor-web.desktop metadata::trusted true 2>/dev/null; true"
+            )));
+    }
 
     // En Raspberry Pi OS Trixie el libfm de Raspberry (+rpt) pide un argumento extra de escala en
     // fm_pixbuf_from_icon_with_fallback, pero el lxpanel de Debian lo llama con la firma vieja: la escala llega
@@ -305,6 +315,28 @@ FMFIX_EOF\n\
              fi; true"
         )));
 
+    let menu_plugin = if practica {
+        String::new()
+    } else {
+        format!(
+            "Plugin {{\n type=menu\n Config {{\n  padding=4\n  image=__START_ICON__\n  \
+             item {{\n   name=Navegador web\n   action={home_dir}/.local/bin/chromium-browser-{display}\n  }}\n  \
+             item {{\n   name=Archivos\n   action=pcmanfm\n  }}\n  \
+             item {{\n   name=Terminal\n   action=lxterminal\n  }}\n  \
+             separator {{\n  }}\n  system {{\n  }}\n  separator {{\n  }}\n  \
+             item {{\n   command=logout\n  }}\n }}\n}}\n"
+        )
+    };
+    let launch_items = if practica {
+        "/usr/share/applications/lxterminal.desktop".to_string()
+    } else {
+        format!(
+            "{browser_desktop} /usr/share/applications/pcmanfm.desktop /usr/share/applications/lxterminal.desktop \
+             /usr/share/applications/org.thonny.Thonny.desktop /usr/share/applications/thonny.desktop \
+             /usr/share/applications/geany.desktop /usr/share/applications/code.desktop"
+        )
+    };
+
     steps.push(step("panel", format!(
             "mkdir -p {home_dir}/.config/lxpanel/{panel_profile}/panels && \
              cat > {home_dir}/.config/lxpanel/{panel_profile}/panels/panel << 'PANEL_EOF'\n\
@@ -331,35 +363,7 @@ Global {{\n\
   iconsize=36\n\
   monitor=0\n\
 }}\n\
-Plugin {{\n\
-  type=menu\n\
-  Config {{\n\
-    padding=4\n\
-    image=__START_ICON__\n\
-    item {{\n\
-      name=Navegador web\n\
-      action={home_dir}/.local/bin/chromium-browser-{display}\n\
-    }}\n\
-    item {{\n\
-      name=Archivos\n\
-      action=pcmanfm\n\
-    }}\n\
-    item {{\n\
-      name=Terminal\n\
-      action=lxterminal\n\
-    }}\n\
-    separator {{\n\
-    }}\n\
-    system {{\n\
-    }}\n\
-    separator {{\n\
-    }}\n\
-    item {{\n\
-      command=logout\n\
-    }}\n\
-  }}\n\
-}}\n\
-__LAUNCHBAR__\n\
+{menu_plugin}__LAUNCHBAR__\n\
 Plugin {{\n\
   type=taskbar\n\
   expand=1\n\
@@ -402,9 +406,7 @@ PANEL_EOF\n\
              if [ -f {home_dir}/.cache/labremoto/fmfix-{display}.ok ]; then \
                LB={home_dir}/.cache/labremoto/launchbar-{display}.txt; \
                printf 'Plugin {{\\ntype=launchbar\\nConfig {{\\n' > \"$LB\"; \
-               for D in {browser_desktop} /usr/share/applications/pcmanfm.desktop /usr/share/applications/lxterminal.desktop \
-                        /usr/share/applications/org.thonny.Thonny.desktop /usr/share/applications/thonny.desktop \
-                        /usr/share/applications/geany.desktop /usr/share/applications/code.desktop; do \
+               for D in {launch_items}; do \
                  [ -f \"$D\" ] && printf 'Button {{\\nid=%s\\n}}\\n' \"$D\" >> \"$LB\"; \
                done; \
                printf '}}\\n}}\\n' >> \"$LB\"; \
@@ -471,7 +473,7 @@ PANEL_EOF\n\
 }
 
 /// Segundo script: configuración del fondo, ajustes GTK, xstartup, arranque del escritorio y accesos.
-pub(crate) fn setup_steps_2(display: u32, home_dir: &str, wallpaper: &str) -> Vec<Step> {
+pub(crate) fn setup_steps_2(display: u32, home_dir: &str, wallpaper: &str, practica: bool) -> Vec<Step> {
     let chromium_dir = format!("/tmp/chromium-vnc-{display}");
     let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
     let panel_profile = format!("lxde-pi-{display}");
@@ -485,6 +487,8 @@ pub(crate) fn setup_steps_2(display: u32, home_dir: &str, wallpaper: &str) -> Ve
     // archivo en el arranque.
     let wp_quoted = sh_quote(wallpaper.trim());
     let wp_file = format!("{home_dir}/.cache/labremoto/wp-{display}.txt");
+    // En una práctica el escritorio no muestra la papelera ni las unidades: solo el acceso a la terminal.
+    let show = if practica { 0 } else { 1 };
 
     steps.push(step("fondo-config", format!(
             "WP={wp_quoted}; \
@@ -492,11 +496,11 @@ pub(crate) fn setup_steps_2(display: u32, home_dir: &str, wallpaper: &str) -> Ve
              mkdir -p {home_dir}/.config/pcmanfm/{panel_profile} {home_dir}/.cache/labremoto && \
              printf '%s' \"$WP\" > {wp_file} && \
              {{ printf '[desktop]\\n'; [ -n \"$WP\" ] && printf 'wallpaper=%s\\n' \"$WP\"; \
-                printf 'wallpaper_mode=%s\\nwallpaper_common=0\\ndesktop_bg=#2c3e50\\ndesktop_fg=#ffffff\\ndesktop_shadow=#000000\\nshow_trash=1\\nshow_mounts=1\\n' \"$MODE_L\"; \
+                printf 'wallpaper_mode=%s\\nwallpaper_common=0\\ndesktop_bg=#2c3e50\\ndesktop_fg=#ffffff\\ndesktop_shadow=#000000\\nshow_trash={show}\\nshow_mounts={show}\\n' \"$MODE_L\"; \
              }} | tee {home_dir}/.config/pcmanfm/{panel_profile}/pcmanfm.conf \
                      {home_dir}/.config/pcmanfm/{panel_profile}/desktop-preferences.conf > /dev/null && \
              {{ printf '[*]\\n'; [ -n \"$WP\" ] && printf 'wallpaper=%s\\n' \"$WP\"; \
-                printf 'wallpaper_mode=%s\\ndesktop_bg=#2c3e50\\ndesktop_fg=#ffffff\\ndesktop_shadow=#000000\\nshow_trash=1\\nshow_mounts=1\\n' \"$MODE_M\"; \
+                printf 'wallpaper_mode=%s\\ndesktop_bg=#2c3e50\\ndesktop_fg=#ffffff\\ndesktop_shadow=#000000\\nshow_trash={show}\\nshow_mounts={show}\\n' \"$MODE_M\"; \
              }} > {home_dir}/.config/pcmanfm/{panel_profile}/desktop-items-0.conf; true"
         )));
 
@@ -560,12 +564,14 @@ wait\\n' \
              >/tmp/lxsession{display}.log 2>&1 </dev/null & echo started"
         )));
 
-    steps.push(step("menu-chromium", format!(
-            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Chromium Browser\\nComment=Navegador web\\nExec={home_dir}/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nCategories=Network;WebBrowser;\\nTerminal=false\\nStartupNotify=true\\n' \
-             > {home_dir}/.local/share/applications/chromium-browser-vnc-{display}.desktop && \
-             chmod +x {home_dir}/.local/share/applications/chromium-browser-vnc-{display}.desktop && \
-             update-desktop-database {home_dir}/.local/share/applications 2>/dev/null; true"
-        )));
+    if !practica {
+        steps.push(step("menu-chromium", format!(
+                "printf '[Desktop Entry]\\nVersion=1.0\\nName=Chromium Browser\\nComment=Navegador web\\nExec={home_dir}/.local/bin/chromium-browser-{display}\\nIcon=web-browser\\nType=Application\\nCategories=Network;WebBrowser;\\nTerminal=false\\nStartupNotify=true\\n' \
+                 > {home_dir}/.local/share/applications/chromium-browser-vnc-{display}.desktop && \
+                 chmod +x {home_dir}/.local/share/applications/chromium-browser-vnc-{display}.desktop && \
+                 update-desktop-database {home_dir}/.local/share/applications 2>/dev/null; true"
+            )));
+    }
 
     steps.push(step("menu-lxterminal", format!(
             "printf '[Desktop Entry]\\nVersion=1.0\\nName=LXTerminal\\nComment=Terminal\\nExec=lxterminal\\nIcon=utilities-terminal\\nType=Application\\nCategories=System;TerminalEmulator;\\nTerminal=false\\nStartupNotify=true\\n' \
@@ -574,37 +580,50 @@ wait\\n' \
              update-desktop-database {home_dir}/.local/share/applications 2>/dev/null; true"
         )));
 
-    steps.push(step("menu-code", format!(
-            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Visual Studio Code\\nComment=Editor de código\\nExec=code --no-sandbox --disable-gpu --user-data-dir={chromium_dir}\\nIcon=vscode\\nType=Application\\nCategories=Development;IDE;\\nTerminal=false\\nStartupNotify=true\\n' \
-             > {home_dir}/.local/share/applications/code-vnc-{display}.desktop && \
-             chmod +x {home_dir}/.local/share/applications/code-vnc-{display}.desktop && \
-             update-desktop-database {home_dir}/.local/share/applications 2>/dev/null; true"
-        )));
+    if !practica {
+        steps.push(step("menu-code", format!(
+                "printf '[Desktop Entry]\\nVersion=1.0\\nName=Visual Studio Code\\nComment=Editor de código\\nExec=code --no-sandbox --disable-gpu --user-data-dir={chromium_dir}\\nIcon=vscode\\nType=Application\\nCategories=Development;IDE;\\nTerminal=false\\nStartupNotify=true\\n' \
+                 > {home_dir}/.local/share/applications/code-vnc-{display}.desktop && \
+                 chmod +x {home_dir}/.local/share/applications/code-vnc-{display}.desktop && \
+                 update-desktop-database {home_dir}/.local/share/applications 2>/dev/null; true"
+            )));
+    }
 
-    steps.push(step("menu-servidor-web", format!(
-            "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver paginas de Apache (localhost:10000)\\nExec={home_dir}/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nCategories=Network;WebBrowser;\\nTerminal=false\\nStartupNotify=true\\n' \
-             > {webserver_desktop} && chmod +x {webserver_desktop} && \
-             gio set {webserver_desktop} metadata::trusted true 2>/dev/null && \
-             cp {webserver_desktop} {home_dir}/Desktop/servidor-web.desktop 2>/dev/null && \
-             chmod +x {home_dir}/Desktop/servidor-web.desktop && \
-             gio set {home_dir}/Desktop/servidor-web.desktop metadata::trusted true 2>/dev/null; true"
-        )));
+    if !practica {
+        steps.push(step("menu-servidor-web", format!(
+                "printf '[Desktop Entry]\\nVersion=1.0\\nName=Servidor Web Local\\nComment=Ver paginas de Apache (localhost:10000)\\nExec={home_dir}/.local/bin/chromium-browser-{display} http://localhost:10000\\nIcon=text-html\\nType=Application\\nCategories=Network;WebBrowser;\\nTerminal=false\\nStartupNotify=true\\n' \
+                 > {webserver_desktop} && chmod +x {webserver_desktop} && \
+                 gio set {webserver_desktop} metadata::trusted true 2>/dev/null && \
+                 cp {webserver_desktop} {home_dir}/Desktop/servidor-web.desktop 2>/dev/null && \
+                 chmod +x {home_dir}/Desktop/servidor-web.desktop && \
+                 gio set {home_dir}/Desktop/servidor-web.desktop metadata::trusted true 2>/dev/null; true"
+            )));
+    }
 
     // Accesos a las herramientas en el escritorio. lxpanel no logra dibujar íconos de tema en Debian 13, pero
     // pcmanfm --desktop sí, así que, cuando la barra de accesos no puede usarse (ver fmfix arriba), los accesos rápidos
     // van como íconos del escritorio (solo los instalados). Con la barra funcionando no se crean.
-    steps.push(step("accesos-escritorio", format!(
-            "[ -f {home_dir}/.cache/labremoto/fmfix-{display}.ok ] && exit 0; \
-             cp {browser_desktop} {home_dir}/Desktop/labremoto-navegador.desktop 2>/dev/null; \
-             for A in pcmanfm lxterminal org.thonny.Thonny thonny geany code; do \
-               F=/usr/share/applications/$A.desktop; \
-               [ -f \"$F\" ] && cp \"$F\" {home_dir}/Desktop/labremoto-$A.desktop 2>/dev/null; \
-             done; \
-             for D in {home_dir}/Desktop/labremoto-*.desktop; do \
-               [ -f \"$D\" ] || continue; \
-               chmod +x \"$D\" && gio set \"$D\" metadata::trusted true 2>/dev/null; \
-             done; true"
-        )));
+    if practica {
+        // Práctica: un solo ícono, «Terminal», siempre (la tarea es abrirlo con doble clic).
+        steps.push(step("accesos-escritorio", format!(
+                "D={home_dir}/Desktop/labremoto-terminal.desktop; \
+                 printf '[Desktop Entry]\\nVersion=1.0\\nType=Application\\nName=Terminal\\nComment=Escribir órdenes\\nExec=lxterminal\\nIcon=utilities-terminal\\nTerminal=false\\n' > \"$D\" && \
+                 chmod +x \"$D\" && gio set \"$D\" metadata::trusted true 2>/dev/null; true"
+            )));
+    } else {
+        steps.push(step("accesos-escritorio", format!(
+                "[ -f {home_dir}/.cache/labremoto/fmfix-{display}.ok ] && exit 0; \
+                 cp {browser_desktop} {home_dir}/Desktop/labremoto-navegador.desktop 2>/dev/null; \
+                 for A in pcmanfm lxterminal org.thonny.Thonny thonny geany code; do \
+                   F=/usr/share/applications/$A.desktop; \
+                   [ -f \"$F\" ] && cp \"$F\" {home_dir}/Desktop/labremoto-$A.desktop 2>/dev/null; \
+                 done; \
+                 for D in {home_dir}/Desktop/labremoto-*.desktop; do \
+                   [ -f \"$D\" ] || continue; \
+                   chmod +x \"$D\" && gio set \"$D\" metadata::trusted true 2>/dev/null; \
+                 done; true"
+            )));
+    }
 
 
     steps
@@ -673,28 +692,49 @@ mod tests {
 
     #[test]
     fn scripts_de_preparacion_tienen_sintaxis_valida() {
-        assert_syntax("script 1", &build_script(20, "/home/pi", &setup_steps_1(20, "/home/pi"), false));
-        assert_syntax("script 2 con fondo", &build_script(20, "/home/pi", &setup_steps_2(20, "/home/pi", "/usr/share/bg.jpg"), true));
-        assert_syntax("script 2 sin fondo", &build_script(20, "/home/pi", &setup_steps_2(20, "/home/pi", ""), true));
+        for practica in [false, true] {
+            assert_syntax(&format!("script 1 (práctica={practica})"), &build_script(20, "/home/pi", &setup_steps_1(20, "/home/pi", practica), false));
+            assert_syntax(&format!("script 2 con fondo (práctica={practica})"), &build_script(20, "/home/pi", &setup_steps_2(20, "/home/pi", "/usr/share/bg.jpg", practica), true));
+            assert_syntax(&format!("script 2 sin fondo (práctica={practica})"), &build_script(20, "/home/pi", &setup_steps_2(20, "/home/pi", "", practica), true));
+        }
     }
 
     #[test]
     fn fondo_con_comilla_no_rompe_la_sintaxis() {
         assert_syntax(
             "script 2 con comilla",
-            &build_script(21, "/home/pi", &setup_steps_2(21, "/home/pi", "/home/pi/Imágenes/o'brien.jpg"), true),
+            &build_script(21, "/home/pi", &setup_steps_2(21, "/home/pi", "/home/pi/Imágenes/o'brien.jpg", false), true),
         );
     }
 
     #[test]
     fn los_pasos_tienen_nombres_unicos_y_el_script_termina_en_fin() {
-        let mut names: Vec<&str> = setup_steps_1(20, "/h").iter().map(|s| s.name).collect();
-        names.extend(setup_steps_2(20, "/h", "").iter().map(|s| s.name));
-        let total = names.len();
-        names.sort_unstable();
-        names.dedup();
-        assert_eq!(names.len(), total, "hay nombres de paso repetidos");
-        assert!(build_script(20, "/h", &setup_steps_1(20, "/h"), false).trim_end().ends_with("echo \"STEP:fin\""));
+        for practica in [false, true] {
+            let mut names: Vec<&str> = setup_steps_1(20, "/h", practica).iter().map(|s| s.name).collect();
+            names.extend(setup_steps_2(20, "/h", "", practica).iter().map(|s| s.name));
+            let total = names.len();
+            names.sort_unstable();
+            names.dedup();
+            assert_eq!(names.len(), total, "hay nombres de paso repetidos (práctica={practica})");
+            assert!(build_script(20, "/h", &setup_steps_1(20, "/h", practica), false).trim_end().ends_with("echo \"STEP:fin\""));
+        }
+    }
+
+    #[test]
+    fn el_escritorio_de_practica_solo_ofrece_la_terminal() {
+        let todo = |practica: bool| {
+            let mut t = build_script(20, "/home/pi", &setup_steps_1(20, "/home/pi", practica), false);
+            t.push_str(&build_script(20, "/home/pi", &setup_steps_2(20, "/home/pi", "", practica), true));
+            t
+        };
+        let practica = todo(true);
+        assert!(!practica.contains("type=menu"), "la práctica no lleva menú de inicio");
+        assert!(!practica.contains("chromium-browser-20"), "la práctica no prepara el navegador");
+        assert!(!practica.contains("pcmanfm.desktop"), "la práctica no ofrece el explorador de archivos");
+        assert!(practica.contains("labremoto-terminal.desktop"), "la práctica pone el ícono Terminal");
+        assert!(practica.contains("show_trash=0"), "la práctica oculta la papelera");
+        let normal = todo(false);
+        assert!(normal.contains("type=menu") && normal.contains("chromium-browser-20"), "el escritorio normal no cambia");
     }
 
     #[test]

@@ -409,18 +409,9 @@ async fn ssh_disconnect_impl(state: tauri::State<'_, std::sync::Arc<dyn SessionM
     map.remove(&id).ok_or_else(|| AppError::NotFoundSession.to_string())?
   };
 
-  if let Some(mut vnc) = session.vnc_session.take() {
-      vnc.stop_flag.store(true, Ordering::Relaxed);
-      if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
-      let display  = vnc.display_num;
-      vnc.host = "".to_string();
-      let kill_cmd = format!(
-          "{} rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n",
-          crate::cmd::vnc::utils::kill_display_cmd(&display.to_string(), "-9", false)
-      );
-      let _ = session.term.tx.send(ChanCmd::Send(kill_cmd.into_bytes()));
-      tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-  }
+  // El escritorio remoto se limpia solo al soltar su estado (ver `Drop for VncSessionState`), por una conexión
+  // aparte: no se escribe la orden de limpieza en la terminal, que quedaba en el historial del usuario.
+  drop(session.vnc_session.take());
 
   let _ = session.term.tx.send(ChanCmd::Close);
   let _ = manager.delete_session(&id).await;

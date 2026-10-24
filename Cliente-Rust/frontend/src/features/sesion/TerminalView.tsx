@@ -319,7 +319,11 @@ const VistaPractica: React.FC<TerminalViewProps & { terminalHost: HTMLElement }>
             minWidth: 0,
             minHeight: 0
           }}>
-            <DesktopPane sessionId={sessionId} isActive={activeView === 'escritorio' && isTabActive} />
+            <DesktopPane
+              sessionId={sessionId}
+              isActive={activeView === 'escritorio' && isTabActive}
+              perfil={practiceId ? 'practica' : undefined}
+            />
           </div>
 
           {/* Capa 3: Panel de control EV3 (práctica Eve3 vía API) — se superpone

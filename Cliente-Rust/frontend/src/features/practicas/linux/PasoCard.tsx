@@ -13,7 +13,11 @@ import { Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { ArrowRight, Check, ChevronDown, ChevronUp, Terminal } from 'lucide-react';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../linuxPractice.service';
 import { BlockView, CLASE_RESALTADA, STEP_GATE_EVENT } from './blocks/BlockRenderer';
-import { accionActual, accionesDelPaso, guiarTerminal, instruccion, tituloDelPaso, type AccionPaso, type PasoPractica } from './ritmo';
+import { accionActual, accionesDelPaso, esAccionDelPaso, guiarTerminal, instruccion, tituloDelPaso, type AccionPaso, type PasoPractica } from './ritmo';
+import {
+  EVENTO_ACCION_ESCRITORIO, INTERVALO_DETECCION_MS, accionEscritorioHecha, marcarAccionEscritorio, pedirVista,
+} from './escritorioPractica';
+import { vncProgramaAbierto } from '@/features/conexion/ssh.service';
 import './pasos.css';
 
 const EJERCICIOS = new Set<LinuxBlock['type']>([
@@ -80,16 +84,25 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
 
   const marcar = (id: string) => setHechasLocal((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
 
+  // Las acciones del escritorio remoto se marcan fuera (detección o botón): solo hay que repintar.
+  const [, repintar] = useState(0);
+  useEffect(() => {
+    const alHacerse = () => repintar((n) => n + 1);
+    document.addEventListener(EVENTO_ACCION_ESCRITORIO, alHacerse);
+    return () => document.removeEventListener(EVENTO_ACCION_ESCRITORIO, alHacerse);
+  }, []);
+
   const hechas = new Set(hechasLocal);
   for (const b of paso.bloques) {
     if (b.type === 'command_step' && comandoAprobado(b, rules, result)) hechas.add(b.id);
+    if ((b.type === 'desktop_task' || b.type === 'desktop_close') && accionEscritorioHecha(b.id)) hechas.add(b.id);
   }
   // Leer no tiene botón: cuenta como hecho apenas hace cualquier otra cosa del paso.
   if (acciones.some((a) => a.tipo !== 'leer' && hechas.has(a.id))) hechas.add('leer');
 
   const completo = paso.conBoton
     ? hechas.has('siguiente')
-    : paso.bloques.every((b) => b.type !== 'command_step' || hechas.has(b.id));
+    : paso.bloques.every((b) => !esAccionDelPaso(b) || hechas.has(b.id));
   if (completo) hechas.add('leer');
 
   const titulo = tituloDelPaso(paso);
@@ -105,6 +118,33 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
     guiarTerminal({ sessionId, origen: paso.id, resaltar: pideTerminal });
     return () => guiarTerminal({ sessionId, origen: paso.id, resaltar: false });
   }, [sessionId, paso.id, pideTerminal]);
+
+  // Tarea del escritorio pendiente: al llegar se muestra el escritorio (una vez por paso: si el estudiante vuelve a
+  // la terminal no se le fuerza) y se le pregunta a la Pi, cada pocos segundos, si ya abrió el programa.
+  const tareaEscritorio = completo
+    ? undefined
+    : paso.bloques.find((b): b is Extract<LinuxBlock, { type: 'desktop_task' }> => b.type === 'desktop_task' && !hechas.has(b.id));
+  const idTarea = tareaEscritorio?.id;
+  const programa = tareaEscritorio?.programa;
+  useEffect(() => {
+    if (idTarea) pedirVista('escritorio');
+  }, [idTarea]);
+  useEffect(() => {
+    if (!idTarea || !programa || !sessionId) return;
+    let vivo = true;
+    const revisar = async () => {
+      try {
+        if ((await vncProgramaAbierto(sessionId, programa)) && vivo) marcarAccionEscritorio(idTarea);
+      } catch {
+        // Escritorio todavía arrancando o un corte de red: se vuelve a preguntar en la próxima vuelta.
+      }
+    };
+    const vuelta = window.setInterval(revisar, INTERVALO_DETECCION_MS);
+    return () => {
+      vivo = false;
+      window.clearInterval(vuelta);
+    };
+  }, [idTarea, programa, sessionId]);
 
   const textoAhora = (a: AccionPaso | null, r: AccionPaso | null) => {
     if (!a) return null;
@@ -175,6 +215,7 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
         practiceId={practiceId}
         resaltar={resaltada?.id === b.id}
         onAbierto={() => marcar(b.id)}
+        sessionId={sessionId}
       />
     );
     if (!EJERCICIOS.has(b.type)) return vista;
