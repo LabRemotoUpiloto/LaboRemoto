@@ -16,6 +16,7 @@ import { deleteHostFile, listHostEntries, type SavedHostFileEntry } from '@/lib/
 import NuevaConexionDialogo, { type EquipoRapido } from './NuevaConexionDialogo';
 import { useConectarGuardado } from './useConectarGuardado';
 import { useRecentConnections, type RecentConnection } from './useRecentConnections';
+import { precargar } from '@/app/diferidos';
 
 export type PestanaConexiones = 'equipos' | 'registros';
 const POR_PAGINA = 8;
@@ -102,6 +103,8 @@ function Equipos({ onConnected }: { onConnected: Props['onConnected'] }) {
     }
   }, []);
   useEffect(() => { void cargar(); }, [cargar]);
+  // quien abre Conexiones suele conectarse: la sesión y el chat se adelantan (app/diferidos.ts)
+  useEffect(() => { precargar('sesion', 'lectores'); }, []);
   useEffect(() => { setPagina(1); }, [q]);
   // «Nueva conexión» está en el encabezado (fuera de esta parte): llega por evento
   useEffect(() => {

@@ -2,15 +2,11 @@ import React, { useRef, useState } from 'react';
 import { ChatMode, Message } from '../modos/types';
 import ModeSelect from './ModeSelect';
 import { MAX_CHAR_WARN, MODE_PLACEHOLDERS } from './chatPane.constants';
-import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { ActionIcon, Menu, Textarea } from '@mantine/core';
 import { Image, FileText, Send, Square, Plus, Paperclip, History, X, SquarePen, Lock } from 'lucide-react';
 import ModelSelect from './ModelSelect';
 import { ModelSelection } from '../modos/types';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+import { cargarLectores } from '@/app/diferidos';
 
 interface Props {
   input: string;
@@ -95,6 +91,7 @@ const ChatInput: React.FC<Props> = ({
       if (file.size > 10_000_000) { setToast('Archivo Word demasiado grande (máx. 10 MB)'); setTimeout(() => setToast(null), 2500); return; }
       try {
         setToast(`Procesando "${file.name}"…`);
+        const { mammoth } = await cargarLectores();
         const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
         const text = result.value.trim();
         if (!text) { setToast('El documento Word está vacío'); setTimeout(() => setToast(null), 2500); return; }
@@ -107,6 +104,7 @@ const ChatInput: React.FC<Props> = ({
       if (file.size > 20_000_000) { setToast('PDF demasiado grande (máx. 20 MB)'); setTimeout(() => setToast(null), 2500); return; }
       try {
         setToast(`Procesando "${file.name}"…`);
+        const { pdfjsLib } = await cargarLectores();
         const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
         const pageTexts: string[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {

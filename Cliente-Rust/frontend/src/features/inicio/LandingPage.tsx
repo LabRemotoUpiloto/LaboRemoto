@@ -8,7 +8,7 @@ import { canAccessPage, useEffectiveRole } from '@/features/cuenta/usePermission
 import { dispositivosService, type DispositivoActividad } from '@/features/actividad/dispositivos.service';
 import { sesionesService } from '@/features/actividad/sesiones.service';
 import { RANKS, useEarnedBadges } from '@/features/practicas/badges.service';
-import { PILOT_GROUP_KEY } from '@/features/camaras/CameraGrid';
+import { PILOT_GROUP_KEY } from '@/features/camaras/grupos';
 import { invoke } from '@tauri-apps/api/core';
 import type { NvrCamera } from '@/bindings/NvrCamera';
 import AgentHomeHero from './AgentHomeHero';

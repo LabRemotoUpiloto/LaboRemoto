@@ -8,11 +8,10 @@
 // rayos de luz cálidos de fondo en vez de confeti/fuegos artificiales.
 //
 // Estilos en Tailwind inline (mismo criterio que el resto del proyecto,
-// keyframes compartidos en tailwind.config.js) -- lo único animado fuera de
-// GSAP son el fondo (rayos) y la entrada del modal, con `motion-reduce:`
+// keyframes compartidos en tailwind.config.js) -- lo animado con CSS son el
+// fondo (rayos) y la entrada del modal, con `motion-reduce:`
 // para respetar prefers-reduced-motion sin un media query a mano.
 import React, { useEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
 import type { PosterDef } from '../posters.service';
 import { linuxGetMedia } from '../linuxPractice.service';
 
@@ -51,7 +50,6 @@ export const PosterUnlockCelebration: React.FC<PosterUnlockCelebrationProps> = (
     [],
   );
 
-  const stageRef = useRef<HTMLDivElement>(null);
   const imageWrapRef = useRef<HTMLDivElement>(null);
   const shineRef = useRef<HTMLDivElement>(null);
   const detailsRef = useRef<HTMLDivElement>(null);
@@ -72,34 +70,36 @@ export const PosterUnlockCelebration: React.FC<PosterUnlockCelebrationProps> = (
   useEffect(() => {
     if (!imgUrl) return;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const els = {
-      imageWrap: imageWrapRef.current,
-      shine: shineRef.current,
-      details: detailsRef.current,
-      actions: actionsRef.current,
-    };
-    if (reduceMotion || !els.imageWrap) {
-      gsap.set([els.details, els.actions].filter(Boolean), { opacity: 1, y: 0 });
-      if (els.imageWrap) gsap.set(els.imageWrap, { scaleY: 1 });
+    const rollo = imageWrapRef.current;
+    const brillo = shineRef.current;
+    const textos = [detailsRef.current, actionsRef.current].filter(Boolean) as HTMLElement[];
+    if (reduceMotion || !rollo) {
+      textos.forEach((el) => { el.style.opacity = '1'; });
       return;
     }
 
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline();
-      tl.set(els.imageWrap, { scaleY: 0.03 })
-        .set([els.details, els.actions], { opacity: 0, y: 10 })
-        .set(els.shine, { opacity: 0, xPercent: -130 })
-        // 1) el pergamino se desenrolla desde el rodillo de arriba
-        .to(els.imageWrap, { scaleY: 1, duration: 1.05, ease: 'power2.inOut' }, 0.1)
-        // 2) brillo cruza la imagen ya revelada
-        .to(els.shine, { opacity: 0.5, xPercent: 130, duration: 0.7, ease: 'power1.inOut' }, 1.05)
-        .to(els.shine, { opacity: 0, duration: 0.2 }, 1.65)
-        // 3) título + acciones
-        .to(els.details, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 1.35)
-        .to(els.actions, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 1.55);
-    }, stageRef);
+    // con la API de animaciones del navegador (element.animate); las curvas de antes (GSAP), en cubic-bezier
+    const SUAVE = 'cubic-bezier(0.45, 0, 0.55, 1)';
+    const FRENA = 'cubic-bezier(0.33, 1, 0.68, 1)';
+    const animaciones: Animation[] = [
+      // 1) el pergamino se desenrolla desde el rodillo de arriba
+      rollo.animate([{ scale: '1 0.03' }, { scale: '1 1' }], { delay: 100, duration: 1050, easing: SUAVE, fill: 'both' }),
+      // 3) título + acciones
+      ...textos.map((el, i) => el.animate(
+        [{ opacity: 0, translate: '0 10px' }, { opacity: 1, translate: '0 0' }],
+        { delay: i ? 1550 : 1350, duration: i ? 350 : 400, easing: FRENA, fill: 'both' },
+      )),
+    ];
+    // 2) brillo cruza la imagen ya revelada y se apaga
+    if (brillo) {
+      animaciones.push(brillo.animate([
+        { opacity: 0, translate: '-130% 0', easing: SUAVE },
+        { opacity: 0.5, translate: '130% 0', offset: 0.875 },
+        { opacity: 0, translate: '130% 0' },
+      ], { delay: 1050, duration: 800, fill: 'both' }));
+    }
 
-    return () => ctx.revert();
+    return () => animaciones.forEach((a) => a.cancel());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imgUrl]);
 
@@ -129,7 +129,7 @@ export const PosterUnlockCelebration: React.FC<PosterUnlockCelebrationProps> = (
         style={{ background: 'var(--background-secondary, #1e2030)', borderColor: 'var(--border-subtle, rgba(255,255,255,0.1))' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-2.5 flex w-full justify-center" ref={stageRef}>
+        <div className="mb-2.5 flex w-full justify-center">
           <div className="flex w-[220px] flex-col items-center">
             <div
               aria-hidden="true"
@@ -168,8 +168,8 @@ export const PosterUnlockCelebration: React.FC<PosterUnlockCelebrationProps> = (
         <div ref={actionsRef} className="mt-[18px] flex flex-col items-center gap-2.5">
           <p className="m-0 max-w-[320px] text-xs" style={{ color: 'var(--text-secondary, #9ca3af)' }}>
             {downloadDone
-              ? 'Guardado en tu computadora. También lo podés ver cuando quieras en tu Sala de Trofeos, en tu Perfil.'
-              : 'Ya lo podés ver cuando quieras en tu Sala de Trofeos, en tu Perfil — o descargarlo ahora.'}
+              ? 'Guardado en tu computadora. También lo puedes ver cuando quieras en tu Perfil.'
+              : 'Ya lo puedes ver cuando quieras en tu Perfil, o descargarlo ahora.'}
           </p>
           <div className="flex gap-2.5">
             <button

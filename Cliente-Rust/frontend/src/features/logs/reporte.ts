@@ -1,6 +1,5 @@
 // features/logs/reporte.ts — PDF con los comandos de una sesión (desde la lista y desde el registro abierto).
 import { invoke } from '@tauri-apps/api/core';
-import html2pdf from 'html2pdf.js';
 import { buildCommandsReportHtml } from './commandParser';
 import { extractSessionCommands } from './session.service';
 import type { SessionLog } from './sesiones';
@@ -16,6 +15,8 @@ export async function guardarReporteComandos(session: SessionLog): Promise<strin
     startTime: session.startedAt,
     endTime: session.endedAt,
   });
+  // html2pdf (con html2canvas y jsPDF) pesa cerca de 2 MB: se carga solo al generar un reporte
+  const { default: html2pdf } = await import('html2pdf.js');
   const base64 = await html2pdf().set({
     margin: 10,
     filename: `Commands_Report_${session.host}.pdf`,

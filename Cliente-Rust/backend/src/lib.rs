@@ -96,6 +96,16 @@ pub fn run() {
       // un refresh_token guardado y aún vigente) sin bloquear el arranque de
       // la ventana. Ver `auth::token_store` y `auth::commands::try_restore_session`.
       tauri::async_runtime::spawn(crate::auth::commands::try_restore_session(app.handle().clone()));
+      // La ventana nace oculta (tauri.conf.json) y la muestra index.html en cuanto pinta la pantalla de carga. Si eso no pasa
+      // (el frontend no cargó), se muestra igual a los pocos segundos: nunca queda una app abierta e invisible.
+      if let Some(ventana) = app.get_webview_window("main") {
+        std::thread::spawn(move || {
+          std::thread::sleep(std::time::Duration::from_secs(4));
+          if !ventana.is_visible().unwrap_or(true) {
+            let _ = ventana.show();
+          }
+        });
+      }
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
