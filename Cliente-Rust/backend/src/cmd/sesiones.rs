@@ -46,6 +46,20 @@ pub struct SesionPractica {
     pub fuente_ubicacion: Option<String>,
     /// Precisión reportada por el equipo, en metros (solo fuente "dispositivo").
     pub precision_m: Option<f64>,
+    /// Ubicación por IP y operador de la red, guardados aparte de la del equipo: si no cuadran, Actividad la marca como dudosa.
+    #[serde(default)]
+    pub ip_ciudad: Option<String>,
+    #[serde(default)]
+    pub ip_region: Option<String>,
+    #[serde(default)]
+    pub ip_pais: Option<String>,
+    #[serde(default)]
+    pub ip_lat: Option<f64>,
+    #[serde(default)]
+    pub ip_lon: Option<f64>,
+    /// Operador de la red («AS10620 Telmex Colombia S.A.»): casa, celular, universidad o un servidor.
+    #[serde(default)]
+    pub ip_org: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, TS)]

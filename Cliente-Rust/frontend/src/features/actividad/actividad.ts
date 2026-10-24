@@ -1,5 +1,5 @@
 // features/actividad/actividad.ts — la actividad del laboratorio remoto en una sola lista: prácticas, trabajo por SSH y uso de la app.
-// Todo lo de la página (en vivo, histórico, mapa, personas, gráficas) sale de aquí; sin React, para probarlo.
+// Todo lo de la página (en vivo, histórico, mapa, personas, gráficas, «para revisar») sale de aquí; sin React, para probarlo.
 import type { SesionPractica } from './sesiones.service';
 import type { ConexionDispositivo } from './dispositivos.service';
 import { esIpLocal } from './dispositivosStats';
@@ -18,24 +18,80 @@ export interface Actividad {
   inicio: number;
   /** null mientras sigue. */
   fin: number | null;
+  /** Dónde se ubica en el mapa: la del equipo, salvo que sea dudosa (entonces la de la IP). */
   lugar: string;
   lat: number | null;
   lon: number | null;
+  /** Código del país de `lugar` (para «entró desde otro país»). */
+  pais: string | null;
+  ip: string | null;
+  /** Operador de la red («AS10620 Telmex Colombia S.A.»). */
+  operador: string | null;
+  /** Cómo se ubicó lo que se muestra. */
+  ubicadoPor: 'equipo' | 'ip' | null;
+  precisionM: number | null;
+  /** El equipo dijo un lugar y la IP otro muy distinto (otro país o a más de 300 km): se muestra el de la IP. */
+  dudosa: boolean;
+  /** Lo que dijo el equipo, cuando la ubicación es dudosa. */
+  lugarEquipo: string | null;
 }
 
 export const TEXTO_TIPO: Record<Tipo, string> = { practica: 'En práctica', ssh: 'Trabajando por SSH', app: 'En la app' };
 
 const personaDe = (usuario: string) => usuario.replace(/^.*\\/, '').split('@')[0].toLowerCase();
-const lugarDe = (x: { ciudad: string | null; pais: string | null }) => [x.ciudad, x.pais].filter(Boolean).join(', ') || 'Sin ubicación';
+
+let paises: Intl.DisplayNames | null = null;
+/** «CO» → «Colombia» (si no se sabe el nombre, queda el código). */
+export function nombrePais(codigo: string | null): string | null {
+  if (!codigo) return null;
+  try { paises ??= new Intl.DisplayNames(['es'], { type: 'region' }); return paises.of(codigo) ?? codigo; } catch { return codigo; }
+}
+const lugarDe = (ciudad: string | null, pais: string | null) => [ciudad, nombrePais(pais)].filter(Boolean).join(', ') || null;
+
+/** Distancia en km entre dos puntos (haversine). */
+export function distanciaKm(a: [number, number], b: [number, number]): number {
+  const rad = Math.PI / 180;
+  const dLat = (b[0] - a[0]) * rad, dLon = (b[1] - a[1]) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+interface Punto { ciudad: string | null; pais: string | null; lat: number | null; lon: number | null }
+type Ubicacion = Pick<Actividad, 'lugar' | 'lat' | 'lon' | 'pais' | 'ubicadoPor' | 'dudosa' | 'lugarEquipo'>;
+
+/**
+ * Decide qué ubicación mostrar. La del equipo es la más precisa, pero el servicio de ubicación de Windows a veces se equivoca
+ * feo (dijo Venezuela para una IP de Bogotá): si equipo e IP caen en países distintos o a más de 300 km, se muestra la de la IP
+ * y queda marcada como dudosa, con lo que dijo el equipo.
+ */
+export function ubicar(equipo: Punto | null, ip: Punto | null): Ubicacion {
+  const tiene = (p: Punto | null): p is Punto => !!p && (p.lat != null || !!p.ciudad || !!p.pais);
+  const conCoordenadas = (p: Punto | null): p is Punto & { lat: number; lon: number } => !!p && p.lat != null && p.lon != null;
+  const dudosa = conCoordenadas(equipo) && conCoordenadas(ip) && (
+    (!!equipo.pais && !!ip.pais && equipo.pais !== ip.pais) || distanciaKm([equipo.lat, equipo.lon], [ip.lat, ip.lon]) > 300);
+  const usar = !dudosa && tiene(equipo) ? equipo : tiene(ip) ? ip : null;
+  return {
+    lugar: (usar && lugarDe(usar.ciudad, usar.pais)) || 'Sin ubicación',
+    lat: usar?.lat ?? null, lon: usar?.lon ?? null, pais: usar?.pais ?? null,
+    ubicadoPor: !usar ? null : usar === equipo ? 'equipo' : 'ip',
+    dudosa, lugarEquipo: dudosa ? lugarDe(equipo!.ciudad, equipo!.pais) : null,
+  };
+}
 
 /** Prácticas y uso de la app, del registro de sesiones (`clase`; las viejas no lo traen y son prácticas). */
 export function desdeSesiones(sesiones: SesionPractica[]): Actividad[] {
   return sesiones.map((s) => {
     const app = s.clase === 'app';
+    const principal = { ciudad: s.ciudad, pais: s.pais, lat: s.lat, lon: s.lon };
+    const delEquipo = s.fuente_ubicacion === 'dispositivo';
+    // Las sesiones guardadas antes de separar la ubicación por IP solo traen la principal: si era por IP, esa es.
+    const deIp = s.ip_pais != null ? { ciudad: s.ip_ciudad, pais: s.ip_pais, lat: s.ip_lat, lon: s.ip_lon } : delEquipo ? null : principal;
     return {
       id: s.id, tipo: app ? 'app' : 'practica', persona: personaDe(s.usuario), nombre: s.nombre || s.usuario,
       detalle: app ? 'En la app' : (s.practica_nombre || s.practica_id || 'Práctica sin nombre').replace(/^Práctica:\s*/, ''),
-      inicio: Date.parse(s.inicio), fin: s.fin ? Date.parse(s.fin) : null, lugar: lugarDe(s), lat: s.lat, lon: s.lon,
+      inicio: Date.parse(s.inicio), fin: s.fin ? Date.parse(s.fin) : null,
+      ...ubicar(delEquipo ? principal : null, deIp),
+      ip: s.ip, operador: s.ip_org ?? null, precisionM: delEquipo ? s.precision_m : null,
     };
   });
 }
@@ -52,11 +108,17 @@ export function desdeConexiones(conexiones: ConexionDispositivo[], equipo: strin
   return conexiones.flatMap((c) => {
     const persona = c.persona ? c.persona.toLowerCase() : personaDe(c.usuario);
     if (dePractica(c, persona)) return [];
+    const principal = { ciudad: c.ciudad, pais: c.pais, lat: c.lat, lon: c.lon };
+    const delEquipo = c.fuente === 'dispositivo';
+    const deIp = c.ipPais != null ? { ciudad: c.ipCiudad, pais: c.ipPais, lat: c.ipLat, lon: c.ipLon } : delEquipo ? null : principal;
+    const u = ubicar(delEquipo ? principal : null, deIp);
     return [{
       id: c.id, tipo: 'ssh' as const, persona, nombre: c.nombre || c.usuario, detalle: `SSH a ${equipo}`,
       inicio: Date.parse(c.inicio), fin: c.activa ? null : c.fin ? Date.parse(c.fin) : null,
+      ...u,
       // desde la red del laboratorio no hay ubicación por IP: se dice así en vez de «Sin ubicación»
-      lugar: c.ciudad || c.pais || !esIpLocal(c.ip) ? lugarDe(c) : 'Red local', lat: c.lat, lon: c.lon,
+      lugar: u.ubicadoPor === null && esIpLocal(c.ip) ? 'Red local' : u.lugar,
+      ip: c.ip, operador: c.ipOrg ?? null, precisionM: delEquipo ? c.precisionM : null,
     }];
   });
 }
@@ -143,6 +205,69 @@ export function cuandoSeUsa(actividades: Actividad[]): number[][] {
     celdas[(d.getDay() + 6) % 7][d.getHours()]++;
   }
   return celdas;
+}
+
+// ── Para revisar ──────────────────────────────────────────────────────────────
+
+/** Operadores de centros de datos y VPN: una persona del laboratorio no suele entrar desde ahí. */
+const SERVIDOR = /amazon|aws|google cloud|google llc|microsoft|azure|digitalocean|ovh|hetzner|linode|akamai|vultr|oracle|contabo|m247|datacamp|cloudflare|leaseweb|choopa|hosting|vpn|\btor\b|proxy/i;
+
+/** «AS10620 Telmex Colombia S.A.» → «Telmex Colombia S.A.». */
+export const nombreOperador = (org: string | null) => (org ? org.replace(/^AS\d+\s+/, '') : null);
+
+export type Motivo = 'dudosa' | 'pais' | 'servidor';
+export const TEXTO_MOTIVO: Record<Motivo, string> = { dudosa: 'Ubicación dudosa', pais: 'Otro país', servidor: 'Servidor o VPN' };
+
+export interface ParaRevisar {
+  id: string;
+  motivo: Motivo;
+  persona: string;
+  nombre: string;
+  /** Lo que se vio, una cosa por línea («Equipo: …», «IP: …»). */
+  lineas: string[];
+  veces: number;
+  ultima: number;
+  /** El lugar del mapa al que lleva. */
+  lugar: string | null;
+}
+
+/**
+ * Lo que se sale de lo normal en el período: ubicaciones que no cuadran, una persona que entra desde un país distinto al de
+ * siempre y entradas desde centros de datos o VPN. Agrupado por persona y motivo; lo más reciente primero.
+ */
+export function paraRevisar(actividades: Actividad[]): ParaRevisar[] {
+  const grupos = new Map<string, ParaRevisar>();
+  const sumar = (clave: string, a: Actividad, motivo: Motivo, lineas: string[]) => {
+    const g = grupos.get(clave) ?? { id: clave, motivo, persona: a.persona, nombre: a.nombre, lineas, veces: 0, ultima: 0, lugar: a.lugar };
+    g.veces++;
+    g.ultima = Math.max(g.ultima, a.inicio);
+    grupos.set(clave, g);
+  };
+  const paisesPorPersona = new Map<string, Map<string, number>>();
+  for (const a of actividades) {
+    if (!a.pais) continue;
+    const m = paisesPorPersona.get(a.persona) ?? new Map<string, number>();
+    m.set(a.pais, (m.get(a.pais) ?? 0) + 1);
+    paisesPorPersona.set(a.persona, m);
+  }
+  const habitual = (persona: string) => {
+    const m = paisesPorPersona.get(persona);
+    return m && m.size > 1 ? [...m.entries()].sort((x, y) => y[1] - x[1])[0][0] : null;
+  };
+  for (const a of actividades) {
+    if (a.dudosa) {
+      sumar(`dudosa:${a.persona}:${a.lugarEquipo}:${a.lugar}`, a, 'dudosa',
+        [`Equipo: ${a.lugarEquipo}`, `IP: ${a.lugar}${a.operador ? ` (${nombreOperador(a.operador)})` : ''}`]);
+    }
+    if (a.operador && SERVIDOR.test(a.operador)) {
+      sumar(`servidor:${a.persona}:${a.operador}`, a, 'servidor', [`Operador: ${nombreOperador(a.operador)}`, `IP: ${a.ip}, ${a.lugar}`]);
+    }
+    const h = habitual(a.persona);
+    if (a.pais && h && a.pais !== h) {
+      sumar(`pais:${a.persona}:${a.pais}`, a, 'pais', [`Esta vez: ${a.lugar}`, `Lo habitual: ${nombrePais(h)}`]);
+    }
+  }
+  return [...grupos.values()].sort((a, b) => b.ultima - a.ultima);
 }
 
 // ── Formatos ──────────────────────────────────────────────────────────────────

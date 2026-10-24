@@ -1,8 +1,8 @@
 // Actividad: prácticas, trabajo por SSH y uso de la app en una sola lista.
 import { describe, expect, it } from 'vitest';
 import {
-  cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, encuadrar, enVivo, lapso, lugares, personas, porDia, recientes,
-  total, type Actividad,
+  cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, encuadrar, enVivo, lapso, lugares, nombreOperador, paraRevisar,
+  personas, porDia, recientes, total, ubicar, type Actividad,
 } from '@/features/actividad/actividad';
 import type { SesionPractica } from '@/features/actividad/sesiones.service';
 import type { ConexionDispositivo } from '@/features/actividad/dispositivos.service';
@@ -47,7 +47,8 @@ describe('unir prácticas, app y SSH', () => {
 
 const act = (id: string, persona: string, tipo: Actividad['tipo'], inicioMin: number, finMin: number | null, extra: Partial<Actividad> = {}): Actividad => ({
   id, tipo, persona, nombre: persona, detalle: tipo, inicio: AHORA - inicioMin * 60_000, fin: finMin === null ? null : AHORA - finMin * 60_000,
-  lugar: 'Bogotá, CO', lat: 4.6, lon: -74.08, ...extra,
+  lugar: 'Bogotá, CO', lat: 4.6, lon: -74.08, pais: 'CO', ip: '203.0.113.7', operador: null, ubicadoPor: 'ip', precisionM: null,
+  dudosa: false, lugarEquipo: null, ...extra,
 });
 
 describe('en vivo', () => {
@@ -115,5 +116,53 @@ describe('formatos', () => {
     expect(lapso(125 * 60_000)).toBe('2 h 05 min');
     expect(lapso(50 * 3_600_000)).toBe('2 d');
     expect(total(31 * 3_600_000 + 5 * 60_000)).toBe('31 h 05 min');
+  });
+});
+
+describe('ubicación', () => {
+  const bogota = { ciudad: 'Bogotá', pais: 'CO', lat: 4.6, lon: -74.08 };
+  const chia = { ciudad: 'Chía', pais: 'CO', lat: 4.86, lon: -74.05 };
+  const mariara = { ciudad: 'Libertador, Mariara', pais: 'VE', lat: 10.29, lon: -67.71 };
+
+  it('la del equipo manda si cuadra con la de la IP', () => {
+    expect(ubicar(chia, bogota)).toMatchObject({ lugar: 'Chía, Colombia', ubicadoPor: 'equipo', dudosa: false, lugarEquipo: null });
+  });
+
+  it('si el equipo dice otro país (o está a más de 300 km de la IP), se muestra la IP y queda dudosa', () => {
+    expect(ubicar(mariara, bogota)).toMatchObject({ lugar: 'Bogotá, Colombia', lat: 4.6, ubicadoPor: 'ip', dudosa: true, lugarEquipo: 'Libertador, Mariara, Venezuela' });
+    expect(ubicar({ ciudad: 'Cali', pais: 'CO', lat: 3.45, lon: -76.53 }, bogota).dudosa).toBe(true);
+  });
+
+  it('sin la del equipo, la de la IP; sin ninguna, sin ubicación', () => {
+    expect(ubicar(null, bogota)).toMatchObject({ lugar: 'Bogotá, Colombia', ubicadoPor: 'ip' });
+    expect(ubicar(null, null)).toMatchObject({ lugar: 'Sin ubicación', ubicadoPor: null, lat: null });
+  });
+
+  it('una sesión guarda las dos: el caso de Venezuela con una IP de Bogotá', () => {
+    const [a] = desdeSesiones([sesion('s1', {
+      fuente_ubicacion: 'dispositivo', ciudad: 'Libertador, Mariara', pais: 'VE', lat: 10.29, lon: -67.71, precision_m: 110,
+      ip_ciudad: 'Bogotá', ip_region: null, ip_pais: 'CO', ip_lat: 4.6, ip_lon: -74.08, ip_org: 'AS10620 Telmex Colombia S.A.',
+    })]);
+    expect([a.lugar, a.dudosa, a.lugarEquipo, a.operador]).toEqual(['Bogotá, Colombia', true, 'Libertador, Mariara, Venezuela', 'AS10620 Telmex Colombia S.A.']);
+  });
+});
+
+describe('para revisar', () => {
+  it('ubicaciones que no cuadran, un país distinto al de siempre y servidores o VPN; agrupado y lo más reciente primero', () => {
+    const items = paraRevisar([
+      act('1', 'haider', 'practica', 300, 280, { dudosa: true, lugarEquipo: 'Mariara, Venezuela', lugar: 'Bogotá, Colombia', operador: 'AS10620 Telmex Colombia S.A.' }),
+      act('2', 'haider', 'practica', 200, 180, { dudosa: true, lugarEquipo: 'Mariara, Venezuela', lugar: 'Bogotá, Colombia' }),
+      act('3', 'ana', 'ssh', 100, 90), act('4', 'ana', 'ssh', 90, 80), act('5', 'ana', 'ssh', 50, 40, { pais: 'BR', lugar: 'São Paulo, Brasil' }),
+      act('6', 'beto', 'ssh', 20, 10, { operador: 'AS14061 DigitalOcean, LLC', ip: '159.89.1.1' }),
+    ]);
+    expect(items.map((x) => [x.motivo, x.persona, x.veces])).toEqual([['servidor', 'beto', 1], ['pais', 'ana', 1], ['dudosa', 'haider', 2]]);
+    expect(items[1].lineas).toEqual(['Esta vez: São Paulo, Brasil', 'Lo habitual: Colombia']);
+    expect(items[0].lineas).toEqual(['Operador: DigitalOcean, LLC', 'IP: 159.89.1.1, Bogotá, CO']);
+    expect(items[2].lineas).toEqual(['Equipo: Mariara, Venezuela', 'IP: Bogotá, Colombia (Telmex Colombia S.A.)']);
+  });
+
+  it('sin nada raro, nada que revisar; el operador se muestra sin el número de AS', () => {
+    expect(paraRevisar([act('1', 'ana', 'ssh', 10, 5)])).toEqual([]);
+    expect(nombreOperador('AS10620 Telmex Colombia S.A.')).toBe('Telmex Colombia S.A.');
   });
 });

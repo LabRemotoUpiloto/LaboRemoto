@@ -23,4 +23,16 @@ fin: string | null, activa: boolean,
 /**
  * "cliente" (cerró la sesión) | "sin_cierre" (el dispositivo dejó de verla abierta)
  */
-cierre: string | null, ip: string, ciudad: string | null, region: string | null, pais: string | null, lat: number | null, lon: number | null, };
+cierre: string | null, ip: string, ciudad: string | null, region: string | null, pais: string | null, lat: number | null, lon: number | null, 
+/**
+ * "dispositivo" (la del equipo, de una práctica o de la app en la misma IP) | "ip" | None (sin ubicación).
+ */
+fuente: string | null, precisionM: number | null, 
+/**
+ * Ubicación por IP y operador de la red, guardados aparte de la del equipo: si no cuadran, Actividad la marca como dudosa.
+ */
+ipCiudad: string | null, ipRegion: string | null, ipPais: string | null, ipLat: number | null, ipLon: number | null, 
+/**
+ * Operador de la red («AS10620 Telmex Colombia S.A.»): casa, celular, universidad o un servidor.
+ */
+ipOrg: string | null, };

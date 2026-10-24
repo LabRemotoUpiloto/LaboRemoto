@@ -37,6 +37,25 @@ pub struct ConexionDispositivo {
     pub pais: Option<String>,
     pub lat: Option<f64>,
     pub lon: Option<f64>,
+    /// "dispositivo" (la del equipo, de una práctica o de la app en la misma IP) | "ip" | None (sin ubicación).
+    #[serde(default)]
+    pub fuente: Option<String>,
+    #[serde(default)]
+    pub precision_m: Option<f64>,
+    /// Ubicación por IP y operador de la red, guardados aparte de la del equipo: si no cuadran, Actividad la marca como dudosa.
+    #[serde(default)]
+    pub ip_ciudad: Option<String>,
+    #[serde(default)]
+    pub ip_region: Option<String>,
+    #[serde(default)]
+    pub ip_pais: Option<String>,
+    #[serde(default)]
+    pub ip_lat: Option<f64>,
+    #[serde(default)]
+    pub ip_lon: Option<f64>,
+    /// Operador de la red («AS10620 Telmex Colombia S.A.»): casa, celular, universidad o un servidor.
+    #[serde(default)]
+    pub ip_org: Option<String>,
 }
 
 /// La cuenta compartida `pi` (prácticas EV3): no identifica a la persona, solo se cuenta.
