@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 5174 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\" & vite --port 5174",
     "build": "vite build",
+    "build:informe": "vite build --mode informe",
     "preview": "vite preview --port 5174",
     "test": "vitest run",
     "test:watch": "vitest",

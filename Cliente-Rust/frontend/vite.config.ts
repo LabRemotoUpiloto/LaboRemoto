@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { informePaquetes } from './vite.informe'
 
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(({ mode }) => ({
+  // `vite build --mode informe` (npm run build:informe): qué pesa cada paquete y qué se carga al arrancar
+  plugins: [react(), ...(mode === 'informe' ? [informePaquetes()] : [])],
   // `@/` = src/ (también en tsconfig.json y vitest.config.ts)
   resolve: { alias: { '@': '/src' } },
   server: {
@@ -27,4 +29,4 @@ export default defineConfig({
       },
     },
   }
-})
+}))
