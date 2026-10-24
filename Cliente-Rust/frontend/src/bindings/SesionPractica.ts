@@ -31,4 +31,12 @@ fuente_ubicacion: string | null,
 /**
  * Precisión reportada por el equipo, en metros (solo fuente "dispositivo").
  */
-precision_m: number | null, };
+precision_m: number | null, 
+/**
+ * Ubicación por IP y operador de la red, guardados aparte de la del equipo: si no cuadran, Actividad la marca como dudosa.
+ */
+ip_ciudad: string | null, ip_region: string | null, ip_pais: string | null, ip_lat: number | null, ip_lon: number | null, 
+/**
+ * Operador de la red («AS10620 Telmex Colombia S.A.»): casa, celular, universidad o un servidor.
+ */
+ip_org: string | null, };
