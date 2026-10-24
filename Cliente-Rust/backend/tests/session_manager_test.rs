@@ -18,6 +18,7 @@ fn make_bundle(access_secs: u64, refresh_secs: u64) -> TokenBundle {
         refresh_token: "eyJ.fake.refresh".to_string(),
         access_expires_at: Instant::now() + Duration::from_secs(access_secs),
         refresh_expires_at: Instant::now() + Duration::from_secs(refresh_secs),
+        refresh_expires_at_unix: 9999999999,
         claims: StoredClaims {
             sub: "d66688b1-e8b7-4c88-97c8-3458be291d89".to_string(),
             preferred_username: "david-carreno1".to_string(),

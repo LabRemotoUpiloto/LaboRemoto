@@ -1,0 +1,40 @@
+# Comandos de Tauri registrados en backend/src/lib.rs que el frontend NO invoca y que se
+# conservan a propósito (decisión del 2026-10-24: se retiró lo demás; esto se deja hasta decidir).
+# Cada línea: nombre del comando  # motivo. Lo revisa scripts/check-comandos.mjs en el CI.
+#
+# Para añadir uno nuevo hay que justificarlo aquí; si el frontend empieza a usarlo, el script
+# pide quitarlo de la lista.
+
+# ── Moodle (integración con calificaciones; la interfaz aún no la llama) ──
+moodle_sync_assignment        # cmd/integration/moodle.rs
+moodle_prepare_grade          # cmd/integration/moodle.rs
+moodle_submit_grade_direct    # cmd/integration/moodle.rs
+
+# ── Validador de prácticas ──
+validate_practice_progress    # cmd/practices/practice_validator.rs
+calculate_practice_grade      # cmd/practices/practice_validator.rs
+
+# ── IA ──
+agent_plan                    # cmd/ai/agent.rs
+ai_env_status                 # cmd/ai/ai_utils.rs
+ai_test_key                   # cmd/ai/ai_utils.rs
+
+# ── Hosts guardados (el frontend usa otros comandos de hosts) ──
+list_hosts_files              # cmd/state/hosts.rs
+load_host_encrypted           # cmd/state/hosts.rs
+load_host_master              # cmd/state/hosts.rs
+save_host_encrypted           # cmd/state/hosts.rs
+
+# ── Logs de sesión ──
+get_session_log               # cmd/logs/logs.rs
+save_session_log              # cmd/logs/logs.rs
+cleanup_old_session_logs      # cmd/logs/logs.rs
+
+# ── Sueltos ──
+arduino_read_buffer           # cmd/hardware/arduino.rs
+rpi_pin_read                  # cmd/ssh/gpio.rs
+save_text_file                # cmd/filesystem/local.rs
+ssh_connect_stored            # cmd/ssh/terminal.rs
+mem_push_terminal_result      # state_core/session.rs
+practicas_linux_list          # cmd/practices/linux_api.rs
+vnc_status                    # cmd/vnc/mod.rs

@@ -511,7 +511,10 @@ mod tests {
         assert!(out.contains("output line"));
     }
 
+    // Llama a la API real de Groq: necesita red y una clave válida, así que no corre en el CI.
+    // A mano: `cargo test -- --ignored test_groq_api_connection`.
     #[tokio::test]
+    #[ignore = "requiere red y una clave de Groq"]
     async fn test_groq_api_connection() {
         let res = super::ai_test_key().await.expect("ai_test_key failed");
         assert!(res.ok, "Groq connection failed: {:?}", res);

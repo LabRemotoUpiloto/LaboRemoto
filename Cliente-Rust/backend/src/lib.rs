@@ -8,7 +8,6 @@ pub mod storage;    // Utilidades de almacenamiento cifrado de hosts
 pub mod state_core; // Memoria efímera por sesión (AppState) + AuthState JWT
 pub mod session_manager; // Store único de sesión + auth (trait SessionManager)
 pub mod security;   // Validaciones de seguridad y backups
-pub mod api;        // REST API
 pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
 pub mod user_config; // Configuración por máquina (.env en la carpeta de datos de la app instalada)
 pub mod ipc;        // Contrato de mensajería interna Message+ACK+backpressure (REFACTOR #5: Fase A completa + Fase B piloto auth wireado)
@@ -42,21 +41,6 @@ pub fn run() {
   // Cargar variables de entorno desde .env
   load_dotenv();
 
-  // Arrancar servidor REST API si está habilitado
-  let api_config = crate::api::config::ApiConfig::from_env();
-  if api_config.enabled {
-    if api_config.token.is_empty() {
-      eprintln!("[API] ADVERTENCIA: REST_API_TOKEN no configurado. La API se iniciará sin autenticación.");
-    }
-    let cfg = api_config.clone();
-    tauri::async_runtime::spawn(async move {
-      crate::api::server::start(cfg).await;
-    });
-    println!("[API] REST API habilitada en {}:{}", api_config.host, api_config.port);
-  } else {
-    println!("[API] REST API deshabilitada (REST_API_ENABLED=false o ausente)");
-  }
-  
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
     // Debe ser el PRIMER plugin. Si ya hay una instancia abierta (p. ej. al pulsar un enlace laboremoto:// de Moodle), la nueva no
@@ -163,13 +147,6 @@ pub fn run() {
       cmd::ai::ai_utils::ai_env_status,
       cmd::ai::ai_utils::ai_test_key,
       // File analysis & edit
-      cmd::editor::file_edit::analyze_file,
-      cmd::editor::file_edit::analyze_any_file,
-      cmd::editor::file_edit::plan_file_edit,
-      cmd::editor::file_edit::apply_file_edit,
-      cmd::editor::file_edit::list_file_backups,
-      cmd::editor::file_edit::revert_file,
-      cmd::editor::file_edit::ai_remote_edit_file,
       // Storage (hosts)
       // Comandos guardados (antes snippets)
       cmd::comandos::comandos_listar,
@@ -207,11 +184,6 @@ pub fn run() {
       cmd::vnc::vnc_cleanup_all,
       cmd::vnc::vnc_logs,
       // Port-forwarding genérico (streaming) — legacy, ver cmd::nvr abajo
-      cmd::streaming::stream::stream_start,
-      cmd::streaming::stream::stream_stop,
-      cmd::streaming::stream::stream_list_cameras,
-      cmd::streaming::stream::stream_get_host,
-      cmd::streaming::stream::whep_exchange,
       // NVR Shinobi — consumo de cámaras vía API HTTP (reemplaza stream_list_cameras)
       cmd::nvr::shinobi::nvr_list_cameras,
       cmd::nvr::shinobi::nvr_disconnect,
@@ -247,10 +219,6 @@ pub fn run() {
       cmd::tools::tools::agent_chat,
       cmd::tools::tools::plan_chat,
       // MCP (Model Context Protocol) – servidores externos de tools
-      cmd::integration::mcp_client::mcp_register_server,
-      cmd::integration::mcp_client::mcp_list_servers,
-      cmd::integration::mcp_client::mcp_remove_server,
-      cmd::integration::mcp_client::mcp_refresh_tools,
       // Prácticas de laboratorio remoto
       cmd::practices::practicas::practicas_list_categories,
       cmd::practices::practicas::practicas_get_config,
@@ -263,6 +231,7 @@ pub fn run() {
       cmd::practices::linux_api::rendimiento_pi,
       cmd::practices::linux_api::rendimiento_logs,
       cmd::practices::linux_api::practicas_linux_get_media,
+      cmd::practices::linux_api::practicas_module_setup,
       cmd::practices::linux_media_proxy::practicas_linux_media_url,
       // Integración con Moodle
       cmd::integration::moodle::moodle_sync_assignment,
