@@ -1,7 +1,7 @@
 // features/escritorio/useDesktopSession.ts — Ciclo de vida de una sesión gráfica VNC remota
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { vncStart, vncStop } from '@/features/conexion/ssh.service'
+import { vncStart, vncStop, type PerfilEscritorio } from '@/features/conexion/ssh.service'
 import { listen } from '@tauri-apps/api/event'
 import { useLifecycleStatus } from '@/lib/useLifecycleStatus'
 import { setPendingChatMessage } from '@/features/chat/pendingChatMessage'
@@ -19,7 +19,7 @@ export interface DesktopSessionInfo {
   vnc_port: number
 }
 
-export function useDesktopSession(sessionId: string) {
+export function useDesktopSession(sessionId: string, perfil?: PerfilEscritorio) {
   const { status, setStatus, error, setError, isMounted } = useLifecycleStatus<DesktopStatus>('idle')
   const [sessionInfo, setSessionInfo] = useState<DesktopSessionInfo | null>(null)
   // Guard contra llamadas concurrentes a start(); se resetea al desmontar
@@ -39,7 +39,7 @@ export function useDesktopSession(sessionId: string) {
       if (isMounted()) setStatus('starting')
       if (isMounted()) setError(null)
       try {
-        const info = await vncStart<DesktopSessionInfo>(sessionId, resolution ?? '1280x720')
+        const info = await vncStart<DesktopSessionInfo>(sessionId, resolution ?? '1280x720', perfil)
         if (isMounted()) {
           setSessionInfo(info)
           setStatus('connected')
@@ -60,7 +60,7 @@ export function useDesktopSession(sessionId: string) {
         startingRef.current = false
       }
     },
-    [sessionId, isMounted, setStatus, setError],
+    [sessionId, perfil, isMounted, setStatus, setError],
   )
 
   const stop = useCallback(async () => {

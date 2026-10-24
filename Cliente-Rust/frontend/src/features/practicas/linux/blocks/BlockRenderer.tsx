@@ -6,12 +6,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { Paper, Text, Stack, Group, Checkbox, Radio, Loader, Alert, ActionIcon, Button } from '@mantine/core';
-import { AlertTriangle, Image as ImageIcon, Lightbulb, Maximize2, Play, X } from 'lucide-react';
+import { AlertTriangle, Check, Image as ImageIcon, Lightbulb, Maximize2, Monitor, Play, SquareTerminal, X } from 'lucide-react';
 import '../pasos.css';
 import type { LinuxBlock, LinuxValidationResult, LinuxValidationRule } from '../../linuxPractice.service';
 import { linuxGetMedia, linuxGetMediaUrl } from '../../linuxPractice.service';
 import { ZoomableImage } from '../ZoomableImage';
 import { pedirEjecutarComando } from '../ejecutarComando';
+import {
+  EVENTO_ACCION_ESCRITORIO, accionEscritorioHecha, detenerEscritorio, marcarAccionEscritorio, pedirVista,
+} from '../escritorioPractica';
 import { WheelsSimBlock } from './widgets/WheelsSim';
 import { CalculatorBlock } from './widgets/CalculatorBlock';
 import { SensorDemoBlock } from './widgets/SensorDemo';
@@ -81,6 +84,86 @@ function StepGateBlock({ block }: { block: Extract<LinuxBlock, { type: 'step_gat
 
 /** Clase que hace latir el elemento que toca usar ahora (ver pasos.css). */
 export const CLASE_RESALTADA = 'paso-resaltado';
+
+/** Repinta el bloque cuando una acción del escritorio queda hecha (el estado vive en escritorioPractica). */
+function useAccionEscritorio(id: string): boolean {
+  const [hecha, setHecha] = useState(() => accionEscritorioHecha(id));
+  useEffect(() => {
+    const alHacerse = (ev: Event) => {
+      if ((ev as CustomEvent<{ id: string }>).detail?.id === id) setHecha(true);
+    };
+    document.addEventListener(EVENTO_ACCION_ESCRITORIO, alHacerse);
+    return () => document.removeEventListener(EVENTO_ACCION_ESCRITORIO, alHacerse);
+  }, [id]);
+  return hecha;
+}
+
+/**
+ * Tarea en el escritorio remoto: abrir un programa en la interfaz gráfica. No tiene botón de «listo»: PasoCard le
+ * pregunta a la Pi si la ventana está abierta y la marca hecha. Aquí solo va la consigna, el estado y cómo volver a
+ * ver el escritorio si el estudiante se fue a la terminal.
+ */
+function DesktopTaskBlock({ block, resaltar }: { block: Extract<LinuxBlock, { type: 'desktop_task' }>; resaltar?: boolean }) {
+  const hecha = useAccionEscritorio(block.id);
+  return (
+    <Paper withBorder radius="md" p="md" className={resaltar && !hecha ? CLASE_RESALTADA : undefined}>
+      <Group gap="sm" wrap="nowrap" align="flex-start">
+        <Monitor size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+        <Stack gap={8} style={{ flex: 1 }}>
+          <Text fz="sm" style={{ lineHeight: 1.6 }}>{renderInline(block.goal_md)}</Text>
+          {hecha ? (
+            <Group gap={6} wrap="nowrap">
+              <Check size={16} color="var(--success, #22C55E)" />
+              <Text fz="sm" fw={600}>{block.done_md ?? '¡Listo! Abriste la terminal dentro del escritorio.'}</Text>
+            </Group>
+          ) : (
+            <Group gap="sm">
+              <Loader size="xs" />
+              <Text fz="xs" c="dimmed">Esperando a que la abras…</Text>
+              <Button size="compact-xs" variant="light" leftSection={<Monitor size={13} />} onClick={() => pedirVista('escritorio')}>
+                Ver el escritorio
+              </Button>
+            </Group>
+          )}
+        </Stack>
+      </Group>
+    </Paper>
+  );
+}
+
+/** Cierra el escritorio remoto (libera la memoria de la Pi) y vuelve a la terminal de la práctica. */
+function DesktopCloseBlock({ block, sessionId, resaltar, onHecho }: {
+  block: Extract<LinuxBlock, { type: 'desktop_close' }>;
+  sessionId?: string | null;
+  resaltar?: boolean;
+  onHecho?: () => void;
+}) {
+  const hecha = useAccionEscritorio(block.id);
+  if (hecha) {
+    return (
+      <Group gap={6} wrap="nowrap">
+        <Check size={16} color="var(--success, #22C55E)" />
+        <Text fz="sm" c="dimmed">Cerraste el escritorio: sigues en la misma Raspberry, ahora escribiendo.</Text>
+      </Group>
+    );
+  }
+  return (
+    <Group>
+      <Button
+        leftSection={<SquareTerminal size={15} />}
+        className={resaltar ? CLASE_RESALTADA : undefined}
+        onClick={() => {
+          pedirVista('terminal');
+          if (sessionId) detenerEscritorio(sessionId);
+          marcarAccionEscritorio(block.id);
+          onHecho?.();
+        }}
+      >
+        {block.label ?? 'Cerrar el escritorio y volver a la terminal'}
+      </Button>
+    </Group>
+  );
+}
 
 /** Cada texto se pinta según el papel que le da el module.json (`kind`, ver LinuxTextKind). */
 function TextBlockView({ block }: { block: Extract<LinuxBlock, { type: 'text' }> }) {
@@ -561,11 +644,13 @@ interface BlockViewProps {
   resaltar?: boolean;
   /** El estudiante abrió la media (ver PasoCard). */
   onAbierto?: () => void;
+  /** Sesión SSH de la práctica: la usa `desktop_close` para apagar su escritorio remoto. */
+  sessionId?: string | null;
   /** «Pregunta 2 de 4». */
   etiqueta?: string;
 }
 
-export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, practiceId, quizAnswers, onQuizAnswer, quizLocked, resaltar, onAbierto, etiqueta }) => {
+export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, practiceId, quizAnswers, onQuizAnswer, quizLocked, resaltar, onAbierto, sessionId, etiqueta }) => {
   switch (block.type) {
     case 'text':
       return <TextBlockView block={block} />;
@@ -612,6 +697,10 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
       return <PermissionsCalculatorBlock block={block} />;
     case 'step_gate':
       return <StepGateBlock block={block} />;
+    case 'desktop_task':
+      return <DesktopTaskBlock block={block} resaltar={resaltar} />;
+    case 'desktop_close':
+      return <DesktopCloseBlock block={block} sessionId={sessionId} resaltar={resaltar} onHecho={onAbierto} />;
     case 'checkpoint':
       return null;
     default:

@@ -3,6 +3,8 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useDesktopSession } from './useDesktopSession'
+import type { PerfilEscritorio } from '@/features/conexion/ssh.service'
+import { EVENTO_DETENER_ESCRITORIO, type DetalleDetenerEscritorio } from '@/features/practicas/linux/escritorioPractica'
 import DesktopToolbar from './DesktopToolbar'
 import './DesktopPane.css'
 
@@ -58,12 +60,14 @@ function getX11Keysym(e: KeyboardEvent): number {
 interface Props {
   sessionId: string
   isActive?: boolean
+  /** `practica`: escritorio acotado de las prácticas (ver vnc_start). */
+  perfil?: PerfilEscritorio
 }
 
-const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
+const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true, perfil }) => {
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const rfbRef = useRef<any>(null)
-  const { status, sessionInfo, error, start, stop } = useDesktopSession(sessionId)
+  const { status, sessionInfo, error, start, stop } = useDesktopSession(sessionId, perfil)
 
   // `stop()` deja el status en 'idle' (mismo valor que el estado inicial,
   // antes de arrancar por primera vez) — sin esta bandera, el efecto de
@@ -359,6 +363,22 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true }) => {
     connectRFB(canvasContainerRef.current, `ws://127.0.0.1:${sessionInfo.ws_port}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, sessionInfo, isActive])
+
+  // La práctica pide apagar el escritorio al volver a la terminal (libera la memoria de la Pi). No es un
+  // «Detener» del usuario: si después vuelve a la vista Escritorio, arranca solo como siempre.
+  useEffect(() => {
+    const alPedir = (ev: Event) => {
+      if ((ev as CustomEvent<DetalleDetenerEscritorio>).detail?.sessionId !== sessionId) return
+      if (rfbRef.current) {
+        disconnectClean(rfbRef.current)
+        rfbRef.current = null
+      }
+      void stop()
+    }
+    document.addEventListener(EVENTO_DETENER_ESCRITORIO, alPedir)
+    return () => document.removeEventListener(EVENTO_DETENER_ESCRITORIO, alPedir)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, stop])
 
   const handleStop = async () => {
     userStoppedRef.current = true

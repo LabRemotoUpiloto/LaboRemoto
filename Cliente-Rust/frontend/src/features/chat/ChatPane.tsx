@@ -45,6 +45,7 @@ import { useAuth } from '@/features/cuenta/useAuth';
 // segundo caso real que la valide.
 import { linuxGetModule, type LinuxModule, type LinuxBlock, type LinuxValidationResult, type LinuxValidationRule } from '@/features/practicas/linuxPractice.service';
 import { STEP_GATE_EVENT } from '@/features/practicas/linux/blocks/BlockRenderer';
+import { EVENTO_ACCION_ESCRITORIO, accionEscritorioHecha, olvidarAccionesEscritorio } from '@/features/practicas/linux/escritorioPractica';
 import { armarPlan, type PasoPractica } from '@/features/practicas/linux/ritmo';
 import type { DatosGuia } from '@/features/practicas/linux/PasoCard';
 import { GuiaPractica } from '@/features/practicas/linux/GuiaPractica';
@@ -214,7 +215,7 @@ const ChatPane: React.FC<Props> = ({
   useEffect(() => { deliveredLinuxBlockIdsRef.current = new Set(); }, [practiceId]);
   // Pasos sin comandos que el estudiante ya cerró con «Siguiente paso» (id del paso).
   const openedLinuxGatesRef = useRef<Set<string>>(new Set());
-  useEffect(() => { openedLinuxGatesRef.current = new Set(); }, [practiceId]);
+  useEffect(() => { openedLinuxGatesRef.current = new Set(); olvidarAccionesEscritorio(); }, [practiceId]);
   // Pasos ya entregados como mensaje (ver ritmo.ts).
   const deliveredLinuxPasosRef = useRef<Set<string>>(new Set());
   useEffect(() => { deliveredLinuxPasosRef.current = new Set(); }, [practiceId]);
@@ -270,6 +271,8 @@ const ChatPane: React.FC<Props> = ({
       paso.conBoton
         ? openedLinuxGatesRef.current.has(paso.id)
         : paso.bloques.every((b) => {
+            // Escritorio remoto: abrir el programa (lo detecta PasoCard) o cerrarlo (botón).
+            if (b.type === 'desktop_task' || b.type === 'desktop_close') return accionEscritorioHecha(b.id);
             if (b.type !== 'command_step') return true;
             const rule = ruleForLinuxBlock(rules, b);
             return rule ? passedRuleIds.has(rule.id) : false;
@@ -980,6 +983,15 @@ const ChatPane: React.FC<Props> = ({
     };
     document.addEventListener(STEP_GATE_EVENT, onGateOpen);
     return () => document.removeEventListener(STEP_GATE_EVENT, onGateOpen);
+  }, [linuxModule, practiceResult, isPracticeSession, deliverLinuxBatch]);
+
+  // Igual con las acciones del escritorio remoto (abrió el programa, cerró el escritorio): al completarse una,
+  // puede tocar el paso siguiente. Las marca escritorioPractica, fuera de React.
+  useEffect(() => {
+    if (!isPracticeSession || !linuxModule) return;
+    const alHacerse = () => deliverLinuxBatch(linuxModule, (practiceResult as unknown as LinuxValidationResult) ?? null);
+    document.addEventListener(EVENTO_ACCION_ESCRITORIO, alHacerse);
+    return () => document.removeEventListener(EVENTO_ACCION_ESCRITORIO, alHacerse);
   }, [linuxModule, practiceResult, isPracticeSession, deliverLinuxBatch]);
 
   const handleSend = async (overrideText?: string) => {

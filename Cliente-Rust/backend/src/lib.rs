@@ -191,6 +191,7 @@ pub fn run() {
       cmd::vnc::vnc_start,
       cmd::vnc::vnc_stop,
       cmd::vnc::vnc_status,
+      cmd::vnc::vnc_programa_abierto,
       cmd::vnc::vnc_cleanup_all,
       cmd::vnc::vnc_logs,
       // Port-forwarding genérico (streaming) — legacy, ver cmd::nvr abajo

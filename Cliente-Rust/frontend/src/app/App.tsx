@@ -1,5 +1,6 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
 import React, { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
+import { EVENTO_VISTA_PRACTICA, type DetalleVistaPractica } from '@/features/practicas/linux/escritorioPractica'
 import './App.css'
 
 // Anchos de la sidebar (deben coincidir con --sidebar-width por defecto en App.css).
@@ -121,6 +122,17 @@ const AppMain: React.FC = () => {
     activeView, setActiveView,
     isChatOpen, setIsChatOpen,
   } = useAppTabs()
+
+  // Una práctica puede pedir mostrar el escritorio remoto de su sesión o volver a la terminal
+  // (ver features/practicas/linux/escritorioPractica.ts).
+  useEffect(() => {
+    const alPedirVista = (ev: Event) => {
+      const vista = (ev as CustomEvent<DetalleVistaPractica>).detail?.vista
+      if (vista === 'escritorio' || vista === 'terminal') setActiveView(vista)
+    }
+    document.addEventListener(EVENTO_VISTA_PRACTICA, alPedirVista)
+    return () => document.removeEventListener(EVENTO_VISTA_PRACTICA, alPedirVista)
+  }, [setActiveView])
 
   // ── Actualizaciones ──────────────────────────────────────────────────────────
   const { updateInfo, updating, updateProgress, confirmInstallUpdate, cancelUpdate, dismissUpdate } = useUpdateCheck()

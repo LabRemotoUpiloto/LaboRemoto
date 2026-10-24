@@ -107,11 +107,11 @@ impl Drop for VncSessionState {
         let (display, vnc_port, is_virtual) = (self.display_num, self.vnc_port_remote, self.is_virtual);
         let home_dir = self.home_dir.clone();
 
-        // 3. Guardar tarea pendiente en disco por si el proceso muere antes de limpiar
+        // 3. Guardar tarea pendiente en disco por si el proceso muere antes de limpiar. Solo el display (es lo único
+        //    que lee `run_pending_vnc_cleanups`, y del nombre del archivo): antes guardaba también la contraseña en
+        //    texto plano en la carpeta temporal.
         if is_virtual {
-            let pending = format!(
-                "{{\"host\":\"{host}\",\"port\":{port},\"user\":\"{user}\",\"password\":\"{password}\",\"display\":{display},\"vnc_port\":{vnc_port}}}"
-            );
+            let pending = format!("{{\"display\":{display}}}");
             let path = std::env::temp_dir().join(format!("vnc_pending_cleanup_{display}.json"));
             let _ = std::fs::write(&path, &pending);
         }

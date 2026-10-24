@@ -63,13 +63,27 @@ fn session_lock(session_id: &str) -> Result<Arc<tokio::sync::Mutex<()>>, Command
 }
 
 /// Inicia una sesión de escritorio gráfico sobre una conexión SSH activa.
+///
+/// `perfil`: `"practica"` arranca el escritorio acotado de las prácticas (solo el acceso a la terminal, sin menú
+/// de inicio, navegador ni explorador de archivos). Sin perfil, el escritorio completo de siempre.
 #[tauri::command]
 pub async fn vnc_start(
     app: AppHandle,
     session_id: String,
     resolution: Option<String>,
+    perfil: Option<String>,
 ) -> Result<VncSessionInfo, CommandError> {
     let res = resolution.unwrap_or_else(|| "1280x720".to_string());
+    let practica = match perfil.as_deref() {
+        None | Some("") | Some("completo") => false,
+        Some("practica") => true,
+        Some(otro) => {
+            return Err(CommandError::permanent(
+                "VALIDATION_FAILED",
+                format!("Perfil de escritorio inválido '{otro}'. Opciones: completo, practica"),
+            ))
+        }
+    };
 
     const VALID: &[&str] = &["1024x768", "1280x720", "1280x800", "1920x1080"];
     if !VALID.contains(&res.as_str()) {
@@ -125,7 +139,7 @@ pub async fn vnc_start(
             if let Ok(mut last) = LAST_START.get_or_init(Default::default).lock() {
                 last.insert(sid_attempt, (display, home_dir.clone()));
             }
-            server::start_vnc_server(&setup_sess, display, vnc_port, &r, &home_dir)
+            server::start_vnc_server(&setup_sess, display, vnc_port, &r, &home_dir, practica)
                 .map_err(|e| CommandError::transient("IO_ERROR", e))?;
 
             let ws_listener = std::net::TcpListener::bind("127.0.0.1:0")
@@ -276,33 +290,63 @@ pub async fn vnc_logs(session_id: String) -> Result<String, CommandError> {
     .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
+/// Programas cuya ventana puede comprobar una práctica en el escritorio remoto (nombre de la tarea → proceso).
+fn proceso_de_programa(programa: &str) -> Option<&'static str> {
+    match programa {
+        "terminal" => Some("lxterminal"),
+        _ => None,
+    }
+}
+
+/// Comando de shell que responde `si` si el usuario de la sesión tiene `proceso` abierto EN el display dado
+/// (mira la variable DISPLAY de cada proceso: otro escritorio del mismo usuario no cuenta).
+fn cmd_programa_abierto(proceso: &str, display: u32) -> String {
+    format!(
+        "for p in $(pgrep -u \"$(id -u)\" -x {proceso} 2>/dev/null); do \
+           tr '\\0' '\\n' < /proc/$p/environ 2>/dev/null | grep -qE '^DISPLAY=:{display}(\\.0)?$' && {{ echo si; exit 0; }}; \
+         done; echo no"
+    )
+}
+
+/// Dice si el estudiante abrió `programa` (hoy solo `"terminal"`) en el escritorio remoto de esta sesión. Lo usa
+/// la práctica para avanzar sola cuando la tarea del escritorio está hecha. Sin escritorio activo devuelve `false`.
+/// Va por la conexión SSH en caché de la sesión: consultarlo cada pocos segundos no abre conexiones nuevas.
+#[tauri::command]
+pub async fn vnc_programa_abierto(session_id: String, programa: String) -> Result<bool, CommandError> {
+    let proceso = proceso_de_programa(&programa).ok_or_else(|| {
+        CommandError::permanent("VALIDATION_FAILED", format!("Programa no permitido: '{programa}'"))
+    })?;
+    let display = {
+        let map = SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
+        let sess = map.get(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
+        sess.vnc_session.as_ref().map(|v| v.display_num)
+    };
+    let Some(display) = display else { return Ok(false) };
+    let cmd = cmd_programa_abierto(proceso, display);
+    let (_, out) = tokio::task::spawn_blocking(move || crate::ssh_core::exec::ssh_exec(&session_id, &cmd))
+        .await
+        .map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
+        .map_err(|e| CommandError::transient("SSH_ERROR", e))?;
+    Ok(out.trim() == "si")
+}
+
 /// Detiene la sesión gráfica activa.
 #[tauri::command]
 pub async fn vnc_stop(session_id: String) -> Result<(), CommandError> {
     // Mismo candado que vnc_start: «Detener» espera a que termine un arranque en curso en vez de pisarlo.
     let stop_lock = session_lock(&session_id)?;
     let _stop_guard = stop_lock.lock().await;
-    let (vnc_opt, term_tx) = {
+    let vnc_opt = {
         let mut map = crate::cmd::state::SESSIONS.lock().map_err(|_| CommandError::internal("LOCK_POISONED", "SESSIONS lock poisoned"))?;
         let sess = map.get_mut(&session_id).ok_or_else(|| CommandError::from(AppError::NotFoundSession))?;
-        (sess.vnc_session.take(), sess.term.tx.clone())
+        sess.vnc_session.take()
     };
 
-    if let Some(mut vnc) = vnc_opt {
-        vnc.stop_flag.store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Some(mut child) = vnc.ssh_fwd_child.take() { let _ = child.kill(); }
-
-        let display  = vnc.display_num;
-        vnc.host     = "".to_string();
-
-        let kill_cmd = format!(
-            "{} rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true\n",
-            utils::kill_display_cmd(&display.to_string(), "-9", false)
-        );
-        let _ = term_tx.send(crate::ssh_core::client::ChanCmd::Send(kill_cmd.into_bytes()));
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
-    }
+    // Al soltar el estado, su `Drop` detiene el puente y el túnel y limpia el escritorio en la Pi por una conexión
+    // SSH aparte (y lo deja anotado como pendiente por si la app se cierra antes). Antes esto escribía la orden
+    // `pkill … rm -f /tmp/.X…` en la terminal interactiva: el usuario la veía aparecer en su terminal (en una
+    // práctica, en medio de los pasos) y quedaba en su historial.
+    drop(vnc_opt);
 
     Ok(())
 }
@@ -393,5 +437,25 @@ pub fn cleanup_all_vnc_sessions() {
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests_programa_abierto {
+    use super::*;
+
+    #[test]
+    fn solo_se_aceptan_programas_conocidos() {
+        assert_eq!(proceso_de_programa("terminal"), Some("lxterminal"));
+        assert_eq!(proceso_de_programa("rm -rf /"), None);
+        assert_eq!(proceso_de_programa(""), None);
+    }
+
+    #[test]
+    fn el_comando_mira_el_display_de_la_sesion() {
+        let cmd = cmd_programa_abierto("lxterminal", 20);
+        assert!(cmd.contains("pgrep -u \"$(id -u)\" -x lxterminal"));
+        assert!(cmd.contains("^DISPLAY=:20(\\.0)?$"));
+        assert!(cmd.trim_end().ends_with("echo no"));
     }
 }

@@ -52,7 +52,13 @@ export interface PlanPractica {
 }
 
 const esComando = (b: LinuxBlock): b is Bloque<'command_step'> => b.type === 'command_step';
-const esMaterial = (b: LinuxBlock) => b.type !== 'text' && b.type !== 'command_step';
+/**
+ * Lo que el estudiante tiene que HACER fuera del chat para completar el paso: escribir un comando o usar el
+ * escritorio remoto (abrir un programa, cerrarlo). Se corta y se completa igual que un comando.
+ */
+export const esAccionDelPaso = (b: LinuxBlock) =>
+  b.type === 'command_step' || b.type === 'desktop_task' || b.type === 'desktop_close';
+const esMaterial = (b: LinuxBlock) => b.type !== 'text' && !esAccionDelPaso(b);
 
 /**
  * Parte el módulo en pasos. Si el módulo marca sus propios frenos (`step_gate`,
@@ -61,6 +67,7 @@ const esMaterial = (b: LinuxBlock) => b.type !== 'text' && b.type !== 'command_s
  * - un comando va en su propio paso, salvo que lo presente el texto que va justo
  *   antes (así el material se mira primero y el comando se escribe después);
  * - lo que viene después de un comando abre paso.
+ * Las acciones del escritorio remoto (`desktop_task`, `desktop_close`) cortan como un comando.
  */
 export function armarPlan(blocks: LinuxBlock[]): PlanPractica {
   const preguntas = blocks.filter((b): b is Bloque<'quiz'> => b.type === 'quiz');
@@ -80,11 +87,11 @@ export function armarPlan(blocks: LinuxBlock[]): PlanPractica {
       else actual.push(b);
       continue;
     }
-    const conComando = actual.some(esComando);
+    const conAccion = actual.some(esAccionDelPaso);
     const nuevo =
       b.type === 'text' ? actual.length > 0
-      : esComando(b) ? conComando || actual.some(esMaterial)
-      : conComando;
+      : esAccionDelPaso(b) ? conAccion || actual.some(esMaterial)
+      : conAccion;
     if (nuevo) cerrar();
     actual.push(b);
   }
@@ -95,7 +102,7 @@ export function armarPlan(blocks: LinuxBlock[]): PlanPractica {
     id: `paso-${i + 1}`,
     numero: i + 1,
     bloques: g.bloques,
-    conBoton: !g.bloques.some(esComando),
+    conBoton: !g.bloques.some(esAccionDelPaso),
     etiquetaBoton: g.etiquetaBoton,
     primerComando: i === primero,
   }));
@@ -107,7 +114,7 @@ const EJERCICIOS = new Set<LinuxBlock['type']>([
   'wheels_sim', 'calculator', 'sensor_demo', 'state_machine', 'checklist', 'permissions_calculator',
 ]);
 
-export type TipoAccion = 'leer' | 'imagen' | 'video' | 'ejercicio' | 'comando' | 'reto' | 'siguiente';
+export type TipoAccion = 'leer' | 'imagen' | 'video' | 'ejercicio' | 'comando' | 'reto' | 'escritorio' | 'volver' | 'siguiente';
 
 export interface AccionPaso {
   /** Id del bloque al que apunta (o `leer` / `siguiente`). */
@@ -142,6 +149,10 @@ export function accionesDelPaso(paso: PasoPractica): AccionPaso[] {
           ? { id: b.id, tipo: 'reto', texto: 'Resuelve el reto en la terminal' }
           : { id: b.id, tipo: 'comando', texto: `Escribe ${b.command} en la terminal`, comando: b.command },
       );
+    } else if (b.type === 'desktop_task') {
+      acciones.push({ id: b.id, tipo: 'escritorio', texto: 'Abre la terminal en el escritorio' });
+    } else if (b.type === 'desktop_close') {
+      acciones.push({ id: b.id, tipo: 'volver', texto: 'Cierra el escritorio y vuelve a la terminal' });
     }
   }
   if (paso.conBoton) acciones.push({ id: 'siguiente', tipo: 'siguiente', texto: 'Pasa al siguiente paso' });
@@ -152,6 +163,8 @@ export function accionesDelPaso(paso: PasoPractica): AccionPaso[] {
 export function tituloDelPaso(paso: PasoPractica): string {
   const comando = paso.bloques.find(esComando);
   if (comando) return comando.goal_md ? 'Resuelve el reto' : 'Escribe un comando';
+  if (paso.bloques.some((b) => b.type === 'desktop_task')) return 'Usa la interfaz gráfica';
+  if (paso.bloques.some((b) => b.type === 'desktop_close')) return 'Vuelve a la terminal';
   if (paso.bloques.some((b) => EJERCICIOS.has(b.type))) return 'Prueba el ejercicio';
   // «Lee y…» solo si hay algo que leer: hay pasos que son únicamente una imagen.
   const lee = paso.bloques.some((b) => b.type === 'text') ? 'Lee y mira' : 'Mira';
@@ -169,6 +182,8 @@ export function instruccion(accion: AccionPaso, etiquetaBoton = 'Siguiente paso'
     case 'ejercicio': return 'prueba el ejercicio: toca sus controles y mira qué cambia.';
     case 'comando': return `escribe ${accion.comando} en la terminal y presiona Enter.`;
     case 'reto': return 'resuelve el reto escribiendo en la terminal. Si te trabas, escríbeme tu duda aquí abajo.';
+    case 'escritorio': return 'en el escritorio de la izquierda, haz doble clic en el ícono «Terminal». Te aviso apenas la abras.';
+    case 'volver': return 'pulsa el botón para cerrar el escritorio y volver a tu terminal.';
     case 'siguiente': return `pulsa «${etiquetaBoton}» para continuar.`;
   }
 }

@@ -196,10 +196,53 @@ pub(crate) fn reserve_display_and_port(sess: &ssh2::Session, home_dir: &str) -> 
              echo \"$D $P\""
         ),
     )?;
-    let mut it = out.split_whitespace().filter_map(|t| t.parse::<u32>().ok());
-    let display = it.next().ok_or_else(|| "No hay display virtual libre (:20–:99 todos en uso o reservados)".to_string())?;
-    let port = it.next().ok_or_else(|| "No hay puerto VNC libre (5900–5998 todos en uso o reservados)".to_string())?;
-    Ok((display, port as u16))
+    parse_reserva(&out)
+}
+
+/// Lee la respuesta de la reserva («<display> <puerto>»). Una respuesta VACÍA no es «no hay display libre»: la Pi
+/// aceptó la conexión pero no ejecutó la orden. Pasa, por ejemplo, cuando la contraseña de una cuenta del dominio
+/// venció (`pam_sss: Authentication token is no longer valid; new one required`): sshd abre y cierra la sesión sin
+/// correr nada, y antes eso se informaba como «todos los displays en uso».
+pub(crate) fn parse_reserva(out: &str) -> Result<(u32, u16), String> {
+    if out.trim().is_empty() {
+        return Err("La Raspberry aceptó la conexión pero no ejecutó la orden para preparar el escritorio. \
+                    Suele pasar cuando la contraseña de la cuenta venció y el sistema pide cambiarla: \
+                    cámbiala (la terminal te lo pide al conectarte) e intenta de nuevo."
+            .to_string());
+    }
+    // La Pi responde «$D $P» en la última línea; si no hubo display queda « 5901»: se lee por posición
+    // (antes el 5901 se tomaba como display y el error decía que faltaba el puerto).
+    let linea = out.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("");
+    let (d, p) = linea.split_once(' ').unwrap_or((linea, ""));
+    let display = d.trim().parse::<u32>().map_err(|_| "No hay display virtual libre (:20–:99 todos en uso o reservados)".to_string())?;
+    let port = p.trim().parse::<u16>().map_err(|_| "No hay puerto VNC libre (5900–5998 todos en uso o reservados)".to_string())?;
+    Ok((display, port))
+}
+
+#[cfg(test)]
+mod tests_reserva {
+    use super::parse_reserva;
+
+    #[test]
+    fn lee_display_y_puerto() {
+        assert_eq!(parse_reserva("21 5901\n"), Ok((21, 5901)));
+    }
+
+    #[test]
+    fn sin_display_libre_lo_dice() {
+        assert!(parse_reserva(" 5901\n").unwrap_err().contains("No hay display virtual libre"));
+    }
+
+    #[test]
+    fn sin_puerto_libre_lo_dice() {
+        assert!(parse_reserva("21 \n").unwrap_err().contains("No hay puerto VNC libre"));
+    }
+
+    #[test]
+    fn respuesta_vacia_no_es_falta_de_displays() {
+        let e = parse_reserva("  \n").unwrap_err();
+        assert!(e.contains("no ejecutó la orden") && e.contains("contraseña"), "{e}");
+    }
 }
 
 /// Obtiene el directorio home del usuario remoto.
