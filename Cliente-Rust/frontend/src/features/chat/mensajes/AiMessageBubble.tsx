@@ -187,7 +187,7 @@ export default function AiMessageBubble({
       >
         {!isLanding && (
           <img
-            src="/abeja-Profesor.jpeg"
+            src="/abeja-profesor.webp"
             alt=""
             aria-hidden
             className="absolute -left-9 bottom-0 w-8 h-8 rounded-full object-contain bg-white shadow-sm"

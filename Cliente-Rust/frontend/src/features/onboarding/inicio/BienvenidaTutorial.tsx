@@ -67,7 +67,7 @@ export default function BienvenidaTutorial({ abrirPagina }: { abrirPagina: (pagi
           <BotonPrincipal onClick={pedirTutorialBienvenida}><GraduationCap size={16} aria-hidden /> Empezar el recorrido</BotonPrincipal>
         </>}>
         <div className="flex items-center gap-4">
-          <img src="/abeja-Profesor.jpeg" alt="" className="h-16 w-16 shrink-0 rounded-full bg-white object-contain" />
+          <img src="/abeja-profesor.webp" alt="" className="h-16 w-16 shrink-0 rounded-full bg-white object-contain" />
           <div className="flex flex-col gap-1">
             <span className="inline-flex items-center gap-1.5 text-[13px] text-ui-tinta-2"><Volume2 size={15} aria-hidden /> Tiene voz: sube el volumen.</span>
             <span className="text-[12px] text-ui-apagado">Puedes verlo cuando quieras con «Iniciar recorrido», en Inicio.</span>

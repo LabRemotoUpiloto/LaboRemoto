@@ -1,10 +1,23 @@
 /* ═══ App Layout — Dual Header (68px) + Sidebar (44px) ═══ * Dynamic height variables based on header state */
 
+/* --sidebar-width registrada como longitud para que se pueda animar: al plegar la barra, una sola transición mueve la barra,
+   el encabezado y el contenido (los tres la usan), sin que cada uno persiga al otro con su propio tiempo. */
+@property --sidebar-width {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 200px;
+}
+
 .app-container {
   display: flex;
   height: 100vh;
   --header-height: 0px;
   --sidebar-width: 200px;
+  transition: --sidebar-width 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-container { transition: none; }
 }
 
 /* El nav de la sidebar oculta su scrollbar (la barra de acento se veía
@@ -53,9 +66,8 @@
   position: fixed;
   top: 0;
   right: 0;
-  /* left NO se transiciona acá: lo mueve GSAP vía --sidebar-width (App.tsx),
-     con una sola animación en vez de que esto la persiga por detrás con su
-     propio timing y produzca un efecto de "arrastre" doble. */
+  /* left NO se transiciona acá: lo mueve la transición de --sidebar-width (.app-container), con una sola animación en vez
+     de que esto la persiga por detrás con su propio timing y produzca un efecto de "arrastre" doble. */
   left: calc(var(--sidebar-width) + 24px) !important;
   height: 46px;
   background-color: var(--header-bg, var(--background-primary)) !important;

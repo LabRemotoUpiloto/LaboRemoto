@@ -5,7 +5,7 @@ import React from 'react';
 import { GraduationCap } from 'lucide-react';
 import { Boton, BotonPrincipal, TARJETA } from '@/components/ui';
 import { useAuth } from '@/features/cuenta/AuthContext';
-import { unipilotoLogo } from '@/assets/logoBase64';
+import unipilotoLogo from '@/assets/unipiloto-logo.png';
 
 interface AgentHomeHeroProps {
   displayName: string;

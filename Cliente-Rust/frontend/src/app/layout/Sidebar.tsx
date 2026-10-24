@@ -9,6 +9,7 @@ import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import { User, Shield, Activity, BookOpen, Gauge } from 'lucide-react';
 import type { Tab, ActiveView } from '../hooks/useAppTabs';
 import { useAuth } from '@/features/cuenta/AuthContext';
+import { precargarPagina } from '@/app/diferidos';
 import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo, puedeVerComo } from '@/features/cuenta/usePermissions';
 import {
   MonitorIcon,
@@ -128,7 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     <Box
       component="aside"
       aria-label="Navegación principal"
-      // Ancho SIN transición CSS: lo anima GSAP en App.tsx vía --sidebar-width,
+      // Ancho SIN transición propia: lo anima la transición de --sidebar-width en App.css,
       // en un solo sistema (evita el "doble motor" de animación). overflow-x
       // hidden recorta los textos que se desvanecen mientras el rail se angosta
       // (así la transición se ve como "esconderse", no como un corte brusco).
@@ -279,6 +280,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <UnstyledButton
                     data-page={item.id}
                     onClick={() => onOpenPanel(item.id)}
+                    onFocus={() => precargarPagina(item.id)}
                     aria-current={isActive ? 'page' : undefined}
                     aria-label={item.label}
                     className="relative flex items-center transition-colors duration-150"
@@ -296,6 +298,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       width: 'calc(100% - 12px)',
                     }}
                     onMouseEnter={e => {
+                      precargarPagina(item.id)
                       if (!isActive) {
                         e.currentTarget.style.backgroundColor = 'var(--interactive-hover)';
                         e.currentTarget.style.color = 'var(--text-primary)';

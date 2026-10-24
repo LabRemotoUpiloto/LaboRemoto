@@ -3,10 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SSH AI Client</title>
+    <title>Laboratorio remoto Unipiloto</title>
+    <!-- Pantalla de carga: se ve en cuanto abre la ventana, antes de que el JavaScript termine de cargar. Usa el tema y los
+         colores que dejó guardados la última vez ThemeProvider (localStorage «arranque»); React la reemplaza al montar. -->
+    <script>
+      (function () {
+        var a = {};
+        try { a = JSON.parse(localStorage.getItem('arranque') || '{}') || {}; } catch (e) {}
+        var raiz = document.documentElement;
+        raiz.setAttribute('data-theme', a.tema || 'unipiloto');
+        raiz.style.setProperty('--arranque-fondo', a.fondo || '#f4f4f4');
+        raiz.style.setProperty('--arranque-texto', a.texto || '#5c5c5c');
+      })();
+    </script>
+    <style>
+      html, body { margin: 0; height: 100%; background: var(--arranque-fondo); }
+      #arranque {
+        height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+        font: 13px -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--arranque-texto);
+      }
+      #arranque img { width: 72px; height: 72px; object-fit: contain; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="arranque" role="status"><img src="/abeja1.webp" alt="" />Cargando…</div></div>
+    <script>
+      // La ventana nace oculta (tauri.conf.json): se muestra ya con la pantalla de carga pintada. Si esto fallara, el backend
+      // la muestra igual a los pocos segundos (lib.rs).
+      requestAnimationFrame(function () {
+        setTimeout(function () {
+          try { window.__TAURI__ && window.__TAURI__.window.getCurrentWindow().show(); } catch (e) {}
+        }, 0);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

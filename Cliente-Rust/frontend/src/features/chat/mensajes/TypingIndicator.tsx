@@ -28,7 +28,7 @@ export default function TypingIndicator({ appearance = 'session', streamingMsgId
       aria-label={label}
     >
       <img
-        src="/abeja-Profesor.jpeg"
+        src="/abeja-profesor.webp"
         alt=""
         aria-hidden
         className="w-6 h-6 rounded-full object-contain bg-white shrink-0"

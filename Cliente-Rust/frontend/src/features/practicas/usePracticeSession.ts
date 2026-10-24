@@ -16,6 +16,7 @@ import { useCallback, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
 import type { PracticeLaunchPayload, PracticeSessionMeta } from '@/types';
 import { sshConnect, sshStdin, memPut } from '@/features/conexion/ssh.service';
+import { precargar } from '@/app/diferidos';
 
 interface UsePracticeSessionParams {
   onNewSession: (info: { id: string; label: string }) => void;
@@ -41,6 +42,8 @@ export function usePracticeSession({
    */
   const handleStartPractice = useCallback(async ({ practice, student }: PracticeLaunchPayload) => {
     const log = (level: string, msg: string) => emitLog(practice.id, level, msg);
+    // mientras se conecta, que la terminal y el chat terminen de cargar (app/diferidos.ts)
+    precargar('sesion', 'lectores');
 
     // 1. Conectar via SSH al workspace
     log('info', `🔌 Conectando SSH al workspace (${practice.connection.user}@${practice.connection.host}:${practice.connection.port})...`);

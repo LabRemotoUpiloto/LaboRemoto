@@ -2,18 +2,16 @@
 //
 // Pantalla de cierre de un módulo de la práctica de Linux: fuegos
 // artificiales + confeti de ambiente mientras la insignia gira, "carga" (el
-// anillo se completa + destello) y cae sobre su pedestal. Coreografiado con
-// GSAP (misma librería que ya anima tabs/sidebar en el resto de la app, ver
-// App.tsx / SessionTabs.tsx). Se muestra una única vez por módulo -- ver
-// `markModuleBadgeEarned` en features/practicas/badges.service.ts, misma fuente de
-// verdad que lee la Sala de Trofeos del Perfil.
+// anillo se completa + destello) y cae sobre su pedestal. Coreografiado con la
+// API de animaciones del navegador (element.animate). Se muestra una única vez
+// por módulo -- ver `markModuleBadgeEarned` en features/practicas/badges.service.ts,
+// misma fuente de verdad que lee la sección de insignias del Perfil.
 //
 // Estilos en Tailwind inline (mismo criterio que el resto del proyecto,
-// keyframes compartidos en tailwind.config.js) -- lo único animado fuera de
-// GSAP (ambiente de fondo + entrada del modal) usa `motion-reduce:` para
+// keyframes compartidos en tailwind.config.js) -- lo animado con CSS
+// (ambiente de fondo + entrada del modal) usa `motion-reduce:` para
 // respetar prefers-reduced-motion sin un media query a mano.
 import React, { useEffect, useMemo, useRef } from 'react';
-import { gsap } from 'gsap';
 import { RANKS, rankForModule } from '../badges.service';
 import { MedalIcon } from './MedalIcon';
 import EnvioMoodlePanel from '@/features/cursos/EnvioMoodlePanel';
@@ -67,7 +65,6 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
   // AiMessageBubble solo monta esto si el módulo tiene insignia; RANKS[0] es solo red de seguridad.
   const rank = rankForModule(moduleId) ?? RANKS[0];
 
-  const stageRef = useRef<HTMLDivElement>(null);
   const badgeRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<SVGCircleElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -113,62 +110,61 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
 
   // Coreografía: entra -> gira mientras el anillo se "carga" -> destello al
   // completarse -> cae sobre el pedestal con rebote -> chispas de aterrizaje
-  // -> texto y acciones aparecen. `prefers-reduced-motion`: salta directo al
-  // estado final, sin nada de esto.
+  // -> texto y acciones aparecen. Con la API de animaciones del navegador
+  // (element.animate): `scale`, `translate` y `rotate` son propiedades aparte,
+  // así que la entrada, el giro y la caída se suman sin pisarse.
+  // `prefers-reduced-motion`: salta directo al estado final, sin nada de esto.
   useEffect(() => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const els = {
-      badge: badgeRef.current,
-      ring: ringRef.current,
-      glow: glowRef.current,
-      details: detailsRef.current,
-      actions: actionsRef.current,
-      sparks: sparksRef.current.filter(Boolean) as HTMLSpanElement[],
-    };
-    if (reduceMotion || !els.badge || !els.ring) {
-      gsap.set([els.details, els.actions].filter(Boolean), { opacity: 1, y: 0 });
-      if (els.badge) gsap.set(els.badge, { opacity: 1, scale: 0.88, y: 38, rotateY: 0 });
-      if (els.ring) gsap.set(els.ring, { strokeDashoffset: 0 });
+    const badge = badgeRef.current;
+    const ring = ringRef.current;
+    const glow = glowRef.current;
+    const textos = [detailsRef.current, actionsRef.current].filter(Boolean) as HTMLElement[];
+    const chispas = sparksRef.current.filter(Boolean) as HTMLSpanElement[];
+    if (reduceMotion || !badge || !ring) {
+      textos.forEach((el) => { el.style.opacity = '1'; });
+      if (badge) { badge.style.scale = '0.88'; badge.style.translate = '0 38px'; }
+      if (ring) ring.style.strokeDashoffset = '0';
       return;
     }
 
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline();
+    // las curvas de antes (GSAP), en cubic-bezier
+    const ENTRA_CON_REBOTE = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+    const ATERRIZA = 'cubic-bezier(0.34, 1.9, 0.64, 1)';
+    const SUAVE = 'cubic-bezier(0.45, 0, 0.55, 1)';
+    const ACELERA = 'cubic-bezier(0.55, 0, 1, 0.45)';
+    const FRENA = 'cubic-bezier(0.33, 1, 0.68, 1)';
+    const animaciones: Animation[] = [];
+    const animar = (el: Element, cuadros: Keyframe[], delay: number, duration: number, easing: string, fill: FillMode = 'both') =>
+      animaciones.push(el.animate(cuadros, { delay, duration, easing, fill }));
 
-      tl.set(els.badge, { scale: 0, opacity: 0, rotateY: 0, y: 0 })
-        .set(els.ring, { strokeDashoffset: RING_CIRCUMFERENCE })
-        .set([els.details, els.actions], { opacity: 0, y: 10 })
-        .set(els.sparks, { opacity: 0, x: 0, y: 0, scale: 0.5 })
-        // 1) entra y arranca a girar mientras "carga"
-        .to(els.badge, { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(2)' }, 0.05)
-        .to(els.badge, { rotateY: 1080, duration: 1.5, ease: 'power2.inOut' }, 0.05)
-        .to(els.ring, { strokeDashoffset: 0, duration: 1.3, ease: 'power1.inOut' }, 0.15)
-        // 2) destello al completarse la carga
-        .to(els.glow, { opacity: 0.9, scale: 1.5, duration: 0.22, ease: 'power2.out' }, 1.45)
-        .to(els.glow, { opacity: 0, duration: 0.5, ease: 'power2.in' }, 1.68)
-        // 3) cae sobre el pedestal, con un rebote de aterrizaje
-        .to(els.badge, { y: 44, scale: 0.82, duration: 0.36, ease: 'power2.in' }, 1.75)
-        .to(els.badge, { y: 38, scale: 0.88, duration: 0.2, ease: 'back.out(3)' }, 2.11)
-        // 4) chispas de aterrizaje (fuegos artificiales puntuales, no confeti)
-        .set(els.sparks, { opacity: 1 }, 2.1)
-        .to(
-          els.sparks,
-          {
-            opacity: 0,
-            x: (i: number) => Math.cos(sparks[i].angle) * 58,
-            y: (i: number) => Math.sin(sparks[i].angle) * 58 - 8,
-            scale: 1,
-            duration: 0.55,
-            ease: 'power2.out',
-          },
-          2.1,
-        )
-        // 5) título/insignia + acciones
-        .to(els.details, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 2.35)
-        .to(els.actions, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 2.55);
-    }, stageRef);
+    // 1) entra y arranca a girar mientras "carga"
+    animar(badge, [{ opacity: 0, scale: '0' }, { opacity: 1, scale: '1' }], 50, 450, ENTRA_CON_REBOTE);
+    animar(badge, [{ rotate: 'y 0deg' }, { rotate: 'y 1080deg' }], 50, 1500, SUAVE);
+    animar(ring, [{ strokeDashoffset: RING_CIRCUMFERENCE }, { strokeDashoffset: 0 }], 150, 1300, SUAVE);
+    // 2) destello al completarse la carga
+    if (glow) {
+      animar(glow, [
+        { opacity: 0, scale: '1', easing: FRENA },
+        { opacity: 0.9, scale: '1.5', offset: 0.3, easing: ACELERA },
+        { opacity: 0, scale: '1.5' },
+      ], 1450, 730, 'linear');
+    }
+    // 3) cae sobre el pedestal, con un rebote de aterrizaje (sin relleno hacia atrás: antes de empezar manda la entrada)
+    animar(badge, [{ scale: '1', translate: '0 0' }, { scale: '0.82', translate: '0 44px' }], 1750, 360, ACELERA, 'forwards');
+    animar(badge, [{ scale: '0.82', translate: '0 44px' }, { scale: '0.88', translate: '0 38px' }], 2110, 200, ATERRIZA, 'forwards');
+    // 4) chispas de aterrizaje (fuegos artificiales puntuales, no confeti); antes de salir quedan invisibles (opacity-0)
+    chispas.forEach((el, i) => {
+      const x = Math.cos(sparks[i].angle) * 58;
+      const y = Math.sin(sparks[i].angle) * 58 - 8;
+      animar(el, [{ opacity: 1, translate: '0 0', scale: '0.5' }, { opacity: 0, translate: `${x}px ${y}px`, scale: '1' }], 2100, 550, FRENA, 'forwards');
+    });
+    // 5) título/insignia + acciones
+    textos.forEach((el, i) => {
+      animar(el, [{ opacity: 0, translate: '0 10px' }, { opacity: 1, translate: '0 0' }], i ? 2550 : 2350, i ? 350 : 400, FRENA);
+    });
 
-    return () => ctx.revert();
+    return () => animaciones.forEach((a) => a.cancel());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -207,7 +203,7 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
         style={{ background: 'var(--background-secondary, #1e2030)', borderColor: 'var(--border-subtle, rgba(255,255,255,0.1))' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative flex h-[176px] w-full flex-col items-center justify-end [perspective:700px]" ref={stageRef}>
+        <div className="relative flex h-[176px] w-full flex-col items-center justify-end [perspective:700px]">
           <div
             ref={glowRef}
             className="pointer-events-none absolute top-[22px] h-[130px] w-[130px] rounded-full opacity-0 [background:radial-gradient(circle,rgba(247,205,61,0.9)_0%,rgba(247,205,61,0)_70%)] [mix-blend-mode:screen]"
@@ -271,7 +267,7 @@ export const ModuleCompleteCelebration: React.FC<ModuleCompleteCelebrationProps>
 
         <div ref={actionsRef} className="mt-[18px] flex flex-col items-center gap-2.5">
           <p className="m-0 text-xs" style={{ color: 'var(--text-secondary, #9ca3af)' }}>
-            Ya la podés ver en tu Sala de Trofeos, en tu Perfil.
+            Ya la puedes ver en tu Perfil.
           </p>
           {/* Si la práctica tiene tarea en Moodle, aquí se ofrece enviarla (con el registro de la sesión). Si no, no se ve nada. */}
           <EnvioMoodlePanel

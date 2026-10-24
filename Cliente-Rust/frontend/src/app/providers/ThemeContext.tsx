@@ -74,6 +74,17 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', efectivo)
+    // Para la pantalla de carga de index.html, que se pinta antes de que llegue este código: el tema y sus colores ya resueltos
+    const guardar = requestAnimationFrame(() => {
+      const css = getComputedStyle(document.documentElement)
+      try {
+        localStorage.setItem('arranque', JSON.stringify({
+          tema: efectivo,
+          fondo: css.getPropertyValue('--background-primary').trim(),
+          texto: css.getPropertyValue('--text-secondary').trim(),
+        }))
+      } catch {}
+    })
 
     // Lazy-load Google Font for personality themes
     const THEME_FONTS: Partial<Record<Theme, string>> = {
@@ -106,6 +117,7 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
     } else if (existingLink) {
       existingLink.remove()
     }
+    return () => cancelAnimationFrame(guardar)
   }, [efectivo])
 
   const setTheme = (t: Theme) => setThemeState(t)
