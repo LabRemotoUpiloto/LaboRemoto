@@ -157,7 +157,7 @@ export function PasoCard({ paso, total, rules, result, practiceId, sessionId, on
       <UnstyledButton onClick={() => setAbierto(true)} style={{ width: '100%' }} aria-label={`Ver de nuevo el paso ${paso.numero}`}>
         <Group gap={8} wrap="nowrap" py={4}>
           <Check size={16} color="var(--success, #22C55E)" style={{ flexShrink: 0 }} />
-          <Text fz="sm" c="dimmed" style={{ flex: 1 }}>Paso {paso.numero} · {titulo}</Text>
+          <Text fz="sm" c="dimmed" style={{ flex: 1 }}>Paso {paso.numero}: {titulo}</Text>
           <Text fz="xs" c="dimmed">Ver de nuevo</Text>
           <ChevronDown size={14} />
         </Group>

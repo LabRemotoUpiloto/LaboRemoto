@@ -19,7 +19,7 @@ function tooltip(p: PuntoUbicacion): HTMLElement {
   const titulo = document.createElement('strong');
   titulo.textContent = p.lugar;
   const detalle = document.createElement('div');
-  detalle.textContent = `${p.sesiones} sesión(es)${p.activas ? ` · ${p.activas} ahora` : ''}${p.aproximada ? ' · aprox. por IP' : ''}`;
+  detalle.textContent = `${p.sesiones} sesión(es)${p.activas ? `, ${p.activas} ahora` : ''}${p.aproximada ? ' (aprox. por IP)' : ''}`;
   const quienes = document.createElement('div');
   quienes.textContent = p.estudiantes.slice(0, 5).join(', ') + (p.estudiantes.length > 5 ? '…' : '');
   el.append(titulo, detalle, quienes);

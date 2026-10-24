@@ -8,8 +8,6 @@ export interface PropsPestana {
   dias: number;
   /** Cambia cuando se pide «Actualizar» en el encabezado. */
   recarga: number;
-  /** Hora de la última respuesta, para «actualizado HH:MM». */
-  onActualizado: (ms: number) => void;
   /** Vuelve a pedir los datos (el mismo «Actualizar» del encabezado). */
   reintentar: () => void;
 }

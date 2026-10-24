@@ -18,10 +18,9 @@ const PREGUNTAS: { clave: keyof ResumenPracticaEncuesta['promedios']; etiqueta: 
   { clave: 'satisfaccion', etiqueta: 'Satisfacción general' },
 ];
 
-export default function EncuestasPanel({ dias, recarga, onActualizado, reintentar }: PropsPestana) {
-  const { datos, error, cargando, ahora } = useResumen(encuestasService.resumen, dias, recarga);
+export default function EncuestasPanel({ dias, recarga, reintentar }: PropsPestana) {
+  const { datos, error, cargando } = useResumen(encuestasService.resumen, dias, recarga);
   const [nombres, setNombres] = useState<Record<string, string>>({});
-  useEffect(() => { if (datos) onActualizado(ahora); }, [datos, ahora, onActualizado]);
 
   // Nombre de cada práctica (las encuestas llegan con el id, p. ej. «linux»).
   useEffect(() => {
@@ -49,10 +48,10 @@ function Practica({ p, nombre }: { p: ResumenPracticaEncuesta; nombre: string })
   const dificultad = repartoDificultad(p.dificultad, p.respuestas).filter((d) => d.veces > 0);
   const sinProblemas = p.problemas.ninguno ?? 0;
   return (
-    <Seccion titulo={nombre} derecha={<span className={NOTA}>{p.respuestas} {p.respuestas === 1 ? 'respuesta' : 'respuestas'}</span>}>
+    <Seccion titulo={nombre}>
       <div className={`${TARJETA} grid gap-x-10 gap-y-6 px-5 py-4 md:grid-cols-2`}>
         <div className="flex flex-col gap-3">
-          <h4 className={ETIQUETA}>Promedios (de 1 a 5)</h4>
+          <h4 className={ETIQUETA}>Promedios de {p.respuestas} {p.respuestas === 1 ? 'respuesta' : 'respuestas'} (de 1 a 5)</h4>
           {PREGUNTAS.map(({ clave, etiqueta }) => {
             const v = p.promedios[clave];
             const nivel = nivelNota5(v);

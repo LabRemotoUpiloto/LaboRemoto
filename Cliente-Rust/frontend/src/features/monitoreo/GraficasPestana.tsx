@@ -105,14 +105,14 @@ function PorEstudiantes({ muestras, resumen, enCurso }: { muestras: MuestraPi[];
       {resumen && (
         <div className={`${TARJETA} flex flex-col gap-2 px-6 py-4`}>
           {resumen.quiebre ? (
-            <Punto nivel="critico" fuerte={`Se degradó con ${resumen.quiebre.estudiantes ?? '?'} estudiantes`}
-              resto={`· ${resumen.quiebre.indicador.titulo.toLowerCase()} llegó a ${formatoValor(resumen.quiebre.valor, resumen.quiebre.indicador.unidad)} (crítico desde ${formatoValor(resumen.quiebre.indicador.critico, resumen.quiebre.indicador.unidad)})`} />
+            <Punto nivel="critico" fuerte={`Se degradó con ${resumen.quiebre.estudiantes ?? '?'} estudiantes:`}
+              resto={`${resumen.quiebre.indicador.titulo.toLowerCase()} llegó a ${formatoValor(resumen.quiebre.valor, resumen.quiebre.indicador.unidad)} (crítico desde ${formatoValor(resumen.quiebre.indicador.critico, resumen.quiebre.indicador.unidad)})`} />
           ) : (
-            <Punto nivel="bien" fuerte="Nada llegó a crítico" resto={`· con hasta ${resumen.maxEstudiantes} estudiantes`} />
+            <Punto nivel="bien" fuerte="Nada llegó a crítico" resto={`con hasta ${resumen.maxEstudiantes} estudiantes`} />
           )}
           {resumen.primeraAlerta && (!resumen.quiebre || resumen.primeraAlerta.t < resumen.quiebre.t) && (
-            <Punto nivel="alerta" fuerte={`Primera alerta con ${resumen.primeraAlerta.estudiantes ?? '?'} estudiantes`}
-              resto={`· ${resumen.primeraAlerta.indicador.titulo.toLowerCase()} pasó de ${formatoValor(resumen.primeraAlerta.indicador.alerta, resumen.primeraAlerta.indicador.unidad)}`} />
+            <Punto nivel="alerta" fuerte={`Primera alerta con ${resumen.primeraAlerta.estudiantes ?? '?'} estudiantes:`}
+              resto={`${resumen.primeraAlerta.indicador.titulo.toLowerCase()} pasó de ${formatoValor(resumen.primeraAlerta.indicador.alerta, resumen.primeraAlerta.indicador.unidad)}`} />
           )}
         </div>
       )}
@@ -265,7 +265,7 @@ export default function GraficasPestana({ muestras, prueba, muestrasPrueba, resu
         )}
         {vista === 'estudiantes' && prueba && (
           <span className={`${NOTA} ml-auto text-xs`}>
-            prueba · {hora24(prueba.inicio).slice(0, 5)}{prueba.fin ? ` – ${hora24(prueba.fin).slice(0, 5)}` : ' – en curso'} · hasta {Math.max(0, ...muestrasPrueba.map((m) => estudiantesEn(m) ?? 0))} estudiantes
+            prueba de {hora24(prueba.inicio).slice(0, 5)}{prueba.fin ? ` a ${hora24(prueba.fin).slice(0, 5)}` : ', en curso'}, hasta {Math.max(0, ...muestrasPrueba.map((m) => estudiantesEn(m) ?? 0))} estudiantes
           </span>
         )}
       </div>

@@ -96,7 +96,7 @@ function PosterViewer({ poster, onClose }: { poster: PosterDef; onClose: () => v
         </div>
         <div className="flex items-center justify-between gap-3 border-t px-3.5 py-2.5" style={{ borderColor: 'var(--border-subtle, rgba(255,255,255,0.1))' }}>
           <span className="text-[11px]" style={{ color: 'var(--text-secondary, #9ca3af)' }}>
-            Rueda del mouse para acercar · arrastrar para mover · doble click para restablecer
+            Rueda del mouse para acercar, arrastrar para mover y doble clic para restablecer
           </span>
           <button
             className="flex items-center gap-1.5 rounded-lg bg-[#e21f19] px-4 py-2 text-[13px] font-bold text-white transition hover:brightness-110 disabled:cursor-default disabled:opacity-50"

@@ -64,7 +64,7 @@ describe('soloCambios', () => {
 
 describe('textoErrores', () => {
   it('une los errores por campo', () => {
-    expect(textoErrores({ host: 'debe ser privada', puerto: 'inválido' })).toBe('host: debe ser privada · puerto: inválido');
+    expect(textoErrores({ host: 'debe ser privada', puerto: 'inválido' })).toBe('host: debe ser privada; puerto: inválido');
     expect(textoErrores(null)).toBe('');
   });
 });

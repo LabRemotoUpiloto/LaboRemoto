@@ -87,7 +87,7 @@ export default function MisCursosPage() {
                   <Group justify="space-between" wrap="nowrap" px="lg" py="md">
                     <div style={{ minWidth: 0 }}>
                       <Text size="sm" fw={600} truncate>{c.nombre}</Text>
-                      <Text size="xs" c="dimmed">{c.corto} · {c.rol === 'docente' ? 'Docente' : 'Estudiante'}</Text>
+                      <Text size="xs" c="dimmed">{c.corto} ({c.rol === 'docente' ? 'docente' : 'estudiante'})</Text>
                     </div>
                     <Group gap="xs" wrap="nowrap">
                       {c.rol === 'docente' && (
@@ -179,7 +179,7 @@ function EntregasPanel({ cursoId, cmid, refrescar }: { cursoId: number; cmid: nu
   return (
     <Box pb="sm">
       <Text size="xs" c="dimmed" mb={6}>
-        {r.enviadas} de {r.total} enviaron{r.porRevisar > 0 ? ` · ${r.porRevisar} por revisar en Moodle` : ''}. La nota final la decides tú en Moodle.
+        {r.enviadas} de {r.total} enviaron{r.porRevisar > 0 ? `, ${r.porRevisar} por revisar en Moodle` : ''}. La nota final la decides tú en Moodle.
       </Text>
       <Box style={{ overflowX: 'auto' }}>
         {/* Anchos fijos para que las columnas queden alineadas entre las tablas de distintas prácticas. */}

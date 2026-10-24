@@ -3,7 +3,7 @@
 //  - General: las prácticas que reporta la app (cmd::sesiones). Los números van en una frase y en tablas, no en tarjetas.
 //  - Dispositivos: quién entra por SSH a cada Pi, con su ubicación (cmd::dispositivos). Aparte de las prácticas.
 //  - Encuestas: lo que respondieron los estudiantes al terminar cada práctica (anónimo).
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshCw, Search } from 'lucide-react';
 import {
   Aviso, Boton, BarraAcento, BotonIcono, Buscador, Encabezado, NOTA, Num, Pagina, Pestanas, Punto, Seccion, Selector, TARJETA, Tabla,
@@ -18,7 +18,7 @@ import {
   porUbicacion, resumenGeneral, sesionesPorDia, ubicacion,
 } from './dashboardStats';
 import { useResumen } from './useResumen';
-import { fechaCorta, hora, MESES, PersonaBoton, type PropsPestana } from './piezas';
+import { fechaCorta, MESES, PersonaBoton, type PropsPestana } from './piezas';
 
 type PestanaActividad = 'general' | 'dispositivos' | 'encuestas';
 
@@ -31,12 +31,11 @@ export default function DashboardPage() {
   const [dias, setDias] = useState('30');
   const [diasEncuestas, setDiasEncuestas] = useState('90');
   const [recarga, setRecarga] = useState(0);
-  const [actualizado, setActualizado] = useState<number | null>(null);
   const encuestas = pestana === 'encuestas';
 
 
   const props: PropsPestana = {
-    dias: Number(encuestas ? diasEncuestas : dias), recarga, onActualizado: setActualizado, reintentar: () => setRecarga((n) => n + 1),
+    dias: Number(encuestas ? diasEncuestas : dias), recarga, reintentar: () => setRecarga((n) => n + 1),
   };
   return (
     <Pagina>
@@ -44,13 +43,12 @@ export default function DashboardPage() {
         titulo="Actividad"
         descripcion="Qué prácticas se hacen, quién las hace y desde dónde."
         derecha={<>
-          {actualizado && <span className={NOTA}>actualizado {hora(new Date(actualizado))}</span>}
           <Selector nombre="Período" valor={encuestas ? diasEncuestas : dias} onCambio={encuestas ? setDiasEncuestas : setDias}
             opciones={encuestas ? PERIODOS_ENCUESTAS : PERIODOS} />
           <BotonIcono etiqueta="Actualizar" onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={15} /></BotonIcono>
         </>}
         pestanas={<Pestanas<PestanaActividad> nombre="Secciones de Actividad" valor={pestana}
-          onCambio={(p) => { setActualizado(null); setPestana(p); }}
+          onCambio={setPestana}
           opciones={[{ valor: 'general', etiqueta: 'General' }, { valor: 'dispositivos', etiqueta: 'Dispositivos' }, { valor: 'encuestas', etiqueta: 'Encuestas' }]} />}
       />
       {pestana === 'general' ? <General {...props} /> : pestana === 'dispositivos' ? <DispositivosPanel {...props} /> : <EncuestasPanel {...props} />}
@@ -58,11 +56,10 @@ export default function DashboardPage() {
   );
 }
 
-function General({ dias, recarga, onActualizado, reintentar }: PropsPestana) {
+function General({ dias, recarga, reintentar }: PropsPestana) {
   const { datos, error, cargando, ahora } = useResumen(sesionesService.resumen, dias, recarga, 30_000);
   const [busqueda, setBusqueda] = useState('');
   const [elegido, setElegido] = useState<string | null>(null);
-  useEffect(() => { if (datos) onActualizado(ahora); }, [datos, ahora, onActualizado]);
 
   const sesiones = datos?.sesiones ?? [];
   const g = useMemo(() => resumenGeneral(sesiones, ahora), [sesiones, ahora]);
@@ -104,7 +101,7 @@ function General({ dias, recarga, onActualizado, reintentar }: PropsPestana) {
         <Seccion titulo="En práctica ahora"><TablaSesiones sesiones={activas} ahora={ahora} conEstudiante /></Seccion>
       )}
 
-      <Seccion titulo="Sesiones por día" derecha={<span className={NOTA}>máximo {maximo} en un día</span>}>
+      <Seccion titulo="Sesiones por día">
         <div className={`${TARJETA} flex flex-col gap-2 px-5 pb-3 pt-5`}>
           <div className="flex h-[120px] items-end gap-1" role="img"
             aria-label={`Sesiones por día en los últimos ${dias} días: ${g.total} en total, máximo ${maximo} en un día.`}>
@@ -121,7 +118,7 @@ function General({ dias, recarga, onActualizado, reintentar }: PropsPestana) {
         </div>
       </Seccion>
 
-      <Seccion titulo="Prácticas más usadas" derecha={<span className={NOTA}>sesiones</span>}>
+      <Seccion titulo="Prácticas más usadas">
         <div className={`${TARJETA} px-5 py-1`}>
           {practicas.slice(0, 8).map((p, i) => (
             <div key={p.nombre} className={`grid grid-cols-[minmax(0,1fr)_minmax(120px,260px)_40px] items-center gap-5 py-2.5 text-[13px] ${i ? 'border-t border-ui-pista' : ''}`}>
@@ -159,7 +156,7 @@ function General({ dias, recarga, onActualizado, reintentar }: PropsPestana) {
       )}
 
       <Seccion titulo="Desde dónde se conectan"
-        derecha={<span className={NOTA}>verde: en práctica ahora · punteado: aproximado por IP (centro de la ciudad)</span>}>
+        derecha={<span className={NOTA}>verde: en práctica ahora; punteado: aproximado por IP (centro de la ciudad)</span>}>
         {puntos.length
           ? <div className={`${TARJETA} h-[300px]`}><SesionesMapa puntos={puntos} /></div>
           : <Aviso titulo="Todavía no hay sesiones con ubicación en el período" />}

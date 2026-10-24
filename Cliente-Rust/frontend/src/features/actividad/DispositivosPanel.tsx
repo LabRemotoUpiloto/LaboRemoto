@@ -1,7 +1,7 @@
 // features/actividad/DispositivosPanel.tsx — pestaña «Dispositivos» de Actividad: quién entra por SSH a cada Pi, con su ubicación.
 // Aparte de las prácticas. Los datos salen del agente de cada dispositivo (cmd::dispositivos) y solo cuentan las conexiones
 // nuevas, desde que el agente se activó: no hay historial anterior. Fechas como en el Excel de conexiones (fechaExcel).
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Aviso, Boton, Buscador, FilasCargando, NOTA, Num, Punto, Seccion, TARJETA, Tabla } from '@/components/ui';
 import { dispositivosService, type ConexionDispositivo, type DispositivoActividad } from './dispositivos.service';
@@ -15,9 +15,8 @@ import { useResumen } from './useResumen';
 
 const MAX_FILAS = 100;
 
-export default function DispositivosPanel({ dias, recarga, onActualizado, reintentar }: PropsPestana) {
+export default function DispositivosPanel({ dias, recarga, reintentar }: PropsPestana) {
   const { datos, error, cargando, ahora } = useResumen(dispositivosService.resumen, dias, recarga, 15_000);
-  useEffect(() => { if (datos) onActualizado(ahora); }, [datos, ahora, onActualizado]);
 
   if (cargando && !datos) return <FilasCargando plantilla="grid-cols-[minmax(0,1fr)_100px_130px_130px]" columnas={4} />;
   if (error && !datos) return <Aviso nivel="critico" titulo="No se pudo cargar la actividad de los dispositivos" detalle={error} accion={<Boton onClick={reintentar}>Reintentar</Boton>} />;
@@ -62,7 +61,7 @@ function Dispositivo({ d, dias, ahora }: { d: DispositivoActividad; dias: number
 
       {nr.conexiones > 0 && (
         <Aviso nivel="alerta"
-          titulo={`${nr.conexiones} ${nr.conexiones === 1 ? 'entrada' : 'entradas'} con cuentas no reconocidas${nr.activas ? ` · ${nr.activas} abierta(s) ahora` : ''}`}
+          titulo={`${nr.conexiones} ${nr.conexiones === 1 ? 'entrada' : 'entradas'} con cuentas no reconocidas${nr.activas ? `, ${nr.activas} abierta(s) ahora` : ''}`}
           detalle={<>No son del directorio ni la cuenta compartida. Última: <span className="font-ui-num">{nr.ultimas[0].usuario}</span> desde{' '}
             <span className="font-ui-num">{nr.ultimas[0].ip}</span>{nr.ultimas[0].pais ? ` (${nr.ultimas[0].pais})` : ''}, {haceTiempo(nr.ultimas[0].inicio, ahora)}.</>} />
       )}
@@ -133,7 +132,7 @@ function TablaConexiones({ conexiones, ahora }: { conexiones: ConexionDispositiv
       filas={conexiones.map((c) => [
         <Num>{fechaExcel(c.inicio)}</Num>,
         c.activa
-          ? <span className="font-semibold text-ui-bien-texto">Conectado · <Num>{duracionConexion(c, ahora)}</Num></span>
+          ? <span className="font-semibold text-ui-bien-texto">Lleva <Num>{duracionConexion(c, ahora)}</Num> conectado</span>
           : <span><Num>{fechaExcel(c.fin)}</Num>{c.cierre === 'sin_cierre' && <span className="ml-1 text-[11px] text-ui-apagado">(sin cierre)</span>}</span>,
         <span className="font-ui-num text-[12px]">{c.ip}</span>,
         <span className="block truncate">{ubicacionConexion(c)}</span>,

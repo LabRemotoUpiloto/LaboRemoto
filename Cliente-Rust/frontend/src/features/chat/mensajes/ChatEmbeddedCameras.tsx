@@ -15,7 +15,7 @@ const ChatEmbeddedCameras: React.FC<Props> = ({
   sessionId,
   sessionConnecting = false,
   sessionError = null,
-  label = 'Cámaras · Raspberry Pi 4',
+  label = 'Cámaras de la Raspberry Pi 4',
   onClose,
 }) => {
   useEffect(() => {

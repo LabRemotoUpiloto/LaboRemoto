@@ -55,7 +55,7 @@ describe('estadoDispositivo', () => {
   const ahora = Date.parse('2026-10-04T15:00:00.000Z');
   it('en línea, sin conexión (con el último aviso) y sin agente todavía', () => {
     expect(estadoDispositivo({ enLinea: true, ultimoLatido: '2026-10-04T14:59:50.000Z' }, ahora)).toEqual({ texto: 'En línea', ok: true });
-    expect(estadoDispositivo({ enLinea: false, ultimoLatido: '2026-10-04T14:50:00.000Z' }, ahora)).toEqual({ texto: 'Sin conexión · último aviso hace 10 min', ok: false });
+    expect(estadoDispositivo({ enLinea: false, ultimoLatido: '2026-10-04T14:50:00.000Z' }, ahora)).toEqual({ texto: 'Sin conexión desde hace 10 min', ok: false });
     expect(estadoDispositivo({ enLinea: false, ultimoLatido: null }, ahora)).toEqual({ texto: 'Aún no ha reportado', ok: null });
   });
 });

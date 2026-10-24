@@ -184,7 +184,7 @@ const CameraGrid: React.FC<Props> = ({ sessionId, isActive = true, autoStart = f
           <span>{activeCameras.length} cámara{activeCameras.length !== 1 ? 's' : ''} activa{activeCameras.length !== 1 ? 's' : ''}</span>
           {allCameras.filter(c => c.status === 'offline').length > 0 && (
             <span className="text-[#f87171]">
-              · {allCameras.filter(c => c.status === 'offline').length} offline
+              , {allCameras.filter(c => c.status === 'offline').length} sin video
             </span>
           )}
         </div>

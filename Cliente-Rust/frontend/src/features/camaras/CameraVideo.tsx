@@ -50,13 +50,13 @@ const CameraVideo: React.FC<Props> = ({ hlsUrl, webrtcPath, label, sinEtiqueta, 
   // en el respaldo también se muestra por qué falló WebRTC, mientras se afina.
   if (hls) {
     const motivo = webrtcPath && ultimoMotivo ? ` (WebRTC: ${ultimoMotivo})` : ''
-    return <HlsPlayer src={hlsUrl} label={sinEtiqueta ? undefined : `${label ? `${label} · ` : ''}HLS${motivo}`} />
+    return <HlsPlayer src={hlsUrl} label={sinEtiqueta ? undefined : `${label ? `${label} por ` : ''}HLS${motivo}`} />
   }
 
   return (
     <WhepPlayer
       path={webrtcPath!}
-      label={sinEtiqueta ? undefined : label ? `${label} · WebRTC` : 'WebRTC'}
+      label={sinEtiqueta ? undefined : label ? `${label} por WebRTC` : 'WebRTC'}
       onFail={(motivo, deRed, habiaConectado) => {
         const red = esFalloDeRed(deRed, habiaConectado)
         console.warn(`[camara] WebRTC (${webrtcPath}) no disponible, usando HLS${red ? '' : ' (solo esta cámara)'}: ${motivo}`)

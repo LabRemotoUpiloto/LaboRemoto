@@ -73,7 +73,7 @@ export default function ResumenGeneralPanel({ cursoId }: { cursoId: number }) {
                   {f.nombre !== f.usuario && <Text size="xs" c="dimmed">{f.usuario}</Text>}
                 </Table.Td>
                 <Table.Td>
-                  <Text size="xs" c="dimmed" mb={2}>{f.entregadas} de {f.total} · {textoNota(f.avance)}</Text>
+                  <Text size="xs" c="dimmed" mb={2}>{f.entregadas} de {f.total} ({textoNota(f.avance)})</Text>
                   <Progress value={f.avance} size="sm" radius="xl" aria-label={`Avance de ${f.nombre}`} />
                 </Table.Td>
                 <Table.Td>
@@ -91,9 +91,9 @@ export default function ResumenGeneralPanel({ cursoId }: { cursoId: number }) {
           </Table.Tbody>
           <Table.Tfoot>
             <Table.Tr>
-              <Table.Td colSpan={3}><Text size="xs" c="dimmed">Por práctica: entregaron · promedio</Text></Table.Td>
+              <Table.Td colSpan={3}><Text size="xs" c="dimmed">Por práctica: entregaron (promedio)</Text></Table.Td>
               {g.porPractica.map((p) => (
-                <Table.Td key={p.cmid}><Text size="xs" c="dimmed">{p.entregaron}/{g.curso.estudiantes} · {textoNota(p.promedio)}</Text></Table.Td>
+                <Table.Td key={p.cmid}><Text size="xs" c="dimmed">{p.entregaron}/{g.curso.estudiantes} ({textoNota(p.promedio)})</Text></Table.Td>
               ))}
             </Table.Tr>
           </Table.Tfoot>

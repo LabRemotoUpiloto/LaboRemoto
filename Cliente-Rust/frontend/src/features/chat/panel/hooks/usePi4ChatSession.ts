@@ -87,7 +87,7 @@ export function usePi4ChatSession() {
     }
   }, [sessionId]);
 
-  const label = `${KNOWN_DEVICES.RASPBERRY_PI_4.label} · ${KNOWN_DEVICES.RASPBERRY_PI_4.host}`;
+  const label = `${KNOWN_DEVICES.RASPBERRY_PI_4.label} (${KNOWN_DEVICES.RASPBERRY_PI_4.host})`;
 
   return {
     pi4ChatSessionId: sessionId,

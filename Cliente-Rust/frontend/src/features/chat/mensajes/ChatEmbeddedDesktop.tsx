@@ -15,7 +15,7 @@ const ChatEmbeddedDesktop: React.FC<Props> = ({
   sessionId,
   sessionConnecting = false,
   sessionError = null,
-  label = 'Escritorio · Raspberry Pi 4',
+  label = 'Escritorio de la Raspberry Pi 4',
   onClose,
 }) => {
   useEffect(() => {

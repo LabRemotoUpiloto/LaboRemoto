@@ -154,7 +154,7 @@ const CamarasAdminModal: React.FC<Props> = ({ opened, onClose, onCambio }) => {
                   <Group key={c.id} wrap="nowrap" px="md" py="sm" style={{ borderBottom: i === camaras.length - 1 ? 'none' : '1px solid var(--border-subtle)' }}>
                     <div style={{ flex: 2, minWidth: 0 }}>
                       <Text size="sm" fw={600} truncate>{c.nombre}</Text>
-                      <Text size="xs" c="dimmed" truncate>{c.host}:{c.puerto} · {c.usuario}{c.ptz ? ' · PTZ' : ''}</Text>
+                      <Text size="xs" c="dimmed" truncate>{c.usuario}@{c.host}:{c.puerto}{c.ptz ? ', con PTZ' : ''}</Text>
                     </div>
                     <Group gap={0} wrap="nowrap" style={{ flex: 1.4, minWidth: 0 }}>
                       <Punto ok={et.ok} /><Text size="sm" truncate>{et.texto}</Text>

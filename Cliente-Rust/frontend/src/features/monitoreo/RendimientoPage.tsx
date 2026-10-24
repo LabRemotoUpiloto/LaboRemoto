@@ -13,7 +13,7 @@ import GraficasPestana from './GraficasPestana';
 import ProcesosPestana from './ProcesosPestana';
 import { guardarExcelDePrueba } from './exportarPrueba';
 import { resumirPrueba, unirMuestras } from './rendimientoStats';
-import { duracion, estadoPi, hora24 } from './monitoreo';
+import { duracion, estadoPi } from './monitoreo';
 import { ETIQUETA, Punto } from '@/components/ui';
 import { useCamaras, useInformePi } from './useDatosLab';
 
@@ -84,8 +84,7 @@ const RendimientoPage: React.FC<{ onOpenPanel?: (id: string) => void }> = ({ onO
     estado.resto,
     pruebaEnCurso && 'prueba en curso',
     encendida && !error && `encendida hace ${duracion(Date.now() / 1000 - encendida)}`,
-    ultima && `actualizado ${hora24(ultima.t)}`,
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(', ');
 
   return (
     // Arriba lo fijo (migas, título, estado y pestañas); abajo la pestaña con su propio scroll.
@@ -100,7 +99,7 @@ const RendimientoPage: React.FC<{ onOpenPanel?: (id: string) => void }> = ({ onO
             <span>Raspberry Pi 4</span>
           </nav>
           <h1 className="m-0 font-ui-titulo text-2xl font-bold text-ui-tinta">Raspberry Pi 4</h1>
-          <Punto nivel={estado.nivel} fuerte={estado.fuerte} resto={resto && `· ${resto}`} />
+          <Punto nivel={estado.nivel} fuerte={estado.fuerte} resto={resto && `(${resto})`} />
           <div role="tablist" aria-label="Secciones de la Pi 4" className="mt-4 flex gap-2 border-b border-ui-pista">
             {PESTANAS.map((p) => (
               <button key={p.valor} type="button" role="tab" aria-selected={pestana === p.valor} onClick={() => elegirPestana(p.valor)}

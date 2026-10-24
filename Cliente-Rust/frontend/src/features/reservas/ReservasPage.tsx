@@ -293,7 +293,7 @@ const ReservaItem: React.FC<{
             <Group gap={5}>
               <Clock size={11} style={{ color: 'var(--text-muted)' }} />
               <Text size="xs" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                {r.hora} · {r.fecha}
+                {r.fecha}, {r.hora}
               </Text>
             </Group>
           </Stack>

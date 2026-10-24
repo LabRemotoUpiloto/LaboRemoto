@@ -333,7 +333,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     const tooltipLabel = (
       <Stack gap={2} style={{ fontSize: 11 }}>
         <Text fw={700} size="xs">
-          Pin Físico #{pin.physical} · {pin.name} {pin.alias ? `(${pin.alias})` : ''}
+          Pin físico #{pin.physical}: {pin.name} {pin.alias ? `(${pin.alias})` : ''}
         </Text>
         {pin.gpio != null && (
           <>
@@ -502,7 +502,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
           <Group justify="space-between" align="center">
             <Group gap={6}>
               <Title order={5} style={{ color: 'var(--text-primary)', fontSize: 13 }}>
-                Pin #{selectedDefinition.physical} · {selectedDefinition.name}
+                Pin #{selectedDefinition.physical}: {selectedDefinition.name}
               </Title>
               {selectedDefinition.alias && (
                 <Text size="xs" fw={700} style={{ color: 'var(--accent-primary)', fontSize: 11 }}>

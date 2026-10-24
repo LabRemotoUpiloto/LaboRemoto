@@ -68,21 +68,21 @@ function ResumenDePrueba({ resumen, onGuardar }: { resumen: ResumenPrueba; onGua
   const a = resumen.primeraAlerta;
   const minutos = Math.max(1, Math.round((resumen.fin - resumen.inicio) / 60));
   return (
-    <Seccion titulo="Última prueba" derecha={<span className={NOTA}>{hora24(resumen.inicio).slice(0, 5)} – {hora24(resumen.fin).slice(0, 5)} · {minutos} min · hasta {resumen.maxEstudiantes} estudiantes</span>}>
+    <Seccion titulo="Última prueba" derecha={<span className={NOTA}>de {hora24(resumen.inicio).slice(0, 5)} a {hora24(resumen.fin).slice(0, 5)} ({minutos} min), hasta {resumen.maxEstudiantes} estudiantes</span>}>
       <div className={TARJETA}>
         <div className="flex flex-wrap items-start justify-between gap-4 px-6 py-5">
           <div className="flex flex-col gap-2">
             {q ? (
-              <Punto nivel="critico" fuerte={`Se degradó con ${q.estudiantes ?? '?'} estudiantes`}
-                resto={`· ${q.indicador.titulo.toLowerCase()} llegó a ${formatoValor(q.valor, q.indicador.unidad)} (crítico desde ${formatoValor(q.indicador.critico, q.indicador.unidad)})`} />
+              <Punto nivel="critico" fuerte={`Se degradó con ${q.estudiantes ?? '?'} estudiantes:`}
+                resto={`${q.indicador.titulo.toLowerCase()} llegó a ${formatoValor(q.valor, q.indicador.unidad)} (crítico desde ${formatoValor(q.indicador.critico, q.indicador.unidad)})`} />
             ) : (
-              <Punto nivel="bien" fuerte="Nada llegó a crítico" resto={`· con hasta ${resumen.maxEstudiantes} estudiantes`} />
+              <Punto nivel="bien" fuerte="Nada llegó a crítico" resto={`con hasta ${resumen.maxEstudiantes} estudiantes`} />
             )}
             {a && (!q || a.t < q.t) && (
-              <Punto nivel="alerta" fuerte={`Primera alerta con ${a.estudiantes ?? '?'} estudiantes`}
-                resto={`· ${a.indicador.titulo.toLowerCase()} pasó de ${formatoValor(a.indicador.alerta, a.indicador.unidad)}`} />
+              <Punto nivel="alerta" fuerte={`Primera alerta con ${a.estudiantes ?? '?'} estudiantes:`}
+                resto={`${a.indicador.titulo.toLowerCase()} pasó de ${formatoValor(a.indicador.alerta, a.indicador.unidad)}`} />
             )}
-            {resumen.huboFrenado && <Punto nivel="alerta" fuerte="La Pi bajó su velocidad" resto="· por calor o voltaje; ese tramo no refleja su capacidad normal" />}
+            {resumen.huboFrenado && <Punto nivel="alerta" fuerte="La Pi bajó su velocidad" resto="por calor o voltaje; ese tramo no refleja su capacidad normal" />}
             <p className="m-0 mt-2 text-[13px] text-ui-tinta-2">Abre «Gráficas → Por estudiantes» para ver cada medida contra la cantidad de estudiantes.</p>
           </div>
           <Boton onClick={onGuardar}>Guardar Excel</Boton>
@@ -157,7 +157,7 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
     });
   }
   filas.push(
-    fila('subida', ENLACE_SUBIDA_MBPS, `de ${ENLACE_SUBIDA_MBPS} Mbps del enlace${ultima.red_rx_kbps != null ? ` · recibe ${(ultima.red_rx_kbps / 1000).toFixed(1)} Mbps` : ''}`),
+    fila('subida', ENLACE_SUBIDA_MBPS, `de ${ENLACE_SUBIDA_MBPS} Mbps del enlace${ultima.red_rx_kbps != null ? `; recibe ${(ultima.red_rx_kbps / 1000).toFixed(1)} Mbps` : ''}`),
     fila('latencia', 3500, ultima.api.peticiones ? `${ultima.api.peticiones} pedidos en los últimos 2 s` : 'sin pedidos en los últimos 2 s'),
     {
       nombre: errores.titulo, valor: formatoValor(pctErrores, '%'), frac: null, nivel: NIVEL_DE[estadoDe(errores, pctErrores) ?? ''] ?? null,
@@ -230,7 +230,7 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
           {enCurso ? (
             <div className="flex flex-col gap-1">
               <Punto nivel="critico" fuerte={`Grabando desde las ${hora24(prueba!.inicio)}`}
-                resto={`· ${duracion(ultima.t - prueba!.inicio)} · ${estudiantesEn(ultima) ?? 0} estudiantes ahora`} />
+                resto={`(${duracion(ultima.t - prueba!.inicio)}, ${estudiantesEn(ultima) ?? 0} estudiantes ahora)`} />
               <span className="text-[13px] text-ui-tinta-2">Se sigue grabando aunque cambies de sección o cierres la app.</span>
             </div>
           ) : (

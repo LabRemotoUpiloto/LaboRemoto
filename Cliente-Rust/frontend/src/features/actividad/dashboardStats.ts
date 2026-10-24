@@ -21,7 +21,7 @@ const esUbicacionAproximada = (s: SesionPractica) => s.fuente_ubicacion !== 'dis
 /** Cómo se obtuvo la ubicación, para mostrar al lado del lugar. */
 export function detalleUbicacion(s: SesionPractica): string | null {
   if (s.lat == null) return null;
-  if (!esUbicacionAproximada(s)) return s.precision_m != null ? `Equipo · ±${Math.max(s.precision_m, 110)} m` : 'Equipo';
+  if (!esUbicacionAproximada(s)) return s.precision_m != null ? `Del equipo (±${Math.max(s.precision_m, 110)} m)` : 'Del equipo';
   return 'Aprox. por IP';
 }
 
