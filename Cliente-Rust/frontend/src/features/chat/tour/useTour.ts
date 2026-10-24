@@ -65,6 +65,21 @@ const createDriverConfig = (): Config => ({
       }
     }
 
+    // Paso 5 (equipos del laboratorio) → 6 (formulario): abrir el de la Pi y esperar a que aparezca
+    if (opts.state.activeIndex === 5) {
+      (document.querySelector('[data-tour="quick-hosts-panel"] .quick-host-pill') as HTMLElement | null)?.click();
+      let waited = 0;
+      const interval = setInterval(() => {
+        waited += 60;
+        if (document.querySelector('[data-tour="connect-form"]') || waited >= 900) {
+          clearInterval(interval);
+          if (driverInstance) driverInstance.moveNext();
+          setTimeout(() => document.getElementById('field-user')?.focus(), 150);
+        }
+      }, 60);
+      return;
+    }
+
     // Paso 6 (índice 6 - "Conéctate ahora"), verificar que haya sesión SSH
     if (opts.state.activeIndex === 6) {
       // Buscar si existe alguna pestaña de sesión activa en el DOM
@@ -171,9 +186,9 @@ const createDriverConfig = (): Config => ({
       return; // No avanzar hasta que el chat esté montado (o timeout)
     }
 
-    // Paso 15 (SFTP transfer) → 16 (VNC flotante):
+    // Paso 14 (SFTP transfer) → 15 (VNC flotante):
     // Navegar al terminal para que se vea el estado de la sesión en el header
-    if (opts.state.activeIndex === 15) {
+    if (opts.state.activeIndex === 14) {
       window.dispatchEvent(new CustomEvent('app:open-panel', { detail: 'terminal' }));
       if (onPageChangeCallback) onPageChangeCallback('terminal');
       setTimeout(() => {
@@ -339,17 +354,7 @@ const createDriverConfig = (): Config => ({
         }, 200);
       }
     }
-    // 3) En el paso de hosts rápidos: seleccionar el primer host y enfocar usuario
-    if (tourKind === 'quick-hosts-panel') {
-      setTimeout(() => {
-        try {
-          const firstPill = document.querySelector('.quick-hosts-scroller .quick-host-pill') as HTMLElement | null;
-          firstPill?.click?.();
-          const userInput = document.getElementById('field-user') as HTMLElement | null;
-          userInput?.focus?.();
-        } catch {}
-      }, 100);
-    }
+    // 3) El formulario de la Pi se abre al seguir desde el paso de equipos del laboratorio (ver onNextClick, paso 5)
   },
   
   onDestroyStarted: () => {
