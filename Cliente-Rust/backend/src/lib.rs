@@ -108,6 +108,7 @@ pub fn run() {
       cmd::ssh::terminal::ssh_ui_ready,
       cmd::ssh::terminal::ssh_session_info,
       cmd::ssh::terminal::ssh_connect_stored,
+      cmd::ssh::carpeta::ssh_carpeta_terminal,
       cmd::ssh::gpio::rpi_pins_status,
       cmd::ssh::gpio::rpi_pin_set_mode,
       cmd::ssh::gpio::rpi_pin_set_pull,

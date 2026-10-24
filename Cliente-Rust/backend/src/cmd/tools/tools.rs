@@ -794,9 +794,8 @@ fn mensajes_previos(historial: &[MensajeHistorial]) -> Vec<serde_json::Value> {
 
 /// Lo último que mostró la terminal, sin códigos de color, para que el agente sepa dónde está parada la persona.
 fn terminal_reciente(session_id: &str, lineas: usize) -> Option<String> {
-    static ANSI: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\r").unwrap());
     let crudo = get_terminal_context(session_id.to_string(), Some(120)).ok()?;
-    let limpio = ANSI.replace_all(&crudo, "");
+    let limpio = crate::cmd::ssh::carpeta::limpiar_ansi(&crudo);
     let todas: Vec<&str> = limpio.lines().filter(|l| !l.trim().is_empty()).collect();
     let desde = todas.len().saturating_sub(lineas);
     let texto = todas[desde..].join("\n");
