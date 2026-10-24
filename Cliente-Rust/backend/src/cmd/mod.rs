@@ -12,7 +12,6 @@ pub mod vnc;         // Escritorio gráfico remoto (Xvnc/TigerVNC + noVNC)
 pub mod ai;          // Chat con IA, agente y utilidades
 pub mod practices;   // Sistema de prácticas de laboratorio remoto
 pub mod integration; // Integraciones externas (Moodle, MCP)
-pub mod streaming;   // Port-forwarding para streaming de video (legacy, ver cmd::nvr)
 pub mod broker_client; // Boilerplate común para hablar con los brokers de la Pi (token, GET autenticado, errores de red)
 pub mod nvr;         // Consumo del NVR Shinobi vía API HTTP directa
 pub mod sesiones;    // Registro central de sesiones de práctica (vía broker)
@@ -21,7 +20,6 @@ pub mod camaras_admin; // Administración de cámaras (crear/editar/eliminar/pro
 pub mod encuestas; // Encuesta al terminar una práctica (vía broker de sesiones)
 pub mod dispositivos; // Conexiones SSH a los dispositivos (pestaña Dispositivos de Actividad, vía broker)
 pub mod logs;        // Sistema de logs de sesión
-pub mod editor;      // Análisis y edición de archivos
 pub mod tools;       // Herramientas del agente AI
 pub mod filesystem;  // Operaciones de filesystem local
 pub mod hardware;    // Control de hardware (Arduino)
