@@ -243,6 +243,27 @@ pub struct KeycloakUser {
     pub attributes: Option<std::collections::HashMap<String, Vec<String>>>,
 }
 
+impl KeycloakUser {
+    /// Nombre y apellido sin el «mojibake» del directorio (ver `reparar_mojibake`).
+    fn con_nombres_reparados(mut self) -> Self {
+        self.first_name = self.first_name.map(|s| reparar_mojibake(&s));
+        self.last_name = self.last_name.map(|s| reparar_mojibake(&s));
+        self
+    }
+}
+
+/// Algunos nombres llegan del directorio de la universidad con el UTF-8 leído como Latin-1:
+/// «CAÑON» se ve «CAÃ\u{91}ON». Si el texto tiene esa forma (solo caracteres < 256 y una «Ã»
+/// o «Â»), se vuelven a juntar los bytes y se decodifican como UTF-8; si no resulta UTF-8
+/// válido, el texto queda como estaba.
+pub(crate) fn reparar_mojibake(s: &str) -> String {
+    if !s.contains(['Ã', 'Â']) || s.chars().any(|c| (c as u32) > 0xFF) {
+        return s.to_string();
+    }
+    let bytes: Vec<u8> = s.chars().map(|c| c as u32 as u8).collect();
+    String::from_utf8(bytes).unwrap_or_else(|_| s.to_string())
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct KeycloakRole {
     pub id: String,
@@ -282,8 +303,8 @@ impl KeycloakClient {
             return Err(Self::keycloak_admin_error("buscar usuarios", status, body));
         }
 
-        let users = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
-        Ok(users)
+        let users: Vec<KeycloakUser> = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
+        Ok(users.into_iter().map(KeycloakUser::con_nombres_reparados).collect())
     }
 
     /// GET /admin/realms/{realm}/users?max=1000
@@ -308,8 +329,8 @@ impl KeycloakClient {
             return Err(Self::keycloak_admin_error("listar todos los usuarios", status, body));
         }
 
-        let users = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
-        Ok(users)
+        let users: Vec<KeycloakUser> = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
+        Ok(users.into_iter().map(KeycloakUser::con_nombres_reparados).collect())
     }
 
     /// GET /admin/realms/{realm}/roles/{role_name}/users
@@ -331,8 +352,8 @@ impl KeycloakClient {
             return Err(Self::keycloak_admin_error("listar usuarios por rol", status, body));
         }
 
-        let users = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
-        Ok(users)
+        let users: Vec<KeycloakUser> = response.json().await.map_err(|e| AppError::Serialization(e.to_string()))?;
+        Ok(users.into_iter().map(KeycloakUser::con_nombres_reparados).collect())
     }
 
     /// GET /admin/realms/{realm}/users/{id}/role-mappings/realm
@@ -532,5 +553,24 @@ impl KeycloakClient {
             return Err(Self::keycloak_admin_error("actualizar usuario", status, body));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests_mojibake {
+    use super::reparar_mojibake;
+
+    #[test]
+    fn repara_la_enie_y_las_tildes_del_directorio() {
+        assert_eq!(reparar_mojibake("CA\u{c3}\u{91}ON MURCIA"), "CAÑON MURCIA");
+        assert_eq!(reparar_mojibake("CARRE\u{c3}\u{91}O"), "CARREÑO");
+        assert_eq!(reparar_mojibake("Mar\u{c3}\u{ad}a"), "María");
+    }
+
+    #[test]
+    fn deja_igual_lo_que_ya_esta_bien() {
+        for s in ["CAÑON MURCIA", "María José", "GONZALEZ GARZON", "", "Ãngel"] {
+            assert_eq!(reparar_mojibake(s), s);
+        }
     }
 }
