@@ -10,6 +10,7 @@ use std::sync::Arc;
 use ts_rs::TS;
 
 use crate::cmd::broker_client::{access_token, error_de_red, get_json, HTTP_CLIENT, BROKER_HOST};
+use crate::auth::client::reparar_mojibake;
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
@@ -148,4 +149,11 @@ pub async fn sesiones_resumen(
         err.with_context(ctx, "broker")
     })
     .await
+    .map(|mut r: ResumenSesiones| {
+        // el nombre viene del token, con la Ñ y las tildes del directorio dañadas (ver reparar_mojibake)
+        for s in &mut r.sesiones {
+            s.nombre = s.nombre.take().map(|n| reparar_mojibake(&n));
+        }
+        r
+    })
 }
