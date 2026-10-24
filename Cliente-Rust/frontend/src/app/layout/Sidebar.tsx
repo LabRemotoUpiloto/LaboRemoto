@@ -5,16 +5,12 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
-import { User, Shield, SquareTerminal, Activity, BookOpen, Gauge, ClipboardList } from 'lucide-react';
+import { User, Shield, Activity, BookOpen, Gauge } from 'lucide-react';
 import type { Tab, ActiveView } from '../hooks/useAppTabs';
 import { useAuth } from '@/features/cuenta/AuthContext';
 import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo, puedeVerComo } from '@/features/cuenta/usePermissions';
 import {
   MonitorIcon,
-  CompassIcon,
-  FolderIcon,
-  CodeIcon,
-  FileTextIcon,
   LabIcon,
   HomeIcon,
   CalendarIcon,
@@ -29,7 +25,6 @@ interface SidebarProps {
   onTabClick?: (id: string) => void;
   onCloseTab?: (id: string) => void;
   onRenameTab?: (id: string, label: string) => void;
-  onNewLocalTerminal?: () => void;
   hasSessions?: boolean;
   showSessionActions?: boolean;
   activeView?: ActiveView;
@@ -47,6 +42,9 @@ interface SidebarProps {
 
 // Secciones por lo que la persona viene a hacer. Cada rol ve solo los ítems de canAccessPage
 // (una sección sin ítems no se muestra). «Temas» es una preferencia: vive en el menú del usuario.
+// Lo que es herramienta de una conexión (Archivos, Mis comandos) está en «Esta sesión» (SidebarSessionActions);
+// conectarse es una sola página (Conexiones: equipos, nueva conexión, terminal local y registros) y Encuestas es
+// una pestaña de Prácticas.
 const sections = [
   {
     label: 'Aprender',
@@ -60,13 +58,7 @@ const sections = [
   {
     label: 'Conectar',
     items: [
-      { id: 'connect', label: 'Nueva conexión',    icon: MonitorIcon },
-      { id: 'hosts',   label: 'Equipos guardados', icon: CompassIcon },
-      // No es una página de `onOpenPanel`: crea y abre directamente un tab
-      // "Terminal local" nuevo — ver caso especial en el onClick del item.
-      { id: 'local-terminal-new', label: 'Terminal local', icon: SquareTerminal },
-      { id: 'sftp',     label: 'Archivos (SFTP)', icon: FolderIcon },
-      { id: 'snippets', label: 'Mis comandos',    icon: CodeIcon },
+      { id: 'connect', label: 'Conexiones', icon: MonitorIcon },
     ],
   },
   {
@@ -79,13 +71,15 @@ const sections = [
   {
     label: 'Personas',
     items: [
-      { id: 'dashboard',   label: 'Actividad',    icon: Activity },
-      { id: 'encuestas',   label: 'Encuestas',    icon: ClipboardList },
-      { id: 'admin-users', label: 'Usuarios',     icon: Shield },
-      { id: 'logs',        label: 'Sesiones SSH', icon: FileTextIcon },
+      { id: 'dashboard',   label: 'Actividad', icon: Activity },
+      { id: 'admin-users', label: 'Usuarios',  icon: Shield },
     ],
   },
 ];
+
+// Páginas que viven dentro de otra entrada: al abrirlas se marca esa entrada.
+const ENTRADA_DE: Record<string, string> = { hosts: 'connect', logs: 'connect', encuestas: 'practices' };
+
 
 const Sidebar: React.FC<SidebarProps> = ({
   activePanel,
@@ -95,7 +89,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   onTabClick,
   onCloseTab,
   onRenameTab,
-  onNewLocalTerminal,
   hasSessions = false,
   showSessionActions = false,
   activeView = 'terminal',
@@ -215,6 +208,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           vienen armados, y cámara/escritorio/pines son del laboratorio. */}
       {showSessionActions && role !== 'estudiante' && onViewChange && onToggleChat && (
         <SidebarSessionActions
+          activePanel={activePanel}
+          onOpenPanel={onOpenPanel}
           activeView={activeView}
           onViewChange={onViewChange}
           isChatOpen={isChatOpen}
@@ -243,18 +238,17 @@ const Sidebar: React.FC<SidebarProps> = ({
           .map(section => ({ ...section, items: section.items.filter(item => canAccessPage(item.id, role)) }))
           .filter(section => section.items.length > 0)
           .map((section, si, arr) => (
-          <Box key={section.label} mb={si < arr.length - 1 ? 8 : 0}>
+          <Box key={section.label} mb={si < arr.length - 1 ? 16 : 0}>
             {/* Section label — se desvanece y colapsa su altura (sin pop). */}
             <Text
               size="xs"
-              fw={600}
-              px={16}
+              fw={500}
+              px={19}
               style={{
-                // --text-muted daba 1,9–2,8:1 en 8 temas; el secundario pasa AA en los 13
+                // Rótulo discreto (sin mayúsculas ni espaciado ancho, que se leían como ruido). --text-muted daba
+                // 1,9–2,8:1 en 8 temas; el secundario pasa AA en los 13
                 color: 'var(--text-secondary)',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                fontSize: '10px',
+                fontSize: '11px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 opacity: collapsed ? 0 : 1,
@@ -271,12 +265,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                 a medida que el rail se angosta. */}
             {section.items.map(item => {
               const IconComponent = item.icon;
-              const isActive = activePanel === item.id;
+              const isActive = activePanel === item.id || (!!activePanel && ENTRADA_DE[activePanel] === item.id);
               return (
                 <Tooltip key={item.id} label={item.label} position="right" withArrow openDelay={200} disabled={!collapsed}>
                   <UnstyledButton
                     data-page={item.id}
-                    onClick={() => item.id === 'local-terminal-new' ? onNewLocalTerminal?.() : onOpenPanel(item.id)}
+                    onClick={() => onOpenPanel(item.id)}
                     aria-current={isActive ? 'page' : undefined}
                     aria-label={item.label}
                     className="relative flex items-center transition-colors duration-150"
