@@ -5,7 +5,7 @@ import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
-import { User, Shield, SquareTerminal, Activity, BookOpen, Gauge } from 'lucide-react';
+import { User, Shield, SquareTerminal, Activity, BookOpen, Gauge, ClipboardList } from 'lucide-react';
 import type { Tab, ActiveView } from '../hooks/useAppTabs';
 import { useAuth } from '@/features/cuenta/AuthContext';
 import { useEffectiveRole, canAccessPage, ROLE_LABELS, ROLE_ORDER, rolVerComo, setRolVerComo, puedeVerComo } from '@/features/cuenta/usePermissions';
@@ -80,6 +80,7 @@ const sections = [
     label: 'Personas',
     items: [
       { id: 'dashboard',   label: 'Actividad',    icon: Activity },
+      { id: 'encuestas',   label: 'Encuestas',    icon: ClipboardList },
       { id: 'admin-users', label: 'Usuarios',     icon: Shield },
       { id: 'logs',        label: 'Sesiones SSH', icon: FileTextIcon },
     ],

@@ -14,11 +14,14 @@ use crate::auth::client::reparar_mojibake;
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
-/// Una sesión de práctica tal como la guarda el broker.
+/// Una sesión tal como la guarda el broker: una práctica o la app abierta (`clase`).
 #[derive(Serialize, Deserialize, Clone, TS)]
 #[ts(export)]
 pub struct SesionPractica {
     pub id: String,
+    /// "practica" | "app" (la app abierta, con o sin práctica). Las sesiones viejas no lo traen: son prácticas.
+    #[serde(default)]
+    pub clase: Option<String>,
     pub sesion_id: String,
     pub usuario: String,
     pub nombre: Option<String>,
@@ -126,6 +129,37 @@ pub async fn sesiones_reportar_ubicacion_app(
         let text = response.text().await.unwrap_or_default();
         return Err(CommandError::permanent("VALIDATION_FAILED", format!("Registro de sesiones respondió {status}: {text}"))
             .with_context("sesiones_reportar_ubicacion_app", "broker"));
+    }
+    Ok(())
+}
+
+const TIPOS_EVENTO_APP: &[&str] = &["inicio", "latido", "fin"];
+
+/// Reporta el uso de la app (`sesion_id` propio de esta apertura de la app): inicio al entrar, un latido por minuto y fin
+/// al salir. Va a una ruta aparte del broker: uno sin esta versión responde 404 y no registra nada.
+#[tauri::command]
+pub async fn sesiones_reportar_app(
+    tipo: String,
+    sesion_id: String,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<(), CommandError> {
+    if !TIPOS_EVENTO_APP.contains(&tipo.as_str()) {
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Tipo de evento inválido: {tipo}")));
+    }
+    let token = access_token(manager.inner()).await?;
+    let response = HTTP_CLIENT
+        .post(format!("{BROKER_HOST}/nvr/sesiones/app"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "tipo": tipo, "sesion_id": sesion_id }))
+        .send()
+        .await
+        .map_err(|e| error_de_red("sesiones_reportar_app", QUE, e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Registro de sesiones respondió {status}: {text}"))
+            .with_context("sesiones_reportar_app", &sesion_id));
     }
     Ok(())
 }

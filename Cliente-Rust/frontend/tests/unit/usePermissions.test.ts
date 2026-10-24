@@ -22,7 +22,7 @@ describe('rol docente', () => {
   });
 
   it('no es personal del laboratorio: sin vigilancia (cámaras), dashboard ni administración', () => {
-    for (const page of ['vigilancia', 'dashboard', 'admin-users', 'connect', 'hosts']) {
+    for (const page of ['vigilancia', 'dashboard', 'encuestas', 'admin-users', 'connect', 'hosts']) {
       expect(canAccessPage(page, 'docente'), page).toBe(false);
     }
   });

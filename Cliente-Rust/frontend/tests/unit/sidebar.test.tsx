@@ -45,7 +45,7 @@ describe('Sidebar', () => {
       'landing', 'practices', 'mis-cursos', 'reservas',
       'connect', 'hosts', 'local-terminal-new', 'sftp', 'snippets',
       'rendimiento', 'vigilancia',
-      'dashboard', 'admin-users', 'logs',
+      'dashboard', 'encuestas', 'admin-users', 'logs',
     ]);
   });
 

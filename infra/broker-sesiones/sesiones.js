@@ -12,6 +12,9 @@
 //     {"tipo": "inicio"|"latido"|"fin"|"ubicacion", "sesion_id": "...",
 //      "practica_id"?: "...", "practica_nombre"?: "...",
 //      "lat"?, "lon"?, "precision_m"?}   (lat/lon/precision_m solo en "ubicacion")
+//   POST /nvr/sesiones/app      (cualquier usuario autenticado)
+//     {"tipo": "inicio"|"latido"|"fin", "sesion_id": "..."}: la app abierta, con o sin práctica.
+//     Queda en el mismo registro con `clase: "app"` (las prácticas, `clase: "practica"`) y NO va al Excel.
 //   GET  /nvr/sesiones/resumen?dias=N   (solo RESUMEN_ROLES)
 //
 // Ubicación: al iniciar se aproxima por IP (nivel ciudad; en red móvil suele
@@ -276,7 +279,8 @@ function texto(v) {
 }
 
 function notificarWebhook(r) {
-  if (!WEBHOOK_URL) return;
+  // El Excel es el registro de prácticas: el uso de la app no va ahí.
+  if (!WEBHOOK_URL || r.clase === 'app') return;
   const duracionMin = r.fin ? Math.round((Date.parse(r.fin) - Date.parse(r.inicio)) / 60_000) : null;
   postJson(WEBHOOK_URL, {
     ID: r.id,
@@ -337,7 +341,8 @@ function textoOpcional(v, max) {
   return typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
 }
 
-async function registrarEvento(req, res, claims) {
+/** `clase`: «practica» (POST /evento) o «app» (POST /app, la app abierta; sin práctica ni ubicación propia). */
+async function registrarEvento(req, res, claims, clase = 'practica') {
   let datos;
   try {
     datos = JSON.parse(await leerBody(req));
@@ -345,7 +350,8 @@ async function registrarEvento(req, res, claims) {
     return responder(res, 400, { error: 'invalid_body' });
   }
   const { tipo, sesion_id: sesionId } = datos || {};
-  if (!['inicio', 'latido', 'fin', 'ubicacion'].includes(tipo)) return responder(res, 400, { error: 'invalid_tipo' });
+  const tipos = clase === 'app' ? ['inicio', 'latido', 'fin'] : ['inicio', 'latido', 'fin', 'ubicacion'];
+  if (!tipos.includes(tipo)) return responder(res, 400, { error: 'invalid_tipo' });
   if (typeof sesionId !== 'string' || !ID_RE.test(sesionId)) return responder(res, 400, { error: 'invalid_sesion_id' });
 
   const usuario = claims.preferred_username || claims.sub;
@@ -363,12 +369,13 @@ async function registrarEvento(req, res, claims) {
     }
     r = {
       id,
+      clase,
       sesion_id: sesionId,
       usuario,
       nombre: claims.name || null,
       correo: claims.email || null,
-      practica_id: textoOpcional(datos.practica_id, 100),
-      practica_nombre: textoOpcional(datos.practica_nombre, 200),
+      practica_id: clase === 'app' ? null : textoOpcional(datos.practica_id, 100),
+      practica_nombre: clase === 'app' ? null : textoOpcional(datos.practica_nombre, 200),
       inicio: ahora,
       ultimo_latido: ahora,
       fin: null,
@@ -382,10 +389,13 @@ async function registrarEvento(req, res, claims) {
     registros.set(id, r);
     persistir(r);
     responder(res, 201, { ok: true });
-    console.log(`[sesiones] inicio usuario=${usuario} sesion=${sesionId} ip=${r.ip}`);
+    console.log(`[sesiones] inicio ${clase} usuario=${usuario} sesion=${sesionId} ip=${r.ip}`);
 
     try {
-      const geo = await geolocalizar(r.ip);
+      // La app ya avisa la ubicación del equipo por su lado (ubicacion-app): si llegó, se usa esa.
+      const delEquipo = clase === 'app' ? ubicacionDeLaApp(r.ip, Date.now()) : null;
+      if (delEquipo) { Object.assign(r, delEquipo, { fuente_ubicacion: 'dispositivo' }); persistir(r); }
+      const geo = delEquipo ? null : await geolocalizar(r.ip);
       // La del dispositivo puede haber llegado mientras se consultaba la IP.
       if (geo && r.fuente_ubicacion !== 'dispositivo') {
         Object.assign(r, geo, { fuente_ubicacion: 'ip' });
@@ -462,7 +472,8 @@ async function handle(req, res, url, parts, verifyJwt) {
   const esEvento = req.method === 'POST' && parts[2] === 'evento';
   const esResumen = req.method === 'GET' && parts[2] === 'resumen';
   const esUbicacionApp = req.method === 'POST' && parts[2] === 'ubicacion-app';
-  if (!esEvento && !esResumen && !esUbicacionApp) return false;
+  const esApp = req.method === 'POST' && parts[2] === 'app';
+  if (!esEvento && !esResumen && !esUbicacionApp && !esApp) return false;
 
   const auth = req.headers['authorization'] || '';
   const jwt = auth.startsWith('Bearer ') ? auth.slice(7) : null;
@@ -477,6 +488,7 @@ async function handle(req, res, url, parts, verifyJwt) {
 
   try {
     if (esEvento) await registrarEvento(req, res, claims);
+    else if (esApp) await registrarEvento(req, res, claims, 'app');
     else if (esUbicacionApp) await registrarUbicacionDeLaApp(req, res, claims);
     else resumen(res, url, claims);
   } catch (e) {

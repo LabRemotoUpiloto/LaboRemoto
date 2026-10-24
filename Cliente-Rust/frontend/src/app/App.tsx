@@ -42,6 +42,7 @@ import { requestPracticesFocus } from '@/features/practicas/practiceNavigation.s
 import { clearModuleBadge } from '@/features/practicas/badges.service'
 import { usePracticeActivityReporter, type PracticaAbierta } from '@/features/practicas/usePracticeActivityReporter'
 import { useUbicacionAppReporter } from '@/features/actividad/useUbicacionAppReporter'
+import { useUsoAppReporter } from '@/features/actividad/useUsoAppReporter'
 import { useEnlacesApp } from './hooks/useEnlacesApp'
 import ResultadoMoodleAviso from '@/features/cursos/ResultadoMoodleAviso'
 import BienvenidaTutorial from '@/features/onboarding/inicio/BienvenidaTutorial'
@@ -241,6 +242,7 @@ const AppMain: React.FC = () => {
     [linuxSession.sessionModuleMap],
   )
   useUbicacionAppReporter(isAuthenticated)
+  const { finalizar: finalizarUsoApp } = useUsoAppReporter(isAuthenticated)
   // Enlaces laboremoto://practica/<id> (desde una tarea de Moodle): abren la vista de Prácticas en esa práctica.
   useEnlacesApp(isAuthenticated, () => handleOpenPanel('practices'))
 
@@ -262,6 +264,8 @@ const AppMain: React.FC = () => {
   handleCloseTabRef.current = handleCloseTab
   const finalizarPracticasRef = useRef(finalizarPracticasReportadas)
   finalizarPracticasRef.current = finalizarPracticasReportadas
+  const finalizarUsoAppRef = useRef(finalizarUsoApp)
+  finalizarUsoAppRef.current = finalizarUsoApp
 
   const cerrarTerminalesAbiertas = useCallback(async () => {
     const abiertas = tabsRef.current.filter(t => t.type === 'session' || t.type === 'local-terminal')
@@ -269,12 +273,12 @@ const AppMain: React.FC = () => {
   }, [])
 
   // Antes de revocar el token: con él todavía vigente se avisa el fin de la
-  // práctica al registro de sesiones (si no, el dashboard la deja «conectada»).
+  // práctica y del uso de la app al registro de sesiones (si no, Actividad los deja «conectados»).
   const setBeforeLogout = useAppStore((s) => s.setBeforeLogout)
   useEffect(() => {
     setBeforeLogout(async () => {
       await cerrarTerminalesAbiertas()
-      await finalizarPracticasRef.current()
+      await Promise.all([finalizarPracticasRef.current(), finalizarUsoAppRef.current()])
     })
     return () => setBeforeLogout(null)
   }, [setBeforeLogout, cerrarTerminalesAbiertas])

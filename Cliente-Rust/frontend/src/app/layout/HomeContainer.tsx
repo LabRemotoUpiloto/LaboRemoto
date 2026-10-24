@@ -15,6 +15,7 @@ import MisCursosPage from '@/features/cursos/MisCursosPage'
 import UserManagementPage from '@/features/usuarios/UserManagementPage'
 import VigilanciaPage from '@/features/camaras/VigilanciaPage'
 import DashboardPage from '@/features/actividad/DashboardPage'
+import EncuestasPage from '@/features/actividad/EncuestasPage'
 import RendimientoPage from '@/features/monitoreo/RendimientoPage'
 import type { Tab } from '../hooks/useAppTabs'
 import type { SessionLog } from '@/features/logs/sesiones'
@@ -122,6 +123,8 @@ const HomeContainer: React.FC<Props> = ({
         <VigilanciaPage />
       ) : effectivePage === 'dashboard' ? (
         <DashboardPage />
+      ) : effectivePage === 'encuestas' ? (
+        <EncuestasPage />
       ) : effectivePage === 'rendimiento' ? (
         <RendimientoPage onOpenPanel={onOpenPanel} />
       ) : effectivePage === 'perfil' ? (
