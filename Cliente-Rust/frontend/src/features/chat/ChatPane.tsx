@@ -1166,7 +1166,6 @@ const ChatPane: React.FC<Props> = ({
           sessionId={sessionId} showScrollToBottom={showScrollToBottom}
           messagesRef={messagesRef} setShowScrollToBottom={setShowScrollToBottom}
           onScrollToBottom={scrollMessagesToBottom}
-          handleSuggestionClick={text => handleSendRef.current?.(text)}
           onDeleteMsg={handleDeleteMsg} onSaveEditMsg={handleSaveEditMsg}
           onCopyMsg={async text => { try { await navigator.clipboard.writeText(text); setToast('Copiado al portapapeles'); setTimeout(() => setToast(null), 2000); } catch {} }}
           onRegenerateMsg={handleRegenerate} onRetryMsg={handleRetry} onAnalyzeCandidate={handleAnalyzeCandidate}

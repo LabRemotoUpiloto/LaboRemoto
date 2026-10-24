@@ -2,8 +2,6 @@ import { ChatMode } from '../modos/types';
 
 interface WelcomeMessageProps {
   mode: ChatMode;
-  /** Ya no se ofrecen sugerencias (eran ruido); se mantiene para no cambiar a quien lo usa. */
-  handleSuggestionClick?: (text: string) => void;
 }
 
 const TEXTO: Record<ChatMode, string> = {
