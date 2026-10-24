@@ -210,3 +210,28 @@ test('si la misma IP tiene una práctica con la ubicación exacta del equipo, la
     assert.strictEqual(c.lat, 4.65);
   } finally { app = () => null; }
 });
+
+test('la ubicación por IP y el operador quedan aparte aunque llegue la del equipo (para ver si no cuadran)', async () => {
+  const { d } = montar({ geo: async () => ({ ciudad: 'Bogotá', region: 'Bogotá D.C.', pais: 'CO', lat: 4.6, lon: -74.08, org: 'AS10620 Telmex Colombia S.A.' }) });
+  app = () => ({ ciudad: 'Libertador, Mariara', region: 'Carabobo', pais: 'VE', lat: 10.29, lon: -67.71, precision_m: 110 });
+  try {
+    await post(d, entrada('1', 'UPILOTO\ana'));
+    await esperar(); await esperar();
+    const c = (await get(d)).json.dispositivos[0].conexiones[0];
+    assert.deepStrictEqual([c.ciudad, c.pais, c.fuente, c.precisionM], ['Libertador, Mariara', 'VE', 'dispositivo', 110]);
+    assert.deepStrictEqual([c.ipCiudad, c.ipPais, c.ipLat, c.ipOrg], ['Bogotá', 'CO', 4.6, 'AS10620 Telmex Colombia S.A.']);
+  } finally { app = () => null; }
+});
+
+test('al arrancar completa la ubicación por IP de las conexiones guardadas antes de que existiera', async () => {
+  const archivo = tmp();
+  const vieja = { id: 'pi4:9:1', dispositivo: 'pi4', sesion: '9', tipo: 'ldap', persona: 'ana', usuario: 'UPILOTO\ana', ip: '203.0.113.9',
+    inicio: '2026-10-04T11:00:00.000Z', fin: '2026-10-04T11:30:00.000Z', cierre: 'cliente', ciudad: 'Bogotá', region: null, pais: 'CO', lat: 4.6, lon: -74.08 };
+  fs.writeFileSync(archivo, JSON.stringify(vieja) + '\n');
+  const consultadas = [];
+  const { d } = montar({ archivo, geo: async (ip) => { consultadas.push(ip); return { ciudad: 'Bogotá', region: null, pais: 'CO', lat: 4.6, lon: -74.08, org: 'AS10620 Telmex Colombia S.A.' }; } });
+  await d.completado;
+  const c = (await get(d)).json.dispositivos[0].conexiones[0];
+  assert.deepStrictEqual(consultadas, ['203.0.113.9']);
+  assert.deepStrictEqual([c.ipPais, c.ipOrg, c.fuente], ['CO', 'AS10620 Telmex Colombia S.A.', 'ip']);
+});

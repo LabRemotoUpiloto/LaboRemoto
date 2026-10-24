@@ -161,7 +161,7 @@ function getJson(url, headers = {}) {
 
 // ── Geolocalización por IP (aprox. nivel ciudad) ──
 
-const geoCache = new Map(); // ip -> {ciudad, region, pais, lat, lon}
+const geoCache = new Map(); // ip -> {ciudad, region, pais, lat, lon, org}
 
 async function geolocalizar(ip) {
   if (esIpPrivada(ip)) return null;
@@ -169,7 +169,8 @@ async function geolocalizar(ip) {
   const url = `https://ipinfo.io/${encodeURIComponent(ip)}/json${IPINFO_TOKEN ? `?token=${IPINFO_TOKEN}` : ''}`;
   const d = await getJson(url);
   const [lat, lon] = typeof d.loc === 'string' ? d.loc.split(',').map(Number) : [null, null];
-  const geo = { ciudad: d.city || null, region: d.region || null, pais: d.country || null, lat, lon };
+  // org: el operador de la red («AS10620 Telmex Colombia S.A.»): dice si es una casa, un celular, la universidad o un servidor.
+  const geo = { ciudad: d.city || null, region: d.region || null, pais: d.country || null, lat, lon, org: d.org || null };
   geoCache.set(ip, geo);
   return geo;
 }
@@ -179,6 +180,26 @@ async function geolocalizar(ip) {
 // con coordenadas redondeadas a ~100 m la caché absorbe casi todo.
 
 const lugarCache = new Map(); // "lat,lon" -> {ciudad, region, pais}
+
+/**
+ * La ubicación por IP se guarda APARTE (ip_*), aunque después llegue la del equipo: si las dos no cuadran (p. ej. el servicio
+ * de ubicación de Windows dice Venezuela y la IP es de Bogotá), la app lo marca como dudosa en vez de creerle a una sola.
+ */
+const porIp = (g) => ({ ip_ciudad: g.ciudad, ip_region: g.region, ip_pais: g.pais, ip_lat: g.lat, ip_lon: g.lon, ip_org: g.org ?? null });
+
+/** Completa la ubicación por IP de los registros guardados antes de que existiera (una consulta por IP distinta, en orden). */
+async function completarUbicacionPorIp() {
+  for (const r of [...registros.values()]) {
+    if (r.ip_pais !== undefined || !r.ip || esIpPrivada(r.ip)) continue;
+    try {
+      const geo = await geolocalizar(r.ip);
+      if (geo) { Object.assign(r, porIp(geo)); persistir(r); }
+    } catch (e) {
+      console.error(`[sesiones] no se pudo completar la ubicación por IP de ${r.id}:`, e.message);
+      return; // sin red o sin cuota: se reintenta en el próximo arranque
+    }
+  }
+}
 
 async function lugarDeCoordenadas(lat, lon) {
   const clave = `${lat},${lon}`;
@@ -395,10 +416,14 @@ async function registrarEvento(req, res, claims, clase = 'practica') {
       // La app ya avisa la ubicación del equipo por su lado (ubicacion-app): si llegó, se usa esa.
       const delEquipo = clase === 'app' ? ubicacionDeLaApp(r.ip, Date.now()) : null;
       if (delEquipo) { Object.assign(r, delEquipo, { fuente_ubicacion: 'dispositivo' }); persistir(r); }
-      const geo = delEquipo ? null : await geolocalizar(r.ip);
-      // La del dispositivo puede haber llegado mientras se consultaba la IP.
-      if (geo && r.fuente_ubicacion !== 'dispositivo') {
-        Object.assign(r, geo, { fuente_ubicacion: 'ip' });
+      const geo = await geolocalizar(r.ip);
+      if (geo) {
+        Object.assign(r, porIp(geo));
+        // La del dispositivo puede haber llegado mientras se consultaba la IP: esa manda como ubicación principal.
+        if (r.fuente_ubicacion !== 'dispositivo') {
+          const { org, ...lugar } = geo;
+          Object.assign(r, lugar, { fuente_ubicacion: 'ip' });
+        }
         persistir(r);
       }
     } catch (e) {
@@ -499,6 +524,7 @@ async function handle(req, res, url, parts, verifyJwt) {
 }
 
 cargar();
+completarUbicacionPorIp().catch(() => {});
 
 /**
  * Nombre completo de una persona si ya usó la app (las prácticas lo traen del token). `persona` = usuario sin dominio, en

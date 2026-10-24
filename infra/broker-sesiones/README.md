@@ -13,6 +13,10 @@ dispositivo. Forma parte de los brokers (ver `../broker-gateway/README.md`).
 - `GET /nvr/sesiones/resumen?dias=N` — solo `admin_lab`, `jefe_laboratorio`, `coordinador_laboratorio` o `laboratorista`
   (debe coincidir con `SUPERVISION` en `Cliente-Rust/frontend/src/features/cuenta/usePermissions.ts`). Trae prácticas y uso de la app.
 
+Ubicación: la del equipo (si la app la manda) es la principal, pero la de la IP y su operador (`org` de ipinfo) se guardan
+**aparte** (`ip_ciudad`, `ip_pais`, `ip_lat`, `ip_lon`, `ip_org`; en dispositivos, `ipCiudad`…): si no cuadran, Actividad lo marca como
+ubicación dudosa. Al arrancar se completan los registros guardados que no la tenían (una consulta por IP distinta).
+
 Datos en `sesiones.jsonl` (`SESIONES_FILE`), solo los últimos 90 días. Con `SESIONES_WEBHOOK_URL` reenvía cada inicio y fin
 al mismo flujo de Power Automate de `RegistroExcel.sh`; el Excel queda como registro permanente (campos y cambios del
 flujo en `../registro-excel/README.md`).

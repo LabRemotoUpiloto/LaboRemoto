@@ -97,6 +97,23 @@ function crearDispositivos({ dispositivos, archivo, geolocalizar = async () => n
     try { fs.appendFileSync(archivo, JSON.stringify(r) + '\n', { mode: 0o600 }); } catch (e) { console.error('[dispositivos] error escribiendo:', e.message); }
   }
 
+  /** La ubicación por IP va aparte (ip_*): la del equipo, si llega, no la borra (ver sesiones.js). */
+  const porIp = (g) => ({ ip_ciudad: g.ciudad, ip_region: g.region, ip_pais: g.pais, ip_lat: g.lat, ip_lon: g.lon, ip_org: g.org ?? null });
+
+  /** Completa la ubicación por IP de las conexiones guardadas antes de que existiera (en orden, una consulta por IP). */
+  async function completarUbicacionPorIp() {
+    for (const r of [...registros.values()]) {
+      if (r.ip_pais !== undefined || !r.ip || esIpPrivada(r.ip)) continue;
+      try {
+        const geo = await geolocalizar(r.ip);
+        if (geo) { Object.assign(r, porIp(geo)); persistir(r); }
+      } catch (e) {
+        console.error('[dispositivos] no se pudo completar la ubicación por IP:', e.message);
+        return;
+      }
+    }
+  }
+
   function cargar() {
     if (!archivo || !fs.existsSync(archivo)) return;
     const limite = ahora() - RETENCION_DIAS * 86_400_000;
@@ -166,7 +183,10 @@ function crearDispositivos({ dispositivos, archivo, geolocalizar = async () => n
     console.log(`[dispositivos] entrada ${ev.dispositivo} sesion=${sesion} tipo=${tipo}${persona ? ` persona=${persona}` : ''}`);
     // Ubicación aproximada por IP (nivel ciudad), como en las prácticas; no bloquea la respuesta.
     Promise.resolve().then(() => geolocalizar(ip)).then((geo) => {
-      if (geo && r.fuente !== 'app') { Object.assign(r, geo); persistir(r); }
+      if (!geo) return;
+      Object.assign(r, porIp(geo));
+      if (r.fuente !== 'app') { const { org, ...lugar } = geo; Object.assign(r, lugar); }
+      persistir(r);
     }).catch((e) => console.error('[dispositivos] geolocalización falló:', e.message));
     return [201, { ok: true }];
   }
@@ -177,6 +197,10 @@ function crearDispositivos({ dispositivos, archivo, geolocalizar = async () => n
       nombre: r.tipo === 'ldap' ? nombrePorPersona(r.persona) : null,
       inicio: r.inicio, fin: r.fin, activa: !r.fin, cierre: r.cierre, ip: r.ip,
       ciudad: r.ciudad, region: r.region, pais: r.pais, lat: r.lat, lon: r.lon,
+      // «app» = ubicación del equipo (la de una práctica o de la app abierta en la misma IP); si no, la de la IP.
+      fuente: r.fuente === 'app' ? 'dispositivo' : r.ciudad || r.pais ? 'ip' : null, precisionM: r.precision_m ?? null,
+      ipCiudad: r.ip_ciudad ?? null, ipRegion: r.ip_region ?? null, ipPais: r.ip_pais ?? null,
+      ipLat: r.ip_lat ?? null, ipLon: r.ip_lon ?? null, ipOrg: r.ip_org ?? null,
     };
   }
 
@@ -249,6 +273,7 @@ function crearDispositivos({ dispositivos, archivo, geolocalizar = async () => n
   }
 
   cargar();
+  const completado = completarUbicacionPorIp().catch(() => {});
   // Una vez al día se descarta lo más viejo que la retención.
   const limpieza = setInterval(() => {
     const limite = ahora() - RETENCION_DIAS * 86_400_000;
@@ -256,7 +281,8 @@ function crearDispositivos({ dispositivos, archivo, geolocalizar = async () => n
   }, 86_400_000);
   if (limpieza.unref) limpieza.unref();
 
-  return { handle, aplicarEvento, resumen };
+  // `completado`: para las pruebas (esperar a que se completen las ubicaciones por IP de lo guardado).
+  return { handle, aplicarEvento, resumen, completado };
 }
 
 // ── Instancia por defecto (la que usa el servicio) ──
