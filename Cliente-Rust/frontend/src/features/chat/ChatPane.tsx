@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { EjecutorTerminal } from './ejecutorTerminal';
 import { localTermContexto } from '@/features/terminal/localTerminal.service';
 import { panelActivo } from '@/features/terminal/panelesLocales';
-import { reglasTerminalLocal } from './terminalLocal';
+
 import { useSessionMemory } from './useSessionMemory';
 import { consumePendingChatMessage } from './pendingChatMessage';
 
@@ -719,7 +719,7 @@ const ChatPane: React.FC<Props> = ({
         const ctx = panel ? await localTermContexto(panel, 80) : null;
         if (ctx) {
           liveTerminalContext = ctx.texto;
-          history.unshift({ role: 'system', content: reglasTerminalLocal(ctx.shell, ctx.sistema) });
+          history.unshift({ role: 'system', content: ctx.instrucciones });
         }
       } catch { /* sin contexto, no es fatal */ }
     } else if (contextSessionId) {

@@ -1,6 +1,5 @@
-// features/chat/contextoAgente.ts — lo que el agente necesita saber de la sesión y de la conversación (antes solo recibía el
-// mensaje actual): el equipo y el usuario, el tipo de terminal y lo que la persona escribió de cada pin.
-import { sshSessionInfo } from '@/features/conexion/ssh.service';
+// features/chat/contextoAgente.ts — lo que el agente necesita de la app: la conversación anterior y lo que solo la app sabe
+// de la sesión (las descripciones de los pines). El equipo, el usuario y el tipo de terminal los pone el backend.
 import type { Message } from './modos/types';
 
 /** La conversación anterior, sin mensajes del sistema ni vacíos (el backend la recorta y la ordena). */
@@ -11,23 +10,13 @@ export function historialPara(mensajes: Message[]): { rol: 'user' | 'assistant';
     .map((m) => ({ rol: m.sender === 'user' ? 'user' as const : 'assistant' as const, texto: m.text }));
 }
 
-/** Descripciones que la persona les puso a los pines en el panel Pines (`{ "17": "LED rojo" }`). */
-export function descripcionesDePines(sessionId: string): Record<string, string> {
+/** Descripciones que la persona les puso a los pines en el panel Pines (`{ "17": "LED rojo" }`), como línea de contexto. */
+export function contextoDePines(sessionId: string): string {
   try {
     const d = JSON.parse(localStorage.getItem(`pins:descriptions:${sessionId}`) || '{}');
-    return d && typeof d === 'object' ? d : {};
+    const pines = Object.entries(d && typeof d === 'object' ? d : {}).filter(([, v]) => typeof v === 'string' && (v as string).trim());
+    return pines.length ? `Pines descritos por la persona: ${pines.map(([g, v]) => `GPIO ${g} = ${v}`).join('; ')}` : '';
   } catch {
-    return {};
+    return '';
   }
-}
-
-export async function contextoDeSesion(sessionId: string): Promise<string> {
-  const lineas: string[] = ['Terminal: Linux, por SSH (la terminal interactiva de la persona).'];
-  try {
-    const info = await sshSessionInfo(sessionId);
-    lineas.unshift(`Equipo: ${info.user}@${info.host}:${info.port}`);
-  } catch { /* sesión sin datos (p. ej. el agente con la Pi del .env) */ }
-  const pines = Object.entries(descripcionesDePines(sessionId)).filter(([, d]) => typeof d === 'string' && d.trim());
-  if (pines.length) lineas.push(`Pines descritos por la persona: ${pines.map(([g, d]) => `GPIO ${g} = ${d}`).join('; ')}`);
-  return lineas.join('\n');
 }

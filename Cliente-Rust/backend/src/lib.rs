@@ -119,6 +119,7 @@ pub fn run() {
       // Terminal local (PTY embebido)
       cmd::terminal_local::local_term_spawn,
       cmd::terminal_local::local_term_contexto,
+      cmd::terminal_local::local_term_shell,
       cmd::terminal_local::local_term_ui_ready,
       cmd::terminal_local::local_term_stdin,
       cmd::terminal_local::local_term_resize,

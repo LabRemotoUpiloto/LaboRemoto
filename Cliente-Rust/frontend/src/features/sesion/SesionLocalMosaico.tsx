@@ -8,6 +8,8 @@ import { Mosaico, type Herramienta } from '@/components/mosaico/Mosaico';
 import { hojas } from '@/components/mosaico/arbol';
 import PanelComandos from '@/features/comandos/PanelComandos';
 import type { TipoTerminal } from '@/features/comandos/comandos';
+import { localTermShell } from '@/features/terminal/localTerminal.service';
+import type { ShellLocal } from '@/bindings/ShellLocal';
 import LocalTerminalGroup from '@/features/terminal/LocalTerminalGroup';
 import ChatPane from '@/features/chat/ChatPane';
 import { teclasDelComando } from '@/features/practicas/linux/ejecutarComando';
@@ -16,9 +18,12 @@ import { abrir, fijarArbol, marcarVisible, ocultar, sesionQueSeVe, useArbolSesio
 export const EVENTO_ESCRIBIR_LOCAL = 'local-term:escribir';
 export interface DetalleEscribirLocal { tabId: string; teclas: string }
 
-/** En Windows la terminal local es PowerShell (pwsh si está); en los demás, la shell de la persona. */
-export const TERMINAL_LOCAL: TipoTerminal = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent) ? 'powershell' : 'linux';
-export const TITULO_TERMINAL_LOCAL = TERMINAL_LOCAL === 'powershell' ? 'Terminal local (PowerShell)' : 'Terminal local';
+/** La shell que abre la terminal local, según el backend (pwsh, Windows PowerShell, bash…). */
+function useShellLocal(): ShellLocal | null {
+  const [shell, setShell] = useState<ShellLocal | null>(null);
+  useEffect(() => { void localTermShell().then(setShell).catch(() => setShell(null)); }, []);
+  return shell;
+}
 
 const escribir = (tabId: string, teclas: string) =>
   window.dispatchEvent(new CustomEvent<DetalleEscribirLocal>(EVENTO_ESCRIBIR_LOCAL, { detail: { tabId, teclas } }));
@@ -29,6 +34,8 @@ export default function SesionLocalMosaico({ tabId, isTabActive, onEmptyGroup }:
   onEmptyGroup: () => void;
 }) {
   const arbol = useArbolSesion(tabId);
+  const shell = useShellLocal();
+  const conShell = (t: string) => (shell ? `${t} (${shell.nombre})` : t);
   const [pedirComando, setPedirComando] = useState(0);
   const [chatMontado, setChatMontado] = useState(false);
   const visibleChat = hojas(arbol).includes('chat');
@@ -39,11 +46,11 @@ export default function SesionLocalMosaico({ tabId, isTabActive, onEmptyGroup }:
   }, [isTabActive, tabId]);
 
   const herramientas: Record<string, Herramienta> = {
-    terminal: { titulo: TITULO_TERMINAL_LOCAL, contenido: <LocalTerminalGroup tabId={tabId} onEmptyGroup={onEmptyGroup} /> },
+    terminal: { titulo: conShell('Terminal local'), contenido: <LocalTerminalGroup tabId={tabId} onEmptyGroup={onEmptyGroup} /> },
   };
   if (chatMontado || visibleChat) {
     herramientas.chat = {
-      titulo: TERMINAL_LOCAL === 'powershell' ? 'Chat (PowerShell)' : 'Chat',
+      titulo: conShell('Chat'),
       contenido: (
         <div className="chat-pane-host flex min-h-0 flex-1 flex-col">
           <ChatPane onClose={() => ocultar(tabId, 'chat')}
@@ -57,7 +64,7 @@ export default function SesionLocalMosaico({ tabId, isTabActive, onEmptyGroup }:
       titulo: 'Comandos',
       acciones: <BotonIcono etiqueta="Nuevo comando" onClick={() => setPedirComando((n) => n + 1)}><Plus size={15} /></BotonIcono>,
       contenido: (
-        <PanelComandos terminal={TERMINAL_LOCAL} pedirNuevo={pedirComando}
+        <PanelComandos terminal={(shell?.tipo as TipoTerminal | undefined)} pedirNuevo={pedirComando}
           onEjecutar={(c) => escribir(tabId, teclasDelComando(c))} onPegar={(c) => escribir(tabId, `\x15${c}`)} />
       ),
     };

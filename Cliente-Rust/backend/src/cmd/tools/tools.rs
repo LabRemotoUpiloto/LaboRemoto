@@ -792,6 +792,22 @@ fn mensajes_previos(historial: &[MensajeHistorial]) -> Vec<serde_json::Value> {
     salida.into_iter().map(|(r, t)| serde_json::json!({ "role": r, "content": t })).collect()
 }
 
+/// Lo que el agente sabe de la sesión: equipo y usuario (el backend los tiene), el tipo de terminal, y lo que manda la app
+/// (lo que solo ella sabe, como las descripciones de los pines).
+fn contexto_de_sesion(session_id: &str, de_la_app: Option<&str>) -> String {
+    let mut lineas = vec![];
+    if let Ok(map) = SESSIONS.lock() {
+        if let Some(s) = map.get(session_id) {
+            lineas.push(format!("Equipo: {}@{}:{}", s.user, s.host, s.port));
+        }
+    }
+    lineas.push("Terminal: Linux, por SSH (la terminal interactiva de la persona).".to_string());
+    if let Some(extra) = de_la_app.map(str::trim).filter(|c| !c.is_empty()) {
+        lineas.push(extra.to_string());
+    }
+    lineas.join("\n")
+}
+
 /// Lo último que mostró la terminal, sin códigos de color, para que el agente sepa dónde está parada la persona.
 fn terminal_reciente(session_id: &str, lineas: usize) -> Option<String> {
     let crudo = get_terminal_context(session_id.to_string(), Some(120)).ok()?;
@@ -815,9 +831,10 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
         None
     };
     let mut system_prompt = build_system_prompt(terminal.as_deref());
-    if let Some(ctx) = req.contexto.as_deref().filter(|c| !c.trim().is_empty()) {
+    let sesion = contexto_de_sesion(&req.session_id, req.contexto.as_deref());
+    if !sesion.is_empty() {
         system_prompt.push_str("\n\n=== SESIÓN ===\n");
-        system_prompt.push_str(ctx);
+        system_prompt.push_str(&sesion);
         system_prompt.push_str("\n=== FIN DE LA SESIÓN ===");
     }
     system_prompt.push_str(INSTRUCCIONES_COMANDOS_Y_PINES);

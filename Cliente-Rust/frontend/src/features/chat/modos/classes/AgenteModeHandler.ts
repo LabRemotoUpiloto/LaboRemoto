@@ -3,7 +3,7 @@ import { BaseModeHandler } from './BaseModeHandler';
 import { ModeHandlerContext, Message, AgentChatResponse, AgentStep } from '../types';
 import { PI4_AGENT_SESSION_ID } from '@/lib/devices';
 import { pi4AgentReady, agentChat } from '../../ai.service';
-import { contextoDeSesion, historialPara } from '../../contextoAgente';
+import { contextoDePines, historialPara } from '../../contextoAgente';
 import {
   shouldOpenPi4ChatTerminal,
   shouldOpenPi4ChatCameras,
@@ -70,7 +70,7 @@ export class AgenteModeHandler extends BaseModeHandler {
         include_terminal_context: true,
         terminal_lines: 40,
         request_id: streamId,
-        contexto: await contextoDeSesion(effectiveSessionId),
+        contexto: contextoDePines(effectiveSessionId),
         // Sin el mensaje que se acaba de mandar (va aparte)
         historial: historialPara(ctx.messages.filter((m) => m.id !== _userMsg.id)),
       });
