@@ -163,6 +163,14 @@ const FileList: React.FC<FileListProps> = ({
     setScrollTop(pos.y)
   }, [])
 
+  // Al cambiar de carpeta (o refrescar) la lista puede quedar mucho más corta. El navegador ajusta entonces el
+  // desplazamiento real del contenedor, pero el estado `scrollTop` conservaba el valor anterior: la ventana de filas
+  // quedaba fuera de rango y la lista se veía en blanco aunque hubiera archivos. Se vuelve a leer el valor real.
+  useEffect(() => {
+    const el = viewportElRef.current
+    if (el) setScrollTop(el.scrollTop)
+  }, [entries])
+
   const { visibleEntries, topSpacer, bottomSpacer } = useMemo(() => {
     const total = entries.length
     if (viewportHeight <= 0) {
@@ -170,7 +178,10 @@ const FileList: React.FC<FileListProps> = ({
       return { visibleEntries: entries, topSpacer: 0, bottomSpacer: 0 }
     }
     const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2
-    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
+    // Nunca empezar más allá de donde aún caben `visibleCount` filas: con un `scrollTop` desfasado se seguirían
+    // viendo al menos las últimas filas en lugar de ninguna.
+    const maxStart = Math.max(0, total - visibleCount)
+    const start = Math.min(maxStart, Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN))
     const end = Math.min(total, start + visibleCount)
     return {
       visibleEntries: entries.slice(start, end),
