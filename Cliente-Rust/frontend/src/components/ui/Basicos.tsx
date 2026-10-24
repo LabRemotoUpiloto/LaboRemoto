@@ -31,6 +31,8 @@ export interface Opcion<T extends string> {
   deshabilitada?: boolean;
 }
 
+/** Opciones excluyentes (segmentado): todas dentro de un mismo riel, para que se lean como botones aunque no estén elegidas
+ *  (sin riel, en varios temas las no elegidas parecían texto suelto). La elegida va en la superficie y con borde. */
 export function Selector<T extends string>({ opciones, valor, onCambio, nombre }: {
   opciones: Opcion<T>[];
   valor: T;
@@ -38,7 +40,8 @@ export function Selector<T extends string>({ opciones, valor, onCambio, nombre }
   nombre: string;
 }) {
   return (
-    <div role="group" aria-label={nombre} className="inline-flex flex-wrap gap-1">
+    <div role="group" aria-label={nombre}
+      className={`inline-flex flex-wrap gap-0.5 ${RADIO} border-[length:var(--card-border-width,1px)] border-ui-borde bg-ui-terciario p-0.5`}>
       {opciones.map((o) => (
         <button
           key={o.valor}
@@ -46,7 +49,7 @@ export function Selector<T extends string>({ opciones, valor, onCambio, nombre }
           aria-pressed={o.valor === valor}
           disabled={o.deshabilitada}
           onClick={() => onCambio(o.valor)}
-          className={`h-7 ${RADIO} border-[length:var(--card-border-width,1px)] border-transparent px-3 text-[13px] text-ui-tinta-2 hover:enabled:bg-ui-hover disabled:cursor-not-allowed disabled:text-ui-fantasma aria-pressed:border-ui-borde aria-pressed:bg-ui-superficie aria-pressed:font-bold aria-pressed:text-ui-tinta`}
+          className={`h-7 cursor-pointer ${RADIO} border-[length:var(--card-border-width,1px)] border-transparent px-3 text-[13px] text-ui-tinta-2 hover:enabled:bg-ui-hover hover:enabled:text-ui-tinta disabled:cursor-not-allowed disabled:text-ui-fantasma aria-pressed:border-ui-borde aria-pressed:bg-ui-superficie aria-pressed:font-semibold aria-pressed:text-ui-tinta aria-pressed:shadow-[0_1px_2px_rgba(0,0,0,0.08)]`}
         >
           {o.etiqueta}
         </button>

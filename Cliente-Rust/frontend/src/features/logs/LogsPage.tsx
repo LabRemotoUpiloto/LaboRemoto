@@ -80,7 +80,7 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
       <Encabezado
         titulo="Sesiones SSH"
         descripcion="Historial de las sesiones SSH: quién entró, a qué equipo, cuánto duró y qué comandos usó."
-        derecha={!error && <BotonIcono etiqueta="Recargar" onClick={() => void cargar()} disabled={cargando}><RefreshCw size={15} /></BotonIcono>}
+        derecha={!error && <Boton onClick={() => void cargar()} disabled={cargando}><RefreshCw size={14} aria-hidden /> Recargar</Boton>}
       />
 
       {error ? (
