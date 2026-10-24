@@ -1,363 +1,157 @@
-# Cliente Rust SSH/SFTP con IA y Control de Raspberry Pi
+# Cliente-Rust — aplicación de escritorio de LaboRemoto
 
-Aplicación de escritorio de última generación para gestión remota de sistemas, con enfoque especial en **educación** y **control de dispositivos IoT**. Combina la potencia y seguridad de **Rust** (Tauri) con una interfaz moderna en **React + TypeScript**.
+Cliente **Tauri 2** del laboratorio remoto de la Universidad Piloto de Colombia: el backend está en **Rust** y la interfaz en **React 19 + TypeScript**. Se conecta por SSH a los equipos del laboratorio (Raspberry Pi, robots EV3, Arduino), muestra cámaras, ofrece un escritorio gráfico remoto, guía prácticas con validación automática, se integra con Moodle y trae un asistente de IA.
 
-![Vista Principal](apps/desktop/web/public/Terminalchat.png)
-
----
-
-## Descripción General
-
-La aplicación ofrece una solución integral para administradores, profesores y estudiantes. Integra un **Agente de Inteligencia Artificial** con acceso a tools reales del servidor, un sistema completo de **prácticas de laboratorio remoto** con evaluación automática, integración con **Moodle LMS**, control de hardware **Arduino**, y acceso al **escritorio gráfico** de dispositivos Raspberry Pi.
-
----
+Este documento describe el estado actual del código. El contexto para asistentes de código está en [`../AGENTS.md`](../AGENTS.md).
 
 ## Arquitectura
 
 ```
-Frontend (React + TypeScript)
-         ↕  invoke() / eventos Tauri
-Backend (Rust + Tauri)
-         ↕  SSH (russh) / SFTP (ssh2) / HTTP (reqwest)
-Raspberry Pi / Servidor Remoto
+┌────────────────────────────── Aplicación de escritorio (Tauri) ──────────────────────────────┐
+│  Frontend (React)  ──invoke() / eventos──►  Backend (Rust)                                    │
+│  features/*  store/  lib/command.service     cmd/*  auth/  state_core/  ssh_core/  ipc/       │
+└───────────────────────────────────────────────┬──────────────────────────────────────────────┘
+                 SSH (russh + ssh2) · túnel a la API de prácticas · HTTP con token de Keycloak
+        ┌───────────────────────────────────────┼──────────────────────────────┐
+   Equipos del laboratorio              Brokers HTTP (infra/)           Keycloak (login)
+   Raspberry Pi · EV3 · Arduino         cámaras · sesiones · Moodle
 ```
 
-1. **Frontend**: Gestiona estado, componentes visuales y la interacción con el usuario.  
-2. **Backend Rust**: Maneja conexiones de red, cifrado, bridge VNC, agente AI y lógica crítica.  
-3. **Puente Tauri**: Comandos asíncronos seguros; la UI nunca se bloquea en operaciones intensivas.
+- El backend es la **única** parte que habla con la red: el frontend nunca ve el token de Keycloak (solo recibe un resumen de la sesión).
+- Cada sesión SSH usa dos conexiones: `russh` (asíncrona) para la terminal interactiva y `ssh2` (libssh2, bloqueante) para SFTP, GPIO, ejecución de comandos y el escritorio remoto.
+- Los servicios de [`../infra`](../infra) (brokers, agente de conexiones…) viven en la red del laboratorio; la app los consume con el `access_token` de Keycloak.
 
----
+## La interfaz
 
-## Módulos del Backend (Rust)
+El shell de la aplicación (`frontend/src/app/`) es una **barra lateral flotante** (200 px, o 64 px plegada) y un área de contenido.
 
-### `cmd/ssh` — Conexión SSH Interactiva
-| Comando Tauri | Descripción |
+**Barra lateral**
+
+| Sección | Páginas |
 |---|---|
-| `ssh_connect` | Abre una sesión SSH con PTY. Devuelve el `session_id` inmediatamente y emite `ssh_connected`/`ssh_connect_error` de forma async. |
-| `ssh_ui_ready` | Señala al backend que la UI está lista; vuelca el buffer capturado durante la conexión. |
-| `ssh_stdin` | Envía bytes al canal PTY. Soporta encoding `base64`. Detecta automáticamente comandos `cd` y actualiza `current_dir`. |
-| `ssh_resize` | Redimensiona el PTY (cols/rows). |
-| `ssh_disconnect` | Cierra la sesión, mata procesos VNC residuales y limpia la memoria de la sesión. |
-| `ssh_connect_stored` | Conecta desde un host cifrado guardado (`.json.enc`). |
-| `ssh_session_info` | Devuelve host, puerto, usuario e IP resuelta de la sesión activa. |
+| Aprender | Inicio · Prácticas · Mis cursos · Reservas |
+| Conectar | Conexiones |
+| Laboratorio | Monitoreo · Vigilancia |
+| Personas | Actividad · Usuarios |
 
-#### GPIO — Control de pines Raspberry Pi (via `raspi-gpio`)
-| Comando | Descripción |
+Debajo van las pestañas de sesión abiertas, el bloque **Esta sesión** y el menú de usuario (Perfil, Ajustes, Temas, «Ver como» solo para administradores, Cerrar sesión).
+
+**Pestañas.** Hay cuatro tipos: `home` (nunca se cierra), `session` (una conexión SSH), `log` (un registro de sesión) y `local-terminal` (terminal local). Las páginas de la pestaña Inicio se eligen en `HomeContainer` (`landing`, `connect`, `ssh-guest`, `practices`, `reservas`, `mis-cursos`, `admin-users`, `vigilancia`, `dashboard`, `rendimiento`, `perfil`, `ajustes`, `themes`).
+
+**Sesiones.** Una conexión SSH normal abre un **mosaico** de herramientas que se reacomodan arrastrando (`components/mosaico`, `features/sesion/herramientasSesion.ts`): Terminal, Chat, Cámara, Escritorio, Pines, Archivos y Comandos. Las **prácticas** usan una vista propia (`VistaPractica`): barra de progreso, cámara, terminal o escritorio, chat y, si el módulo lo pide, el panel del robot EV3.
+
+**Roles** <a id="roles"></a>
+
+`features/cuenta/usePermissions.ts` define siete roles y `PAGE_ACCESS` decide qué página ve cada uno: `admin_lab`, `jefe_laboratorio`, `coordinador_laboratorio`, `laboratorista`, `semillerista`, `docente` y `estudiante` (el rol por defecto). Monitoreo y Usuarios son solo para `admin_lab`; «Ver como» también. Los roles de jefatura y laboratorista usan siempre el tema institucional. Los roles y el tipo de usuario (`Estudiante` o `Docente`) llegan en el token de Keycloak (`realm_access.roles`); los administradores los gestionan desde la página Usuarios.
+
+## Frontend (`frontend/src`)
+
+| Carpeta | Contenido |
 |---|---|
-| `rpi_pins_status` | Lee el estado de **todos** los pines BCM (level, func, pull). |
-| `rpi_pin_read` | Lee el estado de un pin específico. |
-| `rpi_pin_set_mode` | Configura modo del pin: `input` / `output`. |
-| `rpi_pin_set_pull` | Configura resistencia pull: `up` / `down` / `none`. |
-| `rpi_pin_write_level` | Escribe nivel digital: `1` (alto) / `0` (bajo). |
+| `app/` | Shell: `App.tsx`, barra lateral, hooks de pestañas y paneles, proveedores (tema, avisos, carga). |
+| `features/` | Un módulo por dominio (tabla siguiente). Cada uno mezcla componentes, hooks y `*.service.ts`. |
+| `components/ui/`, `components/mosaico/` | Kit de componentes propio (en español: `Boton`, `Campos`, `Dialogo`, `Tabla`…) y el mosaico de paneles redimensionables. |
+| `lib/` | `command.service.ts` (cliente del protocolo versionado de comandos), `useQueryData`, almacenamiento y utilidades. |
+| `store/` | Estado global con Zustand (autenticación, caché de consultas, terminal local). |
+| `bindings/` | Tipos TypeScript **generados** desde Rust con `ts-rs`. No se editan a mano. |
+| `styles/` | `globals.css` (Tailwind 4, CSS-first) y `themes/*.css`. |
 
----
-
-### `cmd/sftp` — Transferencia de Archivos SFTP
-| Comando | Descripción |
+| `features/` | Qué hace |
 |---|---|
-| `sftp_open` | Abre una sesión SFTP sobre la conexión SSH existente. |
-| `sftp_home` | Devuelve el directorio home del usuario remoto. |
-| `sftp_list` | Lista el contenido de un directorio remoto. |
-| `sftp_mkdir` | Crea un directorio remoto. |
-| `sftp_remove` | Elimina un archivo o directorio remoto. |
-| `sftp_download_start` | Inicia la descarga de un archivo remoto (emite eventos de progreso). |
-| `sftp_upload_start` | Sube un archivo local al servidor remoto. |
-| `sftp_upload_dir_start` | Sube un directorio completo (recursivo). |
-| `sftp_download_dir_start` | Descarga un directorio completo. |
-| `sftp_cancel` | Cancela una transferencia en curso. |
+| `actividad` | Panel de actividad: sesiones, dispositivos conectados, mapa y encuestas. |
+| `camaras` | Vigilancia: rejilla de cámaras (HLS/WebRTC), control PTZ y administración. |
+| `chat` | Chat con IA en modos Ask, Plan y Agente; pasos del agente en vivo. |
+| `comandos` | Comandos guardados que se envían a la terminal. |
+| `conexion` | Equipos guardados, nueva conexión, registros, conexión como invitado. |
+| `cuenta` | Autenticación, perfil, ajustes, temas y permisos por rol. |
+| `cursos` | Mis cursos de Moodle, resumen y envío de entregas. |
+| `escritorio` | Escritorio remoto con noVNC. |
+| `hardware` | Robot EV3 (panel, consola, gemelo 3D), pines GPIO y panel de domótica (Arduino). |
+| `inicio` | Portada con el estado del laboratorio o el avance del estudiante. |
+| `logs` | Registros de sesiones SSH (lista, detalle, reporte). |
+| `monitoreo` | Rendimiento de la Raspberry Pi del laboratorio (gráficas, procesos, prueba exportable). |
+| `onboarding` | Tutorial de bienvenida con narración. |
+| `practicas` | Catálogo y módulos de Linux y EV3: guía, validación, insignias, quiz y encuesta. |
+| `reservas` | Reserva de horas de laboratorio (prototipo: horarios simulados). |
+| `sesion`, `terminal`, `sftp` | Contenedor de sesiones, terminales (xterm) y gestor de archivos. |
+| `usuarios` | Gestión de usuarios y roles (administradores). |
 
----
+**Estado y datos.** Zustand 5 para el estado global; tema, avisos y carga siguen como Context. Todo lo que toca el backend pasa por funciones `*.service.ts` que encapsulan `invoke`. Los comandos usan el protocolo versionado (`CommandRequest`/`CommandResponse` con reintentos y errores tipados, reflejo de `backend/src/cmd/protocol.rs`). Los eventos llegan con `listen` (`ssh_out_<id>`, `ai:chunk`, `agent:step`, `auth:*`, `sftp_transfer`, `comandos:cambio`…).
 
-### `cmd/ai` — Chat con IA (Claude)
-| Comando | Descripción |
+**UI y estilos.** Mantine 9 + Tailwind 4 + CSS por tema (unos 40 temas; el predeterminado es el institucional `unipiloto`, claro). Tutoriales guiados con driver.js. Terminal con xterm 5, escritorio remoto con noVNC 1.4, 3D con three y react-three-fiber.
+
+**Pruebas.** `vitest` (≈250 pruebas, en `frontend/tests/unit`) y un spec de `playwright` que hay que ejecutar a mano. TypeScript tiene `noUnusedLocals` y `noUnusedParameters`.
+
+## Backend (`backend/src`)
+
+| Módulo | Qué hace |
 |---|---|
-| `ai_chat` | Conversación con Claude. Soporta historial de mensajes, cancela peticiones previas. |
-| `cancel_ai_chat` | Cancela una petición AI activa. |
-| `ai_env_status` | Verifica si la API key de Claude está configurada. |
-| `ai_test_key` | Valida la API key de Claude contra la API real. |
+| `cmd/ssh` | Terminal SSH interactiva, sesiones guardadas y control de pines GPIO. |
+| `cmd/terminal_local` | Terminal local (PTY) y portapapeles nativo. |
+| `cmd/sftp`, `cmd/filesystem` | Transferencias SFTP; archivos locales, historial del chat, PDF e imágenes. |
+| `cmd/vnc` | Escritorio remoto: arranca `Xvnc` con un entorno ligero en la Pi, espera a que escuche el proceso recién lanzado y lo expone con un puente WebSocket por SSH (`vnc_start/stop/status/logs/cleanup_all`). |
+| `cmd/ai`, `cmd/tools` | Chat con IA (Groq) y modo agente con herramientas (API externa de modelos de lenguaje). |
+| `cmd/practices` | Prácticas: API de contenido de la Pi por túnel SSH (`linux_api`, `linux_tunnel`), proxy local de medios, validador, prácticas Eve3 heredadas. |
+| `cmd/hardware` | Arduino y robot EV3 (por `ssh_exec` hacia la Pi). |
+| `cmd/nvr`, `cmd/camaras_admin` | Cámaras y su administración, a través del broker. |
+| `cmd/sesiones`, `cmd/dispositivos`, `cmd/encuestas` | Registro de sesiones y dispositivos, y encuestas (broker). |
+| `cmd/moodle_cursos`, `cmd/integration` | Cursos y entregas de Moodle por el broker; cliente directo antiguo. |
+| `cmd/comandos`, `cmd/logs` | Comandos guardados; logs de sesión con conversión ANSI→HTML. |
+| `cmd/state`, `state_core`, `session_manager` | Sesiones SSH activas, memoria efímera por sesión (TTL 2 h) y almacén de sesión/autenticación (solo en memoria; `RedisSessionManager` es un esqueleto sin implementar). |
+| `cmd/protocol.rs`, `error.rs` | Protocolo versionado y `CommandError` (`code`, `message`, `retryable`, `retry_after_ms`). |
+| `auth/` | Login OAuth 2.1 + PKCE con Keycloak (ver abajo). |
+| `ssh_core/` | `client.rs` (russh), `ssh2_sftp.rs` y `exec.rs` (ssh2). |
+| `ipc/` | Cola de eventos con respuesta (ACK) y presión inversa; hoy solo la usa `auth`. |
+| `storage.rs`, `security.rs`, `user_config.rs` | Hosts cifrados (Argon2id + ChaCha20-Poly1305, clave maestra en el llavero del sistema), validación de comandos, y carga de la configuración del usuario. |
 
----
+**Autenticación.** Keycloak con OAuth 2.1 Authorization Code + PKCE (cliente público). `auth_login_url` genera el verificador, abre el navegador del sistema y espera el código en un servidor `axum` de loopback que se apaga a los 5 min. El JWT se valida con RS256 (JWKS en caché 1 h). Un demonio renueva el token 45 s antes de que expire y solo el *refresh token* se guarda, cifrado, en disco. Los enlaces `laboremoto://practica/<id>` los procesa el frontend (el backend registra el esquema y mantiene una sola instancia).
 
-### `cmd/tools` — Agente AI con Tools Reales
-El agente ejecuta un **loop Claude `tool_use`** — puede llamar tools SSH/SFTP en el servidor remoto de forma autónoma.
+**Cómo se conecta a los equipos.** Terminal interactiva y túnel hacia la API de prácticas con `russh`; todo lo demás con `ssh2`, que abre su propia conexión con las credenciales guardadas en `SessionExt`. El túnel de prácticas entra por una cuenta de servicio restringida en la Pi.
 
-**Modo Agente `agent_chat`** (tools completas):
-| Tool Interna | Descripción |
+**Configuración.** Se lee, en este orden: `.env` desde el directorio actual hacia arriba; `.env` y `.env.practicas` junto al código (solo útil en desarrollo); y el `.env` del usuario en `<config_dir>/co.unipiloto.sshclient/` (Windows: `%APPDATA%`) o junto al ejecutable. Lo que ya esté definido no se pisa. Algunas claves se **embeben al compilar** (`build.rs`) como último respaldo.
+
+| Grupo | Variables (nombres; los valores no se versionan) |
 |---|---|
-| `ejecutar_comando` | Ejecuta un comando shell en el servidor via SSH. |
-| `leer_archivo` | Lee el contenido de un archivo remoto vía SFTP. |
-| `escribir_archivo` | Escribe/edita un archivo remoto vía SFTP. |
-| `listar_directorio` | Lista el contenido de un directorio remoto. |
-| `info_sistema` | Obtiene CPU, RAM, disco y uptime del servidor. |
-| `reiniciar_servicio` | Reinicia un servicio `systemd` remoto. |
-| `get_terminal_output` | Lee el buffer de la terminal activa (últimas N líneas). |
+| Keycloak | `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID` (tienen valor por defecto) |
+| IA | `GROQ_API_KEY`, `OPENAI_MODEL`; el modo agente usa su propia clave (ver `.env.example`) |
+| Prácticas Linux | `PRACTICE_LINUX_TUNNEL_{HOST,PORT,USER,PASSWORD}`, `PRACTICE_LINUX_API_REMOTE_PORT`, `PRACTICE_LINUX_API_TOKEN`, `PRACTICE_LINUX_SSH_{HOST,PORT}`, `PRACTICE_LINUX_LOCAL_{HOST,PORT}` |
+| Heredado | `PRACTICE_EVE3_*`, `PI4_*`, `MOODLE_URL`, `MOODLE_TOKEN` |
 
-**Modo Plan `plan_chat`** (solo lectura): Claude inspecciona el servidor y genera un **plan de acción paso a paso** con comandos reales, sin ejecutar nada.
+La guía para el `.env` de la app instalada está en [`CONFIGURACION-ALUMNOS.md`](./CONFIGURACION-ALUMNOS.md).
 
-| Comando Tauri | Descripción |
-|---|---|
-| `get_terminal_context` | Devuelve las últimas N líneas del buffer SSH capturado. |
-| `agent_chat` | Loop completo tool_use → tools → respuesta final. |
-| `plan_chat` | Inspecciona el servidor y genera un plan (read-only). |
+**Comandos de Tauri.** Un comando nuevo se declara con `#[tauri::command]` y se registra con su **ruta completa y coma final** en `tauri::generate_handler![…]` de `backend/src/lib.rs`. `scripts/check-comandos.mjs` falla si el frontend invoca un comando no registrado o si hay uno registrado que nadie usa y no está justificado en `scripts/comandos-sin-uso.txt`.
 
----
+**Tipos compartidos.** Las estructuras marcadas con `#[derive(TS)] #[ts(export)]` generan sus tipos en `frontend/src/bindings` (la ruta sale de `backend/.cargo/config.toml`). `cargo test` los regenera: revisa `git status` antes de hacer commit.
 
-### `cmd/vnc` — Escritorio Gráfico Remoto (VNC)
-Permite acceder al **entorno gráfico LXDE** de la Raspberry Pi (o cualquier Linux con Xvnc) desde la app, sin necesidad de monitor físico.
+## Desarrollo
 
-**Ciclo de vida:**
-1. `vnc_start` → detecta display y puerto VNC libres → arranca `Xvnc + Openbox + lxpanel + pcmanfm` en el servidor remoto (Xvnc de TigerVNC es el display virtual y el servidor VNC en un solo proceso — reemplazó al combo Xvfb+x11vnc: al generar el framebuffer él mismo, no depende de polling ni de la extensión xdamage para saber qué cambió)
-2. Abre un **bridge WebSocket ↔ SSH direct-tcpip** en Rust (framing WS manual, sin perder frames por timeouts)
-3. Devuelve `ws_port` al frontend → noVNC se conecta al puerto local
-4. `vnc_stop` → señala al bridge que pare → mata SOLO los procesos de esa sesión (no afecta otras sesiones activas)
-
-**Características:**
-- 🎨 Detecta automáticamente el wallpaper real del dispositivo (LXDE-pi, GNOME, XFCE)
-- 🌐 Ícono "Servidor Web Local" en el escritorio → abre `http://localhost:10000` (Apache)
-- 🔒 Aislamiento por display: cada sesión VNC tiene su Chromium, perfil y pines de proceso únicos
-- 🧹 Limpieza automática en cierre de la app (`vnc_cleanup_all`) — también limpia huérfanos `Xvfb`/`x11vnc` de antes de la migración a Xvnc
-- 📺 Modo físico (pantalla real con `x11vnc`, para adjuntarse a una sesión ya existente) y modo virtual (Xvnc)
-- 🧭 Si faltan las dependencias (Xvnc/openbox/lxpanel/pcmanfm), detecta el SO/gestor de paquetes del servidor remoto y sugiere el comando de instalación correcto (o explica que no aplica en macOS/Windows) directo en el chat
-
-| Comando | Descripción |
-|---|---|
-| `vnc_start` | Inicia el entorno gráfico virtual + bridge WS. |
-| `vnc_stop` | Detiene el servidor VNC y limpia los procesos remotos. |
-| `vnc_status` | Devuelve el estado actual (`not_started` / `running`). |
-| `vnc_cleanup_all` | Limpia **todas** las sesiones VNC residuales (se llama al cerrar la app). |
-
----
-
-### `cmd/arduino` — Bridge Arduino Domótica
-Permite comunicarse con un **Arduino** conectado al puerto serial de la Raspberry Pi a través de un bridge HTTP (`arduino_bridge.py` escuchando en `127.0.0.1:8765`).
-
-> Toda la comunicación va **por SSH** (sin abrir puertos adicionales). Se reutiliza la sesión ssh2 cacheada.
-
-| Comando | Descripción |
-|---|---|
-| `arduino_bridge_status` | Consulta `/status` del bridge: puerto serial detectado, si está abierto, errores. |
-| `arduino_send_cmd` | Envía un comando al Arduino vía POST `/cmd` y devuelve la respuesta. |
-| `arduino_read_buffer` | Lee líneas espontáneas del buffer del Arduino (eventos sin solicitud). |
-
-Ver `docs/arduino_domotica.md` para instalación del servicio en la Pi.
-
----
-
-### `cmd/practicas` — Sistema de Prácticas de Laboratorio
-Gestiona un catálogo de prácticas. Eve3 (robots) todavía se configura por variables de entorno en el `.env` único de la app (legacy); Linux vive en un servicio propio corriendo en la Pi (ver `cmd/practices/linux_api.rs`) — el patrón hacia el que van las próximas categorías.
-
-| Comando | Descripción |
-|---|---|
-| `practicas_list_categories` | Devuelve todas las categorías y prácticas (sin contraseñas). |
-| `practicas_get_config` | Devuelve la configuración completa de una práctica (con credenciales, para uso interno). |
-| `practicas_run_setup` | Ejecuta los comandos de setup de una práctica (ej: iniciar el robot Eve3 vía SSH). Emite eventos `practice:log` con el progreso. |
-
-**Estructura de una práctica:**
-- `connection`: host, puerto, usuario, comandos de setup pre-práctica (pueden apuntar a un host diferente)
-- `terminal`: comandos permitidos, directorio de trabajo, permisos de navegación y nano
-- `panels`: si mostrar cámara, contexto del chat IA, tutorial
-- Tutorial y contexto pueden cargarse desde `practicas/<id>.json`
-
----
-
-### `cmd/practice_validator` — Validador Automático de Prácticas
-Analiza el historial de comandos SSH del estudiante y determina si cumplió los objetivos de la práctica.
-
-**Reglas de validación:**
-- `command_executed`: Verifica si el estudiante ejecutó un comando específico.
-- `file_created`: Verifica si creó un archivo con cierta extensión.
-
-| Comando | Descripción |
-|---|---|
-| `validate_practice_progress` | Analiza el historial y devuelve un objeto `PracticeValidation` con porcentaje, puntos y detalle por objetivo. |
-| `calculate_practice_grade` | Calcula la calificación numérica (para Moodle) basada en el porcentaje de objetivos cumplidos. |
-
-El umbral de aprobación es **60%** de objetivos cumplidos.
-
----
-
-### `cmd/moodle` — Integración con Moodle LMS
-Permite sincronizar tareas, verificar entregas y calificar estudiantes directamente en Moodle.
-
-> Requiere `MOODLE_URL` y `MOODLE_TOKEN` en `.env`.
-
-| Comando | Descripción |
-|---|---|
-| `moodle_sync_assignment` | Obtiene info de la tarea, del usuario y verifica si ya la entregó. |
-| `moodle_prepare_grade` | Prepara el payload de calificación (NO la envía). |
-| `moodle_submit_grade_direct` | Envía la calificación a Moodle via `mod_assign_save_grade`. Resuelve `user_id` por `username` si es necesario. |
-
-**Manejo de permisos:** Si el token no tiene capability para ciertas operaciones (ej: ver entregas ajenas), el módulo genera placeholders en lugar de fallar, para que el flujo educativo no se interrumpa.
-
----
-
-### `cmd/logs` — Sistema de Logs de Sesión
-| Comando | Descripción |
-|---|---|
-| `save_session_log` | Guarda un log completo de sesión SSH. |
-| `save_session_log_fragment` | Guarda un fragmento incremental de log. |
-| `list_session_logs` | Lista todos los logs guardados. |
-| `get_session_log` / `get_session_log_content` | Lee el contenido de un log. |
-| `delete_session_log` | Elimina un log. |
-| `cleanup_old_session_logs` | Limpia logs anteriores a N días. |
-
----
-
-### `cmd/local` — Sistema de Archivos Local
-| Comando | Descripción |
-|---|---|
-| `local_home_dir` | Devuelve el directorio home del usuario local. |
-| `local_list_dir` | Lista un directorio local. |
-| `local_list_drives` | Lista las unidades disponibles (Windows: C:, D:, etc.). |
-| `save_text_file` | Guarda un archivo de texto localmente. |
-| `chat_history_load` | Carga el historial de chat guardado. |
-| `chat_history_save` | Guarda el historial de chat. |
-| `chat_history_delete_entry` | Elimina una entrada del historial. |
-
----
-
-### `cmd/hosts` — Gestión de Hosts Cifrados
-Almacena hosts (credenciales) cifrados localmente con **ChaCha20Poly1305**.
-
-| Comando | Descripción |
-|---|---|
-| `save_host_encrypted` | Guarda un host cifrado con password maestra. |
-| `load_host_encrypted` | Carga y descifra un host. |
-| `save_host_master` / `load_host_master` | Guarda/carga host con clave maestra global. |
-| `list_hosts_entries` | Lista todos los hosts guardados. |
-| `list_hosts_files` | Lista los archivos `.json.enc` de hosts. |
-| `delete_host_file` | Elimina un archivo de host. |
-
----
-
-### `cmd/pdf_reports` — Reportes PDF
-| Comando | Descripción |
-|---|---|
-| `save_pdf_base64` | Guarda un PDF (pasado como Base64 desde `html2pdf.js`) en el directorio de logs local. |
-
----
-
-### Memoria Efímera de Sesión (`state`)
-Almacenamiento clave-valor en RAM, por sesión, para que el frontend y el agente AI compartan datos temporales.
-
-| Comando | Descripción |
-|---|---|
-| `mem_put` | Guarda un valor en la memoria de la sesión. |
-| `mem_get` | Obtiene un valor de la memoria de la sesión. |
-| `mem_clear` | Limpia toda la memoria de la sesión. |
-| `mem_push_terminal_result` | Agrega el resultado de un comando al contexto AI de la sesión. |
-
----
-
-## Configuración
-
-### `.env` (variables principales)
-```env
-ANTHROPIC_API_KEY=sk-ant-...   # Claude API key
-MOODLE_URL=https://moodle.universidad.edu
-MOODLE_TOKEN=abc123...         # Token de API de Moodle (requiere permisos de profesor)
+```bash
+npm run install:all     # raíz + frontend
+cp .env.example .env
+npm run dev             # Windows: scripts/dev.ps1 → cargo tauri dev
+# o por separado: npm run dev:frontend  /  npm run dev:backend
 ```
 
-### `.env` — sistema de prácticas (mismo archivo único de la app)
-```env
-# Categoría Eve3 — Robot (legacy: config por variables de entorno)
-PRACTICE_EVE3_RPI_HOST=192.168.1.x
-PRACTICE_EVE3_RPI_PORT=22
-PRACTICE_EVE3_RPI_USER=labiot
-PRACTICE_EVE3_RPI_PASSWORD=...
+| Qué | Comando (desde `Cliente-Rust/`) |
+|---|---|
+| Comandos Tauri vs. frontend | `node scripts/check-comandos.mjs` |
+| Tipos del frontend | `cd frontend && npx tsc --noEmit` |
+| Pruebas del frontend | `cd frontend && npx vitest run` |
+| Compilar el backend (con tests) | `cd backend && cargo check --all-targets` |
+| Pruebas del backend (las del CI) | `cd backend && cargo test --lib --bins --test error_categorization_test --test protocol_test --test session_manager_flow_test --test session_manager_test` |
 
-# Robot (host de setup)
-PRACTICE_EVE3_ROBOT_HOST=192.168.1.y
-PRACTICE_EVE3_ROBOT_SCRIPT_DIR=/home/pi/robot
-PRACTICE_EVE3_ROBOT_SCRIPT_CMD=./start_server.sh
+**Ramas y CI.** Se trabaja en ramas `feat/`, `fix/`, `refactor/`, `chore/`, `docs/`… con commits `tipo(ámbito): mensaje` en español, y se abre un PR hacia `Desarrollo`. En cada PR corre `.github/workflows/ci.yml` (comandos, backend, frontend), la comprobación de versiones exactas en `package.json` y la de archivos sensibles (`.env`, `*.pem`, `*.key`, direcciones IP en el código). Al fusionar, la rama se borra sola.
 
-# Práctica 1
-PRACTICE_EVE3_P1_NAME=Control básico de robot Eve3
-PRACTICE_EVE3_P1_DESC=Controla el robot con el teclado
-PRACTICE_EVE3_P1_DIFFICULTY=beginner
-PRACTICE_EVE3_P1_ALLOWED_CMDS=ls,python,cd
-PRACTICE_EVE3_P1_WORKING_DIR=/home/labiot/eve3
-PRACTICE_EVE3_P1_MOODLE_ASSIGNMENT_ID=5
-PRACTICE_EVE3_P1_CAMERA=true
+**Publicación.** Un push a `Produccion` ejecuta `release.yml`: instalador de Windows (NSIS, firmado) con el `latest.json` del actualizador, y paquetes `.deb` y AppImage para varias versiones de Ubuntu. Requiere secretos de GitHub Actions con las claves que se embeben en la app.
 
-# Categoría Linux — servicio de contenido/validación en la Raspberry Pi
-# (ver cmd/practices/linux_api.rs). El usuario SSH de trabajo NO se configura
-# acá: se resuelve en tiempo real del username de Keycloak del estudiante.
-#
-# La API HTTP (8770) solo escucha en la LAN de la Pi — no está expuesta a
-# internet a propósito. El cliente le habla a través de un túnel SSH en
-# memoria (cmd/practices/linux_tunnel.rs) reusando el único puerto SSH ya
-# publicado, con una cuenta de servicio restringida en la Pi (sin shell,
-# forwarding local limitado únicamente a 127.0.0.1:8770 vía `PermitOpen` en
-# sshd_config — ver Match block en /etc/ssh/sshd_config de la Pi). En el
-# futuro se evaluará abrir el puerto directo; por ahora todo pasa por acá.
-PRACTICE_LINUX_TUNNEL_HOST=200.115.181.211   # host público con SSH abierto
-PRACTICE_LINUX_TUNNEL_PORT=9000              # puerto SSH público
-PRACTICE_LINUX_TUNNEL_USER=svc-practicas     # cuenta de servicio (sin shell)
-PRACTICE_LINUX_TUNNEL_PASSWORD=...
-PRACTICE_LINUX_API_REMOTE_PORT=8770          # puerto interno del servicio en la Pi
-PRACTICE_LINUX_API_TOKEN=...                 # token bearer del servicio (.token en la Pi)
+## Servicios del laboratorio (`../infra`)
 
-# SSH de trabajo del estudiante (terminal real) — cuenta AD personal, no la
-# de servicio del túnel. Hoy mismo host/puerto público porque es lo único
-# abierto a internet; se separa de PRACTICE_LINUX_TUNNEL_HOST para cuando
-# haya pool de Pis por curso.
-PRACTICE_LINUX_SSH_HOST=200.115.181.211
-PRACTICE_LINUX_SSH_PORT=9000
-```
+Brokers en Node (sin framework) detrás de un gateway: `broker-gateway` (8091) reparte `/nvr/*` a `broker-camaras` (8092), `broker-sesiones` (8093) y `broker-moodle` (8094); `broker-comun` es la librería compartida (valida el JWT). `agente-conexiones` (Python) corre en la Pi de entrada, lee sus accesos SSH y los reporta a `broker-sesiones`; `shinobi-vigilante` reinicia Shinobi si se traba; `practicas-linux` y `practicas-ev3` son el **contenido** (módulos, validación) que sirve la API de prácticas de la Pi, cuyo código no está en este repositorio. El detalle de cada servicio está en su `README.md` (los de `practicas-linux` y `keycloak` aún no existen).
 
-### Tutoriales JSON (`practicas/<id>.json`)
-```json
-{
-  "context": "Contexto para el asistente IA (privado, no visible al estudiante)",
-  "tutorial": "## Tutorial\nPaso 1: Ejecuta `ls` para ver los archivos..."
-}
-```
+## Problemas conocidos
 
----
-
-## Tecnologías
-
-| Capa | Tecnología | Uso |
-|---|---|---|
-| Backend | Rust + Tauri | Núcleo, comandos seguros |
-| SSH Terminal | `russh` (async) | Terminal interactiva PTY |
-| SSH/SFTP General | `ssh2` / libssh2 | SFTP, GPIO, VNC setup, Arduino |
-| Frontend | React + TypeScript | UI completa |
-| IA | Claude (Anthropic) | Chat, agente, edición de archivos |
-| VNC | noVNC + bridge Rust | Escritorio remoto gráfico |
-| Cifrado | ChaCha20Poly1305 | Credenciales locales |
-| Hashing | Argon2 | Contraseñas maestras |
-| LMS | Moodle REST API | Calificación automática |
-| IoT | raspi-gpio, Arduino serial | Control hardware |
-| Video | MediaMTX (WebRTC/WHEP) | Streaming multi-cámara |
-
----
-
-## Flujo educativo completo
-
-```
-Profesor configura .env (categorías legacy) o el servicio de la práctica + JSON de tutorial
-         ↓
-Estudiante abre la app → Página de Prácticas
-         ↓
-Selecciona práctica → practicas_run_setup (inicia robot/servidor)
-         ↓
-Se abre sesión SSH al workspace (Raspberry Pi)
-         ↓
-Terminal con comandos restringidos + Chat IA contextual + Cámara
-         ↓
-Agente IA monitorea buffer terminal → practice_validator analiza historial
-         ↓
-Al completar → calculate_practice_grade → moodle_submit_grade_direct
-         ↓
-Calificación enviada automáticamente a Moodle ✓
-```
-
----
-
-![Entorno Gráfico Remoto](apps/desktop/web/public/vnc_preview.jpeg)
-
----
-
-*Desarrollado con ❤️ usando Rust y React.*
+- **Windows: `auth_ipc_dispatch_test`** no arranca (`0xc0000139`): los tests con `tauri::test` necesitan un manifiesto que `tauri-build` solo pone al binario de la app. Un `cargo test` completo falla en ese test; por eso el CI lo excluye.
+- **Windows: PDB corrupto** (`LNK1285`) si dos `cargo` compilan a la vez el mismo `target`. Solución: `cargo clean -p app`.
+- **`promts/ai.toml`**: `cmd/ai/prompts.rs` busca ese archivo con una errata (`promts`), pero el real es `backend/prompts/ai.toml`; hoy siempre se usan los textos por defecto del código.
+- **Claves de host SSH** de `russh` no se verifican (`check_server_key` acepta cualquiera).
+- **Versiones**: `Cargo.toml`, `tauri.conf.json` y `package.json` no coinciden; el release calcula la versión que publica.
