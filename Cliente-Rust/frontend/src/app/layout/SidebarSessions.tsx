@@ -14,11 +14,10 @@ type Props = {
   collapsed?: boolean;
 };
 
+// Igual que los rótulos de las secciones del sidebar: discreto, sin mayúsculas
 const sectionLabelStyle: React.CSSProperties = {
-  color: 'var(--text-muted)',
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  fontSize: '10px',
+  color: 'var(--text-secondary)',
+  fontSize: '11px',
 };
 
 const TabRow: React.FC<{
@@ -252,7 +251,7 @@ const SidebarSessions: React.FC<Props> = ({
     <div className="px-2 pb-2 mb-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
       {sessions.length > 0 && (
         <>
-          <Text size="xs" fw={600} px={8} mb={4} style={sectionLabelStyle}>
+          <Text size="xs" fw={500} px={11} mb={4} style={sectionLabelStyle}>
             Sesiones
           </Text>
           <div className="flex flex-col gap-0.5 mb-2">

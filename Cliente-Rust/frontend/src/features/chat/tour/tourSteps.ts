@@ -7,6 +7,7 @@ import type { DriveStep } from 'driver.js';
  * ÍNDICES RELEVANTES (para validaciones en useTour.ts):
  *   5  → "Conéctate ahora"  — requiere sesión SSH activa
  *   7  → "Chat de IA"       — requiere al menos un mensaje del asistente
+ *   14 → "Transferir archivos" — al seguir, vuelve al terminal
  */
 
 // ── Helper SVG inline ────────────────────────────────────────────────────────
@@ -58,42 +59,42 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 3 · Conectar a servidor ──────────────────────────────────────────────
+  // ── 3 · Conexiones ──────────────────────────────────────────────
   {
     element: '[data-page="connect"]',
     popover: {
-      title: icon('<path d="M6 3v12"/><circle cx="18" cy="9" r="3"/><circle cx="6" cy="21" r="3"/><path d="M18 9a9 9 0 0 1-9 12"/>') + 'Conectar a Servidor',
+      title: icon('<path d="M6 3v12"/><circle cx="18" cy="9" r="3"/><circle cx="6" cy="21" r="3"/><path d="M18 9a9 9 0 0 1-9 12"/>') + 'Conexiones',
       description:
-        'Haz clic aquí para ir a la página de conexión SSH. Esta es la puerta de entrada para conectarte a servidores remotos y comenzar a trabajar con Linux.',
+        'Aquí te conectas por SSH: los equipos del laboratorio, tus equipos guardados y las conexiones recientes, cada uno con su botón Conectar. También abres una terminal en este computador.',
       side: 'right',
       align: 'start',
     },
   },
 
-  // ── 4 · Formulario de conexión ───────────────────────────────────────────
+  // ── 4 · Nueva conexión ───────────────────────────────────────────
   {
-    element: '[data-tour="connect-form"] .connect-form',
+    element: '[data-tour="nueva-conexion"]',
     popover: {
-      title: icon('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>') + 'Formulario de Conexión',
+      title: icon('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>') + 'Nueva conexión',
       description:
-        'Aquí ingresas los datos para conectarte a un servidor SSH:<br/>' +
+        'Abre el formulario para conectarte a un servidor que no está en tu lista:<br/>' +
         '• Host/IP: Dirección del servidor<br/>' +
         '• Puerto: Usualmente 22 o personalizado<br/>' +
         '• Usuario: Tu nombre de usuario<br/>' +
         '• Contraseña: Credencial de acceso<br/><br/>' +
-        'También puedes guardar la configuración para futuras conexiones.',
+        'Puedes guardarlo en tus equipos para la próxima vez.',
       side: 'right',
       align: 'center',
     },
   },
 
-  // ── 5 · Hosts rápidos ────────────────────────────────────────────────────
+  // ── 5 · Equipos del laboratorio ────────────────────────────────────────────────────
   {
     element: '[data-tour="quick-hosts-panel"]',
     popover: {
-      title: icon('<circle cx="12" cy="12" r="2"/><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>') + 'Hosts Rápidos',
+      title: icon('<circle cx="12" cy="12" r="2"/><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>') + 'Equipos del laboratorio',
       description:
-        'Los Hosts Rápidos son servidores preconfigurados que puedes seleccionar con un clic. Al hacer clic en uno, se autocompletarán el host y puerto en el formulario. Solo necesitas ingresar tu usuario y contraseña para conectarte rápidamente.',
+        'Los equipos del laboratorio ya vienen listos. Al seguir, abrimos el formulario de la Raspberry Pi 4 con la dirección llena: solo pones tu usuario y contraseña.',
       side: 'bottom',
       align: 'center',
     },
@@ -107,7 +108,7 @@ export const tourSteps: DriveStep[] = [
     popover: {
       title: icon('<path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle cx="12" cy="7" r="4"/>') + 'Conéctate ahora',
       description:
-        'Ya seleccionamos un host rápido. Completa tus credenciales y pulsa Conectar:<br/>' +
+        'Ya abrimos la Raspberry Pi 4. Completa tus credenciales y pulsa Conectar:<br/>' +
         '• Usuario: escribe tu usuario institucional con formato <code>UPILOTO\\\\usuario</code><br/>' +
         '• Contraseña: es la misma de tu correo universitario<br/><br/>' +
         'Puedes interactuar con este formulario durante el tour. Cuando la conexión sea exitosa, pasaremos al Terminal automáticamente.',
@@ -186,31 +187,19 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 11 · Equipos guardados ───────────────────────────────────────────────
-  {
-    element: '[data-page="hosts"]',
-    popover: {
-      title: icon('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>') + 'Equipos guardados',
-      description:
-        'Gestiona tus conexiones SSH guardadas con contraseñas cifradas (ChaCha20Poly1305). Crea, edita y elimina equipos y conéctate con un clic desde aquí.',
-      side: 'right',
-      align: 'start',
-    },
-  },
-
-  // ── 12 · Explorador SFTP ────────────────────────────────────────────────
+  // ── 11 · Archivos (en «Esta sesión») ────────────────────────────────────────────────
   {
     element: '[data-page="sftp"]',
     popover: {
-      title: icon('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>') + 'Explorador SFTP',
+      title: icon('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>') + 'Archivos (SFTP)',
       description:
-        'Transfiere archivos entre tu máquina local y el servidor de forma visual. Vamos a ver cómo funciona.',
+        'En «Esta sesión», Archivos abre el explorador SFTP de la conexión: transfiere archivos entre tu computador y el servidor. Vamos a ver cómo funciona.',
       side: 'right',
       align: 'start',
     },
   },
 
-  // ── 13 · Panel Local (SFTP) ──────────────────────────────────────────────
+  // ── 12 · Panel Local (SFTP) ──────────────────────────────────────────────
   {
     element: '[data-tour="sftp-panel-local"]',
     popover: {
@@ -227,7 +216,7 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 14 · Panel Remoto (SFTP) ────────────────────────────────────────────
+  // ── 13 · Panel Remoto (SFTP) ────────────────────────────────────────────
   {
     element: '[data-tour="sftp-panel-remote"]',
     popover: {
@@ -244,7 +233,7 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 15 · Transferir archivos ─────────────────────────────────────────────
+  // ── 14 · Transferir archivos ─────────────────────────────────────────────
   {
     element: '.sftp-icon-btn--primary',
     popover: {
@@ -260,19 +249,19 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 16 · Escritorio Remoto VNC ── flotante, sin oscurecer el header
+  // ── 15 · Escritorio Remoto VNC ── flotante, sin oscurecer el header
   {
     popover: {
       title: icon('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>') + 'Escritorio Remoto',
       description:
-        'El ícono de monitor en la barra superior activa el escritorio remoto del servidor.<br/><br/>' +
+        'En «Esta sesión», el ícono de monitor activa el escritorio remoto del servidor.<br/><br/>' +
         'Te permite ver y controlar el entorno gráfico directamente desde la app.',
       side: 'top',
       align: 'end',
     },
   },
 
-  // ── 17 · GPIO Raspberry Pi (NUEVO) ── flotante
+  // ── 16 · GPIO Raspberry Pi (NUEVO) ── flotante
   {
     popover: {
       title: icon('<circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>') + 'Control GPIO — Raspberry Pi',
@@ -289,7 +278,7 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 18 · Arduino Domótica (NUEVO) ── flotante
+  // ── 17 · Arduino Domótica (NUEVO) ── flotante
   {
     popover: {
       title: icon('<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>') + 'Arduino — Domótica',
@@ -305,35 +294,34 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 19 · Sesiones SSH ────────────────────────────────────────────────────
-  {
-    element: '[data-page="logs"]',
-    popover: {
-      title: icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>') + 'Sesiones SSH',
-      description:
-        'Aquí se guardan todas tus sesiones SSH. Puedes:<br/>' +
-        '• Revisar el historial de comandos de sesiones anteriores<br/>' +
-        '• Exportar sesiones como PDF para entregas o evidencia<br/>' +
-        '• Buscar y filtrar por fecha o nombre<br/>' +
-        '• Eliminar logs antiguos de forma automática',
-      side: 'right',
-      align: 'start',
-    },
-  },
-
-  // ── 20 · Mis comandos ────────────────────────────────────────────────────
+  // ── 18 · Mis comandos ────────────────────────────────────────────────────
   {
     element: '[data-page="snippets"]',
     popover: {
       title: icon('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>') + 'Mis comandos',
       description:
-        'Guarda comandos útiles para reutilizarlos fácilmente. Organízalos con etiquetas y ejecútalos con un clic desde el terminal.',
+        'En «Esta sesión», Mis comandos guarda comandos útiles para reutilizarlos. Organízalos con etiquetas y ejecútalos con un clic desde el terminal.',
       side: 'right',
       align: 'start',
     },
   },
 
-  // ── 21 · Temas (en el menú del usuario, abajo en la barra) ───────────────
+  // ── 19 · Equipos guardados y registros (en Conexiones) ─────────────────
+  {
+    element: '[data-page="connect"]',
+    popover: {
+      title: icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>') + 'Equipos guardados y registros',
+      description:
+        'En Conexiones quedan tus equipos guardados (con la contraseña cifrada en este computador) y, en la pestaña Registros, todas tus sesiones SSH:<br/>' +
+        '• Revisar el historial de comandos de sesiones anteriores<br/>' +
+        '• Exportar sesiones como PDF para entregas o evidencia<br/>' +
+        '• Buscar por usuario o equipo',
+      side: 'right',
+      align: 'start',
+    },
+  },
+
+  // ── 20 · Temas (en el menú del usuario, abajo en la barra) ───────────────
   {
     element: '[data-tour="sidebar-usuario"]',
     popover: {
@@ -345,7 +333,7 @@ export const tourSteps: DriveStep[] = [
     },
   },
 
-  // ── 22 · Próximos pasos (actualizado) ───────────────────────────────────
+  // ── 21 · Próximos pasos (actualizado) ───────────────────────────────────
   {
     popover: {
       title: icon('<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>') + 'Próximos pasos',
@@ -354,14 +342,14 @@ export const tourSteps: DriveStep[] = [
         '1. Ve a Prácticas de Laboratorio y selecciona tu práctica asignada<br/>' +
         '2. Usa el Agente AI en modo <em>Ejecutar</em> para tareas rápidas en el servidor<br/>' +
         '3. Usa el modo <em>Plan</em> antes de instalar o modificar algo importante<br/>' +
-        '4. Guarda tus comandos favoritos en Snippets<br/>' +
+        '4. Guarda tus comandos favoritos en Mis comandos<br/>' +
         '5. Explora el Escritorio Remoto (VNC) para tareas gráficas',
       side: 'left',
       align: 'start',
     },
   },
 
-  // ── 23 · ¡Tour completado! ───────────────────────────────────────────────
+  // ── 22 · ¡Tour completado! ───────────────────────────────────────────────
   {
     popover: {
       title: icon('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>') + '¡Tour Completado!',

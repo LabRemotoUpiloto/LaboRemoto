@@ -6,13 +6,14 @@ import Swal from 'sweetalert2';
 import { ActionIcon, Button, Modal, Container, Divider, Group, Paper, ScrollArea, SimpleGrid, Stack, Text, Title, Box } from '@mantine/core';
 import { ArrowLeft, MessageSquareHeart, X } from 'lucide-react';
 import CategoryCard from './CategoryCard';
-import { Aviso, Boton } from '@/components/ui';
+import { Aviso, Boton, Pestanas } from '@/components/ui';
+import EncuestasPage from '@/features/actividad/EncuestasPage';
 import { EsqueletoCategorias } from './EsqueletoPracticas';
 import PracticeCard from './PracticeCard';
 import { getInsigniaForPractice } from './badges/insigniaRegistry';
 import LinuxPasswordPrompt from './linux/LinuxPasswordPrompt';
 import { linuxGetModule, type LinuxModule } from './linuxPractice.service';
-import { useEffectiveRole } from '@/features/cuenta/usePermissions';
+import { canAccessPage, useEffectiveRole } from '@/features/cuenta/usePermissions';
 import EncuestaPracticaModal from './EncuestaPracticaModal';
 import { encuestasService } from './encuestas.service';
 import type { Practice } from '@/types';
@@ -50,7 +51,11 @@ interface PracticesPageProps {
     linuxSession?: LinuxPracticeSessionApi;
     /** «Repetir de cero» del administrador al reabrir un módulo completo -- ver App.tsx. */
     onRestartLinuxModule?: (moduleId: string) => Promise<void>;
+    /** Pestaña con la que abre (el personal ve también «Encuestas»; antes era una entrada propia del sidebar). */
+    pestanaInicial?: Pestana;
 }
+
+type Pestana = 'practicas' | 'encuestas';
 
 interface LogEntry {
     level: 'info' | 'success' | 'warning' | 'error';
@@ -61,7 +66,7 @@ interface LogEntry {
 /** Prácticas cuya encuesta ya se ofreció en esta sesión de la app (al decir «Ahora no» no se insiste hasta volver a abrirla). */
 const encuestaOfrecida = new Set<string>();
 
-const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, linuxSession, onRestartLinuxModule }) => {
+const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, linuxSession, onRestartLinuxModule, pestanaInicial = 'practicas' }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
     const [loading, setLoading] = useState(true);
@@ -74,6 +79,10 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const [eleccionAdmin, setEleccionAdmin] = useState<LinuxModule | null>(null);
     const [repitiendo, setRepitiendo] = useState(false);
     const rol = useEffectiveRole();
+    const conEncuestas = canAccessPage('encuestas', rol);
+    const [pestana, setPestana] = useState<Pestana>(pestanaInicial);
+    // Volver a abrir «Encuestas» desde otro lado (p. ej. un enlace viejo a la página) cambia la pestaña
+    useEffect(() => { setPestana(pestanaInicial); }, [pestanaInicial]);
     const logEndRef = useRef<HTMLDivElement>(null);
     // `abrirModulo` (más abajo) también lo usa el enlace desde Moodle, que se registra antes en un efecto.
     const abrirModuloRef = useRef<(id: string) => Promise<void>>(async () => {});
@@ -317,11 +326,20 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                         <Stack gap="sm">
                             <Title order={1}>Prácticas de Laboratorio</Title>
                             <Text size="md" c="dimmed" maw={580}>
-                                Selecciona una categoría para ver las prácticas disponibles. Cada práctica configura automáticamente tu entorno de trabajo.
+                                {pestana === 'encuestas'
+                                    ? 'Lo que opinan los estudiantes al terminar cada práctica.'
+                                    : 'Selecciona una categoría para ver las prácticas disponibles. Cada práctica configura automáticamente tu entorno de trabajo.'}
                             </Text>
                         </Stack>
 
-                        {loading ? (
+                        {conEncuestas && (
+                            <Pestanas<Pestana> valor={pestana} onCambio={setPestana} nombre="Secciones de Prácticas"
+                                opciones={[{ valor: 'practicas', etiqueta: 'Prácticas' }, { valor: 'encuestas', etiqueta: 'Encuestas' }]} />
+                        )}
+
+                        {conEncuestas && pestana === 'encuestas' ? (
+                            <EncuestasPage incrustada />
+                        ) : loading ? (
                             // Solo esta parte (las cards) muestra el loading -- el título y la
                             // descripción ya se ven arriba. Antes un `if (loading) return ...`
                             // tapaba la página entera mientras practicas_list_categories

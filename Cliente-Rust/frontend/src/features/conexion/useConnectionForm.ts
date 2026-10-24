@@ -42,6 +42,7 @@ export function useConnectionForm({
   const [isEditMode, setIsEditMode] = useState(false);
   const [originalHostFile, setOriginalHostFile] = useState<string | null>(null);
   const [hostName, setHostName] = useState('');
+  const [hostDescription, setHostDescription] = useState('');
 
   // ── Detección de tipo de dispositivo ─────────────────────────────────────────
 
@@ -91,15 +92,8 @@ export function useConnectionForm({
 
   // ── Auto-relleno desde initialPayload (edición de host guardado) ─────────────
   //
-  // Deps vacías a propósito: initialPayload viene de un estado que vive en el
-  // padre (pendingHost en useAppTabs) y NO se limpia solo al consumirse -- si
-  // este efecto reaccionara a cada cambio de initialPayload, volver a "Conexión"
-  // después de una edición (sin pasar de nuevo por "Editar") reaplicaría los
-  // datos viejos y dejaría el formulario pegado en modo edición, con riesgo de
-  // borrar sin querer el host editado la última vez al guardar uno nuevo
-  // encima. Como esta página se remonta entera en cada cambio de sección (ver
-  // HomeContainer), leer initialPayload solo una vez al montar alcanza y evita
-  // ese arrastre de estado stale entre visitas.
+  // Deps vacías a propósito: initialPayload (el equipo guardado que se edita) se lee una sola vez al montar.
+  // El diálogo de Conexiones se monta de nuevo en cada apertura, así que no arrastra datos de una visita a otra.
 
   useEffect(() => {
     if (initialPayload) {
@@ -118,6 +112,7 @@ export function useConnectionForm({
       setIsEditMode(isEdit);
       if (isEdit && p._originalFile) setOriginalHostFile(p._originalFile);
       setHostName(isEdit && p.name ? p.name : '');
+      setHostDescription(isEdit && p.description ? p.description : '');
     } else {
       setHost('');
       setPort('22');
@@ -128,6 +123,7 @@ export function useConnectionForm({
       setIsEditMode(false);
       setOriginalHostFile(null);
       setHostName('');
+      setHostDescription('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -201,6 +197,7 @@ export function useConnectionForm({
     setIsEditMode(false);
     setOriginalHostFile(null);
     setHostName('');
+    setHostDescription('');
     onQuickHostCleared?.();
   }, [onQuickHostCleared]);
 
@@ -219,7 +216,7 @@ export function useConnectionForm({
     // Handlers con validación
     handleHostChange, handlePortChange,
     // Estado derivado
-    errors, isValid, isPulsing, isEditMode, originalHostFile, hostName, isRaspberryPi: isRaspberryPiConnection,
+    errors, isValid, isPulsing, isEditMode, originalHostFile, hostName, hostDescription, isRaspberryPi: isRaspberryPiConnection,
     // Acciones de formulario
     validateForm, clearForm,
     // Helpers para acciones de conexión

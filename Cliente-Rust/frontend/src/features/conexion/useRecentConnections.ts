@@ -1,8 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RecentConnection } from './RecentConnectionsPanel';
 
 const STORAGE_KEY = 'ssh-recent-connections-v1';
 const MAX_RECENT_CONNECTIONS = 8;
+
+export interface RecentConnection {
+  id: string;
+  host: string;
+  port: number;
+  user: string;
+  lastConnected: number;
+}
 
 export interface ConnectionToSave {
   host: string;

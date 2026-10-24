@@ -117,11 +117,10 @@ const AppMain: React.FC = () => {
   const {
     tabs, activeTabId, setActiveTabId,
     isSidebarOpen, setIsSidebarOpen,
-    sessionMeta, setSessionMeta,
-    pendingHost, setPendingHost,
+    sessionMeta,
     selectedPage, activeTab,
     closeTab, renameTab,
-    handleNewSession, openLogTab, openLocalTerminalTab,
+    handleNewSession, openLogTab,
     activePanel,
     openPanel,
     activeView, setActiveView,
@@ -422,7 +421,6 @@ const AppMain: React.FC = () => {
               onTabClick={handleTabClick}
               onCloseTab={handleCloseTab}
               onRenameTab={renameTab}
-              onNewLocalTerminal={openLocalTerminalTab}
               showSessionActions={isSessionActive}
               activeView={activeView}
               onViewChange={setActiveView}
@@ -445,11 +443,8 @@ const AppMain: React.FC = () => {
                   <HomeContainer
                     tabs={tabs}
                     sessionMeta={sessionMeta}
-                    setSessionMeta={setSessionMeta}
                     selectedPage={selectedPage}
                     onOpenPanel={handleOpenPanel}
-                    pendingHost={pendingHost}
-                    setPendingHost={setPendingHost}
                     onConnectedFromConnect={handleNewSession}
                     onOpenLog={openLogTab}
                     onStartPractice={handleStartPractice}

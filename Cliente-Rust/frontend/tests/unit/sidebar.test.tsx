@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// Sidebar: secciones por lo que la persona viene a hacer (Aprender · Conectar · Laboratorio · Personas), cada rol ve solo
-// lo suyo y «Temas» vive en el menú del usuario.
+// Sidebar: secciones por lo que la persona viene a hacer (Aprender, Conectar, Laboratorio, Personas), cada rol ve solo
+// lo suyo y «Temas» vive en el menú del usuario. Nueve entradas como mucho: Archivos y Mis comandos van en «Esta sesión»,
+// Equipos guardados, Terminal local y Sesiones SSH en Conexiones, y Encuestas es una pestaña de Prácticas.
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -22,12 +23,12 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-function armar(roles: string[]) {
+function armar(roles: string[], activePanel = 'landing') {
   act(() => useAppStore.setState({ user: { preferred_username: 'ana', roles } as never }));
   const onOpenPanel = vi.fn();
   render(
     <MantineProvider>
-      <Sidebar activePanel="landing" onOpenPanel={onOpenPanel} />
+      <Sidebar activePanel={activePanel} onOpenPanel={onOpenPanel} />
     </MantineProvider>,
   );
   const nav = screen.getByRole('navigation', { name: 'Secciones' });
@@ -43,10 +44,23 @@ describe('Sidebar', () => {
     for (const s of ['Aprender', 'Conectar', 'Laboratorio', 'Personas']) within(nav).getByText(s);
     expect(paginas).toEqual([
       'landing', 'practices', 'mis-cursos', 'reservas',
-      'connect', 'hosts', 'local-terminal-new', 'sftp', 'snippets',
+      'connect',
       'rendimiento', 'vigilancia',
-      'dashboard', 'encuestas', 'admin-users', 'logs',
+      'dashboard', 'admin-users',
     ]);
+  });
+
+  it('el docente ve Conexiones (solo los registros de sesiones SSH)', () => {
+    const { paginas } = armar(['docente']);
+    expect(paginas).toEqual(['landing', 'practices', 'mis-cursos', 'reservas', 'connect']);
+  });
+
+  it('las páginas que viven dentro de otra marcan su entrada: Sesiones SSH en Conexiones, Encuestas en Prácticas', () => {
+    let { nav } = armar(['admin_lab'], 'logs');
+    expect(nav.querySelector('[aria-current="page"]')?.getAttribute('data-page')).toBe('connect');
+    cleanup();
+    ({ nav } = armar(['admin_lab'], 'encuestas'));
+    expect(nav.querySelector('[aria-current="page"]')?.getAttribute('data-page')).toBe('practices');
   });
 
   it('el estudiante solo ve Aprender (Inicio y Prácticas): las secciones vacías no aparecen', () => {
@@ -78,5 +92,33 @@ describe('Sidebar', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Saltar al contenido' }));
     expect(document.activeElement).toBe(main);
     main.remove();
+  });
+});
+
+describe('Esta sesión', () => {
+  function sesion(roles: string[]) {
+    act(() => useAppStore.setState({ user: { preferred_username: 'ana', roles } as never }));
+    const onOpenPanel = vi.fn();
+    render(
+      <MantineProvider>
+        <Sidebar activePanel="terminal" onOpenPanel={onOpenPanel} showSessionActions onViewChange={() => {}} onToggleChat={() => {}} />
+      </MantineProvider>,
+    );
+    return { onOpenPanel };
+  }
+
+  it('Archivos y Mis comandos se abren desde la sesión abierta (ya no son entradas del menú)', () => {
+    const { onOpenPanel } = sesion(['semillerista']);
+    screen.getByText('Esta sesión');
+    fireEvent.click(screen.getByRole('button', { name: 'Archivos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mis comandos' }));
+    expect(onOpenPanel.mock.calls).toEqual([['sftp'], ['snippets']]);
+  });
+
+  it('quien no opera equipos no los ve', () => {
+    sesion(['laboratorista']);
+    screen.getByText('Esta sesión');
+    expect(screen.queryByRole('button', { name: 'Archivos' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mis comandos' })).toBeNull();
   });
 });

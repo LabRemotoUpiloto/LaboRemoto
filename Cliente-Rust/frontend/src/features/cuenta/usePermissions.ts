@@ -82,7 +82,9 @@ const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   // El estudiante no la ve (ni en el menú ni abriéndola por id): llega a sus prácticas por Prácticas.
   'mis-cursos': ROLE_ORDER.filter((r) => r !== 'estudiante'),
   themes: EVERYONE.filter((r) => !usaTemaInstitucional(r)),
-  connect: TECHNICAL,
+  // Conexiones junta conectarse (equipos, nueva conexión, terminal local: TECHNICAL, ver 'hosts') y Registros
+  // (Sesiones SSH: LOGS). La ve quien tenga alguna de las dos partes; la página muestra solo las que le tocan.
+  connect: LOGS,
   // Terminal local (botón del sidebar y del header): solo semillerista y admin_lab.
   'local-terminal-new': TECHNICAL,
   hosts: TECHNICAL,
@@ -91,7 +93,7 @@ const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   logs: LOGS,
   vigilancia: STAFF,
   dashboard: SUPERVISION,
-  // Las encuestas las lee el mismo personal que Actividad (el broker exige los mismos roles).
+  // Las encuestas (pestaña de Prácticas) las lee el mismo personal que Actividad (el broker exige los mismos roles).
   encuestas: SUPERVISION,
   'admin-users': ['admin_lab'],
   // Rendimiento de la Pi4 (CPU, RAM, red, procesos): solo el administrador.

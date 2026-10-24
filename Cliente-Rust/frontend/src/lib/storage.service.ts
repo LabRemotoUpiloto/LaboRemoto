@@ -16,6 +16,8 @@ export interface HostPayload {
   user: string;
   password: string;
   name?: string;
+  /** Para qué es el equipo (texto libre). Va en el JSON cifrado: el backend no le impone esquema. */
+  description?: string;
 }
 
 export interface HostEntry {
