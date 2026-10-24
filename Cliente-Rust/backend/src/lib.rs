@@ -211,6 +211,7 @@ pub fn run() {
       // Registro central de sesiones de práctica (dashboard del personal)
       cmd::sesiones::sesiones_reportar_evento,
       cmd::sesiones::sesiones_reportar_ubicacion_app,
+      cmd::sesiones::sesiones_reportar_app,
       cmd::sesiones::sesiones_resumen,
       // Cursos y prácticas desde Moodle (vía broker)
       cmd::moodle_cursos::moodle_mis_cursos,

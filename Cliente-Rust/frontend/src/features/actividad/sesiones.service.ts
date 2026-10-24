@@ -22,5 +22,9 @@ export const sesionesService = {
   reportarUbicacionApp: (lat: number, lon: number, precisionM?: number) =>
     invoke<void>('sesiones_reportar_ubicacion_app', { lat, lon, precisionM }),
 
+  /** La app abierta, con o sin práctica (Actividad: «En la app»). */
+  reportarUsoApp: (tipo: 'inicio' | 'latido' | 'fin', sesionId: string) =>
+    invoke<void>('sesiones_reportar_app', { tipo, sesionId }),
+
   resumen: (dias: number) => invoke<ResumenSesiones>('sesiones_resumen', { dias }),
 };
