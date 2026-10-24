@@ -127,6 +127,28 @@ pub async fn sftp_upload_start(
   Ok(wrap_result(req.id, req.version, result, elapsed_ms))
 }
 
+/// Destino en el servidor: si `remota` termina en «/», dentro de esa carpeta con el mismo nombre que `local`.
+pub fn destino_remoto(local: &str, remota: &str) -> String {
+  if !remota.ends_with('/') {
+    return remota.to_string();
+  }
+  let nombre = local.trim_end_matches(['/', '\\']).rsplit(['/', '\\']).next().unwrap_or(local);
+  format!("{remota}{nombre}")
+}
+
+/// Sube un archivo o una carpeta del computador al servidor: decide cuál es y el nombre de destino (ver
+/// `destino_remoto`). Lo usan la vista Archivos (arrastrar desde el Explorador) y la confirmación del chat.
+#[tauri::command]
+pub async fn sftp_subir(app: AppHandle, id: String, ruta_local: String, ruta_remota: String) -> Result<String, String> {
+  let meta = std::fs::metadata(&ruta_local).map_err(|_| format!("No existe en este computador: {ruta_local}"))?;
+  let destino = destino_remoto(&ruta_local, &ruta_remota);
+  if meta.is_dir() {
+    sftp_upload_dir_start(app, id, ruta_local, destino).await
+  } else {
+    sftp_upload_start_impl(app, id, ruta_local, destino).await
+  }
+}
+
 async fn sftp_upload_start_impl(app: AppHandle, id: String, local_path: String, remote_path: String) -> Result<String, String> {
   let cached = {
     let mut map = SESSIONS.lock().map_err(|e| e.to_string())?;
@@ -343,4 +365,15 @@ pub async fn sftp_download_dir_start(app: AppHandle, id: String, remote_path: St
     if let Ok(mut t) = TRANSFERS.lock() { t.remove(&transfer_id2); }
   });
   Ok(transfer_id)
+}
+#[cfg(test)]
+mod pruebas_subir {
+  use super::destino_remoto;
+
+  #[test]
+  fn subir_dentro_de_una_carpeta_conserva_el_nombre() {
+    assert_eq!(destino_remoto("C:\\Users\\ana\\leds.py", "/home/pi/proyecto/"), "/home/pi/proyecto/leds.py");
+    assert_eq!(destino_remoto("/tmp/datos/", "/home/pi/"), "/home/pi/datos");
+    assert_eq!(destino_remoto("C:\\a.txt", "/home/pi/b.txt"), "/home/pi/b.txt");
+  }
 }

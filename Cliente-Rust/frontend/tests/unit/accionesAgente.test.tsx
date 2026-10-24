@@ -1,40 +1,41 @@
 // @vitest-environment jsdom
-// El chat muestra lo que el agente guardó y pide confirmar los cambios de pin que propuso (nunca los aplica solo).
+// El chat muestra lo que el agente hizo y pide confirmar lo que propuso, leyendo la `accion` de cada paso (no el texto).
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const invoke = vi.fn(async () => null);
+const invoke = vi.fn(async (_c: string, _a?: unknown): Promise<unknown> => null);
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (c: string, a?: unknown) => invoke(c, a) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: () => Promise.resolve(() => {}) }));
 
-import AccionesAgente, { cambiosPropuestos, comandosGuardados, descargasEmpezadas, subidasPropuestas, textoCambio } from '@/features/chat/mensajes/AccionesAgente';
+import AccionesAgente, { accionesDe, textoCambio } from '@/features/chat/mensajes/AccionesAgente';
 import { historialPara } from '@/features/chat/contextoAgente';
+import type { AccionAgente } from '@/bindings/AccionAgente';
 import type { AgentStep } from '@/features/chat/modos/types';
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); invoke.mockClear(); });
 
-const llamada = (name: string, input: object): AgentStep => ({ kind: 'tool_call', name, input: JSON.stringify(input) });
-const resultado = (name: string, output: string): AgentStep => ({ kind: 'tool_result', name, output });
+const paso = (accion?: AccionAgente, output = 'texto para el modelo'): AgentStep => ({ kind: 'tool_result', name: 'x', output, accion });
+const pin: AccionAgente = { tipo: 'cambioPin', gpio: 17, modo: 'salida', pull: null, nivel: 1 };
 
-describe('lo que el agente hizo', () => {
-  it('reconoce los comandos guardados', () => {
-    expect(comandosGuardados([resultado('guardar_comando', 'Guardado en Comandos: «Temperatura» (vcgencmd measure_temp)')])).toEqual(['Temperatura']);
-    expect(comandosGuardados([resultado('guardar_comando', 'No se pudo guardar: lleno')])).toEqual([]);
+describe('acciones del agente', () => {
+  it('se leen del dato del paso, no del texto', () => {
+    const pasos = [paso(pin, 'cualquier texto'), paso(undefined, 'PENDIENTE DE CONFIRMAR: GPIO 4')];
+    expect(accionesDe(pasos, 'cambioPin')).toEqual([pin]);
+    expect(textoCambio(accionesDe(pasos, 'cambioPin')[0])).toBe('modo salida, nivel alto');
   });
 
-  it('solo ofrece los cambios de pin que el backend dejó pendientes', () => {
-    const pasos = [
-      llamada('cambiar_pin', { gpio: 17, modo: 'salida', nivel: 1 }), resultado('cambiar_pin', 'PENDIENTE DE CONFIRMAR: GPIO 17'),
-      llamada('cambiar_pin', { gpio: 40, nivel: 1 }), resultado('cambiar_pin', 'GPIO inválido'),
-    ];
-    const cambios = cambiosPropuestos(pasos);
-    expect(cambios).toEqual([{ gpio: 17, modo: 'salida', nivel: 1, pull: undefined }]);
-    expect(textoCambio(cambios[0])).toBe('modo salida, nivel alto');
+  it('muestra el comando guardado y la descarga', () => {
+    render(<AccionesAgente sessionId="s1" pasos={[
+      paso({ tipo: 'comandoGuardado', titulo: 'Temperatura', comando: 'vcgencmd measure_temp' }),
+      paso({ tipo: 'descarga', rutaLocal: 'C:\\Users\\ana\\Downloads\\datos (1).csv', rutaRemota: '/home/pi/datos.csv' }),
+    ]} />);
+    expect(screen.getByText('Guardé «Temperatura» en Comandos.')).toBeTruthy();
+    expect(screen.getByText(/Descargando «datos \(1\)\.csv» a Descargas/)).toBeTruthy();
   });
 
-  it('el cambio se aplica solo al pulsar Aplicar', async () => {
-    render(<AccionesAgente sessionId="s1" pasos={[llamada('cambiar_pin', { gpio: 17, modo: 'salida', nivel: 1 }), resultado('cambiar_pin', 'PENDIENTE DE CONFIRMAR')]} />);
+  it('el cambio de pin se aplica solo al pulsar Aplicar', async () => {
+    render(<AccionesAgente sessionId="s1" pasos={[paso(pin)]} />);
     expect(invoke).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
     await waitFor(() => expect(screen.getByText(/Listo: GPIO 17/)).toBeTruthy());
@@ -42,37 +43,19 @@ describe('lo que el agente hizo', () => {
     expect(invoke).toHaveBeenCalledWith('rpi_pin_write_level', { id: 's1', gpio: 17, level: 1 });
   });
 
-  it('Cancelar no toca el pin', () => {
-    invoke.mockClear();
-    render(<AccionesAgente sessionId="s1" pasos={[llamada('cambiar_pin', { gpio: 4, pull: 'arriba' }), resultado('cambiar_pin', 'PENDIENTE DE CONFIRMAR')]} />);
+  it('Cancelar no toca nada', () => {
+    render(<AccionesAgente sessionId="s1" pasos={[paso({ tipo: 'cambioPin', gpio: 4, modo: null, pull: 'arriba', nivel: null })]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.getByText(/no cambió/)).toBeTruthy();
     expect(invoke).not.toHaveBeenCalled();
   });
-});
 
-describe('archivos', () => {
-  it('reconoce las descargas que empezó y dónde quedan', () => {
-    expect(descargasEmpezadas([resultado('descargar_archivo', 'DESCARGANDO a C:\\Users\\ana\\Downloads\\datos (1).csv (desde /home/pi/datos.csv). El progreso se ve en Archivos.')]))
-      .toEqual(['C:\\Users\\ana\\Downloads\\datos (1).csv']);
-  });
-
-  it('la subida solo se hace al pulsar Aplicar, y con el mismo nombre si el destino es una carpeta', async () => {
-    invoke.mockClear();
-    invoke.mockImplementation(async (c: string) => {
-      if (c === 'local_list_dir') throw new Error('no es carpeta');
-      if (c === 'sftp_upload_start') return { status: 'success', data: { transfer_id: 't1' } } as never;
-      return null;
-    });
-    const pasos = [llamada('subir_archivo', { ruta_local: 'C:\\Users\\ana\\leds.py', ruta_remota: '/home/pi/proyecto/' }), resultado('subir_archivo', 'PENDIENTE DE CONFIRMAR: subir')];
-    expect(subidasPropuestas(pasos)).toEqual([{ local: 'C:\\Users\\ana\\leds.py', remota: '/home/pi/proyecto/leds.py' }]);
-    render(<AccionesAgente sessionId="s1" pasos={pasos} />);
-    expect(invoke).not.toHaveBeenCalled();
+  it('la subida va por el comando único del backend, al pulsar Aplicar', async () => {
+    render(<AccionesAgente sessionId="s1" pasos={[paso({ tipo: 'subida', rutaLocal: 'C:\\Users\\ana\\leds.py', rutaRemota: '/home/pi/proyecto/leds.py', esCarpeta: false })]} />);
+    expect(screen.getByText(/Voy a subir el archivo/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
     await waitFor(() => expect(screen.getByText(/Subiendo «leds.py»/)).toBeTruthy());
-    expect(invoke).toHaveBeenCalledWith('sftp_upload_start', expect.objectContaining({
-      req: expect.objectContaining({ payload: { id: 's1', local_path: 'C:\\Users\\ana\\leds.py', remote_path: '/home/pi/proyecto/leds.py' } }),
-    }));
+    expect(invoke).toHaveBeenCalledWith('sftp_subir', { id: 's1', rutaLocal: 'C:\\Users\\ana\\leds.py', rutaRemota: '/home/pi/proyecto/leds.py' });
   });
 });
 

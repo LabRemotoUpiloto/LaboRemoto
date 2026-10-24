@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commandClient } from '@/lib/command.service'
-import { localListDir } from '@/lib/storage.service'
 import FilePanel from './FilePanel'
 import TransferQueue from './TransferQueue'
 import ContextMenu from './ContextMenu'
@@ -380,32 +379,9 @@ const ArchivosSftp: React.FC<Props> = ({
         push({ type: 'error', message: 'Ruta local inválida' })
         return
       }
-      const name = localPath.split(/[\\/]/).filter(Boolean).pop() || localPath
-      const remote = joinRemotePath(rpath, name)
-      let isDir = false
+      // El backend decide si es archivo o carpeta y le pone el mismo nombre dentro de la carpeta actual (sftp_subir)
       try {
-        await localListDir(localPath)
-        isDir = true
-      } catch {
-        isDir = false
-      }
-      try {
-        if (isDir) {
-          await invoke('sftp_upload_dir_start', {
-            id: sessionId,
-            localPath,
-            remotePath: remote,
-          })
-        } else {
-          await commandClient.invoke<
-            { id: string; local_path: string; remote_path: string },
-            { transfer_id: string }
-          >('sftp_upload_start', {
-            id: sessionId,
-            local_path: localPath,
-            remote_path: remote,
-          })
-        }
+        await invoke('sftp_subir', { id: sessionId, rutaLocal: localPath, rutaRemota: rpath.endsWith('/') ? rpath : `${rpath}/` })
       } catch (e: any) {
         push({ type: 'error', message: 'Error al subir: ' + (e?.toString?.() || e) })
       }

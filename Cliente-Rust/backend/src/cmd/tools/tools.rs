@@ -100,6 +100,45 @@ pub struct AgentStep {
     pub name: Option<String>,
     pub input: Option<String>,
     pub output: Option<String>,
+    /// Lo que la app tiene que mostrar o pedirle a la persona por este paso (el `output` es solo para el modelo).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accion: Option<AccionAgente>,
+}
+
+/// Lo que hizo o propuso el agente, con datos para la interfaz (el chat no lee el texto que va para el modelo).
+/// Los cambios de pin y las subidas quedan pendientes: los aplica la persona con Aplicar.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ts_rs::TS)]
+#[serde(tag = "tipo")]
+#[ts(export)]
+pub enum AccionAgente {
+    #[serde(rename = "comandoGuardado")]
+    ComandoGuardado { titulo: String, comando: String },
+    #[serde(rename = "cambioPin")]
+    CambioPin {
+        gpio: u32,
+        /// "entrada" | "salida"
+        modo: Option<String>,
+        /// "arriba" | "abajo" | "ninguno"
+        pull: Option<String>,
+        nivel: Option<u8>,
+    },
+    #[serde(rename = "descarga")]
+    Descarga {
+        #[serde(rename = "rutaLocal")]
+        ruta_local: String,
+        #[serde(rename = "rutaRemota")]
+        ruta_remota: String,
+    },
+    #[serde(rename = "subida")]
+    Subida {
+        #[serde(rename = "rutaLocal")]
+        ruta_local: String,
+        /// Ya con el nombre del archivo si se pidió subir «dentro» de una carpeta (terminada en /).
+        #[serde(rename = "rutaRemota")]
+        ruta_remota: String,
+        #[serde(rename = "esCarpeta")]
+        es_carpeta: bool,
+    },
 }
 
 // ─── Respuesta final del agent_chat ──────────────────────────────────────────
@@ -138,8 +177,6 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
         "reiniciar_servicio"   => tool_reiniciar_servicio(session_id, input),
         "get_terminal_output"  => tool_get_terminal_output(session_id, input),
         "leer_pines"           => tool_leer_pines(session_id),
-        "cambiar_pin"          => tool_cambiar_pin(input),
-        "subir_archivo"        => tool_subir_archivo(input),
         other => {
             // Intentar resolverlo como tool MCP registrada
             if let Some((output, ok)) = crate::cmd::integration::mcp_client::exec_mcp_call(other, input) {
@@ -163,7 +200,7 @@ ARCHIVOS (SFTP): para crear o editar un archivo en el servidor usa `escribir_arc
 servidor al computador de la persona usa `descargar_archivo` (queda en su carpeta Descargas). Para subir algo del computador \
 al servidor usa `subir_archivo`: NO lo sube, la app le pide confirmar con Aplicar.";
 
-fn tool_guardar_comando(app: &AppHandle, input: &serde_json::Value) -> ToolResult {
+fn tool_guardar_comando(app: &AppHandle, input: &serde_json::Value) -> (ToolResult, Option<AccionAgente>) {
     let texto = |k: &str| input.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
     let comando = crate::cmd::comandos::Comando {
         id: String::new(),
@@ -175,8 +212,11 @@ fn tool_guardar_comando(app: &AppHandle, input: &serde_json::Value) -> ToolResul
         actualizado: None,
     };
     match crate::cmd::comandos::guardar(app, comando) {
-        Ok(c) => ToolResult { tool: "guardar_comando".into(), output: format!("Guardado en Comandos: «{}» ({})", c.titulo, c.comando), ok: true },
-        Err(e) => ToolResult { tool: "guardar_comando".into(), output: format!("No se pudo guardar: {e}"), ok: false },
+        Ok(c) => (
+            ToolResult { tool: "guardar_comando".into(), output: format!("Guardado en Comandos: «{}» ({})", c.titulo, c.comando), ok: true },
+            Some(AccionAgente::ComandoGuardado { titulo: c.titulo, comando: c.comando }),
+        ),
+        Err(e) => (ToolResult { tool: "guardar_comando".into(), output: format!("No se pudo guardar: {e}"), ok: false }, None),
     }
 }
 
@@ -198,12 +238,12 @@ fn tool_leer_pines(session_id: &str) -> ToolResult {
 }
 
 /// Valida el cambio pedido y lo deja PENDIENTE: la app muestra Aplicar/Cancelar y es la persona quien lo aplica.
-fn tool_cambiar_pin(input: &serde_json::Value) -> ToolResult {
+fn tool_cambiar_pin(input: &serde_json::Value) -> (ToolResult, Option<AccionAgente>) {
     let gpio = input.get("gpio").and_then(|v| v.as_u64());
     let modo = input.get("modo").and_then(|v| v.as_str());
     let pull = input.get("pull").and_then(|v| v.as_str());
     let nivel = input.get("nivel").and_then(|v| v.as_u64());
-    let error = |m: &str| ToolResult { tool: "cambiar_pin".into(), output: m.to_string(), ok: false };
+    let error = |m: &str| (ToolResult { tool: "cambiar_pin".into(), output: m.to_string(), ok: false }, None);
     let Some(gpio) = gpio.filter(|g| *g <= 27) else { return error("GPIO inválido: debe ser un número BCM de 0 a 27") };
     if modo.is_some_and(|m| m != "entrada" && m != "salida") { return error("modo debe ser «entrada» o «salida»"); }
     if pull.is_some_and(|p| p != "arriba" && p != "abajo" && p != "ninguno") { return error("pull debe ser «arriba», «abajo» o «ninguno»"); }
@@ -213,11 +253,14 @@ fn tool_cambiar_pin(input: &serde_json::Value) -> ToolResult {
     if let Some(m) = modo { partes.push(format!("modo {m}")); }
     if let Some(p) = pull { partes.push(format!("pull {p}")); }
     if let Some(n) = nivel { partes.push(format!("nivel {}", if n == 1 { "alto" } else { "bajo" })); }
-    ToolResult {
-        tool: "cambiar_pin".into(),
-        output: format!("PENDIENTE DE CONFIRMAR: GPIO {gpio}, {}. La app le muestra a la persona Aplicar y Cancelar; todavía no está aplicado.", partes.join(", ")),
-        ok: true,
-    }
+    (
+        ToolResult {
+            tool: "cambiar_pin".into(),
+            output: format!("PENDIENTE DE CONFIRMAR: GPIO {gpio}, {}. La app le muestra a la persona Aplicar y Cancelar; todavía no está aplicado.", partes.join(", ")),
+            ok: true,
+        },
+        Some(AccionAgente::CambioPin { gpio: gpio as u32, modo: modo.map(String::from), pull: pull.map(String::from), nivel: nivel.map(|n| n as u8) }),
+    )
 }
 
 // ── descargar_archivo / subir_archivo ─────────────────────────────────────────
@@ -242,8 +285,8 @@ fn carpeta_descargas() -> Option<std::path::PathBuf> {
 fn comillas(s: &str) -> String { format!("'{}'", s.replace('\'', "'\\''")) }
 
 /// Baja un archivo o una carpeta del servidor a Descargas, con la misma transferencia de la vista Archivos.
-async fn tool_descargar_archivo(app: &AppHandle, session_id: &str, input: &serde_json::Value) -> ToolResult {
-    let fallo = |m: String| ToolResult { tool: "descargar_archivo".into(), output: m, ok: false };
+async fn tool_descargar_archivo(app: &AppHandle, session_id: &str, input: &serde_json::Value) -> (ToolResult, Option<AccionAgente>) {
+    let fallo = |m: String| (ToolResult { tool: "descargar_archivo".into(), output: m, ok: false }, None);
     let Some(ruta) = input.get("ruta_remota").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()) else {
         return fallo("Falta 'ruta_remota'".into());
     };
@@ -273,29 +316,36 @@ async fn tool_descargar_archivo(app: &AppHandle, session_id: &str, input: &serde
         crate::cmd::sftp::transfers::sftp_download_start_impl(app.clone(), session_id.to_string(), absoluta.clone(), local.clone()).await
     };
     match inicio {
-        Ok(_) => ToolResult {
-            tool: "descargar_archivo".into(),
-            output: format!("DESCARGANDO a {local} (desde {absoluta}). El progreso se ve en Archivos."),
-            ok: true,
-        },
+        Ok(_) => (
+            ToolResult {
+                tool: "descargar_archivo".into(),
+                output: format!("Descargando a {local} (desde {absoluta}). El progreso se ve en Archivos."),
+                ok: true,
+            },
+            Some(AccionAgente::Descarga { ruta_local: local, ruta_remota: absoluta }),
+        ),
         Err(e) => fallo(format!("No se pudo descargar: {e}")),
     }
 }
 
 /// Valida lo pedido y lo deja PENDIENTE: la app muestra Aplicar/Cancelar y es la persona quien sube.
-fn tool_subir_archivo(input: &serde_json::Value) -> ToolResult {
-    let fallo = |m: &str| ToolResult { tool: "subir_archivo".into(), output: m.to_string(), ok: false };
+fn tool_subir_archivo(input: &serde_json::Value) -> (ToolResult, Option<AccionAgente>) {
+    let fallo = |m: &str| (ToolResult { tool: "subir_archivo".into(), output: m.to_string(), ok: false }, None);
     let local = input.get("ruta_local").and_then(|v| v.as_str()).unwrap_or("").trim();
     let remota = input.get("ruta_remota").and_then(|v| v.as_str()).unwrap_or("").trim();
     if local.is_empty() || remota.is_empty() { return fallo("Faltan 'ruta_local' y 'ruta_remota'"); }
     let ruta = std::path::Path::new(local);
     let Ok(meta) = std::fs::metadata(ruta) else { return fallo("Ese archivo no existe en el computador de la persona") };
     let que = if meta.is_dir() { "la carpeta".to_string() } else { format!("el archivo ({} bytes)", meta.len()) };
-    ToolResult {
-        tool: "subir_archivo".into(),
-        output: format!("PENDIENTE DE CONFIRMAR: subir {que} {local} a {remota}. La app le muestra a la persona Aplicar y Cancelar; todavía no se subió."),
-        ok: true,
-    }
+    let destino = crate::cmd::sftp::transfers::destino_remoto(local, remota);
+    (
+        ToolResult {
+            tool: "subir_archivo".into(),
+            output: format!("PENDIENTE DE CONFIRMAR: subir {que} {local} a {destino}. La app le muestra a la persona Aplicar y Cancelar; todavía no se subió."),
+            ok: true,
+        },
+        Some(AccionAgente::Subida { ruta_local: local.to_string(), ruta_remota: destino, es_carpeta: meta.is_dir() }),
+    )
 }
 
 // ── conectar_raspberry / estado_raspberry ─────────────────────────────────────
@@ -849,22 +899,27 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
                     name: Some(tool_name.clone()),
                     input: Some(tool_call_input_for_timeline(&tool_name, &input)),
                     output: None,
+                    accion: None,
                 };
                 steps.push(call_step.clone());
                 emit_agent_step(&app, request_id, &call_step);
 
-                // Ejecutar en hilo bloqueante (run_ssh_exec usa ssh2 sync). Guardar un comando necesita la app (avisa al panel).
-                let result = if tool_name == "guardar_comando" {
-                    tool_guardar_comando(&app, &input)
-                } else if tool_name == "descargar_archivo" {
-                    tool_descargar_archivo(&app, &req.session_id, &input).await
-                } else {
-                    let sid = req.session_id.clone();
-                    let tn  = tool_name.clone();
-                    let inp = input.clone();
-                    tokio::task::spawn_blocking(move || exec_tool(&sid, &tn, &inp))
-                        .await
-                        .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false })
+                // Las herramientas que la app tiene que mostrar devuelven además su acción (datos para la interfaz). Las demás
+                // corren en un hilo bloqueante (run_ssh_exec usa ssh2 sync).
+                let (result, accion) = match tool_name.as_str() {
+                    "guardar_comando" => tool_guardar_comando(&app, &input),
+                    "descargar_archivo" => tool_descargar_archivo(&app, &req.session_id, &input).await,
+                    "cambiar_pin" => tool_cambiar_pin(&input),
+                    "subir_archivo" => tool_subir_archivo(&input),
+                    _ => {
+                        let sid = req.session_id.clone();
+                        let tn  = tool_name.clone();
+                        let inp = input.clone();
+                        let r = tokio::task::spawn_blocking(move || exec_tool(&sid, &tn, &inp))
+                            .await
+                            .unwrap_or_else(|_| ToolResult { tool: tool_name.clone(), output: "Error interno".into(), ok: false });
+                        (r, None)
+                    }
                 };
 
                 let result_step = AgentStep {
@@ -872,6 +927,7 @@ pub async fn agent_chat(app: AppHandle, req: AgentChatRequest) -> Result<AgentCh
                     name: Some(tool_name.clone()),
                     input: None,
                     output: Some(result.output.clone()),
+                    accion,
                 };
                 steps.push(result_step.clone());
                 emit_agent_step(&app, request_id, &result_step);
@@ -1066,6 +1122,7 @@ pub async fn plan_chat(app: AppHandle, req: PlanChatRequest) -> Result<AgentChat
                     name: Some(tool_name.clone()),
                     input: Some(tool_call_input_for_timeline(&tool_name, &input)),
                     output: None,
+                    accion: None,
                 };
                 steps.push(call_step.clone());
                 emit_agent_step(&app, request_id, &call_step);
@@ -1082,6 +1139,7 @@ pub async fn plan_chat(app: AppHandle, req: PlanChatRequest) -> Result<AgentChat
                     name: Some(tool_name.clone()),
                     input: None,
                     output: Some(result.output.clone()),
+                    accion: None,
                 };
                 steps.push(result_step.clone());
                 emit_agent_step(&app, request_id, &result_step);
@@ -1141,6 +1199,15 @@ mod pruebas_agente {
     fn m(rol: &str, texto: &str) -> MensajeHistorial { MensajeHistorial { rol: rol.into(), texto: texto.into() } }
 
     #[test]
+    fn la_accion_llega_a_la_app_con_su_tipo() {
+        let v = serde_json::to_value(AccionAgente::Descarga { ruta_local: "C:/d/a.csv".into(), ruta_remota: "/home/pi/a.csv".into() }).unwrap();
+        assert_eq!(v, serde_json::json!({ "tipo": "descarga", "rutaLocal": "C:/d/a.csv", "rutaRemota": "/home/pi/a.csv" }));
+        // Los pasos sin acción no la mandan
+        let paso = AgentStep { kind: "tool_result".into(), name: None, input: None, output: None, accion: None };
+        assert!(serde_json::to_value(paso).unwrap().get("accion").is_none());
+    }
+
+    #[test]
     fn el_historial_empieza_por_la_persona_alterna_y_termina_en_el_asistente() {
         let h = vec![m("assistant", "hola"), m("user", "a"), m("user", "b"), m("assistant", "c"), m("user", "colgado")];
         let v = mensajes_previos(&h);
@@ -1152,12 +1219,14 @@ mod pruebas_agente {
 
     #[test]
     fn cambiar_pin_valida_y_queda_pendiente() {
-        let ok = tool_cambiar_pin(&serde_json::json!({ "gpio": 17, "modo": "salida", "nivel": 1 }));
+        let (ok, accion) = tool_cambiar_pin(&serde_json::json!({ "gpio": 17, "modo": "salida", "nivel": 1 }));
         assert!(ok.ok);
         assert!(ok.output.starts_with("PENDIENTE DE CONFIRMAR: GPIO 17, modo salida, nivel alto"));
-        assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 40, "nivel": 1 })).ok);
-        assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 4 })).ok);
-        assert!(!tool_cambiar_pin(&serde_json::json!({ "gpio": 4, "modo": "pwm" })).ok);
+        assert_eq!(accion, Some(AccionAgente::CambioPin { gpio: 17, modo: Some("salida".into()), pull: None, nivel: Some(1) }));
+        for malo in [serde_json::json!({ "gpio": 40, "nivel": 1 }), serde_json::json!({ "gpio": 4 }), serde_json::json!({ "gpio": 4, "modo": "pwm" })] {
+            let (r, a) = tool_cambiar_pin(&malo);
+            assert!(!r.ok && a.is_none());
+        }
     }
 
     #[test]
@@ -1176,10 +1245,12 @@ mod pruebas_agente {
     fn subir_queda_pendiente_y_solo_si_el_archivo_existe() {
         let archivo = std::env::temp_dir().join(format!("laboremoto-subir-{}.txt", uuid::Uuid::new_v4()));
         std::fs::write(&archivo, "hola").unwrap();
-        let ok = tool_subir_archivo(&serde_json::json!({ "ruta_local": archivo.to_string_lossy(), "ruta_remota": "/home/pi/" }));
+        let (ok, accion) = tool_subir_archivo(&serde_json::json!({ "ruta_local": archivo.to_string_lossy(), "ruta_remota": "/home/pi/" }));
         assert!(ok.ok);
         assert!(ok.output.starts_with("PENDIENTE DE CONFIRMAR: subir el archivo (4 bytes)"));
-        assert!(!tool_subir_archivo(&serde_json::json!({ "ruta_local": "C:/no/existe.txt", "ruta_remota": "/tmp/" })).ok);
-        assert!(!tool_subir_archivo(&serde_json::json!({ "ruta_local": "", "ruta_remota": "/tmp/" })).ok);
+        let nombre = archivo.file_name().unwrap().to_string_lossy().to_string();
+        assert_eq!(accion, Some(AccionAgente::Subida { ruta_local: archivo.to_string_lossy().to_string(), ruta_remota: format!("/home/pi/{nombre}"), es_carpeta: false }));
+        assert!(!tool_subir_archivo(&serde_json::json!({ "ruta_local": "C:/no/existe.txt", "ruta_remota": "/tmp/" })).0.ok);
+        assert!(!tool_subir_archivo(&serde_json::json!({ "ruta_local": "", "ruta_remota": "/tmp/" })).0.ok);
     }
 }
