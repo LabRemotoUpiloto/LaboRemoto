@@ -2,7 +2,7 @@ param()
 
 function Cleanup {
     Write-Host "`nCleaning up processes..." -ForegroundColor Yellow
-    $ports = @(5174, 1420, 8787)
+    $ports = @(5174, 1420)
     foreach ($port in $ports) {
         Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | ForEach-Object {
             try { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } catch {}

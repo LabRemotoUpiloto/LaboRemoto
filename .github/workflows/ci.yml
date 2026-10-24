@@ -1,0 +1,69 @@
+name: CI
+
+# Comprobaciones de cada PR. Antes el único CI que corría en los PR buscaba archivos sensibles y versiones de
+# package.json: nada compilaba ni probaba el código, y así llegaron a Desarrollo tests de integración rotos y un
+# comando de Tauri que el frontend invocaba sin estar registrado.
+
+on:
+  pull_request:
+    branches: [ "Desarrollo", "Produccion", "Pruebas(QA)" ]
+  push:
+    branches: [ "Desarrollo" ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  comandos:
+    name: Comandos de Tauri vs frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Falla si el frontend invoca un comando no registrado, o si hay un comando registrado que nadie usa y no
+      # está justificado en Cliente-Rust/scripts/comandos-sin-uso.txt.
+      - run: node Cliente-Rust/scripts/check-comandos.mjs
+
+  backend:
+    name: Backend (cargo check + test)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Cliente-Rust/backend
+      - name: cargo check (incluye los tests)
+        run: cargo check --all-targets --locked
+        working-directory: Cliente-Rust/backend
+      # `auth_ipc_dispatch_test` queda fuera: usa `tauri::test` y en Windows su ejecutable no arranca
+      # (0xc0000139 STATUS_ENTRYPOINT_NOT_FOUND, falta el manifiesto que tauri-build solo pone al binario de la
+      # app). Pendiente: correrlo en un job de Linux o dar manifiesto a los tests.
+      - name: cargo test
+        run: >
+          cargo test --locked --lib --bins
+          --test error_categorization_test --test protocol_test
+          --test session_manager_flow_test --test session_manager_test
+        working-directory: Cliente-Rust/backend
+
+  frontend:
+    name: Frontend (tsc + vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Cliente-Rust/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Cliente-Rust/frontend/package-lock.json
+      - run: npm ci
+      - name: Tipos (tsc)
+        run: npx tsc --noEmit
+      - name: Pruebas (vitest)
+        run: npx vitest run

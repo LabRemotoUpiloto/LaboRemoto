@@ -91,7 +91,6 @@ El agente ejecuta un **loop Claude `tool_use`** — puede llamar tools SSH/SFTP 
 | `info_sistema` | Obtiene CPU, RAM, disco y uptime del servidor. |
 | `reiniciar_servicio` | Reinicia un servicio `systemd` remoto. |
 | `get_terminal_output` | Lee el buffer de la terminal activa (últimas N líneas). |
-| *(tools MCP)* | Ejecuta tools de servidores MCP registrados (extensible). |
 
 **Modo Plan `plan_chat`** (solo lectura): Claude inspecciona el servidor y genera un **plan de acción paso a paso** con comandos reales, sin ejecutar nada.
 
@@ -100,33 +99,6 @@ El agente ejecuta un **loop Claude `tool_use`** — puede llamar tools SSH/SFTP 
 | `get_terminal_context` | Devuelve las últimas N líneas del buffer SSH capturado. |
 | `agent_chat` | Loop completo tool_use → tools → respuesta final. |
 | `plan_chat` | Inspecciona el servidor y genera un plan (read-only). |
-
----
-
-### `cmd/file_edit` — Análisis y Edición de Archivos por IA
-| Comando | Descripción |
-|---|---|
-| `analyze_file` | Analiza un archivo remoto: explica código, detecta bugs. |
-| `analyze_any_file` | Igual pero acepta contenido directo (no solo ruta). |
-| `plan_file_edit` | Claude genera un plan de edición diferenciado. |
-| `apply_file_edit` | Aplica el plan de edición al archivo remoto (con backup). |
-| `ai_remote_edit_file` | Edición asistida por IA directamente en el servidor remoto. |
-| `list_file_backups` | Lista los backups de ediciones anteriores. |
-| `revert_file` | Revierte un archivo a un backup anterior. |
-
----
-
-### `cmd/mcp_client` — Cliente MCP (Model Context Protocol)
-Permite registrar **servidores MCP externos** (procesos locales con I/O stdio) y exponer sus tools al agente AI.
-
-| Comando | Descripción |
-|---|---|
-| `mcp_register_server` | Registra un servidor MCP: lo inicia, lista sus tools y cachea los schemas en disco. |
-| `mcp_list_servers` | Lista todos los servidores MCP registrados con sus tools cacheadas. |
-| `mcp_remove_server` | Elimina un servidor del registro. |
-| `mcp_refresh_tools` | Reconecta al servidor y actualiza el caché de tools. |
-
-Los schemas MCP se almacenan en `%APPDATA%\upiloto\ssh-client\mcp_servers.json`.
 
 ---
 
@@ -153,17 +125,6 @@ Permite acceder al **entorno gráfico LXDE** de la Raspberry Pi (o cualquier Lin
 | `vnc_stop` | Detiene el servidor VNC y limpia los procesos remotos. |
 | `vnc_status` | Devuelve el estado actual (`not_started` / `running`). |
 | `vnc_cleanup_all` | Limpia **todas** las sesiones VNC residuales (se llama al cerrar la app). |
-
----
-
-### `cmd/stream` — Streaming de Cámaras y WebRTC
-| Comando | Descripción |
-|---|---|
-| `stream_start` | Abre un port-forwarding TCP local→remoto sobre la sesión SSH activa (para streaming de cámaras MJPEG). |
-| `stream_stop` | Cierra el forwarding. |
-| `stream_list_cameras` | Consulta el servicio `multicam` en la Pi y devuelve la lista de cámaras disponibles. |
-| `stream_get_host` | Devuelve la IP del host remoto y el puerto WHEP para WebRTC directo. |
-| `whep_exchange` | Realiza el intercambio SDP WHEP desde Rust (evita bloqueos CORS del WebView). |
 
 ---
 
@@ -370,7 +331,6 @@ PRACTICE_LINUX_SSH_PORT=9000
 | LMS | Moodle REST API | Calificación automática |
 | IoT | raspi-gpio, Arduino serial | Control hardware |
 | Video | MediaMTX (WebRTC/WHEP) | Streaming multi-cámara |
-| Protocolos | MCP (stdio JSON-RPC 2.0) | Extensión de tools del agente |
 
 ---
 
