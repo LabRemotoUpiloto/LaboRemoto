@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileDown, Monitor, RefreshCw, ScrollText, Search, Trash2 } from 'lucide-react';
 import { useToasts } from '@/app/providers/ToastContext';
 import {
-  Aviso, Boton, BotonIcono, BotonPeligro, Buscador, Dialogo, Encabezado, ETIQUETA, FILA, FilasCargando, NOTA, Num, Pagina,
-  Selector, TARJETA,
+  Aviso, Boton, BotonIcono, BotonPeligro, Buscador, Dialogo, Encabezado, ETIQUETA, FILA, FilasCargando, Num, Pagina, Paginador,
+  Selector, TARJETA, paginar,
 } from '@/components/ui';
 import { deleteSessionLog, listSessionLogs } from './session.service';
 import { agrupar, desdeMetadata, duracionTexto, equipoDe, filtrarYOrdenar, horaDe, type Orden, type SessionLog } from './sesiones';
@@ -12,8 +12,8 @@ import { guardarReporteComandos } from './reporte';
 
 const COLUMNAS = 'grid-cols-[64px_minmax(0,1fr)_minmax(0,1fr)_130px_90px_100px]';
 const TITULOS = ['Hora', 'Usuario', 'Equipo', 'Duración', 'Comandos', ''];
-// Con uso diario la lista solo crece: se muestra de a tandas con «Cargar más» (el costo es el DOM, no la consulta).
-const POR_PAGINA = 24;
+// Con uso diario la lista solo crece: se pagina (el costo es el DOM, no la consulta).
+const POR_PAGINA = 20;
 
 interface LogsPageProps {
   onOpenLog?: (session: SessionLog) => void;
@@ -27,7 +27,7 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
   const [usuario, setUsuario] = useState('');
   const [equipo, setEquipo] = useState('');
   const [orden, setOrden] = useState<Orden>('recientes');
-  const [cuantas, setCuantas] = useState(POR_PAGINA);
+  const [pagina, setPagina] = useState(1);
   const [borrar, setBorrar] = useState<SessionLog | null>(null);
 
   const cargar = useCallback(async () => {
@@ -43,12 +43,13 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
   }, []);
 
   useEffect(() => { void cargar(); }, [cargar]);
-  // Cambiar filtro u orden vuelve a la primera tanda: si no, quedarías «en la página 5» de otro resultado.
-  useEffect(() => { setCuantas(POR_PAGINA); }, [usuario, equipo, orden]);
+  // Cambiar filtro u orden vuelve a la primera página: si no, quedarías «en la página 5» de otro resultado.
+  useEffect(() => { setPagina(1); }, [usuario, equipo, orden]);
 
   const filtradas = useMemo(() => filtrarYOrdenar(sesiones, usuario, equipo, orden), [sesiones, usuario, equipo, orden]);
-  const grupos = useMemo(() => agrupar(filtradas.slice(0, cuantas), orden), [filtradas, cuantas, orden]);
-  const restantes = filtradas.length - cuantas;
+  // paginar ajusta la página si ya no existe (p. ej. al borrar la última sesión de la última página)
+  const pag = useMemo(() => paginar(filtradas, pagina, POR_PAGINA), [filtradas, pagina]);
+  const grupos = useMemo(() => agrupar(pag.filas, orden), [pag, orden]);
 
   const descargarPdf = async (s: SessionLog) => {
     push({ type: 'info', message: 'Preparando el reporte de comandos…' });
@@ -79,10 +80,7 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
       <Encabezado
         titulo="Sesiones SSH"
         descripcion="Historial de las sesiones SSH: quién entró, a qué equipo, cuánto duró y qué comandos usó."
-        derecha={!error && <>
-          {!cargando && <span className={NOTA}>{filtradas.length} {filtradas.length === 1 ? 'sesión' : 'sesiones'}</span>}
-          <BotonIcono etiqueta="Recargar" onClick={() => void cargar()} disabled={cargando}><RefreshCw size={15} /></BotonIcono>
-        </>}
+        derecha={!error && <BotonIcono etiqueta="Recargar" onClick={() => void cargar()} disabled={cargando}><RefreshCw size={15} /></BotonIcono>}
       />
 
       {error ? (
@@ -116,22 +114,14 @@ export default function LogsPage({ onOpenLog }: LogsPageProps) {
               </div>
               {grupos.map((g) => (
                 <div key={g.titulo} role="rowgroup">
-                  <div className="flex items-baseline justify-between border-b border-ui-pista bg-ui-fondo px-5 pb-1.5 pt-4">
-                    <span className="text-[13px] font-semibold text-ui-tinta">{g.titulo}</span>
-                    <span className={NOTA}>{g.sesiones.length} {g.sesiones.length === 1 ? 'sesión' : 'sesiones'}</span>
-                  </div>
+                  <div className="border-b border-ui-pista bg-ui-fondo px-5 pb-1.5 pt-4 text-[13px] font-semibold text-ui-tinta">{g.titulo}</div>
                   {g.sesiones.map((s, k) => (
                     <FilaSesion key={s.id} sesion={s} primera={k === 0}
                       onVer={() => onOpenLog?.(s)} onPdf={() => void descargarPdf(s)} onBorrar={() => setBorrar(s)} />
                   ))}
                 </div>
               ))}
-            </div>
-          )}
-
-          {!cargando && restantes > 0 && (
-            <div className="flex justify-center">
-              <Boton onClick={() => setCuantas((c) => c + POR_PAGINA)}>Cargar más · {restantes} restantes</Boton>
+              <Paginador pagina={pag} onPagina={setPagina} unidad="sesiones" />
             </div>
           )}
         </>
