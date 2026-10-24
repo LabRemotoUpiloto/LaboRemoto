@@ -5,12 +5,13 @@ import { notifications } from '@mantine/notifications';
 import { useAuth } from '@/features/cuenta/useAuth';
 import { ASSIGNABLE_ROLES, ROLE_LABELS, ROLE_ORDER, type EffectiveRole } from '@/features/cuenta/usePermissions';
 import {
-  Aviso, Boton, BotonPrincipal, Buscador, Desplegable, Dialogo, Encabezado, FilasCargando, Num, Pagina, SUAVE, Tabla,
+  Aviso, Boton, BotonPrincipal, Buscador, Desplegable, Dialogo, Encabezado, FilasCargando, Num, Pagina, Paginador, SUAVE, Tabla, paginar,
 } from '@/components/ui';
 import { adminService, type KeycloakUser } from './admin.service';
 import { armarPersonas, esDocenteDeDirectorio, filtrarPersonas, fotoDe, inicialesDe, nombreDe, type Persona } from './personas';
 
 const PLANTILLA = 'grid-cols-[minmax(0,1fr)_120px_210px]';
+const POR_PAGINA = 15;
 const COLUMNAS = [{ titulo: 'Persona' }, { titulo: 'Registro', derecha: true }, { titulo: 'Rol' }];
 
 function fecha(ms?: number) {
@@ -34,6 +35,7 @@ export default function UserManagementPage() {
   const [busqueda, setBusqueda] = useState('');
   const [cambio, setCambio] = useState<Cambio | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [pagina, setPagina] = useState(1);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -60,6 +62,9 @@ export default function UserManagementPage() {
 
   const personas = useMemo(() => armarPersonas(porRol, todos), [porRol, todos]);
   const visibles = useMemo(() => filtrarPersonas(personas, filtro, busqueda), [personas, filtro, busqueda]);
+  // Otro filtro u otra búsqueda vuelve a la primera página.
+  useEffect(() => { setPagina(1); }, [filtro, busqueda]);
+  const pag = paginar(visibles, pagina, POR_PAGINA);
 
   const pedirCambio = (persona: Persona, nuevo: EffectiveRole) => {
     // Quien se baja a sí mismo de administrador pierde el acceso a este panel y no puede deshacerlo.
@@ -117,8 +122,8 @@ export default function UserManagementPage() {
             <Tabla
               plantilla={PLANTILLA}
               columnas={COLUMNAS}
-              claves={visibles.map((p) => p.user.id)}
-              filas={visibles.map((p) => [
+              claves={pag.filas.map((p) => p.user.id)}
+              filas={pag.filas.map((p) => [
                 <PersonaCelda persona={p} yo={esYo(p.user)} />,
                 <Num>{fecha(p.user.createdTimestamp)}</Num>,
                 esYo(p.user)
@@ -126,6 +131,7 @@ export default function UserManagementPage() {
                       className="px-3 text-[13px] text-ui-tinta">{ROLE_LABELS[p.rol]}</span>
                   : <RolSelector persona={p} onCambio={(nuevo) => pedirCambio(p, nuevo)} />,
               ])}
+              pie={<Paginador pagina={pag} onPagina={setPagina} unidad="personas" />}
             />
           )}
         </>

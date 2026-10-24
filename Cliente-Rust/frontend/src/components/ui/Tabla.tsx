@@ -9,13 +9,15 @@ export interface Columna {
 }
 
 /** Tabla de lectura: cabecera como rótulo, filas separadas por línea, sin cajas dentro de cajas. */
-export function Tabla({ columnas, filas, plantilla, claves }: {
+export function Tabla({ columnas, filas, plantilla, claves, pie }: {
   columnas: Columna[];
   filas: React.ReactNode[][];
   /** grid-template-columns de Tailwind, p. ej. 'grid-cols-[1fr_90px_120px]'. */
   plantilla: string;
   /** Clave estable de cada fila (si no, se usa la posición). */
   claves?: string[];
+  /** Debajo de las filas, dentro de la misma tarjeta (p. ej. el Paginador). */
+  pie?: React.ReactNode;
 }) {
   return (
     <div className={TARJETA} role="table">
@@ -31,6 +33,7 @@ export function Tabla({ columnas, filas, plantilla, claves }: {
           ))}
         </div>
       ))}
+      {pie}
     </div>
   );
 }
