@@ -54,7 +54,7 @@ const PracticeCard: React.FC<PracticeCardProps> = ({ name, description, hasCamer
                     {loading
                         ? 'Preparando…'
                         : completada
-                            ? <>Completada · <span className="ficha-enlace">Repetir</span></>
+                            ? <>Completada. <span className="ficha-enlace">Repetir</span></>
                             : <span className="ficha-enlace">Empezar práctica</span>}
                 </span>
             </button>

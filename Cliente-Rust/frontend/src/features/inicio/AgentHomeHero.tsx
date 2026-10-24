@@ -42,7 +42,7 @@ const AgentHomeHero: React.FC<AgentHomeHeroProps> = ({
             className="flex flex-col items-center md:items-start gap-3 w-full max-w-[460px] p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--background-secondary)]"
           >
             <p className="m-0 text-[13.5px] leading-[1.5] text-[var(--text-secondary)] text-center md:text-left">
-              <strong className="text-[var(--text-primary)]">Esperando el inicio de sesión en tu navegador…</strong>
+              <span className="text-[var(--text-primary)]">Esperando el inicio de sesión en tu navegador…</span>
               <br />
               ¿Cerraste la ventana o no se abrió? Puedes volver a abrirla.
             </p>

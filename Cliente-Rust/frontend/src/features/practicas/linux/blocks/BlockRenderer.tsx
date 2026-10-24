@@ -20,12 +20,12 @@ import { ChecklistBlock } from './widgets/ChecklistBlock';
 
 const PALETTE = ['#4caf50', '#5b9bd5', '#e0a94a', '#e57373', '#a78bfa'];
 
-/** Soporte mínimo de **negrita**, *cursiva* y `código` — no se agrega una librería de markdown para esto. */
+/** Soporte mínimo de *cursiva* y `código`; los **…** se muestran como texto normal (sin resaltar). */
 function renderInline(md: string): React.ReactNode {
   const parts = md.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
+      return <React.Fragment key={i}>{part.slice(2, -2)}</React.Fragment>;
     }
     if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
       return <em key={i}>{part.slice(1, -1)}</em>;
@@ -536,11 +536,11 @@ function PermissionsCalculatorBlock({ block }: { block: Extract<LinuxBlock, { ty
       <Stack gap={6} mt="md" p="sm" style={{ background: 'var(--background-tertiary, rgba(255,255,255,0.04))', borderRadius: 8 }}>
         <Group gap="xs">
           <Text fz="xs" c="dimmed" style={{ minWidth: 78 }}>Simbólico</Text>
-          <Text ff="monospace" fz="sm" fw={700}>{symbolic}</Text>
+          <Text ff="monospace" fz="sm">{symbolic}</Text>
         </Group>
         <Group gap="xs">
           <Text fz="xs" c="dimmed" style={{ minWidth: 78 }}>Comando</Text>
-          <Text ff="monospace" fz="sm" fw={700}>chmod {octal} archivo</Text>
+          <Text ff="monospace" fz="sm">chmod {octal} archivo</Text>
         </Group>
       </Stack>
     </Paper>

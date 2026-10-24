@@ -244,7 +244,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     if (!status) return <span className={`${baseBadge} bg-tertiary text-secondary`}>…</span>
     if (!status.reachable) return <span className={`${baseBadge} bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] text-danger border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]`}>Bridge offline</span>
     if (!status.open) return <span className={`${baseBadge} bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] text-warning border border-[color-mix(in_srgb,var(--warning)_30%,transparent)]`}>Serial cerrado</span>
-    return <span className={`${baseBadge} bg-[color-mix(in_srgb,var(--success)_18%,transparent)] text-success border border-[color-mix(in_srgb,var(--success)_30%,transparent)]`}>Conectado · {status.port}</span>
+    return <span className={`${baseBadge} bg-[color-mix(in_srgb,var(--success)_18%,transparent)] text-success border border-[color-mix(in_srgb,var(--success)_30%,transparent)]`}>Conectado en {status.port}</span>
   })()
 
   const cardClasses = "bg-tertiary border border-color rounded-xl py-3 px-3.5 flex flex-col gap-2.5 transition-all duration-200 ease-in-out hover:border-[color-mix(in_srgb,var(--accent-primary)_25%,transparent)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
@@ -256,7 +256,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
       <header className="flex justify-between items-center gap-3">
         <div>
           <h2 className="m-0 text-[15px] font-bold">Control de Domótica</h2>
-          <span className="text-[11px] text-secondary">Arduino DUE · sketch DomoticaMaster</span>
+          <span className="text-[11px] text-secondary">Arduino DUE con el sketch DomoticaMaster</span>
         </div>
         <div className="flex items-center gap-2">
           {statusBadge}
@@ -320,7 +320,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
               disabled={busy}
               className="flex-1 accent-[var(--accent-primary)] cursor-pointer h-1.5 rounded-[3px]"
             />
-            <span className="min-w-[44px] text-right tabular-nums font-bold text-[14px] text-accent">{motor}</span>
+            <span className="min-w-[44px] text-right tabular-nums text-[14px] text-primary">{motor}</span>
           </div>
           <div className="flex gap-2">
             <button className="flex-1 flex flex-col items-center gap-1 py-2.5 px-1.5 rounded-[10px] border border-color bg-[var(--background-secondary)] text-primary text-[11px] font-semibold cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-default hover:not(:disabled):border-accent hover:not(:disabled):bg-[color-mix(in_srgb,var(--accent-primary)_8%,var(--background-secondary))] hover:not(:disabled):-translate-y-[1px]" disabled={busy} onClick={() => commitMotor(0)}>
@@ -342,7 +342,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         <div className={cardClasses}>
           <div className={cardTitleClasses}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>
-            Sensor HC-SR04 <span className="font-normal text-[10px] text-secondary">(trig 5 · echo 6)</span>
+            Sensor HC-SR04 <span className="font-normal text-[10px] text-secondary">(trig 5, echo 6)</span>
           </div>
           <div className="flex items-center gap-3 justify-between">
             <div className="flex items-center gap-2.5 flex-1">
@@ -370,7 +370,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
         <div className={`${cardClasses} col-span-full`}>
           <div className={cardTitleClasses}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h12M6 12h12M6 16h8"/></svg>
-            Pantalla LCD I2C <span className="font-normal text-[10px] text-secondary">(16x2 · SDA 20 · SCL 21)</span>
+            Pantalla LCD I2C <span className="font-normal text-[10px] text-secondary">(16x2, SDA 20, SCL 21)</span>
           </div>
           <div className="bg-[#1a3a1a] border-2 border-[#2d5a2d] rounded-lg py-2.5 px-3 mb-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]">
             <div className={`font-mono text-[13px] text-[#4ade80] leading-[1.6] min-h-[20px] [text-shadow:0_0_4px_#4ade8033] tracking-[0.5px] ${!lcdLine1 ? 'text-[#2d5a2d]' : ''}`}>{lcdLine1 || '________________'}</div>
@@ -479,7 +479,7 @@ const DomoticaPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
           {log.map((e, i) => (
             <div key={i} className="grid grid-cols-[64px_16px_1fr] gap-1.5 py-[1px] px-0.5">
               <span className="text-secondary tabular-nums">{e.ts}</span>
-              <span className={`text-center font-bold ${e.direction === 'tx' ? 'text-accent' : e.direction === 'rx' ? 'text-success' : e.direction === 'err' ? 'text-danger' : 'text-secondary'}`}>
+              <span className={`text-center ${e.direction === 'tx' ? 'text-accent' : e.direction === 'rx' ? 'text-success' : e.direction === 'err' ? 'text-danger' : 'text-secondary'}`}>
                 {e.direction === 'tx' ? '→' : e.direction === 'rx' ? '←' : e.direction === 'err' ? '⚠' : 'i'}
               </span>
               <span className={e.direction === 'err' ? 'text-danger' : ''}>{e.text}</span>

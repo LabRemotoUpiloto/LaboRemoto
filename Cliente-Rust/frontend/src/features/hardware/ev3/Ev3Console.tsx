@@ -238,7 +238,7 @@ const Ev3Console: React.FC<Ev3ConsoleProps> = ({ sessionId }) => {
           <option value="">Cargar un ejemplo…</option>
           {EV3_EXAMPLES.map(ex => (
             <option key={ex.id} value={ex.id}>
-              Módulo {ex.module} · {ex.title}
+              Módulo {ex.module}: {ex.title}
             </option>
           ))}
         </select>

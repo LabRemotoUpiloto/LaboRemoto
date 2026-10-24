@@ -1,5 +1,6 @@
-// components/ui/Campos.tsx — buscador y campo de formulario. Borde que se ve (≥ 3:1) y foco en el acento.
+// components/ui/Campos.tsx — buscador, campo de formulario y desplegable. Borde que se ve (≥ 3:1) y foco en el acento.
 import React from 'react';
+import { ChevronDown } from 'lucide-react';
 import { RADIO } from './estilos';
 
 const BORDE = 'border-[length:var(--card-border-width,1px)] border-ui-borde-campo bg-ui-superficie transition-colors hover:border-ui-tinta-2';
@@ -53,5 +54,29 @@ export function Campo({ etiqueta, mono, derecha, className = '', filas, ...props
         {derecha && <span className="absolute right-2 flex">{derecha}</span>}
       </span>
     </label>
+  );
+}
+
+/** Desplegable nativo con la forma de los campos: teclado y lector de pantalla sin piezas extra. */
+export function Desplegable<T extends string>({ etiqueta, valor, onCambio, opciones, className = '' }: {
+  /** Lo que lee el lector de pantalla. */
+  etiqueta: string;
+  valor: T;
+  onCambio: (v: T) => void;
+  opciones: { valor: T; etiqueta: string; deshabilitada?: boolean }[];
+  className?: string;
+}) {
+  return (
+    <span className={`relative inline-flex items-center ${className}`}>
+      <select
+        aria-label={etiqueta}
+        value={valor}
+        onChange={(e) => onCambio(e.target.value as T)}
+        className={`h-8 w-full cursor-pointer appearance-none ${RADIO} border-[length:var(--card-border-width,1px)] border-ui-borde-campo bg-ui-superficie pl-3 pr-8 text-[13px] text-ui-tinta transition-colors hover:border-ui-acento-texto [&>option]:bg-ui-superficie [&>option]:text-ui-tinta`}
+      >
+        {opciones.map((o) => <option key={o.valor} value={o.valor} disabled={o.deshabilitada}>{o.etiqueta}</option>)}
+      </select>
+      <ChevronDown size={14} aria-hidden className="pointer-events-none absolute right-2.5 text-ui-apagado" />
+    </span>
   );
 }

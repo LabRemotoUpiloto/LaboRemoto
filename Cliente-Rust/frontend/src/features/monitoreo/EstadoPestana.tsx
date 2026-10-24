@@ -52,7 +52,7 @@ function Filas({ filas }: { filas: Fila[] }) {
             {f.alerta != null || f.frac ? <Barra frac={f.frac} alerta={f.alerta} critico={f.critico} nivel={f.nivel} className="hidden md:block" /> : <span className="hidden md:block" />}
             <span className="col-span-2 text-[13px] text-ui-tinta-2 md:col-span-1">
               {(f.nivel === 'alerta' || f.nivel === 'critico') && (
-                <b className={`mr-3 font-bold ${TEXTO_NIVEL[f.nivel]}`}>{f.nivel === 'alerta' ? 'Alerta' : 'Crítico'}</b>
+                <span className={`mr-3 ${TEXTO_NIVEL[f.nivel]}`}>{f.nivel === 'alerta' ? 'Alerta' : 'Crítico'}</span>
               )}
               {f.detalle}
             </span>
@@ -68,21 +68,21 @@ function ResumenDePrueba({ resumen, onGuardar }: { resumen: ResumenPrueba; onGua
   const a = resumen.primeraAlerta;
   const minutos = Math.max(1, Math.round((resumen.fin - resumen.inicio) / 60));
   return (
-    <Seccion titulo="Última prueba" derecha={<span className={NOTA}>{hora24(resumen.inicio).slice(0, 5)} – {hora24(resumen.fin).slice(0, 5)} · {minutos} min · hasta {resumen.maxEstudiantes} estudiantes</span>}>
+    <Seccion titulo="Última prueba" derecha={<span className={NOTA}>de {hora24(resumen.inicio).slice(0, 5)} a {hora24(resumen.fin).slice(0, 5)} ({minutos} min), hasta {resumen.maxEstudiantes} estudiantes</span>}>
       <div className={TARJETA}>
         <div className="flex flex-wrap items-start justify-between gap-4 px-6 py-5">
           <div className="flex flex-col gap-2">
             {q ? (
-              <Punto nivel="critico" fuerte={`Se degradó con ${q.estudiantes ?? '?'} estudiantes`}
-                resto={`· ${q.indicador.titulo.toLowerCase()} llegó a ${formatoValor(q.valor, q.indicador.unidad)} (crítico desde ${formatoValor(q.indicador.critico, q.indicador.unidad)})`} />
+              <Punto nivel="critico" fuerte={`Se degradó con ${q.estudiantes ?? '?'} estudiantes:`}
+                resto={`${q.indicador.titulo.toLowerCase()} llegó a ${formatoValor(q.valor, q.indicador.unidad)} (crítico desde ${formatoValor(q.indicador.critico, q.indicador.unidad)})`} />
             ) : (
-              <Punto nivel="bien" fuerte="Nada llegó a crítico" resto={`· con hasta ${resumen.maxEstudiantes} estudiantes`} />
+              <Punto nivel="bien" fuerte="Nada llegó a crítico" resto={`con hasta ${resumen.maxEstudiantes} estudiantes`} />
             )}
             {a && (!q || a.t < q.t) && (
-              <Punto nivel="alerta" fuerte={`Primera alerta con ${a.estudiantes ?? '?'} estudiantes`}
-                resto={`· ${a.indicador.titulo.toLowerCase()} pasó de ${formatoValor(a.indicador.alerta, a.indicador.unidad)}`} />
+              <Punto nivel="alerta" fuerte={`Primera alerta con ${a.estudiantes ?? '?'} estudiantes:`}
+                resto={`${a.indicador.titulo.toLowerCase()} pasó de ${formatoValor(a.indicador.alerta, a.indicador.unidad)}`} />
             )}
-            {resumen.huboFrenado && <Punto nivel="alerta" fuerte="La Pi bajó su velocidad" resto="· por calor o voltaje; ese tramo no refleja su capacidad normal" />}
+            {resumen.huboFrenado && <Punto nivel="alerta" fuerte="La Pi bajó su velocidad" resto="por calor o voltaje; ese tramo no refleja su capacidad normal" />}
             <p className="m-0 mt-2 text-[13px] text-ui-tinta-2">Abre «Gráficas → Por estudiantes» para ver cada medida contra la cantidad de estudiantes.</p>
           </div>
           <Boton onClick={onGuardar}>Guardar Excel</Boton>
@@ -104,8 +104,8 @@ function ResumenDePrueba({ resumen, onGuardar }: { resumen: ResumenPrueba; onGua
               return (
                 <tr key={p.indicador.id}>
                   <td className="py-2 pl-6 text-ui-tinta">{p.indicador.titulo}</td>
-                  <td className={`py-2 text-right font-ui-num ${nivel ? `font-semibold ${TEXTO_NIVEL[nivel]}` : 'text-ui-tinta'}`}>{formatoValor(p.valor, p.indicador.unidad)}</td>
-                  <td className={`py-2 pl-4 text-xs font-bold ${nivel ? TEXTO_NIVEL[nivel] : ''}`}>{nivel === 'critico' ? 'Crítico' : nivel === 'alerta' ? 'Alerta' : ''}</td>
+                  <td className={`py-2 text-right font-ui-num ${nivel ? TEXTO_NIVEL[nivel] : 'text-ui-tinta'}`}>{formatoValor(p.valor, p.indicador.unidad)}</td>
+                  <td className={`py-2 pl-4 text-xs ${nivel ? TEXTO_NIVEL[nivel] : ''}`}>{nivel === 'critico' ? 'Crítico' : nivel === 'alerta' ? 'Alerta' : ''}</td>
                   <td className="py-2 text-right font-ui-num text-ui-tinta-2">{hora24(p.t)}</td>
                   <td className="py-2 pr-6 text-right font-ui-num text-ui-tinta">{p.estudiantes ?? '—'}</td>
                 </tr>
@@ -157,7 +157,7 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
     });
   }
   filas.push(
-    fila('subida', ENLACE_SUBIDA_MBPS, `de ${ENLACE_SUBIDA_MBPS} Mbps del enlace${ultima.red_rx_kbps != null ? ` · recibe ${(ultima.red_rx_kbps / 1000).toFixed(1)} Mbps` : ''}`),
+    fila('subida', ENLACE_SUBIDA_MBPS, `de ${ENLACE_SUBIDA_MBPS} Mbps del enlace${ultima.red_rx_kbps != null ? `; recibe ${(ultima.red_rx_kbps / 1000).toFixed(1)} Mbps` : ''}`),
     fila('latencia', 3500, ultima.api.peticiones ? `${ultima.api.peticiones} pedidos en los últimos 2 s` : 'sin pedidos en los últimos 2 s'),
     {
       nombre: errores.titulo, valor: formatoValor(pctErrores, '%'), frac: null, nivel: NIVEL_DE[estadoDe(errores, pctErrores) ?? ''] ?? null,
@@ -199,7 +199,7 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
                     <span aria-hidden className={`h-[7px] w-[7px] rounded-full ${s.activo ? 'bg-ui-bien' : 'bg-ui-critico'}`} />
                     <span className="font-ui-num text-ui-tinta">{s.unidad}</span>
                     <span className="hidden text-ui-tinta-2 sm:inline">{QUE_HACE[s.unidad] ?? ''}</span>
-                    {!s.activo && <b className="col-span-2 font-bold text-ui-critico-texto sm:col-span-1">{porQueCaido(s)}</b>}
+                    {!s.activo && <span className="col-span-2 text-ui-critico-texto sm:col-span-1">{porQueCaido(s)}</span>}
                   </li>
                 ))}
               </ul>
@@ -230,7 +230,7 @@ export default function EstadoPestana({ pi, prueba, resumen, onIniciar, onTermin
           {enCurso ? (
             <div className="flex flex-col gap-1">
               <Punto nivel="critico" fuerte={`Grabando desde las ${hora24(prueba!.inicio)}`}
-                resto={`· ${duracion(ultima.t - prueba!.inicio)} · ${estudiantesEn(ultima) ?? 0} estudiantes ahora`} />
+                resto={`(${duracion(ultima.t - prueba!.inicio)}, ${estudiantesEn(ultima) ?? 0} estudiantes ahora)`} />
               <span className="text-[13px] text-ui-tinta-2">Se sigue grabando aunque cambies de sección o cierres la app.</span>
             </div>
           ) : (

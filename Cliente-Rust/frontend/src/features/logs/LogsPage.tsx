@@ -1,251 +1,171 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { Box, Container, Stack, Title, Text, Group, TextInput, Select, ActionIcon, Tooltip, Button } from '@mantine/core'
-import { modals } from '@mantine/modals'
-import { Search, Monitor, RefreshCw } from 'lucide-react'
-import SessionsGrid from './SessionsGrid'
-import type { SessionLog } from './SessionCard'
-import { listSessionLogs, deleteSessionLog, extractSessionCommands, type SessionLogMetadata } from './session.service'
-import html2pdf from 'html2pdf.js'
-import { useToasts } from '@/app/providers/ToastContext'
-import { buildCommandsReportHtml } from './commandParser'
+// features/logs/LogsPage.tsx — Sesiones SSH: una tabla por día (hora local), una fila por sesión.
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FileDown, Monitor, RefreshCw, ScrollText, Search, Trash2 } from 'lucide-react';
+import { useToasts } from '@/app/providers/ToastContext';
+import {
+  Aviso, Boton, BotonIcono, BotonPeligro, Buscador, Dialogo, Encabezado, ETIQUETA, FILA, FilasCargando, Num, Pagina, Paginador,
+  Selector, TARJETA, paginar,
+} from '@/components/ui';
+import { deleteSessionLog, listSessionLogs } from './session.service';
+import { agrupar, desdeMetadata, duracionTexto, equipoDe, filtrarYOrdenar, horaDe, type Orden, type SessionLog } from './sesiones';
+import { guardarReporteComandos } from './reporte';
 
-type SortOption = 'date-desc' | 'date-asc' | 'duration-desc' | 'duration-asc' | 'host-asc' | 'host-desc'
-
-// Con uso diario esta lista solo crece -- en vez de renderizar cientos de
-// tarjetas de una (la consulta en sí es liviana, son metadatos; el costo
-// real es el DOM), se revela de a tandas con "Cargar más".
-const PAGE_SIZE = 24
+const COLUMNAS = 'grid-cols-[64px_minmax(0,1fr)_minmax(0,1fr)_130px_90px_100px]';
+const TITULOS = ['Hora', 'Usuario', 'Equipo', 'Duración', 'Comandos', ''];
+// Con uso diario la lista solo crece: se pagina (el costo es el DOM, no la consulta).
+const POR_PAGINA = 20;
 
 interface LogsPageProps {
-  onOpenLog?: (session: SessionLog) => void
+  onOpenLog?: (session: SessionLog) => void;
 }
 
-// Adaptador: convierte SessionLogMetadata del backend al formato SessionLog de la UI
-function adaptMetadataToSessionLog(metadata: SessionLogMetadata): SessionLog {
-  return {
-    id: metadata.session_id,
-    user: metadata.user,
-    host: metadata.host,
-    port: metadata.port,
-    startedAt: metadata.start_time,
-    endedAt: metadata.end_time,
-    duration: metadata.duration_seconds,
-    totalCommands: metadata.command_count ?? 0
-  }
-}
+export default function LogsPage({ onOpenLog }: LogsPageProps) {
+  const { push } = useToasts();
+  const [sesiones, setSesiones] = useState<SessionLog[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [usuario, setUsuario] = useState('');
+  const [equipo, setEquipo] = useState('');
+  const [orden, setOrden] = useState<Orden>('recientes');
+  const [pagina, setPagina] = useState(1);
+  const [borrar, setBorrar] = useState<SessionLog | null>(null);
 
-const LogsPage: React.FC<LogsPageProps> = ({ onOpenLog }) => {
-  const [sessions, setSessions] = useState<SessionLog[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filterUser, setFilterUser] = useState('')
-  const [filterHost, setFilterHost] = useState('')
-  const [sortBy, setSortBy] = useState<SortOption>('date-desc')
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const { push } = useToasts()
-
-  useEffect(() => {
-    loadSessions()
-  }, [])
-
-  const loadSessions = async () => {
-    setLoading(true)
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    setError(null);
     try {
-      const metadata = await listSessionLogs()
-      const adaptedSessions = metadata.map(adaptMetadataToSessionLog)
-      setSessions(adaptedSessions)
-    } catch {
-      setSessions([])
+      setSesiones((await listSessionLogs()).map(desdeMetadata));
+    } catch (err) {
+      setError(String(err));
     } finally {
-      setLoading(false)
+      setCargando(false);
     }
-  }
+  }, []);
 
-  const filteredSessions = sessions.filter(session => {
-    if (filterUser && !session.user.toLowerCase().includes(filterUser.toLowerCase())) return false
-    if (filterHost && !session.host.toLowerCase().includes(filterHost.toLowerCase())) return false
-    return true
-  })
+  useEffect(() => { void cargar(); }, [cargar]);
+  // Cambiar filtro u orden vuelve a la primera página: si no, quedarías «en la página 5» de otro resultado.
+  useEffect(() => { setPagina(1); }, [usuario, equipo, orden]);
 
-  const sortedSessions = useMemo(() => {
-    const filtered = [...filteredSessions]
-    return filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'date-desc':
-          return new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
-        case 'date-asc':
-          return new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-        case 'duration-desc':
-          return (b.duration || 0) - (a.duration || 0)
-        case 'duration-asc':
-          return (a.duration || 0) - (b.duration || 0)
-        case 'host-asc':
-          return `${a.user}@${a.host}`.localeCompare(`${b.user}@${b.host}`)
-        case 'host-desc':
-          return `${b.user}@${b.host}`.localeCompare(`${a.user}@${a.host}`)
-        default:
-          return 0
-      }
-    })
-  }, [filteredSessions, sortBy])
+  const filtradas = useMemo(() => filtrarYOrdenar(sesiones, usuario, equipo, orden), [sesiones, usuario, equipo, orden]);
+  // paginar ajusta la página si ya no existe (p. ej. al borrar la última sesión de la última página)
+  const pag = useMemo(() => paginar(filtradas, pagina, POR_PAGINA), [filtradas, pagina]);
+  const grupos = useMemo(() => agrupar(pag.filas, orden), [pag, orden]);
 
-  // Cambiar filtro u orden reinicia la paginación -- si no, quedarías
-  // "en la página 5" de un resultado completamente distinto al nuevo filtro.
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE)
-  }, [filterUser, filterHost, sortBy])
-
-  const visibleSessions = sortedSessions.slice(0, visibleCount)
-  const hasMore = visibleCount < sortedSessions.length
-
-  const handleDeleteLog = (session: SessionLog) => {
-    modals.openConfirmModal({
-      title: '¿Eliminar log?',
-      centered: true,
-      overlayProps: { blur: 3 },
-      children: (
-        <Text size="sm" c="dimmed">
-          ¿Estás seguro de que deseas eliminar el log de{' '}
-          <strong>{session.user}@{session.host}</strong>? Esta acción no se puede deshacer.
-        </Text>
-      ),
-      labels: { confirm: 'Eliminar', cancel: 'Cancelar' },
-      confirmProps: { color: 'red' },
-      onConfirm: async () => {
-        try {
-          await deleteSessionLog(session.id)
-          push({ type: 'success', message: `Log de ${session.user}@${session.host} eliminado` })
-          setSessions(prev => prev.filter(s => s.id !== session.id))
-        } catch (error) {
-          push({ type: 'error', message: `Error al eliminar el log: ${error}` })
-        }
-      },
-    })
-  }
-
-  const handleViewBuffer = (session: SessionLog) => {
-    onOpenLog?.(session)
-  }
-
-  const handleDownloadReport = async (session: SessionLog) => {
-    push({ type: 'info', message: 'Preparando Reporte de Comandos...' })
+  const descargarPdf = async (s: SessionLog) => {
+    push({ type: 'info', message: 'Preparando el reporte de comandos…' });
     try {
-      const commands = await extractSessionCommands(session.id);
-      const reportHtml = buildCommandsReportHtml(commands, {
-        sessionId: session.id,
-        user: session.user,
-        host: session.host,
-        startTime: session.startedAt,
-        endTime: session.endedAt
-      });
-      
-      const container = document.createElement('div');
-      container.innerHTML = reportHtml;
-      
-      const opt = {
-        margin:       10,
-        filename:     `Commands_Report_${session.host}.pdf`,
-        image:        { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#1e1e1e', windowWidth: 1000 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-      }
-
-      const base64 = await html2pdf().set(opt).from(container).outputPdf('datauristring')
-      
-      const savedPath = await invoke<string>('save_pdf_base64', { 
-        sessionLogId: session.id,
-        base64Data: base64
-      })
-      
-      push({ type: 'success', message: `Reporte guardado: ${savedPath}` })
-    } catch (error) {
-      push({ type: 'error', message: `Error al generar Reporte: ${error}` })
+      push({ type: 'success', message: `Reporte guardado: ${await guardarReporteComandos(s)}` });
+    } catch (err) {
+      push({ type: 'error', message: `No se pudo generar el reporte: ${err}` });
     }
-  }
+  };
+
+  const confirmarBorrado = async () => {
+    if (!borrar) return;
+    try {
+      await deleteSessionLog(borrar.id);
+      setSesiones((prev) => prev.filter((s) => s.id !== borrar.id));
+      push({ type: 'success', message: 'Registro de la sesión eliminado' });
+    } catch (err) {
+      push({ type: 'error', message: `No se pudo eliminar el registro: ${err}` });
+    } finally {
+      setBorrar(null);
+    }
+  };
+
+  const filtrando = !!(usuario.trim() || equipo.trim());
 
   return (
-    <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
-      <Container size="lg" py="xl" px="xl">
-        <Stack gap="xl">
-          {/* Page title + description */}
-          <Stack gap={4}>
-            <Title order={1}>Logs</Title>
-            <Text size="md" c="dimmed" maw={580}>
-              Visualiza y analiza el historial de sesiones SSH.
-            </Text>
-          </Stack>
+    <Pagina>
+      <Encabezado
+        titulo="Sesiones SSH"
+        descripcion="Historial de las sesiones SSH: quién entró, a qué equipo, cuánto duró y qué comandos usó."
+        derecha={!error && <Boton onClick={() => void cargar()} disabled={cargando}><RefreshCw size={14} aria-hidden /> Recargar</Boton>}
+      />
 
-          {/* Toolbar — filters + sort + refresh */}
-          <Group gap="sm">
-            <TextInput
-              placeholder="Buscar usuario..."
-              value={filterUser}
-              onChange={e => setFilterUser(e.currentTarget.value)}
-              leftSection={<Search size={14} style={{ color: 'var(--text-secondary)' }} />}
-              size="sm"
-              w={180}
-              className="dribbble-toolbar-input"
-            />
-            <TextInput
-              placeholder="Buscar host..."
-              value={filterHost}
-              onChange={e => setFilterHost(e.currentTarget.value)}
-              leftSection={<Monitor size={14} style={{ color: 'var(--text-secondary)' }} />}
-              size="sm"
-              w={180}
-              className="dribbble-toolbar-input"
-            />
-            <Select
-              size="sm"
-              value={sortBy}
-              onChange={v => setSortBy((v ?? 'date-desc') as SortOption)}
-              data={[
-                { value: 'date-desc', label: 'Más recientes' },
-                { value: 'date-asc',  label: 'Más antiguos' },
-                { value: 'duration-desc', label: 'Mayor duración' },
-                { value: 'duration-asc',  label: 'Menor duración' },
-                { value: 'host-asc',  label: 'Host A→Z' },
-                { value: 'host-desc', label: 'Host Z→A' },
-              ]}
-              w={160}
-              allowDeselect={false}
-              className="dribbble-toolbar-input"
-            />
-            <Text size="xs" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-              {sortedSessions.length} sesión{sortedSessions.length !== 1 ? 'es' : ''}
-            </Text>
-            <Tooltip label="Recargar" withArrow>
-              <ActionIcon variant="subtle" className="dribbble-btn-secondary h-8 w-8" onClick={loadSessions} aria-label="Recargar">
-                <RefreshCw size={15} style={{ color: 'var(--text-primary)' }} />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
+      {error ? (
+        <Aviso nivel="critico" titulo="No se pudo leer el historial de sesiones"
+          detalle={<>Vuelve a intentarlo en un momento. Detalle: <span className="font-ui-num">{error}</span></>}
+          accion={<Boton onClick={() => void cargar()}><RefreshCw size={14} aria-hidden /> Reintentar</Boton>} />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <Buscador icono={Search} valor={usuario} onCambio={setUsuario} placeholder="Usuario" etiqueta="Buscar por usuario" ancho="w-[180px]" />
+            <Buscador icono={Monitor} valor={equipo} onCambio={setEquipo} placeholder="Equipo o IP" etiqueta="Buscar por equipo o IP" ancho="w-[180px]" />
+            <Selector<Orden> nombre="Orden" valor={orden} onCambio={setOrden}
+              opciones={[{ valor: 'recientes', etiqueta: 'Más recientes' }, { valor: 'largas', etiqueta: 'Más largas' }]} />
+          </div>
 
-          {/* Sessions grid */}
-          <SessionsGrid
-            sessions={visibleSessions}
-            selectedSessionId={null}
-            onSelectSession={s => onOpenLog?.(s)}
-            onViewBuffer={handleViewBuffer}
-            onSavePdf={handleDownloadReport}
-            onDeleteLog={handleDeleteLog}
-            loading={loading}
-          />
-
-          {!loading && hasMore && (
-            <Group justify="center">
-              <Button
-                className="dribbble-btn-secondary"
-                onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
-              >
-                Cargar más ({sortedSessions.length - visibleCount} restantes)
-              </Button>
-            </Group>
+          {cargando ? (
+            <FilasCargando plantilla={COLUMNAS} columnas={6} filas={8} />
+          ) : filtradas.length === 0 ? (
+            filtrando
+              ? <Aviso titulo="Ninguna sesión coincide con la búsqueda" detalle="Prueba con otra parte del usuario, del nombre del equipo o de la IP." />
+              : <Aviso titulo="Todavía no hay sesiones SSH registradas"
+                  detalle="Cada vez que alguien se conecta por SSH desde la app, la sesión aparece aquí con su duración y sus comandos." />
+          ) : (
+            <div className={TARJETA} role="table" aria-label="Sesiones SSH">
+              <div role="row" className={`grid ${COLUMNAS} gap-4 border-b border-ui-borde px-5 py-2.5`}>
+                {TITULOS.map((t, k) => (
+                  <span key={k} role="columnheader" className={`${ETIQUETA} ${k === 3 || k === 4 ? 'text-right' : ''}`}>
+                    {t || <span className="sr-only">Acciones</span>}
+                  </span>
+                ))}
+              </div>
+              {grupos.map((g) => (
+                <div key={g.titulo} role="rowgroup">
+                  <div className="border-b border-ui-pista bg-ui-fondo px-5 pb-1.5 pt-4 text-[13px] font-semibold text-ui-tinta">{g.titulo}</div>
+                  {g.sesiones.map((s, k) => (
+                    <FilaSesion key={s.id} sesion={s} primera={k === 0}
+                      onVer={() => onOpenLog?.(s)} onPdf={() => void descargarPdf(s)} onBorrar={() => setBorrar(s)} />
+                  ))}
+                </div>
+              ))}
+              <Paginador pagina={pag} onPagina={setPagina} unidad="sesiones" />
+            </div>
           )}
-        </Stack>
-      </Container>
-    </Box>
-  )
+        </>
+      )}
+
+      {borrar && (
+        <Dialogo
+          titulo="¿Eliminar el registro?"
+          descripcion={<>Se borra la sesión de {borrar.user} del{' '}
+            {new Date(borrar.startedAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}, con sus comandos. No se puede deshacer.</>}
+          onCerrar={() => setBorrar(null)}
+          acciones={<>
+            <Boton onClick={() => setBorrar(null)}>Cancelar</Boton>
+            <BotonPeligro onClick={() => void confirmarBorrado()}>Eliminar</BotonPeligro>
+          </>}
+        />
+      )}
+    </Pagina>
+  );
 }
 
-export default LogsPage
+function FilaSesion({ sesion: s, primera, onVer, onPdf, onBorrar }: {
+  sesion: SessionLog; primera: boolean; onVer: () => void; onPdf: () => void; onBorrar: () => void;
+}) {
+  const e = equipoDe(s.host, s.port);
+  const [nombre] = s.user.split('@');
+  return (
+    <div role="row" className={`grid ${COLUMNAS} items-center gap-4 px-5 py-2 ${FILA} ${primera ? '' : 'border-t border-ui-pista'}`}>
+      <span role="cell"><Num>{horaDe(s.startedAt)}</Num></span>
+      <span role="cell" title={s.user} className="truncate font-ui-num text-[12px] text-ui-tinta">{nombre}</span>
+      <span role="cell" title={`${s.host}:${s.port}`} className="truncate">
+        {e.nombre ? <span className="text-ui-tinta">{e.nombre}</span> : <span className="font-ui-num text-[12px]">{e.direccion}</span>}
+      </span>
+      <span role="cell" className="text-right">
+        {s.endedAt ? <Num>{duracionTexto(s.duration ?? 0)}</Num> : <span className="text-ui-bien-texto">en curso</span>}
+      </span>
+      <span role="cell" className={`text-right ${s.totalCommands ? '' : 'text-ui-apagado'}`}>
+        <Num>{s.totalCommands}</Num>
+      </span>
+      <span role="cell" className="flex justify-end gap-1">
+        <BotonIcono etiqueta="Ver registro" onClick={onVer}><ScrollText size={15} /></BotonIcono>
+        <BotonIcono etiqueta="Descargar PDF" onClick={onPdf}><FileDown size={15} /></BotonIcono>
+        <BotonIcono etiqueta="Eliminar registro" onClick={onBorrar}><Trash2 size={15} /></BotonIcono>
+      </span>
+    </div>
+  );
+}

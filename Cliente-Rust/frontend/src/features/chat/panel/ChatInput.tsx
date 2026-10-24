@@ -144,7 +144,7 @@ const ChatInput: React.FC<Props> = ({
             small.getContext('2d')!.drawImage(merged, 0, 0, small.width, small.height);
             dataUrl = small.toDataURL('image/jpeg', 0.65);
           }
-          const label = `PDF escaneado · ${pagesToRender}${pdf.numPages > MAX_PAGES ? '/' + pdf.numPages : ''} pág(s.)`;
+          const label = `PDF escaneado (${pagesToRender}${pdf.numPages > MAX_PAGES ? '/' + pdf.numPages : ''} pág(s.))`;
           setAttachedImage({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg', preview: dataUrl, label });
           const extra = pdf.numPages > MAX_PAGES ? ` (de ${pdf.numPages} totales)` : '';
           setToast(`PDF escaneado: ${pagesToRender} pág(s.)${extra} → Claude Vision`); setTimeout(() => setToast(null), 3000);
@@ -520,18 +520,18 @@ const ChatInput: React.FC<Props> = ({
             <span className={isPill ? 'text-[var(--text-muted)]' : undefined}>
               {mode === 'agente'
                 ? (pi4AgentReady || sessionId
-                  ? 'Modo agente · ejecuta comandos en la Raspberry (PI4 en .env o sesión SSH)'
-                  : 'Modo agente · configura PI4_USER y PI4_PASSWORD en .env o conecta SSH')
+                  ? 'Modo agente: ejecuta comandos en la Raspberry (PI4 en .env o sesión SSH)'
+                  : 'Modo agente: configura PI4_USER y PI4_PASSWORD en .env o conecta SSH')
                 : mode === 'plan'
                   ? (pi4AgentReady || sessionId
-                    ? 'Modo plan · requiere PI4 en .env o sesión SSH'
-                    : 'Modo plan · requiere PI4 en .env o sesión SSH')
+                    ? 'Modo plan: requiere PI4 en .env o sesión SSH'
+                    : 'Modo plan: requiere PI4 en .env o sesión SSH')
                   : (pi4AgentReady
-                    ? 'Modo consulta · cambia a Agente en el selector junto al enviar'
-                    : 'Modo consulta · conecta SSH o configura PI4 en .env para Agente')}
+                    ? 'Modo consulta: cambia a Agente en el selector junto al enviar'
+                    : 'Modo consulta: conecta SSH o configura PI4 en .env para Agente')}
             </span>
           ) : input.length === 0 ? null : (
-            <span className={`${input.length > MAX_CHAR_WARN ? 'text-red-400 font-semibold' : 'text-secondary/50 font-medium'}`}>
+            <span className={`${input.length > MAX_CHAR_WARN ? 'text-red-400' : 'text-secondary/50'}`}>
               {input.length > MAX_CHAR_WARN
                 ? `⚠ ${input.length.toLocaleString()} car. — mensaje muy largo`
                 : `${input.length} car.`}

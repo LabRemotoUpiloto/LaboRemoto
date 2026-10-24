@@ -5,7 +5,7 @@ import SftpPage from '@/features/sftp/SftpPage'
 import SnippetsPage from '@/features/snippets/SnippetsPage'
 import LogsPage from '@/features/logs/LogsPage'
 import type { Tab } from '@/app/hooks/useAppTabs'
-import type { SessionLog } from '@/features/logs/SessionCard'
+import type { SessionLog } from '@/features/logs/sesiones'
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession'
 
 type PracticeMeta = {

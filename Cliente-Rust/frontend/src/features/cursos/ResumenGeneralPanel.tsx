@@ -13,7 +13,7 @@ const colorNota = (n: number) => (n >= 70 ? 'green' : n >= 40 ? 'yellow' : 'red'
 const Dato: React.FC<{ etiqueta: string; valor: string; detalle?: string }> = ({ etiqueta, valor, detalle }) => (
   <Paper radius="lg" p="md" style={{ background: 'var(--background-secondary)', border: '1px solid var(--border-subtle)' }}>
     <Text size="xs" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: '.05em' }}>{etiqueta}</Text>
-    <Text fw={800} style={{ fontSize: 24 }}>{valor}</Text>
+    <Text style={{ fontSize: 24 }}>{valor}</Text>
     {detalle && <Text size="xs" c="dimmed">{detalle}</Text>}
   </Paper>
 );
@@ -73,11 +73,11 @@ export default function ResumenGeneralPanel({ cursoId }: { cursoId: number }) {
                   {f.nombre !== f.usuario && <Text size="xs" c="dimmed">{f.usuario}</Text>}
                 </Table.Td>
                 <Table.Td>
-                  <Text size="xs" c="dimmed" mb={2}>{f.entregadas} de {f.total} · {textoNota(f.avance)}</Text>
+                  <Text size="xs" c="dimmed" mb={2}>{f.entregadas} de {f.total} ({textoNota(f.avance)})</Text>
                   <Progress value={f.avance} size="sm" radius="xl" aria-label={`Avance de ${f.nombre}`} />
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" fw={800} c={colorNota(f.general)}>{textoNota(f.general)}</Text>
+                  <Text size="sm" c={colorNota(f.general)}>{textoNota(f.general)}</Text>
                 </Table.Td>
                 {f.notas.map((n, j) => (
                   <Table.Td key={datos.practicas[j].cmid}>
@@ -91,9 +91,9 @@ export default function ResumenGeneralPanel({ cursoId }: { cursoId: number }) {
           </Table.Tbody>
           <Table.Tfoot>
             <Table.Tr>
-              <Table.Td colSpan={3}><Text size="xs" c="dimmed">Por práctica: entregaron · promedio</Text></Table.Td>
+              <Table.Td colSpan={3}><Text size="xs" c="dimmed">Por práctica: entregaron (promedio)</Text></Table.Td>
               {g.porPractica.map((p) => (
-                <Table.Td key={p.cmid}><Text size="xs" c="dimmed">{p.entregaron}/{g.curso.estudiantes} · {textoNota(p.promedio)}</Text></Table.Td>
+                <Table.Td key={p.cmid}><Text size="xs" c="dimmed">{p.entregaron}/{g.curso.estudiantes} ({textoNota(p.promedio)})</Text></Table.Td>
               ))}
             </Table.Tr>
           </Table.Tfoot>

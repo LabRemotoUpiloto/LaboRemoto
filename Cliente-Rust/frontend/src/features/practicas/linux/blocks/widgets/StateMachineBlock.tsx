@@ -35,7 +35,7 @@ export function StateMachineBlock({ block }: { block: Extract<LinuxBlock, { type
             </div>
           ))}
         </Group>
-        <Text fz="xs">Estado actual: <b>{label(current)}</b>. Prueba disparar un evento:</Text>
+        <Text fz="xs">Estado actual: {label(current)}. Prueba disparar un evento:</Text>
         <Group gap={6}>
           {available.map(e => (
             <Button key={e.id} size="compact-xs" variant="light" onClick={() => setCurrent(e.to)}>

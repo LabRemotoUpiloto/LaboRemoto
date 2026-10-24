@@ -1,346 +1,197 @@
-// features/actividad/DashboardPage.tsx — actividad del laboratorio para el
-// personal de supervisión (jefe, coordinador, laboratorista, admin), en dos pestañas:
-//  - General: las prácticas que reporta la app (cmd::sesiones). En Fase 1 todos ven el laboratorio completo.
+// features/actividad/DashboardPage.tsx — Actividad, para el personal de supervisión (jefe, coordinador, laboratorista, admin).
+// Tres pestañas con el mismo encabezado (período y «Actualizar»):
+//  - General: las prácticas que reporta la app (cmd::sesiones). Los números van en una frase y en tablas, no en tarjetas.
 //  - Dispositivos: quién entra por SSH a cada Pi, con su ubicación (cmd::dispositivos). Aparte de las prácticas.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActionIcon, Box, Group, Loader, Paper, SegmentedControl, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip, UnstyledButton } from '@mantine/core';
-import { Activity, RefreshCw, Search, X } from 'lucide-react';
-import { sesionesService, type ResumenSesiones, type SesionPractica } from './sesiones.service';
+//  - Encuestas: lo que respondieron los estudiantes al terminar cada práctica (anónimo).
+import { useMemo, useState } from 'react';
+import { RefreshCw, Search } from 'lucide-react';
+import {
+  Aviso, Boton, BarraAcento, BotonIcono, Buscador, Encabezado, NOTA, Num, Pagina, Pestanas, Punto, Seccion, Selector, TARJETA, Tabla,
+  FilasCargando, type Opcion,
+} from '@/components/ui';
+import { sesionesService, type SesionPractica } from './sesiones.service';
 import SesionesMapa from './SesionesMapa';
 import DispositivosPanel from './DispositivosPanel';
 import EncuestasPanel from './EncuestasPanel';
 import {
-  conteoPorPractica, detalleUbicacion, duracionMs, esActiva, formatoDuracion, formatoFecha, nombreEstudiante, nombrePractica,
-  porEstudiante, porUbicacion, resumenGeneral, sesionesPorDia, ubicacion,
+  conteoPorPractica, detalleUbicacion, duracionMs, esActiva, formatoDuracion, nombreEstudiante, nombrePractica, porEstudiante,
+  porUbicacion, resumenGeneral, sesionesPorDia, ubicacion,
 } from './dashboardStats';
+import { useResumen } from './useResumen';
+import { fechaCorta, MESES, PersonaBoton, type PropsPestana } from './piezas';
 
-const REFRESCO_MS = 30_000;
-const PERIODOS = [
-  { value: '7', label: '7 días' },
-  { value: '30', label: '30 días' },
-  { value: '90', label: '90 días' },
-];
+type PestanaActividad = 'general' | 'dispositivos' | 'encuestas';
 
-const panel: React.CSSProperties = { background: 'var(--background-secondary)', border: '1px solid var(--border-subtle)' };
+// Las encuestas se juntan más despacio: su período va de 30 días a un año.
+const PERIODOS: Opcion<string>[] = [{ valor: '7', etiqueta: '7 días' }, { valor: '30', etiqueta: '30 días' }, { valor: '90', etiqueta: '90 días' }];
+const PERIODOS_ENCUESTAS: Opcion<string>[] = [{ valor: '30', etiqueta: '30 días' }, { valor: '90', etiqueta: '90 días' }, { valor: '365', etiqueta: '1 año' }];
 
-const Seccion: React.FC<{ titulo: string; subtitulo?: string; children: React.ReactNode }> = ({ titulo, subtitulo, children }) => (
-  <Paper radius="lg" p="lg" style={panel}>
-    <Stack gap="md">
-      <div>
-        <Text fw={700}>{titulo}</Text>
-        {subtitulo && <Text size="xs" c="dimmed">{subtitulo}</Text>}
-      </div>
-      {children}
-    </Stack>
-  </Paper>
-);
-
-const Dato: React.FC<{ etiqueta: string; valor: string | number; destacado?: boolean; texto?: boolean }> = ({ etiqueta, valor, destacado, texto }) => (
-  <Paper radius="lg" p="md" style={panel}>
-    <Text size="xs" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: '.05em' }}>{etiqueta}</Text>
-    <Text
-      fw={800}
-      lineClamp={texto ? 2 : 1}
-      title={String(valor)}
-      style={{ fontSize: texto ? 15 : 24, lineHeight: texto ? 1.3 : undefined, color: destacado ? 'var(--accent-primary)' : undefined }}
-    >
-      {valor}
-    </Text>
-  </Paper>
-);
-
-const Leyenda: React.FC<{ color: string; punteada?: boolean; children: React.ReactNode }> = ({ color, punteada, children }) => (
-  <Group gap={6}>
-    <Box
-      style={punteada
-        ? { width: 10, height: 10, borderRadius: 999, border: `2px dashed ${color}` }
-        : { width: 10, height: 10, borderRadius: 999, background: color }}
-      aria-hidden
-    />
-    <Text size="xs" c="dimmed">{children}</Text>
-  </Group>
-);
-
-const Vacio: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Text size="sm" c="dimmed" ta="center" py="lg">{children}</Text>
-);
-
-const BarrasPorDia: React.FC<{ datos: { dia: string; total: number }[] }> = ({ datos }) => {
-  const max = Math.max(1, ...datos.map((d) => d.total));
-  const etiqueta = (dia: string) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
-  return (
-    <div>
-      <Group gap={2} align="flex-end" wrap="nowrap" style={{ height: 140 }}>
-        {datos.map((d) => (
-          <Tooltip key={d.dia} label={`${etiqueta(d.dia)}: ${d.total} sesión(es)`} withArrow>
-            <Box
-              style={{
-                flex: 1,
-                minWidth: 2,
-                height: `${Math.max(d.total ? 6 : 2, (d.total / max) * 100)}%`,
-                background: d.total ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                borderRadius: '3px 3px 0 0',
-              }}
-            />
-          </Tooltip>
-        ))}
-      </Group>
-      <Group justify="space-between" mt={6}>
-        <Text size="xs" c="dimmed">{datos.length ? etiqueta(datos[0].dia) : ''}</Text>
-        <Text size="xs" c="dimmed">Hoy</Text>
-      </Group>
-    </div>
-  );
-};
-
-const BarrasPracticas: React.FC<{ datos: { nombre: string; total: number }[] }> = ({ datos }) => {
-  if (!datos.length) return <Vacio>Sin sesiones en el período.</Vacio>;
-  const max = datos[0].total;
-  return (
-    <Stack gap={10}>
-      {datos.slice(0, 8).map((d) => (
-        <div key={d.nombre}>
-          <Group justify="space-between" gap="xs" wrap="nowrap">
-            <Text size="sm" truncate>{d.nombre}</Text>
-            <Text size="sm" fw={600}>{d.total}</Text>
-          </Group>
-          <Box style={{ height: 6, borderRadius: 3, background: 'var(--border-subtle)', marginTop: 4 }}>
-            <Box style={{ width: `${(d.total / max) * 100}%`, height: '100%', borderRadius: 3, background: 'var(--accent-primary)' }} />
-          </Box>
-        </div>
-      ))}
-    </Stack>
-  );
-};
-
-const TablaSesiones: React.FC<{ sesiones: SesionPractica[]; ahora: number; conEstudiante?: boolean }> = ({ sesiones, ahora, conEstudiante = true }) => (
-  <Box style={{ overflowX: 'auto' }}>
-    <Table className="tabla-sesiones" verticalSpacing="sm" borderColor="var(--border-subtle)" miw={640}>
-      <Table.Thead>
-        <Table.Tr>
-          {conEstudiante && <Table.Th>Estudiante</Table.Th>}
-          <Table.Th>Práctica</Table.Th>
-          <Table.Th>Inicio</Table.Th>
-          <Table.Th>Duración</Table.Th>
-          <Table.Th>Ubicación</Table.Th>
-          <Table.Th>IP</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {sesiones.map((s) => (
-          <Table.Tr key={s.id}>
-            {conEstudiante && (
-              <Table.Td>
-                <Text size="sm" fw={600}>{nombreEstudiante(s)}</Text>
-                <Text size="xs" c="dimmed">{s.usuario}</Text>
-              </Table.Td>
-            )}
-            <Table.Td><Text size="sm">{nombrePractica(s)}</Text></Table.Td>
-            <Table.Td><Text size="sm">{formatoFecha(s.inicio)}</Text></Table.Td>
-            <Table.Td>
-              <Text size="sm">{formatoDuracion(duracionMs(s, ahora))}</Text>
-              {esActiva(s)
-                ? <Text size="xs" style={{ color: 'var(--success)' }}>En curso</Text>
-                : s.cierre === 'sin_latido' && <Text size="xs" c="dimmed">Se perdió la conexión</Text>}
-            </Table.Td>
-            <Table.Td>
-              <Text size="sm">{ubicacion(s)}</Text>
-              {detalleUbicacion(s) && <Text size="xs" c="dimmed">{detalleUbicacion(s)}</Text>}
-            </Table.Td>
-            <Table.Td><Text size="xs" c="dimmed" ff="monospace">{s.ip || '—'}</Text></Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
-  </Box>
-);
-
-function ActividadGeneral() {
+export default function DashboardPage() {
+  const [pestana, setPestana] = useState<PestanaActividad>('general');
   const [dias, setDias] = useState('30');
-  const [datos, setDatos] = useState<ResumenSesiones | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [ahora, setAhora] = useState(() => Date.now());
+  const [diasEncuestas, setDiasEncuestas] = useState('90');
+  const [recarga, setRecarga] = useState(0);
+  const encuestas = pestana === 'encuestas';
+
+
+  const props: PropsPestana = {
+    dias: Number(encuestas ? diasEncuestas : dias), recarga, reintentar: () => setRecarga((n) => n + 1),
+  };
+  return (
+    <Pagina>
+      <Encabezado
+        titulo="Actividad"
+        descripcion="Qué prácticas se hacen, quién las hace y desde dónde."
+        derecha={<>
+          <Selector nombre="Período" valor={encuestas ? diasEncuestas : dias} onCambio={encuestas ? setDiasEncuestas : setDias}
+            opciones={encuestas ? PERIODOS_ENCUESTAS : PERIODOS} />
+          <BotonIcono etiqueta="Actualizar" onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={15} /></BotonIcono>
+        </>}
+        pestanas={<Pestanas<PestanaActividad> nombre="Secciones de Actividad" valor={pestana}
+          onCambio={setPestana}
+          opciones={[{ valor: 'general', etiqueta: 'General' }, { valor: 'dispositivos', etiqueta: 'Dispositivos' }, { valor: 'encuestas', etiqueta: 'Encuestas' }]} />}
+      />
+      {pestana === 'general' ? <General {...props} /> : pestana === 'dispositivos' ? <DispositivosPanel {...props} /> : <EncuestasPanel {...props} />}
+    </Pagina>
+  );
+}
+
+function General({ dias, recarga, reintentar }: PropsPestana) {
+  const { datos, error, cargando, ahora } = useResumen(sesionesService.resumen, dias, recarga, 30_000);
   const [busqueda, setBusqueda] = useState('');
-  const [seleccionado, setSeleccionado] = useState<string | null>(null);
-
-  const cargar = useCallback(async () => {
-    try {
-      const r = await sesionesService.resumen(Number(dias));
-      setDatos(r);
-      setAhora(Date.now());
-      setError(null);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
-    } finally {
-      setCargando(false);
-    }
-  }, [dias]);
-
-  useEffect(() => {
-    setCargando(true);
-    void cargar();
-    const t = setInterval(() => void cargar(), REFRESCO_MS);
-    return () => clearInterval(t);
-  }, [cargar]);
+  const [elegido, setElegido] = useState<string | null>(null);
 
   const sesiones = datos?.sesiones ?? [];
-  const general = useMemo(() => resumenGeneral(sesiones, ahora), [sesiones, ahora]);
+  const g = useMemo(() => resumenGeneral(sesiones, ahora), [sesiones, ahora]);
   const activas = useMemo(() => sesiones.filter(esActiva), [sesiones]);
-  const porDia = useMemo(() => sesionesPorDia(sesiones, Number(dias), ahora), [sesiones, dias, ahora]);
+  const porDia = useMemo(() => sesionesPorDia(sesiones, dias, ahora), [sesiones, dias, ahora]);
+  const maximo = Math.max(1, ...porDia.map((d) => d.total));
   const practicas = useMemo(() => conteoPorPractica(sesiones), [sesiones]);
   const puntos = useMemo(() => porUbicacion(sesiones), [sesiones]);
   const estudiantes = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return porEstudiante(sesiones, ahora).filter((e) => !q || e.nombre.toLowerCase().includes(q) || e.usuario.toLowerCase().includes(q));
   }, [sesiones, ahora, busqueda]);
-  const historial = useMemo(() => sesiones.filter((s) => s.usuario === seleccionado), [sesiones, seleccionado]);
+  const historial = useMemo(() => sesiones.filter((s) => s.usuario === elegido), [sesiones, elegido]);
+
+  if (cargando && !datos) return <FilasCargando plantilla="grid-cols-[minmax(0,1fr)_90px_130px_130px]" columnas={4} />;
+  if (error && !datos) return <Aviso nivel="critico" titulo="No se pudo cargar la actividad" detalle={error} accion={<Boton onClick={reintentar}>Reintentar</Boton>} />;
+  if (!sesiones.length) {
+    return <Aviso titulo={`No hubo sesiones de práctica en los últimos ${dias} días`}
+      detalle="Cada práctica que se abre desde la app aparece aquí, con quién la hizo, cuánto duró y desde dónde." />;
+  }
 
   return (
-    <Box h="100%" style={{ overflow: 'auto' }}>
-      <style>{`.tabla-sesiones tbody tr:hover { background: var(--background-tertiary, var(--background-secondary)); }`}</style>
-      <Stack gap="lg" p="xl" maw={1200} mx="auto">
-        <Group justify="space-between" align="flex-start" wrap="wrap" gap="md">
-          <Group gap={12} wrap="nowrap">
-            <Activity size={26} style={{ color: 'var(--accent-primary)' }} aria-hidden />
-            <div>
-              <Title order={1} style={{ fontSize: 26, letterSpacing: '-.02em' }}>Actividad del laboratorio</Title>
-              <Text size="sm" c="dimmed">
-                Prácticas reportadas por la app{datos ? ` · actualizado ${new Date(ahora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}` : ''}
-              </Text>
+    <>
+      {error && <Aviso nivel="alerta" titulo="No se pudo actualizar" detalle={`Se muestran los datos anteriores. Detalle: ${error}`} />}
+
+      <section className="flex flex-col gap-2">
+        <p className="m-0 max-w-[760px] text-[15px] leading-relaxed text-ui-tinta-2">
+          En los últimos <Num>{dias}</Num> días hubo <Num>{g.total}</Num> {g.total === 1 ? 'sesión' : 'sesiones'} de{' '}
+          <Num>{g.estudiantes}</Num> {g.estudiantes === 1 ? 'estudiante' : 'estudiantes'}
+          {g.duracionPromedioMs != null && <>, de <Num>{formatoDuracion(g.duracionPromedioMs)}</Num> en promedio</>}.
+          {g.practicaTop && <> La más usada fue {g.practicaTop}.</>}
+        </p>
+        {activas.length
+          ? <Punto nivel="bien" fuerte={`${activas.length} en práctica`} resto="ahora mismo" />
+          : <Punto nivel="apagado" fuerte="Nadie" resto="está haciendo una práctica en este momento." />}
+      </section>
+
+      {activas.length > 0 && (
+        <Seccion titulo="En práctica ahora"><TablaSesiones sesiones={activas} ahora={ahora} conEstudiante /></Seccion>
+      )}
+
+      <Seccion titulo="Sesiones por día">
+        <div className={`${TARJETA} flex flex-col gap-2 px-5 pb-3 pt-5`}>
+          <div className="flex h-[120px] items-end gap-1" role="img"
+            aria-label={`Sesiones por día en los últimos ${dias} días: ${g.total} en total, máximo ${maximo} en un día.`}>
+            {porDia.map((d) => (
+              <div key={d.dia} title={`${Number(d.dia.slice(8))} ${MESES[Number(d.dia.slice(5, 7)) - 1]}: ${d.total}`}
+                className={`flex-1 rounded-t-[2px] ${d.total ? 'bg-ui-acento-texto' : 'bg-ui-pista'}`}
+                style={{ height: d.total ? `${Math.max(3, (d.total / maximo) * 100)}%` : '1px' }} />
+            ))}
+          </div>
+          <div className="flex justify-between border-t border-ui-pista pt-2">
+            <span className={NOTA}>{porDia[0] && `${Number(porDia[0].dia.slice(8))} ${MESES[Number(porDia[0].dia.slice(5, 7)) - 1]}`}</span>
+            <span className={NOTA}>hoy</span>
+          </div>
+        </div>
+      </Seccion>
+
+      <Seccion titulo="Prácticas más usadas">
+        <div className={`${TARJETA} px-5 py-1`}>
+          {practicas.slice(0, 8).map((p, i) => (
+            <div key={p.nombre} className={`grid grid-cols-[minmax(0,1fr)_minmax(120px,260px)_40px] items-center gap-5 py-2.5 text-[13px] ${i ? 'border-t border-ui-pista' : ''}`}>
+              <span className="truncate text-ui-tinta">{p.nombre}</span>
+              <BarraAcento frac={p.total / practicas[0].total} />
+              <span className="text-right"><Num>{p.total}</Num></span>
             </div>
-          </Group>
-          <Group gap="sm">
-            <SegmentedControl data={PERIODOS} value={dias} onChange={(v) => setDias(String(v))} />
-            <Tooltip label="Actualizar">
-              <ActionIcon variant="subtle" size="lg" onClick={() => void cargar()} aria-label="Actualizar">
-                <RefreshCw size={18} />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
-        </Group>
+          ))}
+        </div>
+      </Seccion>
 
-        {cargando && !datos ? (
-          <Group py={60} justify="center"><Loader size="sm" /><Text size="sm" c="dimmed">Cargando actividad…</Text></Group>
-        ) : error && !datos ? (
-          <Paper radius="lg" p="xl" style={panel}>
-            <Text fw={600}>No se pudo cargar la actividad</Text>
-            <Text size="sm" c="dimmed">{error}</Text>
-          </Paper>
-        ) : (
-          <>
-            {error && <Text size="xs" style={{ color: 'var(--danger)' }}>Último refresco falló: {error}</Text>}
+      <Seccion titulo="Estudiantes"
+        derecha={<Buscador icono={Search} valor={busqueda} onCambio={setBusqueda} placeholder="Buscar por nombre o usuario" />}>
+        {estudiantes.length ? (
+          <Tabla
+            plantilla="grid-cols-[minmax(0,1fr)_90px_130px_130px]"
+            columnas={[{ titulo: 'Estudiante' }, { titulo: 'Sesiones', derecha: true }, { titulo: 'Tiempo total', derecha: true }, { titulo: 'Última', derecha: true }]}
+            claves={estudiantes.map((e) => e.usuario)}
+            filas={estudiantes.map((e) => [
+              <PersonaBoton nombre={e.nombre} usuario={e.usuario} abierta={elegido === e.usuario} enCurso={e.activa ? 'en práctica' : undefined}
+                onClick={() => setElegido(elegido === e.usuario ? null : e.usuario)} />,
+              <Num>{e.sesiones}</Num>,
+              <Num>{formatoDuracion(e.tiempoTotalMs)}</Num>,
+              <Num>{fechaCorta(e.ultima)}</Num>,
+            ])}
+          />
+        ) : <Aviso titulo={`Nadie coincide con «${busqueda.trim()}»`} />}
+      </Seccion>
 
-            <SimpleGrid cols={{ base: 2, md: 5 }} spacing="md">
-              <Dato etiqueta="Conectados ahora" valor={general.activas} destacado />
-              <Dato etiqueta="Sesiones" valor={general.total} />
-              <Dato etiqueta="Estudiantes" valor={general.estudiantes} />
-              <Dato etiqueta="Duración promedio" valor={formatoDuracion(general.duracionPromedioMs)} />
-              <Dato etiqueta="Práctica más usada" valor={general.practicaTop ?? '—'} texto={!!general.practicaTop} />
-            </SimpleGrid>
+      {elegido && historial.length > 0 && (
+        <Seccion titulo={`Historial de ${nombreEstudiante(historial[0])}`}
+          derecha={<Boton onClick={() => setElegido(null)}>Cerrar</Boton>}>
+          <TablaSesiones sesiones={historial} ahora={ahora} />
+        </Seccion>
+      )}
 
-            <Seccion titulo="En vivo" subtitulo="Quién está haciendo una práctica en este momento">
-              {activas.length
-                ? <TablaSesiones sesiones={activas} ahora={ahora} />
-                : <Vacio>Nadie está haciendo prácticas en este momento.</Vacio>}
-            </Seccion>
-
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-              <Seccion titulo="Sesiones por día">
-                <BarrasPorDia datos={porDia} />
-              </Seccion>
-              <Seccion titulo="Prácticas más usadas">
-                <BarrasPracticas datos={practicas} />
-              </Seccion>
-            </SimpleGrid>
-
-            <Seccion titulo="¿Desde dónde se conectan?" subtitulo="Ubicación del equipo del estudiante (≈110 m) cuando la permite; si no, aproximada por IP.">
-              {puntos.length ? (
-                <>
-                  <Group gap="lg">
-                    <Leyenda color="var(--success)">Sesión en curso</Leyenda>
-                    <Leyenda color="var(--accent-primary)">Solo historial</Leyenda>
-                    <Leyenda color="var(--accent-primary)" punteada>Aproximada por IP (centro de ciudad)</Leyenda>
-                  </Group>
-                  <SesionesMapa puntos={puntos} />
-                </>
-              ) : <Vacio>Todavía no hay sesiones con ubicación en el período.</Vacio>}
-            </Seccion>
-
-            <Seccion titulo="Por estudiante" subtitulo="Selecciona a alguien para ver su historial">
-              <TextInput
-                placeholder="Buscar por nombre o usuario…"
-                aria-label="Buscar estudiante"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.currentTarget.value)}
-                leftSection={<Search size={16} aria-hidden />}
-                styles={{ input: { background: 'var(--background-secondary)', border: '1px solid var(--border-subtle)' } }}
-                rightSection={busqueda && (
-                  <ActionIcon variant="subtle" color="gray" onClick={() => setBusqueda('')} aria-label="Limpiar búsqueda"><X size={14} /></ActionIcon>
-                )}
-                maw={320}
-              />
-              {estudiantes.length ? (
-                <Stack gap={0}>
-                  {estudiantes.map((e) => (
-                    <UnstyledButton
-                      key={e.usuario}
-                      onClick={() => setSeleccionado(seleccionado === e.usuario ? null : e.usuario)}
-                      aria-expanded={seleccionado === e.usuario}
-                      px="sm"
-                      py="xs"
-                      style={{
-                        borderRadius: 8,
-                        background: seleccionado === e.usuario ? 'var(--interactive-hover, var(--background-tertiary))' : undefined,
-                      }}
-                    >
-                      <Group justify="space-between" wrap="nowrap">
-                        <div style={{ minWidth: 0 }}>
-                          <Text size="sm" fw={600} truncate>{e.nombre}{e.activa && <Text span size="xs" ml={6} style={{ color: 'var(--success)' }}>● en curso</Text>}</Text>
-                          <Text size="xs" c="dimmed">{e.usuario}</Text>
-                        </div>
-                        <Group gap="lg" wrap="nowrap">
-                          <Text size="sm" c="dimmed">{e.sesiones} sesión(es)</Text>
-                          <Text size="sm" c="dimmed" visibleFrom="sm">{formatoDuracion(e.tiempoTotalMs)} en total</Text>
-                          <Text size="sm" c="dimmed" visibleFrom="sm">Última: {formatoFecha(e.ultima)}</Text>
-                        </Group>
-                      </Group>
-                    </UnstyledButton>
-                  ))}
-                </Stack>
-              ) : (
-                <Vacio>{busqueda.trim() ? 'No hay nadie con ese nombre en el período.' : 'Sin sesiones en el período.'}</Vacio>
-              )}
-              {seleccionado && historial.length > 0 && (
-                <Box pt="sm" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                  <Text size="sm" fw={600} mb="xs">Historial de {nombreEstudiante(historial[0])}</Text>
-                  <TablaSesiones sesiones={historial} ahora={ahora} conEstudiante={false} />
-                </Box>
-              )}
-            </Seccion>
-          </>
-        )}
-      </Stack>
-    </Box>
+      <Seccion titulo="Desde dónde se conectan"
+        derecha={<span className={NOTA}>verde: en práctica ahora; punteado: aproximado por IP (centro de la ciudad)</span>}>
+        {puntos.length
+          ? <div className={`${TARJETA} h-[300px]`}><SesionesMapa puntos={puntos} /></div>
+          : <Aviso titulo="Todavía no hay sesiones con ubicación en el período" />}
+      </Seccion>
+    </>
   );
 }
 
-const PESTANAS = [
-  { value: 'general', label: 'General' },
-  { value: 'dispositivos', label: 'Dispositivos' },
-  { value: 'encuestas', label: 'Encuestas' },
-];
-
-export default function DashboardPage() {
-  const [pestana, setPestana] = useState('general');
+function TablaSesiones({ sesiones, ahora, conEstudiante }: { sesiones: SesionPractica[]; ahora: number; conEstudiante?: boolean }) {
+  const columnas = [
+    ...(conEstudiante ? [{ titulo: 'Estudiante' }] : []),
+    { titulo: 'Práctica' }, { titulo: 'Inicio', derecha: true }, { titulo: 'Duración', derecha: true }, { titulo: 'Desde' }, { titulo: 'IP' },
+  ];
   return (
-    <Box h="100%" style={{ display: 'flex', flexDirection: 'column' }}>
-      <Box px="xl" pt="md" style={{ flexShrink: 0 }}>
-        <SegmentedControl data={PESTANAS} value={pestana} onChange={(v) => setPestana(String(v))} aria-label="Sección de actividad" />
-      </Box>
-      <Box style={{ flex: 1, minHeight: 0 }}>
-        {pestana === 'general' ? <ActividadGeneral /> : pestana === 'dispositivos' ? <DispositivosPanel /> : <EncuestasPanel />}
-      </Box>
-    </Box>
+    <Tabla
+      plantilla={conEstudiante
+        ? 'grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_110px_120px_minmax(0,1fr)_120px]'
+        : 'grid-cols-[minmax(0,1fr)_110px_120px_minmax(0,1fr)_120px]'}
+      columnas={columnas}
+      claves={sesiones.map((s) => s.id)}
+      filas={sesiones.map((s) => [
+        ...(conEstudiante ? [<span className="block truncate font-semibold text-ui-tinta">{nombreEstudiante(s)}</span>] : []),
+        <span className="block truncate text-ui-tinta" title={nombrePractica(s)}>{nombrePractica(s)}</span>,
+        <Num>{fechaCorta(s.inicio)}</Num>,
+        <span className="flex flex-col items-end">
+          <Num>{formatoDuracion(duracionMs(s, ahora))}</Num>
+          {esActiva(s) ? <span className="text-[11px] text-ui-bien-texto">en curso</span>
+            : s.cierre === 'sin_latido' && <span className="text-[11px] text-ui-apagado">se perdió la conexión</span>}
+        </span>,
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate">{ubicacion(s)}</span>
+          {detalleUbicacion(s) && <span className="truncate text-[11px] text-ui-apagado">{detalleUbicacion(s)}</span>}
+        </span>,
+        <span className="block truncate font-ui-num text-[12px] text-ui-apagado">{s.ip || '—'}</span>,
+      ])}
+    />
   );
 }

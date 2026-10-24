@@ -599,7 +599,7 @@ export default function Ev3Twin({ status }: Ev3TwinProps) {
               <div key={port} className="twin-row">
                 <span className={`twin-dot sensor ${s ? 'on' : ''}`} />
                 <span className="twin-port">{port.replace('in', 'S')}</span>
-                <span className="twin-val">{s ? `${s.sensor_type} · ${s.value.toFixed(1)}` : 'vacío'}</span>
+                <span className="twin-val">{s ? `${s.sensor_type}: ${s.value.toFixed(1)}` : 'vacío'}</span>
               </div>
             );
           })}

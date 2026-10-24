@@ -186,9 +186,8 @@ export const AskRenderer: React.FC<AskRendererProps> = ({ content: contenidoOrig
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return (
-          <strong key={i} className="font-semibold text-[var(--text-primary)]">
-            {part.slice(2, -2)}
-          </strong>
+          // **…** sin resaltar: texto normal
+          <React.Fragment key={i}>{part.slice(2, -2)}</React.Fragment>
         );
       }
       if (part.startsWith('*') && part.endsWith('*')) {

@@ -32,7 +32,7 @@ function Pi4Tarjeta({ pi, onAbrir }: { pi: DatosPi; onAbrir: () => void }) {
     const v = ultima && !error ? ind.valor(ultima) : null;
     const f = (x: number) => (x - piso) / (techo - piso);
     return (
-      <Lectura key={id} nombre={id === 'latencia' ? 'API · p95' : ind.titulo} valor={formatoValor(v, ind.unidad)}
+      <Lectura key={id} nombre={id === 'latencia' ? 'API (p95)' : ind.titulo} valor={formatoValor(v, ind.unidad)}
         frac={v == null ? null : f(v)} alerta={f(ind.alerta)} critico={f(ind.critico)} nivel={NIVEL_DE[estadoDe(ind, v) ?? ''] ?? null} />
     );
   };
@@ -46,14 +46,14 @@ function Pi4Tarjeta({ pi, onAbrir }: { pi: DatosPi; onAbrir: () => void }) {
         mem && `${mem.usada_mb.toLocaleString('es-CO')} de ${mem.total_mb.toLocaleString('es-CO')} MB`,
         ultima.red_rx_kbps != null && `recibe ${(ultima.red_rx_kbps / 1000).toFixed(1)} Mbps`,
         encendida && `encendida hace ${duracion(Date.now() / 1000 - encendida)}`,
-      ].filter(Boolean).join('  ·  ');
+      ].filter(Boolean).join(', ');
 
   return (
     <article className={`${TARJETA} grid gap-6 p-8 md:grid-cols-[280px_1fr]`}>
       <div className="flex flex-col gap-3">
         <PlacaPi4 apagado={sinDatos} className="w-full max-w-[260px]" />
         <span className={NOTA + ' text-[10px]'}>
-          {[(informe?.info.modelo ?? 'Raspberry Pi 4').replace(/ Rev [\d.]+$/, ''), informe?.info.nucleos && `${informe.info.nucleos} núcleos`, ramGb && `${ramGb} GB`].filter(Boolean).join(' · ')}
+          {[(informe?.info.modelo ?? 'Raspberry Pi 4').replace(/ Rev [\d.]+$/, ''), informe?.info.nucleos && `${informe.info.nucleos} núcleos`, ramGb && `${ramGb} GB`].filter(Boolean).join(', ')}
         </span>
       </div>
       <div className="flex min-w-0 flex-col gap-6">
@@ -61,7 +61,7 @@ function Pi4Tarjeta({ pi, onAbrir }: { pi: DatosPi; onAbrir: () => void }) {
           <div className="flex flex-col gap-1.5">
             <h2 className="m-0 font-ui-titulo text-xl font-bold text-ui-tinta">Raspberry Pi 4</h2>
             <p className="m-0 text-[13px] text-ui-tinta-2">Servidor de prácticas: terminales, API y cámaras</p>
-            <Punto nivel={estado.nivel} fuerte={estado.fuerte} resto={estado.resto && `· ${estado.resto}`} />
+            <Punto nivel={estado.nivel} fuerte={estado.fuerte} resto={estado.resto && `(${estado.resto})`} />
           </div>
           <Boton onClick={onAbrir}>Abrir rendimiento</Boton>
         </div>
@@ -92,12 +92,12 @@ function CamarasTarjeta({ datos, pi, onAbrir }: { datos: DatosCamaras; pi: Datos
 
   let resumen: React.ReactNode;
   if (sinDatos) {
-    resumen = <Punto nivel="apagado" fuerte="Sin datos" resto={error ? '· su estado llega a través de la Pi 4, que no responde' : '· consultando…'} />;
+    resumen = <Punto nivel="apagado" fuerte="Sin datos" resto={error ? '(su estado llega a través de la Pi 4, que no responde)' : '(consultando…)'} />;
   } else if (caidas.length) {
-    resumen = <Punto nivel="critico" fuerte={`${activas.length - caidas.length} de ${activas.length} transmitiendo`} resto={`· ${caidas.map((c) => c.nombre).join(', ')} sin video`} />;
+    resumen = <Punto nivel="critico" fuerte={`${activas.length - caidas.length} de ${activas.length} transmitiendo`} resto={`(${caidas.map((c) => c.nombre).join(', ')} sin video)`} />;
   } else {
     const total = viendo ? Object.values(viendo).reduce((s, n) => s + n, 0) : null;
-    resumen = <Punto nivel="bien" fuerte={`${activas.length} de ${activas.length} transmitiendo`} resto={total != null ? `· ${total} conexiones viendo video` : undefined} />;
+    resumen = <Punto nivel="bien" fuerte={`${activas.length} de ${activas.length} transmitiendo`} resto={total != null ? `con ${total} conexiones viendo video` : undefined} />;
   }
 
   return (
@@ -105,7 +105,7 @@ function CamarasTarjeta({ datos, pi, onAbrir }: { datos: DatosCamaras; pi: Datos
       <div className="grid grid-cols-2 content-start justify-items-start gap-x-8 gap-y-5">
         {(lista.length ? lista : [{ id: 'a', nombre: '' }, { id: 'b', nombre: '' }, { id: 'c', nombre: '' }, { id: 'd', nombre: '' }] as CamaraAdmin[])
           .map((c) => <Camara key={c.id} nombre={c.nombre} apagado={sinDatos || !c.habilitada} sinVideo={!sinDatos && sinVideo(c)} />)}
-        <span className={NOTA + ' col-span-2 text-[10px]'}>video MediaMTX · grabación Shinobi</span>
+        <span className={NOTA + ' col-span-2 text-[10px]'}>video con MediaMTX y grabación con Shinobi</span>
       </div>
       <div className="flex min-w-0 flex-col gap-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -162,7 +162,6 @@ export default function EquiposVista({ pi, camaras, onAbrirPi4, onAbrirVigilanci
           <h1 className="m-0 font-ui-titulo text-2xl font-bold text-ui-tinta">Equipos del laboratorio</h1>
           <p className="m-0 text-[13px] text-ui-tinta-2">El hardware que usan las prácticas: cómo está cada equipo ahora mismo.</p>
         </div>
-        {pi.ultima && <span className={NOTA + ' text-xs'}>actualizado {hora24(pi.ultima.t)}</span>}
       </header>
 
       <Pi4Tarjeta pi={pi} onAbrir={onAbrirPi4} />
@@ -171,7 +170,6 @@ export default function EquiposVista({ pi, camaras, onAbrirPi4, onAbrirVigilanci
       <section className="mt-4 flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-3">
           <h3 className={ETIQUETA}>Sin monitoreo todavía</h3>
-          <span className={NOTA}>{PROXIMOS.length} equipos</span>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           {PROXIMOS.map(({ nombre, texto, Dibujo }) => (

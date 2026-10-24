@@ -44,7 +44,7 @@ export function duracionConexion(c: Pick<ConexionDispositivo, 'inicio' | 'fin'>,
 export function estadoDispositivo(d: Pick<DispositivoActividad, 'enLinea' | 'ultimoLatido'>, ahora: number): { texto: string; ok: boolean | null } {
   if (d.enLinea) return { texto: 'En línea', ok: true };
   if (!d.ultimoLatido) return { texto: 'Aún no ha reportado', ok: null };
-  return { texto: `Sin conexión · último aviso ${haceTiempo(d.ultimoLatido, ahora)}`, ok: false };
+  return { texto: `Sin conexión desde ${haceTiempo(d.ultimoLatido, ahora)}`, ok: false };
 }
 
 /** Nombre a mostrar de una persona: el completo si ya usó la app; si no, el usuario como llega del LDAP. */

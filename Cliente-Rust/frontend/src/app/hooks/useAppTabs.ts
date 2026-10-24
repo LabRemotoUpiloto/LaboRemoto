@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { SessionLog } from "@/features/logs/SessionCard";
+import type { SessionLog } from "@/features/logs/sesiones";
 import { useEffectiveRole, canAccessPage } from "@/features/cuenta/usePermissions";
 
 export type Tab = {

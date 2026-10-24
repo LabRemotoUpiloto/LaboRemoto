@@ -1193,14 +1193,14 @@ const ChatPane: React.FC<Props> = ({
             sessionId: pi4ChatSessionId,
             connecting: pi4ChatConnecting,
             error: pi4ChatError,
-            label: `Cámaras · ${pi4ChatLabel}`,
+            label: `Cámaras de ${pi4ChatLabel}`,
             onClose: closePi4CamerasInChat,
           } : null}
           embeddedDesktop={pi4DesktopEmbedActive ? {
             sessionId: sessionId ?? pi4ChatSessionId,
             connecting: sessionId ? false : pi4ChatConnecting,
             error: sessionId ? null : pi4ChatError,
-            label: sessionId ? 'Escritorio remoto' : `Escritorio · ${pi4ChatLabel}`,
+            label: sessionId ? 'Escritorio remoto' : `Escritorio de ${pi4ChatLabel}`,
             onClose: closePi4DesktopInChat,
           } : null}
         />

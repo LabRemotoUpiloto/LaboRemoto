@@ -23,8 +23,8 @@ export const camarasAdminService = {
 
 /** Rutas RTSP habituales. «otra» deja escribirla a mano. */
 export const RUTAS_RTSP = [
-  { value: '/h264Preview_01_sub', label: 'Reolink · baja resolución (recomendada para la vista en vivo)' },
-  { value: '/h264Preview_01_main', label: 'Reolink · alta resolución' },
+  { value: '/h264Preview_01_sub', label: 'Reolink en baja resolución (recomendada para la vista en vivo)' },
+  { value: '/h264Preview_01_main', label: 'Reolink en alta resolución' },
   { value: 'otra', label: 'Otra ruta…' },
 ] as const;
 
@@ -58,7 +58,7 @@ export function etiquetaCamara(c: Pick<CamaraAdmin, 'habilitada' | 'estado' | 'v
 
 /** Une los errores por campo del broker en un solo texto (para avisos generales). */
 export function textoErrores(errores: Record<string, string> | null | undefined): string {
-  return Object.entries(errores ?? {}).map(([k, v]) => `${k}: ${v}`).join(' · ');
+  return Object.entries(errores ?? {}).map(([k, v]) => `${k}: ${v}`).join('; ');
 }
 
 /** Solo manda al broker lo que cambió al editar: así una edición de nombre no vuelve a probar ni reescribe la conexión. */

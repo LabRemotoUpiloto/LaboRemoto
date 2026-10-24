@@ -38,7 +38,7 @@ function LiveSensor({ kind }: { kind: Props['block']['sensor'] }) {
   return (
     <Group gap={6}>
       <Badge color="green" variant="light" size="sm">Real</Badge>
-      <Text fz="xs">{LEGIBLE[kind]} en {real.port}: valor actual <b>{real.value}</b></Text>
+      <Text fz="xs">{LEGIBLE[kind]} en {real.port}: valor actual {real.value}</Text>
     </Group>
   );
 }
@@ -108,7 +108,7 @@ export function SensorDemoBlock({ block }: Props) {
 
         <Group justify="space-between" wrap="nowrap" style={{ background: 'rgba(127,127,127,0.1)', borderRadius: 6, padding: '6px 10px' }}>
           <Text fz="xs" ff="monospace">{ATTR[block.sensor]}</Text>
-          <Text fz="sm" fw={700} ff="monospace">{value}</Text>
+          <Text fz="sm" ff="monospace">{value}</Text>
         </Group>
 
         {zone && (

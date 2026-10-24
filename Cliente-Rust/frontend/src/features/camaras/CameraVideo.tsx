@@ -11,6 +11,10 @@ interface Props {
   /** Path de MediaMTX (`NvrCamera.webrtc`); sin él va directo a HLS. */
   webrtcPath?: string | null
   label?: string
+  /** Sin la etiqueta encima del video (Vigilancia muestra nombre y modo debajo). */
+  sinEtiqueta?: boolean
+  /** Avisa por qué vía se está viendo, para mostrarlo fuera del video. */
+  onModo?: (modo: 'WebRTC' | 'HLS') => void
 }
 
 // Si WebRTC falló hace poco POR LA RED (no deja pasar el puerto del video), las
@@ -22,7 +26,7 @@ const REINTENTAR_WEBRTC_MS = ESPERA_FALLO_DE_RED_MS
 let ultimoFalloWebRtc = 0
 let ultimoMotivo = ''
 
-const CameraVideo: React.FC<Props> = ({ hlsUrl, webrtcPath, label }) => {
+const CameraVideo: React.FC<Props> = ({ hlsUrl, webrtcPath, label, sinEtiqueta, onModo }) => {
   const [usarHls, setUsarHls] = useState(
     () => !webrtcPath || Date.now() - ultimoFalloWebRtc < REINTENTAR_WEBRTC_MS,
   )
@@ -38,18 +42,21 @@ const CameraVideo: React.FC<Props> = ({ hlsUrl, webrtcPath, label }) => {
     return () => clearTimeout(t)
   }, [usarHls, webrtcPath, fallos])
 
+  const hls = usarHls || !webrtcPath
+  useEffect(() => { onModo?.(hls ? 'HLS' : 'WebRTC') }, [hls, onModo])
+
   // El modo va en la etiqueta para poder ver de un vistazo si una cámara está
   // en baja latencia (WebRTC) o en el respaldo (HLS, con más retraso). TEMPORAL:
   // en el respaldo también se muestra por qué falló WebRTC, mientras se afina.
-  if (usarHls || !webrtcPath) {
+  if (hls) {
     const motivo = webrtcPath && ultimoMotivo ? ` (WebRTC: ${ultimoMotivo})` : ''
-    return <HlsPlayer src={hlsUrl} label={`${label ? `${label} · ` : ''}HLS${motivo}`} />
+    return <HlsPlayer src={hlsUrl} label={sinEtiqueta ? undefined : `${label ? `${label} por ` : ''}HLS${motivo}`} />
   }
 
   return (
     <WhepPlayer
-      path={webrtcPath}
-      label={label ? `${label} · WebRTC` : 'WebRTC'}
+      path={webrtcPath!}
+      label={sinEtiqueta ? undefined : label ? `${label} por WebRTC` : 'WebRTC'}
       onFail={(motivo, deRed, habiaConectado) => {
         const red = esFalloDeRed(deRed, habiaConectado)
         console.warn(`[camara] WebRTC (${webrtcPath}) no disponible, usando HLS${red ? '' : ' (solo esta cámara)'}: ${motivo}`)

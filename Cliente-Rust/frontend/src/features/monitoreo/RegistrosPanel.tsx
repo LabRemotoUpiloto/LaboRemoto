@@ -9,19 +9,19 @@ import {
   EVENTOS_SSH, claveApi, claveSsh, contarEventos, eventoConProblema, peticionConProblema, unirRegistros,
   type Gravedad,
 } from './registros';
-import { agruparPorDia, hora24, paginar } from './monitoreo';
+import { Paginador, paginar } from '@/components/ui';
+import { agruparPorDia, hora24 } from './monitoreo';
 import { Boton, ETIQUETA, NOTA, Selector, TARJETA } from '@/components/ui';
-import { Paginador } from './Piezas';
 
 const SONDEO_MS = 3000;
 const POR_PAGINA = 15;
 
 /** Color solo para lo que es problema; «Entró» va en negrita y «Salió» en gris. */
 const TEXTO_GRAVEDAD: Record<Gravedad, string> = {
-  bueno: 'font-semibold text-ui-tinta',
+  bueno: 'text-ui-tinta',
   neutro: 'text-ui-tinta-2',
-  alerta: 'font-bold text-ui-alerta-texto',
-  critico: 'font-bold text-ui-critico-texto',
+  alerta: 'text-ui-alerta-texto',
+  critico: 'text-ui-critico-texto',
 };
 
 const tamano = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${Math.round(b / 1024)} KB` : `${b} B`);
@@ -137,7 +137,7 @@ const RegistrosPanel: React.FC = () => {
         <span className={ETIQUETA}>Últimos 5 min</span>
         {resumen.map((r) => (
           <span key={r.texto} className={r.n > 0 && r.gravedad !== 'bueno' ? TEXTO_GRAVEDAD[r.gravedad] : 'text-ui-tinta-2'}>
-            <b className="font-ui-num font-bold">{r.n}</b> {r.texto}
+            <span className="font-ui-num">{r.n}</span> {r.texto}
           </span>
         ))}
         <span className={`${NOTA} ml-auto`}>{pausado ? 'en pausa' : 'se actualiza cada 3 s'}</span>
@@ -202,7 +202,7 @@ const RegistrosPanel: React.FC = () => {
         {!vacio && (
           <Paginador pagina={pag} onPagina={irA} unidad={tipo === 'ssh' ? (soloProblemas ? 'problemas' : 'eventos') : 'peticiones'}
             extra={<>
-              {' · se guardan los últimos 500'}
+              {' (se guardan los últimos 500)'}
               {nuevos > 0 && (
                 <button type="button" onClick={() => irA(1)} className="ml-3 cursor-pointer border-none bg-transparent p-0 font-ui-num text-xs font-bold text-ui-tinta underline">
                   {nuevos} nuevos

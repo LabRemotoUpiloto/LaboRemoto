@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Box, Group, Stack, Title, Text, Button, ActionIcon, Tooltip, Loader } from '@mantine/core'
 import { ChevronLeft, FileDown } from 'lucide-react'
-import type { SessionLog } from './SessionCard'
-import { getSessionLogContent, extractSessionCommands } from './session.service'
-import { invoke } from '@tauri-apps/api/core'
+import type { SessionLog } from './sesiones'
+import { getSessionLogContent } from './session.service'
 import { useToasts } from '@/app/providers/ToastContext'
-import html2pdf from 'html2pdf.js'
-import { buildCommandsReportHtml } from './commandParser'
+import { guardarReporteComandos } from './reporte'
 
 interface LogDetailPageProps {
   session: SessionLog
@@ -46,43 +44,11 @@ const LogDetailPage: React.FC<LogDetailPageProps> = ({ session, onBack }) => {
   }
 
   const handleSavePdf = async () => {
+    showToast({ type: 'info', message: 'Preparando el reporte de comandos…' })
     try {
-      if (!htmlContent) {
-        throw new Error('El contenido del log no está disponible.');
-      }
-
-      showToast({ type: 'info', message: 'Generando Reporte de Comandos PDF...' });
-      
-      const commands = await extractSessionCommands(session.id);
-      const reportHtml = buildCommandsReportHtml(commands, {
-        sessionId: session.id,
-        user: session.user,
-        host: session.host,
-        startTime: session.startedAt,
-        endTime: session.endedAt
-      });
-      
-      const container = document.createElement('div');
-      container.innerHTML = reportHtml;
-
-      const opt = {
-        margin:       10,
-        filename:     `Commands_Report_${session.host}.pdf`,
-        image:        { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1000 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-      };
-
-      const base64 = await html2pdf().set(opt).from(container).outputPdf('datauristring');
-      
-      const savedPath = await invoke<string>('save_pdf_base64', { 
-        sessionLogId: session.id,
-        base64Data: base64
-      });
-      
-      showToast({ type: 'success', message: `Reporte guardado: ${savedPath}` })
+      showToast({ type: 'success', message: `Reporte guardado: ${await guardarReporteComandos(session)}` })
     } catch (error) {
-      showToast({ type: 'error', message: `Error al generar Reporte: ${error}` })
+      showToast({ type: 'error', message: `No se pudo generar el reporte: ${error}` })
     }
   }
 

@@ -101,40 +101,6 @@ export function tramosEnElTiempo(
     }));
 }
 
-export interface Pagina<T> {
-  filas: T[];
-  /** Página mostrada (1 en adelante), ya ajustada si la pedida no existe. */
-  pagina: number;
-  paginas: number;
-  total: number;
-  /** Posición de la primera y la última fila mostradas (1 en adelante), para «1–15 de 214». */
-  desde: number;
-  hasta: number;
-}
-
-export function paginar<T>(items: T[], pagina: number, porPagina: number): Pagina<T> {
-  const total = items.length;
-  const paginas = Math.max(1, Math.ceil(total / porPagina));
-  const p = Math.min(Math.max(1, Math.floor(pagina) || 1), paginas);
-  const inicio = (p - 1) * porPagina;
-  const filas = items.slice(inicio, inicio + porPagina);
-  return { filas, pagina: p, paginas, total, desde: total ? inicio + 1 : 0, hasta: inicio + filas.length };
-}
-
-/** Números de página a mostrar: siempre la primera, la última y las vecinas de la actual; «…» en los saltos. */
-export function paginasVisibles(actual: number, paginas: number): (number | '…')[] {
-  const vistas = new Set([1, paginas, actual - 1, actual, actual + 1].filter((p) => p >= 1 && p <= paginas));
-  if (actual <= 3) [2, 3].forEach((p) => p <= paginas && vistas.add(p));
-  if (actual >= paginas - 2) [paginas - 1, paginas - 2].forEach((p) => p >= 1 && vistas.add(p));
-  const orden = [...vistas].sort((a, b) => a - b);
-  const salida: (number | '…')[] = [];
-  orden.forEach((p, i) => {
-    if (i && p - orden[i - 1] > 1) salida.push('…');
-    salida.push(p);
-  });
-  return salida;
-}
-
 /** Clave del día local de un epoch (para agrupar registros que abarcan varios días). */
 const claveDia = (t: number) => {
   const d = new Date(t * 1000);
@@ -148,8 +114,8 @@ export function etiquetaDia(t: number, ahora: number = Date.now() / 1000): strin
     .replace(/[.,]/g, '')
     .replace(/ de /g, ' ')
     .toUpperCase();
-  if (claveDia(t) === claveDia(ahora)) return `HOY · ${fecha}`;
-  if (claveDia(t) === claveDia(ahora - 86400)) return `AYER · ${fecha}`;
+  if (claveDia(t) === claveDia(ahora)) return `HOY, ${fecha}`;
+  if (claveDia(t) === claveDia(ahora - 86400)) return `AYER, ${fecha}`;
   return fecha;
 }
 

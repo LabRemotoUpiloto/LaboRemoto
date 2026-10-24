@@ -31,11 +31,6 @@ export interface SessionLogMetadata {
   command_count: number | null;
 }
 
-export interface SessionLog {
-  metadata: SessionLogMetadata;
-  html_content: string;
-}
-
 // ── Comandos ──────────────────────────────────────────────────────────────────
 
 /**

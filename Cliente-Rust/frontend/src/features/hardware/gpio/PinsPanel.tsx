@@ -333,7 +333,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     const tooltipLabel = (
       <Stack gap={2} style={{ fontSize: 11 }}>
         <Text fw={700} size="xs">
-          Pin Físico #{pin.physical} · {pin.name} {pin.alias ? `(${pin.alias})` : ''}
+          Pin físico #{pin.physical}: {pin.name} {pin.alias ? `(${pin.alias})` : ''}
         </Text>
         {pin.gpio != null && (
           <>
@@ -502,10 +502,10 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
           <Group justify="space-between" align="center">
             <Group gap={6}>
               <Title order={5} style={{ color: 'var(--text-primary)', fontSize: 13 }}>
-                Pin #{selectedDefinition.physical} · {selectedDefinition.name}
+                Pin #{selectedDefinition.physical}: {selectedDefinition.name}
               </Title>
               {selectedDefinition.alias && (
-                <Text size="xs" fw={700} style={{ color: 'var(--accent-primary)', fontSize: 11 }}>
+                <Text size="xs" style={{ fontSize: 11 }}>
                   ({selectedDefinition.alias})
                 </Text>
               )}
@@ -537,7 +537,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
             <Stack gap={6}>
               <Group justify="space-between" align="center">
                 <Text size="xs" style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
-                  Modo actual: <strong style={{ color: 'var(--text-primary)' }}>{selectedStatus?.func || '—'}</strong>
+                  Modo actual: {selectedStatus?.func || '—'}
                 </Text>
                 <Group gap={4}>
                   <div
@@ -548,7 +548,7 @@ const PinsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
                       backgroundColor: selectedStatus?.level === 1 ? PIN_COLORS.high : '#475569',
                     }}
                   />
-                  <Text size="xs" fw={700} style={{ fontSize: 11, color: selectedStatus?.level === 1 ? 'var(--success)' : 'var(--text-secondary)' }}>
+                  <Text size="xs" style={{ fontSize: 11, color: selectedStatus?.level === 1 ? 'var(--success)' : 'var(--text-secondary)' }}>
                     {selectedStatus?.level == null ? '—' : selectedStatus.level === 1 ? 'HIGH (1)' : 'LOW (0)'}
                   </Text>
                 </Group>

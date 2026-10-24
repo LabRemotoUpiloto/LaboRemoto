@@ -14,12 +14,12 @@ export function Seccion({ titulo, derecha, children }: { titulo: string; derecha
   );
 }
 
-/** Punto + palabra en el color del nivel; el resto de la línea en texto normal. */
+/** Punto + palabra en el color del nivel (sin negrita); el resto de la línea en texto normal. */
 export function Punto({ nivel, fuerte, resto }: { nivel: Nivel; fuerte: string; resto?: React.ReactNode }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-2 text-[13px] text-ui-tinta-2">
       <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${PUNTO_NIVEL[nivel]}`} />
-      <b className={`font-bold ${TEXTO_NIVEL[nivel]}`}>{fuerte}</b>
+      <span className={TEXTO_NIVEL[nivel]}>{fuerte}</span>
       {resto && <span>{resto}</span>}
     </span>
   );
@@ -31,6 +31,8 @@ export interface Opcion<T extends string> {
   deshabilitada?: boolean;
 }
 
+/** Opciones excluyentes (segmentado): todas dentro de un mismo riel, para que se lean como botones aunque no estén elegidas
+ *  (sin riel, en varios temas las no elegidas parecían texto suelto). La elegida va en la superficie y con borde. */
 export function Selector<T extends string>({ opciones, valor, onCambio, nombre }: {
   opciones: Opcion<T>[];
   valor: T;
@@ -38,7 +40,8 @@ export function Selector<T extends string>({ opciones, valor, onCambio, nombre }
   nombre: string;
 }) {
   return (
-    <div role="group" aria-label={nombre} className="inline-flex flex-wrap gap-1">
+    <div role="group" aria-label={nombre}
+      className={`inline-flex flex-wrap gap-0.5 ${RADIO} border-[length:var(--card-border-width,1px)] border-ui-borde bg-ui-terciario p-0.5`}>
       {opciones.map((o) => (
         <button
           key={o.valor}
@@ -46,7 +49,7 @@ export function Selector<T extends string>({ opciones, valor, onCambio, nombre }
           aria-pressed={o.valor === valor}
           disabled={o.deshabilitada}
           onClick={() => onCambio(o.valor)}
-          className={`h-7 ${RADIO} border-[length:var(--card-border-width,1px)] border-transparent px-3 text-[13px] text-ui-tinta-2 hover:enabled:bg-ui-hover disabled:cursor-not-allowed disabled:text-ui-fantasma aria-pressed:border-ui-borde aria-pressed:bg-ui-superficie aria-pressed:font-bold aria-pressed:text-ui-tinta`}
+          className={`h-7 cursor-pointer ${RADIO} border-[length:var(--card-border-width,1px)] border-transparent px-3 text-[13px] text-ui-tinta-2 hover:enabled:bg-ui-hover hover:enabled:text-ui-tinta disabled:cursor-not-allowed disabled:text-ui-fantasma aria-pressed:border-ui-borde aria-pressed:bg-ui-superficie aria-pressed:font-semibold aria-pressed:text-ui-tinta aria-pressed:shadow-[0_1px_2px_rgba(0,0,0,0.08)]`}
         >
           {o.etiqueta}
         </button>
@@ -89,10 +92,10 @@ export function BarraAcento({ frac }: { frac: number }) {
   );
 }
 
-/** Número o dato de máquina (IP, duración, hora) en el monoespaciado del tema. «acento» para la cifra que importa. */
-export function Num({ children, fuerte, acento }: { children: React.ReactNode; fuerte?: boolean; acento?: boolean }) {
+/** Número o dato de máquina (IP, duración, hora) en el monoespaciado del tema. Sin resaltar: ni negrita ni color. */
+export function Num({ children }: { children: React.ReactNode }) {
   return (
-    <span className={`font-ui-num tabular-nums ${acento ? 'font-bold text-ui-acento-texto' : fuerte ? 'font-bold text-ui-tinta' : ''}`}>
+    <span className="font-ui-num tabular-nums">
       {children}
     </span>
   );

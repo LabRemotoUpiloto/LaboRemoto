@@ -93,7 +93,7 @@ const SnippetsPage: React.FC = () => {
       title: 'Eliminar snippet',
       centered: true,
       children: (
-        <Text size="sm">¿Eliminar el snippet <strong>"{snippet.title}"</strong>? Esta acción no se puede deshacer.</Text>
+        <Text size="sm">¿Eliminar el snippet «{snippet.title}»? Esta acción no se puede deshacer.</Text>
       ),
       labels: { confirm: 'Eliminar', cancel: 'Cancelar' },
       confirmProps: { color: 'red' },

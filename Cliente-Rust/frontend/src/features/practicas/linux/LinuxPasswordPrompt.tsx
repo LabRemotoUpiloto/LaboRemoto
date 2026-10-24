@@ -46,11 +46,11 @@ const LinuxPasswordPrompt: React.FC<Props> = ({
       <Stack gap="md">
         {modulo && (
           <Text size="sm">
-            Vas a entrar a <strong>{modulo}</strong>.
+            Vas a entrar a {modulo}.
           </Text>
         )}
         <Text size="sm" c="dimmed">
-          Se conecta como <strong>{username}</strong> al equipo del laboratorio —
+          Se conecta como {username} al equipo del laboratorio —
           es tu misma cuenta de la universidad. La contraseña se usa una sola vez para
           esta conexión y no se guarda.
         </Text>

@@ -25,7 +25,7 @@ export function EnvioMoodleContenido({ e, resultado, onAhoraNo }: {
     <div role="status" style={{ width: '100%', textAlign: 'left' }}>
       <Text fw={700} size="sm">Envía esta práctica a tu docente</Text>
       <Text size="xs" c="dimmed" mt={2}>
-        Resultado: {notaYResumen(resultado).nota} % · «{practica.nombre}» · curso {curso}.{' '}
+        Resultado: {notaYResumen(resultado).nota} % en «{practica.nombre}», curso {curso}.{' '}
         {practica.flujoRevision
           ? 'Queda en Moodle «lista para revisar»; tu docente decide la nota final.'
           : 'La tarea de Moodle no tiene el flujo de calificación activado: pídele a tu docente que lo active para poder enviarla.'}

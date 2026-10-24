@@ -2,9 +2,8 @@
 // o por RAM) y las conexiones abiertas por servicio y por cámara.
 import { useMemo, useState } from 'react';
 import type { InformePi, MuestraPi } from './rendimiento.service';
-import { paginar } from './monitoreo';
+import { Paginador, paginar } from '@/components/ui';
 import { NOTA, Seccion, Selector, TARJETA } from '@/components/ui';
-import { Paginador } from './Piezas';
 
 const POR_PAGINA = 10;
 type Orden = 'cpu' | 'ram';

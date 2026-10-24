@@ -9,6 +9,7 @@ use std::sync::Arc;
 use ts_rs::TS;
 
 use crate::cmd::broker_client::get_text;
+use crate::auth::client::reparar_mojibake;
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
@@ -99,7 +100,16 @@ pub struct ResumenDispositivos {
 /// Interpreta la respuesta del broker. Función pura para poder probarla.
 fn interpretar(status: u16, texto: &str) -> Result<ResumenDispositivos, CommandError> {
     match status {
-        200 => serde_json::from_str(texto)
+        200 => serde_json::from_str::<ResumenDispositivos>(texto)
+            .map(|mut r| {
+                // el nombre viene del token, con la Ñ y las tildes del directorio dañadas (ver reparar_mojibake)
+                for d in &mut r.dispositivos {
+                    for c in d.conectados.iter_mut().chain(d.conexiones.iter_mut()) {
+                        c.nombre = c.nombre.take().map(|n| reparar_mojibake(&n));
+                    }
+                }
+                r
+            })
             .map_err(|e| CommandError::permanent("INVALID_DATA", format!("Respuesta inválida del registro de dispositivos: {e}"))),
         401 | 403 => Err(CommandError::permanent("AUTH_FAILED", "No tienes permiso para ver la actividad de los dispositivos")),
         _ => Err(CommandError::transient("COMMUNICATION_ERROR", format!("El registro de dispositivos respondió {status}: {}", texto.chars().take(200).collect::<String>())).with_retry_after(3000)),
@@ -124,6 +134,13 @@ mod tests {
 
     // Respuesta con la forma real del broker (infra/broker-sesiones/dispositivos.js).
     const JSON: &str = r#"{"generado":"2026-10-04T17:00:00.000Z","dias":30,"dispositivos":[{"id":"pi4","nombre":"Pi4","enLinea":true,"ultimoLatido":"2026-10-04T16:59:40.000Z","conectados":[{"id":"pi4:22029:1","usuario":"UPILOTO\\ana-perez","persona":"ana-perez","nombre":null,"inicio":"2026-10-04T14:29:00.000Z","fin":null,"activa":true,"cierre":null,"ip":"203.0.113.7","ciudad":"Bogotá","region":"Bogotá D.C.","pais":"CO","lat":4.6,"lon":-74.08}],"conexiones":[{"id":"pi4:22029:1","usuario":"UPILOTO\\ana-perez","persona":"ana-perez","nombre":"Ana Pérez","inicio":"2026-10-04T14:29:00.000Z","fin":"2026-10-04T14:30:00.000Z","activa":false,"cierre":"cliente","ip":"203.0.113.7","ciudad":null,"region":null,"pais":null,"lat":null,"lon":null}],"totalConexiones":1,"personasDistintas":1,"cuentaCompartida":{"nombre":"pi","conexiones":947,"activas":0},"noReconocidas":{"conexiones":1,"activas":0,"ultimas":[{"usuario":"root","ip":"45.9.9.9","inicio":"2026-10-04T10:00:00.000Z","activa":false,"ciudad":null,"pais":null}]}}]}"#;
+
+    #[test]
+    fn repara_los_nombres_con_la_enie_danada() {
+        let json = JSON.replace(r#""nombre":"Ana Pérez""#, "\"nombre\":\"HAIDER CA\u{c3}\u{91}ON\"");
+        let r = interpretar(200, &json).unwrap();
+        assert_eq!(r.dispositivos[0].conexiones[0].nombre.as_deref(), Some("HAIDER CAÑON"));
+    }
 
     #[test]
     fn lee_el_resumen_completo() {

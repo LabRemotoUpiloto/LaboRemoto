@@ -59,7 +59,7 @@ export function CalculatorBlock({ block }: { block: Extract<LinuxBlock, { type: 
         {block.outputs.map(o => (
           <Group key={o.id} justify="space-between" wrap="nowrap" style={{ background: 'rgba(127,127,127,0.1)', borderRadius: 6, padding: '6px 10px' }}>
             <Text fz="xs">{o.label}</Text>
-            <Text fz="sm" fw={700} ff="monospace">{results[o.id]}{o.unit ? ` ${o.unit}` : ''}</Text>
+            <Text fz="sm" ff="monospace">{results[o.id]}{o.unit ? ` ${o.unit}` : ''}</Text>
           </Group>
         ))}
         {code && (

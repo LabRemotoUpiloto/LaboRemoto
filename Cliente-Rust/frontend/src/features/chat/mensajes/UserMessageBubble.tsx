@@ -58,7 +58,7 @@ export default function UserMessageBubble({ msg, isSending, onDelete, onSaveEdit
             className="w-full"
           />
           <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-[var(--text-muted)] hidden sm:inline-block">Enter · enviar &nbsp;·&nbsp; Esc · cancelar</span>
+            <span className="text-[10px] text-[var(--text-muted)] hidden sm:inline-block">Enter para enviar, Esc para cancelar</span>
             <Group gap="xs" justify="flex-end" className="ml-auto">
               <Button size="compact-xs" variant="subtle" color="gray" onClick={cancelEdit} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Cancelar</Button>
               <Button size="compact-xs" color="blue" disabled={!draft.trim() || isSending} onClick={handleSave}>Guardar</Button>

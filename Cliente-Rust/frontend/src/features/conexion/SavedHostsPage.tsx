@@ -118,7 +118,7 @@ export default function SavedHostsPage({ onConnected, onEdit }: SavedHostsPagePr
       overlayProps: { blur: 3 },
       children: (
         <Text size="sm" c="dimmed">
-          ¿Estás seguro de que deseas eliminar <strong>{hostLabel}</strong>? Esta acción no se puede deshacer.
+          ¿Estás seguro de que deseas eliminar «{hostLabel}»? Esta acción no se puede deshacer.
         </Text>
       ),
       labels: { confirm: 'Eliminar', cancel: 'Cancelar' },

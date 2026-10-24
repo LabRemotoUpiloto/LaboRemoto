@@ -1,11 +1,12 @@
 // Formatos de la pestaña «Encuestas» de Actividad.
+import type { Nivel } from '@/components/ui';
 import { DIFICULTADES, PROBLEMAS, type ResumenPracticaEncuesta } from '@/features/practicas/encuestas.service';
 
 /** `4,2` (una cifra decimal, coma) o `—`. */
 export const nota5 = (v: number | null | undefined) => (v == null ? '—' : v.toFixed(1).replace('.', ','));
 
-/** Verde / ámbar / rojo según el promedio sobre 5. */
-export const colorNota5 = (v: number | null | undefined) => (v == null ? 'gray' : v >= 4 ? 'green' : v >= 3 ? 'yellow' : 'red');
+/** Nivel del promedio sobre 5: color solo cuando baja (de 3 a 4, alerta; menos de 3, crítico). */
+export const nivelNota5 = (v: number | null | undefined): Nivel => (v == null ? 'apagado' : v >= 4 ? 'bien' : v >= 3 ? 'alerta' : 'critico');
 
 /** Problemas reportados, de más a menos, sin los que nadie marcó; «Ninguno» aparte. */
 export function problemasOrdenados(p: ResumenPracticaEncuesta['problemas']): { valor: string; etiqueta: string; veces: number }[] {

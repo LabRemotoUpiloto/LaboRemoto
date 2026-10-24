@@ -7,3 +7,4 @@ export * from './Tabla';
 export * from './Campos';
 export * from './Aviso';
 export * from './Dialogo';
+export * from './Paginador';

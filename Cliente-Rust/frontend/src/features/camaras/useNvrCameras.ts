@@ -33,6 +33,8 @@ export function useNvrCameras(groupKey: string | null) {
   const start = useCallback(async () => {
     if (!groupKey) return
     stoppedRef.current = false
+    // reintentar no debe dejar dos sondeos corriendo
+    if (pollRef.current) clearInterval(pollRef.current)
     setStatus('connecting')
     setError(null)
     await pollCameras(groupKey)
