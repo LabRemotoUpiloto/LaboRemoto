@@ -6,7 +6,7 @@ import ThemesPage from '@/features/cuenta/ThemesPage'
 import PerfilPage from '@/features/cuenta/PerfilPage'
 import AjustesPage from '@/features/cuenta/AjustesPage'
 import SftpPage from '@/features/sftp/SftpPage'
-import SnippetsPage from '@/features/snippets/SnippetsPage'
+import ComandosPage from '@/features/comandos/ComandosPage'
 import PracticesPage from '@/features/practicas/PracticesPage'
 import ReservasPage from '@/features/reservas/ReservasPage'
 import MisCursosPage from '@/features/cursos/MisCursosPage'
@@ -79,7 +79,7 @@ const HomeContainer: React.FC<Props> = ({
           })()}
         />
       ) : effectivePage === 'snippets' ? (
-        <SnippetsPage />
+        <ComandosPage />
       ) : effectivePage === 'practices' || effectivePage === 'encuestas' ? (
         <PracticesPage pestanaInicial={effectivePage === 'encuestas' ? 'encuestas' : 'practicas'} onStartPractice={onStartPractice} onNewSession={onConnectedFromConnect} setChatOpen={setChatOpen} linuxSession={linuxSession} onRestartLinuxModule={onRestartLinuxModule} />
       ) : effectivePage === 'reservas' ? (

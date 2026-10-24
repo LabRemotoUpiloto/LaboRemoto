@@ -4,6 +4,7 @@ import { isMacOS } from '@/lib/platform';
 import { WindowDragZone } from '../window/WindowDragZone';
 import SidebarSessions from './SidebarSessions';
 import SidebarSessionActions from './SidebarSessionActions';
+import SidebarHerramientasSesion from './SidebarHerramientasSesion';
 import { UnstyledButton, Box, Stack, Text, Menu, Tooltip } from '@mantine/core';
 import { User, Shield, Activity, BookOpen, Gauge } from 'lucide-react';
 import type { Tab, ActiveView } from '../hooks/useAppTabs';
@@ -27,6 +28,8 @@ interface SidebarProps {
   onRenameTab?: (id: string, label: string) => void;
   hasSessions?: boolean;
   showSessionActions?: boolean;
+  /** Sesión de uso normal que se está viendo: «Esta sesión» maneja su mosaico. Si es null y hay acciones, es una práctica. */
+  sesionMosaico?: string | null;
   activeView?: ActiveView;
   onViewChange?: (view: ActiveView) => void;
   isChatOpen?: boolean;
@@ -91,6 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onRenameTab,
   hasSessions = false,
   showSessionActions = false,
+  sesionMosaico = null,
   activeView = 'terminal',
   onViewChange,
   isChatOpen = false,
@@ -206,7 +210,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           solo botón con menú desplegable — misma estrategia que sesiones.
           El estudiante no la ve: en la práctica el chat y la terminal ya
           vienen armados, y cámara/escritorio/pines son del laboratorio. */}
-      {showSessionActions && role !== 'estudiante' && onViewChange && onToggleChat && (
+      {/* Sesión de uso normal: cada herramienta es un panel del mosaico de esa sesión */}
+      {sesionMosaico && role !== 'estudiante' && <SidebarHerramientasSesion sesion={sesionMosaico} collapsed={collapsed} />}
+
+      {!sesionMosaico && showSessionActions && role !== 'estudiante' && onViewChange && onToggleChat && (
         <SidebarSessionActions
           activePanel={activePanel}
           onOpenPanel={onOpenPanel}

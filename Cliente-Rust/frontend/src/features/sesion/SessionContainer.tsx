@@ -2,7 +2,8 @@ import React from 'react'
 import TerminalView from './TerminalView'
 import LocalTerminalGroup from '@/features/terminal/LocalTerminalGroup'
 import SftpPage from '@/features/sftp/SftpPage'
-import SnippetsPage from '@/features/snippets/SnippetsPage'
+import ComandosPage from '@/features/comandos/ComandosPage'
+import { ejecutarEnTerminal, pegarEnTerminal } from './escribirEnTerminal'
 import LogsPage from '@/features/logs/LogsPage'
 import type { Tab } from '@/app/hooks/useAppTabs'
 import type { SessionLog } from '@/features/logs/sesiones'
@@ -91,7 +92,9 @@ const SessionContainer: React.FC<Props> = ({
               onPathChange={(path) => setSftpPaths(prev => ({ ...prev, [t.id]: path }))}
             />
           )}
-          {selectedPage === 'snippets' && activeTabId === t.id && <SnippetsPage />}
+          {selectedPage === 'snippets' && activeTabId === t.id && (
+            <ComandosPage onEjecutar={(c) => ejecutarEnTerminal(t.id, c)} onPegar={(c) => pegarEnTerminal(t.id, c)} />
+          )}
           {selectedPage === 'logs' && activeTabId === t.id && <LogsPage onOpenLog={onOpenLog} />}
         </div>
       ))}

@@ -422,6 +422,7 @@ const AppMain: React.FC = () => {
               onCloseTab={handleCloseTab}
               onRenameTab={renameTab}
               showSessionActions={isSessionActive}
+              sesionMosaico={isSessionActive && !combinedPracticeMeta?.[activeTab.id] ? activeTab.id : null}
               activeView={activeView}
               onViewChange={setActiveView}
               isChatOpen={isChatOpen}
