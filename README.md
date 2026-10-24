@@ -63,4 +63,25 @@ El CI repite estas comprobaciones en cada PR hacia `Desarrollo`, `Produccion` o 
 
 ## Capturas
 
-Las capturas anteriores correspondían a una versión antigua de la interfaz y se retiraron. Para añadir nuevas, guárdalas en `docs/imagenes/` y enlázalas aquí.
+La interfaz real con **datos de demostración** (personas, equipos y cifras ficticias; ninguna dirección IP real). Se generan con un script, así que se pueden rehacer cuando cambie la interfaz (ver más abajo).
+
+| | |
+|---|---|
+| **Inicio** | **Prácticas** |
+| ![Inicio](./docs/imagenes/inicio.png) | ![Prácticas](./docs/imagenes/practicas.png) |
+| **Conexiones** | **Mis cursos** |
+| ![Conexiones](./docs/imagenes/conexiones.png) | ![Mis cursos](./docs/imagenes/mis-cursos.png) |
+| **Monitoreo** | **Actividad** |
+| ![Monitoreo](./docs/imagenes/monitoreo.png) | ![Actividad](./docs/imagenes/actividad.png) |
+| **Usuarios** | |
+| ![Usuarios](./docs/imagenes/usuarios.png) | |
+
+**Cómo regenerarlas.** El script abre la interfaz en un navegador con un Tauri simulado: no usa Keycloak, ni equipos, ni credenciales.
+
+```bash
+cd Cliente-Rust/frontend
+npx vite --port 5199 --strictPort      # en una terminal
+npm run capturas                       # en otra: escribe en docs/imagenes/
+```
+
+Los datos de demostración están al principio de `Cliente-Rust/frontend/scripts/capturas.mjs`. El script enmascara cualquier IP visible y se detiene si queda alguna. No cubre las vistas que necesitan una conexión SSH real (terminal, mosaico de sesión, escritorio remoto) ni el video de las cámaras.

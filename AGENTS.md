@@ -30,6 +30,7 @@ Desde `Cliente-Rust/`:
 | Comandos Tauri vs. frontend | `node scripts/check-comandos.mjs` |
 | Tipos del frontend | `cd frontend && npx tsc --noEmit` |
 | Pruebas del frontend | `cd frontend && npx vitest run` |
+| Capturas del README | `cd frontend && npx vite --port 5199 --strictPort` y, en otra terminal, `npm run capturas` (interfaz con datos de demostración en `frontend/scripts/capturas.mjs`; enmascara IPs). Rehazlas cuando cambie la interfaz. |
 | Compilar backend + tests | `cd backend && cargo check --all-targets` |
 | Pruebas del backend | `cd backend && cargo test --lib --bins --test error_categorization_test --test protocol_test --test session_manager_flow_test --test session_manager_test` |
 

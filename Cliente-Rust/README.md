@@ -137,6 +137,7 @@ npm run dev             # Windows: scripts/dev.ps1 → cargo tauri dev
 | Comandos Tauri vs. frontend | `node scripts/check-comandos.mjs` |
 | Tipos del frontend | `cd frontend && npx tsc --noEmit` |
 | Pruebas del frontend | `cd frontend && npx vitest run` |
+| Capturas del README (datos de demostración) | `cd frontend && npx vite --port 5199 --strictPort` y, en otra terminal, `npm run capturas` |
 | Compilar el backend (con tests) | `cd backend && cargo check --all-targets` |
 | Pruebas del backend (las del CI) | `cd backend && cargo test --lib --bins --test error_categorization_test --test protocol_test --test session_manager_flow_test --test session_manager_test` |
 
