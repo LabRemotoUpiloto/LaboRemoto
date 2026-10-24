@@ -381,8 +381,10 @@ const AppMain: React.FC = () => {
   if (isLoading) {
     return (
       <MantineProvider theme={mantineTheme} forceColorScheme={mantineColorScheme}>
-        <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          Cargando sesión...
+        {/* igual que la pantalla de carga de index.html, para que el paso de una a otra no se note */}
+        <div role="status" className="flex h-screen flex-col items-center justify-center gap-3.5 bg-ui-fondo text-[13px] text-ui-tinta-2">
+          <img src="/abeja1.webp" alt="" className="h-[72px] w-[72px] object-contain" />
+          Cargando…
         </div>
       </MantineProvider>
     )
