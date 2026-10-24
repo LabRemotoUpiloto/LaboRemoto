@@ -1086,6 +1086,7 @@ const ArchivosSftp: React.FC<Props> = ({
       {/* Local column */}
       <div
         ref={localPanelRef}
+        data-tour="sftp-panel-local"
         style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: isNarrow ? 320 : 0, minWidth: 0 }}
       >
         <FilePanel
@@ -1131,6 +1132,7 @@ const ArchivosSftp: React.FC<Props> = ({
       {/* Remote column */}
       <div
         ref={remotePanelRef}
+        data-tour="sftp-panel-remote"
         style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: isNarrow ? 320 : 0, minWidth: 0 }}
       >
         <FilePanel
@@ -1180,7 +1182,9 @@ const ArchivosSftp: React.FC<Props> = ({
       </div>
 
       {/* Cola de transferencias (ancho completo, colapsable) */}
-      <TransferQueue transfers={transfers} onCancel={doCancel} onClear={doClearTransfers} />
+      <div data-tour="sftp-transferencias">
+        <TransferQueue transfers={transfers} onCancel={doCancel} onClear={doClearTransfers} />
+      </div>
 
 
 
