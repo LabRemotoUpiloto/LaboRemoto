@@ -27,10 +27,11 @@ describe('acciones del agente', () => {
 
   it('muestra el comando guardado y la descarga', () => {
     render(<AccionesAgente sessionId="s1" pasos={[
-      paso({ tipo: 'comandoGuardado', titulo: 'Temperatura', comando: 'vcgencmd measure_temp' }),
+      paso({ tipo: 'comandoGuardado', titulo: 'Temperatura', comando: 'vcgencmd measure_temp', descripcion: 'Muestra la temperatura de la Pi' }),
       paso({ tipo: 'descarga', rutaLocal: 'C:\\Users\\ana\\Downloads\\datos (1).csv', rutaRemota: '/home/pi/datos.csv' }),
     ]} />);
     expect(screen.getByText('Guardé «Temperatura» en Comandos.')).toBeTruthy();
+    expect(screen.getByText('Muestra la temperatura de la Pi')).toBeTruthy();
     expect(screen.getByText(/Descargando «datos \(1\)\.csv» a Descargas/)).toBeTruthy();
   });
 

@@ -3,7 +3,11 @@
 /**
  * Un comando guardado. `terminal` dice dónde sirve ("linux" o "powershell"); vacío, en cualquiera.
  */
-export type Comando = { id: string, titulo: string, comando: string, categoria: string | null, terminal: string | null, 
+export type Comando = { id: string, titulo: string, comando: string, 
+/**
+ * Para qué sirve (lo ve la persona debajo del nombre). Los guardados antes no la tienen.
+ */
+descripcion: string | null, categoria: string | null, terminal: string | null, 
 /**
  * Milisegundos desde 1970.
  */

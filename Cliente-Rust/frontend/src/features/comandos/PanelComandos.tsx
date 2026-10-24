@@ -38,7 +38,7 @@ export default function PanelComandos({ terminal, onEjecutar, onPegar, pedirNuev
   const visibles = useMemo(() => {
     const t = q.trim().toLowerCase();
     return propios.filter((c) => (categoria === TODAS || c.categoria === categoria)
-      && (!t || `${c.titulo} ${c.comando} ${c.categoria ?? ''}`.toLowerCase().includes(t)));
+      && (!t || `${c.titulo} ${c.descripcion ?? ''} ${c.comando} ${c.categoria ?? ''}`.toLowerCase().includes(t)));
   }, [propios, q, categoria]);
   const pag = paginar(visibles, pagina, POR_PAGINA);
 
@@ -88,6 +88,7 @@ export default function PanelComandos({ terminal, onEjecutar, onPegar, pedirNuev
               <li key={c.id} className={`flex items-start gap-2 px-3 py-2.5 hover:bg-[color-mix(in_srgb,var(--accent-primary)_6%,transparent)] ${i ? 'border-t border-ui-pista' : ''}`}>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="truncate text-[13px] text-ui-tinta" title={c.titulo}>{c.titulo}</span>
+                  {c.descripcion && <span className="line-clamp-2 text-[12px] text-ui-tinta-2" title={c.descripcion}>{c.descripcion}</span>}
                   <code className="truncate font-ui-num text-[12px] text-ui-tinta-2" title={c.comando}>{c.comando}</code>
                   {c.categoria && <span className="text-[11px] text-ui-apagado">{c.categoria}</span>}
                 </span>
@@ -125,6 +126,7 @@ function Formulario({ comando, onCerrar }: { comando: Comando; onCerrar: () => v
   const { push } = useToasts();
   const [titulo, setTitulo] = useState(comando.titulo);
   const [texto, setTexto] = useState(comando.comando);
+  const [descripcion, setDescripcion] = useState(comando.descripcion ?? '');
   const [categoria, setCategoria] = useState(comando.categoria ?? '');
   const [guardando, setGuardando] = useState(false);
   const esNuevo = !comando.titulo && !comando.comando;
@@ -133,7 +135,7 @@ function Formulario({ comando, onCerrar }: { comando: Comando; onCerrar: () => v
     if (!texto.trim()) return;
     setGuardando(true);
     try {
-      await guardarComando({ ...comando, titulo, comando: texto, categoria: categoria.trim() || null });
+      await guardarComando({ ...comando, titulo, comando: texto, descripcion: descripcion.trim() || null, categoria: categoria.trim() || null });
       push({ type: 'success', message: esNuevo ? 'Comando guardado' : 'Cambios guardados' });
       onCerrar();
     } catch (e) {
@@ -150,6 +152,9 @@ function Formulario({ comando, onCerrar }: { comando: Comando; onCerrar: () => v
         onChange={(e) => setTitulo(e.currentTarget.value)} />
       <Campo etiqueta="Comando" mono filas={3} value={texto} placeholder="vcgencmd measure_temp"
         onChange={(e) => setTexto(e.currentTarget.value)} />
+      <Campo etiqueta="Para qué sirve" filas={2} value={descripcion} maxLength={300}
+        placeholder="Por ejemplo: muestra la temperatura del procesador de la Pi"
+        onChange={(e) => setDescripcion(e.currentTarget.value)} />
       <Campo etiqueta="Categoría (opcional)" placeholder="Por ejemplo: Servicios" value={categoria}
         onChange={(e) => setCategoria(e.currentTarget.value)} />
       <span className="flex justify-end gap-2">

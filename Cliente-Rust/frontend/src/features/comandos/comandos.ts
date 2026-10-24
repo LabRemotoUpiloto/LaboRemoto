@@ -17,7 +17,7 @@ export const borrarComando = (id: string) => invoke<Comando[]>('comandos_borrar'
 
 /** Un comando nuevo con lo mínimo; el backend completa id y fecha si faltan. */
 export const nuevoComando = (datos: Pick<Comando, 'titulo' | 'comando'> & Partial<Comando>): Comando => ({
-  id: crypto.randomUUID(), categoria: null, terminal: null, creado: Date.now(), actualizado: null, ...datos,
+  id: crypto.randomUUID(), descripcion: null, categoria: null, terminal: null, creado: Date.now(), actualizado: null, ...datos,
 });
 
 /** Los snippets que guardaba la página vieja en el navegador, con la forma nueva (`texto`: para probarlo sin navegador). */
@@ -28,7 +28,7 @@ export function snippetsDelNavegador(texto?: string | null): Comando[] {
     return crudo
       .filter((s) => s && typeof s.id === 'string' && typeof s.content === 'string' && s.content.trim())
       .map((s) => ({
-        id: s.id, titulo: String(s.title ?? ''), comando: String(s.content), categoria: s.category || null, terminal: null,
+        id: s.id, titulo: String(s.title ?? ''), comando: String(s.content), descripcion: null, categoria: s.category || null, terminal: null,
         creado: Number(s.createdAt) || Date.now(), actualizado: s.updatedAt ? Number(s.updatedAt) : null,
       }));
   } catch {

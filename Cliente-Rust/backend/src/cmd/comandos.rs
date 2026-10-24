@@ -18,6 +18,7 @@ const VERSION: u32 = 1;
 const MAXIMO: usize = 500;
 const LARGO_TITULO: usize = 120;
 const LARGO_COMANDO: usize = 10_000;
+const LARGO_DESCRIPCION: usize = 300;
 pub const EVENTO_CAMBIO: &str = "comandos:cambio";
 
 /// Un comando guardado. `terminal` dice dónde sirve ("linux" o "powershell"); vacío, en cualquiera.
@@ -28,6 +29,9 @@ pub struct Comando {
   pub id: String,
   pub titulo: String,
   pub comando: String,
+  /// Para qué sirve (lo ve la persona debajo del nombre). Los guardados antes no la tienen.
+  #[serde(default)]
+  pub descripcion: Option<String>,
   #[serde(default)]
   pub categoria: Option<String>,
   #[serde(default)]
@@ -86,6 +90,7 @@ fn limpiar(mut c: Comando) -> Result<Comando, String> {
     // Sin nombre, la primera línea del comando
     c.titulo = c.comando.lines().next().unwrap_or_default().chars().take(LARGO_TITULO).collect();
   }
+  c.descripcion = c.descripcion.map(|s| s.trim().chars().take(LARGO_DESCRIPCION).collect::<String>()).filter(|s| !s.is_empty());
   c.categoria = c.categoria.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
   c.terminal = c.terminal.filter(|t| t == "linux" || t == "powershell");
   if c.id.trim().is_empty() {
@@ -201,7 +206,19 @@ mod tests {
   }
 
   fn cmd(id: &str, titulo: &str, comando: &str) -> Comando {
-    Comando { id: id.into(), titulo: titulo.into(), comando: comando.into(), categoria: None, terminal: None, creado: 0.0, actualizado: None }
+    Comando { id: id.into(), titulo: titulo.into(), comando: comando.into(), descripcion: None, categoria: None, terminal: None, creado: 0.0, actualizado: None }
+  }
+
+  #[test]
+  fn guarda_la_descripcion_y_lee_los_viejos_sin_ella() {
+    let r = archivo_de_prueba("descripcion");
+    let mut c = cmd("a", "Temperatura", "vcgencmd measure_temp");
+    c.descripcion = Some("  Muestra la temperatura del procesador de la Pi  ".into());
+    let (_, g) = guardar_en(&r, c, 1.0).unwrap();
+    assert_eq!(g.descripcion.as_deref(), Some("Muestra la temperatura del procesador de la Pi"));
+    // Un archivo de antes, sin descripción, se sigue leyendo
+    fs::write(&r, r#"{"version":1,"comandos":[{"id":"v","titulo":"Viejo","comando":"ls","creado":1}]}"#).unwrap();
+    assert_eq!(leer(&r).unwrap()[0].descripcion, None);
   }
 
   #[test]

@@ -44,7 +44,7 @@ describe('mosaico por sesión', () => {
 });
 
 describe('comandos', () => {
-  const c = (terminal: string | null): Comando => ({ id: 'x', titulo: 'x', comando: 'ls', categoria: null, terminal, creado: 1, actualizado: null });
+  const c = (terminal: string | null): Comando => ({ id: 'x', titulo: 'x', comando: 'ls', descripcion: null, categoria: null, terminal, creado: 1, actualizado: null });
 
   it('los que no dicen terminal sirven en cualquiera; los demás, solo en la suya', () => {
     expect(sirveEn(c(null), 'powershell')).toBe(true);
@@ -59,7 +59,7 @@ describe('comandos', () => {
       { id: 'b', title: 'Vacío', content: '   ', createdAt: 11 },
     ]);
     expect(snippetsDelNavegador(datos)).toEqual([
-      { id: 'a', titulo: 'Temperatura', comando: 'vcgencmd measure_temp', categoria: 'Pi', terminal: null, creado: 10, actualizado: null },
+      { id: 'a', titulo: 'Temperatura', comando: 'vcgencmd measure_temp', descripcion: null, categoria: 'Pi', terminal: null, creado: 10, actualizado: null },
     ]);
     expect(snippetsDelNavegador('no es json')).toEqual([]);
   });

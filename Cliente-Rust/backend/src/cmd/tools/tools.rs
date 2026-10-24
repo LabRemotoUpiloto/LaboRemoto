@@ -112,7 +112,7 @@ pub struct AgentStep {
 #[ts(export)]
 pub enum AccionAgente {
     #[serde(rename = "comandoGuardado")]
-    ComandoGuardado { titulo: String, comando: String },
+    ComandoGuardado { titulo: String, comando: String, descripcion: Option<String> },
     #[serde(rename = "cambioPin")]
     CambioPin {
         gpio: u32,
@@ -192,7 +192,7 @@ fn exec_tool(session_id: &str, tool_name: &str, input: &serde_json::Value) -> To
 
 const INSTRUCCIONES_COMANDOS_Y_PINES: &str = "\n\n\
 COMANDOS GUARDADOS: si la persona pide guardar algo como comando (o snippet), usa `guardar_comando` con un nombre corto y \
-el comando exacto. La app lo agrega a su panel Comandos.\n\
+el comando exacto, y una descripción de para qué sirve. La app lo agrega a su panel Comandos.\n\
 PINES (Raspberry Pi): para saber el estado de los GPIO usa `leer_pines` (incluye lo que la persona describió de cada uno). \
 Para cambiar un pin usa `cambiar_pin`: NO lo aplica, la app le pide a la persona que confirme con Aplicar. Dile qué va a \
 cambiar y que lo confirme; nunca digas que ya quedó aplicado.\n\
@@ -206,6 +206,7 @@ fn tool_guardar_comando(app: &AppHandle, input: &serde_json::Value) -> (ToolResu
         id: String::new(),
         titulo: texto("titulo"),
         comando: texto("comando"),
+        descripcion: Some(texto("descripcion")).filter(|d| !d.trim().is_empty()),
         categoria: Some(texto("categoria")).filter(|c| !c.trim().is_empty()),
         terminal: Some(texto("terminal")).filter(|t| t == "linux" || t == "powershell"),
         creado: 0.0,
@@ -214,7 +215,7 @@ fn tool_guardar_comando(app: &AppHandle, input: &serde_json::Value) -> (ToolResu
     match crate::cmd::comandos::guardar(app, comando) {
         Ok(c) => (
             ToolResult { tool: "guardar_comando".into(), output: format!("Guardado en Comandos: «{}» ({})", c.titulo, c.comando), ok: true },
-            Some(AccionAgente::ComandoGuardado { titulo: c.titulo, comando: c.comando }),
+            Some(AccionAgente::ComandoGuardado { titulo: c.titulo, comando: c.comando, descripcion: c.descripcion }),
         ),
         Err(e) => (ToolResult { tool: "guardar_comando".into(), output: format!("No se pudo guardar: {e}"), ok: false }, None),
     }
@@ -688,10 +689,11 @@ fn tool_definitions() -> serde_json::Value {
                 "properties": {
                     "titulo": { "type": "string", "description": "Nombre corto (p. ej. «Temperatura»)" },
                     "comando": { "type": "string", "description": "El comando exacto" },
+                    "descripcion": { "type": "string", "description": "Para qué sirve, en una frase clara para la persona (p. ej. «Muestra la temperatura del procesador de la Pi»)" },
                     "categoria": { "type": "string", "description": "Opcional (p. ej. «Servicios»)" },
                     "terminal": { "type": "string", "enum": ["linux", "powershell"], "description": "Dónde sirve; omítelo si sirve en cualquiera" }
                 },
-                "required": ["titulo", "comando"]
+                "required": ["titulo", "comando", "descripcion"]
             }
         },
         {

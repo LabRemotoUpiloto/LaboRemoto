@@ -4,7 +4,7 @@
  * Lo que hizo o propuso el agente, con datos para la interfaz (el chat no lee el texto que va para el modelo).
  * Los cambios de pin y las subidas quedan pendientes: los aplica la persona con Aplicar.
  */
-export type AccionAgente = { "tipo": "comandoGuardado", titulo: string, comando: string, } | { "tipo": "cambioPin", gpio: number, 
+export type AccionAgente = { "tipo": "comandoGuardado", titulo: string, comando: string, descripcion: string | null, } | { "tipo": "cambioPin", gpio: number, 
 /**
  * "entrada" | "salida"
  */

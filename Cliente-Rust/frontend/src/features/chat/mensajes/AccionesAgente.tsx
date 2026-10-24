@@ -34,7 +34,10 @@ export default function AccionesAgente({ pasos, sessionId }: { pasos: AgentStep[
     <>
       {guardados.map((g, i) => (
         <div key={`g${i}`} className={`${TARJETA} !flex-row items-center justify-between`}>
-          <span>Guardé «{g.titulo}» en Comandos.</span>
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span>Guardé «{g.titulo}» en Comandos.</span>
+            {g.descripcion && <span className="text-[12px] text-ui-tinta-2">{g.descripcion}</span>}
+          </span>
           {sessionId && <Boton className="!h-7 !px-2.5 !text-[12px]" onClick={() => abrir(sessionId, 'comandos')}>Ver en Comandos</Boton>}
         </div>
       ))}
