@@ -71,7 +71,7 @@ Debajo van las pestañas de sesión abiertas, el bloque **Esta sesión** y el me
 | `logs` | Registros de sesiones SSH (lista, detalle, reporte). |
 | `monitoreo` | Rendimiento de la Raspberry Pi del laboratorio (gráficas, procesos, prueba exportable). |
 | `onboarding` | Tutorial de bienvenida con narración. |
-| `practicas` | Catálogo y módulos de Linux y EV3: guía, validación, insignias, quiz y encuesta. |
+| `practicas` | Catálogo y módulos de Linux y EV3: guía paso a paso, validación, tutor con IA, uso del escritorio remoto en la práctica, insignias, quiz y encuesta. |
 | `reservas` | Reserva de horas de laboratorio (prototipo: horarios simulados). |
 | `sesion`, `terminal`, `sftp` | Contenedor de sesiones, terminales (xterm) y gestor de archivos. |
 | `usuarios` | Gestión de usuarios y roles (administradores). |
@@ -80,7 +80,7 @@ Debajo van las pestañas de sesión abiertas, el bloque **Esta sesión** y el me
 
 **UI y estilos.** Mantine 9 + Tailwind 4 + CSS por tema (unos 40 temas; el predeterminado es el institucional `unipiloto`, claro). Tutoriales guiados con driver.js. Terminal con xterm 5, escritorio remoto con noVNC 1.4, 3D con three y react-three-fiber.
 
-**Pruebas.** `vitest` (≈250 pruebas, en `frontend/tests/unit`) y un spec de `playwright` que hay que ejecutar a mano. TypeScript tiene `noUnusedLocals` y `noUnusedParameters`.
+**Pruebas.** `vitest` (≈280 pruebas, en `frontend/tests/unit`) y un spec de `playwright` que hay que ejecutar a mano. TypeScript tiene `noUnusedLocals` y `noUnusedParameters`.
 
 ## Backend (`backend/src`)
 
