@@ -303,7 +303,7 @@
     {
       "type": "quiz",
       "id": "q13-prompt",
-      "question_md": "En la línea `pi@raspberrypi:~$`, ¿qué es `raspberrypi`?",
+      "question_md": "En la línea `ana@upiloto.edu@raspberrypi:~ $`, ¿qué es `raspberrypi` (lo que va después del segundo `@`)?",
       "options": [
         {
           "id": "a",
