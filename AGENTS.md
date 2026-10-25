@@ -147,6 +147,7 @@ Son los límites y comportamientos que el código ya impone. Si cambias uno, cam
 - Los roles `jefe_laboratorio`, `coordinador_laboratorio` y `laboratorista` están fijos en el tema `unipiloto`.
 - Tokens de `unipiloto`: fondo `#f4f4f4`, acento principal `#d51f22`, secundario `#00a0d2`, terciario `#007a33`, textos `#1c1c1c`/`#494949`/`#7c7c7c`; tipografías Montserrat y Open Sans (`THEME_FONTS`).
 - **No uses colores en hexadecimal dentro de componentes.** Tailwind solo con las utilidades `ui-*` (`@theme inline`). Los hex que hay hoy (`FileIcon`, `Ev3Twin`…) son deuda, no ejemplo.
+- **Estilos de pantallas nuevas:** clases de Tailwind con las utilidades `ui-*`, sin crear un `.css` por feature. Un `.css` propio solo si Tailwind no alcanza (`@keyframes`, estilos de librerías externas como xterm, noVNC o driver.js) y siempre con variables de tema, nunca colores fijos. Los `.css` por feature que ya existen (`practicas`, `hardware/ev3`, `chat`, `sesion`, `escritorio`, `onboarding`) son heredados.
 - Contraste WCAG AA. `--text-muted` no sirve para texto que se deba leer. Los ajustes de contraste y de foco van **al final** de `globals.css`.
 - Radios: sm 6, md 10, lg 14, xl 20 y pill. Escala de texto en píxeles fijos: 13/12/11/10; las etiquetas van en mayúsculas con `tracking .08em`.
 - Alturas: botón 34, campo 36, buscador 32, botón de icono 28. Barra lateral de 200 px (64 px plegada): `SIDEBAR_WIDTH_*` debe coincidir con `--sidebar-width` (`@property`, 0,4 s).
