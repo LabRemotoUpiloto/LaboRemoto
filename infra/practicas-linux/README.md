@@ -11,6 +11,7 @@ Contenido de la práctica de Linux que sirve la API de prácticas de la Raspberr
 | `linux-m2` | 2 | Navegación y archivos |
 | `linux-permisos` | 3 | Tus archivos de cerca: permisos |
 | `linux-m3` | 4 | Editor sin miedo y tuberías |
+| `linux-archivos` | 5 | Tu espacio de trabajo: crear, copiar, mover y borrar (insignia «Administrador jr.») |
 
 El orden en que se muestran lo da el campo `order`, no el nombre de la carpeta.
 
