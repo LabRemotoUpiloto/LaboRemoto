@@ -38,7 +38,7 @@
       "type": "command_step",
       "id": "s-nano",
       "command": "nano notas.txt",
-      "explain_md": "`nano` es un editor de texto que corre DENTRO de la terminal — nada de mouse. Vas a ver los atajos en la franja de abajo todo el tiempo, no hay que memorizarlos. Escribí una línea cualquiera (tu nombre, por ejemplo), guardá con `Ctrl+O` y Enter, y salí con `Ctrl+X`. Antes de salir, si querés, practicá los atajos del video y de la guía: cortar, copiar, pegar y deshacer."
+      "explain_md": "Seguí estos pasos en orden: **1.** Escribí `nano notas.txt` en la terminal y apretá Enter: se abre el editor. **2.** Escribí una línea cualquiera, por ejemplo tu nombre. **3.** Apretá `Ctrl+O` y después Enter para guardar. **4.** Apretá `Ctrl+X` para salir y volver a la terminal. Los atajos están siempre en la franja de abajo del editor; no hace falta memorizarlos."
     },
     {
       "type": "command_step",

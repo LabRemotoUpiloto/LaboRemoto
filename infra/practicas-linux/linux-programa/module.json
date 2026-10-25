@@ -48,7 +48,7 @@
     {
       "type": "text",
       "id": "b-escribir",
-      "body_md": "Ahora vas a escribir tu primer script con **nano**, el editor del módulo 4. Escribí exactamente las tres líneas de abajo, sin tildes, guardá con `Ctrl+O` y Enter, y salí con `Ctrl+X`. La primera línea, `#!/bin/bash`, le avisa al sistema que el script lo tiene que leer bash. La segunda escribe un saludo. La tercera, `whoami`, es un comando que ya conocés: dice quién sos.",
+      "body_md": "Ahora vas a escribir tu primer script con **nano**, el editor del módulo 4. Seguí estos pasos en orden: **1.** En la terminal escribí `nano hola.sh` y apretá Enter: se abre el editor, vacío. **2.** Adentro del editor escribí, tal cual y sin tildes, las tres líneas del recuadro negro de abajo, apretando Enter al final de cada una. **3.** Apretá `Ctrl+O` y después Enter: así se guarda. **4.** Apretá `Ctrl+X`: salís del editor y volvés a la terminal. Qué hace cada línea: `#!/bin/bash` avisa que el script lo lee bash; la segunda escribe un saludo; `whoami` dice quién sos.",
       "kind": "concept"
     },
     {
@@ -56,13 +56,13 @@
       "id": "c-hola-v1",
       "language": "bash",
       "code": "#!/bin/bash\necho \"Hola desde mi primer programa\"\nwhoami",
-      "caption": "Lo que tenés que escribir dentro de nano (3 líneas)"
+      "caption": "Esto va ADENTRO de nano (paso 2), no en la terminal"
     },
     {
       "type": "command_step",
       "id": "s-nano",
       "command": "nano hola.sh",
-      "explain_md": "Se abre nano con un archivo nuevo llamado `hola.sh`. Escribí las tres líneas, guardá con `Ctrl+O` y Enter, y salí con `Ctrl+X`. Si te equivocás, `Alt+U` deshace."
+      "explain_md": "Este es el paso 1: escribilo en la terminal y apretá Enter. Después seguí con los pasos 2, 3 y 4 de arriba. Si te equivocás adentro del editor, `Alt+U` deshace."
     },
     {
       "type": "command_step",
@@ -97,7 +97,7 @@
     {
       "type": "text",
       "id": "b-crecer",
-      "body_md": "Un script se puede cambiar cuando quieras. Vas a abrirlo de nuevo y a agregarle dos líneas al final: un mensaje y el comando `hostname`, que dice cómo se llama la computadora. No vas a tener que volver a darle permiso.",
+      "body_md": "Un script se puede cambiar cuando quieras. Ahora le vas a agregar dos líneas al final, y no vas a tener que volver a darle permiso. Seguí estos pasos: **1.** En la terminal escribí `nano hola.sh` y apretá Enter: se abre tu script con las tres líneas que ya tenía. **2.** Con la flecha ↓ bajá hasta la última línea (`whoami`), apretá la tecla Fin para ir al final y después Enter para abrir una línea nueva. **3.** Escribí las dos líneas nuevas: `echo \"Estoy en la computadora:\"` y, abajo, `hostname` (el comando que dice cómo se llama la computadora). **4.** Guardá con `Ctrl+O` y Enter, y salí con `Ctrl+X`.",
       "kind": "concept"
     },
     {
@@ -105,13 +105,13 @@
       "id": "c-hola-v2",
       "language": "bash",
       "code": "#!/bin/bash\necho \"Hola desde mi primer programa\"\nwhoami\necho \"Estoy en la computadora:\"\nhostname",
-      "caption": "Cómo queda el script con las dos líneas nuevas (5 líneas)"
+      "caption": "Así tiene que quedar ADENTRO de nano: las 3 líneas de antes y las 2 nuevas"
     },
     {
       "type": "command_step",
       "id": "s-nano-2",
       "command": "nano hola.sh",
-      "explain_md": "Abrí el script otra vez y agregá al final las dos líneas nuevas. Guardá con `Ctrl+O` y Enter, y salí con `Ctrl+X`."
+      "explain_md": "Escribilo en la terminal y apretá Enter. Después seguí los pasos 2, 3 y 4 de arriba."
     },
     {
       "type": "command_step",
