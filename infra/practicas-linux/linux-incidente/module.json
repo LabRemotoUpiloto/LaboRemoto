@@ -24,52 +24,52 @@
     {
       "type": "text",
       "id": "b-escenario",
-      "body_md": "**El incidente.** Un compañero del laboratorio te dejó un programa, `reporte.sh`, que tiene que mostrar el mensaje «Reporte del laboratorio listo». Pero algo falla. Antes de arreglarlo vamos a preparar el escenario con comandos que ya conocés: es la única parte donde te decimos exactamente qué escribir.",
+      "body_md": "**El incidente.** Un **incidente** es algo que debería funcionar y no funciona. El tuyo: un compañero te dejó un programa, `reporte.sh`, que tiene que mostrar el mensaje «Reporte del laboratorio listo», pero algo falla. Primero vas a crear ese programa con cuatro comandos que ya conocés: es la única parte donde te decimos exactamente qué escribir.",
       "kind": "concept"
     },
     {
       "type": "command_step",
       "id": "s-cd-inicio",
       "command": "cd",
-      "explain_md": "Empezá desde tu carpeta personal."
+      "explain_md": "Empezá desde tu carpeta personal: `cd` solo te lleva ahí."
     },
     {
       "type": "command_step",
       "id": "s-mkdir",
       "command": "mkdir incidente",
-      "explain_md": "Una carpeta aparte para este módulo. Si te dice «File exists», ya la tenías: seguí con el paso siguiente."
+      "explain_md": "Una carpeta aparte para este módulo. Si dice *File exists* («ya existe»), ya la tenías: seguí con el paso siguiente."
     },
     {
       "type": "command_step",
       "id": "s-cd-incidente",
       "command": "cd incidente",
-      "explain_md": "Entrá a la carpeta del incidente."
+      "explain_md": "Entrá a la carpeta del incidente. Todo lo que sigue pasa adentro de `incidente`."
     },
     {
       "type": "command_step",
       "id": "s-crear",
       "command": "echo \"echo Reporte del laboratorio listo\" > reporte.sh",
-      "explain_md": "Esto crea el programa de tu compañero: un archivo `reporte.sh` con un solo comando adentro. Escribilo tal cual, con las comillas dobles. No muestra nada en pantalla porque el `>` manda el texto al archivo."
+      "explain_md": "Esto crea el programa de tu compañero. `echo` escribe el texto `echo Reporte del laboratorio listo` y el `>` lo guarda en el archivo `reporte.sh` (lo viste en el módulo 5). Así, `reporte.sh` queda con un solo comando adentro. Escribilo tal cual, con las comillas. No muestra nada porque el texto fue al archivo, no a la pantalla."
     },
     {
       "type": "text",
       "id": "b-mision",
-      "body_md": "**Tu misión.** Cumplí los objetivos de abajo en orden. No hay comando a la vista: pensá qué herramienta de cada módulo sirve y probala en la terminal. Si algo sale mal no pasa nada: leé el mensaje, que casi siempre dice qué falta.",
+      "body_md": "**Tu misión.** Cumplí los objetivos de abajo, en orden. No hay comando a la vista: para cada uno, **1.** leé qué hay que lograr, **2.** pensá qué comando de los módulos anteriores sirve, **3.** probalo en la terminal y **4.** mirá qué responde. Si algo sale mal no pasa nada: leé el mensaje, que casi siempre dice qué falta. Los mensajes de error salen en inglés; cada objetivo te dice qué significan.",
       "kind": "lead"
     },
     {
       "type": "command_step",
       "id": "g-run-1",
       "command": "./reporte.sh",
-      "goal_md": "**Objetivo 1.** Ejecutá el programa `reporte.sh` desde esta carpeta y mirá qué responde Linux.",
-      "explain_md": "Pista: el programa está en la carpeta donde estás parado. Para ejecutar uno así, mirá lo que hiciste en el módulo de permisos."
+      "goal_md": "**Objetivo 1.** Ejecutá el programa `reporte.sh`, que está en esta carpeta, y mirá qué responde Linux.",
+      "explain_md": "Pista: para ejecutar un programa de la carpeta donde estás se escribe `./` delante del nombre (módulo 6)."
     },
     {
       "type": "command_step",
       "id": "g-chmod",
       "command": "chmod +x reporte.sh",
-      "goal_md": "**Objetivo 2.** Linux no te dejó ejecutarlo. El mensaje dice qué falta: arreglalo.",
-      "explain_md": "Pista: a un archivo le puede faltar el permiso de ejecución. Hay un comando para cambiar permisos."
+      "goal_md": "**Objetivo 2.** Linux respondió *Permission denied*, que en inglés quiere decir «permiso denegado»: al archivo le falta el **permiso de ejecución**. Dáselo.",
+      "explain_md": "Pista: el comando que cambia permisos lo usaste en el módulo de permisos y en el módulo 6; con `+x` agrega el de ejecutar."
     },
     {
       "type": "command_step",
@@ -81,43 +81,43 @@
     {
       "type": "text",
       "id": "b-respaldo",
-      "body_md": "Un administrador nunca sigue tocando cosas sin guardar antes una copia: en la terminal no hay papelera. Los próximos dos objetivos arman ese respaldo.",
+      "body_md": "Un **respaldo** (en inglés *backup*) es una copia de seguridad: si después algo sale mal, tenés el original guardado. Como en la terminal no hay papelera, quien administra una computadora siempre hace uno antes de seguir cambiando cosas. Los próximos objetivos arman ese respaldo.",
       "kind": "concept"
     },
     {
       "type": "command_step",
       "id": "g-mkdir",
       "command": "mkdir respaldo",
-      "goal_md": "**Objetivo 4.** Creá una carpeta llamada `respaldo`.",
+      "goal_md": "**Objetivo 4.** Creá una carpeta llamada `respaldo`, adentro de `incidente`.",
       "explain_md": "Pista: es el comando que usaste para crear `incidente`."
     },
     {
       "type": "command_step",
       "id": "g-cp",
       "command": "cp reporte.sh respaldo",
-      "goal_md": "**Objetivo 5.** Copiá el programa `reporte.sh` adentro de la carpeta `respaldo`, sin moverlo de donde está.",
-      "explain_md": "Pista: primero va el archivo que querés copiar y después el lugar adonde va."
+      "goal_md": "**Objetivo 5.** Copiá el programa `reporte.sh` adentro de la carpeta `respaldo`. El original tiene que quedarse donde está.",
+      "explain_md": "Pista: copiar es `cp`, y recibe primero el origen (qué) y después el destino (adónde) (módulo 5)."
     },
     {
       "type": "command_step",
       "id": "g-cat",
       "command": "cat respaldo/reporte.sh",
-      "goal_md": "**Objetivo 6.** Mostrá en pantalla el contenido de la copia que quedó en `respaldo`, sin entrar a esa carpeta.",
-      "explain_md": "Pista: para ver lo que tiene un archivo por dentro hay un comando; escribí el camino hasta la copia, con la barra `/`."
+      "goal_md": "**Objetivo 6.** Mostrá en la pantalla lo que hay adentro de la copia que quedó en `respaldo`, sin entrar a esa carpeta.",
+      "explain_md": "Pista: el comando que muestra el contenido de un archivo es del módulo 5. Para nombrar la copia escribí la carpeta, una barra `/` y el archivo."
     },
     {
       "type": "command_step",
       "id": "g-notas",
       "command": "echo \"Arregle los permisos\" > notas.txt",
-      "goal_md": "**Objetivo 7.** Dejá una bitácora: guardá en un archivo llamado `notas.txt` una frase que cuente qué arreglaste (la que quieras, sin tildes).",
-      "explain_md": "Pista: ya guardaste texto en un archivo con un símbolo que parece una flecha."
+      "goal_md": "**Objetivo 7.** Dejá una **bitácora**: un archivo donde anotás lo que hiciste, para que otra persona lo sepa. Guardá en un archivo llamado `notas.txt` una frase que cuente qué arreglaste (la que quieras, sin tildes).",
+      "explain_md": "Pista: usá `echo` con tu frase entre comillas y el signo `>` para mandarla al archivo, como en el módulo 5."
     },
     {
       "type": "command_step",
       "id": "g-conteo",
       "command": "ls | wc -l",
-      "goal_md": "**Objetivo 8.** Contá cuántas cosas hay ahora en la carpeta `incidente`, sin contarlas a mano: que lo haga la terminal.",
-      "explain_md": "Pista: juntá dos comandos con la tubería. Uno lista y el otro cuenta líneas."
+      "goal_md": "**Objetivo 8.** ¿Cuántas cosas hay ahora en la carpeta `incidente`? Que la terminal las cuente por vos, sin contarlas a mano.",
+      "explain_md": "Pista: juntá dos comandos con una **tubería** (`|`, la barra vertical, módulo 4): uno que lista lo que hay en la carpeta y otro que cuenta líneas."
     },
     {
       "type": "text",
@@ -242,8 +242,8 @@
   ],
   "hints": [
     "Los objetivos 1 a 8 no traen el comando a propósito: pensá qué módulo te enseñó la herramienta y probala. Cada objetivo tiene una pista.",
-    "Si un comando falla, leé el mensaje de Linux: casi siempre dice qué falta («Permiso denegado», «No such file or directory»).",
-    "Si dudás dónde estás parado, `pwd` te lo dice; `ls` te muestra lo que hay en la carpeta.",
+    "Los mensajes de error salen en inglés: *Permission denied* es «permiso denegado» y *No such file or directory* es «no existe ese archivo o carpeta».",
+    "Si dudás dónde estás, `pwd` te lo dice; `ls` te muestra lo que hay en la carpeta.",
     "Los nombres tienen que ser exactos: `reporte.sh`, `respaldo` y `notas.txt`. Con Tab la terminal los completa por vos.",
     "Para la bitácora escribí la frase sin tildes y entre comillas dobles, y dejá un espacio entre la flecha y el nombre del archivo."
   ],

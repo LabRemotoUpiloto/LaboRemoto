@@ -24,104 +24,104 @@
     {
       "type": "text",
       "id": "b-cd-solo",
-      "body_md": "Antes de empezar, un atajo: **`cd` solo, sin nada más**, te lleva a tu carpeta personal estés donde estés, como el botón de «Inicio» de un celular. Vas a empezar desde ahí, así nadie se pierde.",
+      "body_md": "Antes de empezar, andá a tu **carpeta personal**: es la carpeta que es tuya en esta computadora, como «Documentos» en Windows. Ahí podés crear y borrar lo que quieras sin dañar nada del sistema. Para ir, escribí `cd` solo, sin nada más, y apretá Enter: te lleva a tu carpeta personal estés donde estés.",
       "kind": "concept"
     },
     {
       "type": "command_step",
       "id": "s-cd-inicio",
       "command": "cd",
-      "explain_md": "Escribí solo `cd` y apretá Enter. No muestra ningún mensaje: en Linux, cuando un comando sale bien, muchas veces no dice nada. Si querés comprobar dónde quedaste, `pwd` te lo dice."
+      "explain_md": "Escribí `cd` y apretá Enter. No aparece ningún mensaje: en Linux, cuando un comando sale bien, muchas veces no dice nada. Que no diga nada es buena señal."
     },
     {
       "type": "command_step",
       "id": "s-mkdir",
       "command": "mkdir proyecto",
-      "explain_md": "`mkdir` (de *make directory*, «crear carpeta») crea una carpeta nueva. Acá se llama `proyecto`. Si sale bien, no escribe nada. Si te dice «File exists» («el archivo ya existe»), es porque ya la creaste antes: no pasa nada, seguí con el paso siguiente."
+      "explain_md": "`mkdir` viene del inglés *make directory*, «crear carpeta» (*directory* es otra forma de decir carpeta). Después del comando va un espacio y el **nombre** que le querés poner; acá, `proyecto`. Eso que va después del comando se llama **argumento**: es el dato que le das para que sepa qué hacer. Si sale bien, no escribe nada. Si dice *File exists* («ya existe»), es porque la creaste antes: seguí igual."
     },
     {
       "type": "command_step",
       "id": "s-cd-proyecto",
       "command": "cd proyecto",
-      "explain_md": "Entrá a la carpeta que acabás de crear. Fijate que escribiste solo `proyecto`, sin barra y sin ruta larga: `cd` busca esa carpeta **dentro de donde estás parado**."
+      "explain_md": "`cd` viene de *change directory*, «cambiar de carpeta»: te mete en otra carpeta. Su argumento es la carpeta a la que querés ir. Como `proyecto` está dentro de la carpeta donde estás ahora, alcanza con escribir su nombre."
     },
     {
       "type": "command_step",
       "id": "s-pwd",
       "command": "pwd",
-      "explain_md": "Comprobá dónde quedaste: la ruta termina en `/proyecto`. Así sabés que estás adentro de la carpeta nueva."
+      "explain_md": "`pwd` te dice en qué carpeta estás. La respuesta es una **ruta**: el camino de carpetas desde la raíz `/` hasta donde estás, separadas por `/`. Tiene que terminar en `/proyecto`: estás adentro."
     },
     {
       "type": "text",
       "id": "b-rutas",
-      "body_md": "**Dos formas de decir dónde.** Hace un momento escribiste `cd proyecto`: eso es una **ruta relativa**, porque cuenta desde donde estás parado. En el módulo 2 escribiste `cd /home/…` completo, desde la raíz: eso es una **ruta absoluta**, que funciona igual estés donde estés. También existe `~`, un atajo de tu carpeta personal (`cd ~` hace lo mismo que `cd` solo).",
+      "body_md": "**Dos formas de indicar una carpeta.** Una **ruta absoluta** empieza en la raíz `/` y nombra todas las carpetas del camino, como una dirección completa («Calle 10 # 5-20, Bogotá»): funciona estés donde estés. Una **ruta relativa** parte de donde estás parado, como decir «la puerta de al lado»: `cd proyecto` es relativa. Y un atajo: `~` (se llama **virgulilla**) quiere decir «mi carpeta personal»; según tu teclado se escribe con `AltGr` + `+` o con `AltGr` + `4`.",
       "kind": "concept"
     },
     {
       "type": "text",
       "id": "b-tab",
-      "body_md": "**Truco para no equivocarte al escribir:** escribí las primeras letras de un nombre (por ejemplo `cd pro`) y apretá la tecla **Tab**. La terminal completa el resto sola. Si hay más de una opción, apretá Tab dos veces y te las muestra.",
+      "body_md": "**Truco para no equivocarte al escribir:** escribí las primeras letras de un nombre (por ejemplo `cd pro`) y apretá la tecla **Tab** (la de las dos flechas, arriba de Bloq Mayús). La terminal completa el resto sola. Si hay más de una opción, apretá Tab dos veces y te las muestra.",
       "kind": "tip"
     },
     {
       "type": "command_step",
       "id": "s-mkdir-2",
       "command": "mkdir borradores final",
-      "explain_md": "Un comando puede recibir **varios nombres a la vez**: este crea dos carpetas, `borradores` y `final`, las dos adentro de `proyecto`. Las vas a usar para ordenar tus archivos."
+      "explain_md": "Un comando puede recibir **varios argumentos**, separados por espacios. Este crea dos carpetas a la vez, `borradores` y `final`, y las dos quedan adentro de `proyecto` porque es donde estás."
     },
     {
       "type": "command_step",
       "id": "s-ls",
       "command": "ls",
-      "explain_md": "Mirá qué hay en `proyecto`: tienen que aparecer `borradores` y `final`."
+      "explain_md": "`ls` (de *list*, «listar») muestra lo que hay en la carpeta donde estás. Tienen que aparecer `borradores` y `final`."
     },
     {
       "type": "text",
       "id": "b-redir",
-      "body_md": "**Guardar lo que escribe un comando.** Hasta ahora todo lo que escribía un comando salía en la pantalla. Con el símbolo **`>`** lo mandás a un archivo: la flecha apunta hacia dónde va el texto. Si el archivo no existe, lo crea; si ya existe, **lo reemplaza**. Así vas a crear un archivo con texto adentro sin abrir ningún editor.",
+      "body_md": "**El signo `>` («mayor que»).** Normalmente, lo que responde un comando aparece en la pantalla. Si después del comando escribís `>` y el nombre de un archivo, la respuesta **no sale en la pantalla: se guarda en ese archivo**. Pensalo como una flecha que apunta hacia dónde va el texto. Si el archivo no existe, se crea. Si ya existe, **se borra lo que tenía** y queda solo lo nuevo. En el teclado, `>` está en la misma tecla que `<`: se escribe con Shift.",
       "kind": "concept"
     },
     {
       "type": "command_step",
       "id": "s-echo-redir",
       "command": "echo \"Informe del proyecto\" > informe.txt",
-      "explain_md": "Escribilo tal cual. `echo` escribe la frase, pero el `>` la desvía hacia el archivo `informe.txt`: por eso no aparece nada en pantalla. El archivo se creó solo, ya con la frase adentro."
+      "explain_md": "`echo` («eco») repite el texto que le das. Las comillas `\"` marcan dónde empieza y dónde termina ese texto, para que las tres palabras vayan juntas. Sin el `>`, verías «Informe del proyecto» en la pantalla; con el `>`, ese texto se guarda en el archivo `informe.txt` (y el archivo se crea). Por eso no aparece nada."
     },
     {
       "type": "command_step",
       "id": "s-cat",
       "command": "cat informe.txt",
-      "explain_md": "`cat` muestra en pantalla **lo que tiene adentro** un archivo de texto (su nombre viene de *concatenate*, pero para vos alcanza con recordarlo como «mostrame el contenido»). Tiene que aparecer la frase que guardaste."
+      "explain_md": "`cat` muestra en la pantalla lo que hay **adentro** de un archivo de texto, sin abrir ningún editor. Tiene que aparecer «Informe del proyecto»: es la prueba de que el `>` lo guardó."
     },
     {
       "type": "text",
       "id": "b-cp-mv",
-      "body_md": "**Copiar o mover.** `cp` (*copy*) es como sacar una fotocopia: el original se queda donde estaba y aparece otro igual. `mv` (*move*) es como mudar algo de lugar: el original ya no queda donde estaba. Los dos se escriben igual: primero **qué** (el origen) y después **adónde** (el destino).",
+      "body_md": "**Copiar o mover.** `cp` (de *copy*, «copiar») es como sacar una fotocopia: el original se queda donde estaba y aparece otro igual. `mv` (de *move*, «mover») es como mudar algo de lugar: el original deja de estar donde estaba. Los dos reciben dos argumentos, siempre en este orden: primero **qué** archivo (el **origen**) y después **adónde** va (el **destino**).",
       "kind": "concept"
     },
     {
       "type": "command_step",
       "id": "s-cp",
       "command": "cp informe.txt borradores/informe-v1.txt",
-      "explain_md": "Copiá `informe.txt` adentro de la carpeta `borradores`, con el nombre `informe-v1.txt`. La barra `/` separa la carpeta del archivo: `borradores/informe-v1.txt` es «el archivo `informe-v1.txt` que está en `borradores`». No dice nada si sale bien."
+      "explain_md": "Origen: `informe.txt`. Destino: `borradores/informe-v1.txt`. La barra `/` separa una carpeta de lo que tiene adentro: `borradores/informe-v1.txt` se lee «dentro de la carpeta `borradores`, el archivo `informe-v1.txt`». Así la copia queda en `borradores` y con otro nombre. Si sale bien, no dice nada."
     },
     {
       "type": "command_step",
       "id": "s-ls-borradores",
       "command": "ls borradores",
-      "explain_md": "`ls` también puede mirar **otra carpeta** sin que te muevas: le escribís su nombre. Tiene que aparecer `informe-v1.txt`. Y `informe.txt` sigue en `proyecto`: fue una copia, no una mudanza."
+      "explain_md": "`ls` con el nombre de una carpeta muestra lo que hay adentro de esa carpeta, sin que tengas que entrar. Tiene que aparecer `informe-v1.txt`. El original, `informe.txt`, sigue en `proyecto`: fue una copia."
     },
     {
       "type": "command_step",
       "id": "s-mv",
       "command": "mv informe.txt final",
-      "explain_md": "Ahora sí una mudanza: `informe.txt` se va de `proyecto` y queda adentro de `final`. Si el destino es una **carpeta**, `mv` mete el archivo adentro."
+      "explain_md": "Origen: `informe.txt`. Destino: la carpeta `final`. Cuando el destino es una carpeta, `mv` mete el archivo adentro. Después de esto, `informe.txt` ya no está en `proyecto`: se mudó a `final`."
     },
     {
       "type": "command_step",
       "id": "s-mv-rename",
       "command": "mv final/informe.txt final/informe-final.txt",
-      "explain_md": "`mv` también sirve para **cambiar el nombre**: cuando el destino no es una carpeta sino un nombre nuevo, el archivo se queda en el mismo lugar pero con otro nombre. Linux no tiene un comando aparte para renombrar: renombrar es mover al mismo lugar con otro nombre."
+      "explain_md": "Ahora el destino no es una carpeta sino **un nombre nuevo**: el archivo se queda en la misma carpeta (`final`) pero se llama distinto. En Linux no hay un comando aparte para cambiar el nombre: se hace con `mv`."
     },
     {
       "type": "command_step",
@@ -132,14 +132,14 @@
     {
       "type": "text",
       "id": "b-sin-papelera",
-      "body_md": "**Cuidado con `rm`.** En la terminal **no hay papelera**: lo que borrás con `rm` desaparece para siempre y no te pregunta si estás seguro. Antes de apretar Enter, leé dos veces qué estás borrando. (Existe una versión que borra carpetas enteras con todo lo que tengan adentro, `rm -r`: hoy no la necesitás, y es la que más sustos da.)",
+      "body_md": "**Cuidado con `rm`** (de *remove*, «quitar»): borra archivos. En la terminal **no hay papelera de reciclaje**: lo que borrás con `rm` desaparece para siempre y no te pregunta si estás seguro. Antes de apretar Enter, leé dos veces qué estás borrando. (Existe `rm -r`, que borra carpetas enteras con todo lo que tienen adentro: hoy no lo necesitás, y es el que más sustos da.)",
       "kind": "tip"
     },
     {
       "type": "command_step",
       "id": "s-rm",
       "command": "rm borradores/informe-v1.txt",
-      "explain_md": "Borrá la copia de prueba que hiciste en `borradores`. Es un archivo tuyo y de práctica, así que acá no hay riesgo. Fijate que el comando lleva el camino completo: `rm` solo borra lo que le nombrás, nada más."
+      "explain_md": "Borrá la copia de prueba que hiciste en `borradores`. El argumento es el camino hasta ese archivo: `rm` borra solo lo que le nombrás, nada más. Es un archivo tuyo y de práctica, así que acá no hay riesgo."
     },
     {
       "type": "command_step",
@@ -303,9 +303,9 @@
     }
   ],
   "hints": [
-    "Si `mkdir` te dice «File exists», la carpeta ya existe de antes: no pasa nada, seguí con el paso siguiente.",
+    "Si `mkdir` te dice *File exists* («ya existe»), la carpeta ya estaba de antes: no pasa nada, seguí con el paso siguiente.",
     "`mkdir`, `cp` y `mv` no escriben nada cuando salen bien: si no ves ningún mensaje, es buena señal.",
-    "Si un comando te dice «No such file or directory», revisá que estés dentro de `proyecto` (con `pwd`) y que el nombre esté bien escrito.",
+    "Si un comando te dice *No such file or directory* («no existe ese archivo o carpeta»), revisá que estés dentro de `proyecto` (con `pwd`) y que el nombre esté bien escrito.",
     "Escribí las primeras letras de un nombre y apretá Tab: la terminal lo completa sola y evita errores de tipeo.",
     "`rm` no tiene papelera: antes de apretar Enter, leé dos veces qué vas a borrar."
   ],

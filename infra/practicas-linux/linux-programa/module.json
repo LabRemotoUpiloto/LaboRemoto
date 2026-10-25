@@ -24,7 +24,7 @@
     {
       "type": "text",
       "id": "b-script",
-      "body_md": "Un **programa** es una lista de órdenes que la computadora ejecuta una tras otra. Un **script** es la versión más simple: un archivo de texto con comandos, uno por línea, los mismos que ya escribís a mano. Al ejecutarlo, la shell (`bash`) los corre en orden. Sirve para no repetir lo mismo todas las veces. Los scripts de bash suelen terminar en `.sh`.",
+      "body_md": "Un **programa** es una lista de órdenes que la computadora sigue en orden, como una receta. Un **script** es la forma más simple de programa: un archivo de texto donde escribís comandos, uno por renglón, los mismos que ya escribís a mano en la terminal. **Ejecutar** el script es pedirle a la computadora que lo haga: bash lo lee de arriba abajo y hace cada comando. El nombre del archivo termina en `.sh`; esa parte final, después del punto, se llama **extensión** y dice qué tipo de archivo es (como `.jpg` en una foto). `.sh` quiere decir «script de shell».",
       "kind": "concept"
     },
     {
@@ -47,8 +47,14 @@
     },
     {
       "type": "text",
+      "id": "b-shebang",
+      "kind": "concept",
+      "body_md": "**La primera línea de todo script: `#!/bin/bash`.** Se lee en dos partes. `#!` (numeral y signo de admiración) es una marca especial que solo sirve en la primera línea; se llama *shebang*. Lo que va después es la **ruta** de un programa: `/bin/bash` quiere decir «el programa `bash`, guardado en la carpeta `/bin`» (*bin* viene de *binarios*: ahí viven los programas del sistema). Juntas, las dos partes dicen: «para ejecutar este archivo, usá bash». Bash es la shell del módulo 1: el programa que entiende tus comandos."
+    },
+    {
+      "type": "text",
       "id": "b-escribir",
-      "body_md": "Ahora vas a escribir tu primer script con **nano**, el editor del módulo 4. Seguí estos pasos en orden: **1.** En la terminal escribí `nano hola.sh` y apretá Enter: se abre el editor, vacío. **2.** Adentro del editor escribí, tal cual y sin tildes, las tres líneas del recuadro negro de abajo, apretando Enter al final de cada una. **3.** Apretá `Ctrl+O` y después Enter: así se guarda. **4.** Apretá `Ctrl+X`: salís del editor y volvés a la terminal. Qué hace cada línea: `#!/bin/bash` avisa que el script lo lee bash; la segunda escribe un saludo; `whoami` dice quién sos.",
+      "body_md": "Ahora vas a escribir tu primer script con **nano**, el editor del módulo 4. Seguí estos pasos en orden: **1.** En la terminal escribí `nano hola.sh` y apretá Enter: se abre el editor, vacío. **2.** Adentro del editor escribí, tal cual y sin tildes, las tres líneas del recuadro negro de abajo, apretando Enter al final de cada una. **3.** Apretá `Ctrl+O` y después Enter: así se guarda. **4.** Apretá `Ctrl+X`: salís del editor y volvés a la terminal. Qué hace cada línea: la primera es la de bash que acabás de ver; la segunda usa `echo` para escribir un saludo en la pantalla; la tercera, `whoami`, muestra tu usuario.",
       "kind": "concept"
     },
     {
@@ -68,31 +74,31 @@
       "type": "command_step",
       "id": "s-cat",
       "command": "cat hola.sh",
-      "explain_md": "Comprobá lo que guardaste: `cat` muestra el contenido del archivo. Tienen que aparecer tus tres líneas. Si falta alguna o salió distinta, volvé a abrir `nano hola.sh` y corregila."
+      "explain_md": "Comprobá lo que guardaste: `cat` muestra lo que hay adentro del archivo. Tienen que aparecer tus tres líneas. Si falta alguna o salió distinta, volvé a abrir `nano hola.sh` y corregila."
     },
     {
       "type": "command_step",
       "id": "s-run-1",
       "command": "./hola.sh",
-      "explain_md": "Probalo: `./` significa «el que está en esta carpeta». Linux te va a responder **Permiso denegado**: el archivo existe, pero todavía no tiene permiso de ejecución. Es lo mismo que viste con `mi-programa`."
+      "explain_md": "Para ejecutar un programa que está en la carpeta donde estás, se escribe `./` y su nombre. El punto `.` quiere decir «esta carpeta» y la barra `/` separa la carpeta del archivo: `./hola.sh` es «el archivo `hola.sh` de esta carpeta». Hace falta porque Linux solo busca programas en las carpetas del sistema, no en la tuya. Vas a ver *Permission denied* («permiso denegado»): el archivo existe, pero todavía no tiene permiso para ejecutarse. Es lo esperado."
     },
     {
       "type": "command_step",
       "id": "s-chmod",
       "command": "chmod +x hola.sh",
-      "explain_md": "Dale permiso de ejecución. `+x` significa «agregar el permiso de ejecutar»: es la forma corta de lo que hiciste con `chmod 754` (los números), y es la que más se usa. No hace falta calcular nada."
+      "explain_md": "`chmod` cambia los permisos de un archivo. `+x` se lee así: `+` es «agregar» y `x` es el permiso de **ejecutar** (de *eXecute*). Entonces `chmod +x hola.sh` quiere decir «agregale a `hola.sh` el permiso de ejecutarse». Es la forma corta de lo que hiciste con números en el módulo de permisos (`chmod 754`), y no hay que calcular nada."
     },
     {
       "type": "command_step",
       "id": "s-ls-l",
       "command": "ls -l hola.sh",
-      "explain_md": "Mirá la línea de `hola.sh`: ahora los permisos incluyen una `x` (algo como `-rwxr-xr-x`). Esa `x` es la que faltaba. Fijate que `ls -l` también puede mirar un solo archivo si le escribís su nombre."
+      "explain_md": "`ls -l` con el nombre de un archivo muestra solo la línea larga de ese archivo. Al principio están los permisos: ahora aparece la `x` que faltaba, algo como `-rwxr-xr-x`."
     },
     {
       "type": "command_step",
       "id": "s-run-2",
       "command": "./hola.sh",
-      "explain_md": "Ahora sí: tiene que aparecer tu saludo y, debajo, tu nombre de usuario. Ese texto lo escribió **tu programa**."
+      "explain_md": "Ahora sí: tiene que aparecer tu saludo y, debajo, tu usuario (lo que responde `whoami`). Ese texto lo escribió **tu programa**, línea por línea, en el orden en que lo escribiste."
     },
     {
       "type": "text",
@@ -240,11 +246,11 @@
     }
   ],
   "hints": [
-    "Dentro de nano escribí las líneas tal cual, sin tildes y respetando mayúsculas y comillas.",
+    "Adentro de nano escribí las líneas tal cual, sin tildes y respetando mayúsculas y comillas.",
     "En nano, `Ctrl+O` y Enter guardan; `Ctrl+X` sale; `Alt+U` deshace un error.",
-    "Si `./hola.sh` dice «Permiso denegado», todavía falta el `chmod +x hola.sh`.",
-    "Si `./hola.sh` dice «No such file or directory», revisá que estés en la carpeta `programas` (con `pwd`) y que el archivo se llame `hola.sh`.",
-    "Si al ejecutar no aparece nada, abrí el archivo con `cat hola.sh` y comprobá que tenga las líneas."
+    "Si `./hola.sh` dice *Permission denied* («permiso denegado»), todavía falta el `chmod +x hola.sh`.",
+    "Si `./hola.sh` dice *No such file or directory* («no existe»), revisá que estés en la carpeta `programas` (con `pwd`) y que el archivo se llame `hola.sh`.",
+    "Si al ejecutar no aparece nada, mirá el archivo con `cat hola.sh` y comprobá que tenga las líneas."
   ],
   "validation_rules": [
     {
