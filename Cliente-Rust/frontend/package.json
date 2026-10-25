@@ -10,7 +10,8 @@
     "preview": "vite preview --port 5174",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "capturas": "node scripts/capturas.mjs"
   },
   "dependencies": {
     "@mantine/core": "9.1.1",
