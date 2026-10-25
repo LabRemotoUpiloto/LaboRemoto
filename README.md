@@ -1,49 +1,56 @@
 # LaboRemoto
 
-Plataforma de **laboratorio remoto** de la Universidad Piloto de Colombia. Permite a estudiantes, docentes y personal del laboratorio trabajar con equipos reales (Raspberry Pi, robots EV3, cámaras, Arduino) desde una aplicación de escritorio: terminal SSH, escritorio gráfico remoto, archivos, prácticas guiadas con validación automática, cursos de Moodle y un asistente de IA.
+Aplicación de escritorio para trabajar a distancia con los equipos del laboratorio de la Universidad Piloto de Colombia (Raspberry Pi, robots EV3, cámaras). Está hecha con **Tauri 2**: el backend en Rust y la interfaz en React + TypeScript.
 
-La aplicación es [`Cliente-Rust`](./Cliente-Rust): un cliente **Tauri 2** (backend en Rust, interfaz en React + TypeScript). Los servicios que la acompañan en la red del laboratorio están en [`infra/`](./infra).
+## Qué hace
 
-## Qué se puede hacer
+- **Se conecta por SSH a los equipos** y abre, en una sola ventana, una terminal, un gestor de archivos (SFTP), un escritorio gráfico remoto, un chat con IA y paneles de pines y de comandos guardados.
+- **Guía prácticas de laboratorio** (Linux y robot EV3): pasos, validación automática, insignias y encuesta final. Los resultados se envían a Moodle.
+- **Muestra el laboratorio**: cámaras en vivo con control PTZ y el estado de los equipos.
+- **Da herramientas al personal**: actividad en vivo, cursos de Moodle, usuarios y roles.
 
-La barra lateral de la aplicación agrupa todo en cinco bloques:
+Cada persona ve solo lo que le corresponde según su rol (`estudiante`, `docente`, `semillerista`, `laboratorista`, `coordinador_laboratorio`, `jefe_laboratorio`, `admin_lab`).
 
-| Bloque | Páginas | Para qué sirve |
-|---|---|---|
-| **Aprender** | Inicio, Prácticas, Mis cursos, Reservas | Portada con el estado del laboratorio o el avance del estudiante; prácticas de Linux y EV3 con guía paso a paso, validación, insignias y encuesta final; cursos y entregas de Moodle; reserva de horas (prototipo). |
-| **Conectar** | Conexiones | Equipos guardados (con credenciales cifradas), nueva conexión y registros de sesiones anteriores. |
-| **Laboratorio** | Monitoreo, Vigilancia | Rendimiento de la Raspberry Pi del laboratorio; cámaras del laboratorio con control PTZ. |
-| **Personas** | Actividad, Usuarios | Sesiones, dispositivos conectados y encuestas; gestión de usuarios y roles. |
-| **Esta sesión** | Terminal, Chat, Cámara, Escritorio, Pines, Archivos, Comandos | Herramientas que se abren dentro de una conexión SSH y se reacomodan arrastrándolas (mosaico). |
+## Cómo funciona
 
-Además: menú de usuario (perfil, ajustes, temas), tutorial de bienvenida narrado, actualizaciones automáticas en Windows y enlaces `laboremoto://` desde Moodle que abren una práctica.
+```
+Persona ──► Aplicación de escritorio (Tauri)
+            │
+            ├─ Inicio de sesión ............ Keycloak (OAuth 2.1 + PKCE)
+            ├─ Sesiones SSH ................ equipos del laboratorio (terminal, archivos, escritorio)
+            ├─ Prácticas y validación ...... API de la Raspberry Pi, por un túnel SSH
+            └─ Cámaras, sesiones, Moodle ... brokers HTTP del laboratorio (carpeta infra/)
+```
 
-Lo que ve cada persona depende de su **rol** (`admin_lab`, `jefe_laboratorio`, `coordinador_laboratorio`, `laboratorista`, `semillerista`, `docente`, `estudiante`); ver [`Cliente-Rust/README.md`](./Cliente-Rust/README.md#roles).
+1. La persona inicia sesión con su cuenta institucional. El token de acceso solo lo ve el backend de Rust, nunca la interfaz.
+2. Desde **Conexiones** abre una sesión SSH a un equipo. Cada sesión es un mosaico de herramientas (terminal, chat, cámara, escritorio, pines, archivos, comandos) que se reacomodan arrastrando.
+3. Las **prácticas** se leen y validan en una API que corre en una Raspberry Pi; la app llega a ella por un túnel SSH. Al terminar, el resultado va a Moodle a través de un broker.
+4. Las **cámaras**, el registro de sesiones y Moodle pasan por brokers HTTP desplegados en la red del laboratorio.
 
-## Cómo está organizado el repositorio
+## Qué hay en el repositorio
 
 | Carpeta | Contenido |
 |---|---|
-| [`Cliente-Rust/`](./Cliente-Rust) | La aplicación: `backend/` (Rust + Tauri), `frontend/` (React), `scripts/`, `tools/` (guiones de los videos). |
-| [`infra/`](./infra) | Servicios del laboratorio: brokers HTTP (`broker-*`), agente de conexiones, vigilante de Shinobi, contenido de las prácticas (`practicas-linux`, `practicas-ev3`), tema de login de Keycloak. |
-| [`docs/`](./docs) | Notas de infraestructura y planes. |
+| [`Cliente-Rust/`](./Cliente-Rust) | La aplicación: `backend/` (Rust), `frontend/` (React), `scripts/` y `tools/`. |
+| [`infra/`](./infra) | Servicios del laboratorio: brokers de cámaras, sesiones y Moodle, agente de conexiones, vigilante de Shinobi y contenido de las prácticas. |
+| [`docs/`](./docs) | Notas de infraestructura y capturas de pantalla. |
 | [`.github/workflows/`](./.github/workflows) | CI de cada PR, borrado de ramas fusionadas y publicación de versiones. |
-| [`AGENTS.md`](./AGENTS.md) / [`CLAUDE.md`](./CLAUDE.md) | Contexto para asistentes de código: estructura, comandos, reglas y trampas conocidas. |
+| [`AGENTS.md`](./AGENTS.md) · [`CLAUDE.md`](./CLAUDE.md) | Contexto para asistentes de código: estructura, comandos y reglas. |
 
 ## Arrancar en desarrollo
 
-Requisitos: Rust estable, Node.js 20 y las dependencias de sistema de [Tauri 2](https://v2.tauri.app/start/prerequisites/).
+Requisitos: Rust estable, Node.js 20 y las [dependencias de sistema de Tauri 2](https://v2.tauri.app/start/prerequisites/).
 
 ```bash
 cd Cliente-Rust
 npm run install:all          # dependencias de la raíz y del frontend
-cp .env.example .env         # completa los valores (ver "Configuración" en Cliente-Rust/README.md)
-npm run dev                  # libera los puertos 5174 y 1420 y lanza `cargo tauri dev`
+cp .env.example .env         # completa los valores
+npm run dev                  # lanza la app en modo desarrollo (cargo tauri dev)
 ```
 
-`npm run dev` usa un script de PowerShell (`scripts/dev.ps1`). En otros sistemas lanza por separado `npm run dev:frontend` y `npm run dev:backend`.
+`npm run dev` usa un script de PowerShell. En otros sistemas, lanza por separado `npm run dev:frontend` y `npm run dev:backend`.
 
-## Comprobaciones antes de abrir un PR
+Antes de abrir un PR:
 
 ```bash
 cd Cliente-Rust
@@ -56,47 +63,22 @@ El CI repite estas comprobaciones en cada PR hacia `Desarrollo`, `Produccion` o 
 
 ## Documentación
 
-- [`Cliente-Rust/README.md`](./Cliente-Rust/README.md): arquitectura, interfaz, módulos del backend y frontend, configuración y desarrollo.
-- [`infra/broker-gateway/README.md`](./infra/broker-gateway/README.md): índice de la arquitectura de brokers.
+- [`Cliente-Rust/README.md`](./Cliente-Rust/README.md): arquitectura, interfaz, módulos del backend y del frontend, configuración y desarrollo.
+- [`infra/broker-gateway/README.md`](./infra/broker-gateway/README.md): índice de los brokers.
 - [`Cliente-Rust/CONFIGURACION-ALUMNOS.md`](./Cliente-Rust/CONFIGURACION-ALUMNOS.md): dónde dejar el `.env` en la aplicación instalada.
 - [`AGENTS.md`](./AGENTS.md): reglas de trabajo del repositorio.
 
 ## Capturas
 
-La interfaz real con **datos de demostración** (personas, equipos y cifras ficticias; ninguna dirección IP real). Se generan con un script, así que se pueden rehacer cuando cambie la interfaz (ver más abajo).
-
 | | |
 |---|---|
 | **Inicio** | **Prácticas** |
 | ![Inicio](./docs/imagenes/inicio.png) | ![Prácticas](./docs/imagenes/practicas.png) |
+| **Sesión: terminal y chat** | **Sesión: terminal y archivos** |
+| ![Sesión con terminal y chat](./docs/imagenes/sesion-terminal-chat.png) | ![Sesión con terminal y archivos](./docs/imagenes/sesion-archivos.png) |
 | **Conexiones** | **Mis cursos** |
 | ![Conexiones](./docs/imagenes/conexiones.png) | ![Mis cursos](./docs/imagenes/mis-cursos.png) |
 | **Monitoreo** | **Actividad** |
 | ![Monitoreo](./docs/imagenes/monitoreo.png) | ![Actividad](./docs/imagenes/actividad.png) |
-| **Usuarios** | **Sesión: terminal y chat** |
-| ![Usuarios](./docs/imagenes/usuarios.png) | ![Sesión con terminal y chat](./docs/imagenes/sesion-terminal-chat.png) |
-| **Sesión: terminal y archivos (SFTP)** | |
-| ![Sesión con terminal y archivos](./docs/imagenes/sesion-archivos.png) | |
-
-Las dos últimas son de la **aplicación real** conectada a una Raspberry Pi (ver «Capturas de una sesión real» más abajo); el resto usa datos de demostración.
-
-**Cómo regenerar las de demostración.** El script abre la interfaz en un navegador con un Tauri simulado: no usa Keycloak, ni equipos, ni credenciales.
-
-```bash
-cd Cliente-Rust/frontend
-npx vite --port 5199 --strictPort      # en una terminal
-npm run capturas                       # en otra: escribe en docs/imagenes/
-```
-
-Los datos de demostración están al principio de `Cliente-Rust/frontend/scripts/capturas.mjs`. El script enmascara cualquier IP visible y se detiene si queda alguna. No cubre las vistas que necesitan una conexión SSH real (terminal, mosaico de sesión, escritorio remoto) ni el video de las cámaras.
-
-**Capturas de una sesión real** (Windows). Con la app abierta y una sesión SSH iniciada:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File Cliente-Rust/scripts/capturar-ventana.ps1 -Salida captura.png
-python Cliente-Rust/scripts/tapar-usuario.py captura.png docs/imagenes/sesion-xxx.png usuario
-```
-
-- `capturar-ventana.ps1` fotografía **solo la ventana de la app** (con `PrintWindow`), aunque otra ventana la tape.
-- `tapar-usuario.py` sustituye por un nombre genérico el usuario que aparece abajo a la izquierda de la barra lateral.
-- **Revisa cada imagen antes de subirla.** Una sesión real puede mostrar el prompt con tu usuario o correo, listados de archivos, rutas locales, nombres de otras personas o direcciones IP. Antes de capturar, en la terminal: `mkdir -p /tmp/demo && cd /tmp/demo && clear`; en el gestor de archivos, usa carpetas de demostración (`C:\demo` en local y `/tmp/demo` en remoto). Si el prompt muestra tu correo, hay que taparlo a mano en la imagen.
+| **Usuarios** | |
+| ![Usuarios](./docs/imagenes/usuarios.png) | |
