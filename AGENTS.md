@@ -135,7 +135,7 @@ Son los límites y comportamientos que el código ya impone. Si cambias uno, cam
 - **Agente de conexiones.** Solo autenticación por contraseña o *keyboard-interactive*. Latido de 30 s, cola de 1000 eventos.
 - **Vigilante de Shinobi.** Reinicia tras 3 min con cero monitores sanos y espera 30 min entre reinicios.
 - **Contenido de prácticas** (`practicas-linux`, `practicas-ev3`).
-  - Ids `linux-m1`, `linux-m2`, `linux-permisos`, `linux-m3`, `linux-archivos` y `ev3-m1…m9` (el orden lo da el campo `order`, no el id); `module.json` con sus campos obligatorios.
+  - Ids `linux-m1`, `linux-m2`, `linux-permisos`, `linux-m3`, `linux-archivos`, `linux-programa` y `ev3-m1…m9` (el orden lo da el campo `order`, no el id); `module.json` con sus campos obligatorios.
   - La validación de comandos es por coincidencia exacta salvo que el paso diga `fuzzy`; los cuestionarios, por igualdad.
   - Nota = puntos/total × 100 con un decimal. `passed` exige todos los pasos obligatorios.
   - Hay una prueba de integridad del contenido: córrela al editar un módulo.
