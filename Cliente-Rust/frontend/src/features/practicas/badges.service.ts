@@ -40,7 +40,7 @@ export interface RankDef {
  * Ranks según §4 de la investigación de diseño, en el orden en que se cursan los módulos (el `order` de
  * cada module.json en la Pi). Los ids de módulo no cambian aunque cambie el orden: la práctica de permisos
  * se separó del módulo 2 como `linux-permisos` (va 3.º) y el editor sigue siendo `linux-m3` (va 4.º).
- * M5 es `linux-archivos` y M6 es "próximamente".
+ * M5 es `linux-archivos`, M6 es `linux-programa` y M7 es "próximamente".
  */
 export const RANKS: RankDef[] = [
   {
@@ -79,10 +79,17 @@ export const RANKS: RankDef[] = [
     code: 'M5',
   },
   {
+    id: 'programador-jr',
+    title: 'Programador jr.',
+    description: 'Escribir, dar permiso y ejecutar tu primer programa (un script de bash).',
+    moduleId: 'linux-programa',
+    code: 'M6',
+  },
+  {
     id: 'operador-jr',
     title: 'Operador Jr.',
     description: 'Tu primer incidente, resuelto sin andamiaje.',
-    code: 'M6',
+    code: 'M7',
   },
 ];
 
