@@ -1,5 +1,5 @@
 use crate::ssh_core::exec::ssh_exec_session;
-use super::utils::kill_display_cmd;
+use super::utils::{kill_display_cmd, run_dir};
 
 /// Inicia Xvnc (display virtual + servidor VNC en un solo proceso) + entorno
 /// gráfico en el display/puerto dados.
@@ -22,6 +22,7 @@ pub(crate) fn start_vnc_server(
     home_dir: &str,
     practica: bool,
 ) -> Result<(), String> {
+    let rd = run_dir(home_dir, display);
     // Limpieza previa + lanzamiento en una sola llamada SSH (el PID sale en la última línea).
     let cleanup = format!(
         "{kill} \
@@ -29,7 +30,8 @@ pub(crate) fn start_vnc_server(
            case \"$(cat /proc/$p/comm 2>/dev/null)\" in Xvnc*|Xtigervnc*) kill $p 2>/dev/null;; esac; \
          done; \
          sleep 0.5; \
-         rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true",
+         rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; \
+         mkdir -p {rd} && chmod 700 {rd}; true",
         kill = kill_display_cmd(&display.to_string(), "", true),
         x_port = 6000 + display
     );
@@ -41,7 +43,7 @@ pub(crate) fn start_vnc_server(
         "XVNC_BIN=$(command -v Xtigervnc || command -v Xvnc); \
          nohup \"$XVNC_BIN\" :{display} -geometry {resolution} -depth 24 \
          -rfbport {vnc_port} -SecurityTypes None -AlwaysShared -ac -nolisten tcp -localhost \
-         >/tmp/xvnc{display}.log 2>&1 </dev/null & echo $!"
+         >{rd}/xvnc.log 2>&1 </dev/null & echo $!"
     );
     let (_, launched) = ssh_exec_session(sess, &format!("{cleanup}\n{launch}"))?;
     let xvnc_pid: u32 = launched
@@ -79,7 +81,7 @@ pub(crate) fn start_vnc_server(
             &format!(
                 "kill {xvnc_pid} 2>/dev/null; sleep 0.3; kill -9 {xvnc_pid} 2>/dev/null; \
                  rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; \
-                 tail -8 /tmp/xvnc{display}.log 2>/dev/null"
+                 tail -8 {rd}/xvnc.log 2>/dev/null"
             ),
         ).unwrap_or((0, String::new()));
         let motivo = match verdict.as_str() {
@@ -185,7 +187,8 @@ fn section(out: &str, name: &str) -> String {
 /// la barra no tiene menú de inicio y solo lleva el acceso a la terminal. Es para enfocar al estudiante, no una
 /// barrera de seguridad: esa terminal da exactamente lo mismo que la terminal de la práctica.
 pub(crate) fn setup_steps_1(display: u32, home_dir: &str, practica: bool) -> Vec<Step> {
-    let chromium_dir = format!("/tmp/chromium-vnc-{display}");
+    let rd = run_dir(home_dir, display);
+    let chromium_dir = format!("{rd}/chromium");
     let panel_profile = format!("lxde-pi-{display}");
     let browser_desktop = format!("{home_dir}/.local/share/applications/browser-vnc-{display}.desktop");
     let webserver_desktop = format!("{home_dir}/.local/share/applications/webserver-vnc-{display}.desktop");
@@ -209,8 +212,8 @@ pub(crate) fn setup_steps_1(display: u32, home_dir: &str, practica: bool) -> Vec
         )));
 
     steps.push(step("carpetas", format!(
-            "mkdir -p /tmp/xdg{display} {chromium_dir}/Default {home_dir}/.local/bin {home_dir}/Desktop; \
-             chmod 700 /tmp/xdg{display} 2>/dev/null; true"
+            "mkdir -p {rd}/xdg {chromium_dir}/Default {home_dir}/.local/bin {home_dir}/Desktop; \
+             chmod 700 {rd}/xdg 2>/dev/null; true"
         )));
 
     steps.push(step("libfm", format!(
@@ -227,10 +230,10 @@ pub(crate) fn setup_steps_1(display: u32, home_dir: &str, practica: bool) -> Vec
     rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie {chromium_dir}/SingletonSocket 2>/dev/null\n\
     # Aislar completamente del display fisico\n\
     export DISPLAY=:{display}\n\
-    export XDG_RUNTIME_DIR=/tmp/xdg{display}\n\
+    export XDG_RUNTIME_DIR={rd}/xdg\n\
     export DBUS_SESSION_BUS_ADDRESS=\n\
     export XDG_SESSION_TYPE=x11\n\
-    LOG=/tmp/browser-{display}.log\n\
+    LOG={rd}/browser.log\n\
     UDIR={chromium_dir}\n\
     CARGS='--no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars'\n\
     for BROWSER in chromium-browser chromium google-chrome-stable google-chrome firefox-esr firefox midori x-www-browser; do\n\
@@ -474,8 +477,9 @@ PANEL_EOF\n\
 
 /// Segundo script: configuración del fondo, ajustes GTK, xstartup, arranque del escritorio y accesos.
 pub(crate) fn setup_steps_2(display: u32, home_dir: &str, wallpaper: &str, practica: bool) -> Vec<Step> {
-    let chromium_dir = format!("/tmp/chromium-vnc-{display}");
-    let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
+    let rd = run_dir(home_dir, display);
+    let chromium_dir = format!("{rd}/chromium");
+    let xstartup_path = format!("{rd}/xstartup.sh");
     let panel_profile = format!("lxde-pi-{display}");
     let browser_desktop = format!("{home_dir}/.local/share/applications/browser-vnc-{display}.desktop");
     let webserver_desktop = format!("{home_dir}/.local/share/applications/webserver-vnc-{display}.desktop");
@@ -507,12 +511,12 @@ pub(crate) fn setup_steps_2(display: u32, home_dir: &str, wallpaper: &str, pract
     // Ajustes de GTK propios de esta sesión (no se toca el ~/.config de la Pi). Sin ellos, en un Xvnc sin
     // XSETTINGS, lxpanel no sabe qué tema de íconos usar y los lanzadores salen rotos.
     steps.push(step("gtk", format!(
-            "mkdir -p /tmp/xdgcfg{display}/gtk-3.0 /tmp/xdgcfg{display}/gtk-2.0 && \
+            "mkdir -p {rd}/xdgcfg/gtk-3.0 {rd}/xdgcfg/gtk-2.0 && \
              THEME=Adwaita; \
              for T in PiXtrix Adwaita; do [ -f /usr/share/icons/$T/index.theme ] && THEME=$T && break; done; \
              printf '[Settings]\\ngtk-icon-theme-name=%s\\ngtk-fallback-icon-theme=hicolor\\ngtk-cursor-theme-name=Adwaita\\ngtk-xft-dpi=98304\\n' \"$THEME\" \
-               > /tmp/xdgcfg{display}/gtk-3.0/settings.ini; \
-             printf 'gtk-icon-theme-name=\"%s\"\\n' \"$THEME\" > /tmp/xdgcfg{display}/gtk-2.0/gtkrc; true"
+               > {rd}/xdgcfg/gtk-3.0/settings.ini; \
+             printf 'gtk-icon-theme-name=\"%s\"\\n' \"$THEME\" > {rd}/xdgcfg/gtk-2.0/gtkrc; true"
         )));
 
     // Dentro del xstartup el fondo se lee del archivo de arriba (con `$WP` entre comillas), no se incrusta.
@@ -526,13 +530,13 @@ pub(crate) fn setup_steps_2(display: u32, home_dir: &str, wallpaper: &str, pract
             "printf '#!/bin/sh\\n\
 export DISPLAY=:{display}\\n\
 export HOME={home_dir}\\n\
-export XDG_RUNTIME_DIR=/tmp/xdg{display}\\n\
+export XDG_RUNTIME_DIR={rd}/xdg\\n\
 export XDG_DATA_HOME={home_dir}/.local/share\\n\
 export XDG_DATA_DIRS={home_dir}/.local/share:/usr/local/share:/usr/share\\n\
 export PATH={home_dir}/.local/bin:/usr/local/bin:/usr/bin:/bin\\n\
 export XDG_SESSION_TYPE=x11\\n\
-export XDG_CONFIG_DIRS=/tmp/xdgcfg{display}:/etc/xdg\\n\
-export GTK2_RC_FILES=/tmp/xdgcfg{display}/gtk-2.0/gtkrc\\n\
+export XDG_CONFIG_DIRS={rd}/xdgcfg:/etc/xdg\\n\
+export GTK2_RC_FILES={rd}/xdgcfg/gtk-2.0/gtkrc\\n\
 export GDK_SCALE=1\\n\
 export GDK_DPI_SCALE=1\\n\
 export GDK_BACKEND=x11\\n\
@@ -542,12 +546,12 @@ unset DBUS_SESSION_BUS_ADDRESS\\n\
 unset DBUS_LAUNCHD_SESSION_BUS_SOCKET\\n\
 xsetroot -solid \\#2c3e50 2>/dev/null || true\\n\
 rm -f {chromium_dir}/SingletonLock {chromium_dir}/SingletonCookie {chromium_dir}/SingletonSocket 2>/dev/null\\n\
-command -v vncconfig >/dev/null 2>&1 && vncconfig -nowin >/tmp/vncconfig{display}.log 2>&1 &\\n\
-openbox >/tmp/openbox{display}.log 2>&1 & echo $! > /tmp/openbox-{display}.pid\\n\
+command -v vncconfig >/dev/null 2>&1 && vncconfig -nowin >{rd}/vncconfig.log 2>&1 &\\n\
+openbox >{rd}/openbox.log 2>&1 & echo $! > {rd}/openbox.pid\\n\
 sleep 2\\n\
-OB=$(cat /tmp/openbox-{display}.pid)\\n\
-( while kill -0 $OB 2>/dev/null; do LD_PRELOAD=\"$(cat {home_dir}/.cache/labremoto/fmfix-{display}.path 2>/dev/null)\" lxpanel --profile {panel_profile} >>/tmp/lxpanel{display}.log 2>&1; sleep 2; done ) &\\n\
-pcmanfm --desktop --profile {panel_profile} >/tmp/pcmanfm{display}.log 2>&1 &\\n\
+OB=$(cat {rd}/openbox.pid)\\n\
+( while kill -0 $OB 2>/dev/null; do LD_PRELOAD=\"$(cat {home_dir}/.cache/labremoto/fmfix-{display}.path 2>/dev/null)\" lxpanel --profile {panel_profile} >>{rd}/lxpanel.log 2>&1; sleep 2; done ) &\\n\
+pcmanfm --desktop --profile {panel_profile} >{rd}/pcmanfm.log 2>&1 &\\n\
 sleep 2\\n\
 {set_wp_cmd}\\n\
 wait\\n' \
@@ -556,12 +560,12 @@ wait\\n' \
         )));
 
     steps.push(step("arrancar", format!(
-            "DISPLAY=:{display} HOME={home_dir} XDG_RUNTIME_DIR=/tmp/xdg{display} \
+            "DISPLAY=:{display} HOME={home_dir} XDG_RUNTIME_DIR={rd}/xdg \
              XDG_DATA_HOME={home_dir}/.local/share \
              XDG_DATA_DIRS={home_dir}/.local/share:/usr/local/share:/usr/share \
              PATH={home_dir}/.local/bin:/usr/local/bin:/usr/bin:/bin \
              nohup dbus-launch --exit-with-session {xstartup_path} \
-             >/tmp/lxsession{display}.log 2>&1 </dev/null & echo started"
+             >{rd}/lxsession.log 2>&1 </dev/null & echo started"
         )));
 
     if !practica {
@@ -635,25 +639,26 @@ pub(crate) fn stop_vnc_server(
     display: u32,
     home_dir: &str,
 ) -> Result<(), String> {
-    let xstartup_path = format!("/tmp/vnc-xstartup-{display}.sh");
+    let rd = run_dir(home_dir, display);
+    let xstartup_path = format!("{rd}/xstartup.sh");
     let panel_profile = format!("lxde-pi-{display}");
     let browser_desktop = format!("/tmp/browser-{display}.desktop");
     let webserver_desktop = format!("/tmp/webserver-{display}.desktop");
     let _ = ssh_exec_session(
         sess,
         &format!(
-            "pkill -f '[/]tmp/vnc-xstartup-{display}.sh$' 2>/dev/null; \
-             kill $(cat /tmp/openbox-{display}.pid 2>/dev/null) 2>/dev/null; \
+            "pkill -f '[l]abremoto/d{display}/xstartup.sh$' 2>/dev/null; \
+             kill $(cat {rd}/openbox.pid 2>/dev/null) 2>/dev/null; \
              pkill -f '[l]xpanel --profile {panel_profile}$' 2>/dev/null; \
              pkill -f '[p]cmanfm --desktop --profile {panel_profile}$' 2>/dev/null; \
              {kill_term} \
              sleep 0.5; \
              {kill_9} \
              rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} \
-                   {xstartup_path} /tmp/openbox-{display}.pid \
+                   {xstartup_path} {rd}/openbox.pid \
                    {browser_desktop} {webserver_desktop} \
                    {home_dir}/Desktop/servidor-web.desktop {home_dir}/Desktop/labremoto-*.desktop 2>/dev/null; \
-             rm -rf /tmp/xdg{display} 2>/dev/null; \
+             rm -rf {rd}/xdg 2>/dev/null; \
              true",
             kill_term = kill_display_cmd(&display.to_string(), "", false),
             kill_9 = kill_display_cmd(&display.to_string(), "-9", false)
@@ -735,6 +740,19 @@ mod tests {
         assert!(practica.contains("show_trash=0"), "la práctica oculta la papelera");
         let normal = todo(false);
         assert!(normal.contains("type=menu") && normal.contains("chromium-browser-20"), "el escritorio normal no cambia");
+    }
+
+    #[test]
+    fn los_archivos_del_display_no_van_a_tmp() {
+        // /tmp es compartido: un archivo con nombre fijo que dejó otro usuario no se puede sobrescribir y el
+        // escritorio no arrancaba. Solo los locks y sockets de X (convención del sistema) siguen en /tmp.
+        for practica in [true, false] {
+            let mut t = build_script(22, "/home/ana", &setup_steps_1(22, "/home/ana", practica), false);
+            t.push_str(&build_script(22, "/home/ana", &setup_steps_2(22, "/home/ana", "", practica), true));
+            let fuera: Vec<&str> = t.match_indices("/tmp/").map(|(i, _)| &t[i..(i + 20).min(t.len())]).filter(|s| !s.starts_with("/tmp/.X")).collect();
+            assert!(fuera.is_empty(), "rutas por display en /tmp: {fuera:?}");
+            assert!(t.contains("/home/ana/.cache/labremoto/d22/xstartup.sh"));
+        }
     }
 
     #[test]
