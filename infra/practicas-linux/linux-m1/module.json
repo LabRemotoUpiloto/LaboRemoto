@@ -1,1 +1,436 @@
-{"id": "linux-m1", "order": 1, "title": "¿Dónde estoy? Primeros pasos en la terminal", "difficulty": "inicial", "estimated_minutes": 18, "sequential": false, "objective": "Ubicarte en un sistema Linux remoto: quién sos, en qué máquina estás y qué programa te 'escucha' al escribir — y entender las cuatro piezas que arman todo sistema Linux (kernel, utilidades GNU, entorno gráfico, distribución) antes de avanzar.", "blocks": [{"type": "text", "id": "b-intro", "body_md": "Te acabás de conectar a una computadora que **no es la tuya**: una Raspberry Pi, en algún lugar del laboratorio. No tiene mouse ni ventanas — todo pasa escribiendo. Antes de tocar nada, vamos a entender dónde caíste."}, {"type": "media", "id": "b-diagram-map", "kind": "image", "file": "diagrams/mapa_terminal.png", "caption": "¿Dónde vive tu terminal?"}, {"type": "media", "id": "b-video-intro", "kind": "video", "file": "videos/video-modulo1.mp4", "caption": "Video introductorio del módulo — Bitácora del Operador"}, {"type": "text", "id": "b-como-usar-comandos", "body_md": "A partir de ahora vas a ver recuadros como el de abajo, con un comando adentro (ej. `whoami`). Cada vez que aparezca uno: escribilo tal cual en **tu terminal** (la ventana donde estás conectado a la Pi) y apretá Enter — no hace falta que respondas acá en el chat."}, {"type": "command_step", "id": "s-whoami", "command": "whoami", "explain_md": "Pregunta *quién sos* para este sistema. Como ver tu nombre de usuario en el menú de inicio de Windows."}, {"type": "command_step", "id": "s-hostname", "command": "hostname", "explain_md": "Pregunta *en qué máquina* estás — el nombre que ya viste en el prompt."}, {"type": "command_step", "id": "s-clear", "command": "clear", "explain_md": "Limpia la pantalla — no borra nada de lo que hiciste, solo el texto acumulado. Vas a usar esto todo el tiempo apenas la terminal se llene."}, {"type": "analogy", "id": "b-analogy-kernel", "term": "kernel", "title": "¿Qué es el kernel?", "everyday": "El motor de un carro: lo manejás con el volante, nunca lo tocás directo.", "windows": "El kernel de Windows (NT) — existe, pero nunca lo ves ni lo tocás.", "linux": "El núcleo: habla directo con el hardware (memoria, CPU, disco)."}, {"type": "command_step", "id": "s-uname", "command": "uname -a", "explain_md": "Muestra el kernel: versión, arquitectura, fecha de compilación. La letra chica del motor."}, {"type": "text", "id": "b-analogy-shell", "body_md": "**La shell** es como el mesero de un restaurante: traduce tu pedido a la cocina. En Windows ese trabajo lo hace `cmd.exe` o PowerShell. En Linux, **bash** lee lo que escribís y se lo pide al sistema."}, {"type": "command_step", "id": "s-shell", "command": "echo $SHELL", "explain_md": "Qué 'mesero' (shell) te está atendiendo ahora mismo — normalmente bash."}, {"type": "text", "id": "b-analogy-terminal", "body_md": "**La terminal** es la ventanilla del restaurante donde hablás con el mesero — no cocina nada, solo muestra la conversación. En Windows es la ventana negra del Símbolo del sistema; en Linux, es la ventana donde estás escribiendo ahora mismo."}, {"type": "media", "id": "b-diagram-chain", "kind": "image", "file": "diagrams/kernel_shell_terminal.png", "caption": "Kernel → shell → terminal"}, {"type": "command_step", "id": "s-date", "command": "date", "explain_md": "Fecha y hora del sistema — puede no ser la tuya si la Pi está en otra zona horaria."}, {"type": "text", "id": "b-recap", "body_md": "Ya viste el kernel, la shell y la terminal **en acción** con esos comandos. Faltan dos piezas del sistema completo que todavía no tocaste: las **utilidades GNU** y las **distribuciones**."}, {"type": "media", "id": "b-diagram-4layers", "kind": "image", "file": "diagrams/diagrama_m1.png", "caption": "Las 4 piezas de un sistema Linux"}, {"type": "text", "id": "b-analogy-gnu", "body_md": "Las **utilidades GNU** son las herramientas de una caja de herramientas: cada una hace una cosa chica y bien. En Windows son los programas que ya vienen instalados, como el Bloc de notas o la Calculadora. En Linux son `ls`, `cp`, `grep`, `cat`... y también varios que ya usaste arriba, como `whoami`, `uname` o `date`, sin saber que tenían nombre de familia."}, {"type": "text", "id": "b-analogy-desktop", "body_md": "El **entorno de escritorio** es como la decoración y los muebles de una casa: cambia el look, no la estructura de abajo. En Windows es el Explorador de archivos y la barra de tareas. En Linux existen GNOME, KDE, XFCE... pero esta Pi no tiene ninguno activo — por eso solo ves la terminal."}, {"type": "command_step", "id": "s-uptime", "command": "uptime", "explain_md": "Cuánto lleva encendida la Pi sin reiniciar, y cuánta carga tiene ahora mismo. Un respiro antes de seguir — correlo y volvé."}, {"type": "text", "id": "b-todo-archivo", "body_md": "Ya que no hay ventanas ni íconos — ¿cómo se organiza todo acá? En Windows tenés `C:`, `D:`... En Linux, **todo** (archivos, carpetas, hasta dispositivos como tu teclado) vive en un solo árbol, que arranca en `/`."}, {"type": "media", "id": "b-diagram-todo-archivo", "kind": "image", "file": "diagrams/todo_es_archivo.png", "caption": "En Linux, todo vive en un solo árbol"}, {"type": "command_step", "id": "s-pwd", "command": "pwd", "explain_md": "*Print Working Directory*: te dice en qué carpeta estás parado ahora mismo. Lo más probable es que veas algo como `/home/pi` — tu carpeta personal, que cuelga de la raíz `/`."}, {"type": "command_step", "id": "s-ls-raiz", "command": "ls /", "explain_md": "Lista lo que cuelga directamente de la raíz `/`: `bin`, `etc`, `home`, `usr`... Es el árbol del dibujo, pero real. Fijate que `home` está ahí: adentro vive tu carpeta personal."}, {"type": "text", "id": "b-analogy-distro", "body_md": "Una **distribución** es como una receta de cocina: mismos ingredientes base, cada cocinero los combina distinto. En Windows no existe el concepto — solo hay \"Windows 10\", \"Windows 11\". En Linux hay Debian, Ubuntu, Fedora, Raspberry Pi OS (la que corre esta Pi) — mismo kernel Linux, distinta selección de programas por defecto."}, {"type": "media", "id": "b-diagram-distro", "kind": "image", "file": "diagrams/distros.png", "caption": "Un kernel, muchas distribuciones"}, {"type": "quiz", "id": "q1-kernel", "question_md": "¿Cuál de estas es la responsabilidad principal del **kernel**?", "options": [{"id": "a", "label": "Mostrar ventanas y íconos en un entorno gráfico"}, {"id": "b", "label": "Administrar memoria, procesos, hardware y el sistema de archivos"}, {"id": "c", "label": "Interpretar los comandos que escribís en la terminal"}, {"id": "d", "label": "Empaquetar programas para instalar con apt"}]}, {"type": "quiz", "id": "q2-shell-vs-kernel", "question_md": "`bash` (la shell) y el kernel, ¿son la misma cosa?", "options": [{"id": "a", "label": "Sí, \"shell\" es solo otro nombre para el kernel"}, {"id": "b", "label": "No — la shell interpreta lo que escribís y se lo pide al kernel, son piezas distintas"}, {"id": "c", "label": "No, el kernel es más nuevo que la shell"}, {"id": "d", "label": "Sí, ambos vienen del mismo paquete de instalación"}]}, {"type": "quiz", "id": "q3-gnu", "question_md": "¿Qué son las utilidades GNU?", "options": [{"id": "a", "label": "El kernel mismo, con otro nombre"}, {"id": "b", "label": "Un entorno gráfico de escritorio"}, {"id": "c", "label": "Los programas base (ls, cp, grep, cat...) que corren arriba del kernel"}, {"id": "d", "label": "Una distribución completa de Linux"}]}, {"type": "quiz", "id": "q5-esta-pi", "question_md": "¿Por qué esta Raspberry Pi solo muestra una terminal y no un escritorio con ventanas?", "options": [{"id": "a", "label": "Porque Linux nunca tiene entornos gráficos"}, {"id": "b", "label": "Porque el entorno gráfico es un componente opcional del sistema, y esta Pi no lo tiene activo"}, {"id": "c", "label": "Porque se rompió el kernel"}, {"id": "d", "label": "Porque no tenés permisos para verlo"}]}, {"type": "quiz", "id": "q4-distro", "question_md": "¿Qué es una \"distribución\" de Linux?", "options": [{"id": "a", "label": "Una versión pirata de Linux"}, {"id": "b", "label": "Un antivirus para sistemas Linux"}, {"id": "c", "label": "Un empaquetado del kernel + utilidades GNU + herramientas propias de quien la arma"}, {"id": "d", "label": "Un tipo de entorno gráfico como GNOME o KDE"}]}, {"type": "quiz", "id": "q6-quien-invento", "question_md": "¿Quién creó Linux originalmente?", "options": [{"id": "a", "label": "Richard Stallman, que ya venía armando el proyecto GNU"}, {"id": "b", "label": "Bill Gates, antes de fundar Microsoft"}, {"id": "c", "label": "Linus Torvalds, un estudiante de 21 años en Finlandia"}, {"id": "d", "label": "Un equipo de IBM contratado para eso"}]}, {"type": "quiz", "id": "q7-anio-linux", "question_md": "¿En qué año Linus Torvalds publicó Linux por primera vez?", "options": [{"id": "a", "label": "1969"}, {"id": "b", "label": "1991"}, {"id": "c", "label": "1984"}, {"id": "d", "label": "2001"}]}, {"type": "quiz", "id": "q8-home", "question_md": "En el árbol de carpetas de Linux, ¿cuál es \"tu espacio personal\" — donde viven tus propios archivos y configuración?", "options": [{"id": "a", "label": "/etc"}, {"id": "b", "label": "/home"}, {"id": "c", "label": "/var"}, {"id": "d", "label": "/dev"}]}, {"type": "quiz", "id": "q9-raiz", "question_md": "En Linux no existe \"C:\" ni \"D:\" como en Windows. ¿De qué carpeta cuelga TODO el sistema, incluida /bin?", "options": [{"id": "a", "label": "/home"}, {"id": "b", "label": "/bin"}, {"id": "c", "label": "/ (la raíz)"}, {"id": "d", "label": "/tmp"}]}, {"type": "checkpoint", "id": "b-checkpoint", "rule_ids": ["cmd-whoami", "cmd-hostname", "cmd-clear", "cmd-uname", "cmd-shell", "cmd-date", "cmd-uptime", "cmd-pwd", "cmd-ls-raiz", "quiz-kernel", "quiz-shell", "quiz-gnu", "quiz-distro", "quiz-esta-pi", "quiz-quien-invento", "quiz-anio-linux", "quiz-home", "quiz-raiz"]}], "hints": ["Si te equivocás al escribir, usá ↑ para repetir el último comando y corregirlo.", "Ninguno de estos comandos necesita sudo — son solo lectura.", "Las preguntas de la evaluación final salen directo de los bloques de texto y analogías de arriba, no hace falta buscar afuera."], "validation_rules": [{"id": "cmd-whoami", "rule_type": "command_executed", "target": "whoami", "required": true, "points": 1}, {"id": "cmd-hostname", "rule_type": "command_executed", "target": "hostname", "required": true, "points": 1}, {"id": "cmd-clear", "rule_type": "command_executed", "target": "clear", "required": false, "points": 1}, {"id": "cmd-uname", "rule_type": "command_executed", "target": "uname -a", "required": true, "points": 2}, {"id": "cmd-shell", "rule_type": "command_executed", "target": "echo $SHELL", "required": true, "points": 1}, {"id": "cmd-date", "rule_type": "command_executed", "target": "date", "required": false, "points": 1}, {"id": "cmd-uptime", "rule_type": "command_executed", "target": "uptime", "required": false, "points": 1}, {"id": "cmd-pwd", "rule_type": "command_executed", "target": "pwd", "required": true, "points": 1}, {"id": "cmd-ls-raiz", "rule_type": "command_executed", "target": "ls /", "required": true, "points": 1}, {"id": "quiz-kernel", "rule_type": "quiz", "target": "q1-kernel", "required": true, "points": 2}, {"id": "quiz-shell", "rule_type": "quiz", "target": "q2-shell-vs-kernel", "required": true, "points": 2}, {"id": "quiz-gnu", "rule_type": "quiz", "target": "q3-gnu", "required": true, "points": 2}, {"id": "quiz-distro", "rule_type": "quiz", "target": "q4-distro", "required": true, "points": 2}, {"id": "quiz-esta-pi", "rule_type": "quiz", "target": "q5-esta-pi", "required": true, "points": 2}, {"id": "quiz-quien-invento", "rule_type": "quiz", "target": "q6-quien-invento", "required": true, "points": 2}, {"id": "quiz-anio-linux", "rule_type": "quiz", "target": "q7-anio-linux", "required": true, "points": 2}, {"id": "quiz-home", "rule_type": "quiz", "target": "q8-home", "required": true, "points": 2}, {"id": "quiz-raiz", "rule_type": "quiz", "target": "q9-raiz", "required": true, "points": 2}]}
+{
+  "id": "linux-m1",
+  "order": 1,
+  "title": "¿Qué es Linux? Primeros pasos en la terminal",
+  "resumen": "Te conectas a una computadora real y le preguntas quién eres.",
+  "difficulty": "inicial",
+  "estimated_minutes": 21,
+  "sequential": false,
+  "objective": "Entender qué es Linux (un sistema operativo), para qué sirve y qué es un comando; después, ubicarte en un sistema Linux remoto (quién sos, en qué máquina estás), saber qué pasa por dentro cuando escribís una orden (terminal, shell y kernel) y leer la línea donde escribís.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "Vas a trabajar en una computadora que no está frente a vos: una **Raspberry Pi**, un computador diminuto (del tamaño de una tarjeta de crédito) que está en el laboratorio. Lo controlás desde acá, escribiéndole órdenes. En este módulo vas a ver qué es Linux (el sistema que hace funcionar esa computadora), para qué sirve y cómo darle tus primeras órdenes. Al final vas a poder preguntarle a la Pi quién sos y en qué máquina estás, y entender la línea donde escribís. **Empezá mirando el video (2 minutos y medio).**",
+      "kind": "lead"
+    },
+    {
+      "type": "media",
+      "id": "b-video-intro",
+      "kind": "video",
+      "file": "videos/video-modulo1-parte1.mp4",
+      "caption": "Video 1 de 2 — ¿Qué es Linux? (el video 2 aparece después de tus primeros comandos)"
+    },
+    {
+      "type": "text",
+      "id": "b-como-usar-comandos",
+      "body_md": "A partir de ahora vas a ver recuadros como el de abajo, con un comando adentro (ej. `whoami`). Cada vez que aparezca uno: escribilo tal cual en **tu terminal** (la ventana donde estás conectado a la Pi) y apretá Enter. El paso se marca solo cuando lo ejecutás; si querés, contale al chat qué te apareció.",
+      "kind": "tip"
+    },
+    {
+      "type": "command_step",
+      "id": "s-whoami",
+      "command": "whoami",
+      "explain_md": "Pregunta *quién sos* para este sistema. Como ver tu nombre de usuario en el menú de inicio de Windows."
+    },
+    {
+      "type": "command_step",
+      "id": "s-hostname",
+      "command": "hostname",
+      "explain_md": "`hostname` te dice **cómo se llama la computadora** a la que estás conectado, la Raspberry Pi. Es el nombre que le pusieron para distinguirla de otras computadoras. Fijate en el resultado: junto con el de `whoami` forma la línea que aparece cada vez que vas a escribir, y el video que viene te la explica."
+    },
+    {
+      "type": "command_step",
+      "id": "s-clear",
+      "command": "clear",
+      "explain_md": "Limpia la pantalla — no borra nada de lo que hiciste, solo el texto acumulado. Vas a usar esto todo el tiempo apenas la terminal se llene."
+    },
+    {
+      "type": "text",
+      "id": "b-donde-corre",
+      "kind": "concept",
+      "body_md": "**Dónde corre un comando.** Lo que acabás de ver no salió de tu computadora: tu comando viajó por internet, por una conexión segura, hasta la Raspberry Pi; ella lo ejecutó y te devolvió el resultado como texto. Por eso `whoami` y `hostname` te contestaron con el usuario y el nombre de la Pi, no con los de tu equipo."
+    },
+    {
+      "type": "media",
+      "id": "b-diagram-map",
+      "kind": "image",
+      "file": "diagrams/conexion-remota.png",
+      "caption": "Tu comando corre en la Raspberry Pi: viaja por una conexión segura, la Pi lo ejecuta y te devuelve el resultado"
+    },
+    {
+      "type": "text",
+      "id": "b-puente-video2",
+      "kind": "lead",
+      "body_md": "Ya sabés qué es Linux y cómo darle órdenes. Ahora veamos **qué pasa por dentro** cuando apretás Enter, y qué significa cada parte de la línea donde escribís."
+    },
+    {
+      "type": "media",
+      "id": "b-video-parte2",
+      "kind": "video",
+      "file": "videos/video-modulo1-parte2.mp4",
+      "caption": "Video 2 de 2 — ¿Cómo funciona por dentro?"
+    },
+    {
+      "type": "text",
+      "id": "b-analogy-kernel",
+      "kind": "concept",
+      "body_md": "**El kernel** es como el motor de un carro: hace que todo funcione, pero nunca lo tocás directamente — vos manejás con el volante y los pedales, y el carro se encarga del motor. Windows también tiene uno, solo que nunca lo ves. En Linux está ahí, debajo de todo lo que escribís en la terminal."
+    },
+    {
+      "type": "command_step",
+      "id": "s-uname",
+      "command": "uname -a",
+      "explain_md": "Muestra datos del kernel. Fijate en la **primera palabra** que escribe: dice `Linux`. Ese es el kernel, la pieza central del sistema, y de ahí viene el nombre de todo. El resto es letra chica (versión, tipo de procesador), no hace falta entenderla."
+    },
+    {
+      "type": "text",
+      "id": "b-analogy-shell",
+      "kind": "concept",
+      "body_md": "**La shell** es como el mesero de un restaurante: traduce tu pedido a la cocina. En Windows ese trabajo lo hace `cmd.exe` o PowerShell; en Linux, **bash**. **La terminal** es la ventanilla donde hablás con el mesero: no cocina nada, solo muestra la conversación."
+    },
+    {
+      "type": "text",
+      "id": "b-gui-intro",
+      "kind": "concept",
+      "body_md": "**Verlo en vivo.** En el video te contamos que esta Pi no tiene escritorio, ni ventanas, ni mouse, ni íconos: el **entorno gráfico** (también le dicen **interfaz gráfica**) es un extra opcional y nadie lo activó. Vamos a activarlo un momento para que lo veas: a la izquierda se va a abrir el escritorio de esta misma Pi."
+    },
+    {
+      "type": "desktop_task",
+      "id": "g-gui-terminal",
+      "programa": "terminal",
+      "goal_md": "**Tu tarea:** abrí la terminal haciendo **doble clic** en su ícono. Así se trabaja en una interfaz gráfica: ves un dibujo y hacés clic.",
+      "done_md": "¡Listo! Abriste la terminal con el mouse."
+    },
+    {
+      "type": "text",
+      "id": "b-gui-contraste",
+      "kind": "concept",
+      "body_md": "Fijate en lo que abriste: es la **misma terminal** que venís usando, ahora como una ventana más dentro del escritorio. Como dijo el video, la terminal es solo la ventana donde escribís. Lo que cambia es **cómo le das las órdenes**: en la interfaz gráfica hacés clic sobre lo que ves; en la terminal las escribís. Las dos manejan la misma Pi."
+    },
+    {
+      "type": "desktop_close",
+      "id": "c-gui-volver",
+      "label": "Cerrar el escritorio y volver a la terminal"
+    },
+    {
+      "type": "text",
+      "id": "b-saber-piezas",
+      "kind": "concept",
+      "body_md": "**Para saber más (opcional): las piezas de un sistema Linux.** Las **utilidades GNU** son la caja de herramientas: cada una hace una cosa chica y bien (`ls`, `cp`, `grep`, y también `whoami` y `uname`, que ya usaste). El **entorno de escritorio** es la decoración de la casa (ventanas, íconos, barra de tareas): existen GNOME, KDE, XFCE… y esta Pi lo tiene apagado: lo activaste recién solo para verlo."
+    },
+    {
+      "type": "media",
+      "id": "b-diagram-4layers",
+      "kind": "image",
+      "file": "diagrams/diagrama_m1.png",
+      "caption": "Las 4 piezas de un sistema Linux"
+    },
+    {
+      "type": "text",
+      "id": "b-saber-distro",
+      "kind": "concept",
+      "body_md": "**Distribuciones.** Linux es solo el motor (el kernel). Una **distribución** es un sistema completo armado alrededor de ese motor, con sus programas y herramientas: el mismo motor en carros distintos. Debian, Ubuntu y Fedora son distribuciones; **Raspberry Pi OS** es la de esta Pi. Los comandos que aprendés sirven en todas."
+    },
+    {
+      "type": "media",
+      "id": "b-diagram-distro",
+      "kind": "image",
+      "file": "diagrams/distros.png",
+      "caption": "Un kernel, muchas distribuciones"
+    },
+    {
+      "type": "quiz",
+      "id": "q10-que-es-linux",
+      "question_md": "¿Qué es Linux?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Un lenguaje de programación para crear aplicaciones"
+        },
+        {
+          "id": "b",
+          "label": "Un programa para hacer páginas web y blogs"
+        },
+        {
+          "id": "c",
+          "label": "Un sistema operativo, como Windows o Android"
+        },
+        {
+          "id": "d",
+          "label": "Una marca de computadoras portátiles y de escritorio"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q11-se-programa",
+      "question_md": "Alguien en tu casa te pregunta: «¿Linux es para programar?». ¿Qué le respondés?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Sí, Linux es un lenguaje de programación, igual que Python o Java"
+        },
+        {
+          "id": "b",
+          "label": "No, en Linux no se puede programar: solo sirve para navegar y escribir"
+        },
+        {
+          "id": "c",
+          "label": "Solo sirve para programar servidores y páginas web, nada más"
+        },
+        {
+          "id": "d",
+          "label": "Es un sistema operativo: se puede programar en él, no es obligatorio"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q12-comando",
+      "question_md": "¿Qué es un **comando**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Una orden escrita que le pide algo al sistema y se ejecuta con Enter"
+        },
+        {
+          "id": "b",
+          "label": "Una ventana llena de íconos en la que se hace clic para abrir programas"
+        },
+        {
+          "id": "c",
+          "label": "Un programa que hay que instalar antes de poder usar Linux"
+        },
+        {
+          "id": "d",
+          "label": "El nombre de la computadora a la que te conectaste desde acá"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q1-kernel",
+      "question_md": "¿Cuál de estas es la responsabilidad principal del **kernel**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Mostrar las ventanas, los íconos y los menús de un entorno gráfico"
+        },
+        {
+          "id": "b",
+          "label": "Interpretar y traducir los comandos que escribís en la terminal"
+        },
+        {
+          "id": "c",
+          "label": "Administrar la memoria, los procesos, el hardware y los archivos"
+        },
+        {
+          "id": "d",
+          "label": "Empaquetar y descargar programas para instalarlos con apt"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q2-shell-vs-kernel",
+      "question_md": "`bash` (la shell) y el kernel, ¿son la misma cosa?",
+      "options": [
+        {
+          "id": "a",
+          "label": "No: la shell interpreta lo que escribís y se lo pide al kernel"
+        },
+        {
+          "id": "b",
+          "label": "Sí, \"shell\" es solo otro nombre que se le da al kernel"
+        },
+        {
+          "id": "c",
+          "label": "No: el kernel es la versión nueva de la shell, que es más antigua"
+        },
+        {
+          "id": "d",
+          "label": "Sí, los dos vienen en el mismo paquete de instalación"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q14-interfaz",
+      "question_md": "¿Qué diferencia hay entre una **interfaz gráfica** y una **terminal**?",
+      "options": [
+        {
+          "id": "a",
+          "label": "La terminal solo existe en Linux; en otros sistemas no hay nada parecido"
+        },
+        {
+          "id": "b",
+          "label": "En la gráfica das órdenes con el mouse; en la terminal las escribís"
+        },
+        {
+          "id": "c",
+          "label": "Son dos computadoras distintas que se conectan entre sí por internet"
+        },
+        {
+          "id": "d",
+          "label": "La interfaz gráfica es una parte interna del kernel de Linux"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q5-esta-pi",
+      "question_md": "¿Por qué esta Raspberry Pi solo muestra una terminal y no un escritorio con ventanas?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Porque Linux nunca puede tener entornos gráficos, solo terminales"
+        },
+        {
+          "id": "b",
+          "label": "Porque el kernel se rompió y no alcanza a mostrar nada más"
+        },
+        {
+          "id": "c",
+          "label": "Porque no tenés permisos suficientes para ver el escritorio"
+        },
+        {
+          "id": "d",
+          "label": "Porque el entorno gráfico es opcional y esta Pi lo tiene apagado"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q13-prompt",
+      "question_md": "En la línea `pi@raspberrypi:~$`, ¿qué es `raspberrypi`?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Tu nombre de usuario en el sistema"
+        },
+        {
+          "id": "b",
+          "label": "El nombre de la máquina a la que estás conectado"
+        },
+        {
+          "id": "c",
+          "label": "La carpeta en la que estás parado ahora mismo, dentro del sistema"
+        },
+        {
+          "id": "d",
+          "label": "El programa que lee y ejecuta tus órdenes"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "cmd-whoami",
+        "cmd-hostname",
+        "cmd-clear",
+        "cmd-uname",
+        "quiz-que-es-linux",
+        "quiz-se-programa",
+        "quiz-comando",
+        "quiz-kernel",
+        "quiz-shell",
+        "quiz-esta-pi",
+        "quiz-prompt",
+        "quiz-interfaz"
+      ]
+    }
+  ],
+  "hints": [
+    "Si te equivocás al escribir, usá ↑ para repetir el último comando y corregirlo.",
+    "Ninguno de estos comandos necesita `sudo` (la palabra que se escribe antes de un comando para pedir permisos de administrador) — son solo lectura.",
+    "Las preguntas de la evaluación final salen de los dos videos y de los textos de arriba, no hace falta buscar afuera."
+  ],
+  "validation_rules": [
+    {
+      "id": "cmd-whoami",
+      "rule_type": "command_executed",
+      "target": "whoami",
+      "required": true,
+      "points": 1
+    },
+    {
+      "id": "cmd-hostname",
+      "rule_type": "command_executed",
+      "target": "hostname",
+      "required": true,
+      "points": 1
+    },
+    {
+      "id": "cmd-clear",
+      "rule_type": "command_executed",
+      "target": "clear",
+      "required": false,
+      "points": 1
+    },
+    {
+      "id": "cmd-uname",
+      "rule_type": "command_executed",
+      "target": "uname -a",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-que-es-linux",
+      "rule_type": "quiz",
+      "target": "q10-que-es-linux",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-se-programa",
+      "rule_type": "quiz",
+      "target": "q11-se-programa",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-comando",
+      "rule_type": "quiz",
+      "target": "q12-comando",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-kernel",
+      "rule_type": "quiz",
+      "target": "q1-kernel",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-shell",
+      "rule_type": "quiz",
+      "target": "q2-shell-vs-kernel",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-interfaz",
+      "rule_type": "quiz",
+      "target": "q14-interfaz",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-esta-pi",
+      "rule_type": "quiz",
+      "target": "q5-esta-pi",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-prompt",
+      "rule_type": "quiz",
+      "target": "q13-prompt",
+      "required": true,
+      "points": 2
+    }
+  ]
+}
