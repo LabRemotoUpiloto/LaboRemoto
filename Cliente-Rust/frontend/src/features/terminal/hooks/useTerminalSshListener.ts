@@ -31,6 +31,23 @@ import { canRefocusTerminal, sanitizeSessionId } from './terminalDomUtils';
 import { esPulsacionTab, quitarTabs, tocaAvisarTab } from './bloqueoTab';
 import { TerminalSessionMetadata } from './terminalTypes';
 
+/** Texto de la línea lógica donde está el cursor (une las filas partidas por el ancho de la terminal). */
+function lineaDelCursor(term: Terminal): string | null {
+  const buf = term.buffer.active;
+  const y = buf.baseY + buf.cursorY;
+  let inicio = y;
+  while (inicio > 0 && buf.getLine(inicio)?.isWrapped) inicio--;
+  let fin = y;
+  while (buf.getLine(fin + 1)?.isWrapped) fin++;
+  let texto = '';
+  for (let fila = inicio; fila <= fin; fila++) {
+    const linea = buf.getLine(fila);
+    if (!linea) return null;
+    texto += linea.translateToString(fila === fin);
+  }
+  return texto;
+}
+
 interface UseTerminalSshListenerParams {
   sessionId: string | null;
   localSshCommand?: string | null;
@@ -40,7 +57,8 @@ interface UseTerminalSshListenerParams {
   unlistenRef: MutableRefObject<(() => void) | null>;
   sessionMetadataRef: MutableRefObject<TerminalSessionMetadata | null>;
   onTerminalOutput?: (data: string) => void;
-  onTerminalInput?: (data: string) => void;
+  /** `enPantalla`: con Enter, la línea donde está el cursor (ver lineaDelCursor). */
+  onTerminalInput?: (data: string, enPantalla?: string | null) => void;
   /** Prácticas: sin autocompletar con Tab (ver bloqueoTab.ts). */
   bloquearTab?: boolean;
   captureCurrentSession: () => Promise<void>;
@@ -226,7 +244,7 @@ export function useTerminalSshListener({
           avisarTab();
           if (!entrada) return;
         }
-        try { onTerminalInput?.(entrada); } catch {}
+        try { onTerminalInput?.(entrada, entrada.startsWith('\r') ? lineaDelCursor(term) : null); } catch {}
         sshStdin(sessionId, entrada).catch(() => {});
       }));
 

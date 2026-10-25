@@ -7,7 +7,7 @@ import { useTerminal } from './useTerminal';
 type Props = {
   sessionId: string | null;
   onTerminalOutput?: (data: string) => void;
-  onTerminalInput?: (data: string) => void;
+  onTerminalInput?: (data: string, enPantalla?: string | null) => void;
   localSshCommand?: string | null;
   /** Terminal de una práctica: la tecla Tab (autocompletar) está desactivada. */
   bloquearTab?: boolean;
