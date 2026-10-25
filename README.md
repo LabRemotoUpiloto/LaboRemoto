@@ -73,10 +73,14 @@ La interfaz real con **datos de demostración** (personas, equipos y cifras fict
 | ![Conexiones](./docs/imagenes/conexiones.png) | ![Mis cursos](./docs/imagenes/mis-cursos.png) |
 | **Monitoreo** | **Actividad** |
 | ![Monitoreo](./docs/imagenes/monitoreo.png) | ![Actividad](./docs/imagenes/actividad.png) |
-| **Usuarios** | |
-| ![Usuarios](./docs/imagenes/usuarios.png) | |
+| **Usuarios** | **Sesión: terminal y chat** |
+| ![Usuarios](./docs/imagenes/usuarios.png) | ![Sesión con terminal y chat](./docs/imagenes/sesion-terminal-chat.png) |
+| **Sesión: terminal y archivos (SFTP)** | |
+| ![Sesión con terminal y archivos](./docs/imagenes/sesion-archivos.png) | |
 
-**Cómo regenerarlas.** El script abre la interfaz en un navegador con un Tauri simulado: no usa Keycloak, ni equipos, ni credenciales.
+Las dos últimas son de la **aplicación real** conectada a una Raspberry Pi (ver «Capturas de una sesión real» más abajo); el resto usa datos de demostración.
+
+**Cómo regenerar las de demostración.** El script abre la interfaz en un navegador con un Tauri simulado: no usa Keycloak, ni equipos, ni credenciales.
 
 ```bash
 cd Cliente-Rust/frontend
@@ -85,3 +89,14 @@ npm run capturas                       # en otra: escribe en docs/imagenes/
 ```
 
 Los datos de demostración están al principio de `Cliente-Rust/frontend/scripts/capturas.mjs`. El script enmascara cualquier IP visible y se detiene si queda alguna. No cubre las vistas que necesitan una conexión SSH real (terminal, mosaico de sesión, escritorio remoto) ni el video de las cámaras.
+
+**Capturas de una sesión real** (Windows). Con la app abierta y una sesión SSH iniciada:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Cliente-Rust/scripts/capturar-ventana.ps1 -Salida captura.png
+python Cliente-Rust/scripts/tapar-usuario.py captura.png docs/imagenes/sesion-xxx.png usuario
+```
+
+- `capturar-ventana.ps1` fotografía **solo la ventana de la app** (con `PrintWindow`), aunque otra ventana la tape.
+- `tapar-usuario.py` sustituye por un nombre genérico el usuario que aparece abajo a la izquierda de la barra lateral.
+- **Revisa cada imagen antes de subirla.** Una sesión real puede mostrar el prompt con tu usuario o correo, listados de archivos, rutas locales, nombres de otras personas o direcciones IP. Antes de capturar, en la terminal: `mkdir -p /tmp/demo && cd /tmp/demo && clear`; en el gestor de archivos, usa carpetas de demostración (`C:\demo` en local y `/tmp/demo` en remoto). Si el prompt muestra tu correo, hay que taparlo a mano en la imagen.
