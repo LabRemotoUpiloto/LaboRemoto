@@ -80,5 +80,5 @@ El CI repite estas comprobaciones en cada PR hacia `Desarrollo`, `Produccion` o 
 | ![Conexiones](./docs/imagenes/conexiones.png) | ![Mis cursos](./docs/imagenes/mis-cursos.png) |
 | **Monitoreo** | **Actividad** |
 | ![Monitoreo](./docs/imagenes/monitoreo.png) | ![Actividad](./docs/imagenes/actividad.png) |
-| **Usuarios** | |
-| ![Usuarios](./docs/imagenes/usuarios.png) | |
+| **Escritorio remoto** | **Usuarios** |
+| ![Escritorio remoto](./docs/imagenes/escritorio-remoto.png) | ![Usuarios](./docs/imagenes/usuarios.png) |
