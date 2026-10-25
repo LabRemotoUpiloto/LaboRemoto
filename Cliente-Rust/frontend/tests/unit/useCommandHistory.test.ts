@@ -25,3 +25,25 @@ describe('useCommandHistory: commandHistory estable', () => {
     expect(result.current.commandHistory).toBe(despues);
   });
 });
+
+// nano usa la pantalla alterna: un Enter adentro es un salto de línea del archivo, no un comando.
+describe('useCommandHistory: programas de pantalla completa', () => {
+  it('lo que se teclea dentro de nano no se registra como comando', () => {
+    const { result } = renderHook(() => useCommandHistory());
+    act(() => result.current.processTerminalInput('nano hola.sh\r'));
+    act(() => result.current.processTerminalData('\x1b[?1049h\x1b[22;0;0t\x1b[1;24r'));
+    act(() => result.current.processTerminalInput('#!/bin/bash\r'));
+    act(() => result.current.processTerminalInput('whoami\r'));
+    act(() => result.current.processTerminalData('\x1b[?1049l'));
+    act(() => result.current.processTerminalInput('./hola.sh\r'));
+    expect(result.current.commandHistory).toEqual(['nano hola.sh', './hola.sh']);
+  });
+
+  it('la secuencia puede llegar partida en dos fragmentos', () => {
+    const { result } = renderHook(() => useCommandHistory());
+    act(() => result.current.processTerminalData('texto\x1b[?10'));
+    act(() => result.current.processTerminalData('49h'));
+    act(() => result.current.processTerminalInput('hola\r'));
+    expect(result.current.commandHistory).toEqual([]);
+  });
+});
