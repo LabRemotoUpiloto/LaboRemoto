@@ -137,9 +137,14 @@ npm run dev             # Windows: scripts/dev.ps1 → cargo tauri dev
 | Comandos Tauri vs. frontend | `node scripts/check-comandos.mjs` |
 | Tipos del frontend | `cd frontend && npx tsc --noEmit` |
 | Pruebas del frontend | `cd frontend && npx vitest run` |
-| Capturas del README (datos de demostración) | `cd frontend && npx vite --port 5199 --strictPort` y, en otra terminal, `npm run capturas` |
+| Capturas de las páginas (sin conexión real) | `cd frontend && npx vite --port 5199 --strictPort` y, en otra terminal, `npm run capturas` |
 | Compilar el backend (con tests) | `cd backend && cargo check --all-targets` |
 | Pruebas del backend (las del CI) | `cd backend && cargo test --lib --bins --test error_categorization_test --test protocol_test --test session_manager_flow_test --test session_manager_test` |
+
+**Capturas de pantalla** (carpeta `docs/imagenes/`, se usan en el `README.md` raíz). Hay dos formas, según la vista:
+
+- *Páginas* (inicio, prácticas, conexiones, cursos, monitoreo, actividad, usuarios): `npm run capturas` abre la interfaz en un navegador con un Tauri simulado y datos propios del script (`frontend/scripts/capturas.mjs`), sin Keycloak ni equipos. Enmascara cualquier IP visible.
+- *Sesión real* (terminal, chat, archivos, escritorio remoto): con la app abierta y una sesión SSH iniciada, `scripts/capturar-ventana.ps1 -Salida captura.png` fotografía solo la ventana de la app y `scripts/tapar-usuario.py captura.png salida.png usuario` sustituye el usuario de la barra lateral. **Revisa cada imagen antes de subirla**: puede mostrar el prompt con tu usuario o correo, listados de archivos, rutas locales, nombres de otras personas o direcciones IP. Antes de capturar usa carpetas de demostración (`/tmp/demo` en remoto, `C:\demo` en local) y, si el prompt muestra tu correo, táppalo a mano.
 
 **Ramas y CI.** Se trabaja en ramas `feat/`, `fix/`, `refactor/`, `chore/`, `docs/`… con commits `tipo(ámbito): mensaje` en español, y se abre un PR hacia `Desarrollo`. En cada PR corre `.github/workflows/ci.yml` (comandos, backend, frontend), la comprobación de versiones exactas en `package.json` y la de archivos sensibles (`.env`, `*.pem`, `*.key`, direcciones IP en el código). Al fusionar, la rama se borra sola.
 
