@@ -246,3 +246,18 @@ export function serverOutput(prev: ShellLine, data: string, now: number): ShellL
 
   return { ...prev, text, cursor };
 }
+
+/**
+ * Programas de pantalla completa (nano, less, top, vim) entran a la «pantalla alterna» de la terminal con
+ * `ESC[?1049h` (o `?1047h` / `?47h`) y salen con la `l`. Mientras están abiertos, lo que se teclea es para ellos:
+ * un Enter dentro de nano es un salto de línea del archivo, no un comando de la shell.
+ * Devuelve si, después de esta salida del servidor, la terminal queda en la pantalla alterna. `cola` son los
+ * últimos caracteres del fragmento anterior, por si la secuencia llegó partida en dos.
+ */
+export function pantallaAlterna(antes: boolean, cola: string, data: string): boolean {
+  const re = /\x1b\[\?(?:1049|1047|47)([hl])/g;
+  let estado = antes;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(cola + data)) !== null) estado = m[1] === 'h';
+  return estado;
+}

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
-import { newLine, typeKeys, serverOutput, type ShellLine } from './shellLine'
+import { newLine, typeKeys, serverOutput, pantallaAlterna, type ShellLine } from './shellLine'
 
 export interface CommandEntry {
   cmd: string
@@ -11,6 +11,9 @@ export function useCommandHistory() {
   // Línea que se está editando (texto + cursor): ver features/terminal/shellLine.ts
   const lineRef    = useRef<ShellLine>(newLine())
   const lastCmdRef = useRef<string>('')
+  // nano, less, top…: mientras están abiertos, lo que se teclea no son comandos (ver pantallaAlterna)
+  const alternaRef = useRef(false)
+  const colaRef    = useRef('')
 
   const pushCommand = useCallback((command: string) => {
     const cmd = command.trim()
@@ -25,6 +28,7 @@ export function useCommandHistory() {
    * Edita la línea como readline (cursor, flechas, Supr, Ctrl+A/E/U/K/W) y, con Enter, guarda el comando.
    */
   const processTerminalInput = useCallback((data: string) => {
+    if (alternaRef.current) return
     const { line, commands } = typeKeys(lineRef.current, data, Date.now())
     lineRef.current = line
     commands.forEach(pushCommand)
@@ -35,6 +39,15 @@ export function useCommandHistory() {
    * Solo cuenta justo después de Tab o ↑/↓: bash redibuja la línea y eso se aplica a la línea que llevamos.
    */
   const processTerminalData = useCallback((data: string) => {
+    const estaba = alternaRef.current
+    alternaRef.current = pantallaAlterna(estaba, colaRef.current, data)
+    colaRef.current = data.slice(-8)
+    if (estaba !== alternaRef.current) {
+      // al entrar o salir del programa, la línea de la shell empieza de cero
+      lineRef.current = newLine()
+      return
+    }
+    if (alternaRef.current) return
     const antes = lineRef.current
     lineRef.current = serverOutput(antes, data, Date.now())
     if (import.meta.env.DEV && lineRef.current !== antes) {
@@ -46,6 +59,8 @@ export function useCommandHistory() {
     setCommandEntries([])
     lineRef.current    = newLine()
     lastCmdRef.current = ''
+    alternaRef.current = false
+    colaRef.current    = ''
   }, [])
 
   const addCommand = useCallback((command: string) => {
