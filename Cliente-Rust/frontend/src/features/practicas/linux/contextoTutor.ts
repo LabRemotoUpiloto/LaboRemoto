@@ -54,11 +54,25 @@ export type RelacionComando = 'anterior' | 'posterior' | 'otro';
 export function relacionDelComando(
   comando: string, mod: LinuxModule, res: LinuxValidationResult | null, pendienteId?: string,
 ): RelacionComando {
-  const norm = (s: string) => s.trim().toLowerCase();
+  const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
   const { comandos, resuelto } = resueltos(mod, res);
   const mismos = comandos.filter((b) => b.id !== pendienteId && norm(b.command) === norm(comando));
   if (mismos.length === 0) return 'otro';
   return mismos.some(resuelto) ? 'anterior' : 'posterior';
+}
+
+// Caracteres que se cuelan al copiar de Word, un PDF o una página: se ven casi iguales pero bash no los entiende
+// como comillas, guiones o espacios, y el modelo no los distingue a simple vista.
+const CARACTERES_RAROS: Array<[RegExp, string]> = [
+  [/[“”„«»]/, 'comillas tipográficas (“ ” o « ») en vez de las comillas rectas "'],
+  [/[‘’‚´]/, "apóstrofos tipográficos (‘ ’ o ´) en vez de la comilla recta '"],
+  [/[‐-―−]/, 'un guion largo (– o —) en vez del guion normal -'],
+  [/[  -​  　﻿]/, 'un espacio especial (no separable o invisible) que bash no toma como espacio'],
+];
+
+/** Qué caracteres raros trae el comando (vacío si ninguno). */
+export function caracteresRaros(comando: string): string[] {
+  return CARACTERES_RAROS.filter(([re]) => re.test(comando)).map(([, texto]) => texto);
 }
 
 /** Instrucción para el modelo cuando el estudiante escribe en la terminal algo que no es lo que toca. */
@@ -70,6 +84,11 @@ export function textoComandoFueraDeLugar(opts: {
   salidaTerminal: string | null;
 }): string {
   const { comando, esperado, relacion, ahora, salidaTerminal } = opts;
+  const raros = caracteresRaros(comando);
+  const avisoRaros = raros.length
+    ? `IMPORTANTE: el comando trae ${raros.join(' y ')}. Casi seguro lo copió de un documento o una página: ` +
+      `explicale que se ve igual pero la terminal no lo entiende, y que lo escriba a mano. `
+    : '';
   // Lo que toca ahora sale de la barra de la guía: puede ser leer, ampliar una imagen o responder la
   // evaluación, no siempre escribir el próximo comando.
   const queHacer = ahora
@@ -79,6 +98,7 @@ export function textoComandoFueraDeLugar(opts: {
     `El estudiante ejecutó \`${comando}\` en la terminal, pero eso no es lo que toca ahora en la práctica. ` +
     `Esta es la salida real reciente de la terminal:\n\n` +
     `${salidaTerminal ?? '(no se pudo leer la salida de la terminal)'}\n\n` +
+    avisoRaros +
     (relacion === 'anterior'
       ? `IMPORTANTE: \`${comando}\` es un comando válido que ya usó bien en un paso ANTERIOR de esta práctica: no ` +
         `está mal escrito, solo que ese paso ya quedó atrás. Decíselo en una frase, sin volver a explicar qué hace, y`

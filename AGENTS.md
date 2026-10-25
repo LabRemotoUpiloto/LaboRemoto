@@ -136,7 +136,7 @@ Son los límites y comportamientos que el código ya impone. Si cambias uno, cam
 - **Vigilante de Shinobi.** Reinicia tras 3 min con cero monitores sanos y espera 30 min entre reinicios.
 - **Contenido de prácticas** (`practicas-linux`, `practicas-ev3`).
   - Ids `linux-m1`, `linux-m2`, `linux-permisos`, `linux-m3`, `linux-archivos`, `linux-programa`, `linux-incidente` y `ev3-m1…m9` (el orden lo da el campo `order`, no el id); `module.json` con sus campos obligatorios.
-  - La validación de comandos es por coincidencia exacta salvo que el paso diga `fuzzy`; los cuestionarios, por igualdad.
+  - Los comandos se comparan como los entiende bash (`validation.py`: espacios, comillas, orden de opciones cortas, `./` y `/` final no cuentan; las mayúsculas sí, salvo en el texto de `echo`); `fuzzy` además acepta el target como parte del comando. Los cuestionarios, por igualdad. Pruebas: `test_validation.py`.
   - Nota = puntos/total × 100 con un decimal. `passed` exige todos los pasos obligatorios.
   - Hay una prueba de integridad del contenido: córrela al editar un módulo.
 

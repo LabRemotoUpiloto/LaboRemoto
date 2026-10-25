@@ -32,5 +32,5 @@ Esta carpeta es la **fuente** del texto, las preguntas y las reglas. Los videos 
 - Las preguntas tienen 4 opciones de largo parecido y la correcta repartida entre a, b, c y d. La opción correcta no debe ser la más larga.
 - Un término nuevo se explica la primera vez que aparece (por ejemplo `sudo` o *argumento*).
 - Un texto no repite lo que ya dijo el video del mismo paso.
-- La validación de un comando exige coincidir exacto (sin importar mayúsculas ni espacios alrededor de `|`). `"fuzzy": true` la vuelve parcial: úsalo en desafíos abiertos o cuando haya varias formas válidas de escribir lo mismo.
+- La validación de un comando lo compara como lo entiende bash (`validation.py`): no importan los espacios de más, el tipo de comillas, el orden de las opciones cortas (`ls -la` = `ls -l -a`), el `./` o la `/` final de una ruta, ni `cd ~` frente a `cd`; una línea con `;` o `&&` cuenta cada comando. Sí importan las mayúsculas (salvo en el texto de `echo`), así que el `target` va tal cual se escribe en bash. `"fuzzy": true` además acepta el target como parte del comando: úsalo en desafíos abiertos. Pruebas: `python test_validation.py`.
 - Los textos usan voseo, como el resto del módulo.

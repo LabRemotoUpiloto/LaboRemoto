@@ -26,10 +26,11 @@ export function useCommandHistory() {
   /**
    * processTerminalInput — lo que el usuario TECLEA (onData de xterm).
    * Edita la línea como readline (cursor, flechas, Supr, Ctrl+A/E/U/K/W) y, con Enter, guarda el comando.
+   * `enPantalla`: la línea de la terminal al pulsar Enter, para cuando ↑/↓/Tab la cambiaron desde el servidor.
    */
-  const processTerminalInput = useCallback((data: string) => {
+  const processTerminalInput = useCallback((data: string, enPantalla?: string | null) => {
     if (alternaRef.current) return
-    const { line, commands } = typeKeys(lineRef.current, data, Date.now())
+    const { line, commands } = typeKeys(lineRef.current, data, Date.now(), enPantalla)
     lineRef.current = line
     commands.forEach(pushCommand)
   }, [pushCommand])

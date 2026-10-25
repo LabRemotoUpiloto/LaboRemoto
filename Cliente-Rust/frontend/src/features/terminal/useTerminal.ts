@@ -50,7 +50,7 @@ export function useTerminal(
   containerRef: RefObject<HTMLDivElement>,
   theme: string,
   onTerminalOutput?: (data: string) => void,
-  onTerminalInput?: (data: string) => void,
+  onTerminalInput?: (data: string, enPantalla?: string | null) => void,
   /** Comando ssh local equivalente (se muestra typeado al abrir la sesión embebida). */
   localSshCommand?: string | null,
   /** Prácticas: sin autocompletar con Tab (ver hooks/bloqueoTab.ts). */
