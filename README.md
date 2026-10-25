@@ -4,8 +4,8 @@ Aplicación de escritorio para trabajar a distancia con los equipos del laborato
 
 ## Qué hace
 
-- **Se conecta por SSH a los equipos** y abre, en una sola ventana, una terminal, un gestor de archivos (SFTP), un escritorio gráfico remoto, un chat con IA y paneles de pines y de comandos guardados.
-- **Guía prácticas de laboratorio** (Linux y robot EV3): pasos, validación automática, insignias y encuesta final. Los resultados se envían a Moodle.
+- **Se conecta por SSH a los equipos.** Puedes tener varias sesiones abiertas a la vez, cada una en su pestaña. Cada sesión reúne sus herramientas: terminal, gestor de archivos (SFTP), escritorio gráfico remoto, chat con IA, cámara, pines y comandos guardados.
+- **Guía prácticas de laboratorio paso a paso** (Linux y robot EV3). Cada paso dice qué hacer ahora, el comando se valida apenas lo escribes en la terminal y un tutor con IA explica la salida que obtuviste. Hay videos, esquemas y ejercicios interactivos. En el Módulo 1 de Linux se abre el escritorio de la Raspberry para ver la diferencia entre una interfaz gráfica y la terminal. Al final hay preguntas, insignias y una encuesta, y los resultados se envían a Moodle.
 - **Muestra el laboratorio**: cámaras en vivo con control PTZ y el estado de los equipos.
 - **Da herramientas al personal**: actividad en vivo, cursos de Moodle, usuarios y roles.
 
@@ -23,7 +23,7 @@ Persona ──► Aplicación de escritorio (Tauri)
 ```
 
 1. La persona inicia sesión con su cuenta institucional. El token de acceso solo lo ve el backend de Rust, nunca la interfaz.
-2. Desde **Conexiones** abre una sesión SSH a un equipo. Cada sesión es un mosaico de herramientas (terminal, chat, cámara, escritorio, pines, archivos, comandos) que se reacomodan arrastrando.
+2. Desde **Conexiones** abre sesiones SSH a los equipos, cada una en su pestaña. Cada sesión es un mosaico de herramientas (terminal, chat, cámara, escritorio, pines, archivos, comandos) que se reacomodan arrastrando.
 3. Las **prácticas** se leen y validan en una API que corre en una Raspberry Pi; la app llega a ella por un túnel SSH. Al terminar, el resultado va a Moodle a través de un broker.
 4. Las **cámaras**, el registro de sesiones y Moodle pasan por brokers HTTP desplegados en la red del laboratorio.
 
@@ -82,6 +82,12 @@ La portada. A la izquierda está la barra lateral, con las páginas agrupadas en
 
 El catálogo de prácticas por categoría (**Linux** y **Robot EV3**); cada tarjeta indica cuántas prácticas tiene. Al abrir una se configura el entorno de trabajo y se sigue una guía paso a paso con validación automática, insignias y una encuesta al terminar. La pestaña **Encuestas** reúne las respuestas.
 
+### Práctica guiada
+
+![Práctica guiada de Linux con el chat abierto](./docs/imagenes/practica-guiada.png)
+
+Una práctica abierta. A la izquierda está la terminal de la Raspberry Pi y arriba, el módulo y el paso en el que vas («Paso 3 de 13»). En el chat, la tarjeta del paso trae la explicación y el comando que toca escribir; aquí el estudiante acaba de escribir `whoami`, el paso quedó marcado como **Hecho** y el tutor explica lo que salió en la terminal. La barra **Ahora**, arriba del chat, ya indica lo siguiente (escribir `hostname`) y el aviso «Escribe aquí» señala dónde hacerlo. Si te equivocas, el tutor te dice qué escribiste mal.
+
 ### Mis cursos
 
 ![Mis cursos](./docs/imagenes/mis-cursos.png)
@@ -110,7 +116,7 @@ El gestor de archivos junto a la terminal. Tiene dos paneles: el **local** (el c
 
 ![Escritorio remoto](./docs/imagenes/escritorio-remoto.png)
 
-El escritorio gráfico de la Raspberry Pi dentro de la aplicación. Al abrirlo, la app arranca en la Pi una pantalla virtual (Xvnc) con un panel de accesos (menú de aplicaciones, navegador, archivos, terminal y editores) y la muestra con noVNC. Cada sesión tiene su propio escritorio.
+El escritorio gráfico de la Raspberry Pi dentro de la aplicación. Al abrirlo, la app arranca en la Pi una pantalla virtual (Xvnc) con un panel de accesos (menú de aplicaciones, navegador, archivos, terminal y editores) y la muestra con noVNC. Cada sesión tiene su propio escritorio. En las prácticas el escritorio sale acotado, solo con la terminal, para que el estudiante se concentre en la tarea.
 
 ### Monitoreo
 
