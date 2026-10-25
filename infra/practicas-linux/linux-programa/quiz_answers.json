@@ -2,5 +2,7 @@
   "q1-script": "b",
   "q2-shebang": "c",
   "q3-chmod-x": "d",
-  "q4-permiso-queda": "b"
+  "q4-permiso-queda": "b",
+  "q5-bash-sin-permiso": "c",
+  "q6-python": "a"
 }
