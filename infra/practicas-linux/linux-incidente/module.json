@@ -61,8 +61,8 @@
       "type": "command_step",
       "id": "g-run-1",
       "command": "./reporte.sh",
-      "goal_md": "**Objetivo 1.** Ejecutá el programa `reporte.sh`, que está en esta carpeta, y mirá qué responde Linux.",
-      "explain_md": "Pista: para ejecutar un programa de la carpeta donde estás se escribe `./` delante del nombre (módulo 6)."
+      "goal_md": "**Objetivo 1.** Ejecutá el programa `reporte.sh` **directamente**, como un programa propio (sin escribir `bash` adelante), y mirá qué responde Linux.",
+      "explain_md": "Pista: para ejecutar directamente un programa de la carpeta donde estás se escribe `./` delante del nombre (módulo 6)."
     },
     {
       "type": "command_step",
@@ -75,7 +75,7 @@
       "type": "command_step",
       "id": "g-run-2",
       "command": "./reporte.sh",
-      "goal_md": "**Objetivo 3.** Volvé a ejecutar el programa: ahora tiene que mostrar «Reporte del laboratorio listo».",
+      "goal_md": "**Objetivo 3.** Volvé a ejecutarlo directamente, igual que en el objetivo 1: ahora tiene que mostrar «Reporte del laboratorio listo».",
       "explain_md": "Pista: es el mismo comando que en el objetivo 1."
     },
     {
