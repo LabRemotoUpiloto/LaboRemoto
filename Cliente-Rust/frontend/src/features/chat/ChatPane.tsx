@@ -93,6 +93,18 @@ type Props = {
   onProgresoPractica?: (p: ProgresoPractica | null) => void;
   /** Chat de una terminal local (no SSH): modo Consulta, sabe qué shell es y ejecuta en el panel activo. */
   terminalLocal?: { tabId: string; ejecutar: (comando: string) => void };
+  /** Práctica de circuitos (simulador en iframe): el chat la entrega (bienvenida, un paso a la vez a medida que se logran y cierre)
+   *  y en cada respuesta el tutor recibe la práctica y el circuito del estudiante tal como está (features/circuitos/). */
+  circuito?: {
+    id: string;
+    contexto: () => string;
+    intro: string;
+    outro: string;
+    /** Ids de los pasos, en orden. */
+    pasos: string[];
+    /** Pasos ya logrados: al lograr uno, llega el siguiente. */
+    logrados: Set<string>;
+  };
 };
 
 const ChatPane: React.FC<Props> = ({
@@ -105,6 +117,7 @@ const ChatPane: React.FC<Props> = ({
   linuxSession,
   onProgresoPractica,
   terminalLocal,
+  circuito,
 }) => {
   const isHome = layout === 'home';
   // Durante una práctica el chat queda fijo en modo tutor (Consulta) -- no se
@@ -130,8 +143,8 @@ const ChatPane: React.FC<Props> = ({
   // mientras practiceLocked (ver más abajo), pero esto cubre también los
   // caminos que llaman setMode directamente desde adentro de este componente.
   useEffect(() => {
-    if ((isPracticeSession || terminalLocal) && mode !== 'ask') setMode('ask');
-  }, [isPracticeSession, terminalLocal, mode]);
+    if ((isPracticeSession || terminalLocal || circuito) && mode !== 'ask') setMode('ask');
+  }, [isPracticeSession, terminalLocal, circuito, mode]);
   const [selectedModel, setSelectedModel] = useState<ModelSelection>(() => {
     const saved = localStorage.getItem('chatSelectedModel');
     const deprecated: Record<string, string> = {
@@ -164,7 +177,7 @@ const ChatPane: React.FC<Props> = ({
   // (el estado real, mostrado/editable fuera de una práctica) no se toca,
   // así no se pisa la preferencia del estudiante para sus chats normales.
   const PRACTICE_MODEL: ModelSelection = 'openai/gpt-oss-120b';
-  const effectiveModel = isPracticeSession ? PRACTICE_MODEL : selectedModel;
+  const effectiveModel = isPracticeSession || circuito ? PRACTICE_MODEL : selectedModel;
 
   // ── Entrega de contenido de la práctica de Linux por el chat ──
   // Reemplaza a la vieja página de módulo con scroll (LinuxModulePage ahora
@@ -522,7 +535,36 @@ const ChatPane: React.FC<Props> = ({
   // ── Custom Hooks ──
   const { errorBanner, setErrorBanner, promptBanner, setPromptBanner, terminalActivity, setTerminalActivity } = useTerminalMonitor(terminalMonitorSessionId);
   // La terminal local guarda su conversación aparte (no se mezcla con el chat de Inicio)
-  useChatStorage(sessionId ?? (terminalLocal ? `local:${terminalLocal.tabId}` : null), mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
+  useChatStorage(sessionId ?? (terminalLocal ? `local:${terminalLocal.tabId}` : circuito ? `circuito:${circuito.id}` : null), mode, messages, setMessages, mem.practiceTutorial, skipRestoreRef);
+
+  // ── Práctica de circuitos: el chat la entrega ──
+  // Bienvenida, después un paso a la vez (llega el siguiente cuando se logra el anterior) y el cierre al terminar. Corre después de
+  // restaurar el chat guardado (va declarado después de useChatStorage): no repite lo que ya estaba.
+  const circuitoAvance = circuito ? `${circuito.id}|${circuito.pasos.filter((p) => circuito.logrados.has(p)).join(',')}` : '';
+  useEffect(() => {
+    if (!circuito) return;
+    setMessages((prev) => {
+      const hay = new Set(prev.map((m) => m.id));
+      const sello = Date.now();
+      const nuevos: Message[] = [];
+      if (!hay.has('circ-intro')) nuevos.push({ id: 'circ-intro', sender: 'ai', text: circuito.intro, timestamp: sello });
+      for (const [i, pasoId] of circuito.pasos.entries()) {
+        if (!hay.has(`circ-paso-${pasoId}`)) {
+          nuevos.push({
+            id: `circ-paso-${pasoId}`, sender: 'ai', text: '', timestamp: sello,
+            meta: { circuitoPaso: { pasoId, numero: i + 1, total: circuito.pasos.length } },
+          });
+        }
+        if (!circuito.logrados.has(pasoId)) break;
+      }
+      if (circuito.pasos.every((p) => circuito.logrados.has(p)) && !hay.has('circ-fin')) {
+        nuevos.push({ id: 'circ-fin', sender: 'ai', text: circuito.outro, timestamp: sello });
+      }
+      return nuevos.length ? [...prev, ...nuevos] : prev;
+    });
+    // circuitoAvance resume lo que importa de `circuito` (su id y los pasos logrados)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [circuitoAvance]);
 
   const {
     showHistory, setShowHistory, historyEntries, historySearch, setHistorySearch,
@@ -685,6 +727,8 @@ const ChatPane: React.FC<Props> = ({
     // En la práctica eso confunde: los comandos los da la práctica, paso a paso. AskRenderer igual
     // descarta comandos en práctica (modoPractica), esto es para que el modelo ni los genere.
     if (isPracticeSession) { history.unshift({ role: 'system', content: `${REGLAS_PRACTICA}\n\n${contextoActual()}` }); }
+    // Práctica de circuitos: la práctica y el circuito del estudiante en este momento (lo que el tutor «ve»)
+    if (circuito) { history.unshift({ role: 'system', content: circuito.contexto() }); }
 
     const imgSnap = attachedImage ?? (userMsg.meta?.imagePreview ? (() => {
       const p = userMsg.meta.imagePreview!; const cIdx = p.indexOf(',');
@@ -1139,8 +1183,9 @@ const ChatPane: React.FC<Props> = ({
       onToggleHistory={() => setShowHistory(o => !o)}
       onClose={onClose}
       onNewChat={handleNewChat}
-      practiceLocked={isPracticeSession}
+      practiceLocked={isPracticeSession || !!circuito}
       soloConsulta={!!terminalLocal}
+      placeholder={circuito ? 'Pregúntale al tutor sobre tu circuito…' : undefined}
       bloqueo={evaluacionEnCurso ? 'Durante la evaluación el chat está en pausa: responde las preguntas por tu cuenta.' : null}
     />
   );
@@ -1189,7 +1234,7 @@ const ChatPane: React.FC<Props> = ({
         <>
         {/* Fila propia de la columna (como el input de abajo), no un overlay
             dentro del scroll: los mensajes nunca le pasan por encima. */}
-        {isPracticeSession && !isHome && <GuiaPractica guia={guiaActiva} />}
+        {(isPracticeSession || circuito) && !isHome && <GuiaPractica guia={guiaActiva} />}
         <ChatMessageList
           className={isHome
             ? 'flex-1 min-h-0 pt-[68px] px-5 pb-7 scroll-pt-[68px] !gap-3.5'
@@ -1208,7 +1253,8 @@ const ChatPane: React.FC<Props> = ({
           onCopyMsg={async text => { try { await navigator.clipboard.writeText(text); setToast('Copiado al portapapeles'); setTimeout(() => setToast(null), 2000); } catch {} }}
           onRegenerateMsg={handleRegenerate} onRetryMsg={handleRetry} onAnalyzeCandidate={handleAnalyzeCandidate}
           onSetInput={setInput} setLastCommand={setLastCommand}
-          linuxPracticeId={practiceId}
+          // en la práctica de circuitos también es la guía: sin copiar/regenerar y sin comandos en las respuestas
+          linuxPracticeId={practiceId ?? circuito?.id ?? null}
           linuxRules={linuxModule?.validation_rules ?? []}
           linuxResult={(practiceResult as unknown as LinuxValidationResult) ?? null}
           linuxQuizAnswers={linuxQuizAnswers}

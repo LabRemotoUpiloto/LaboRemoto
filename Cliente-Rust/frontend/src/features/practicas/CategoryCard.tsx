@@ -9,6 +9,8 @@ interface CategoryCardProps {
     icon: string;
     color: string;
     practiceCount: number;
+    /** Se puede abrir aunque no tenga prácticas (p. ej. para mostrar un error y reintentar). Por defecto, si tiene alguna. */
+    disponible?: boolean;
     onClick: () => void;
 }
 
@@ -18,9 +20,9 @@ const iconMap: Record<string, LucideIcon> = {
     circuit: Cpu,
 };
 
-const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, practiceCount, onClick }) => {
+const CategoryCard: React.FC<CategoryCardProps> = ({ name, description, icon, practiceCount, disponible, onClick }) => {
     const IconComponent = iconMap[icon] || Terminal;
-    const isAvailable = practiceCount > 0;
+    const isAvailable = disponible ?? practiceCount > 0;
 
     return (
         <Card

@@ -14,6 +14,7 @@ import { ModuleCompleteCelebration } from '@/features/practicas/linux/ModuleComp
 import { PosterUnlockCelebration } from '@/features/practicas/linux/PosterUnlockCelebration';
 import { markModuleBadgeEarned, rankForModule } from '@/features/practicas/badges.service';
 import { posterForModule, markPosterUnlocked, downloadPoster } from '@/features/practicas/posters.service';
+import PasoCircuitoCard from '@/features/circuitos/PasoCircuitoCard';
 
 interface AiMessageBubbleProps {
   appearance?: ChatAppearance;
@@ -256,6 +257,15 @@ export default function AiMessageBubble({
               result={linuxResult}
               practiceId={linuxPracticeId}
               sessionId={sessionId}
+              onGuia={onLinuxGuiaChange}
+            />
+          )}
+
+          {msg.meta?.circuitoPaso && (
+            <PasoCircuitoCard
+              pasoId={msg.meta.circuitoPaso.pasoId}
+              numero={msg.meta.circuitoPaso.numero}
+              total={msg.meta.circuitoPaso.total}
               onGuia={onLinuxGuiaChange}
             />
           )}

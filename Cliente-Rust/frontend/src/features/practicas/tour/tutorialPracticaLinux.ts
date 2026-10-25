@@ -1,11 +1,12 @@
 // features/practicas/tour/tutorialPracticaLinux.ts — tour narrado que se muestra cada vez que un estudiante
-// entra a una práctica de Linux (ver TourPracticaLinux.tsx). Motor deliberadamente más simple que tutorialBienvenida.ts: todo lo que resalta
+// entra a una práctica de Linux (ver TourPracticaLinux.tsx) o de circuitos (features/circuitos/tour/), cada una con
+// sus pasos y su carpeta de audios. Motor deliberadamente más simple que tutorialBienvenida.ts: todo lo que resalta
 // ya está en pantalla (la práctica ya está conectada), así que no hace falta navegar entre páginas ni
 // mostrar ventanas/escenas — solo esperar a que cada elemento exista y resaltarlo.
 import { driver, type Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import '@/features/onboarding/tourStyles.css';
-import { PASOS_PRACTICA_LINUX, type PasoPracticaLinux } from './pasos';
+import { PASOS_PRACTICA_LINUX, type PasoTourPractica } from './pasos';
 import { botonPausaNarrado, cuerpoNarrado, marcarPausa, tituloNarrado } from '@/features/onboarding/narrado';
 
 const PAUSA_ENTRE_PASOS_MS = 700;
@@ -17,6 +18,13 @@ const MS_POR_PALABRA = 420;
 const LECTURA_MINIMA_MS = 3500;
 const MARGEN_FIN_AUDIO_MS = 2000;
 
+/** Lo que cambia de un tour a otro: sus pasos y la carpeta de public/tutorial/ con los audios (y clips). */
+export interface TourPractica {
+  pasos: PasoTourPractica[];
+  carpeta: string;
+}
+
+let tour: TourPractica = { pasos: PASOS_PRACTICA_LINUX, carpeta: 'practica-linux' };
 let drv: Driver | null = null;
 let audio: HTMLAudioElement | null = null;
 let indice = 0;
@@ -77,7 +85,7 @@ function botonPausa(): HTMLButtonElement {
     else if (audio && !audio.ended) {
       void audio.play().catch(() => {});
       const resta = (audio.duration - audio.currentTime) * 1000;
-      programarSiguiente(indice, (Number.isFinite(resta) ? resta : tiempoDeLectura(PASOS_PRACTICA_LINUX[indice].texto)) + MARGEN_FIN_AUDIO_MS);
+      programarSiguiente(indice, (Number.isFinite(resta) ? resta : tiempoDeLectura(tour.pasos[indice].texto)) + MARGEN_FIN_AUDIO_MS);
     }
     else void ir(indice + 1);
     return pausado;
@@ -87,7 +95,7 @@ function botonPausa(): HTMLButtonElement {
 /** Pasa al paso siguiente dentro de `ms`, solo si seguimos en el paso `desde` y nadie pausó. */
 function programarSiguiente(desde: number, ms: number) {
   limpiarTimer();
-  if (desde === PASOS_PRACTICA_LINUX.length - 1) return; // el último se cierra con «¡Listo!»
+  if (desde === tour.pasos.length - 1) return; // el último se cierra con «¡Listo!»
   siguienteTimer = setTimeout(() => {
     if (pausado || desde !== indice) return;
     void ir(desde + 1);
@@ -98,8 +106,8 @@ const tiempoDeLectura = (texto: string) => Math.max(LECTURA_MINIMA_MS, texto.spl
 
 function reproducir(i: number) {
   pararAudio();
-  const paso = PASOS_PRACTICA_LINUX[i];
-  const a = new Audio(`/tutorial/practica-linux/${paso.audio}`);
+  const paso = tour.pasos[i];
+  const a = new Audio(`/tutorial/${tour.carpeta}/${paso.audio}`);
   audio = a;
   a.onended = () => {
     marcarPausa(true);
@@ -122,25 +130,31 @@ function reproducir(i: number) {
 async function ir(i: number) {
   if (!drv) return;
   if (i < 0) return;
-  if (i >= PASOS_PRACTICA_LINUX.length) { cerrarTourPracticaLinux(); return; }
+  if (i >= tour.pasos.length) { cerrarTourPracticaLinux(); return; }
   limpiarTimer();
   pararAudio();
   indice = i;
-  const paso = PASOS_PRACTICA_LINUX[i];
+  const paso = tour.pasos[i];
   const el = await esperarElemento(paso.elementos);
   if (!drv || indice !== i) return;
   resaltar(paso, i, el);
   if (!pausado) reproducir(i);
 }
 
-function resaltar(paso: PasoPracticaLinux, i: number, el: Element | null) {
+function resaltar(paso: PasoTourPractica, i: number, el: Element | null) {
   if (!drv) return;
-  const ultimo = i === PASOS_PRACTICA_LINUX.length - 1;
+  const total = tour.pasos.length;
+  const ultimo = i === total - 1;
+  // con movimiento reducido el clip no arranca solo: queda con sus controles para verlo a voluntad
+  const quieto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const clip = paso.clip
+    ? `<video class="tn-clip" src="/tutorial/${tour.carpeta}/${paso.clip}" muted loop playsinline ${quieto ? 'controls' : 'autoplay aria-hidden="true"'}></video>`
+    : '';
   drv.highlight({
     element: el ?? undefined,
     popover: {
-      title: tituloNarrado(paso.titulo, i, PASOS_PRACTICA_LINUX.length),
-      description: cuerpoNarrado(paso.texto, i, PASOS_PRACTICA_LINUX.length),
+      title: tituloNarrado(paso.titulo, i, total),
+      description: cuerpoNarrado(paso.texto, i, total, clip),
       side: el ? paso.lado : undefined,
       align: 'start',
       // Sin «X»: el tour de la práctica no se puede cerrar, termina con «¡Listo!» en el último paso.
@@ -155,9 +169,15 @@ function resaltar(paso: PasoPracticaLinux, i: number, el: Element | null) {
   });
 }
 
-/** Arranca el tour. Asume que la práctica ya está conectada y los paneles (chat, terminal) ya están en pantalla. */
+/** Arranca el tour de Linux. Asume que la práctica ya está conectada y los paneles (chat, terminal) ya están en pantalla. */
 export function iniciarTourPracticaLinux(onTerminar?: () => void) {
+  iniciarTourPractica({ pasos: PASOS_PRACTICA_LINUX, carpeta: 'practica-linux' }, onTerminar);
+}
+
+/** Arranca un tour de práctica con sus pasos; lo que resalta ya debe estar en pantalla. */
+export function iniciarTourPractica(config: TourPractica, onTerminar?: () => void) {
   cerrarTourPracticaLinux();
+  tour = config;
   alTerminar = onTerminar ?? null;
   pausado = false;
   document.body.classList.add('tpl-activo');

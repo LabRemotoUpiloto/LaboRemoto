@@ -44,6 +44,8 @@ interface Props {
   soloConsulta?: boolean;
   /** Con texto, el chat no acepta preguntas (ej. durante la evaluación): ese texto va en lugar del placeholder. */
   bloqueo?: string | null;
+  /** Texto del campo vacío, si el del modo no aplica (p. ej. en una práctica de circuitos no hay servidor). */
+  placeholder?: string;
 }
 
 const ChatInput: React.FC<Props> = ({
@@ -66,6 +68,7 @@ const ChatInput: React.FC<Props> = ({
   practiceLocked = false,
   soloConsulta = false,
   bloqueo = null,
+  placeholder,
 }) => {
   const isPill = variant === 'pill';
   const pillPlaceholder = MODE_PLACEHOLDERS[mode];
@@ -348,7 +351,7 @@ const ChatInput: React.FC<Props> = ({
                 ref={inputRef}
                 value={bloqueo ? '' : input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={bloqueo ?? (soloConsulta ? 'Pregunta sobre tu terminal o pide un comando…' : MODE_PLACEHOLDERS[mode])}
+                placeholder={bloqueo ?? placeholder ?? (soloConsulta ? 'Pregunta sobre tu terminal o pide un comando…' : MODE_PLACEHOLDERS[mode])}
                 disabled={!!bloqueo}
                 variant="unstyled"
                 autosize
