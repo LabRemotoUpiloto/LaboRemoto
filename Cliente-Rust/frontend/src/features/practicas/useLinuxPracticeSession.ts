@@ -360,6 +360,8 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, setCameraOp
     async (module: LinuxModule): Promise<string> => {
       setConnecting(true);
       setConnectError(null);
+      // Sesión nueva: un error de la sesión anterior de este módulo ya no aplica.
+      setMistakeSignal((prev) => (prev?.moduleId === module.id ? null : prev));
       try {
         const target = await linuxConnectionTarget();
         const password = await askPassword(target.user);
@@ -519,6 +521,9 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, setCameraOp
     delete lastCommandCountRef.current[moduleId];
     delete revalidateInFlight.current[moduleId];
     delete revalidateQueued.current[moduleId];
+    // El último error del estudiante es de ESTA sesión: si quedara, el chat de la
+    // próxima sesión lo explicaría como recién escrito (con otro paso pendiente).
+    setMistakeSignal((prev) => (prev?.moduleId === moduleId ? null : prev));
     setSessionModuleMap((prev) => {
       if (!(sessionId in prev)) return prev;
       const next = { ...prev };

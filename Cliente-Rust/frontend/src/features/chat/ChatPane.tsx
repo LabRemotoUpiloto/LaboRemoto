@@ -915,10 +915,16 @@ const ChatPane: React.FC<Props> = ({
   // se recuerda el último ya atendido para no re-disparar la misma
   // explicación en re-renders donde el objeto de la señal no cambió de nonce.
   const lastHandledMistakeNonceRef = useRef<number | null>(null);
+  // El nonce es la hora del error (Date.now()). Un error anterior a la apertura de este chat es de una sesión
+  // vieja del módulo: al volver a abrir la práctica se explicaba otra vez como recién escrito, con otro paso
+  // pendiente («escribiste hostanme… ese comando sí existe, pero ahora no lo necesitamos»).
+  const chatAbiertoEnRef = useRef(Date.now());
+  useEffect(() => { chatAbiertoEnRef.current = Date.now(); }, [practiceId]);
   useEffect(() => {
     const signal = linuxSession?.mistakeSignal;
     if (!signal || !isPracticeSession || !linuxModule) return;
     if (signal.moduleId !== linuxModule.id) return;
+    if (signal.nonce < chatAbiertoEnRef.current) return;
     if (lastHandledMistakeNonceRef.current === signal.nonce) return;
     lastHandledMistakeNonceRef.current = signal.nonce;
     // Si ya hay una explicación en curso (de éxito o de otro mensaje), se
