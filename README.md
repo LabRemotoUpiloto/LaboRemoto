@@ -70,15 +70,62 @@ El CI repite estas comprobaciones en cada PR hacia `Desarrollo`, `Produccion` o 
 
 ## Capturas
 
-| | |
-|---|---|
-| **Inicio** | **Prácticas** |
-| ![Inicio](./docs/imagenes/inicio.png) | ![Prácticas](./docs/imagenes/practicas.png) |
-| **Sesión: terminal y chat** | **Sesión: terminal y archivos** |
-| ![Sesión con terminal y chat](./docs/imagenes/sesion-terminal-chat.png) | ![Sesión con terminal y archivos](./docs/imagenes/sesion-archivos.png) |
-| **Conexiones** | **Mis cursos** |
-| ![Conexiones](./docs/imagenes/conexiones.png) | ![Mis cursos](./docs/imagenes/mis-cursos.png) |
-| **Monitoreo** | **Actividad** |
-| ![Monitoreo](./docs/imagenes/monitoreo.png) | ![Actividad](./docs/imagenes/actividad.png) |
-| **Escritorio remoto** | **Usuarios** |
-| ![Escritorio remoto](./docs/imagenes/escritorio-remoto.png) | ![Usuarios](./docs/imagenes/usuarios.png) |
+### Inicio
+
+![Inicio](./docs/imagenes/inicio.png)
+
+La portada. A la izquierda está la barra lateral, con las páginas agrupadas en **Aprender**, **Conectar**, **Laboratorio** y **Personas** (cada persona ve solo las de su rol), y abajo su usuario y rol. **Iniciar recorrido** lanza un tutorial guiado. «Ahora en el laboratorio» resume en vivo cuántas prácticas hay en curso y cuántas cámaras están transmitiendo, con un enlace a **Actividad** y a **Vigilancia**.
+
+### Prácticas
+
+![Prácticas](./docs/imagenes/practicas.png)
+
+El catálogo de prácticas por categoría (**Linux** y **Robot EV3**); cada tarjeta indica cuántas prácticas tiene. Al abrir una se configura el entorno de trabajo y se sigue una guía paso a paso con validación automática, insignias y una encuesta al terminar. La pestaña **Encuestas** reúne las respuestas.
+
+### Mis cursos
+
+![Mis cursos](./docs/imagenes/mis-cursos.png)
+
+Los cursos de Moodle de la persona y las prácticas de laboratorio de cada uno. **Vista general** muestra el resumen del curso y **Prácticas** lista las prácticas del curso y sus entregas.
+
+### Conexiones
+
+![Conexiones](./docs/imagenes/conexiones.png)
+
+Desde aquí se abre una sesión SSH. **Del laboratorio** lista los equipos del laboratorio (se entra con el usuario institucional); **Guardados** son los equipos propios, con las credenciales cifradas en el computador. Con **Nueva conexión** se agrega otro equipo y con **Terminal local** se abre una terminal en el propio computador. La pestaña **Registros** guarda las sesiones anteriores.
+
+### Sesión: terminal y chat
+
+![Sesión con terminal y chat](./docs/imagenes/sesion-terminal-chat.png)
+
+Cada conexión abre un mosaico de herramientas. La fila **Esta sesión** (arriba a la izquierda) abre cada una: terminal, chat, cámara, escritorio remoto, pines, archivos y comandos guardados; los paneles se reacomodan arrastrándolos por su asa. Aquí están la **terminal** del equipo y el **chat con IA**, que puede leer lo que sale en la terminal para responder sobre el servidor.
+
+### Sesión: terminal y archivos
+
+![Sesión con terminal y archivos](./docs/imagenes/sesion-archivos.png)
+
+El gestor de archivos junto a la terminal. Tiene dos paneles: el **local** (el computador) y el **remoto** (el servidor), cada uno con su barra de ruta, búsqueda y botones para crear carpetas, renombrar, borrar y recargar. Los archivos se copian entre ambos y el progreso aparece en la **Cola** de transferencias de abajo.
+
+### Escritorio remoto
+
+![Escritorio remoto](./docs/imagenes/escritorio-remoto.png)
+
+El escritorio gráfico de la Raspberry Pi dentro de la aplicación. Al abrirlo, la app arranca en la Pi una pantalla virtual (Xvnc) con un panel de accesos (menú de aplicaciones, navegador, archivos, terminal y editores) y la muestra con noVNC. Cada sesión tiene su propio escritorio.
+
+### Monitoreo
+
+![Monitoreo](./docs/imagenes/monitoreo.png)
+
+Solo para administradores. Muestra cómo está cada equipo del laboratorio en este momento: de la Raspberry Pi, la CPU, la memoria, la temperatura, la red y el tiempo de respuesta de la API; de las cámaras, si transmiten y cuántas personas las están viendo. **Abrir rendimiento** muestra las gráficas, los procesos y una prueba exportable, y **Abrir vigilancia** lleva a las cámaras.
+
+### Actividad
+
+![Actividad](./docs/imagenes/actividad.png)
+
+Quién usa el laboratorio, qué hace y desde dónde. El mapa y la lista **Conectados ahora** muestran en vivo a las personas en práctica, trabajando por SSH o dentro de la app; los filtros separan cada tipo y **Histórico** permite revisar un periodo anterior.
+
+### Usuarios
+
+![Usuarios](./docs/imagenes/usuarios.png)
+
+Solo para administradores. Lista a las personas que usan la aplicación con su fecha de registro y su rol. Se filtra por rol o se busca por nombre o correo, y el rol de cada persona se cambia desde el desplegable de su fila.
