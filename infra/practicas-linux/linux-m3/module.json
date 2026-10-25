@@ -82,12 +82,12 @@
       "id": "s-pipe-challenge",
       "command": "| wc -l",
       "goal_md": "**Objetivo:** ¿cuántos archivos hay en la carpeta `/etc`? Son demasiados para contarlos a mano: que la terminal los cuente por vos, sin abrir nada. Hay más de una forma válida.",
-      "explain_md": "Desafío abierto: combiná `ls` con `wc -l` usando una tubería (`|`), de modo que la terminal cuente por vos. Pista: `ls` acepta una carpeta como argumento, igual que `cd`."
+      "explain_md": "Desafío abierto: combiná `ls` con `wc -l` usando una tubería (`|`), de modo que la terminal cuente por vos. Pista: `ls` acepta una carpeta como argumento, igual que `cd` (eso que escribís después del nombre del comando se llama **argumento**)."
     },
     {
       "type": "text",
       "id": "b-recap",
-      "body_md": "Hoy juntaste dos herramientas: **nano**, para escribir y guardar un archivo, y la **tubería** `|`, para pasar la salida de un comando a otro. Con eso ya podés contar, filtrar y ordenar cosas sin abrir nada a mano.",
+      "body_md": "Hoy juntaste dos herramientas: **nano**, para escribir y guardar un archivo, y la **tubería** `|`, para pasar la salida de un comando a otro. Con eso ya podés contar cosas sin abrir nada a mano. Más adelante vas a aprender a filtrar y a ordenar.",
       "kind": "recap"
     },
     {
@@ -104,19 +104,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Porque la terminal detectó un error y nano te está avisando"
+          "label": "Porque la terminal detectó un error y nano te lo está avisando ahí"
         },
         {
           "id": "b",
-          "label": "Porque no tiene menús ni mouse como un editor gráfico: la franja de abajo es la forma de saber qué tecla hace qué"
+          "label": "Para que te los aprendas de memoria: sin eso nano no te deja escribir"
         },
         {
           "id": "c",
-          "label": "Para que te los aprendas de memoria antes de empezar: sin eso nano no te deja escribir"
+          "label": "Porque son los únicos comandos que existen en todo Linux"
         },
         {
           "id": "d",
-          "label": "Porque son los únicos comandos que existen en Linux"
+          "label": "Porque no tiene menús ni mouse: así sabés qué tecla hace qué"
         }
       ]
     },
@@ -127,19 +127,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Separa dos comandos que corren cada uno por su lado, con su propia salida en pantalla"
+          "label": "Separa dos comandos que corren por su lado, cada uno con su salida"
         },
         {
           "id": "b",
-          "label": "Es un comentario: todo lo que viene después se ignora"
+          "label": "Le pasa la salida del comando de la izquierda al de la derecha"
         },
         {
           "id": "c",
-          "label": "Divide el resultado de `ls` en columnas"
+          "label": "Marca un comentario: todo lo que viene después se ignora"
         },
         {
           "id": "d",
-          "label": "Conecta la salida del comando de la izquierda con la entrada del de la derecha: `wc` recibe el texto que escribió `ls`"
+          "label": "Divide el resultado de `ls` en columnas para leerlo mejor"
         }
       ]
     },
@@ -150,11 +150,11 @@
       "options": [
         {
           "id": "a",
-          "label": "Cuenta cuántas líneas recibió"
+          "label": "Cuenta cuántas líneas tiene el texto que recibe"
         },
         {
           "id": "b",
-          "label": "Borra las líneas vacías de un archivo"
+          "label": "Borra las líneas vacías que encuentra en el archivo"
         },
         {
           "id": "c",
@@ -162,7 +162,7 @@
         },
         {
           "id": "d",
-          "label": "Cierra la terminal (wc = *Window Close*)"
+          "label": "Cierra la terminal y vuelve al escritorio de la Pi"
         }
       ]
     },
@@ -173,19 +173,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Escribís `exit` y Enter, como en la terminal"
+          "label": "Escribís `exit` y apretás Enter, igual que en la terminal"
         },
         {
           "id": "b",
-          "label": "Cerrás la ventana de la app: nano guarda solo"
+          "label": "Cerrás la ventana de la app, porque nano guarda solo al cerrarla"
         },
         {
           "id": "c",
-          "label": "`Ctrl+O` para guardar, Enter para confirmar el nombre, y `Ctrl+X` para salir"
+          "label": "Apretás Esc dos veces y nano guarda y sale solo"
         },
         {
           "id": "d",
-          "label": "Presionás Esc dos veces: nano guarda y sale solo"
+          "label": "`Ctrl+O` y Enter para guardar, después `Ctrl+X` para salir"
         }
       ]
     },

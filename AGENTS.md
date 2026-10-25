@@ -55,7 +55,7 @@ Antes de dar algo por terminado, corre las comprobaciones que toquen lo que camb
 - **Versiones desalineadas:** `Cargo.toml`, `tauri.conf.json` y `package.json` tienen números distintos; `release.yml` calcula la versión que publica.
 - **Scripts rotos:** `npm run build:windows` apunta a `scripts/build-windows-cross.sh`, que no existe.
 - **Legado conviviendo:** `cmd/practices/practicas.rs` (Eve3 por variables de entorno) y `integration/moodle.rs` (Moodle directo) son el flujo viejo; el actual va por `linux_api` y los brokers. Hay 22 comandos sin uso conservados a propósito (`scripts/comandos-sin-uso.txt`).
-- **READMEs de `infra/`:** algunos están desfasados (`broker-gateway` no lista `/nvr/encuestas`; `broker-sesiones` no documenta encuestas; `practicas-linux` y `keycloak` no tienen README).
+- **READMEs de `infra/`:** algunos están desfasados (`broker-gateway` no lista `/nvr/encuestas`; `broker-sesiones` no documenta encuestas; `keycloak` no tiene README).
 - **`INFRAESTRUCTURA-LOCAL.md`** (direcciones y accesos del laboratorio) existe solo en la copia local de quien lo mantiene y está excluido de git: no lo recrees ni copies su contenido al repositorio.
 
 ## Reglas de negocio del backend (Rust)
@@ -135,7 +135,7 @@ Son los límites y comportamientos que el código ya impone. Si cambias uno, cam
 - **Agente de conexiones.** Solo autenticación por contraseña o *keyboard-interactive*. Latido de 30 s, cola de 1000 eventos.
 - **Vigilante de Shinobi.** Reinicia tras 3 min con cero monitores sanos y espera 30 min entre reinicios.
 - **Contenido de prácticas** (`practicas-linux`, `practicas-ev3`).
-  - Ids `linux-m1…m3` y `ev3-m1…m9`; `module.json` con sus campos obligatorios.
+  - Ids `linux-m1`, `linux-m2`, `linux-permisos`, `linux-m3` y `ev3-m1…m9` (el orden lo da el campo `order`, no el id); `module.json` con sus campos obligatorios.
   - La validación de comandos es por coincidencia exacta salvo que el paso diga `fuzzy`; los cuestionarios, por igualdad.
   - Nota = puntos/total × 100 con un decimal. `passed` exige todos los pasos obligatorios.
   - Hay una prueba de integridad del contenido: córrela al editar un módulo.

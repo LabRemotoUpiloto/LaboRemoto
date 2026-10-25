@@ -1,7 +1,7 @@
 {
-  "q1-permisos-bloques": "a",
-  "q2-primer-caracter": "c",
-  "q3-file-vs-lsl": "b",
-  "q4-chmod-octal": "d",
+  "q1-permisos-bloques": "b",
+  "q2-primer-caracter": "d",
+  "q3-file-vs-lsl": "a",
+  "q4-chmod-octal": "c",
   "q7-ejecutar": "c"
 }

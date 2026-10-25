@@ -109,19 +109,19 @@
       "options": [
         {
           "id": "a",
-          "label": "`C:\\Windows`"
+          "label": "`C:\\Windows`: la carpeta donde vive todo el sistema operativo de Windows"
         },
         {
           "id": "b",
-          "label": "`C:\\Users\\tu-usuario`: tu carpeta de usuario, donde están tus documentos y descargas"
+          "label": "`C:\\Archivos de programa`: donde se instalan las aplicaciones"
         },
         {
           "id": "c",
-          "label": "`C:\\Archivos de programa`"
+          "label": "`C:\\Users\\tu-usuario`: tu carpeta de usuario, con tus documentos"
         },
         {
           "id": "d",
-          "label": "La Papelera de reciclaje"
+          "label": "La Papelera de reciclaje, donde van los archivos borrados"
         }
       ]
     },
@@ -132,19 +132,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Se borra todo el contenido del archivo"
+          "label": "Se borra todo el contenido del archivo y el archivo queda vacío"
         },
         {
           "id": "b",
-          "label": "Se actualiza la fecha de modificación del archivo, pero el contenido queda intacto"
+          "label": "Da un error avisando que el archivo ya existe y no hace nada"
         },
         {
           "id": "c",
-          "label": "Da error porque el archivo ya existe"
+          "label": "Se crea una copia nueva llamada `notas.txt(1)` junto al archivo original"
         },
         {
           "id": "d",
-          "label": "Se crea una copia nueva llamada notas.txt(1)"
+          "label": "Se actualiza la fecha de modificación; el contenido queda intacto"
         }
       ]
     },
@@ -155,11 +155,11 @@
       "options": [
         {
           "id": "a",
-          "label": "/etc"
+          "label": "/home"
         },
         {
           "id": "b",
-          "label": "/home"
+          "label": "/etc"
         },
         {
           "id": "c",
@@ -178,19 +178,19 @@
       "options": [
         {
           "id": "a",
-          "label": "/home"
+          "label": "/home (las carpetas personales de cada usuario)"
         },
         {
           "id": "b",
-          "label": "/bin"
+          "label": "/ (la raíz, donde empieza todo el árbol de carpetas)"
         },
         {
           "id": "c",
-          "label": "/ (la raíz)"
+          "label": "/bin (los programas básicos del sistema, como ls y cp)"
         },
         {
           "id": "d",
-          "label": "/tmp"
+          "label": "/tmp (los archivos temporales que se borran solos)"
         }
       ]
     },
@@ -218,7 +218,7 @@
   ],
   "hints": [
     "`cd` sin nada después también te lleva a tu carpeta personal — es un atajo de `cd ~`.",
-    "Ninguno de estos comandos necesita sudo — son sobre tus propios archivos.",
+    "Ninguno de estos comandos necesita `sudo` (la palabra que se escribe antes de un comando para pedir permisos de administrador) — son sobre tus propios archivos.",
     "Si al hacer `cd /home/...` la terminal dice `No such file or directory`, revisá tu usuario: tiene que ser exactamente el que te mostró el primer `pwd`, con `@upiloto.edu` al final."
   ],
   "validation_rules": [
@@ -306,10 +306,11 @@
     {
       "id": "cmd-echo",
       "rule_type": "command_executed",
-      "target": "echo \"hola mundo\"",
+      "target": "hola mundo",
       "required": true,
       "points": 1,
-      "step_id": "s-echo"
+      "step_id": "s-echo",
+      "fuzzy": true
     },
     {
       "id": "quiz-rutas",

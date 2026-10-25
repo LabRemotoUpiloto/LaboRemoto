@@ -146,19 +146,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Un lenguaje de programación"
+          "label": "Un lenguaje de programación para crear aplicaciones"
         },
         {
           "id": "b",
-          "label": "Un sistema operativo, como Windows o Android"
+          "label": "Un programa para hacer páginas web y blogs"
         },
         {
           "id": "c",
-          "label": "Un programa para hacer páginas web"
+          "label": "Un sistema operativo, como Windows o Android"
         },
         {
           "id": "d",
-          "label": "Una marca de computadoras"
+          "label": "Una marca de computadoras portátiles y de escritorio"
         }
       ]
     },
@@ -169,19 +169,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Sí, Linux es un lenguaje de programación, como Python"
+          "label": "Sí, Linux es un lenguaje de programación, igual que Python o Java"
         },
         {
           "id": "b",
-          "label": "No es un lenguaje: es un sistema operativo. Se puede programar en él, pero también usarlo sin programar"
+          "label": "No, en Linux no se puede programar: solo sirve para navegar y escribir"
         },
         {
           "id": "c",
-          "label": "No, en Linux no se puede programar"
+          "label": "Solo sirve para programar servidores y páginas web, nada más"
         },
         {
           "id": "d",
-          "label": "Solo sirve para programar servidores"
+          "label": "Es un sistema operativo: se puede programar en él, no es obligatorio"
         }
       ]
     },
@@ -192,19 +192,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Una ventana con íconos para hacer clic"
+          "label": "Una orden escrita que le pide algo al sistema y se ejecuta con Enter"
         },
         {
           "id": "b",
-          "label": "Un programa que hay que instalar antes de usar Linux"
+          "label": "Una ventana llena de íconos en la que se hace clic para abrir programas"
         },
         {
           "id": "c",
-          "label": "Una orden escrita que le pide algo al sistema; se ejecuta con Enter"
+          "label": "Un programa que hay que instalar antes de poder usar Linux"
         },
         {
           "id": "d",
-          "label": "El nombre de la computadora a la que te conectaste"
+          "label": "El nombre de la computadora a la que te conectaste desde acá"
         }
       ]
     },
@@ -215,19 +215,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Mostrar ventanas y íconos en un entorno gráfico"
+          "label": "Mostrar las ventanas, los íconos y los menús de un entorno gráfico"
         },
         {
           "id": "b",
-          "label": "Administrar memoria, procesos, hardware y el sistema de archivos"
+          "label": "Interpretar y traducir los comandos que escribís en la terminal"
         },
         {
           "id": "c",
-          "label": "Interpretar los comandos que escribís en la terminal"
+          "label": "Administrar la memoria, los procesos, el hardware y los archivos"
         },
         {
           "id": "d",
-          "label": "Empaquetar programas para instalar con apt"
+          "label": "Empaquetar y descargar programas para instalarlos con apt"
         }
       ]
     },
@@ -238,19 +238,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Sí, \"shell\" es solo otro nombre para el kernel"
+          "label": "No: la shell interpreta lo que escribís y se lo pide al kernel"
         },
         {
           "id": "b",
-          "label": "No — la shell interpreta lo que escribís y se lo pide al kernel, son piezas distintas"
+          "label": "Sí, \"shell\" es solo otro nombre que se le da al kernel"
         },
         {
           "id": "c",
-          "label": "No, el kernel es más nuevo que la shell"
+          "label": "No: el kernel es la versión nueva de la shell, que es más antigua"
         },
         {
           "id": "d",
-          "label": "Sí, ambos vienen del mismo paquete de instalación"
+          "label": "Sí, los dos vienen en el mismo paquete de instalación"
         }
       ]
     },
@@ -261,19 +261,19 @@
       "options": [
         {
           "id": "a",
-          "label": "La terminal solo existe en Linux"
+          "label": "La terminal solo existe en Linux; en otros sistemas no hay nada parecido"
         },
         {
           "id": "b",
-          "label": "Son dos computadoras distintas"
+          "label": "En la gráfica das órdenes con el mouse; en la terminal las escribís"
         },
         {
           "id": "c",
-          "label": "En la interfaz gráfica das órdenes con el mouse sobre ventanas e íconos; en la terminal las escribís"
+          "label": "Son dos computadoras distintas que se conectan entre sí por internet"
         },
         {
           "id": "d",
-          "label": "La interfaz gráfica es parte del kernel"
+          "label": "La interfaz gráfica es una parte interna del kernel de Linux"
         }
       ]
     },
@@ -284,19 +284,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Porque Linux nunca tiene entornos gráficos"
+          "label": "Porque Linux nunca puede tener entornos gráficos, solo terminales"
         },
         {
           "id": "b",
-          "label": "Porque el entorno gráfico es un componente opcional del sistema, y esta Pi no lo tiene activo"
+          "label": "Porque el kernel se rompió y no alcanza a mostrar nada más"
         },
         {
           "id": "c",
-          "label": "Porque se rompió el kernel"
+          "label": "Porque no tenés permisos suficientes para ver el escritorio"
         },
         {
           "id": "d",
-          "label": "Porque no tenés permisos para verlo"
+          "label": "Porque el entorno gráfico es opcional y esta Pi lo tiene apagado"
         }
       ]
     },
@@ -307,19 +307,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Tu usuario"
+          "label": "Tu nombre de usuario en el sistema"
         },
         {
           "id": "b",
-          "label": "La carpeta donde estás parado"
-        },
-        {
-          "id": "c",
           "label": "El nombre de la máquina a la que estás conectado"
         },
         {
+          "id": "c",
+          "label": "La carpeta en la que estás parado ahora mismo, dentro del sistema"
+        },
+        {
           "id": "d",
-          "label": "El programa que lee tus órdenes"
+          "label": "El programa que lee y ejecuta tus órdenes"
         }
       ]
     },
@@ -337,13 +337,14 @@
         "quiz-kernel",
         "quiz-shell",
         "quiz-esta-pi",
-        "quiz-prompt"
+        "quiz-prompt",
+        "quiz-interfaz"
       ]
     }
   ],
   "hints": [
     "Si te equivocás al escribir, usá ↑ para repetir el último comando y corregirlo.",
-    "Ninguno de estos comandos necesita sudo — son solo lectura.",
+    "Ninguno de estos comandos necesita `sudo` (la palabra que se escribe antes de un comando para pedir permisos de administrador) — son solo lectura.",
     "Las preguntas de la evaluación final salen de los dos videos y de los textos de arriba, no hace falta buscar afuera."
   ],
   "validation_rules": [

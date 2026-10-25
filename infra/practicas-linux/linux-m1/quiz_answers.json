@@ -1,10 +1,10 @@
 {
-  "q1-kernel": "b",
-  "q2-shell-vs-kernel": "b",
-  "q5-esta-pi": "b",
-  "q10-que-es-linux": "b",
-  "q11-se-programa": "b",
-  "q12-comando": "c",
-  "q13-prompt": "c",
-  "q14-interfaz": "c"
+  "q1-kernel": "c",
+  "q2-shell-vs-kernel": "a",
+  "q5-esta-pi": "d",
+  "q10-que-es-linux": "c",
+  "q11-se-programa": "d",
+  "q12-comando": "a",
+  "q13-prompt": "b",
+  "q14-interfaz": "b"
 }

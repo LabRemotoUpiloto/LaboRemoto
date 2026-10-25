@@ -49,7 +49,7 @@
       "type": "text",
       "id": "b-puente-programa",
       "kind": "heading",
-      "body_md": "Ahora vas a crear un programa propio. Va a estar vacío (escribirle adentro lo vas a aprender en el próximo módulo, con un editor), pero alcanza para ver algo importante."
+      "body_md": "Ahora vas a crear un programa propio. Va a estar vacío (escribirle un programa de verdad lo vas a aprender más adelante, con un editor), pero alcanza para ver algo importante."
     },
     {
       "type": "command_step",
@@ -110,7 +110,7 @@
       "type": "command_step",
       "id": "s-run-2",
       "command": "./mi-programa",
-      "explain_md": "Ahora sí: ejecutalo de nuevo. Esta vez no aparece «Permiso denegado»… ¡ni nada! Es normal: el programa está vacío, así que no tiene nada que hacer. Lo importante es que Linux ya te deja ejecutarlo. En el próximo módulo vas a aprender a escribirle adentro."
+      "explain_md": "Ahora sí: ejecutalo de nuevo. Esta vez no aparece «Permiso denegado»… ¡ni nada! Es normal: el programa está vacío, así que no tiene nada que hacer. Lo importante es que Linux ya te deja ejecutarlo. Más adelante vas a aprender a escribirle un programa de verdad."
     },
     {
       "type": "text",
@@ -125,19 +125,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Dueño, grupo y otros — cada uno con sus propios permisos de lectura/escritura/ejecución"
+          "label": "Lectura, escritura y ejecución, siempre iguales para todo el mundo"
         },
         {
           "id": "b",
-          "label": "Los permisos de lectura, escritura y ejecución, en ese orden fijo, para todo el mundo por igual"
+          "label": "Dueño, grupo y otros: cada uno con sus propios permisos r, w y x"
         },
         {
           "id": "c",
-          "label": "Tres usuarios distintos que pueden acceder al archivo"
+          "label": "Tres usuarios distintos que pueden acceder al archivo a la vez"
         },
         {
           "id": "d",
-          "label": "El tamaño del archivo, repartido en tres unidades"
+          "label": "El tamaño del archivo, repartido en tres unidades distintas"
         }
       ]
     },
@@ -148,19 +148,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Si el archivo está protegido con contraseña"
+          "label": "Si el archivo está protegido con una contraseña para poder abrirlo"
         },
         {
           "id": "b",
-          "label": "Cuántos permisos tiene en total"
+          "label": "Cuántos permisos tiene el archivo sumando todos los bloques"
         },
         {
           "id": "c",
-          "label": "El tipo de archivo: `-` es archivo normal, `d` es directorio, `l` es enlace simbólico"
+          "label": "La versión del sistema de archivos con que se formateó el disco"
         },
         {
           "id": "d",
-          "label": "La versión del sistema de archivos"
+          "label": "El tipo: `-` archivo normal, `d` carpeta (directorio) y `l` enlace"
         }
       ]
     },
@@ -171,19 +171,19 @@
       "options": [
         {
           "id": "a",
-          "label": "Son dos nombres distintos para exactamente el mismo comando"
+          "label": "`ls -l` muestra permisos y tamaño; `file` mira el CONTENIDO real"
         },
         {
           "id": "b",
-          "label": "`ls -l` lista permisos/dueño/tamaño; `file` mira el CONTENIDO real para decir qué tipo de dato es"
+          "label": "Son dos nombres para el mismo comando; `file` es la versión corta"
         },
         {
           "id": "c",
-          "label": "`file` solo funciona con carpetas, nunca con archivos"
+          "label": "`file` solo funciona con carpetas; `ls -l` solo con archivos sueltos"
         },
         {
           "id": "d",
-          "label": "`ls -l` no existe en Raspberry Pi OS"
+          "label": "`ls -l` no existe en Raspberry Pi OS, por eso se usa `file` ahí"
         }
       ]
     },
@@ -194,19 +194,19 @@
       "options": [
         {
           "id": "a",
-          "label": "El archivo pesa 5 KB"
+          "label": "Que el archivo ocupa 5 KB de espacio en el disco"
         },
         {
           "id": "b",
-          "label": "Hay 5 usuarios con acceso al archivo"
+          "label": "Que hay 5 usuarios distintos con acceso al archivo ahora"
         },
         {
           "id": "c",
-          "label": "Es la versión del comando chmod"
+          "label": "Los permisos del GRUPO: lectura (4) y ejecución (1)"
         },
         {
           "id": "d",
-          "label": "Son los permisos del GRUPO: lectura (4) + ejecución (1) = 5, sin escritura"
+          "label": "Que es la versión 5 del comando `chmod` instalada"
         }
       ]
     },
@@ -257,7 +257,7 @@
   ],
   "hints": [
     "`.bashrc` es un archivo oculto: para verlo en el listado usá `ls -a`. Si no existe en tu carpeta, probá con `.profile`.",
-    "Ninguno de estos comandos necesita sudo: son sobre tus propios archivos.",
+    "Ninguno de estos comandos necesita `sudo` (la palabra que se escribe antes de un comando para pedir permisos de administrador): son sobre tus propios archivos.",
     "La calculadora de permisos es para practicar libremente, no se evalúa a sí misma: lo que se valida es el `chmod` real que corrés después.",
     "La primera vez, `./mi-programa` tiene que decir «Permiso denegado» (o *Permission denied*): todavía no tiene permiso de ejecución. Después del `chmod`, ya no."
   ],
