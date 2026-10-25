@@ -1,11 +1,10 @@
 {
   "q1-kernel": "b",
   "q2-shell-vs-kernel": "b",
-  "q3-gnu": "c",
-  "q4-distro": "c",
   "q5-esta-pi": "b",
-  "q6-quien-invento": "c",
-  "q7-anio-linux": "b",
-  "q8-home": "b",
-  "q9-raiz": "c"
+  "q10-que-es-linux": "b",
+  "q11-se-programa": "b",
+  "q12-comando": "c",
+  "q13-prompt": "c",
+  "q14-interfaz": "c"
 }

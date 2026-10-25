@@ -1,8 +1,6 @@
 {
-  "q1-permisos-bloques": "a",
-  "q2-primer-caracter": "c",
-  "q3-file-vs-lsl": "b",
-  "q4-chmod-octal": "d",
-  "q5-rutas": "c",
-  "q6-touch": "b"
+  "q5-rutas": "b",
+  "q6-touch": "b",
+  "q8-home": "b",
+  "q9-raiz": "c"
 }

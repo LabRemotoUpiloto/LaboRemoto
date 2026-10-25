@@ -1,1 +1,343 @@
-{"id": "linux-m2", "order": 2, "title": "Navegación, comandos básicos y permisos", "difficulty": "inicial", "estimated_minutes": 17, "sequential": false, "objective": "Moverte por el sistema con rutas relativas y absolutas, crear y mostrar cosas simples (touch, echo), y después leer una línea de ls -l como si fuera una frase (tipo, permisos, dueño, grupo, tamaño, fecha, nombre) para entender de dónde sale el número que le pasás a chmod.", "blocks": [{"type": "text", "id": "b-intro", "body_md": "**Ticket #002** — Te asignaron tu primera tarea real: moverte por el sistema sin perderte, dejar una nota escrita, y confirmar que un script tenga los permisos que necesita antes de ejecutarlo. Vamos de a poco: primero a movernos y crear cosas simples, después a leer y cambiar permisos."}, {"type": "command_step", "id": "s-pwd", "command": "pwd", "explain_md": "*Print Working Directory* — pregunta \"¿en qué carpeta estoy parado ahora mismo?\". Es el primer comando para no perderte nunca. (Ya lo usaste en el módulo 1; acá es tu herramienta para no perderte.)"}, {"type": "command_step", "id": "s-cd-rel", "command": "cd ..", "explain_md": "`cd` (*change directory*) te mueve de carpeta. `..` siempre significa \"la carpeta de arriba\" — subís un nivel desde donde estés parado. Repetilo y vas a terminar en la raíz de todo el sistema."}, {"type": "command_step", "id": "s-cd-rel-2", "command": "cd ..", "explain_md": "Otra vez `cd ..` — subís un nivel más. Si tu carpeta personal es `/home/pi`, dos `cd ..` seguidos te dejan parado justo en `/`: la raíz del árbol de carpetas, la única carpeta que no tiene una \"de arriba\"."}, {"type": "command_step", "id": "s-pwd-root", "command": "pwd", "explain_md": "Confirmá dónde quedaste: acá `pwd` debería mostrarte `/` solo, sin nada más. No vas a crear ni tocar nada acá — por ahora esta visita es solo para que veas la raíz con tus propios ojos; más adelante, la mayoría de estas carpetas van a estar cerradas para vos."}, {"type": "command_step", "id": "s-cd-abs", "command": "cd ~", "explain_md": "`~` es un atajo que siempre significa \"mi carpeta personal\", sin importar dónde estés parado — es una ruta ABSOLUTA disfrazada de símbolo corto. Desde la raíz (o desde cualquier lado), `cd ~` te trae de vuelta a tu casa en un solo paso."}, {"type": "command_step", "id": "s-pwd-home", "command": "pwd", "explain_md": "Otra vez `pwd` para confirmar: ya estás de vuelta en tu carpeta personal. Fuiste hasta la raíz del sistema y volviste sin crear ni modificar nada fuera de tu home — de acá en adelante, todo lo que crees (como el archivo que viene) va a quedar siempre ahí adentro."}, {"type": "media", "id": "b-diagram-rutas", "kind": "image", "file": "diagrams/rutas.png", "caption": "Ruta relativa vs. ruta absoluta"}, {"type": "command_step", "id": "s-touch", "command": "touch notas.txt", "explain_md": "Crea un archivo VACÍO al instante — si ya existe, no borra nada: solo le actualiza la fecha de modificación. Es la forma más simple de crear algo para practicar."}, {"type": "command_step", "id": "s-ls-after-touch", "command": "ls", "explain_md": "Corré `ls` para confirmar: `notas.txt` ya está ahí. Mismo comando que vas a usar de nuevo más abajo, ahora con más detalle (`ls -l`)."}, {"type": "command_step", "id": "s-echo", "command": "echo \"hola linux\"", "explain_md": "Imprime en pantalla exactamente el texto que le diste, sin más. Parece trivial, pero es la base de casi todos los scripts que vas a escribir más adelante. Ojo: solo lo muestra en pantalla, no lo guarda en ningún archivo. Para escribir dentro de un archivo hace falta un editor, y eso lo vas a ver en el próximo módulo."}, {"type": "text", "id": "b-bridge-explorar", "body_md": "Ya sabés moverte y crear cosas. Ahora vamos a EXPLORAR un archivo que ya existe."}, {"type": "command_step", "id": "s-ls", "command": "ls", "explain_md": "Lista lo que hay en tu carpeta actual — solo los nombres, nada más todavía. `notas.txt` (el que creaste antes) debería aparecer acá."}, {"type": "command_step", "id": "s-lsl", "command": "ls -l", "explain_md": "El *listado largo* de la misma carpeta — ahora no solo los nombres, sino una línea completa por archivo: tipo, permisos, dueño, grupo, tamaño, fecha y nombre."}, {"type": "media", "id": "b-diagram-lsline", "kind": "image", "file": "diagrams/ls_line.png", "caption": "Anatomía de una línea de ls -l"}, {"type": "command_step", "id": "s-ls-a", "command": "ls -a", "explain_md": "Los archivos cuyo nombre empieza con punto son *ocultos*: `ls` normal no los muestra. La opción `-a` (*all*) muestra todo, y ahí aparece `.bashrc`, el archivo de configuración de tu shell, con el que vas a practicar."}, {"type": "command_step", "id": "s-file", "command": "file .bashrc", "explain_md": "Ahora que ya viste `.bashrc`: `ls -l` te dice permisos y tamaño, pero no mira ADENTRO del archivo. `file` sí: abre el contenido y te dice qué tipo de dato es de verdad (texto, script, binario...) — no confíes solo en el nombre o la extensión."}, {"type": "text", "id": "b-bridge", "body_md": "Ya viste los permisos como texto (`rwxr-xr--`). Pero `chmod` no recibe texto — recibe un número, como `754`. ¿De dónde sale ese número? Jugá con esto:"}, {"type": "permissions_calculator", "id": "b-calc", "initial_octal": "644", "prompt_md": "Marcá qué permisos querés que tenga un archivo. Mirá cómo el **octal** y el texto simbólico cambian juntos — cada `r`/`w`/`x` que prendés suma 4, 2 o 1 al número de su bloque."}, {"type": "command_step", "id": "s-chmod", "command": "chmod 754 notas.txt", "explain_md": "Ahora sí con el número: `7` = `rwx` para el dueño (vos), `5` = `r-x` para el grupo y `4` = `r--` para los demás. Usá la calculadora de arriba para verlo. Lo aplicamos sobre tu `notas.txt` (un archivo tuyo, sin riesgo). Después corré `ls -l` otra vez y vas a ver `-rwxr-xr--` en esa línea."}, {"type": "text", "id": "b-intro-quiz", "body_md": "Antes del checkpoint, 6 preguntas sobre todo lo que acabás de ver."}, {"type": "quiz", "id": "q1-permisos-bloques", "question_md": "En `rwxr-xr--`, ¿qué representa cada bloque de 3 letras?", "options": [{"id": "a", "label": "Dueño, grupo y otros — cada uno con sus propios permisos de lectura/escritura/ejecución"}, {"id": "b", "label": "Los permisos de lectura, escritura y ejecución, en ese orden fijo, para todo el mundo por igual"}, {"id": "c", "label": "Tres usuarios distintos que pueden acceder al archivo"}, {"id": "d", "label": "El tamaño del archivo, repartido en tres unidades"}]}, {"type": "quiz", "id": "q2-primer-caracter", "question_md": "El primer carácter de la línea (antes de `rwx`) — ¿qué indica?", "options": [{"id": "a", "label": "Si el archivo está protegido con contraseña"}, {"id": "b", "label": "Cuántos permisos tiene en total"}, {"id": "c", "label": "El tipo de archivo: `-` es archivo normal, `d` es directorio, `l` es enlace simbólico"}, {"id": "d", "label": "La versión del sistema de archivos"}]}, {"type": "quiz", "id": "q3-file-vs-lsl", "question_md": "¿Cuál es la diferencia real entre `ls -l` y `file`?", "options": [{"id": "a", "label": "Son dos nombres distintos para exactamente el mismo comando"}, {"id": "b", "label": "`ls -l` lista permisos/dueño/tamaño; `file` mira el CONTENIDO real para decir qué tipo de dato es"}, {"id": "c", "label": "`file` solo funciona con carpetas, nunca con archivos"}, {"id": "d", "label": "`ls -l` no existe en Raspberry Pi OS"}]}, {"type": "quiz", "id": "q4-chmod-octal", "question_md": "En `chmod 754 archivo`, ¿qué significa el `5` (segundo dígito)?", "options": [{"id": "a", "label": "El archivo pesa 5 KB"}, {"id": "b", "label": "Hay 5 usuarios con acceso al archivo"}, {"id": "c", "label": "Es la versión del comando chmod"}, {"id": "d", "label": "Son los permisos del GRUPO: lectura (4) + ejecución (1) = 5, sin escritura"}]}, {"type": "quiz", "id": "q5-rutas", "question_md": "¿Cuál es la diferencia entre `cd Documentos` y `cd /home/pi/Documentos`?", "options": [{"id": "a", "label": "Son exactamente lo mismo, no importa desde dónde ejecutes el comando"}, {"id": "b", "label": "El primero es más lento que el segundo"}, {"id": "c", "label": "El primero es una ruta RELATIVA (depende de dónde estás parado); el segundo es ABSOLUTA (funciona desde cualquier lado)"}, {"id": "d", "label": "El primero solo funciona si sos administrador"}]}, {"type": "quiz", "id": "q6-touch", "question_md": "Si `notas.txt` ya existe y corrés `touch notas.txt` de nuevo, ¿qué pasa?", "options": [{"id": "a", "label": "Se borra todo el contenido del archivo"}, {"id": "b", "label": "Se actualiza la fecha de modificación del archivo, pero el contenido queda intacto"}, {"id": "c", "label": "Da error porque el archivo ya existe"}, {"id": "d", "label": "Se crea una copia nueva llamada notas.txt(1)"}]}, {"type": "checkpoint", "id": "b-checkpoint", "rule_ids": ["cmd-pwd", "cmd-cd-rel", "cmd-cd-rel-2", "cmd-pwd-root", "cmd-cd-abs", "cmd-pwd-home", "cmd-touch", "cmd-ls-after-touch", "cmd-echo", "cmd-ls", "cmd-lsl", "cmd-ls-a", "cmd-file", "cmd-chmod", "quiz-permisos-bloques", "quiz-primer-caracter", "quiz-file-vs-lsl", "quiz-chmod-octal", "quiz-rutas", "quiz-touch"]}], "hints": ["`cd` sin nada después también te lleva a tu carpeta personal — es un atajo de `cd ~`.", "`.bashrc` es un archivo oculto: para verlo en el listado usá `ls -a`. Si no existe en tu carpeta, probá con `.profile`.", "Ninguno de estos comandos necesita sudo — son sobre tus propios archivos.", "La calculadora de permisos es para practicar libremente, no se evalúa a sí misma — lo que se valida es el `chmod` real que corrés después."], "validation_rules": [{"id": "cmd-pwd", "rule_type": "command_executed", "target": "pwd", "required": true, "points": 1, "step_id": "s-pwd"}, {"id": "cmd-cd-rel", "rule_type": "command_executed", "target": "cd ..", "required": true, "points": 1, "step_id": "s-cd-rel"}, {"id": "cmd-cd-rel-2", "rule_type": "command_executed", "target": "cd ..", "required": true, "points": 1, "step_id": "s-cd-rel-2"}, {"id": "cmd-pwd-root", "rule_type": "command_executed", "target": "pwd", "required": true, "points": 1, "step_id": "s-pwd-root"}, {"id": "cmd-cd-abs", "rule_type": "command_executed", "target": "cd ~", "required": true, "points": 1, "step_id": "s-cd-abs"}, {"id": "cmd-pwd-home", "rule_type": "command_executed", "target": "pwd", "required": true, "points": 1, "step_id": "s-pwd-home"}, {"id": "cmd-touch", "rule_type": "command_executed", "target": "touch notas.txt", "required": true, "points": 1, "step_id": "s-touch"}, {"id": "cmd-ls-after-touch", "rule_type": "command_executed", "target": "ls", "required": true, "points": 1, "step_id": "s-ls-after-touch"}, {"id": "cmd-echo", "rule_type": "command_executed", "target": "echo \"hola linux\"", "required": true, "points": 1, "step_id": "s-echo"}, {"id": "cmd-ls", "rule_type": "command_executed", "target": "ls", "required": true, "points": 1, "step_id": "s-ls"}, {"id": "cmd-lsl", "rule_type": "command_executed", "target": "ls -l", "required": true, "points": 1, "step_id": "s-lsl"}, {"id": "cmd-ls-a", "rule_type": "command_executed", "target": "ls -a", "required": true, "points": 1, "step_id": "s-ls-a"}, {"id": "cmd-file", "rule_type": "command_executed", "target": "file .bashrc", "required": true, "points": 1, "step_id": "s-file"}, {"id": "cmd-chmod", "rule_type": "command_executed", "target": "chmod 754 notas.txt", "required": true, "points": 1, "step_id": "s-chmod"}, {"id": "quiz-permisos-bloques", "rule_type": "quiz", "target": "q1-permisos-bloques", "required": true, "points": 2}, {"id": "quiz-primer-caracter", "rule_type": "quiz", "target": "q2-primer-caracter", "required": true, "points": 2}, {"id": "quiz-file-vs-lsl", "rule_type": "quiz", "target": "q3-file-vs-lsl", "required": true, "points": 2}, {"id": "quiz-chmod-octal", "rule_type": "quiz", "target": "q4-chmod-octal", "required": true, "points": 2}, {"id": "quiz-rutas", "rule_type": "quiz", "target": "q5-rutas", "required": true, "points": 2}, {"id": "quiz-touch", "rule_type": "quiz", "target": "q6-touch", "required": true, "points": 2}]}
+{
+  "id": "linux-m2",
+  "order": 2,
+  "title": "Navegación y archivos",
+  "resumen": "Te mueves entre carpetas como en el explorador de Windows y creas tu primer archivo.",
+  "difficulty": "inicial",
+  "estimated_minutes": 12,
+  "sequential": false,
+  "objective": "Entender cómo se organizan las carpetas en Linux y moverte por ellas (pwd, cd), mirar qué hay en una carpeta (ls), crear archivos (touch) y mostrar mensajes en pantalla (echo).",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "En el módulo anterior aprendiste qué es Linux y a escribir comandos. **Tu tarea de hoy:** moverte por el sistema sin perderte, mirar qué hay en cada carpeta y crear tu primer archivo. Vamos de a poco: primero a entender cómo se organiza todo y a movernos, y después a crear cosas simples.",
+      "kind": "lead"
+    },
+    {
+      "type": "text",
+      "id": "b-todo-archivo",
+      "body_md": "Ya que no hay ventanas ni íconos, ¿cómo se organiza todo acá? En Windows tenés discos: el disco `C:`, el disco `D:`..., cada uno con sus carpetas. En Linux no hay letras de disco: todo está organizado en una **estructura de carpetas en forma de árbol**, que arranca en una sola carpeta, la **raíz**, cuyo símbolo es `/`. Ahí cuelga todo: tus archivos, los programas y hasta los dispositivos, como tu teclado.",
+      "kind": "lead"
+    },
+    {
+      "type": "media",
+      "id": "b-video-carpetas",
+      "kind": "video",
+      "file": "videos/tu-carpeta-personal.mp4",
+      "caption": "Tu carpeta personal: de Windows a Linux, el árbol de carpetas, pwd y cd"
+    },
+    {
+      "type": "command_step",
+      "id": "s-pwd",
+      "command": "pwd",
+      "explain_md": "`pwd` (del inglés *print working directory*, «mostrar la carpeta de trabajo») te responde «¿en qué carpeta estoy parado ahora mismo?». Es el primer comando para no perderte nunca. Vas a ver `/home/` seguido de tu usuario, con `@upiloto.edu` al final: tu carpeta personal, que cuelga de la raíz `/`. Acordate de esa ruta: la vas a usar en un rato."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-rel",
+      "command": "cd ..",
+      "explain_md": "`cd` (*change directory*) te mueve de carpeta. `..` siempre significa \"la carpeta de arriba\" — subís un nivel desde donde estés parado. Repetilo y vas a terminar en la raíz de todo el sistema."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-rel-2",
+      "command": "cd ..",
+      "explain_md": "Otra vez `cd ..`: subís un nivel más. Tu carpeta personal está en `/home/tu-usuario@upiloto.edu`, así que con el primer `cd ..` quedaste en `/home`, y con este quedás justo en `/`: la raíz del árbol, la única carpeta que no tiene una «de arriba»."
+    },
+    {
+      "type": "command_step",
+      "id": "s-pwd-root",
+      "command": "pwd",
+      "explain_md": "Confirmá dónde quedaste: acá `pwd` debería mostrarte `/` solo, sin nada más. No vas a crear ni tocar nada acá — por ahora esta visita es solo para que veas la raíz con tus propios ojos; más adelante, la mayoría de estas carpetas van a estar cerradas para vos."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-abs",
+      "command": "cd /home/tu-usuario@upiloto.edu",
+      "explain_md": "Ahora volvé a tu carpeta personal escribiendo su ruta completa, desde la raíz: `cd /home/` y tu usuario con `@upiloto.edu`, **la misma ruta que te mostró `pwd` al principio**. Es como escribir `C:\\Users\\tu-usuario` en la barra del explorador de Windows: te lleva directo, estés donde estés.",
+      "comando_personal": "cd /home/{usuario}",
+      "ejecutable": true,
+      "nota_ejecutar_md": "¿No encontrás el símbolo `@` en tu teclado? Dale a **Ejecutar comando** y lo escribimos por vos."
+    },
+    {
+      "type": "command_step",
+      "id": "s-pwd-home",
+      "command": "pwd",
+      "explain_md": "Otra vez `pwd` para confirmar: ya estás de vuelta en tu carpeta personal. Fuiste hasta la raíz del sistema y volviste sin tocar nada afuera; de acá en adelante, todo lo que crees va a quedar acá adentro."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls-home",
+      "command": "ls",
+      "explain_md": "Ya sabés **dónde** estás; ahora mirá **qué hay** acá. `ls` (de *list*, «listar») muestra lo que hay en la carpeta donde estás parado: solo los nombres. Si tu carpeta es nueva, puede que no aparezca nada, y está bien: todavía no creaste nada."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls-raiz",
+      "command": "ls /",
+      "explain_md": "`ls` también puede mirar **otra** carpeta sin que te muevas: le das su ruta. `ls /` lista lo que cuelga de la raíz: `bin`, `etc`, `home`, `usr`... Es el árbol del video, pero real. Fijate que `home` está ahí: adentro vive tu carpeta personal."
+    },
+    {
+      "type": "command_step",
+      "id": "s-touch",
+      "command": "touch notas.txt",
+      "explain_md": "Ahora sí, a crear. `touch` crea un archivo VACÍO al instante; si ya existe, no borra nada: solo le actualiza la fecha de modificación. Es la forma más simple de crear algo para practicar."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls-after-touch",
+      "command": "ls",
+      "explain_md": "Corré `ls` otra vez para confirmar: `notas.txt` ya está ahí. Más abajo vas a usar `ls -l` para ver más detalles de cada archivo."
+    },
+    {
+      "type": "command_step",
+      "id": "s-echo",
+      "command": "echo \"hola mundo\"",
+      "explain_md": "Ahora vamos a hacer que la terminal te muestre un mensaje. `echo` (en inglés, «eco») repite en pantalla el texto que le escribas entre comillas. Probá con el clásico con el que empieza todo el que aprende a usar una computadora por comandos: «hola mundo». Ojo: solo lo muestra en pantalla, no lo guarda en ningún archivo; para escribir dentro de un archivo hace falta un editor, y eso lo vas a ver más adelante."
+    },
+    {
+      "type": "text",
+      "id": "b-cierre",
+      "kind": "recap",
+      "body_md": "¡Listo! Ya sabés ubicarte (`pwd`), moverte entre carpetas (`cd`), mirar qué hay (`ls`), crear archivos (`touch`) y mostrar mensajes (`echo`). En el próximo módulo vas a mirar tus archivos más de cerca y vas a descubrir por qué Linux, a veces, te responde «Permiso denegado»."
+    },
+    {
+      "type": "quiz",
+      "id": "q5-rutas",
+      "question_md": "¿A qué carpeta de Windows se parece `/home/tu-usuario` en Linux?",
+      "options": [
+        {
+          "id": "a",
+          "label": "`C:\\Windows`"
+        },
+        {
+          "id": "b",
+          "label": "`C:\\Users\\tu-usuario`: tu carpeta de usuario, donde están tus documentos y descargas"
+        },
+        {
+          "id": "c",
+          "label": "`C:\\Archivos de programa`"
+        },
+        {
+          "id": "d",
+          "label": "La Papelera de reciclaje"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q6-touch",
+      "question_md": "Si `notas.txt` ya existe y corrés `touch notas.txt` de nuevo, ¿qué pasa?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Se borra todo el contenido del archivo"
+        },
+        {
+          "id": "b",
+          "label": "Se actualiza la fecha de modificación del archivo, pero el contenido queda intacto"
+        },
+        {
+          "id": "c",
+          "label": "Da error porque el archivo ya existe"
+        },
+        {
+          "id": "d",
+          "label": "Se crea una copia nueva llamada notas.txt(1)"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q8-home",
+      "question_md": "En el árbol de carpetas de Linux, ¿cuál es \"tu espacio personal\" — donde viven tus propios archivos y configuración?",
+      "options": [
+        {
+          "id": "a",
+          "label": "/etc"
+        },
+        {
+          "id": "b",
+          "label": "/home"
+        },
+        {
+          "id": "c",
+          "label": "/var"
+        },
+        {
+          "id": "d",
+          "label": "/dev"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q9-raiz",
+      "question_md": "En Linux no existe \"C:\" ni \"D:\" como en Windows. ¿De qué carpeta cuelga TODO el sistema, incluida /bin?",
+      "options": [
+        {
+          "id": "a",
+          "label": "/home"
+        },
+        {
+          "id": "b",
+          "label": "/bin"
+        },
+        {
+          "id": "c",
+          "label": "/ (la raíz)"
+        },
+        {
+          "id": "d",
+          "label": "/tmp"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "cmd-pwd",
+        "cmd-cd-rel",
+        "cmd-cd-rel-2",
+        "cmd-pwd-root",
+        "cmd-cd-abs",
+        "cmd-pwd-home",
+        "cmd-ls-home",
+        "cmd-ls-raiz",
+        "cmd-touch",
+        "cmd-ls-after-touch",
+        "cmd-echo",
+        "quiz-rutas",
+        "quiz-touch",
+        "quiz-home",
+        "quiz-raiz"
+      ]
+    }
+  ],
+  "hints": [
+    "`cd` sin nada después también te lleva a tu carpeta personal — es un atajo de `cd ~`.",
+    "Ninguno de estos comandos necesita sudo — son sobre tus propios archivos.",
+    "Si al hacer `cd /home/...` la terminal dice `No such file or directory`, revisá tu usuario: tiene que ser exactamente el que te mostró el primer `pwd`, con `@upiloto.edu` al final."
+  ],
+  "validation_rules": [
+    {
+      "id": "cmd-pwd",
+      "rule_type": "command_executed",
+      "target": "pwd",
+      "required": true,
+      "points": 1,
+      "step_id": "s-pwd"
+    },
+    {
+      "id": "cmd-cd-rel",
+      "rule_type": "command_executed",
+      "target": "cd ..",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-rel"
+    },
+    {
+      "id": "cmd-cd-rel-2",
+      "rule_type": "command_executed",
+      "target": "cd ..",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-rel-2"
+    },
+    {
+      "id": "cmd-pwd-root",
+      "rule_type": "command_executed",
+      "target": "pwd",
+      "required": true,
+      "points": 1,
+      "step_id": "s-pwd-root"
+    },
+    {
+      "id": "cmd-cd-abs",
+      "rule_type": "command_executed",
+      "target": "cd /home/",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-abs",
+      "fuzzy": true
+    },
+    {
+      "id": "cmd-pwd-home",
+      "rule_type": "command_executed",
+      "target": "pwd",
+      "required": true,
+      "points": 1,
+      "step_id": "s-pwd-home"
+    },
+    {
+      "id": "cmd-ls-home",
+      "rule_type": "command_executed",
+      "target": "ls",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls-home"
+    },
+    {
+      "id": "cmd-ls-raiz",
+      "rule_type": "command_executed",
+      "target": "ls /",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls-raiz"
+    },
+    {
+      "id": "cmd-touch",
+      "rule_type": "command_executed",
+      "target": "touch notas.txt",
+      "required": true,
+      "points": 1,
+      "step_id": "s-touch"
+    },
+    {
+      "id": "cmd-ls-after-touch",
+      "rule_type": "command_executed",
+      "target": "ls",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls-after-touch"
+    },
+    {
+      "id": "cmd-echo",
+      "rule_type": "command_executed",
+      "target": "echo \"hola mundo\"",
+      "required": true,
+      "points": 1,
+      "step_id": "s-echo"
+    },
+    {
+      "id": "quiz-rutas",
+      "rule_type": "quiz",
+      "target": "q5-rutas",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-touch",
+      "rule_type": "quiz",
+      "target": "q6-touch",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-home",
+      "rule_type": "quiz",
+      "target": "q8-home",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-raiz",
+      "rule_type": "quiz",
+      "target": "q9-raiz",
+      "required": true,
+      "points": 2
+    }
+  ]
+}
