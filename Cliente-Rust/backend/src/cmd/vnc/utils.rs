@@ -139,6 +139,13 @@ pub(crate) fn stop_vnc_server_real(sess: &ssh2::Session, vnc_port: u16) -> Resul
     Ok(())
 }
 
+/// Carpeta propia del usuario para los archivos de un display (logs, pid, xstartup, XDG_RUNTIME_DIR, perfil del
+/// navegador). Antes vivían en /tmp con nombres fijos por display (/tmp/xvnc22.log…): /tmp es de todos y un
+/// archivo que dejó otro usuario no se puede sobrescribir, así que Xvnc ni siquiera arrancaba en ese display.
+pub(crate) fn run_dir(home_dir: &str, display: u32) -> String {
+    format!("{home_dir}/.cache/labremoto/d{display}")
+}
+
 /// Comando de shell que termina los servidores X/VNC de un display (`display` puede ser un número o `$d`).
 /// Es la única lista de `pkill` del proyecto. Los corchetes ([X]vnc) evitan que el patrón de `pkill -f` coincida
 /// con la propia línea de comandos del `sh -c` que lo ejecuta y se mate a sí mismo (con lo que la limpieza no
@@ -187,6 +194,7 @@ pub(crate) fn reserve_display_and_port(sess: &ssh2::Session, home_dir: &str) -> 
              USED_P=$(ss -tln 2>/dev/null | awk '{{print $4}}' | grep -oE ':[0-9]+$' | tr -d ':' | sort -un); \
              D=''; for d in $(seq 20 99); do \
                echo \"$USED_D\" | grep -qx \"$d\" && continue; \
+               {{ [ -e /tmp/.X$d-lock ] || [ -e /tmp/.X11-unix/X$d ]; }} && continue; \
                mkdir \"$C/d-$d\" 2>/dev/null && {{ D=$d; break; }}; \
              done; \
              P=''; for p in $(seq 5900 5998); do \

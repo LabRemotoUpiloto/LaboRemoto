@@ -264,10 +264,11 @@ pub async fn vnc_logs(session_id: String) -> Result<String, CommandError> {
     tokio::task::spawn_blocking(move || -> Result<String, CommandError> {
         let (_tcp, sess) = crate::ssh_core::ssh2_sftp::connect_password(&host, port, &user, &password)
             .map_err(|e| CommandError::transient("SSH_ERROR", format!("No se pudo leer el log: {e}")))?;
+        let rd = utils::run_dir(&home_dir, display);
         let cmd = format!(
-            "for f in /tmp/xvnc{display}.log {home_dir}/.cache/labremoto/setup-{display}.log \
-                      /tmp/openbox{display}.log /tmp/lxpanel{display}.log /tmp/pcmanfm{display}.log \
-                      /tmp/lxsession{display}.log; do \
+            "for f in {rd}/xvnc.log {home_dir}/.cache/labremoto/setup-{display}.log \
+                      {rd}/openbox.log {rd}/lxpanel.log {rd}/pcmanfm.log \
+                      {rd}/lxsession.log; do \
                [ -f \"$f\" ] || continue; \
                echo \"== $f\"; tail -n 15 \"$f\" 2>/dev/null; \
              done; true"
