@@ -329,6 +329,28 @@ const DesktopPane: React.FC<Props> = ({ sessionId, isActive = true, perfil }) =>
     }
   }, [])
 
+  // Red de seguridad para la escala: si noVNC la calculó mientras el panel aún no tenía su tamaño final (por ejemplo
+  // cuando una práctica abre el escritorio y el chat todavía se está acomodando), el escritorio quedaba pequeño y
+  // arrimado a un lado aunque después hubiera espacio, porque ya no llegaba ningún cambio de tamaño que lo corrigiera.
+  // Mientras se ve, se comprueba cada poco que la imagen llene el panel en al menos un eje; si no, se reescala.
+  useEffect(() => {
+    if (status !== 'connected' || !isActive) return
+    const vuelta = window.setInterval(() => {
+      const rfb = rfbRef.current
+      const contenedor = canvasContainerRef.current
+      const canvas = contenedor?.querySelector('canvas')
+      if (!rfb || !contenedor || !canvas) return
+      const c = contenedor.getBoundingClientRect()
+      const k = canvas.getBoundingClientRect()
+      if (c.width < 50 || c.height < 50 || k.width < 1 || k.height < 1) return
+      const llena = k.width >= c.width * 0.97 || k.height >= c.height * 0.97
+      if (!llena) {
+        try { rfb.scaleViewport = true } catch { /* ignore */ }
+      }
+    }, 1500)
+    return () => window.clearInterval(vuelta)
+  }, [status, isActive])
+
   // Only auto-start VNC when the user explicitly navigates to the desktop view
   // Do NOT auto-start on mount — the DesktopPane is always mounted (visibility: hidden)
   // and auto-starting causes port-forward spam when viewing terminal/camera
