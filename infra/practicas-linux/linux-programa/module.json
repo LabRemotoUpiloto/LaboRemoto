@@ -11,8 +11,15 @@
     {
       "type": "text",
       "id": "b-intro",
-      "body_md": "En el módulo de permisos creaste un `mi-programa` vacío y viste que Linux no te dejaba ejecutarlo hasta darle permiso. **Tu tarea de hoy:** escribirle algo adentro de verdad. Vas a crear un programa que muestre un saludo y diga quién lo está ejecutando, y vas a hacerlo funcionar.",
+      "body_md": "En el módulo de permisos creaste un `mi-programa` vacío y viste que Linux no te dejaba ejecutarlo hasta darle permiso. **Tu tarea de hoy:** escribirle algo adentro de verdad. Vas a crear un programa que muestre un saludo y diga quién lo está ejecutando, y vas a hacerlo funcionar. **Empezá mirando el video.**",
       "kind": "lead"
+    },
+    {
+      "type": "media",
+      "id": "b-video",
+      "kind": "video",
+      "file": "videos/primer-programa.mp4",
+      "caption": "Video del módulo: qué es un programa y cómo se ejecuta (casi 2 minutos)"
     },
     {
       "type": "text",

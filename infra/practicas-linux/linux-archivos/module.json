@@ -11,8 +11,15 @@
     {
       "type": "text",
       "id": "b-intro",
-      "body_md": "En los módulos anteriores trabajaste con unos pocos archivos sueltos. **Tu tarea de hoy:** armar tu propio espacio de trabajo, con carpetas y archivos adentro, y aprender a copiar, mover, renombrar y borrar, como lo hace quien administra una computadora. Todo pasa dentro de tu carpeta personal: no vas a tocar nada del sistema.",
+      "body_md": "En los módulos anteriores trabajaste con unos pocos archivos sueltos. **Tu tarea de hoy:** armar tu propio espacio de trabajo, con carpetas y archivos adentro, y aprender a copiar, mover, renombrar y borrar, como lo hace quien administra una computadora. Todo pasa dentro de tu carpeta personal: no vas a tocar nada del sistema. **Empezá mirando el video.**",
       "kind": "lead"
+    },
+    {
+      "type": "media",
+      "id": "b-video",
+      "kind": "video",
+      "file": "videos/espacio-de-trabajo.mp4",
+      "caption": "Video del módulo: carpetas, copiar, mover y borrar (2 minutos)"
     },
     {
       "type": "text",
