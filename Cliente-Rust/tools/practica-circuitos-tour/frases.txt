@@ -1,0 +1,27 @@
+# Guion del tour de la práctica de circuitos (features/circuitos/tour/pasos.ts).
+# Voz: VoiceStudio, perfil 23e2af72 «Profesor Bee», steps 32, idioma es. Cada número es su audio
+# (public/tutorial/practica-circuitos/NN.mp3); el texto es el subtítulo y debe coincidir con pasos.ts.
+# Lo que la voz pronuncia mal se le escribe distinto: «protoboard» → «protobord».
+# Para pasar el wav a mp3: ffmpeg -i NN.wav -af silenceremove (bordes) -ac 1 -ar 44100 -b:a 64k NN.mp3
+
+01
+Este es tu chat. Te da la práctica paso a paso, y le puedes preguntar lo que quieras.
+
+02
+Aquí ves qué toca ahora. Se marca solo cuando lo logras en el simulador.
+
+03
+Para poner una pieza en la protoboard, arrástrala y suéltala sobre los agujeros.
+# voz: «…en la protobord, arrástrala…»
+
+04
+Para hacer un cable, haz clic en un borne o en una pata, y luego en el agujero donde lo quieres llevar.
+
+05
+Para cambiar el valor de la resistencia, haz clic derecho sobre ella.
+
+06
+Si algo no funciona, pregúntale al tutor: él ve tu circuito.
+
+07
+Y si te enredas, con este botón vuelves a poner las piezas como al principio.

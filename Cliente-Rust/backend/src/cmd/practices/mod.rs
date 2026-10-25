@@ -10,6 +10,7 @@ pub mod practice_validator;
 pub mod linux_api;
 pub mod linux_tunnel;
 pub mod linux_media_proxy;
+pub mod circuitos_api;
 
 pub use practicas::{practicas_list_categories, practicas_get_config, practicas_run_setup};
 pub use practice_validator::{validate_practice_progress, calculate_practice_grade};

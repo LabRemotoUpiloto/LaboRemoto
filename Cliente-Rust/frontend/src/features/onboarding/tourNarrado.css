@@ -81,6 +81,20 @@
   animation: tnTexto 0.3s cubic-bezier(0, 0, 0.2, 1) 0.08s both;
 }
 
+/* Clip corto de lo que no se puede resaltar (el simulador de circuitos vive en un iframe): el globo se ensancha. */
+.driver-popover.tour-narrado:has(.tn-clip) { max-width: 440px !important; }
+
+.tn-clip {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  margin: 0 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--background-tertiary);
+}
+
 .tn-pasos {
   display: flex;
   gap: 4px;

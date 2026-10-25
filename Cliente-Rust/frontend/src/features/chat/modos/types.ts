@@ -76,6 +76,8 @@ export interface MessageMeta {
    * Reemplaza a `linuxContentBlocks`, que queda solo para chats guardados antes.
    */
   linuxPaso?: { paso: PasoPractica; total: number };
+  /** Un paso de una práctica de circuitos (features/circuitos/PasoCircuitoCard.tsx): el contenido sale de la práctica abierta. */
+  circuitoPaso?: { pasoId: string; numero: number; total: number };
   /** Respuesta del tutor que explica la salida del comando que el estudiante acaba de correr (título y color propios). */
   linuxExplica?: 'salida';
   /** Evaluación final de una práctica de Linux, solo aparece cuando ya se completaron los comandos obligatorios. */

@@ -22,6 +22,9 @@ import { useEarnedBadges } from './badges.service';
 import { consumePendingPracticesFocus, consumePendingPracticeOpen, onPracticeOpenRequest, consumirVistaPracticas, alPedirVistaPracticas } from './practiceNavigation.service';
 import { notifications } from '@mantine/notifications';
 import { precargar } from '@/app/diferidos';
+import PracticaCircuitoVista from '@/features/circuitos/PracticaCircuitoVista';
+import { CATEGORIA_CIRCUITOS, circuitosService, type PracticaCircuito, type ResumenPracticaCircuito } from '@/features/circuitos/practicas';
+import { estaCompletada } from '@/features/circuitos/practicaEnCurso';
 
 export type { Practice };
 
@@ -70,6 +73,12 @@ const encuestaOfrecida = new Set<string>();
 const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSession, linuxSession, onRestartLinuxModule, pestanaInicial = 'practicas' }) => {
     const [categories, setCategories] = useState<PracticeCategory[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<PracticeCategory | null>(null);
+    // Circuitos va por su propio camino (las sirve el simulador de circuitos, no la Pi): carga aunque la Pi no responda
+    const [circuitos, setCircuitos] = useState<ResumenPracticaCircuito[] | null>(null);
+    const [errorCircuitos, setErrorCircuitos] = useState<string | null>(null);
+    const [abriendoCircuito, setAbriendoCircuito] = useState<string | null>(null);
+    /** Práctica de circuitos abierta (simulador en iframe y chat del tutor). */
+    const [practicaCircuito, setPracticaCircuito] = useState<PracticaCircuito | null>(null);
     const [loading, setLoading] = useState(true);
     const [startingPractice, setStartingPractice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -120,6 +129,7 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
 
     useEffect(() => {
         loadCategories();
+        void cargarCircuitos();
     }, []);
 
     // Ver features/practicas/practiceNavigation.service.ts -- al volver de terminar un
@@ -314,12 +324,48 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     };
 
 
+    const cargarCircuitos = async () => {
+        setErrorCircuitos(null);
+        try {
+            setCircuitos(await circuitosService.listar());
+        } catch (err) {
+            setCircuitos(null);
+            setErrorCircuitos((err as { message?: string } | null)?.message ?? String(err));
+        }
+    };
+
+    const abrirCircuito = async (id: string) => {
+        setAbriendoCircuito(id);
+        try {
+            setPracticaCircuito(await circuitosService.obtener(id));
+        } catch (err) {
+            notifications.show({ title: 'No se pudo abrir la práctica', message: (err as { message?: string } | null)?.message ?? String(err), color: 'red' });
+        } finally {
+            setAbriendoCircuito(null);
+        }
+    };
+
+    // Circuitos: sus prácticas no vienen en la lista de la Pi (ver cargarCircuitos)
+    const cantidadPracticas = (cat: PracticeCategory) =>
+        cat.practices.length + (cat.id === 'circuitos' ? circuitos?.length ?? 0 : 0);
+    // Si el simulador no respondió, la tarjeta igual se abre para explicar qué pasa y reintentar
+    const disponible = (cat: PracticeCategory) => cantidadPracticas(cat) > 0 || (cat.id === 'circuitos' && !!errorCircuitos);
+    const tarjetaCategoria = (cat: PracticeCategory) => (
+        <CategoryCard key={cat.id} id={cat.id} name={cat.name} description={cat.description} icon={cat.icon} color={cat.color}
+            practiceCount={cantidadPracticas(cat)} disponible={disponible(cat)}
+            onClick={() => disponible(cat) && setSelectedCategory(cat)} />
+    );
+
     const levelColor: Record<LogEntry['level'], string> = {
         info: 'gray',
         success: 'green',
         warning: 'orange',
         error: 'red',
     };
+
+    if (practicaCircuito) {
+        return <PracticaCircuitoVista practica={practicaCircuito} onVolver={() => setPracticaCircuito(null)} />;
+    }
 
     return (
         <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
@@ -342,31 +388,28 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
 
                         {conEncuestas && pestana === 'encuestas' ? (
                             <EncuestasPage incrustada />
-                        ) : loading ? (
-                            // Solo esta parte (las cards) muestra el loading -- el título y la
-                            // descripción ya se ven arriba. Antes un `if (loading) return ...`
-                            // tapaba la página entera mientras practicas_list_categories
-                            // esperaba a la Pi (hasta 20s si no responde).
-                            <EsqueletoCategorias />
-                        ) : error ? (
-                            // Antes el error se guardaba y no se mostraba: si la Pi no respondía, la página quedaba vacía.
-                            <Aviso nivel="critico" titulo="No se pudieron cargar las prácticas"
-                                detalle={<>Revisa tu conexión y vuelve a intentarlo. Detalle: <span className="font-ui-num">{error}</span></>}
-                                accion={<Boton onClick={() => void loadCategories()}>Reintentar</Boton>} />
+                        ) : loading || error ? (
+                            // Circuitos no depende de la Pi: su tarjeta se ve ya, mientras las demás cargan o si fallaron
+                            <Stack gap="md">
+                                <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                                    {tarjetaCategoria(categories.find((c) => c.id === 'circuitos') ?? CATEGORIA_CIRCUITOS)}
+                                </SimpleGrid>
+                                {loading ? (
+                                    // Solo esta parte (las cards) muestra el loading -- el título y la
+                                    // descripción ya se ven arriba. Antes un `if (loading) return ...`
+                                    // tapaba la página entera mientras practicas_list_categories
+                                    // esperaba a la Pi (hasta 20s si no responde).
+                                    <EsqueletoCategorias />
+                                ) : (
+                                    // Antes el error se guardaba y no se mostraba: si la Pi no respondía, la página quedaba vacía.
+                                    <Aviso nivel="critico" titulo="No se pudieron cargar las prácticas de la Raspberry"
+                                        detalle={<>Linux y Robótica no responden. Revisa tu conexión y vuelve a intentarlo. Detalle: <span className="font-ui-num">{error}</span></>}
+                                        accion={<Boton onClick={() => void loadCategories()}>Reintentar</Boton>} />
+                                )}
+                            </Stack>
                         ) : (
                             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md" data-tour="practicas-categorias">
-                                {categories.map(cat => (
-                                    <CategoryCard
-                                        key={cat.id}
-                                        id={cat.id}
-                                        name={cat.name}
-                                        description={cat.description}
-                                        icon={cat.icon}
-                                        color={cat.color}
-                                        practiceCount={cat.practices.length}
-                                        onClick={() => cat.practices.length > 0 && setSelectedCategory(cat)}
-                                    />
-                                ))}
+                                {categories.map(tarjetaCategoria)}
                             </SimpleGrid>
                         )}
                     </Stack>
@@ -415,6 +458,34 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                         </Stack>
 
                         <Divider />
+
+                        {selectedCategory.id === 'circuitos' && (
+                            // Las sirve el simulador de circuitos (fork de Velxio, servicio aparte), no la Pi
+                            errorCircuitos ? (
+                                <Aviso nivel="critico" titulo="No responde el simulador de circuitos"
+                                    detalle={<>Revisa que el servicio esté corriendo. Detalle: <span className="font-ui-num">{errorCircuitos}</span></>}
+                                    accion={<Boton onClick={() => void cargarCircuitos()}>Reintentar</Boton>} />
+                            ) : !circuitos ? (
+                                <p className="m-0 text-[13px] text-ui-apagado" role="status">Cargando las prácticas de circuitos…</p>
+                            ) : (
+                                // La misma ficha que Linux y Robótica (PracticeCard lee «Módulo N · ~M min» de la descripción)
+                                <div className="grilla-fichas">
+                                    {circuitos.map((p) => (
+                                        <PracticeCard
+                                            key={p.id}
+                                            id={p.id}
+                                            name={p.title}
+                                            description={`Módulo ${p.order} · ~${p.estimated_minutes} min`}
+                                            resumen={p.objective}
+                                            hasCamera={false}
+                                            onStart={() => void abrirCircuito(p.id)}
+                                            loading={abriendoCircuito === p.id}
+                                            completada={estaCompletada(p.id)}
+                                        />
+                                    ))}
+                                </div>
+                            )
+                        )}
 
                         <div className="grilla-fichas">
                             {selectedCategory.practices.map(practice => (

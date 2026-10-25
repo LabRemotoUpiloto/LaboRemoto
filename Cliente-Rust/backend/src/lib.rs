@@ -234,6 +234,9 @@ pub fn run() {
       cmd::practices::practicas::practicas_list_categories,
       cmd::practices::practicas::practicas_get_config,
       cmd::practices::practicas::practicas_run_setup,
+      // Prácticas de circuitos — las sirve el simulador de circuitos (fork de Velxio), no la Pi
+      cmd::practices::circuitos_api::circuitos_practicas,
+      cmd::practices::circuitos_api::circuitos_practica,
       // Módulos de práctica (Linux y EV3) — servicio HTTP en la Raspberry Pi
       cmd::practices::linux_api::practicas_linux_list,
       cmd::practices::linux_api::practicas_linux_get_module,
