@@ -41,6 +41,11 @@ const REGISTRY: Record<string, React.ReactNode> = {
       <MedalIcon code="M4" tier={3} ringColor="#5B3A8E" discColor="#F7CD3D" burstColor="#F7CD3D" starColor="#F7CD3D" ariaLabel="" className="h-8 w-8" />
     </Insignia>
   ),
+  'linux-archivos': (
+    <Insignia label="Insignia ganada: Administrador jr. (Módulo 5)" rotation={-10}>
+      <MedalIcon code="M5" tier={3} ringColor="#1F6B45" discColor="#F7CD3D" burstColor="#1F6B45" starColor="#F7CD3D" ariaLabel="" className="h-8 w-8" />
+    </Insignia>
+  ),
 };
 
 export function getInsigniaForPractice(practiceId: string): React.ReactNode | null {

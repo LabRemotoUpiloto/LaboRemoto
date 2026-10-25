@@ -94,7 +94,7 @@
       "type": "command_step",
       "id": "s-echo",
       "command": "echo \"hola mundo\"",
-      "explain_md": "Ahora vamos a hacer que la terminal te muestre un mensaje. `echo` (en inglés, «eco») repite en pantalla el texto que le escribas entre comillas. Probá con el clásico con el que empieza todo el que aprende a usar una computadora por comandos: «hola mundo». Ojo: solo lo muestra en pantalla, no lo guarda en ningún archivo; para escribir dentro de un archivo hace falta un editor, y eso lo vas a ver más adelante."
+      "explain_md": "Ahora vamos a hacer que la terminal te muestre un mensaje. `echo` (en inglés, «eco») repite en pantalla el texto que le escribas entre comillas. Probá con el clásico con el que empieza todo el que aprende a usar una computadora por comandos: «hola mundo». Ojo: solo lo muestra en pantalla, no lo guarda en ningún archivo; guardarlo dentro de un archivo se puede con una forma muy corta, y la vas a ver más adelante."
     },
     {
       "type": "text",
