@@ -11,8 +11,15 @@
     {
       "type": "text",
       "id": "b-intro",
-      "body_md": "Hasta ahora te dijimos qué escribir en cada paso. **Hoy no.** Este módulo es un incidente como los que aparecen en el trabajo con computadoras de verdad: te contamos qué pasó y qué hay que lograr, y **cómo hacerlo lo decidís vos** con lo que aprendiste en los módulos anteriores. Hay pistas y el chat te puede ayudar, pero intentá primero por tu cuenta.",
+      "body_md": "Hasta ahora te dijimos qué escribir en cada paso. **Hoy no.** Este módulo es un incidente como los que aparecen en el trabajo con computadoras de verdad: te contamos qué pasó y qué hay que lograr, y **cómo hacerlo lo decidís vos** con lo que aprendiste en los módulos anteriores. Hay pistas y el chat te puede ayudar, pero intentá primero por tu cuenta. **Empezá mirando el video.**",
       "kind": "lead"
+    },
+    {
+      "type": "media",
+      "id": "b-video",
+      "kind": "video",
+      "file": "videos/primer-incidente.mp4",
+      "caption": "Video del módulo: el método de los cuatro pasos (un minuto y medio)"
     },
     {
       "type": "text",
