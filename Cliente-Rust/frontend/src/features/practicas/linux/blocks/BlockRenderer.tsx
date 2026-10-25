@@ -103,7 +103,7 @@ function useAccionEscritorio(id: string): boolean {
  * pregunta a la Pi si la ventana está abierta y la marca hecha. Aquí solo va la consigna, el estado y cómo volver a
  * ver el escritorio si el estudiante se fue a la terminal.
  */
-function DesktopTaskBlock({ block, resaltar }: { block: Extract<LinuxBlock, { type: 'desktop_task' }>; resaltar?: boolean }) {
+function DesktopTaskBlock({ block, resaltar, sessionId }: { block: Extract<LinuxBlock, { type: 'desktop_task' }>; resaltar?: boolean; sessionId?: string | null }) {
   const hecha = useAccionEscritorio(block.id);
   return (
     <Paper withBorder radius="md" p="md" className={resaltar && !hecha ? CLASE_RESALTADA : undefined}>
@@ -112,10 +112,13 @@ function DesktopTaskBlock({ block, resaltar }: { block: Extract<LinuxBlock, { ty
         <Stack gap={8} style={{ flex: 1 }}>
           <Text fz="sm" style={{ lineHeight: 1.6 }}>{renderInline(block.goal_md)}</Text>
           {hecha ? (
-            <Group gap={6} wrap="nowrap">
-              <Check size={16} color="var(--success, #22C55E)" />
-              <Text fz="sm" fw={600}>{block.done_md ?? '¡Listo! Abriste la terminal dentro del escritorio.'}</Text>
-            </Group>
+            <>
+              <Group gap={6} wrap="nowrap">
+                <Check size={16} color="var(--success, #22C55E)" />
+                <Text fz="sm" fw={600}>{block.done_md ?? '¡Listo! Abriste la terminal dentro del escritorio.'}</Text>
+              </Group>
+              <OtraVezEscritorio sessionId={sessionId} />
+            </>
           ) : (
             <Group gap="sm">
               <Loader size="xs" />
@@ -131,6 +134,31 @@ function DesktopTaskBlock({ block, resaltar }: { block: Extract<LinuxBlock, { ty
   );
 }
 
+/**
+ * Con la tarea ya hecha, el estudiante puede volver a un paso anterior y querer ver la interfaz gráfica otra vez:
+ * abrir la vista Escritorio lo vuelve a arrancar solo (ver DesktopPane), y cerrarlo libera la memoria de la Pi.
+ */
+function OtraVezEscritorio({ sessionId }: { sessionId?: string | null }) {
+  return (
+    <Group gap="xs">
+      <Button size="compact-sm" variant="light" leftSection={<Monitor size={13} />} onClick={() => pedirVista('escritorio')}>
+        Ver el escritorio otra vez
+      </Button>
+      <Button
+        size="compact-sm"
+        variant="subtle"
+        leftSection={<SquareTerminal size={13} />}
+        onClick={() => {
+          pedirVista('terminal');
+          if (sessionId) detenerEscritorio(sessionId);
+        }}
+      >
+        Cerrarlo y volver a la terminal
+      </Button>
+    </Group>
+  );
+}
+
 /** Cierra el escritorio remoto (libera la memoria de la Pi) y vuelve a la terminal de la práctica. */
 function DesktopCloseBlock({ block, sessionId, resaltar, onHecho }: {
   block: Extract<LinuxBlock, { type: 'desktop_close' }>;
@@ -141,10 +169,13 @@ function DesktopCloseBlock({ block, sessionId, resaltar, onHecho }: {
   const hecha = useAccionEscritorio(block.id);
   if (hecha) {
     return (
-      <Group gap={6} wrap="nowrap">
-        <Check size={16} color="var(--success, #22C55E)" />
-        <Text fz="sm" c="dimmed">Cerraste el escritorio: sigues en la misma Raspberry, ahora escribiendo.</Text>
-      </Group>
+      <Stack gap={8}>
+        <Group gap={6} wrap="nowrap">
+          <Check size={16} color="var(--success, #22C55E)" />
+          <Text fz="sm" c="dimmed">Cerraste el escritorio: sigues en la misma Raspberry, ahora escribiendo.</Text>
+        </Group>
+        <OtraVezEscritorio sessionId={sessionId} />
+      </Stack>
     );
   }
   return (
@@ -698,7 +729,7 @@ export const BlockView: React.FC<BlockViewProps> = ({ block, rules, result, prac
     case 'step_gate':
       return <StepGateBlock block={block} />;
     case 'desktop_task':
-      return <DesktopTaskBlock block={block} resaltar={resaltar} />;
+      return <DesktopTaskBlock block={block} resaltar={resaltar} sessionId={sessionId} />;
     case 'desktop_close':
       return <DesktopCloseBlock block={block} sessionId={sessionId} resaltar={resaltar} onHecho={onAbierto} />;
     case 'checkpoint':
