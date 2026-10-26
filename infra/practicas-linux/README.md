@@ -21,6 +21,12 @@ El orden en que se muestran lo da el campo `order`, no el nombre de la carpeta.
 
 Esta carpeta es la **fuente** del texto, las preguntas y las reglas. Los videos y los diagramas (`media/`) pesan demasiado para git y viven solo en la Pi, en `content/<módulo>/media/`. Un bloque `media` solo nombra el archivo; si el archivo no está en la Pi, el bloque queda roto.
 
+## Pósters premio
+
+Al terminar un módulo, después de la insignia, se desbloquea un póster que queda en el Perfil (catálogo en `Cliente-Rust/frontend/src/features/practicas/posters.service.ts`). El del M1 es `diagrams/cheatsheet_bonus.png`; los de los módulos 2 a 7 son chuletas con los comandos de cada módulo, en `diagrams/chuleta-m2.png` … `chuleta-m7.png` de su carpeta en la Pi.
+
+Las chuletas se generan con `python posters/generar_chuletas.py [m2 m3 …]` (Windows, usa Edge sin ventana): el texto está en ese archivo. Si cambian los comandos de un módulo, edita su entrada, regenera y sube el PNG a `content/<módulo>/media/diagrams/` con el mismo nombre.
+
 ## Cómo se edita
 
 1. Edita `module.json` y `quiz_answers.json` aquí.

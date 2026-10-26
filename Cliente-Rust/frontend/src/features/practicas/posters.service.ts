@@ -33,7 +33,11 @@ export interface PosterDef {
   description: string;
 }
 
-/** Catálogo -- hoy solo existe el de M1. Agregar acá cuando otro módulo sume su propio póster. */
+/**
+ * Catálogo: un póster por módulo. El del M1 es la chuleta general; los demás son la chuleta de los comandos de
+ * cada módulo (generadas con el estilo de los diagramas de la práctica). Las imágenes viven en la Pi, en
+ * `content/<practiceId>/media/diagrams/`, como el resto de los diagramas.
+ */
 export const POSTERS: PosterDef[] = [
   {
     id: 'm1-cheatsheet',
@@ -42,6 +46,54 @@ export const POSTERS: PosterDef[] = [
     mediaPath: 'diagrams/cheatsheet_bonus.png',
     title: 'Chuleta completa de comandos',
     description: 'De principiante a avanzado — guardala para cuando la necesites.',
+  },
+  {
+    id: 'm2-chuleta',
+    moduleId: 'linux-m2',
+    practiceId: 'linux-m2',
+    mediaPath: 'diagrams/chuleta-m2.png',
+    title: 'Chuleta: navegación y archivos',
+    description: 'pwd, cd, ls, touch y las rutas en una sola hoja.',
+  },
+  {
+    id: 'm3-chuleta',
+    moduleId: 'linux-permisos',
+    practiceId: 'linux-permisos',
+    mediaPath: 'diagrams/chuleta-m3.png',
+    title: 'Chuleta: permisos',
+    description: 'Cómo leer -rwxr-xr-- y cambiarlo con chmod.',
+  },
+  {
+    id: 'm4-chuleta',
+    moduleId: 'linux-m3',
+    practiceId: 'linux-m3',
+    mediaPath: 'diagrams/chuleta-m4.png',
+    title: 'Chuleta: nano y tuberías',
+    description: 'Los atajos de nano, wc y cómo encadenar comandos con |.',
+  },
+  {
+    id: 'm5-chuleta',
+    moduleId: 'linux-archivos',
+    practiceId: 'linux-archivos',
+    mediaPath: 'diagrams/chuleta-m5.png',
+    title: 'Chuleta: tu espacio de trabajo',
+    description: 'Crear, copiar, mover, renombrar y borrar sin perder nada.',
+  },
+  {
+    id: 'm6-chuleta',
+    moduleId: 'linux-programa',
+    practiceId: 'linux-programa',
+    mediaPath: 'diagrams/chuleta-m6.png',
+    title: 'Chuleta: tu primer programa',
+    description: 'Un script de bash de principio a fin, y las dos formas de ejecutarlo.',
+  },
+  {
+    id: 'm7-chuleta',
+    moduleId: 'linux-incidente',
+    practiceId: 'linux-incidente',
+    mediaPath: 'diagrams/chuleta-m7.png',
+    title: 'Chuleta: resolver un incidente',
+    description: 'Un método en 5 pasos y qué hacer con cada mensaje de error.',
   },
 ];
 
