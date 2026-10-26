@@ -25,7 +25,13 @@ export function useAppTabs() {
   // ── Dual-header panel state ──
   const [openPanels, setOpenPanels] = useState<string[]>(['landing']);
   const [activePanel, setActivePanel] = useState<string>('landing');
-  const [activeView, setActiveView] = useState<ActiveView>('terminal');
+  // Vista de cada pestaña (terminal o escritorio remoto). Antes era una sola para toda la app: si una práctica se
+  // cerraba con el escritorio a la vista, la siguiente sesión arrancaba directo en el escritorio.
+  const [vistas, setVistas] = useState<Record<string, ActiveView>>({});
+  const activeView: ActiveView = vistas[activeTabId] ?? 'terminal';
+  const setActiveView = useCallback((vista: ActiveView) => {
+    setVistas(prev => (prev[activeTabId] === vista ? prev : { ...prev, [activeTabId]: vista }));
+  }, [activeTabId]);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   const activeTab = useMemo(() => {
@@ -33,6 +39,8 @@ export function useAppTabs() {
   }, [tabs, activeTabId]);
 
   const openSession = (id: string, label?: string) => {
+    // Una sesión nueva siempre empieza en la terminal, aunque reuse el id de una anterior.
+    if (!tabs.some(t => t.id === id)) setVistas(prev => { const { [id]: _, ...resto } = prev; return resto; });
     setTabs(prev => {
       const exists = prev.some(t => t.id === id);
       if (exists) {
@@ -48,6 +56,7 @@ export function useAppTabs() {
 
   const closeTab = (id: string) => {
     if (id === HOME_TAB_ID) return;
+    setVistas(prev => { const { [id]: _, ...resto } = prev; return resto; });
     setTabs(prev => {
       const next = prev.filter(t => t.id !== id);
       if (activeTabId === id) {
