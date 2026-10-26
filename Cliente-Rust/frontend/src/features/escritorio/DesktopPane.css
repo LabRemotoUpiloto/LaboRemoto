@@ -126,6 +126,7 @@
 }
 .desktop-canvas > div > canvas {
   display: block;
+  margin: auto; /* centrado en el panel aunque la escala no llene los dos ejes */
   cursor: default;
   outline: none;
   pointer-events: all;
