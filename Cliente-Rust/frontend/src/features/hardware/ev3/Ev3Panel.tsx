@@ -1,13 +1,10 @@
-import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { getEv3Status, setEv3Motor, stopEv3Motors, type Ev3Status } from '../ev3.service';
-import { publishEv3Status } from '../ev3Telemetry';
+import React, { Suspense, useCallback, useState } from 'react';
 import Ev3Dashboard from './Ev3Dashboard';
 // el gemelo 3D trae three.js (cerca de 1,7 MB): se carga aparte, ver app/diferidos.ts
-import { Ev3Twin, precargar } from '@/app/diferidos';
+import { Ev3Twin } from '@/app/diferidos';
 import Ev3Console from './Ev3Console';
+import { useEv3Estado } from './useEv3Estado';
 import './Ev3Panel.css';
-
-const POLL_MS = 1000;
 
 type View = 'dashboard' | 'twin' | 'consola';
 
@@ -32,49 +29,13 @@ interface Ev3PanelProps {
  * SSH para la sesión.
  */
 const Ev3Panel: React.FC<Ev3PanelProps> = ({ sessionId }) => {
-  const [status, setStatus] = useState<Ev3Status | null>(null);
   const [view, setView] = useState<View>('dashboard');
-  const cancelledRef = useRef(false);
-
-  const refreshStatus = useCallback(async () => {
-    try {
-      const s = await getEv3Status(sessionId);
-      if (!cancelledRef.current) setStatus(s);
-    } catch (e) {
-      if (!cancelledRef.current) {
-        setStatus(prev => ({
-          connected: false,
-          ip: prev?.ip ?? '—',
-          battery: prev?.battery ?? 0,
-          motors: prev?.motors ?? [],
-          sensors: prev?.sensors ?? [],
-          alerts: [`Error de comunicación: ${e}`],
-          reachable: false,
-        }));
-      }
-    }
-  }, [sessionId]);
-
-  // La telemetría también la leen los bloques interactivos del chat.
-  useEffect(() => { publishEv3Status(status); }, [status]);
-  // el gemelo 3D se adelanta en cuanto hay panel del robot, antes de que alguien abra su pestaña
-  useEffect(() => { precargar('ev3'); }, []);
-  useEffect(() => () => publishEv3Status(null), []);
-
-  useEffect(() => {
-    cancelledRef.current = false;
-    void refreshStatus();
-    const it = window.setInterval(refreshStatus, POLL_MS);
-    return () => { cancelledRef.current = true; window.clearInterval(it); };
-  }, [refreshStatus]);
-
-  const handleSetSpeed = useCallback((port: string, speed: number) => {
-    void setEv3Motor(sessionId, port, speed).catch(e => console.error('[EV3] Error moviendo motor:', e));
-  }, [sessionId]);
+  // Sondeo, telemetría compartida con el chat y acciones de motor (lo mismo usa la vista guiada de la práctica).
+  const { status, setSpeed: handleSetSpeed, stopAll } = useEv3Estado(sessionId);
 
   const handleStopAll = useCallback(() => {
-    void stopEv3Motors(sessionId).catch(e => console.error('[EV3] Error deteniendo motores:', e));
-  }, [sessionId]);
+    stopAll().catch(e => console.error('[EV3] Error deteniendo motores:', e));
+  }, [stopAll]);
 
   const tab = (v: View, label: string) => (
     <button className={`ev3-nav-tab ${view === v ? 'active' : ''}`} onClick={() => setView(v)}>

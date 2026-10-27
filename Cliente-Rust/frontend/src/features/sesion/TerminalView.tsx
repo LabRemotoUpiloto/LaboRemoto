@@ -12,6 +12,9 @@ import { EVENTO_GUIA_TERMINAL, type DetalleGuiaTerminal } from '@/features/pract
 import { EVENTO_EJECUTAR_COMANDO, teclasDelComando, type DetalleEjecutarComando } from '@/features/practicas/linux/ejecutarComando';
 import { sshStdin } from '@/features/conexion/ssh.service';
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession';
+import { isEv3Module } from '@/features/practicas/linuxPractice.service';
+import { VistaPracticaEv3 } from '@/features/practicas/ev3/VistaPracticaEv3';
+import type { VistaEscenario } from '@/features/practicas/ev3/necesidadesEv3';
 import SesionMosaico from './SesionMosaico';
 import { olvidar } from './herramientasSesion';
 import { EVENTO_ESCRIBIR, type DetalleEscribir } from './escribirEnTerminal';
@@ -30,6 +33,22 @@ interface TerminalViewProps {
   robotDashboardEnabled?: boolean;
   /** Instancia única de useLinuxPracticeSession (ver App.tsx), para leer progreso/conexión de la práctica Linux activa. */
   linuxSession?: LinuxPracticeSessionApi;
+  /** Abre o cierra la cámara de esta sesión. En la vista guiada de EV3 es el «Robot real» del escenario. */
+  onSetCameraOpen?: (open: boolean) => void;
+}
+
+/** Preferencia de cada estudiante: vista completa (terminal + Panel EV3) en vez de la guiada. */
+const CLAVE_VISTA_COMPLETA = 'labremoto.ev3.vistaCompleta';
+
+function leerVistaCompleta(): boolean {
+  try { return localStorage.getItem(CLAVE_VISTA_COMPLETA) === '1'; } catch { return false; }
+}
+
+function guardarVistaCompleta(valor: boolean) {
+  try {
+    if (valor) localStorage.setItem(CLAVE_VISTA_COMPLETA, '1');
+    else localStorage.removeItem(CLAVE_VISTA_COMPLETA);
+  } catch { /* sin almacenamiento: la preferencia dura lo que dure la sesión */ }
 }
 
 /**
@@ -95,11 +114,45 @@ const TerminalView: React.FC<TerminalViewProps> = (props) => {
     return el;
   });
 
+  // Práctica de EV3 con robot: vista guiada (escenario + guía + riel), salvo que el estudiante prefiera la completa.
+  const esEv3 = !!practiceId && isEv3Module(practiceId) && !!props.robotDashboardEnabled;
+  const [vistaCompleta, setVistaCompleta] = useState(leerVistaCompleta);
+  const cambiarVistaCompleta = (valor: boolean) => { guardarVistaCompleta(valor); setVistaCompleta(valor); };
+
+  // El escenario muestra la cámara si la cámara de la sesión está abierta (así la abre el módulo y la alterna la
+  // barra lateral); sin quién la controle desde App, decide el propio escenario.
+  const [escenarioLocal, setEscenarioLocal] = useState<VistaEscenario>('camara');
+  const escenario: VistaEscenario = props.onSetCameraOpen ? (props.isCameraOpen ? 'camara' : 'gemelo') : escenarioLocal;
+  const cambiarEscenario = (v: VistaEscenario) => {
+    if (props.onSetCameraOpen) props.onSetCameraOpen(v === 'camara');
+    else setEscenarioLocal(v);
+  };
+
+  let vista: React.ReactNode;
+  if (!practiceId) {
+    vista = <SesionMosaico sessionId={sessionId} isTabActive={isTabActive} terminalHost={terminalHost} />;
+  } else if (esEv3 && !vistaCompleta) {
+    vista = (
+      <VistaPracticaEv3
+        sessionId={sessionId}
+        practiceId={practiceId}
+        terminalHost={terminalHost}
+        isTabActive={isTabActive}
+        isChatOpen={!!props.isChatOpen}
+        onCloseChat={props.onCloseChat ?? (() => {})}
+        linuxSession={linuxSession}
+        escenario={escenario}
+        onCambiarEscenario={cambiarEscenario}
+        onVerTodo={() => cambiarVistaCompleta(true)}
+      />
+    );
+  } else {
+    vista = <VistaPractica {...props} terminalHost={terminalHost} onVistaGuiada={esEv3 ? () => cambiarVistaCompleta(false) : undefined} />;
+  }
+
   return (
     <>
-      {practiceId
-        ? <VistaPractica {...props} terminalHost={terminalHost} />
-        : <SesionMosaico sessionId={sessionId} isTabActive={isTabActive} terminalHost={terminalHost} />}
+      {vista}
       {createPortal(
         <TerminalPane
           sessionId={sessionId}
@@ -113,10 +166,12 @@ const TerminalView: React.FC<TerminalViewProps> = (props) => {
   );
 };
 
-/** La vista de práctica (la de siempre): barra de progreso, cámara arriba, terminal o escritorio, y el chat a la derecha. */
-const VistaPractica: React.FC<TerminalViewProps & { terminalHost: HTMLElement }> = ({
+/** La vista de práctica (la de siempre): barra de progreso, cámara arriba, terminal o escritorio, y el chat a la derecha.
+ *  En EV3 es la vista completa («Ver todo»); `onVistaGuiada` vuelve a la guiada. */
+const VistaPractica: React.FC<TerminalViewProps & { terminalHost: HTMLElement; onVistaGuiada?: () => void }> = ({
   sessionId,
   terminalHost,
+  onVistaGuiada,
   activeView = 'terminal',
   isCameraOpen = false,
   isChatOpen = false,
@@ -250,6 +305,15 @@ const VistaPractica: React.FC<TerminalViewProps & { terminalHost: HTMLElement }>
       
       {/* ── Main Stack (Camera Top, Terminal/VNC Bottom) ── */}
       <div className="terminal-stack" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+
+        {onVistaGuiada && (
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-ui-borde bg-ui-superficie px-4 py-1.5 text-[12px] text-ui-tinta-2">
+            <span>Vista completa: terminal, cámara y panel del robot.</span>
+            <button type="button" onClick={onVistaGuiada} className="font-semibold text-ui-acento-texto hover:underline">
+              Volver a la vista guiada
+            </button>
+          </div>
+        )}
 
         {/* ── Barra de progreso de la práctica de Linux — nunca en sesiones SSH normales (practiceId siempre null ahí) ── */}
         {showProgressBar && linuxResult && (

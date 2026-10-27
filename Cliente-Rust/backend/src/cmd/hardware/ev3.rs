@@ -108,8 +108,21 @@ pub struct Ev3Status {
     pub reachable: bool,
 }
 
+/// Robot directo pedido por el frontend (vista «Probar con mi robot»), ya validado; `None` = por el laboratorio.
+fn robot_directo(robot: Option<String>) -> Result<Option<super::ev3_directo::RobotDirecto>, CommandError> {
+    match robot {
+        Some(r) if !r.trim().is_empty() => super::ev3_directo::validar_robot(&r).map(Some),
+        _ => Ok(None),
+    }
+}
+
+/// Telemetría del robot. Con `robot` (IP o nombre `.local`) se consulta directo al robot físico en la red local
+/// (ver `ev3_directo.rs`); sin él, por el puente del laboratorio a través de la sesión SSH `id`.
 #[tauri::command]
-pub async fn ev3_status(id: String) -> Result<Ev3Status, CommandError> {
+pub async fn ev3_status(id: String, robot: Option<String>) -> Result<Ev3Status, CommandError> {
+    if let Some(r) = robot_directo(robot)? {
+        return super::ev3_directo::estado(&r).await;
+    }
     tokio::task::spawn_blocking(move || {
         let inner = format!("curl -s --max-time 2 {}/api/status", BRIDGE_URL);
         let cmd = hop(&inner);
@@ -167,9 +180,13 @@ fn ev3_api_error(id: &str, operation: &str, code: u16, body: &str) -> CommandErr
 }
 
 /// Mueve un motor. `port` acepta `"A"`/`"outA"`; `speed` en % (−100…100).
+/// Con `robot`, la orden va directo al robot físico (ver `ev3_status`).
 #[tauri::command]
-pub async fn ev3_set_motor(id: String, port: String, speed: i32) -> Result<Ev3ApiResult, CommandError> {
+pub async fn ev3_set_motor(id: String, port: String, speed: i32, robot: Option<String>) -> Result<Ev3ApiResult, CommandError> {
     let speed = speed.clamp(-100, 100);
+    if let Some(r) = robot_directo(robot)? {
+        return super::ev3_directo::mover(&r, &port, speed).await;
+    }
     tokio::task::spawn_blocking(move || {
         let payload = serde_json::json!({ "port": port, "speed": speed }).to_string();
         let quoted = bash_quote(&payload);
@@ -189,9 +206,12 @@ pub async fn ev3_set_motor(id: String, port: String, speed: i32) -> Result<Ev3Ap
     }).await.map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
 }
 
-/// Detiene todos los motores, o uno solo si se pasa `port`.
+/// Detiene todos los motores, o uno solo si se pasa `port`. Con `robot`, directo al robot físico (ver `ev3_status`).
 #[tauri::command]
-pub async fn ev3_stop_all(id: String, port: Option<String>) -> Result<Ev3ApiResult, CommandError> {
+pub async fn ev3_stop_all(id: String, port: Option<String>, robot: Option<String>) -> Result<Ev3ApiResult, CommandError> {
+    if let Some(r) = robot_directo(robot)? {
+        return super::ev3_directo::detener(&r, port.as_deref()).await;
+    }
     tokio::task::spawn_blocking(move || {
         let payload = match &port {
             Some(p) => serde_json::json!({ "port": p }).to_string(),

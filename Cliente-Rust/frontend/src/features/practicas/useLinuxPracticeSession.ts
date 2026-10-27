@@ -47,6 +47,8 @@ interface UseLinuxPracticeSessionParams {
 export interface SessionPanels {
   robot_dashboard: boolean;
   camera: boolean;
+  /** `environment.tools` del módulo (EV3), tal cual; lo interpreta necesidadesDe. */
+  tools?: Record<string, unknown>;
 }
 
 interface PasswordPromptState {
@@ -437,6 +439,7 @@ export function useLinuxPracticeSession({ onNewSession, setChatOpen, setCameraOp
           const panels: SessionPanels = {
             robot_dashboard: !!env.panels.robot_dashboard,
             camera: !!env.panels.camera,
+            tools: env.tools,
           };
           setSessionPanels((prev) => ({ ...prev, [sessionId]: panels }));
           if (panels.camera) setCameraOpen(sessionId, true);

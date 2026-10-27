@@ -4,6 +4,18 @@ import './KeyboardControl.css';
 
 const PORTS = ['outA', 'outB', 'outC', 'outD'];
 
+/** true si la tecla va a un campo donde se escribe (input, textarea, editor o la terminal de xterm). */
+export function esCampoDeTexto(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (tag !== 'INPUT') return false;
+  // Sliders, casillas y botones no escriben texto: ahí W/A/S/D siguen moviendo el robot.
+  const tipo = (target as HTMLInputElement).type;
+  return !['range', 'checkbox', 'radio', 'button', 'submit', 'reset', 'color'].includes(tipo);
+}
+
 interface KeyboardControlProps {
   status: Ev3Status | null;
   onSetSpeed: (port: string, speed: number) => void;
@@ -34,6 +46,8 @@ const KeyboardControl: React.FC<KeyboardControlProps> = ({ status, onSetSpeed })
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Mientras se escribe (chat, consola, cualquier campo) las letras son letras, no órdenes al robot.
+      if (esCampoDeTexto(e.target)) return;
       const key = e.key.toLowerCase();
       if (!['w', 'a', 's', 'd', ' '].includes(key)) return;
       e.preventDefault();
@@ -54,6 +68,7 @@ const KeyboardControl: React.FC<KeyboardControlProps> = ({ status, onSetSpeed })
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (esCampoDeTexto(e.target)) return;
       const key = e.key.toLowerCase();
       if (!['w', 'a', 's', 'd'].includes(key)) return;
       setActiveKeys(prev => {
