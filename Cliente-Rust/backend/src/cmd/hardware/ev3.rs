@@ -72,6 +72,11 @@ pub struct Ev3Motor {
     pub connected: bool,
     #[serde(default)]
     pub speed: i32,
+    /// Grados acumulados del encoder (`tacho-motor/<n>/position`). `None` si
+    /// el puente desplegado es anterior y no lo envía; así el frontend no
+    /// confunde "sin dato" con "posición 0".
+    #[serde(default)]
+    pub position: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -207,4 +212,25 @@ pub async fn ev3_stop_all(id: String, port: Option<String>) -> Result<Ev3ApiResu
         }
         Ok(Ev3ApiResult { status: "success".into(), message: body })
     }).await.map_err(|e| CommandError::internal("TASK_JOIN_ERROR", e.to_string()))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lee_la_posicion_del_encoder() {
+        let body = r#"{"connected":true,"ip":"ev3","battery":7.9,
+            "motors":[{"port":"outB","connected":true,"speed":120,"position":-360}],
+            "sensors":[],"alerts":[]}"#;
+        let st: Ev3Status = serde_json::from_str(body).unwrap();
+        assert_eq!(st.motors[0].position, Some(-360));
+    }
+
+    #[test]
+    fn sin_posicion_si_el_puente_no_la_envia() {
+        let body = r#"{"motors":[{"port":"outA","connected":false,"speed":0}]}"#;
+        let st: Ev3Status = serde_json::from_str(body).unwrap();
+        assert_eq!(st.motors[0].position, None);
+    }
 }

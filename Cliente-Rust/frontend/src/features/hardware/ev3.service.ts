@@ -13,6 +13,8 @@ export interface Ev3Motor {
   port: string;
   connected: boolean;
   speed: number;
+  /** Grados acumulados del encoder; `null` si el puente no los envía. */
+  position: number | null;
 }
 
 export interface Ev3Sensor {
