@@ -1,0 +1,30 @@
+import { invoke } from '@tauri-apps/api/core';
+import type { ResumenSesiones } from '@/bindings/ResumenSesiones';
+import type { SesionPractica } from '@/bindings/SesionPractica';
+
+export type { ResumenSesiones, SesionPractica };
+
+export type TipoEventoSesion = 'inicio' | 'latido' | 'fin' | 'ubicacion';
+
+export interface DatosEventoSesion {
+  practicaId?: string;
+  practicaNombre?: string;
+  lat?: number;
+  lon?: number;
+  precisionM?: number;
+}
+
+export const sesionesService = {
+  reportarEvento: (tipo: TipoEventoSesion, sesionId: string, datos: DatosEventoSesion = {}) =>
+    invoke<void>('sesiones_reportar_evento', { tipo, sesionId, ...datos }),
+
+  /** Dónde está el equipo, con o sin práctica abierta (el broker la usa para las conexiones SSH de la misma IP). */
+  reportarUbicacionApp: (lat: number, lon: number, precisionM?: number) =>
+    invoke<void>('sesiones_reportar_ubicacion_app', { lat, lon, precisionM }),
+
+  /** La app abierta, con o sin práctica (Actividad: «En la app»). */
+  reportarUsoApp: (tipo: 'inicio' | 'latido' | 'fin', sesionId: string) =>
+    invoke<void>('sesiones_reportar_app', { tipo, sesionId }),
+
+  resumen: (dias: number) => invoke<ResumenSesiones>('sesiones_resumen', { dias }),
+};

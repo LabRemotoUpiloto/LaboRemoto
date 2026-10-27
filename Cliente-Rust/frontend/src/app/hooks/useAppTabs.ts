@@ -1,0 +1,249 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { SessionLog } from "@/features/logs/sesiones";
+import { useEffectiveRole, canAccessPage } from "@/features/cuenta/usePermissions";
+
+export type Tab = {
+  id: string;
+  type: "home" | "session" | "log" | "local-terminal";
+  label: string;
+  logData?: SessionLog;
+};
+
+export const HOME_TAB_ID = "home";
+
+export type ActiveView = 'terminal' | 'escritorio';
+
+export function useAppTabs() {
+  const role = useEffectiveRole();
+  const [tabs, setTabs] = useState<Tab[]>([{ id: HOME_TAB_ID, type: "home", label: "Inicio" }]);
+  const [activeTabId, setActiveTabId] = useState<string>(HOME_TAB_ID);
+  // true = sidebar expandida (iconos + texto); false = colapsada (solo iconos).
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sessionMeta, setSessionMeta] = useState<Record<string, { label: string }>>({});
+  const [selectedPage, setSelectedPage] = useState<string>("landing");
+
+  // ── Dual-header panel state ──
+  const [openPanels, setOpenPanels] = useState<string[]>(['landing']);
+  const [activePanel, setActivePanel] = useState<string>('landing');
+  // Vista de cada pestaña (terminal o escritorio remoto). Antes era una sola para toda la app: si una práctica se
+  // cerraba con el escritorio a la vista, la siguiente sesión arrancaba directo en el escritorio.
+  const [vistas, setVistas] = useState<Record<string, ActiveView>>({});
+  const activeView: ActiveView = vistas[activeTabId] ?? 'terminal';
+  const setActiveView = useCallback((vista: ActiveView) => {
+    setVistas(prev => (prev[activeTabId] === vista ? prev : { ...prev, [activeTabId]: vista }));
+  }, [activeTabId]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  const activeTab = useMemo(() => {
+    return tabs.find(t => t.id === activeTabId) || tabs[0];
+  }, [tabs, activeTabId]);
+
+  const openSession = (id: string, label?: string) => {
+    // Una sesión nueva siempre empieza en la terminal, aunque reuse el id de una anterior.
+    if (!tabs.some(t => t.id === id)) setVistas(prev => { const { [id]: _, ...resto } = prev; return resto; });
+    setTabs(prev => {
+      const exists = prev.some(t => t.id === id);
+      if (exists) {
+        return prev.map(t => (t.id === id && label ? { ...t, label } : t));
+      }
+      return [...prev, { id, type: "session", label: label || sessionMeta[id]?.label || id }];
+    });
+    setActiveTabId(id);
+    setSelectedPage("terminal");
+    setOpenPanels(prev => prev.includes('terminal') ? prev : [...prev, 'terminal']);
+    setActivePanel('terminal');
+  };
+
+  const closeTab = (id: string) => {
+    if (id === HOME_TAB_ID) return;
+    setVistas(prev => { const { [id]: _, ...resto } = prev; return resto; });
+    setTabs(prev => {
+      const next = prev.filter(t => t.id !== id);
+      if (activeTabId === id) {
+        const firstSession = next.find(t => t.type === "session");
+        setActiveTabId(firstSession ? firstSession.id : HOME_TAB_ID);
+      }
+      return next;
+    });
+  };
+
+  const renameTab = (id: string, label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    setTabs(prev => prev.map(t => (t.id === id ? { ...t, label: trimmed } : t)));
+    const tab = tabs.find(t => t.id === id);
+    if (tab?.type === "session") {
+      setSessionMeta(prev => ({ ...prev, [id]: { ...prev[id], label: trimmed } }));
+    }
+  };
+
+  const reorderTabs = (dragID: string, dropID: string) => {
+    if (dragID === dropID) return;
+    setTabs(prev => {
+      const idxA = prev.findIndex(t => t.id === dragID);
+      const idxB = prev.findIndex(t => t.id === dropID);
+      if (idxA < 0 || idxB < 0) return prev;
+      
+      const newTabs = [...prev];
+      const [moved] = newTabs.splice(idxA, 1);
+      newTabs.splice(idxB, 0, moved);
+      
+      return newTabs;
+    });
+    // Mantén la tab activa después del reorder
+    setActiveTabId(prev => prev);
+  };
+
+  const reorderPanels = (dragID: string, dropID: string) => {
+    if (dragID === dropID) return;
+    setOpenPanels(prev => {
+      const idxA = prev.indexOf(dragID);
+      const idxB = prev.indexOf(dropID);
+      if (idxA < 0 || idxB < 0) return prev;
+
+      const newPanels = [...prev];
+      const [moved] = newPanels.splice(idxA, 1);
+      newPanels.splice(idxB, 0, moved);
+      return newPanels;
+    });
+  };
+
+  const handleNewSession = (info: { id: string; label?: string } | null) => {
+    if (!info) {
+      setActiveTabId(HOME_TAB_ID);
+      return;
+    }
+    const { id, label } = info;
+    if (label) {
+      setSessionMeta(prev => ({ ...prev, [id]: { label } }));
+    }
+    openSession(id, label);
+  };
+
+  const openLocalTerminalTab = useCallback(() => {
+    // Segunda barrera: el evento `app:open-local-terminal` también llega acá.
+    if (!canAccessPage('local-terminal-new', role)) return;
+    const id = crypto.randomUUID();
+    setTabs(prev => {
+      const n = prev.filter(t => t.type === 'local-terminal').length + 1;
+      return [...prev, { id, type: 'local-terminal', label: n > 1 ? `Terminal local #${n}` : 'Terminal local' }];
+    });
+    setActiveTabId(id);
+    setSelectedPage('terminal');
+    setOpenPanels(prev => prev.includes('terminal') ? prev : [...prev, 'terminal']);
+    setActivePanel('terminal');
+  }, [role]);
+
+  // "Nueva pestaña de terminal" desde el menú contextual de un panel
+  // (LocalTerminalGroup) — el grupo vive muy abajo en el árbol, así que se
+  // comunica por CustomEvent, mismo patrón que los eventos `app:*` existentes.
+  useEffect(() => {
+    const onOpenLocalTerminal = () => openLocalTerminalTab();
+    window.addEventListener('app:open-local-terminal', onOpenLocalTerminal);
+    return () => window.removeEventListener('app:open-local-terminal', onOpenLocalTerminal);
+  }, [openLocalTerminalTab]);
+
+  const openLogTab = (session: SessionLog) => {
+    const logTabId = `log:${session.id}`;
+    const logLabel = `Log ${session.user}@${session.host}`;
+    setTabs(prev => {
+      const exists = prev.some(t => t.id === logTabId);
+      if (exists) return prev;
+      return [...prev, { id: logTabId, type: "log", label: logLabel, logData: session }];
+    });
+    setActiveTabId(logTabId);
+  };
+
+  // ── Panel tab management (H1) ──
+  const openPanel = useCallback((panelId: string) => {
+    setOpenPanels(prev => {
+      if (!prev.includes(panelId)) return [...prev, panelId];
+      return prev;
+    });
+    setActivePanel(panelId);
+    // Sync selectedPage for content rendering
+    setSelectedPage(panelId);
+  }, []);
+
+  const closePanel = useCallback((panelId: string) => {
+    setOpenPanels(prev => {
+      const next = prev.filter(p => p !== panelId);
+      if (activePanel === panelId) {
+        const last = next[next.length - 1] || 'terminal';
+        setActivePanel(last);
+        setSelectedPage(last);
+      }
+      return next.length === 0 ? ['terminal'] : next;
+    });
+  }, [activePanel]);
+
+  useEffect(() => {
+    setTabs(prev =>
+      prev.map(t =>
+        t.type === "session" && sessionMeta[t.id]?.label && t.label !== sessionMeta[t.id].label
+          ? { ...t, label: sessionMeta[t.id].label }
+          : t
+      )
+    );
+  }, [sessionMeta]);
+
+  // Auto-switch to first connected session when entering terminal view
+  useEffect(() => {
+    if (activePanel === 'terminal' && activeTabId === HOME_TAB_ID) {
+      const firstSession = tabs.find(t => t.type === 'session');
+      if (firstSession) {
+        setActiveTabId(firstSession.id);
+      }
+    }
+  }, [activePanel, activeTabId, tabs]);
+
+  // Clean up terminal panel if last session (SSH o terminal local) closes
+  useEffect(() => {
+    const hasSessions = tabs.some(t => t.type === 'session' || t.type === 'local-terminal');
+
+    // If no sessions exist but terminal panel is open, remove it
+    if (!hasSessions && openPanels.includes('terminal')) {
+      setOpenPanels(prev => prev.filter(p => p !== 'terminal'));
+      
+      // If we are currently looking at the terminal panel, safely fallback to landing page
+      if (activePanel === 'terminal') {
+        setActivePanel('landing');
+        setSelectedPage('landing');
+      }
+    }
+  }, [tabs, openPanels, activePanel]);
+
+
+
+  return {
+    tabs,
+    setTabs,
+    activeTabId,
+    setActiveTabId,
+    isSidebarOpen,
+    setIsSidebarOpen,
+    sessionMeta,
+    setSessionMeta,
+    selectedPage,
+    setSelectedPage,
+    activeTab,
+    openSession,
+    closeTab,
+    renameTab,
+    handleNewSession,
+    openLogTab,
+    openLocalTerminalTab,
+    // Dual-header panel state
+    openPanels,
+    activePanel,
+    openPanel,
+    closePanel,
+    activeView,
+    setActiveView,
+    isChatOpen,
+    setIsChatOpen,
+    reorderTabs,
+    reorderPanels,
+  };
+}
+

@@ -122,6 +122,8 @@ export interface Practice {
   connection: PracticeConnection;
   terminal: TerminalConfig;
   panels: PanelConfig;
+  /** Frase corta de qué vas a hacer (módulos de la Pi que la traen en su module.json). */
+  resumen?: string;
 }
 
 // ── Paneles de Vista ──────────────────────────────────────────────────────────
@@ -133,8 +135,6 @@ export type PanelId =
   | 'hosts'
   | 'themes'
   | 'logs'
-  | 'sftp'
-  | 'snippets'
   | 'practices'
   | 'terminal'
   | 'moodle-test';

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import type { MuestraPi } from '../../src/services/rendimiento.service';
-import { resumirPrueba } from '../../src/pages/rendimiento/rendimientoStats';
-import { COLUMNAS, hojasDePrueba, type Celda } from '../../src/pages/rendimiento/hojasPrueba';
+import type { MuestraPi } from '@/features/monitoreo/rendimiento.service';
+import { resumirPrueba } from '@/features/monitoreo/rendimientoStats';
+import { COLUMNAS, hojasDePrueba, type Celda } from '@/features/monitoreo/hojasPrueba';
 
 function muestra(t: number, estudiantes: number, cpu: number): MuestraPi {
   return {

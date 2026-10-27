@@ -1,7 +1,7 @@
 //! Conversión de buffer de terminal (ANSI crudo, serializado por xterm vía
 //! `SerializeAddon`) a HTML para los logs de sesión guardados.
 //!
-//! Puerto 1:1 de lo que antes hacía `frontend/src/services/session.service.ts`
+//! Puerto 1:1 de lo que antes hacía `frontend/src/features/logs/session.service.ts`
 //! (que a su vez delegaba en el paquete npm `ansi-to-html`) — se movió a
 //! Rust para que la conversión no tenga que pasar por el hilo de JS del
 //! WebView antes de guardarse, y para no reimplementar la misma lógica dos

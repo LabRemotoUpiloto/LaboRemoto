@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { useSidePanels } from '../../src/hooks/useSidePanels';
+import { useSidePanels } from '@/app/hooks/useSidePanels';
 
 describe('useSidePanels', () => {
   it('preserves an open camera panel for each session independently', () => {

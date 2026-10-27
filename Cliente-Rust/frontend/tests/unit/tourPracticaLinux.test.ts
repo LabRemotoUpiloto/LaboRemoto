@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { PASOS_PRACTICA_LINUX } from '../../src/tours/tour_linux/pasos';
+import { PASOS_PRACTICA_LINUX } from '@/features/practicas/tour/pasos';
 
 const PUBLIC = resolve(__dirname, '../../public/tutorial/practica-linux');
 const GUION = resolve(__dirname, '../../../tools/practica-linux-tour/frases_elevenlabs.txt');

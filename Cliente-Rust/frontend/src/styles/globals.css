@@ -56,6 +56,42 @@
   100% { transform: scale(7); opacity: 0; }
 }
 
+/* Colores de la interfaz (components/ui y pages/*) como utilidades de Tailwind (text-ui-apagado, bg-ui-pista…).
+   `inline` hace que cada utilidad lea la variable del tema activo en tiempo de ejecución, así que funcionan
+   en todos los temas sin colores sueltos. Lo que los temas no traen se deriva con color-mix; --text-muted no
+   se usa porque varios temas no lo definen y el de :root está pensado para fondo oscuro.
+   Contraste (WCAG AA) medido en los 13 temas: «apagado» ≥ 4,5:1 sobre la superficie; «fantasma» es solo para
+   lo deshabilitado; «acento-texto» es el acento cuando se usa como texto o indicador fino (ver --accent-text
+   al final del archivo); «borde-campo» marca los campos de formulario (≥ 3:1). */
+@theme inline {
+  --color-ui-fondo: var(--background-primary);
+  --color-ui-superficie: var(--background-secondary);
+  --color-ui-terciario: var(--background-tertiary);
+  --color-ui-tinta: var(--text-primary);
+  --color-ui-tinta-2: var(--text-secondary);
+  --color-ui-apagado: color-mix(in srgb, var(--text-secondary) 92%, var(--background-secondary));
+  --color-ui-fantasma: color-mix(in srgb, var(--text-secondary) 35%, var(--background-secondary));
+  --color-ui-borde-campo: color-mix(in srgb, var(--text-secondary) 75%, var(--background-secondary));
+  --color-ui-acento-texto: var(--accent-text, var(--accent-primary));
+  --color-ui-pista: color-mix(in srgb, var(--text-secondary) 16%, var(--background-secondary));
+  --color-ui-banda: color-mix(in srgb, var(--text-primary) 20%, var(--background-secondary));
+  --color-ui-rango: color-mix(in srgb, var(--text-primary) 45%, var(--background-secondary));
+  --color-ui-borde: var(--card-border-color, var(--border-color));
+  --color-ui-acento: var(--accent-primary);
+  --color-ui-hover: var(--interactive-hover, color-mix(in srgb, var(--text-secondary) 10%, transparent));
+  --color-ui-bien: var(--success);
+  --color-ui-bien-texto: var(--success-text, var(--success));
+  --color-ui-alerta: var(--warning);
+  --color-ui-alerta-texto: var(--warning-text, var(--warning));
+  --color-ui-critico: var(--danger);
+  --color-ui-critico-texto: var(--danger-text, var(--danger));
+  --color-ui-umbral-alerta: color-mix(in srgb, var(--warning) 70%, var(--background-secondary));
+  --color-ui-umbral-critico: color-mix(in srgb, var(--danger) 70%, var(--background-secondary));
+  --font-ui-num: var(--terminal-font-family, ui-monospace, monospace);
+  --font-ui-titulo: var(--font-heading, inherit);
+  --radius-ui: var(--radius-md, 8px);
+}
+
 /* ============================================
    🎨 GLOBALS.CSS - Estilos Globales Compartidos
    ============================================ */
@@ -2360,4 +2396,44 @@ html:root .chat-bubble.chat-bubble-ai.burbuja-explica-salida {
 .mantine-Modal-close:hover {
   background-color: var(--interactive-hover) !important;
   color: var(--text-primary) !important;
+}
+
+/* ============================================
+   Contraste y foco (WCAG AA), medidos en los 13 temas.
+   Va al final a propósito: varios temas se redefinen más arriba en este archivo y en themes/*.css,
+   y estos ajustes tienen que ganarles.
+   ============================================ */
+
+/* --accent-text: el acento cuando se usa como TEXTO o como indicador fino (barra, subrayado, anillo de foco).
+   Solo lo definen los temas cuyo acento es demasiado claro sobre su fondo (daba 1,8–3,7:1); los demás usan
+   el acento tal cual (utilidad `ui-acento-texto`). */
+html[data-theme="lavender-dream"], html[data-theme="polar-mint"], html[data-theme="sepia-paper"],
+html[data-theme="pastel-dream"], html[data-theme="crimson-gold"] {
+  --accent-text: color-mix(in srgb, var(--accent-primary) 50%, var(--text-primary));
+}
+/* Lavender y Sepia: su texto de «bien» y «alerta» daba 4,2:1; se oscurece hacia el texto del tema. */
+html[data-theme="lavender-dream"], html[data-theme="sepia-paper"] {
+  --success-text: color-mix(in srgb, var(--success) 70%, var(--text-primary));
+  --warning-text: color-mix(in srgb, var(--warning) 55%, var(--text-primary));
+}
+/* Crimson Gold: letra blanca sobre su acento (la oscura daba 3,8:1). */
+html[data-theme="crimson-gold"] { --accent-contrast: #ffffff; }
+
+/* Foco visible para quien navega con teclado (con el mouse no aparece: es :focus-visible).
+   En la capa `base` a propósito: Mantine (capa `mantine`) y utilidades como `outline-none` (capa `utilities`)
+   pueden anularlo donde ya traen su propio indicador de foco, y así no hay anillos dobles. */
+@layer base {
+  :where(button, a, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--accent-text, var(--accent-primary));
+    outline-offset: 2px;
+  }
+  :where(input, textarea, select):focus-visible {
+    outline: 2px solid var(--accent-text, var(--accent-primary));
+    outline-offset: 1px;
+  }
+  /* Buscador con ícono adentro (components/ui/Campos): el anillo rodea la caja completa, no solo el texto. */
+  [data-anillo]:has(input:focus-visible) {
+    outline: 2px solid var(--accent-text, var(--accent-primary));
+    outline-offset: 1px;
+  }
 }

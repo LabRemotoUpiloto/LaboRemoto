@@ -1,0 +1,463 @@
+{
+  "id": "linux-programa",
+  "order": 6,
+  "title": "Tu primer programa",
+  "resumen": "Escribís un script, le das permiso y lo ejecutás: tu primer programa en Linux.",
+  "difficulty": "inicial",
+  "estimated_minutes": 15,
+  "sequential": false,
+  "objective": "Escribir un script de bash con nano (con su línea #!/bin/bash), entender las dos formas de ejecutarlo (bash hola.sh y ./hola.sh) y qué necesita cada una, darle permiso con chmod +x y modificarlo sin perder el permiso.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "En el módulo de permisos creaste un `mi-programa` vacío y viste que Linux no te dejaba ejecutarlo hasta darle permiso. **Tu tarea de hoy:** escribirle algo adentro de verdad. Vas a crear un programa que muestre un saludo y diga quién lo está ejecutando, y vas a hacerlo funcionar. **Empezá mirando el video.**",
+      "kind": "lead"
+    },
+    {
+      "type": "media",
+      "id": "b-video",
+      "kind": "video",
+      "file": "videos/primer-programa.mp4",
+      "caption": "Video del módulo: qué es un programa y cómo se ejecuta (casi 2 minutos)"
+    },
+    {
+      "type": "text",
+      "id": "b-script",
+      "body_md": "Un **programa** es una lista de órdenes que la computadora sigue en orden, como una receta. Un **script** es la forma más simple de programa: un archivo de texto donde escribís comandos, uno por renglón, los mismos que ya escribís a mano en la terminal. **Ejecutar** el script es pedirle a la computadora que lo haga: bash lo lee de arriba abajo y hace cada comando. El nombre del archivo termina en `.sh`; esa parte final, después del punto, se llama **extensión** y dice qué tipo de archivo es (como `.jpg` en una foto). `.sh` quiere decir «script de shell».",
+      "kind": "concept"
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-inicio",
+      "command": "cd",
+      "explain_md": "Empezá desde tu carpeta personal: `cd` solo te lleva ahí estés donde estés."
+    },
+    {
+      "type": "command_step",
+      "id": "s-mkdir",
+      "command": "mkdir programas",
+      "explain_md": "Vas a guardar tus programas en una carpeta aparte para no mezclarlos con el resto. Si te dice «File exists», ya la tenías de antes: seguí con el paso siguiente."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-programas",
+      "command": "cd programas",
+      "explain_md": "Entrá a la carpeta nueva. Todo lo que sigue pasa adentro de `programas`."
+    },
+    {
+      "type": "text",
+      "id": "b-shebang",
+      "kind": "concept",
+      "body_md": "**La primera línea de todo script: `#!/bin/bash`.** Se lee en dos partes. `#!` (numeral y signo de admiración) es una marca especial que solo sirve en la primera línea; se llama *shebang*. Lo que va después es la **ruta** de un programa: `/bin/bash` quiere decir «el programa `bash`, guardado en la carpeta `/bin`» (*bin* viene de *binarios*: ahí viven los programas del sistema). Juntas, las dos partes dicen: «cuando alguien ejecute este archivo directamente, usá bash para leerlo». Bash es la shell del módulo 1: el programa que entiende tus comandos."
+    },
+    {
+      "type": "text",
+      "id": "b-escribir",
+      "body_md": "Ahora vas a escribir tu primer script con **nano**, el editor del módulo 4. Seguí estos pasos en orden: **1.** En la terminal escribí `nano hola.sh` y apretá Enter: se abre el editor, vacío. **2.** Adentro del editor escribí, tal cual y sin tildes, las tres líneas del recuadro negro de abajo, apretando Enter al final de cada una. **3.** Apretá `Ctrl+O` y después Enter: así se guarda. **4.** Apretá `Ctrl+X`: salís del editor y volvés a la terminal. Qué hace cada línea: la primera es la de bash que acabás de ver; la segunda usa `echo` para escribir un saludo en la pantalla; la tercera, `whoami`, muestra tu usuario.",
+      "kind": "concept"
+    },
+    {
+      "type": "code_block",
+      "id": "c-hola-v1",
+      "language": "bash",
+      "code": "#!/bin/bash\necho \"Hola desde mi primer programa\"\nwhoami",
+      "caption": "Esto va ADENTRO de nano (paso 2), no en la terminal"
+    },
+    {
+      "type": "command_step",
+      "id": "s-nano",
+      "command": "nano hola.sh",
+      "explain_md": "Este es el paso 1: escribilo en la terminal y apretá Enter. Después seguí con los pasos 2, 3 y 4 de arriba. Si te equivocás adentro del editor, `Alt+U` deshace."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cat",
+      "command": "cat hola.sh",
+      "explain_md": "Comprobá lo que guardaste: `cat` muestra lo que hay adentro del archivo. Tienen que aparecer tus tres líneas. Si falta alguna o salió distinta, volvé a abrir `nano hola.sh` y corregila."
+    },
+    {
+      "type": "command_step",
+      "id": "s-run-1",
+      "command": "./hola.sh",
+      "explain_md": "Para ejecutar directamente un programa que está en la carpeta donde estás, se escribe `./` y su nombre. El punto `.` quiere decir «esta carpeta» y la barra `/` separa la carpeta del archivo: `./hola.sh` es «el archivo `hola.sh` de esta carpeta». Hace falta porque Linux, si no le das la ruta, solo busca programas en las carpetas del sistema, no en la tuya. Vas a ver *Permission denied* («permiso denegado»). Es lo esperado: el texto que sigue explica por qué."
+    },
+    {
+      "type": "text",
+      "id": "b-dos-formas",
+      "kind": "concept",
+      "body_md": "**¿Por qué no lo ejecutó? Hay dos formas de ejecutar un script, y funcionan distinto.** **Forma 1, `bash hola.sh`:** llamás vos al programa bash y le das el archivo como argumento. Bash abre el archivo, lo lee como un texto con órdenes y las hace una por una. Para eso solo necesita poder **leerlo** (el permiso `r`); no necesita el permiso de ejecutar. **Forma 2, `./hola.sh`:** le pedís al **sistema** que ejecute el archivo directamente, como a cualquier otro programa. Para eso el archivo necesita el permiso de **ejecutar** (la `x`). El sistema mira la primera línea, `#!/bin/bash`, para saber qué programa tiene que leerlo, y por dentro termina haciendo lo mismo que la forma 1. Tu archivo todavía no tiene la `x`: por eso la forma 2 falló. Probá ahora la forma 1."
+    },
+    {
+      "type": "command_step",
+      "id": "s-bash",
+      "command": "bash hola.sh",
+      "explain_md": "Forma 1: llamás directamente a bash y le pasás el archivo. Tiene que aparecer tu saludo y, debajo, tu usuario, aunque el archivo todavía no tenga permiso de ejecución: bash solo necesitó leerlo."
+    },
+    {
+      "type": "command_step",
+      "id": "s-chmod",
+      "command": "chmod +x hola.sh",
+      "explain_md": "Para que funcione la forma 2 (`./hola.sh`), el archivo necesita la `x`. `chmod` cambia los permisos de un archivo, y `+x` se lee así: `+` es «agregar» y `x` es el permiso de **ejecutar** (de *eXecute*). Entonces `chmod +x hola.sh` quiere decir «agregale a `hola.sh` el permiso de ejecutarse». Es la forma corta de lo que hiciste con números en el módulo de permisos (`chmod 754`), y no hay que calcular nada."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls-l",
+      "command": "ls -l hola.sh",
+      "explain_md": "`ls -l` con el nombre de un archivo muestra solo la línea larga de ese archivo. Al principio están los permisos: ahora aparece la `x` que faltaba, algo como `-rwxr-xr-x`."
+    },
+    {
+      "type": "command_step",
+      "id": "s-run-2",
+      "command": "./hola.sh",
+      "explain_md": "Forma 2 otra vez. Ahora sí: el sistema ve la `x`, lee la primera línea, abre bash y bash hace tus comandos. Tiene que aparecer el saludo y, debajo, tu usuario: lo mismo que con la forma 1. Ese texto lo escribió **tu programa**."
+    },
+    {
+      "type": "text",
+      "id": "b-interpretes",
+      "kind": "concept",
+      "body_md": "**Cada lenguaje tiene su programa que lo lee.** Al programa que lee un script y hace lo que dice se lo llama **intérprete**. Para los scripts de bash (`.sh`) el intérprete es `bash`. **Python** es otro lenguaje muy usado; sus archivos terminan en `.py` y su intérprete es `python3`. Por eso un programa de Python llamado `juego.py` se ejecuta con `python3 juego.py` (forma 1) o, si tiene la `x` y su primera línea es `#!/usr/bin/env python3`, con `./juego.py` (forma 2). Cambia el intérprete; la idea es la misma."
+    },
+    {
+      "type": "text",
+      "id": "b-crecer",
+      "body_md": "Un script se puede cambiar cuando quieras. Ahora le vas a agregar dos líneas al final, y no vas a tener que volver a darle permiso. Seguí estos pasos: **1.** En la terminal escribí `nano hola.sh` y apretá Enter: se abre tu script con las tres líneas que ya tenía. **2.** Con la flecha ↓ bajá hasta la última línea (`whoami`), apretá la tecla Fin para ir al final y después Enter para abrir una línea nueva. **3.** Escribí las dos líneas nuevas: `echo \"Estoy en la computadora:\"` y, abajo, `hostname` (el comando que dice cómo se llama la computadora). **4.** Guardá con `Ctrl+O` y Enter, y salí con `Ctrl+X`.",
+      "kind": "concept"
+    },
+    {
+      "type": "code_block",
+      "id": "c-hola-v2",
+      "language": "bash",
+      "code": "#!/bin/bash\necho \"Hola desde mi primer programa\"\nwhoami\necho \"Estoy en la computadora:\"\nhostname",
+      "caption": "Así tiene que quedar ADENTRO de nano: las 3 líneas de antes y las 2 nuevas"
+    },
+    {
+      "type": "command_step",
+      "id": "s-nano-2",
+      "command": "nano hola.sh",
+      "explain_md": "Escribilo en la terminal y apretá Enter. Después seguí los pasos 2, 3 y 4 de arriba."
+    },
+    {
+      "type": "command_step",
+      "id": "s-run-3",
+      "command": "./hola.sh",
+      "explain_md": "Ejecutalo de nuevo. No hizo falta darle permiso otra vez: el permiso se queda con el archivo aunque cambies lo que tiene adentro. Ahora tienen que aparecer cuatro cosas: el saludo, tu usuario, el mensaje y el nombre de la computadora."
+    },
+    {
+      "type": "text",
+      "id": "b-cierre",
+      "body_md": "¡Listo! Escribiste y ejecutaste tu primer programa: un script con `nano`, la línea `#!/bin/bash`, el permiso con `chmod +x` y la ejecución con `./`. Cualquier tarea que repitas todos los días se puede convertir en un script como este.",
+      "kind": "recap"
+    },
+    {
+      "type": "quiz",
+      "id": "q1-script",
+      "question_md": "¿Qué es un script de shell?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Un archivo binario que solo el administrador puede escribir o editar"
+        },
+        {
+          "id": "b",
+          "label": "Un archivo de texto con comandos que la shell corre en orden"
+        },
+        {
+          "id": "c",
+          "label": "Una ventana especial de la terminal para escribir comandos"
+        },
+        {
+          "id": "d",
+          "label": "Una carpeta donde Linux guarda los programas del sistema"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q2-shebang",
+      "question_md": "¿Para qué sirve la línea `#!/bin/bash` al comienzo del script?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Para que el script se ejecute más rápido que cualquier otro"
+        },
+        {
+          "id": "b",
+          "label": "Es un comentario que nadie lee, solo para decorar el archivo"
+        },
+        {
+          "id": "c",
+          "label": "Le avisa al sistema que el script lo tiene que leer bash"
+        },
+        {
+          "id": "d",
+          "label": "Le da permiso de ejecución al archivo de manera automática"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q3-chmod-x",
+      "question_md": "¿Qué hace `chmod +x hola.sh`?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Ejecuta el script `hola.sh` por primera vez en la carpeta"
+        },
+        {
+          "id": "b",
+          "label": "Borra todos los permisos que tenía el archivo `hola.sh`"
+        },
+        {
+          "id": "c",
+          "label": "Convierte `hola.sh` en un archivo oculto del sistema"
+        },
+        {
+          "id": "d",
+          "label": "Le agrega al archivo el permiso de ejecución (la `x`)"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q4-permiso-queda",
+      "question_md": "Ya le diste permiso con `chmod +x` y después editaste el script con nano. ¿Hace falta darle permiso otra vez?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Sí, cada vez que guardás un cambio los permisos se pierden"
+        },
+        {
+          "id": "b",
+          "label": "No, el permiso se queda con el archivo aunque lo edites"
+        },
+        {
+          "id": "c",
+          "label": "Sí, pero solo si el script ya tiene más de tres líneas"
+        },
+        {
+          "id": "d",
+          "label": "No, porque nano le da permiso de ejecución al guardar"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q5-bash-sin-permiso",
+      "question_md": "`./hola.sh` dijo *Permission denied*, pero `bash hola.sh` funcionó. ¿Por qué?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Porque `bash hola.sh` le da el permiso de ejecutar al archivo"
+        },
+        {
+          "id": "b",
+          "label": "Porque bash es más rápido y por eso no revisa ningún permiso"
+        },
+        {
+          "id": "c",
+          "label": "Porque bash solo lee el archivo; la `x` es para ejecutarlo directo"
+        },
+        {
+          "id": "d",
+          "label": "Porque el primer intento siempre falla y el segundo siempre funciona"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q6-python",
+      "question_md": "Tenés un programa de Python llamado `juego.py`. ¿Con qué comando lo ejecutás sin darle permisos?",
+      "options": [
+        {
+          "id": "a",
+          "label": "`python3 juego.py`, porque python3 es el intérprete de Python"
+        },
+        {
+          "id": "b",
+          "label": "`bash juego.py`, porque bash ejecuta cualquier tipo de archivo"
+        },
+        {
+          "id": "c",
+          "label": "`./juego.py`, porque así funciona sin ningún permiso"
+        },
+        {
+          "id": "d",
+          "label": "`cat juego.py`, porque cat muestra y ejecuta el programa"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "cmd-cd-inicio",
+        "cmd-mkdir",
+        "cmd-cd-programas",
+        "cmd-nano",
+        "cmd-cat",
+        "cmd-run-1",
+        "cmd-bash",
+        "cmd-chmod",
+        "cmd-ls-l",
+        "cmd-run-2",
+        "cmd-nano-2",
+        "cmd-run-3",
+        "quiz-script",
+        "quiz-shebang",
+        "quiz-chmod-x",
+        "quiz-permiso-queda",
+        "quiz-bash-sin-permiso",
+        "quiz-python"
+      ]
+    }
+  ],
+  "hints": [
+    "Adentro de nano escribí las líneas tal cual, sin tildes y respetando mayúsculas y comillas.",
+    "En nano, `Ctrl+O` y Enter guardan; `Ctrl+X` sale; `Alt+U` deshace un error.",
+    "Hay dos formas de ejecutar el script: `bash hola.sh` (solo necesita leerlo) y `./hola.sh` (necesita la `x`).",
+    "Si `./hola.sh` dice *Permission denied* («permiso denegado»), todavía falta el `chmod +x hola.sh`.",
+    "Si `./hola.sh` dice *No such file or directory* («no existe»), revisá que estés en la carpeta `programas` (con `pwd`) y que el archivo se llame `hola.sh`.",
+    "Si al ejecutar no aparece nada, mirá el archivo con `cat hola.sh` y comprobá que tenga las líneas."
+  ],
+  "validation_rules": [
+    {
+      "id": "cmd-cd-inicio",
+      "rule_type": "command_executed",
+      "target": "cd",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-inicio"
+    },
+    {
+      "id": "cmd-mkdir",
+      "rule_type": "command_executed",
+      "target": "mkdir programas",
+      "required": true,
+      "points": 1,
+      "step_id": "s-mkdir"
+    },
+    {
+      "id": "cmd-cd-programas",
+      "rule_type": "command_executed",
+      "target": "cd programas",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-programas"
+    },
+    {
+      "id": "cmd-nano",
+      "rule_type": "command_executed",
+      "target": "nano hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-nano"
+    },
+    {
+      "id": "cmd-cat",
+      "rule_type": "command_executed",
+      "target": "cat hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cat"
+    },
+    {
+      "id": "cmd-run-1",
+      "rule_type": "command_executed",
+      "target": "./hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-run-1"
+    },
+    {
+      "id": "cmd-bash",
+      "rule_type": "command_executed",
+      "target": "bash hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-bash"
+    },
+    {
+      "id": "cmd-chmod",
+      "rule_type": "command_executed",
+      "target": "chmod +x hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-chmod"
+    },
+    {
+      "id": "cmd-ls-l",
+      "rule_type": "command_executed",
+      "target": "ls -l hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls-l"
+    },
+    {
+      "id": "cmd-run-2",
+      "rule_type": "command_executed",
+      "target": "./hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-run-2"
+    },
+    {
+      "id": "cmd-nano-2",
+      "rule_type": "command_executed",
+      "target": "nano hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-nano-2"
+    },
+    {
+      "id": "cmd-run-3",
+      "rule_type": "command_executed",
+      "target": "./hola.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-run-3"
+    },
+    {
+      "id": "quiz-script",
+      "rule_type": "quiz",
+      "target": "q1-script",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-shebang",
+      "rule_type": "quiz",
+      "target": "q2-shebang",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-chmod-x",
+      "rule_type": "quiz",
+      "target": "q3-chmod-x",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-permiso-queda",
+      "rule_type": "quiz",
+      "target": "q4-permiso-queda",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-bash-sin-permiso",
+      "rule_type": "quiz",
+      "target": "q5-bash-sin-permiso",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-python",
+      "rule_type": "quiz",
+      "target": "q6-python",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

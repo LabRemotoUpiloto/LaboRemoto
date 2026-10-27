@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useAppStore } from '../../src/store/app';
 import { MAX_QUERY_CACHE_ENTRIES } from '../../src/store/queryCache';
-import { useQueryData } from '../../src/hooks/useQueryData';
+import { useQueryData } from '@/lib/useQueryData';
 
 /**
  * Test de regresión del gap detectado por pr-reviewer en el fix de eviction

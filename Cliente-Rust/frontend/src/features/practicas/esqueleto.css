@@ -1,0 +1,39 @@
+/* Esqueletos de carga de las prácticas (EsqueletoPracticas.tsx): bloques con la forma de lo que va a aparecer
+   y un brillo que los recorre. Colores del tema, para que funcione en claro y oscuro. */
+.esq {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+
+.esq::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--text-primary) 7%, transparent) 50%,
+    transparent 100%
+  );
+  animation: esqBrillo 1.4s ease-in-out infinite;
+}
+
+@keyframes esqBrillo {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .esq::after { animation: none; }
+}
+
+.esq-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

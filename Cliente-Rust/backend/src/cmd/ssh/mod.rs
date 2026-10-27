@@ -6,6 +6,7 @@
 
 pub mod terminal;
 pub mod gpio;
+pub mod carpeta;
 
 pub use terminal::{
   ssh_connect,

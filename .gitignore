@@ -2,3 +2,7 @@
 .claude/agents/rai-investigador.md
 .claude/agents/rai-verificador.md
 ROI/
+
+# Basura del sistema y de herramientas locales
+.DS_Store
+.omc/

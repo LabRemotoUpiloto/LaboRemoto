@@ -8,7 +8,6 @@ pub mod storage;    // Utilidades de almacenamiento cifrado de hosts
 pub mod state_core; // Memoria efímera por sesión (AppState) + AuthState JWT
 pub mod session_manager; // Store único de sesión + auth (trait SessionManager)
 pub mod security;   // Validaciones de seguridad y backups
-pub mod api;        // REST API
 pub mod auth;       // Autenticación OAuth 2.1 con Keycloak (PKCE + JWT)
 pub mod user_config; // Configuración por máquina (.env en la carpeta de datos de la app instalada)
 pub mod ipc;        // Contrato de mensajería interna Message+ACK+backpressure (REFACTOR #5: Fase A completa + Fase B piloto auth wireado)
@@ -42,21 +41,6 @@ pub fn run() {
   // Cargar variables de entorno desde .env
   load_dotenv();
 
-  // Arrancar servidor REST API si está habilitado
-  let api_config = crate::api::config::ApiConfig::from_env();
-  if api_config.enabled {
-    if api_config.token.is_empty() {
-      eprintln!("[API] ADVERTENCIA: REST_API_TOKEN no configurado. La API se iniciará sin autenticación.");
-    }
-    let cfg = api_config.clone();
-    tauri::async_runtime::spawn(async move {
-      crate::api::server::start(cfg).await;
-    });
-    println!("[API] REST API habilitada en {}:{}", api_config.host, api_config.port);
-  } else {
-    println!("[API] REST API deshabilitada (REST_API_ENABLED=false o ausente)");
-  }
-  
   // Construir la aplicación Tauri y registrar los comandos accesibles desde JS (invoke()).
   tauri::Builder::default()
     // Debe ser el PRIMER plugin. Si ya hay una instancia abierta (p. ej. al pulsar un enlace laboremoto:// de Moodle), la nueva no
@@ -96,6 +80,16 @@ pub fn run() {
       // un refresh_token guardado y aún vigente) sin bloquear el arranque de
       // la ventana. Ver `auth::token_store` y `auth::commands::try_restore_session`.
       tauri::async_runtime::spawn(crate::auth::commands::try_restore_session(app.handle().clone()));
+      // La ventana nace oculta (tauri.conf.json) y la muestra index.html en cuanto pinta la pantalla de carga. Si eso no pasa
+      // (el frontend no cargó), se muestra igual a los pocos segundos: nunca queda una app abierta e invisible.
+      if let Some(ventana) = app.get_webview_window("main") {
+        std::thread::spawn(move || {
+          std::thread::sleep(std::time::Duration::from_secs(4));
+          if !ventana.is_visible().unwrap_or(true) {
+            let _ = ventana.show();
+          }
+        });
+      }
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -108,6 +102,7 @@ pub fn run() {
       cmd::ssh::terminal::ssh_ui_ready,
       cmd::ssh::terminal::ssh_session_info,
       cmd::ssh::terminal::ssh_connect_stored,
+      cmd::ssh::carpeta::ssh_carpeta_terminal,
       cmd::ssh::gpio::rpi_pins_status,
       cmd::ssh::gpio::rpi_pin_set_mode,
       cmd::ssh::gpio::rpi_pin_set_pull,
@@ -117,6 +112,8 @@ pub fn run() {
       cmd::ssh::gpio::rpi_pins_monitor_stop,
       // Terminal local (PTY embebido)
       cmd::terminal_local::local_term_spawn,
+      cmd::terminal_local::local_term_contexto,
+      cmd::terminal_local::local_term_shell,
       cmd::terminal_local::local_term_ui_ready,
       cmd::terminal_local::local_term_stdin,
       cmd::terminal_local::local_term_resize,
@@ -133,6 +130,7 @@ pub fn run() {
       cmd::sftp::operations::sftp_remove,
       cmd::sftp::transfers::sftp_download_start,
       cmd::sftp::transfers::sftp_upload_start,
+      cmd::sftp::transfers::sftp_subir,
       cmd::sftp::operations::sftp_cancel,
       cmd::sftp::transfers::sftp_upload_dir_start,
       cmd::sftp::transfers::sftp_download_dir_start,
@@ -159,14 +157,12 @@ pub fn run() {
       cmd::ai::ai_utils::ai_env_status,
       cmd::ai::ai_utils::ai_test_key,
       // File analysis & edit
-      cmd::editor::file_edit::analyze_file,
-      cmd::editor::file_edit::analyze_any_file,
-      cmd::editor::file_edit::plan_file_edit,
-      cmd::editor::file_edit::apply_file_edit,
-      cmd::editor::file_edit::list_file_backups,
-      cmd::editor::file_edit::revert_file,
-      cmd::editor::file_edit::ai_remote_edit_file,
       // Storage (hosts)
+      // Comandos guardados (antes snippets)
+      cmd::comandos::comandos_listar,
+      cmd::comandos::comandos_guardar,
+      cmd::comandos::comandos_borrar,
+      cmd::comandos::comandos_importar,
       cmd::state::hosts::save_host_encrypted,
       cmd::state::hosts::load_host_encrypted,
       cmd::state::hosts::save_host_master,
@@ -195,13 +191,10 @@ pub fn run() {
       cmd::vnc::vnc_start,
       cmd::vnc::vnc_stop,
       cmd::vnc::vnc_status,
+      cmd::vnc::vnc_programa_abierto,
       cmd::vnc::vnc_cleanup_all,
+      cmd::vnc::vnc_logs,
       // Port-forwarding genérico (streaming) — legacy, ver cmd::nvr abajo
-      cmd::streaming::stream::stream_start,
-      cmd::streaming::stream::stream_stop,
-      cmd::streaming::stream::stream_list_cameras,
-      cmd::streaming::stream::stream_get_host,
-      cmd::streaming::stream::whep_exchange,
       // NVR Shinobi — consumo de cámaras vía API HTTP (reemplaza stream_list_cameras)
       cmd::nvr::shinobi::nvr_list_cameras,
       cmd::nvr::shinobi::nvr_disconnect,
@@ -210,6 +203,7 @@ pub fn run() {
       // Registro central de sesiones de práctica (dashboard del personal)
       cmd::sesiones::sesiones_reportar_evento,
       cmd::sesiones::sesiones_reportar_ubicacion_app,
+      cmd::sesiones::sesiones_reportar_app,
       cmd::sesiones::sesiones_resumen,
       // Cursos y prácticas desde Moodle (vía broker)
       cmd::moodle_cursos::moodle_mis_cursos,
@@ -236,14 +230,13 @@ pub fn run() {
       cmd::tools::tools::agent_chat,
       cmd::tools::tools::plan_chat,
       // MCP (Model Context Protocol) – servidores externos de tools
-      cmd::integration::mcp_client::mcp_register_server,
-      cmd::integration::mcp_client::mcp_list_servers,
-      cmd::integration::mcp_client::mcp_remove_server,
-      cmd::integration::mcp_client::mcp_refresh_tools,
       // Prácticas de laboratorio remoto
       cmd::practices::practicas::practicas_list_categories,
       cmd::practices::practicas::practicas_get_config,
       cmd::practices::practicas::practicas_run_setup,
+      // Prácticas de circuitos — las sirve el simulador de circuitos (fork de Velxio), no la Pi
+      cmd::practices::circuitos_api::circuitos_practicas,
+      cmd::practices::circuitos_api::circuitos_practica,
       // Módulos de práctica (Linux y EV3) — servicio HTTP en la Raspberry Pi
       cmd::practices::linux_api::practicas_linux_list,
       cmd::practices::linux_api::practicas_linux_get_module,
@@ -252,6 +245,7 @@ pub fn run() {
       cmd::practices::linux_api::rendimiento_pi,
       cmd::practices::linux_api::rendimiento_logs,
       cmd::practices::linux_api::practicas_linux_get_media,
+      cmd::practices::linux_api::practicas_module_setup,
       cmd::practices::linux_media_proxy::practicas_linux_media_url,
       // Integración con Moodle
       cmd::integration::moodle::moodle_sync_assignment,

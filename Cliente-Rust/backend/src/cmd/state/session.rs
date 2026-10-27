@@ -107,11 +107,11 @@ impl Drop for VncSessionState {
         let (display, vnc_port, is_virtual) = (self.display_num, self.vnc_port_remote, self.is_virtual);
         let home_dir = self.home_dir.clone();
 
-        // 3. Guardar tarea pendiente en disco por si el proceso muere antes de limpiar
+        // 3. Guardar tarea pendiente en disco por si el proceso muere antes de limpiar. Solo el display (es lo único
+        //    que lee `run_pending_vnc_cleanups`, y del nombre del archivo): antes guardaba también la contraseña en
+        //    texto plano en la carpeta temporal.
         if is_virtual {
-            let pending = format!(
-                "{{\"host\":\"{host}\",\"port\":{port},\"user\":\"{user}\",\"password\":\"{password}\",\"display\":{display},\"vnc_port\":{vnc_port}}}"
-            );
+            let pending = format!("{{\"display\":{display}}}");
             let path = std::env::temp_dir().join(format!("vnc_pending_cleanup_{display}.json"));
             let _ = std::fs::write(&path, &pending);
         }
@@ -156,9 +156,8 @@ pub fn run_pending_vnc_cleanups(sess: &Ssh2Session) {
             .parse::<u32>().unwrap_or(0);
         if display < 20 { let _ = std::fs::remove_file(&path); continue; }
         let cmd = format!(
-            "pkill -9 -f 'Xvnc :{display} ' 2>/dev/null; \
-             pkill -9 -f 'Xtigervnc :{display} ' 2>/dev/null; \
-             rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true"
+            "{} rm -f /tmp/.X{display}-lock /tmp/.X11-unix/X{display} 2>/dev/null; true",
+            crate::cmd::vnc::utils::kill_display_cmd(&display.to_string(), "-9", false)
         );
         let _ = crate::ssh_core::exec::ssh_exec_session(sess, &cmd);
         let _ = std::fs::remove_file(&path);

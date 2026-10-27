@@ -7,15 +7,22 @@ dispositivo. Forma parte de los brokers (ver `../broker-gateway/README.md`).
 ## Endpoints (públicos como `/nvr/sesiones/…`)
 - `POST /nvr/sesiones/evento` — `{tipo: inicio|latido|fin|ubicacion, sesion_id, practica_id?, practica_nombre?, lat?, lon?, precision_m?}`.
   201 si la sesión es nueva, 200 en un reintento.
+- `POST /nvr/sesiones/app` — `{tipo: inicio|latido|fin, sesion_id}`: la app abierta, con o sin práctica. Queda en el mismo
+  registro con `clase: "app"` (las prácticas, `clase: "practica"`) y **no** va al Excel. Ruta aparte a propósito: un broker
+  sin ella responde 404 y la app deja de intentar, así nunca aparece como práctica.
 - `GET /nvr/sesiones/resumen?dias=N` — solo `admin_lab`, `jefe_laboratorio`, `coordinador_laboratorio` o `laboratorista`
-  (debe coincidir con `SUPERVISION` en `Cliente-Rust/frontend/src/hooks/usePermissions.ts`).
+  (debe coincidir con `SUPERVISION` en `Cliente-Rust/frontend/src/features/cuenta/usePermissions.ts`). Trae prácticas y uso de la app.
+
+Ubicación: la del equipo (si la app la manda) es la principal, pero la de la IP y su operador (`org` de ipinfo) se guardan
+**aparte** (`ip_ciudad`, `ip_pais`, `ip_lat`, `ip_lon`, `ip_org`; en dispositivos, `ipCiudad`…): si no cuadran, Actividad lo marca como
+ubicación dudosa. Al arrancar se completan los registros guardados que no la tenían (una consulta por IP distinta).
 
 Datos en `sesiones.jsonl` (`SESIONES_FILE`), solo los últimos 90 días. Con `SESIONES_WEBHOOK_URL` reenvía cada inicio y fin
 al mismo flujo de Power Automate de `RegistroExcel.sh`; el Excel queda como registro permanente (campos y cambios del
 flujo en `../registro-excel/README.md`).
 
 ## Conexiones SSH a dispositivos (`dispositivos.js`)
-Alimenta la pestaña **Dispositivos** de Actividad. Es aparte de las prácticas: no usa el webhook ni el Excel, y solo guarda
+Alimenta «Trabajando por SSH» en Actividad (una conexión que coincide con una práctica de la misma persona cuenta solo como práctica). Es aparte de las prácticas: no usa el webhook ni el Excel, y solo guarda
 conexiones **nuevas** (no importa historial). Lo alimenta `../agente-conexiones` (corre en la Pi4 y lee `auth.log`).
 - `POST /nvr/dispositivos/evento` — `{tipo: entrada|salida|latido, …}` con la cabecera `X-Dispositivo-Token`. **Solo local**: el gateway no
   la publica (404 desde internet).

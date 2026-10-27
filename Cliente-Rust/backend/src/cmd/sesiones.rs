@@ -10,14 +10,18 @@ use std::sync::Arc;
 use ts_rs::TS;
 
 use crate::cmd::broker_client::{access_token, error_de_red, get_json, HTTP_CLIENT, BROKER_HOST};
+use crate::auth::client::reparar_mojibake;
 use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
-/// Una sesión de práctica tal como la guarda el broker.
+/// Una sesión tal como la guarda el broker: una práctica o la app abierta (`clase`).
 #[derive(Serialize, Deserialize, Clone, TS)]
 #[ts(export)]
 pub struct SesionPractica {
     pub id: String,
+    /// "practica" | "app" (la app abierta, con o sin práctica). Las sesiones viejas no lo traen: son prácticas.
+    #[serde(default)]
+    pub clase: Option<String>,
     pub sesion_id: String,
     pub usuario: String,
     pub nombre: Option<String>,
@@ -42,6 +46,20 @@ pub struct SesionPractica {
     pub fuente_ubicacion: Option<String>,
     /// Precisión reportada por el equipo, en metros (solo fuente "dispositivo").
     pub precision_m: Option<f64>,
+    /// Ubicación por IP y operador de la red, guardados aparte de la del equipo: si no cuadran, Actividad la marca como dudosa.
+    #[serde(default)]
+    pub ip_ciudad: Option<String>,
+    #[serde(default)]
+    pub ip_region: Option<String>,
+    #[serde(default)]
+    pub ip_pais: Option<String>,
+    #[serde(default)]
+    pub ip_lat: Option<f64>,
+    #[serde(default)]
+    pub ip_lon: Option<f64>,
+    /// Operador de la red («AS10620 Telmex Colombia S.A.»): casa, celular, universidad o un servidor.
+    #[serde(default)]
+    pub ip_org: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, TS)]
@@ -129,6 +147,37 @@ pub async fn sesiones_reportar_ubicacion_app(
     Ok(())
 }
 
+const TIPOS_EVENTO_APP: &[&str] = &["inicio", "latido", "fin"];
+
+/// Reporta el uso de la app (`sesion_id` propio de esta apertura de la app): inicio al entrar, un latido por minuto y fin
+/// al salir. Va a una ruta aparte del broker: uno sin esta versión responde 404 y no registra nada.
+#[tauri::command]
+pub async fn sesiones_reportar_app(
+    tipo: String,
+    sesion_id: String,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<(), CommandError> {
+    if !TIPOS_EVENTO_APP.contains(&tipo.as_str()) {
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Tipo de evento inválido: {tipo}")));
+    }
+    let token = access_token(manager.inner()).await?;
+    let response = HTTP_CLIENT
+        .post(format!("{BROKER_HOST}/nvr/sesiones/app"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "tipo": tipo, "sesion_id": sesion_id }))
+        .send()
+        .await
+        .map_err(|e| error_de_red("sesiones_reportar_app", QUE, e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(CommandError::permanent("VALIDATION_FAILED", format!("Registro de sesiones respondió {status}: {text}"))
+            .with_context("sesiones_reportar_app", &sesion_id));
+    }
+    Ok(())
+}
+
 /// Sesiones de los últimos `dias` días (1–90, default 30). Solo para roles de
 /// supervisión — el broker responde 403 al resto.
 #[tauri::command]
@@ -148,4 +197,11 @@ pub async fn sesiones_resumen(
         err.with_context(ctx, "broker")
     })
     .await
+    .map(|mut r: ResumenSesiones| {
+        // el nombre viene del token, con la Ñ y las tildes del directorio dañadas (ver reparar_mojibake)
+        for s in &mut r.sesiones {
+            s.nombre = s.nombre.take().map(|n| reparar_mojibake(&n));
+        }
+        r
+    })
 }

@@ -11,7 +11,7 @@
 //! ## Compatibilidad con el frontend
 //! `CommandError` serializa como `{ code, message, retryable, retry_after_ms }`
 //! (shape plano, NO tageado por variante). Este es el contrato real que
-//! consume `CommandErrorPayload` en `frontend/src/services/command.service.ts`
+//! consume `CommandErrorPayload` en `frontend/src/lib/command.service.ts`
 //! (`CommandClient.invoke` decide reintentar leyendo `error.retryable` y
 //! `error.retry_after_ms`). Cualquier cambio en este shape debe mantenerse
 //! sincronizado con ese archivo.

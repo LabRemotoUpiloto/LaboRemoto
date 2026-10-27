@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { LinuxModule, LinuxValidationResult } from '../../src/services/linuxPractice.service';
-import type { DatosGuia } from '../../src/components/practicas/linux/PasoCard';
+import type { LinuxModule, LinuxValidationResult } from '@/features/practicas/linuxPractice.service';
+import type { DatosGuia } from '@/features/practicas/linux/PasoCard';
 import {
-  contextoPractica, loQueTocaAhora, relacionDelComando, textoComandoFueraDeLugar,
-} from '../../src/components/practicas/linux/contextoTutor';
+  caracteresRaros, contextoPractica, loQueTocaAhora, relacionDelComando, textoComandoFueraDeLugar,
+} from '@/features/practicas/linux/contextoTutor';
 
 const paso = (id: string, command: string) => ({ type: 'command_step', id, command, explain_md: '', rule_id: `r-${id}` });
 const modulo = {
@@ -54,5 +54,22 @@ describe('contexto del tutor', () => {
     expect(txt).not.toContain('MÁS ADELANTE');
     expect(txt).toContain('Evaluación final: Responde la pregunta 1 de 9');
     expect(txt).toContain('no hace falta escribir nada en la terminal');
+  });
+
+  it('comillas, guiones o espacios copiados de un documento: se lo dice al tutor', () => {
+    expect(caracteresRaros('echo "uno dos tres" | wc -w')).toEqual([]);
+    expect(caracteresRaros('echo `date`')).toEqual([]);
+    expect(caracteresRaros('echo “uno dos tres” | wc -w')).toHaveLength(1);
+    expect(caracteresRaros('ls –l')[0]).toContain('guion largo');
+    expect(caracteresRaros('ls -l')[0]).toContain('espacio especial');
+    const txt = textoComandoFueraDeLugar({
+      comando: 'ls –l', esperado: 'ls -l', relacion: 'otro', ahora: null, salidaTerminal: null,
+    });
+    expect(txt).toContain('guion largo');
+    expect(txt).toContain('lo escriba a mano');
+  });
+
+  it('espacios de más no cambian la relación con los pasos', () => {
+    expect(relacionDelComando('ls  /', modulo, resultado(['s-whoami']), 's-clear')).toBe('posterior');
   });
 });

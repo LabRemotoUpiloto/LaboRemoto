@@ -8,6 +8,9 @@
 pub mod agent;
 pub mod ai;
 pub mod ai_utils;
+mod entorno;
+mod prompts;
+mod types;
 
 pub use agent::agent_plan;
 pub use ai::{ai_chat, cancel_ai_chat};

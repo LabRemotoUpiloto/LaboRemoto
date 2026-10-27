@@ -32,6 +32,8 @@ from pathlib import Path
 import paramiko
 
 ROOT = Path(__file__).parent
+# EV3 es otra práctica (otra carpeta en el repo), pero la sirve la misma API: se prueba igual.
+RAICES = [ROOT, ROOT.parent / "practicas-ev3"]
 
 HOST = os.environ.get("PRACTICE_LINUX_TUNNEL_HOST")
 PORT = int(os.environ.get("PRACTICE_LINUX_TUNNEL_PORT", "9000"))
@@ -58,7 +60,10 @@ UNIVERSAL_DECOYS = [
 
 
 def discover_modules():
-    return sorted(p for p in ROOT.iterdir() if p.is_dir() and (p / "module.json").exists())
+    return sorted(
+        (p for raiz in RAICES if raiz.is_dir() for p in raiz.iterdir() if p.is_dir() and (p / "module.json").exists()),
+        key=lambda p: p.name,
+    )
 
 
 def main():

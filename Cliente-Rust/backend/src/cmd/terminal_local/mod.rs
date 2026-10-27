@@ -125,6 +125,7 @@ fn spawn_reader_thread(
   mut reader: Box<dyn Read + Send>,
   out_buffer: Arc<Mutex<Option<String>>>,
   ui_ready: Arc<AtomicBool>,
+  historial: Arc<Mutex<std::collections::VecDeque<String>>>,
 ) {
   let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
 
@@ -151,6 +152,12 @@ fn spawn_reader_thread(
     let emit_str = |s: String| {
       if s.is_empty() {
         return;
+      }
+      if let Ok(mut h) = historial.lock() {
+        h.push_back(s.clone());
+        while h.len() > crate::cmd::state::local_terminal::HISTORIAL_MAXIMO {
+          h.pop_front();
+        }
       }
       if ui_ready.load(Ordering::SeqCst) {
         let _ = app.emit(&format!("local_term_out_{}", id), Some(s));
@@ -192,6 +199,76 @@ fn spawn_reader_thread(
 }
 
 // ── Comandos ──────────────────────────────────────────────────────────────
+
+/// Lo que el chat de la terminal local necesita: qué shell es y lo último que mostró el panel.
+#[derive(serde::Serialize)]
+pub struct LocalTermContexto {
+  pub shell: String,
+  pub sistema: String,
+  pub texto: String,
+  /// Lo que el chat le dice al modelo sobre esta terminal (ver `instrucciones_chat`).
+  pub instrucciones: String,
+}
+
+/// Qué terminal abre la terminal local en este computador: la shell, su tipo para los comandos guardados («powershell» o
+/// «linux») y un nombre para mostrar.
+#[derive(serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+pub struct ShellLocal {
+  pub shell: String,
+  pub tipo: String,
+  pub nombre: String,
+}
+
+fn nombre_shell(shell: &str) -> String {
+  let base = shell.rsplit(['/', '\\']).next().unwrap_or(shell);
+  base.strip_suffix(".exe").unwrap_or(base).to_string()
+}
+
+fn describir_shell(shell: &str) -> ShellLocal {
+  let base = nombre_shell(shell);
+  let (tipo, nombre) = match base.to_lowercase().as_str() {
+    "pwsh" => ("powershell", "PowerShell 7".to_string()),
+    "powershell" => ("powershell", "Windows PowerShell".to_string()),
+    _ => ("linux", base.clone()),
+  };
+  ShellLocal { shell: shell.to_string(), tipo: tipo.to_string(), nombre }
+}
+
+/// Lo que el chat de la terminal local le dice al modelo: qué terminal es, para que dé comandos de esa shell.
+fn instrucciones_chat(shell: &str, sistema: &str) -> String {
+  let d = describir_shell(shell);
+  let so = match sistema { "windows" => "Windows", "macos" => "macOS", "linux" => "Linux", otro => otro };
+  let shell_txt = if d.tipo == "powershell" {
+    format!("La terminal es {}: da comandos y ejemplos de PowerShell (cmdlets como Get-ChildItem, Get-Process, Stop-Process), no de bash, salvo que pida otra cosa.", d.nombre)
+  } else {
+    format!("La terminal es {}: da comandos de esa shell.", d.nombre)
+  };
+  [
+    format!("Estás ayudando en la terminal local de la persona, en su propio computador ({so}), no en un servidor por SSH."),
+    shell_txt,
+    "Los bloques de código que des tienen un botón Ejecutar que escribe el comando en esa terminal: un comando por bloque y sin texto de más dentro del bloque.".to_string(),
+  ].join("\n")
+}
+
+/// La shell que abre la terminal local (para el título, el chat y los comandos guardados que sirven ahí).
+#[tauri::command]
+pub fn local_term_shell() -> ShellLocal {
+  describir_shell(&resolve_shell())
+}
+
+/// Los últimos `trozos` de salida de un panel de la terminal local (máximo 300), con su shell.
+#[tauri::command]
+pub fn local_term_contexto(id: String, trozos: Option<usize>) -> Result<LocalTermContexto, String> {
+  let map = LOCAL_TERM_SESSIONS.lock().map_err(|e| e.to_string())?;
+  let sesion = map.get(&id).ok_or("Ese panel de terminal ya no existe")?;
+  let h = sesion.historial.lock().map_err(|e| e.to_string())?;
+  let n = trozos.unwrap_or(80).min(crate::cmd::state::local_terminal::HISTORIAL_MAXIMO);
+  let texto: String = h.iter().skip(h.len().saturating_sub(n)).cloned().collect();
+  let sistema = std::env::consts::OS.to_string();
+  let instrucciones = instrucciones_chat(&sesion.shell_label, &sistema);
+  Ok(LocalTermContexto { shell: sesion.shell_label.clone(), sistema, texto, instrucciones })
+}
 
 #[tauri::command]
 pub async fn local_term_spawn(
@@ -253,6 +330,7 @@ async fn local_term_spawn_impl(app: AppHandle, requested_id: Option<String>, col
 
     let out_buffer: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(Some(String::new())));
     let ui_ready = Arc::new(AtomicBool::new(false));
+    let historial = Arc::new(Mutex::new(std::collections::VecDeque::new()));
 
     {
       let mut map = LOCAL_TERM_SESSIONS.lock().map_err(|e| e.to_string())?;
@@ -263,10 +341,11 @@ async fn local_term_spawn_impl(app: AppHandle, requested_id: Option<String>, col
         ui_ready: ui_ready.clone(),
         out_buffer: out_buffer.clone(),
         shell_label: shell_for_thread.clone(),
+        historial: historial.clone(),
       });
     }
 
-    spawn_reader_thread(app.clone(), id_for_thread, reader, out_buffer, ui_ready);
+    spawn_reader_thread(app.clone(), id_for_thread, reader, out_buffer, ui_ready, historial);
 
     Ok(())
   })
@@ -503,4 +582,20 @@ pub async fn local_term_save_paste_image(data_base64: String) -> Result<String, 
   })
   .await
   .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod pruebas_shell {
+  use super::*;
+
+  #[test]
+  fn reconoce_la_shell_y_arma_las_instrucciones() {
+    let p = describir_shell("C:\\Program Files\\PowerShell\\7\\pwsh.exe");
+    assert_eq!((p.tipo.as_str(), p.nombre.as_str()), ("powershell", "PowerShell 7"));
+    assert_eq!(describir_shell("powershell.exe").nombre, "Windows PowerShell");
+    assert_eq!(describir_shell("/bin/zsh").tipo, "linux");
+    let i = instrucciones_chat("pwsh", "windows");
+    assert!(i.contains("PowerShell 7") && i.contains("Windows") && i.contains("Ejecutar"));
+    assert!(instrucciones_chat("/bin/zsh", "macos").contains("La terminal es zsh"));
+  }
 }

@@ -1,0 +1,381 @@
+{
+  "id": "linux-permisos",
+  "order": 3,
+  "title": "Tus archivos de cerca: permisos",
+  "resumen": "Descubres por qué Linux a veces dice «Permiso denegado» y lo arreglas.",
+  "difficulty": "inicial",
+  "estimated_minutes": 14,
+  "sequential": false,
+  "objective": "Usar opciones en los comandos (ls -l, ls -a), averiguar qué tipo de archivo es algo (file) y entender los permisos (rwx y su número) hasta poder ejecutar un programa propio con chmod.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "kind": "lead",
+      "body_md": "En el módulo anterior aprendiste a moverte por las carpetas y a crear archivos. **Tu tarea de hoy:** mirar tus archivos más de cerca y crear un programa propio que Linux, al principio, no te va a dejar ejecutar. Vas a descubrir por qué, y lo vas a arreglar."
+    },
+    {
+      "type": "media",
+      "id": "b-video-opciones",
+      "kind": "video",
+      "file": "videos/opciones.mp4",
+      "caption": "Las opciones de los comandos: ls, ls -l, ls -a y file"
+    },
+    {
+      "type": "command_step",
+      "id": "s-lsl",
+      "command": "ls -l",
+      "explain_md": "Ya usaste `ls`, que lista los nombres de lo que hay en una carpeta. Pero en Linux los comandos se pueden ajustar con **opciones**: una letra con un guion adelante que le suma algo a lo que el comando ya hace. Con `-l` (de *long*, «largo»), `ls` muestra el *listado largo*: ya no solo los nombres, sino una línea completa por archivo con tipo, permisos, dueño, grupo, tamaño, fecha y nombre. Ahí vas a ver los archivos de tu carpeta, como el `notas.txt` que creaste en el módulo anterior."
+    },
+    {
+      "type": "command_step",
+      "id": "s-clear",
+      "command": "clear",
+      "explain_md": "La pantalla ya se llenó de texto. Usemos un comando que ya conocés del módulo anterior: `clear`, que limpia la pantalla. No borra nada de lo que hiciste, solo el texto acumulado."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls-a",
+      "command": "ls -a",
+      "explain_md": "Otra opción de `ls`: los archivos cuyo nombre empieza con punto son *ocultos*, y `ls` normal no los muestra. La opción `-a` (de *all*, «todos») muestra todo, y ahí aparece `.bashrc`, el archivo de configuración de tu terminal."
+    },
+    {
+      "type": "command_step",
+      "id": "s-file",
+      "command": "file notas.txt",
+      "explain_md": "`ls -l` te dice permisos y tamaño, pero no mira ADENTRO del archivo. `file` sí: abre el contenido y te dice qué tipo de dato es de verdad, sin fijarse en el nombre. Probalo con tu `notas.txt`: como está vacío, te va a responder `empty` («vacío»)."
+    },
+    {
+      "type": "text",
+      "id": "b-puente-programa",
+      "kind": "heading",
+      "body_md": "Ahora vas a crear un programa propio. Va a estar vacío (escribirle un programa de verdad lo vas a aprender más adelante, con un editor), pero alcanza para ver algo importante."
+    },
+    {
+      "type": "command_step",
+      "id": "s-touch-prog",
+      "command": "touch mi-programa",
+      "explain_md": "Igual que con `notas.txt`: `touch` crea el archivo vacío. Esta vez lo llamamos `mi-programa`."
+    },
+    {
+      "type": "command_step",
+      "id": "s-run-1",
+      "command": "./mi-programa",
+      "explain_md": "Para ejecutar un programa que está en tu carpeta se escribe `./` y su nombre: `./` significa «el que está acá, en esta carpeta». Probalo: Linux te va a responder **Permiso denegado** (o *Permission denied*). No rompiste nada: es justo lo que queríamos ver."
+    },
+    {
+      "type": "text",
+      "id": "b-por-que",
+      "kind": "lead",
+      "body_md": "¿Por qué te lo negó? Mirá este video: te muestra cómo se lee una línea de `ls -l` y qué son los permisos."
+    },
+    {
+      "type": "media",
+      "id": "b-video-permisos",
+      "kind": "video",
+      "file": "videos/permisos.mp4",
+      "caption": "Permisos: por qué «Permiso denegado», cómo se leen y el número de chmod"
+    },
+    {
+      "type": "command_step",
+      "id": "s-lsl-prog",
+      "command": "ls -l",
+      "explain_md": "Buscá la línea de `mi-programa`: empieza con `-rw-r--r--`. Hay `r` y `w` para vos, pero ninguna `x`: nadie tiene permiso de ejecutarlo. Por eso Linux te lo negó."
+    },
+    {
+      "type": "text",
+      "id": "b-bridge",
+      "body_md": "Ya viste los permisos como texto (`rwxr-xr--`). Pero `chmod` no recibe texto — recibe un número, como `754`. ¿De dónde sale ese número? Jugá con esto:",
+      "kind": "lead"
+    },
+    {
+      "type": "permissions_calculator",
+      "id": "b-calc",
+      "initial_octal": "644",
+      "prompt_md": "Marcá qué permisos querés que tenga un archivo. Mirá cómo el **octal** y el texto simbólico cambian juntos — cada `r`/`w`/`x` que prendés suma 4, 2 o 1 al número de su bloque."
+    },
+    {
+      "type": "command_step",
+      "id": "s-chmod",
+      "command": "chmod 754 mi-programa",
+      "explain_md": "`chmod` (de *change mode*, «cambiar el modo») cambia los permisos de un archivo, y los recibe como número: `7` = `rwx` para el dueño (vos), `5` = `r-x` para el grupo y `4` = `r--` para los demás. Usá la calculadora de arriba para verlo."
+    },
+    {
+      "type": "command_step",
+      "id": "s-lsl-chmod",
+      "command": "ls -l",
+      "explain_md": "Corré `ls -l` otra vez y buscá la línea de `mi-programa`: ahora empieza con `-rwxr-xr--`. Ese es el `754` escrito con letras, y ahí está tu `x`."
+    },
+    {
+      "type": "command_step",
+      "id": "s-run-2",
+      "command": "./mi-programa",
+      "explain_md": "Ahora sí: ejecutalo de nuevo. Esta vez no aparece «Permiso denegado»… ¡ni nada! Es normal: el programa está vacío, así que no tiene nada que hacer. Lo importante es que Linux ya te deja ejecutarlo. Más adelante vas a aprender a escribirle un programa de verdad."
+    },
+    {
+      "type": "text",
+      "id": "b-cierre",
+      "kind": "recap",
+      "body_md": "¡Listo! Ya sabés usar opciones en los comandos (`ls -l`, `ls -a`), averiguar qué es un archivo (`file`) y leer y cambiar sus permisos (`chmod`). Y ya sabés por qué Linux decía «Permiso denegado»: sin la `x`, nada se ejecuta."
+    },
+    {
+      "type": "quiz",
+      "id": "q1-permisos-bloques",
+      "question_md": "En `rwxr-xr--`, ¿qué representa cada bloque de 3 letras?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Lectura, escritura y ejecución, siempre iguales para todo el mundo"
+        },
+        {
+          "id": "b",
+          "label": "Dueño, grupo y otros: cada uno con sus propios permisos r, w y x"
+        },
+        {
+          "id": "c",
+          "label": "Tres usuarios distintos que pueden acceder al archivo a la vez"
+        },
+        {
+          "id": "d",
+          "label": "El tamaño del archivo, repartido en tres unidades distintas"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q2-primer-caracter",
+      "question_md": "El primer carácter de la línea (antes de `rwx`) — ¿qué indica?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Si el archivo está protegido con una contraseña para poder abrirlo"
+        },
+        {
+          "id": "b",
+          "label": "Cuántos permisos tiene el archivo sumando todos los bloques"
+        },
+        {
+          "id": "c",
+          "label": "La versión del sistema de archivos con que se formateó el disco"
+        },
+        {
+          "id": "d",
+          "label": "El tipo: `-` archivo normal, `d` carpeta (directorio) y `l` enlace"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q3-file-vs-lsl",
+      "question_md": "¿Cuál es la diferencia real entre `ls -l` y `file`?",
+      "options": [
+        {
+          "id": "a",
+          "label": "`ls -l` muestra permisos y tamaño; `file` mira el CONTENIDO real"
+        },
+        {
+          "id": "b",
+          "label": "Son dos nombres para el mismo comando; `file` es la versión corta"
+        },
+        {
+          "id": "c",
+          "label": "`file` solo funciona con carpetas; `ls -l` solo con archivos sueltos"
+        },
+        {
+          "id": "d",
+          "label": "`ls -l` no existe en Raspberry Pi OS, por eso se usa `file` ahí"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q4-chmod-octal",
+      "question_md": "En `chmod 754 archivo`, ¿qué significa el `5` (segundo dígito)?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Que el archivo ocupa 5 KB de espacio en el disco"
+        },
+        {
+          "id": "b",
+          "label": "Que hay 5 usuarios distintos con acceso al archivo ahora"
+        },
+        {
+          "id": "c",
+          "label": "Los permisos del GRUPO: lectura (4) y ejecución (1)"
+        },
+        {
+          "id": "d",
+          "label": "Que es la versión 5 del comando `chmod` instalada"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q7-ejecutar",
+      "question_md": "Si al escribir `./mi-programa` Linux responde «Permiso denegado», ¿qué le falta al archivo?",
+      "options": [
+        {
+          "id": "a",
+          "label": "El permiso de lectura (`r`)"
+        },
+        {
+          "id": "b",
+          "label": "El permiso de escritura (`w`)"
+        },
+        {
+          "id": "c",
+          "label": "El permiso de ejecución (`x`)"
+        },
+        {
+          "id": "d",
+          "label": "Ser administrador: hay que usar `sudo`"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "cmd-lsl",
+        "cmd-clear",
+        "cmd-ls-a",
+        "cmd-file",
+        "cmd-touch-prog",
+        "cmd-run-1",
+        "cmd-lsl-prog",
+        "cmd-chmod",
+        "cmd-lsl-chmod",
+        "cmd-run-2",
+        "quiz-permisos-bloques",
+        "quiz-primer-caracter",
+        "quiz-file-vs-lsl",
+        "quiz-chmod-octal",
+        "quiz-ejecutar"
+      ]
+    }
+  ],
+  "hints": [
+    "`.bashrc` es un archivo oculto: para verlo en el listado usá `ls -a`. Si no existe en tu carpeta, probá con `.profile`.",
+    "Ninguno de estos comandos necesita `sudo` (la palabra que se escribe antes de un comando para pedir permisos de administrador): son sobre tus propios archivos.",
+    "La calculadora de permisos es para practicar libremente, no se evalúa a sí misma: lo que se valida es el `chmod` real que corrés después.",
+    "La primera vez, `./mi-programa` tiene que decir «Permiso denegado» (o *Permission denied*): todavía no tiene permiso de ejecución. Después del `chmod`, ya no."
+  ],
+  "validation_rules": [
+    {
+      "id": "cmd-lsl",
+      "rule_type": "command_executed",
+      "target": "ls -l",
+      "required": true,
+      "points": 1,
+      "step_id": "s-lsl"
+    },
+    {
+      "id": "cmd-clear",
+      "rule_type": "command_executed",
+      "target": "clear",
+      "required": true,
+      "points": 1,
+      "step_id": "s-clear"
+    },
+    {
+      "id": "cmd-ls-a",
+      "rule_type": "command_executed",
+      "target": "ls -a",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls-a"
+    },
+    {
+      "id": "cmd-file",
+      "rule_type": "command_executed",
+      "target": "file notas.txt",
+      "required": true,
+      "points": 1,
+      "step_id": "s-file"
+    },
+    {
+      "id": "cmd-touch-prog",
+      "rule_type": "command_executed",
+      "target": "touch mi-programa",
+      "required": true,
+      "points": 1,
+      "step_id": "s-touch-prog"
+    },
+    {
+      "id": "cmd-run-1",
+      "rule_type": "command_executed",
+      "target": "./mi-programa",
+      "required": true,
+      "points": 1,
+      "step_id": "s-run-1"
+    },
+    {
+      "id": "cmd-lsl-prog",
+      "rule_type": "command_executed",
+      "target": "ls -l",
+      "required": true,
+      "points": 1,
+      "step_id": "s-lsl-prog"
+    },
+    {
+      "id": "cmd-chmod",
+      "rule_type": "command_executed",
+      "target": "chmod 754 mi-programa",
+      "required": true,
+      "points": 1,
+      "step_id": "s-chmod"
+    },
+    {
+      "id": "cmd-lsl-chmod",
+      "rule_type": "command_executed",
+      "target": "ls -l",
+      "required": true,
+      "points": 1,
+      "step_id": "s-lsl-chmod"
+    },
+    {
+      "id": "cmd-run-2",
+      "rule_type": "command_executed",
+      "target": "./mi-programa",
+      "required": true,
+      "points": 1,
+      "step_id": "s-run-2"
+    },
+    {
+      "id": "quiz-permisos-bloques",
+      "rule_type": "quiz",
+      "target": "q1-permisos-bloques",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-primer-caracter",
+      "rule_type": "quiz",
+      "target": "q2-primer-caracter",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-file-vs-lsl",
+      "rule_type": "quiz",
+      "target": "q3-file-vs-lsl",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-chmod-octal",
+      "rule_type": "quiz",
+      "target": "q4-chmod-octal",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-ejecutar",
+      "rule_type": "quiz",
+      "target": "q7-ejecutar",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

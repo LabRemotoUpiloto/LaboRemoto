@@ -12,7 +12,8 @@
     "jsx": "react-jsx",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-  // ...existing code...
+    // `@/` = src/ (también en vite.config.ts y vitest.config.ts)
+    "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src", "vite.config.ts", "env.d.ts"]
+  "include": ["src", "vite.config.ts"]
 }

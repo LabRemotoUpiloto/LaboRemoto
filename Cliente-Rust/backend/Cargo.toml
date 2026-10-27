@@ -34,7 +34,6 @@ tokio = { version = "1.39", features = ["rt-multi-thread", "macros", "sync", "io
 
 # SSH nativo (usa versiones beta compatibles entre sí)
 russh = "=0.50.3"
-ssh-key = "0.6"
 
 # SFTP estable vía libssh2 (bloqueante, usamos spawn_blocking)
 ssh2 = "0.9"
@@ -57,7 +56,7 @@ tauri-plugin-deep-link = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 # HTTP client y otros
-reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream", "gzip"] }
 futures-util = "0.3"
 dotenvy = "0.15"
 parking_lot = "0.12"
@@ -70,9 +69,8 @@ open = "5"          # Abre el navegador del sistema (OAuth loopback flow)
 
 jsonwebtoken = "9"
 
-# REST API
+# Servidores HTTP locales (callback OAuth y proxy de medios de las prácticas)
 axum = "0.7"
-tower-http = { version = "0.5", features = ["cors", "trace"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

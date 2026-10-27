@@ -1,0 +1,381 @@
+{
+  "id": "linux-incidente",
+  "order": 7,
+  "title": "Tu primer incidente",
+  "resumen": "Resolvés un problema completo sin que te digamos los comandos: permisos, respaldo y bitácora.",
+  "difficulty": "inicial",
+  "estimated_minutes": 20,
+  "sequential": false,
+  "objective": "Resolver por tu cuenta un incidente que junta lo aprendido: ejecutar un programa, diagnosticar «Permiso denegado» y arreglarlo con chmod, hacer un respaldo con mkdir y cp, comprobarlo con cat, guardar una bitácora con > y contar con una tubería.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "Hasta ahora te dijimos qué escribir en cada paso. **Hoy no.** Este módulo es un incidente como los que aparecen en el trabajo con computadoras de verdad: te contamos qué pasó y qué hay que lograr, y **cómo hacerlo lo decidís vos** con lo que aprendiste en los módulos anteriores. Hay pistas y el chat te puede ayudar, pero intentá primero por tu cuenta. **Empezá mirando el video.**",
+      "kind": "lead"
+    },
+    {
+      "type": "media",
+      "id": "b-video",
+      "kind": "video",
+      "file": "videos/primer-incidente.mp4",
+      "caption": "Video del módulo: el método de los cuatro pasos (un minuto y medio)"
+    },
+    {
+      "type": "text",
+      "id": "b-escenario",
+      "body_md": "**El incidente.** Un **incidente** es algo que debería funcionar y no funciona. El tuyo: un compañero te dejó un programa, `reporte.sh`, que tiene que mostrar el mensaje «Reporte del laboratorio listo», pero algo falla. Primero vas a crear ese programa con cuatro comandos que ya conocés: es la única parte donde te decimos exactamente qué escribir.",
+      "kind": "concept"
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-inicio",
+      "command": "cd",
+      "explain_md": "Empezá desde tu carpeta personal: `cd` solo te lleva ahí."
+    },
+    {
+      "type": "command_step",
+      "id": "s-mkdir",
+      "command": "mkdir incidente",
+      "explain_md": "Una carpeta aparte para este módulo. Si dice *File exists* («ya existe»), ya la tenías: seguí con el paso siguiente."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-incidente",
+      "command": "cd incidente",
+      "explain_md": "Entrá a la carpeta del incidente. Todo lo que sigue pasa adentro de `incidente`."
+    },
+    {
+      "type": "command_step",
+      "id": "s-crear",
+      "command": "echo \"echo Reporte del laboratorio listo\" > reporte.sh",
+      "explain_md": "Esto crea el programa de tu compañero. `echo` escribe el texto `echo Reporte del laboratorio listo` y el `>` lo guarda en el archivo `reporte.sh` (lo viste en el módulo 5). Así, `reporte.sh` queda con un solo comando adentro. Escribilo tal cual, con las comillas. No muestra nada porque el texto fue al archivo, no a la pantalla."
+    },
+    {
+      "type": "text",
+      "id": "b-mision",
+      "body_md": "**Tu misión.** Cumplí los objetivos de abajo, en orden. No hay comando a la vista: para cada uno, **1.** leé qué hay que lograr, **2.** pensá qué comando de los módulos anteriores sirve, **3.** probalo en la terminal y **4.** mirá qué responde. Si algo sale mal no pasa nada: leé el mensaje, que casi siempre dice qué falta. Los mensajes de error salen en inglés; cada objetivo te dice qué significan.",
+      "kind": "lead"
+    },
+    {
+      "type": "command_step",
+      "id": "g-run-1",
+      "command": "./reporte.sh",
+      "goal_md": "**Objetivo 1.** Ejecutá el programa `reporte.sh` **directamente**, como un programa propio (sin escribir `bash` adelante), y mirá qué responde Linux.",
+      "explain_md": "Pista: para ejecutar directamente un programa de la carpeta donde estás se escribe `./` delante del nombre (módulo 6)."
+    },
+    {
+      "type": "command_step",
+      "id": "g-chmod",
+      "command": "chmod +x reporte.sh",
+      "goal_md": "**Objetivo 2.** Linux respondió *Permission denied*, que en inglés quiere decir «permiso denegado»: al archivo le falta el **permiso de ejecución**. Dáselo.",
+      "explain_md": "Pista: el comando que cambia permisos lo usaste en el módulo de permisos y en el módulo 6; con `+x` agrega el de ejecutar."
+    },
+    {
+      "type": "command_step",
+      "id": "g-run-2",
+      "command": "./reporte.sh",
+      "goal_md": "**Objetivo 3.** Volvé a ejecutarlo directamente, igual que en el objetivo 1: ahora tiene que mostrar «Reporte del laboratorio listo».",
+      "explain_md": "Pista: es el mismo comando que en el objetivo 1."
+    },
+    {
+      "type": "text",
+      "id": "b-respaldo",
+      "body_md": "Un **respaldo** (en inglés *backup*) es una copia de seguridad: si después algo sale mal, tenés el original guardado. Como en la terminal no hay papelera, quien administra una computadora siempre hace uno antes de seguir cambiando cosas. Los próximos objetivos arman ese respaldo.",
+      "kind": "concept"
+    },
+    {
+      "type": "command_step",
+      "id": "g-mkdir",
+      "command": "mkdir respaldo",
+      "goal_md": "**Objetivo 4.** Creá una carpeta llamada `respaldo`, adentro de `incidente`.",
+      "explain_md": "Pista: es el comando que usaste para crear `incidente`."
+    },
+    {
+      "type": "command_step",
+      "id": "g-cp",
+      "command": "cp reporte.sh respaldo",
+      "goal_md": "**Objetivo 5.** Copiá el programa `reporte.sh` adentro de la carpeta `respaldo`. El original tiene que quedarse donde está.",
+      "explain_md": "Pista: copiar es `cp`, y recibe primero el origen (qué) y después el destino (adónde) (módulo 5)."
+    },
+    {
+      "type": "command_step",
+      "id": "g-cat",
+      "command": "cat respaldo/reporte.sh",
+      "goal_md": "**Objetivo 6.** Mostrá en la pantalla lo que hay adentro de la copia que quedó en `respaldo`, sin entrar a esa carpeta.",
+      "explain_md": "Pista: el comando que muestra el contenido de un archivo es del módulo 5. Para nombrar la copia escribí la carpeta, una barra `/` y el archivo."
+    },
+    {
+      "type": "command_step",
+      "id": "g-notas",
+      "command": "echo \"Arregle los permisos\" > notas.txt",
+      "goal_md": "**Objetivo 7.** Dejá una **bitácora**: un archivo donde anotás lo que hiciste, para que otra persona lo sepa. Guardá en un archivo llamado `notas.txt` una frase que cuente qué arreglaste (la que quieras, sin tildes).",
+      "explain_md": "Pista: usá `echo` con tu frase entre comillas y el signo `>` para mandarla al archivo, como en el módulo 5."
+    },
+    {
+      "type": "command_step",
+      "id": "g-conteo",
+      "command": "ls | wc -l",
+      "goal_md": "**Objetivo 8.** ¿Cuántas cosas hay ahora en la carpeta `incidente`? Que la terminal las cuente por vos, sin contarlas a mano.",
+      "explain_md": "Pista: juntá dos comandos con una **tubería** (`|`, la barra vertical, módulo 4): uno que lista lo que hay en la carpeta y otro que cuenta líneas."
+    },
+    {
+      "type": "text",
+      "id": "b-cierre",
+      "body_md": "¡Incidente resuelto! Diagnosticaste un error («Permiso denegado»), lo arreglaste con `chmod`, hiciste un respaldo con `mkdir` y `cp`, comprobaste la copia con `cat`, dejaste una bitácora con `>` y contaste con una tubería `|`. Eso es trabajar con una computadora Linux: cada herramienta hace una cosa y vos las combinás.",
+      "kind": "recap"
+    },
+    {
+      "type": "quiz",
+      "id": "q1-diagnostico",
+      "question_md": "Ejecutás `./programa` y Linux responde «Permiso denegado». ¿Cuál es el primer paso para arreglarlo?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Darle permiso de ejecución al archivo con `chmod +x programa`"
+        },
+        {
+          "id": "b",
+          "label": "Borrar el archivo con `rm` y volver a crearlo otra vez desde cero"
+        },
+        {
+          "id": "c",
+          "label": "Cambiarle el nombre al archivo con `mv` para que Linux lo acepte"
+        },
+        {
+          "id": "d",
+          "label": "Reinstalar el sistema, porque el archivo está dañado por dentro"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q2-respaldo",
+      "question_md": "¿Por qué conviene hacer una copia con `cp` antes de cambiar o borrar algo importante?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Porque `cp` hace que los cambios se guarden más rápido y seguros"
+        },
+        {
+          "id": "b",
+          "label": "Porque Linux obliga a tener una copia antes de aceptar un cambio"
+        },
+        {
+          "id": "c",
+          "label": "Porque no hay papelera: con la copia se puede volver atrás"
+        },
+        {
+          "id": "d",
+          "label": "Porque el archivo original se vuelve más seguro si existe una copia suya"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q3-flecha-tuberia",
+      "question_md": "¿Qué diferencia hay entre `>` y `|`?",
+      "options": [
+        {
+          "id": "a",
+          "label": "`>` manda el resultado a un archivo; `|` se lo pasa a otro comando"
+        },
+        {
+          "id": "b",
+          "label": "`>` le pasa el resultado a otro comando; `|` lo guarda en un archivo"
+        },
+        {
+          "id": "c",
+          "label": "Son dos formas de escribir lo mismo y se pueden usar indistintamente"
+        },
+        {
+          "id": "d",
+          "label": "`>` borra el comando anterior de la terminal y `|` lo vuelve a repetir"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q4-contar",
+      "question_md": "Querés saber cuántos elementos hay en una carpeta sin contarlos a mano. ¿Qué escribís?",
+      "options": [
+        {
+          "id": "a",
+          "label": "`ls > wc -l`, que manda la lista al comando que cuenta líneas"
+        },
+        {
+          "id": "b",
+          "label": "`wc -l | ls`, que cuenta primero y después lista todo lo demás"
+        },
+        {
+          "id": "c",
+          "label": "`ls | wc -l`, que le pasa la lista al comando que cuenta"
+        },
+        {
+          "id": "d",
+          "label": "`cp ls wc -l`, que copia la lista dentro de otro archivo nuevo"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "cmd-cd-inicio",
+        "cmd-mkdir",
+        "cmd-cd-incidente",
+        "cmd-crear",
+        "cmd-run-1",
+        "cmd-chmod",
+        "cmd-run-2",
+        "cmd-mkdir-respaldo",
+        "cmd-cp",
+        "cmd-cat-copia",
+        "cmd-notas",
+        "cmd-conteo",
+        "quiz-diagnostico",
+        "quiz-respaldo",
+        "quiz-flecha-tuberia",
+        "quiz-contar"
+      ]
+    }
+  ],
+  "hints": [
+    "Los objetivos 1 a 8 no traen el comando a propósito: pensá qué módulo te enseñó la herramienta y probala. Cada objetivo tiene una pista.",
+    "Los mensajes de error salen en inglés: *Permission denied* es «permiso denegado» y *No such file or directory* es «no existe ese archivo o carpeta».",
+    "Si dudás dónde estás, `pwd` te lo dice; `ls` te muestra lo que hay en la carpeta.",
+    "Los nombres tienen que ser exactos: `reporte.sh`, `respaldo` y `notas.txt`. Con Tab la terminal los completa por vos.",
+    "Para la bitácora escribí la frase sin tildes y entre comillas dobles, y dejá un espacio entre la flecha y el nombre del archivo."
+  ],
+  "validation_rules": [
+    {
+      "id": "cmd-cd-inicio",
+      "rule_type": "command_executed",
+      "target": "cd",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-inicio"
+    },
+    {
+      "id": "cmd-mkdir",
+      "rule_type": "command_executed",
+      "target": "mkdir incidente",
+      "required": true,
+      "points": 1,
+      "step_id": "s-mkdir"
+    },
+    {
+      "id": "cmd-cd-incidente",
+      "rule_type": "command_executed",
+      "target": "cd incidente",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-incidente"
+    },
+    {
+      "id": "cmd-crear",
+      "rule_type": "command_executed",
+      "target": "echo \"echo Reporte del laboratorio listo\" > reporte.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "s-crear"
+    },
+    {
+      "id": "cmd-run-1",
+      "rule_type": "command_executed",
+      "target": "./reporte.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "g-run-1"
+    },
+    {
+      "id": "cmd-chmod",
+      "rule_type": "command_executed",
+      "target": "chmod",
+      "required": true,
+      "points": 2,
+      "step_id": "g-chmod",
+      "fuzzy": true
+    },
+    {
+      "id": "cmd-run-2",
+      "rule_type": "command_executed",
+      "target": "./reporte.sh",
+      "required": true,
+      "points": 1,
+      "step_id": "g-run-2"
+    },
+    {
+      "id": "cmd-mkdir-respaldo",
+      "rule_type": "command_executed",
+      "target": "mkdir respaldo",
+      "required": true,
+      "points": 1,
+      "step_id": "g-mkdir"
+    },
+    {
+      "id": "cmd-cp",
+      "rule_type": "command_executed",
+      "target": "cp reporte.sh respaldo",
+      "required": true,
+      "points": 2,
+      "step_id": "g-cp",
+      "fuzzy": true
+    },
+    {
+      "id": "cmd-cat-copia",
+      "rule_type": "command_executed",
+      "target": "cat respaldo/reporte.sh",
+      "required": true,
+      "points": 2,
+      "step_id": "g-cat",
+      "fuzzy": true
+    },
+    {
+      "id": "cmd-notas",
+      "rule_type": "command_executed",
+      "target": "> notas.txt",
+      "required": true,
+      "points": 2,
+      "step_id": "g-notas",
+      "fuzzy": true
+    },
+    {
+      "id": "cmd-conteo",
+      "rule_type": "command_executed",
+      "target": "| wc -l",
+      "required": true,
+      "points": 2,
+      "step_id": "g-conteo",
+      "fuzzy": true
+    },
+    {
+      "id": "quiz-diagnostico",
+      "rule_type": "quiz",
+      "target": "q1-diagnostico",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-respaldo",
+      "rule_type": "quiz",
+      "target": "q2-respaldo",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-flecha-tuberia",
+      "rule_type": "quiz",
+      "target": "q3-flecha-tuberia",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-contar",
+      "rule_type": "quiz",
+      "target": "q4-contar",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

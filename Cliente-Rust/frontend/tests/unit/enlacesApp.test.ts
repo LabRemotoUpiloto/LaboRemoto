@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leerEnlaceApp } from '../../src/utils/enlacesApp';
+import { leerEnlaceApp } from '@/app/enlacesApp';
 
 describe('leerEnlaceApp', () => {
   it('reconoce laboremoto://practica/<id>, también con barra final o en mayúsculas el host', () => {

@@ -1,0 +1,477 @@
+{
+  "id": "linux-archivos",
+  "order": 5,
+  "title": "Tu espacio de trabajo: crear, copiar, mover y borrar",
+  "resumen": "Armás tu propio espacio de trabajo: creás carpetas y copiás, movés y borrás archivos.",
+  "difficulty": "inicial",
+  "estimated_minutes": 18,
+  "sequential": false,
+  "objective": "Armar tu propio espacio de trabajo: crear carpetas (mkdir), entrar a ellas con rutas relativas (cd), guardar texto en un archivo (>) y verlo (cat), copiar (cp), mover y renombrar (mv) y borrar (rm) sabiendo que en la terminal no hay papelera.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "b-intro",
+      "body_md": "En los módulos anteriores trabajaste con unos pocos archivos sueltos. **Tu tarea de hoy:** armar tu propio espacio de trabajo, con carpetas y archivos adentro, y aprender a copiar, mover, renombrar y borrar, como lo hace quien administra una computadora. Todo pasa dentro de tu carpeta personal: no vas a tocar nada del sistema. **Empezá mirando el video.**",
+      "kind": "lead"
+    },
+    {
+      "type": "media",
+      "id": "b-video",
+      "kind": "video",
+      "file": "videos/espacio-de-trabajo.mp4",
+      "caption": "Video del módulo: carpetas, copiar, mover y borrar (2 minutos)"
+    },
+    {
+      "type": "text",
+      "id": "b-cd-solo",
+      "body_md": "Antes de empezar, andá a tu **carpeta personal**: es la carpeta que es tuya en esta computadora, como «Documentos» en Windows. Ahí podés crear y borrar lo que quieras sin dañar nada del sistema. Para ir, escribí `cd` solo, sin nada más, y apretá Enter: te lleva a tu carpeta personal estés donde estés.",
+      "kind": "concept"
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-inicio",
+      "command": "cd",
+      "explain_md": "Escribí `cd` y apretá Enter. No aparece ningún mensaje: en Linux, cuando un comando sale bien, muchas veces no dice nada. Que no diga nada es buena señal."
+    },
+    {
+      "type": "command_step",
+      "id": "s-mkdir",
+      "command": "mkdir proyecto",
+      "explain_md": "`mkdir` viene del inglés *make directory*, «crear carpeta» (*directory* es otra forma de decir carpeta). Después del comando va un espacio y el **nombre** que le querés poner; acá, `proyecto`. Eso que va después del comando se llama **argumento**: es el dato que le das para que sepa qué hacer. Si sale bien, no escribe nada. Si dice *File exists* («ya existe»), es porque la creaste antes: seguí igual."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-proyecto",
+      "command": "cd proyecto",
+      "explain_md": "`cd` viene de *change directory*, «cambiar de carpeta»: te mete en otra carpeta. Su argumento es la carpeta a la que querés ir. Como `proyecto` está dentro de la carpeta donde estás ahora, alcanza con escribir su nombre."
+    },
+    {
+      "type": "command_step",
+      "id": "s-pwd",
+      "command": "pwd",
+      "explain_md": "`pwd` te dice en qué carpeta estás. La respuesta es una **ruta**: el camino de carpetas desde la raíz `/` hasta donde estás, separadas por `/`. Tiene que terminar en `/proyecto`: estás adentro."
+    },
+    {
+      "type": "text",
+      "id": "b-rutas",
+      "body_md": "**Dos formas de indicar una carpeta.** Una **ruta absoluta** empieza en la raíz `/` y nombra todas las carpetas del camino, como una dirección completa («Calle 10 # 5-20, Bogotá»): funciona estés donde estés. Una **ruta relativa** parte de donde estás parado, como decir «la puerta de al lado»: `cd proyecto` es relativa. Y un atajo: `~` (se llama **virgulilla**) quiere decir «mi carpeta personal»; según tu teclado se escribe con `AltGr` + `+` o con `AltGr` + `4`.",
+      "kind": "concept"
+    },
+    {
+      "type": "text",
+      "id": "b-tab",
+      "body_md": "**Truco para no equivocarte al escribir:** escribí las primeras letras de un nombre (por ejemplo `cd pro`) y apretá la tecla **Tab** (la de las dos flechas, arriba de Bloq Mayús). La terminal completa el resto sola. Si hay más de una opción, apretá Tab dos veces y te las muestra.",
+      "kind": "tip"
+    },
+    {
+      "type": "command_step",
+      "id": "s-mkdir-2",
+      "command": "mkdir borradores final",
+      "explain_md": "Un comando puede recibir **varios argumentos**, separados por espacios. Este crea dos carpetas a la vez, `borradores` y `final`, y las dos quedan adentro de `proyecto` porque es donde estás."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls",
+      "command": "ls",
+      "explain_md": "`ls` (de *list*, «listar») muestra lo que hay en la carpeta donde estás. Tienen que aparecer `borradores` y `final`."
+    },
+    {
+      "type": "text",
+      "id": "b-redir",
+      "body_md": "**El signo `>` («mayor que»).** Normalmente, lo que responde un comando aparece en la pantalla. Si después del comando escribís `>` y el nombre de un archivo, la respuesta **no sale en la pantalla: se guarda en ese archivo**. Pensalo como una flecha que apunta hacia dónde va el texto. Si el archivo no existe, se crea. Si ya existe, **se borra lo que tenía** y queda solo lo nuevo. En el teclado, `>` está en la misma tecla que `<`: se escribe con Shift.",
+      "kind": "concept"
+    },
+    {
+      "type": "command_step",
+      "id": "s-echo-redir",
+      "command": "echo \"Informe del proyecto\" > informe.txt",
+      "explain_md": "`echo` («eco») repite el texto que le das. Las comillas `\"` marcan dónde empieza y dónde termina ese texto, para que las tres palabras vayan juntas. Sin el `>`, verías «Informe del proyecto» en la pantalla; con el `>`, ese texto se guarda en el archivo `informe.txt` (y el archivo se crea). Por eso no aparece nada."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cat",
+      "command": "cat informe.txt",
+      "explain_md": "`cat` muestra en la pantalla lo que hay **adentro** de un archivo de texto, sin abrir ningún editor. Tiene que aparecer «Informe del proyecto»: es la prueba de que el `>` lo guardó."
+    },
+    {
+      "type": "text",
+      "id": "b-cp-mv",
+      "body_md": "**Copiar o mover.** `cp` (de *copy*, «copiar») es como sacar una fotocopia: el original se queda donde estaba y aparece otro igual. `mv` (de *move*, «mover») es como mudar algo de lugar: el original deja de estar donde estaba. Los dos reciben dos argumentos, siempre en este orden: primero **qué** archivo (el **origen**) y después **adónde** va (el **destino**).",
+      "kind": "concept"
+    },
+    {
+      "type": "command_step",
+      "id": "s-cp",
+      "command": "cp informe.txt borradores/informe-v1.txt",
+      "explain_md": "Origen: `informe.txt`. Destino: `borradores/informe-v1.txt`. La barra `/` separa una carpeta de lo que tiene adentro: `borradores/informe-v1.txt` se lee «dentro de la carpeta `borradores`, el archivo `informe-v1.txt`». Así la copia queda en `borradores` y con otro nombre. Si sale bien, no dice nada."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls-borradores",
+      "command": "ls borradores",
+      "explain_md": "`ls` con el nombre de una carpeta muestra lo que hay adentro de esa carpeta, sin que tengas que entrar. Tiene que aparecer `informe-v1.txt`. El original, `informe.txt`, sigue en `proyecto`: fue una copia."
+    },
+    {
+      "type": "command_step",
+      "id": "s-mv",
+      "command": "mv informe.txt final",
+      "explain_md": "Origen: `informe.txt`. Destino: la carpeta `final`. Cuando el destino es una carpeta, `mv` mete el archivo adentro. Después de esto, `informe.txt` ya no está en `proyecto`: se mudó a `final`."
+    },
+    {
+      "type": "command_step",
+      "id": "s-mv-rename",
+      "command": "mv final/informe.txt final/informe-final.txt",
+      "explain_md": "Ahora el destino no es una carpeta sino **un nombre nuevo**: el archivo se queda en la misma carpeta (`final`) pero se llama distinto. En Linux no hay un comando aparte para cambiar el nombre: se hace con `mv`."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls-final",
+      "command": "ls final",
+      "explain_md": "Comprobá el resultado: adentro de `final` tiene que estar `informe-final.txt`."
+    },
+    {
+      "type": "text",
+      "id": "b-sin-papelera",
+      "body_md": "**Cuidado con `rm`** (de *remove*, «quitar»): borra archivos. En la terminal **no hay papelera de reciclaje**: lo que borrás con `rm` desaparece para siempre y no te pregunta si estás seguro. Antes de apretar Enter, leé dos veces qué estás borrando. (Existe `rm -r`, que borra carpetas enteras con todo lo que tienen adentro: hoy no lo necesitás, y es el que más sustos da.)",
+      "kind": "tip"
+    },
+    {
+      "type": "command_step",
+      "id": "s-rm",
+      "command": "rm borradores/informe-v1.txt",
+      "explain_md": "Borrá la copia de prueba que hiciste en `borradores`. El argumento es el camino hasta ese archivo: `rm` borra solo lo que le nombrás, nada más. Es un archivo tuyo y de práctica, así que acá no hay riesgo."
+    },
+    {
+      "type": "command_step",
+      "id": "s-ls-borradores-2",
+      "command": "ls borradores",
+      "explain_md": "Comprobá que ya no está: `borradores` quedó vacía, así que `ls` no escribe nada."
+    },
+    {
+      "type": "command_step",
+      "id": "s-cd-fin",
+      "command": "cd",
+      "explain_md": "Volvé a tu carpeta personal: lo que sigue siempre parte desde ahí. Lo que armaste (la carpeta `proyecto` con todo adentro) queda guardado en tu cuenta."
+    },
+    {
+      "type": "text",
+      "id": "b-cierre",
+      "body_md": "¡Listo! Ahora podés armar tu propio espacio: crear carpetas (`mkdir`), entrar a ellas con rutas relativas (`cd`), guardar texto en un archivo (`>`) y verlo (`cat`), copiar (`cp`), mover y renombrar (`mv`) y borrar (`rm`), sabiendo que no hay papelera.",
+      "kind": "recap"
+    },
+    {
+      "type": "quiz",
+      "id": "q1-mkdir",
+      "question_md": "¿Qué hace `mkdir proyecto`?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Crea una carpeta nueva y vacía llamada `proyecto`"
+        },
+        {
+          "id": "b",
+          "label": "Te lleva a la carpeta `proyecto` que ya existe"
+        },
+        {
+          "id": "c",
+          "label": "Muestra lo que hay adentro de la carpeta `proyecto`"
+        },
+        {
+          "id": "d",
+          "label": "Borra la carpeta `proyecto` con todo lo que tenga"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q2-ruta",
+      "question_md": "Estás en `/home/ana` y escribís `cd fotos`. ¿A dónde llegás?",
+      "options": [
+        {
+          "id": "a",
+          "label": "A `/fotos`, una carpeta que cuelga de la raíz del sistema"
+        },
+        {
+          "id": "b",
+          "label": "A cualquier carpeta llamada `fotos` que Linux encuentre primero"
+        },
+        {
+          "id": "c",
+          "label": "A `/home/ana/fotos`: la carpeta `fotos` que está donde estás"
+        },
+        {
+          "id": "d",
+          "label": "A `/home`, porque `cd` siempre sube un nivel hacia arriba"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q3-renombrar",
+      "question_md": "¿Cómo le cambiás el nombre a `a.txt` para que se llame `b.txt`?",
+      "options": [
+        {
+          "id": "a",
+          "label": "`cp a.txt b.txt`: copia el archivo y además borra `a.txt`"
+        },
+        {
+          "id": "b",
+          "label": "`mv a.txt b.txt`: lo mueve al mismo lugar con otro nombre"
+        },
+        {
+          "id": "c",
+          "label": "`rm a.txt b.txt`: borra el primero y crea el segundo"
+        },
+        {
+          "id": "d",
+          "label": "`cat a.txt b.txt`: junta los dos archivos en uno solo"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q4-cp-mv",
+      "question_md": "¿Cuál es la diferencia entre `cp` y `mv`?",
+      "options": [
+        {
+          "id": "a",
+          "label": "`cp` borra el original después de copiar y `mv` lo deja donde estaba"
+        },
+        {
+          "id": "b",
+          "label": "`cp` solo sirve para carpetas y `mv` únicamente para archivos sueltos"
+        },
+        {
+          "id": "c",
+          "label": "No hay diferencia: las dos hacen exactamente lo mismo con los archivos"
+        },
+        {
+          "id": "d",
+          "label": "`cp` deja el original y hace otra copia; `mv` lo cambia de sitio"
+        }
+      ]
+    },
+    {
+      "type": "quiz",
+      "id": "q5-rm",
+      "question_md": "¿Qué pasa con un archivo que borrás con `rm`?",
+      "options": [
+        {
+          "id": "a",
+          "label": "Se borra para siempre: la terminal no tiene papelera de reciclaje"
+        },
+        {
+          "id": "b",
+          "label": "Va a la papelera de reciclaje y lo podés recuperar más tarde"
+        },
+        {
+          "id": "c",
+          "label": "Queda guardado 30 días antes de borrarse del todo del disco"
+        },
+        {
+          "id": "d",
+          "label": "Se mueve a una carpeta oculta llamada `.trash` dentro de tu carpeta"
+        }
+      ]
+    },
+    {
+      "type": "checkpoint",
+      "id": "b-checkpoint",
+      "rule_ids": [
+        "cmd-cd-inicio",
+        "cmd-mkdir",
+        "cmd-cd-proyecto",
+        "cmd-pwd",
+        "cmd-mkdir-2",
+        "cmd-ls",
+        "cmd-echo-redir",
+        "cmd-cat",
+        "cmd-cp",
+        "cmd-ls-borradores",
+        "cmd-mv",
+        "cmd-mv-rename",
+        "cmd-ls-final",
+        "cmd-rm",
+        "cmd-ls-borradores-2",
+        "cmd-cd-fin",
+        "quiz-mkdir",
+        "quiz-ruta",
+        "quiz-renombrar",
+        "quiz-cp-mv",
+        "quiz-rm"
+      ]
+    }
+  ],
+  "hints": [
+    "Si `mkdir` te dice *File exists* («ya existe»), la carpeta ya estaba de antes: no pasa nada, seguí con el paso siguiente.",
+    "`mkdir`, `cp` y `mv` no escriben nada cuando salen bien: si no ves ningún mensaje, es buena señal.",
+    "Si un comando te dice *No such file or directory* («no existe ese archivo o carpeta»), revisá que estés dentro de `proyecto` (con `pwd`) y que el nombre esté bien escrito.",
+    "Escribí las primeras letras de un nombre y apretá Tab: la terminal lo completa sola y evita errores de tipeo.",
+    "`rm` no tiene papelera: antes de apretar Enter, leé dos veces qué vas a borrar."
+  ],
+  "validation_rules": [
+    {
+      "id": "cmd-cd-inicio",
+      "rule_type": "command_executed",
+      "target": "cd",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-inicio"
+    },
+    {
+      "id": "cmd-mkdir",
+      "rule_type": "command_executed",
+      "target": "mkdir proyecto",
+      "required": true,
+      "points": 1,
+      "step_id": "s-mkdir"
+    },
+    {
+      "id": "cmd-cd-proyecto",
+      "rule_type": "command_executed",
+      "target": "cd proyecto",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-proyecto"
+    },
+    {
+      "id": "cmd-pwd",
+      "rule_type": "command_executed",
+      "target": "pwd",
+      "required": true,
+      "points": 1,
+      "step_id": "s-pwd"
+    },
+    {
+      "id": "cmd-mkdir-2",
+      "rule_type": "command_executed",
+      "target": "mkdir borradores final",
+      "required": true,
+      "points": 1,
+      "step_id": "s-mkdir-2"
+    },
+    {
+      "id": "cmd-ls",
+      "rule_type": "command_executed",
+      "target": "ls",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls"
+    },
+    {
+      "id": "cmd-echo-redir",
+      "rule_type": "command_executed",
+      "target": "echo \"Informe del proyecto\" > informe.txt",
+      "required": true,
+      "points": 1,
+      "step_id": "s-echo-redir"
+    },
+    {
+      "id": "cmd-cat",
+      "rule_type": "command_executed",
+      "target": "cat informe.txt",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cat"
+    },
+    {
+      "id": "cmd-cp",
+      "rule_type": "command_executed",
+      "target": "cp informe.txt borradores/informe-v1.txt",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cp"
+    },
+    {
+      "id": "cmd-ls-borradores",
+      "rule_type": "command_executed",
+      "target": "ls borradores",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls-borradores"
+    },
+    {
+      "id": "cmd-mv",
+      "rule_type": "command_executed",
+      "target": "mv informe.txt final",
+      "required": true,
+      "points": 1,
+      "step_id": "s-mv"
+    },
+    {
+      "id": "cmd-mv-rename",
+      "rule_type": "command_executed",
+      "target": "mv final/informe.txt final/informe-final.txt",
+      "required": true,
+      "points": 1,
+      "step_id": "s-mv-rename"
+    },
+    {
+      "id": "cmd-ls-final",
+      "rule_type": "command_executed",
+      "target": "ls final",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls-final"
+    },
+    {
+      "id": "cmd-rm",
+      "rule_type": "command_executed",
+      "target": "rm borradores/informe-v1.txt",
+      "required": true,
+      "points": 1,
+      "step_id": "s-rm"
+    },
+    {
+      "id": "cmd-ls-borradores-2",
+      "rule_type": "command_executed",
+      "target": "ls borradores",
+      "required": true,
+      "points": 1,
+      "step_id": "s-ls-borradores-2"
+    },
+    {
+      "id": "cmd-cd-fin",
+      "rule_type": "command_executed",
+      "target": "cd",
+      "required": true,
+      "points": 1,
+      "step_id": "s-cd-fin"
+    },
+    {
+      "id": "quiz-mkdir",
+      "rule_type": "quiz",
+      "target": "q1-mkdir",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-ruta",
+      "rule_type": "quiz",
+      "target": "q2-ruta",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-renombrar",
+      "rule_type": "quiz",
+      "target": "q3-renombrar",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-cp-mv",
+      "rule_type": "quiz",
+      "target": "q4-cp-mv",
+      "required": true,
+      "points": 2
+    },
+    {
+      "id": "quiz-rm",
+      "rule_type": "quiz",
+      "target": "q5-rm",
+      "required": true,
+      "points": 2
+    }
+  ]
+}

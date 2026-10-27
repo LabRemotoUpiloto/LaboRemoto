@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BORRADOR_VACIO, alternarProblema, respuestasDe } from '../../src/services/encuestas.service';
-import { nota5, problemasOrdenados, repartoDificultad } from '../../src/pages/dashboard/encuestasStats';
+import { BORRADOR_VACIO, alternarProblema, respuestasDe } from '@/features/practicas/encuestas.service';
+import { nivelNota5, nota5, problemasOrdenados, repartoDificultad } from '@/features/actividad/encuestasStats';
 
 describe('encuesta de la práctica', () => {
   it('«Ninguno» es excluyente con los demás problemas', () => {
@@ -22,5 +22,9 @@ describe('encuesta de la práctica', () => {
     expect([nota5(4.25), nota5(null)]).toEqual(['4,3', '—']);
     expect(problemasOrdenados({ ninguno: 3, lentitud: 1, desconexiones: 2, terminal: 0, camara: 0, guia: 0, otro: 0 }).map((p) => p.valor)).toEqual(['desconexiones', 'lentitud']);
     expect(repartoDificultad({ muy_facil: 0, facil: 1, adecuada: 3, dificil: 0, muy_dificil: 0 }, 4).find((d) => d.valor === 'adecuada')?.pct).toBe(75);
+  });
+
+  it('el promedio solo toma color cuando baja de 4 (alerta) o de 3 (crítico)', () => {
+    expect([4.5, 4, 3.9, 3, 2.9, null].map(nivelNota5)).toEqual(['bien', 'bien', 'alerta', 'alerta', 'critico', 'apagado']);
   });
 });

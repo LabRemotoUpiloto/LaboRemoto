@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { LinuxBlock } from '../../src/services/linuxPractice.service';
-import { armarPlan, accionesDelPaso, accionActual, instruccion, tituloDelPaso } from '../../src/components/practicas/linux/ritmo';
+import type { LinuxBlock } from '@/features/practicas/linuxPractice.service';
+import { armarPlan, accionesDelPaso, accionActual, instruccion, tituloDelPaso } from '@/features/practicas/linux/ritmo';
 
 const texto = (id: string): LinuxBlock => ({ type: 'text', id, body_md: id });
 const imagen = (id: string): LinuxBlock => ({ type: 'media', id, kind: 'image', file: `${id}.png` });

@@ -1,0 +1,44 @@
+import React, { useRef } from 'react';
+import '@xterm/xterm/css/xterm.css';
+import './TerminalPane.css';
+import { useTheme } from '@/app/providers/ThemeContext';
+import { useTerminal } from './useTerminal';
+
+type Props = {
+  sessionId: string | null;
+  onTerminalOutput?: (data: string) => void;
+  onTerminalInput?: (data: string, enPantalla?: string | null) => void;
+  localSshCommand?: string | null;
+  /** Terminal de una práctica: la tecla Tab (autocompletar) está desactivada. */
+  bloquearTab?: boolean;
+};
+
+const TerminalPane: React.FC<Props> = ({ sessionId, onTerminalOutput, onTerminalInput, localSshCommand, bloquearTab }) => {
+  const { theme } = useTheme();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const { isLoading, isFadingOut, waitingForPrompt } = useTerminal(
+    sessionId, containerRef, theme, onTerminalOutput, onTerminalInput, localSshCommand, bloquearTab,
+  );
+
+  return (
+    <div className="terminal-pane" ref={containerRef}>
+      {isLoading && sessionId && (
+        <div className={`terminal-loading-overlay${isFadingOut ? ' terminal-loading-overlay--fade-out' : ''}`}>
+          <div className="terminal-loading-spinner"></div>
+          <div className="terminal-loading-text">
+            {waitingForPrompt
+              ? 'Esperando respuesta del servidor...'
+              : 'Conectando al servidor...'}
+          </div>
+          {waitingForPrompt && (
+            <div className="terminal-loading-subtext">
+              Solicitando el prompt del shell
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TerminalPane;

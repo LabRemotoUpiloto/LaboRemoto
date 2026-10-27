@@ -2,7 +2,7 @@
  * store/queryCache.ts — slice de cache de queries (Zustand), REFACTOR #4 Batch 3.
  *
  * Cache simple in-store para datos obtenidos vía `invoke()` de Tauri, usado
- * por el hook `useQueryData` (hooks/useQueryData.ts). Cada entrada se
+ * por el hook `useQueryData` (lib/useQueryData.ts). Cada entrada se
  * identifica por una `key` string arbitraria (ej. nombre del comando +
  * parámetros serializados) y guarda el último dato exitoso, su timestamp
  * (usado para el TTL) y el estado de carga/error.

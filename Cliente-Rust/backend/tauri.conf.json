@@ -10,6 +10,7 @@
     "beforeBuildCommand": "npm run build:frontend"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Laboratorio remoto Unipiloto",
@@ -18,6 +19,7 @@
         "resizable": true,
         "decorations": true,
         "maximized": true,
+        "visible": false,
         "fullscreen": false
       }
     ],

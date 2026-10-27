@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { ASSIGNABLE_ROLES, canAccessPage, getEffectiveRole, puedeAdministrarCamaras, puedeVerComo, rolVerComo, setRolVerComo } from '../../src/hooks/usePermissions';
+import { ASSIGNABLE_ROLES, canAccessPage, getEffectiveRole, puedeAdministrarCamaras, puedeVerComo, rolVerComo, setRolVerComo } from '@/features/cuenta/usePermissions';
 import { useAppStore } from '../../src/store/app';
 
 describe('rol docente', () => {
@@ -22,9 +22,16 @@ describe('rol docente', () => {
   });
 
   it('no es personal del laboratorio: sin vigilancia (cámaras), dashboard ni administración', () => {
-    for (const page of ['vigilancia', 'dashboard', 'admin-users', 'connect', 'hosts']) {
+    for (const page of ['vigilancia', 'dashboard', 'encuestas', 'admin-users', 'hosts', 'sftp', 'snippets']) {
       expect(canAccessPage(page, 'docente'), page).toBe(false);
     }
+  });
+
+  it('entra a Conexiones por los registros de sesiones SSH, pero no a conectarse', () => {
+    expect(canAccessPage('connect', 'docente')).toBe(true);
+    expect(canAccessPage('logs', 'docente')).toBe(true);
+    expect(canAccessPage('hosts', 'docente')).toBe(false);
+    expect(canAccessPage('connect', 'estudiante')).toBe(false);
   });
 
   it('ve prácticas, mis cursos y logs; el estudiante no ve logs ni mis cursos', () => {
