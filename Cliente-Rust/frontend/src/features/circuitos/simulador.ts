@@ -8,6 +8,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /** Dónde corre el simulador. Por ahora el contenedor local; en la Pi 5 se configura con VITE_SIMULADOR_CIRCUITOS_URL. */
 export const URL_SIMULADOR: string = (import.meta.env.VITE_SIMULADOR_CIRCUITOS_URL as string | undefined) ?? 'http://localhost:3080';
 const ORIGEN_SIMULADOR = new URL(URL_SIMULADOR).origin;
+
+/** Una imagen o un video de los pasos: los sirve el simulador, igual que las prácticas. */
+export const urlMedia = (archivo: string) => `${URL_SIMULADOR}/api/laboremoto/media/${encodeURIComponent(archivo)}`;
 const VERSION = 1;
 
 export interface PiezaCircuito {

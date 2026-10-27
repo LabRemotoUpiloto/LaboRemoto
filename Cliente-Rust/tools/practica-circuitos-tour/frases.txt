@@ -15,7 +15,7 @@ Para poner una pieza en la protoboard, arrástrala y suéltala sobre los agujero
 # voz: «…en la protobord, arrástrala…»
 
 04
-Para hacer un cable, haz clic en un borne o en una pata, y luego en el agujero donde lo quieres llevar.
+Para hacer un cable, haz clic en una punta de la pila, y luego en el huequito donde lo quieres llevar.
 
 05
 Para cambiar el valor de la resistencia, haz clic derecho sobre ella.

@@ -1,5 +1,5 @@
 // features/circuitos/PasoCircuitoCard.tsx — un paso de la práctica de circuitos dentro del chat, como los de Linux: título, explicación,
-// lo que hay que lograr (las comprobaciones, en vivo), su video si tiene y, en los pasos de leer, su botón. Reporta su estado a la barra fija del chat
+// su contenido (párrafos, listas, imágenes y videos), lo que hay que lograr (las comprobaciones, en vivo) y, en los pasos de leer, su botón. Reporta su estado a la barra fija del chat
 // (GuiaPractica) y, al completarse, queda resumido en una línea que se puede volver a abrir.
 import { useEffect, useState } from 'react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
@@ -7,7 +7,7 @@ import { BotonPrincipal, Num, PUNTO_NIVEL, TEXTO_NIVEL, type Nivel } from '@/com
 import { EncabezadoPaso, type DatosGuia } from '@/features/practicas/linux/PasoCard';
 import { corrienteLed, type Resultado } from './comprobaciones';
 import { usePracticaEnCurso } from './practicaEnCurso';
-import VideoPaso from './VideoPaso';
+import ContenidoPaso from './ContenidoPaso';
 
 const NIVEL: Record<Resultado, Nivel> = { bien: 'bien', mal: 'critico', falta: 'apagado' };
 const PALABRA: Record<Resultado, string> = { bien: 'Listo', mal: 'Revisar', falta: 'Falta' };
@@ -79,9 +79,9 @@ export default function PasoCircuitoCard({ pasoId, numero, total, onGuia }: {
         )}
       />
       <div className="flex flex-col gap-3">
-        <p className="m-0 text-[13.5px] leading-relaxed text-ui-tinta-2">{paso.text}</p>
-
-        {paso.video && <VideoPaso archivo={paso.video.file} titulo={paso.video.caption} />}
+        {paso.blocks?.length
+          ? <ContenidoPaso bloques={paso.blocks} />
+          : <p className="m-0 text-[13.5px] leading-relaxed text-ui-tinta-2">{paso.text}</p>}
 
         {checks.length > 0 && (
           <ul className="m-0 flex list-none flex-col gap-1.5 p-0" aria-live="polite">
