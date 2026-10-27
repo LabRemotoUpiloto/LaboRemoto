@@ -22,7 +22,11 @@ jobs:
   compute-version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.compute.outputs.version }}
+      # La version viaja CODIFICADA (digitos -> letras, punto -> guion bajo). Si fuera en claro y contuviera
+      # el valor de un secreto (p. ej. un puerto "22" en 3.5.22), GitHub la enmascara y DESCARTA la salida
+      # del job: los jobs de build recibian VERSION vacia y tauri.conf.json fallaba con "version must be a
+      # semver string". Cada job la decodifica en su paso "Decodificar la version".
+      version_cod: ${{ steps.compute.outputs.version_cod }}
     steps:
       - uses: actions/checkout@v4
 
@@ -91,7 +95,7 @@ jobs:
           fi
 
           echo "Version en el repo: $BASE_VERSION | Release mas alto publicado: ${HIGHEST:-ninguno} | Version final: $FINAL_VERSION"
-          echo "version=$FINAL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_cod=$(printf '%s' "$FINAL_VERSION" | tr '0123456789.' 'abcdefghij_')" >> "$GITHUB_OUTPUT"
 
   release-windows:
     needs: compute-version
@@ -100,10 +104,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Apply computed version
+      - name: Decodificar la version
+        # Deja VERSION en el entorno de TODOS los pasos siguientes de este job (env.VERSION en expresiones).
         shell: bash
         env:
-          VERSION: ${{ needs.compute-version.outputs.version }}
+          VERSION_COD: ${{ needs.compute-version.outputs.version_cod }}
+        run: |
+          VERSION=$(printf '%s' "$VERSION_COD" | tr 'abcdefghij_' '0123456789.')
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::La version calculada no es valida (llego vacia o con otro formato)."
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Apply computed version
+        shell: bash
         run: |
           node -e "
             const fs = require('fs');
@@ -163,8 +178,6 @@ jobs:
 
       - name: Prepare updater metadata
         shell: pwsh
-        env:
-          VERSION: ${{ needs.compute-version.outputs.version }}
         run: |
           $bundleDir = "Cliente-Rust/backend/target/release/bundle/nsis"
           $assetName = "Cliente.SSH.Unipiloto_$env:VERSION`_x64-setup.exe"
@@ -208,13 +221,13 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.compute-version.outputs.version }}
-          name: v${{ needs.compute-version.outputs.version }}
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            Cliente-Rust/backend/target/release/bundle/nsis/Cliente.SSH.Unipiloto_${{ needs.compute-version.outputs.version }}_x64-setup.exe
+            Cliente-Rust/backend/target/release/bundle/nsis/Cliente.SSH.Unipiloto_${{ env.VERSION }}_x64-setup.exe
             Cliente-Rust/backend/target/release/bundle/nsis/latest.json
 
   release-linux:
@@ -241,10 +254,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Apply computed version
+      - name: Decodificar la version
+        # Deja VERSION en el entorno de TODOS los pasos siguientes de este job (env.VERSION en expresiones).
         shell: bash
         env:
-          VERSION: ${{ needs.compute-version.outputs.version }}
+          VERSION_COD: ${{ needs.compute-version.outputs.version_cod }}
+        run: |
+          VERSION=$(printf '%s' "$VERSION_COD" | tr 'abcdefghij_' '0123456789.')
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::La version calculada no es valida (llego vacia o con otro formato)."
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Apply computed version
+        shell: bash
         run: |
           node -e "
             const fs = require('fs');
@@ -342,8 +366,8 @@ jobs:
         # tiene ese riesgo: son archivos con nombre distinto al de Windows.
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.compute-version.outputs.version }}
-          name: v${{ needs.compute-version.outputs.version }}
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
           draft: false
           prerelease: false
           generate_release_notes: true
