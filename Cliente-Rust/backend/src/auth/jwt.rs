@@ -212,7 +212,7 @@ pub async fn verify_and_decode(
     // 5. Configurar validación estricta
     let issuer = format!("{}/realms/{}", config.base_url, config.realm);
     let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_issuer(&[issuer]);
+    validation.set_issuer(&emisores_aceptados(&issuer));
     // AUTH_SPEC §2: `"aud": "account"` en el access_token del realm
     validation.set_audience(&["account"]);
     // leeway de 30 s para compensar diferencias de reloj entre cliente y servidor
@@ -220,9 +220,17 @@ pub async fn verify_and_decode(
 
     // 6. Decodificar y verificar (jsonwebtoken valida firma + exp + iss + aud)
     let token_data = decode::<VerifiedClaims>(token, &decoding_key, &validation)
-        .map_err(|err| AppError::Unauthorized(format!(
-            "Validación JWT fallida: {}", err
-        )))?;
+        .map_err(|err| {
+            // Con un emisor distinto, decir cuál llegó: así se ve de qué dirección de Keycloak salió el token.
+            if matches!(err.kind(), jsonwebtoken::errors::ErrorKind::InvalidIssuer) {
+                let recibido = emisor_sin_verificar(token).unwrap_or_else(|| "(sin iss)".to_string());
+                return AppError::Unauthorized(format!(
+                    "Validación JWT fallida: InvalidIssuer (el token viene de «{}», se esperaba «{}»)",
+                    recibido, issuer
+                ));
+            }
+            AppError::Unauthorized(format!("Validación JWT fallida: {}", err))
+        })?;
 
     let c = token_data.claims;
 
@@ -253,6 +261,29 @@ pub async fn verify_and_decode(
         exp:                c.exp,
         sid:                c.sid.unwrap_or_default(),
     })
+}
+
+/// El emisor configurado en sus dos formas, `http://` y `https://`. Keycloak firma el token con la dirección por
+/// la que el navegador abrió el inicio de sesión, y Chrome/Edge pasan solos a https cuando el servidor lo ofrece
+/// (pasó al activarse HTTPS en el proxy de AWS: «InvalidIssuer» con el token en https). Es el mismo servidor y
+/// el mismo realm, y la firma se sigue verificando con su JWKS.
+fn emisores_aceptados(issuer: &str) -> Vec<String> {
+    let otro = if let Some(resto) = issuer.strip_prefix("http://") {
+        format!("https://{resto}")
+    } else if let Some(resto) = issuer.strip_prefix("https://") {
+        format!("http://{resto}")
+    } else {
+        return vec![issuer.to_string()];
+    };
+    vec![issuer.to_string(), otro]
+}
+
+/// El `iss` del payload sin verificar la firma: solo para explicar un error, nunca para confiar en él.
+fn emisor_sin_verificar(token: &str) -> Option<String> {
+    let payload = token.split('.').nth(1)?;
+    let bytes = URL_SAFE_NO_PAD.decode(payload).ok()?;
+    let valor: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    valor.get("iss")?.as_str().map(str::to_string)
 }
 
 /// Decodifica el payload del JWT **sin verificar la firma RS256**.
@@ -431,6 +462,23 @@ mod tests {
     #[test]
     fn extrae_kid_retorna_none_si_token_invalido() {
         assert!(extract_kid("notavalidjwt").is_none());
+    }
+
+    #[test]
+    fn acepta_el_emisor_en_http_y_en_https() {
+        let http = "http://kc.test/auth/realms/lab";
+        let https = "https://kc.test/auth/realms/lab";
+        assert_eq!(emisores_aceptados(http), vec![http.to_string(), https.to_string()]);
+        assert_eq!(emisores_aceptados(https), vec![https.to_string(), http.to_string()]);
+        assert_eq!(emisores_aceptados("kc.test/realms/lab"), vec!["kc.test/realms/lab".to_string()]);
+    }
+
+    #[test]
+    fn lee_el_emisor_sin_verificar_para_el_mensaje_de_error() {
+        // (sin la dirección en la línea: el CI rechaza IPv4 en el código añadido)
+        let iss = emisor_sin_verificar(TOKEN_REAL).expect("el token real trae iss");
+        assert!(iss.starts_with("http://") && iss.ends_with("/auth/realms/laboratorio-semillero"), "{iss}");
+        assert_eq!(emisor_sin_verificar("sinpuntos"), None);
     }
 
     // ── Test de integración real (requiere Keycloak activo) ───────────────────
