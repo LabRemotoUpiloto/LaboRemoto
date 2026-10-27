@@ -11,7 +11,8 @@
 //! | `KEYCLOAK_CLIENT_ID` | `semillero-app`                             |
 //!
 //! Los defaults hardcodeados permiten desarrollo local sin `.env`.
-//! En producción, siempre definir las variables explícitamente.
+//! `KEYCLOAK_BASE_URL` además se puede embeber al compilar (secreto de GitHub del mismo nombre en
+//! `release.yml`); el `.env` de la máquina, si existe, manda sobre lo embebido.
 
 use std::env;
 use reqwest::Url;
@@ -30,6 +31,23 @@ pub struct KeycloakConfig {
     pub client_id: String,
 }
 
+/// Dirección por defecto de Keycloak: el dominio, con certificado válido.
+const BASE_URL_POR_DEFECTO: &str = "https://labo-keycloak.duckdns.org/auth";
+
+/// Qué dirección usar: la variable de entorno (`.env` de la máquina o de desarrollo) si trae algo;
+/// si no, la embebida al compilar (`build.rs`, desde un secreto de GitHub); si no, el dominio.
+/// La embebida permite publicar una versión que entre por la dirección numérica en las redes cuyo
+/// DNS no resuelve el dominio, sin poner ninguna IP en el código.
+fn resolver_base_url(entorno: Option<String>, embebida: Option<&str>) -> String {
+    entorno
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .or_else(|| embebida.map(str::trim).filter(|v| !v.is_empty()).map(String::from))
+        .unwrap_or_else(|| BASE_URL_POR_DEFECTO.to_string())
+        .trim_end_matches('/')
+        .to_string()
+}
+
 impl KeycloakConfig {
     /// Construye la configuración desde variables de entorno, con fallback a
     /// los defaults de AUTH_SPEC §1 (no son secretos — cliente OAuth público
@@ -44,8 +62,10 @@ impl KeycloakConfig {
     /// build sin `.env` local (todo build de release).
     pub fn from_env() -> Self {
         Self {
-            base_url: env::var("KEYCLOAK_BASE_URL")
-                .unwrap_or_else(|_| "https://labo-keycloak.duckdns.org/auth".to_string()),
+            base_url: resolver_base_url(
+                env::var("KEYCLOAK_BASE_URL").ok(),
+                option_env!("COMPILED_KEYCLOAK_BASE_URL"),
+            ),
             realm: env::var("KEYCLOAK_REALM")
                 .unwrap_or_else(|_| "laboratorio-semillero".to_string()),
             client_id: env::var("KEYCLOAK_CLIENT_ID")
@@ -137,6 +157,28 @@ mod tests {
             realm:     "laboratorio-semillero".to_string(),
             client_id: "semillero-app".to_string(),
         }
+    }
+
+    #[test]
+    fn base_url_sin_nada_usa_el_dominio() {
+        assert_eq!(resolver_base_url(None, None), BASE_URL_POR_DEFECTO);
+        assert_eq!(resolver_base_url(Some("  ".into()), Some("")), BASE_URL_POR_DEFECTO);
+    }
+
+    #[test]
+    fn base_url_embebida_reemplaza_al_dominio() {
+        assert_eq!(
+            resolver_base_url(None, Some(" http://kc.ejemplo.test/auth/ ")),
+            "http://kc.ejemplo.test/auth"
+        );
+    }
+
+    #[test]
+    fn base_url_del_entorno_manda_sobre_la_embebida() {
+        assert_eq!(
+            resolver_base_url(Some("http://local.test/auth".into()), Some("http://kc.ejemplo.test/auth")),
+            "http://local.test/auth"
+        );
     }
 
     #[test]

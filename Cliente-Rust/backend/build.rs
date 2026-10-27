@@ -67,7 +67,11 @@ fn main() {
   // puede usar el modelo ni las prácticas.
   // DECISIÓN CONSCIENTE (2026-10): lo embebido se puede extraer del binario. Es temporal hasta que las
   // claves vivan en un servidor intermedio autenticado con Keycloak.
+  // `KEYCLOAK_BASE_URL` (opcional) fija la dirección de Keycloak de esa versión: sirve para las redes
+  // donde el DNS del dominio no resuelve y hay que entrar por la dirección numérica. Sin valor, la app
+  // usa el dominio por defecto (`auth/config.rs`).
   for (var, baked) in [
+    ("KEYCLOAK_BASE_URL", "COMPILED_KEYCLOAK_BASE_URL"),
     ("GROQ_API_KEY", "COMPILED_GROQ_KEY"),
     ("PRACTICE_LINUX_TUNNEL_HOST", "COMPILED_PRACTICE_LINUX_TUNNEL_HOST"),
     ("PRACTICE_LINUX_TUNNEL_PORT", "COMPILED_PRACTICE_LINUX_TUNNEL_PORT"),
