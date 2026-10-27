@@ -14,17 +14,27 @@ export interface ResumenPracticaCircuito {
   objective: string;
 }
 
+/** Lo que muestra un paso, en orden (como los bloques de los módulos de Linux). Las imágenes y los videos los sirve el
+ *  simulador (GET /api/laboremoto/media/<archivo>). */
+export type BloqueCircuito =
+  | { type: 'text'; text: string }
+  /** Un consejo o una advertencia, con su ícono. */
+  | { type: 'tip'; text: string }
+  | { type: 'list'; items: string[]; ordered?: boolean }
+  | { type: 'image'; file: string; caption?: string }
+  | { type: 'video'; file: string; caption?: string };
+
 /** Un paso: el chat lo entrega como tarjeta y se completa cuando se cumplen sus comprobaciones (o con su botón, si es de leer). */
 export interface PasoCircuito {
   id: string;
   title: string;
+  /** Resumen del paso: lo lee el tutor (y es lo que se muestra si el paso no trae `blocks`). */
   text: string;
+  blocks?: BloqueCircuito[];
   /** Ids de `checks` que tienen que estar cumplidas para pasar al siguiente. */
   checks?: string[];
   /** Paso de solo leer: se completa con este botón. */
   button?: string;
-  /** Video del paso (lo sirve el simulador, ver VideoPaso.tsx). */
-  video?: { file: string; caption?: string };
 }
 
 export interface PracticaCircuito extends ResumenPracticaCircuito {

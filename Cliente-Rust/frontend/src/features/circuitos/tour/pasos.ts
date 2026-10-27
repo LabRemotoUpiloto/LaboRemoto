@@ -25,7 +25,7 @@ export const PASOS_PRACTICA_CIRCUITOS: PasoTourPractica[] = [
   },
   {
     audio: '04.mp3', titulo: 'Hacer un cable',
-    texto: 'Para hacer un cable, haz clic en un borne o en una pata, y luego en el agujero donde lo quieres llevar.',
+    texto: 'Para hacer un cable, haz clic en una punta de la pila, y luego en el huequito donde lo quieres llevar.',
     elementos: ['[data-tour="circuito-simulador"]'], lado: 'right', clip: 'clip-cable.mp4',
   },
   {

@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Play } from 'lucide-react';
 import { Boton, ETIQUETA } from '@/components/ui';
-import { URL_SIMULADOR } from './simulador';
+import { urlMedia } from './simulador';
 
 export default function VideoPaso({ archivo, titulo }: { archivo: string; titulo?: string }) {
   const [pedido, setPedido] = useState(false);
@@ -24,7 +24,7 @@ export default function VideoPaso({ archivo, titulo }: { archivo: string; titulo
         <p className="m-0 text-[13px] text-ui-critico-texto" role="alert">No se pudo reproducir el video. Revisa que el simulador esté corriendo.</p>
       ) : (
         <video
-          src={`${URL_SIMULADOR}/api/laboremoto/media/${encodeURIComponent(archivo)}`}
+          src={urlMedia(archivo)}
           controls
           autoPlay
           preload="metadata"
