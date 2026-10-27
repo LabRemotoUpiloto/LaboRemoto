@@ -6,7 +6,7 @@
 //! ## Variables de entorno
 //! | Variable             | Default (AUTH_SPEC §1)                      |
 //! |----------------------|---------------------------------------------|
-//! | `KEYCLOAK_BASE_URL`  | `http://52.14.162.232/auth`                 |
+//! | `KEYCLOAK_BASE_URL`  | `https://labo-keycloak.duckdns.org/auth`    |
 //! | `KEYCLOAK_REALM`     | `laboratorio-semillero`                     |
 //! | `KEYCLOAK_CLIENT_ID` | `semillero-app`                             |
 //!
@@ -21,7 +21,8 @@ use reqwest::Url;
 #[derive(Clone, Debug)]
 pub struct KeycloakConfig {
     /// URL base del servidor Keycloak, sin trailing slash.
-    /// Ej: `http://52.14.162.232/auth`
+    /// Ej: `https://labo-keycloak.duckdns.org/auth` (el dominio: su certificado es válido; por la IP no lo es y
+    /// el emisor del token cambia según por dónde abra el navegador el inicio de sesión)
     pub base_url: String,
     /// Realm institucional. Ej: `laboratorio-semillero`
     pub realm: String,
@@ -44,7 +45,7 @@ impl KeycloakConfig {
     pub fn from_env() -> Self {
         Self {
             base_url: env::var("KEYCLOAK_BASE_URL")
-                .unwrap_or_else(|_| "http://52.14.162.232/auth".to_string()),
+                .unwrap_or_else(|_| "https://labo-keycloak.duckdns.org/auth".to_string()),
             realm: env::var("KEYCLOAK_REALM")
                 .unwrap_or_else(|_| "laboratorio-semillero".to_string()),
             client_id: env::var("KEYCLOAK_CLIENT_ID")
