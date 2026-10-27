@@ -22,17 +22,17 @@
     },
     {
       "type": "media",
-      "id": "b-diagram-nano-atajos",
-      "kind": "image",
-      "file": "diagrams/nano_atajos.png",
-      "caption": "Los atajos de teclado de nano (^ es la tecla Ctrl)"
-    },
-    {
-      "type": "media",
       "id": "b-video-nano",
       "kind": "video",
       "file": "videos/demo_m3.mp4",
       "caption": "Video del módulo — Editor sin miedo"
+    },
+    {
+      "type": "media",
+      "id": "b-diagram-nano-atajos",
+      "kind": "image",
+      "file": "diagrams/nano_atajos_basicos.png",
+      "caption": "Los 4 atajos que vas a usar en nano (^ es la tecla Ctrl)"
     },
     {
       "type": "command_step",
