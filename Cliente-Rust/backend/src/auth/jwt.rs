@@ -267,7 +267,7 @@ pub async fn verify_and_decode(
 /// la que el navegador abrió el inicio de sesión, y Chrome/Edge pasan solos a https cuando el servidor lo ofrece
 /// (pasó al activarse HTTPS en el proxy de AWS: «InvalidIssuer» con el token en https). Es el mismo servidor y
 /// el mismo realm, y la firma se sigue verificando con su JWKS.
-fn emisores_aceptados(issuer: &str) -> Vec<String> {
+pub(crate) fn emisores_aceptados(issuer: &str) -> Vec<String> {
     let otro = if let Some(resto) = issuer.strip_prefix("http://") {
         format!("https://{resto}")
     } else if let Some(resto) = issuer.strip_prefix("https://") {
@@ -279,7 +279,7 @@ fn emisores_aceptados(issuer: &str) -> Vec<String> {
 }
 
 /// El `iss` del payload sin verificar la firma: solo para explicar un error, nunca para confiar en él.
-fn emisor_sin_verificar(token: &str) -> Option<String> {
+pub(crate) fn emisor_sin_verificar(token: &str) -> Option<String> {
     let payload = token.split('.').nth(1)?;
     let bytes = URL_SAFE_NO_PAD.decode(payload).ok()?;
     let valor: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
