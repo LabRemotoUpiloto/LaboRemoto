@@ -1,6 +1,6 @@
 // App raíz: providers, layout shell y orquestación de hooks de alto nivel.
 import React, { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
-import { EVENTO_VISTA_PRACTICA, type DetalleVistaPractica } from '@/features/practicas/linux/escritorioPractica'
+import { EVENTO_VISTA_PRACTICA, detenerEscritorio, type DetalleVistaPractica } from '@/features/practicas/linux/escritorioPractica'
 import './App.css'
 
 // Anchos de la sidebar (deben coincidir con --sidebar-width por defecto en App.css).
@@ -119,7 +119,7 @@ const AppMain: React.FC = () => {
     handleNewSession, openLogTab,
     activePanel,
     openPanel,
-    activeView, setActiveView,
+    activeView, setActiveView, reiniciarVista,
     isChatOpen, setIsChatOpen,
   } = useAppTabs()
 
@@ -214,6 +214,22 @@ const AppMain: React.FC = () => {
     }
     return merged
   }, [practiceMeta, linuxSession.sessionModuleMap, linuxSession.sessionPanels])
+
+  // Cuando una sesión empieza otra práctica (o deja de tener una), su pestaña vuelve a la terminal y se apaga el
+  // escritorio remoto que haya quedado abierto. Si no, la práctica siguiente arrancaba directo en el escritorio del
+  // módulo anterior y el estudiante no tenía cómo salir de ahí.
+  const practicaPorSesionPrevia = useRef<Record<string, string>>({})
+  useEffect(() => {
+    const antes = practicaPorSesionPrevia.current
+    const ahora: Record<string, string> = {}
+    for (const [sessionId, meta] of Object.entries(combinedPracticeMeta ?? {})) ahora[sessionId] = meta.practiceId
+    for (const sessionId of new Set([...Object.keys(antes), ...Object.keys(ahora)])) {
+      if (antes[sessionId] === ahora[sessionId]) continue
+      reiniciarVista(sessionId)
+      if (antes[sessionId]) detenerEscritorio(sessionId)
+    }
+    practicaPorSesionPrevia.current = ahora
+  }, [combinedPracticeMeta, reiniciarVista])
 
   // Al iniciar una práctica, la barra lateral se colapsa para dejarle el espacio a la terminal y al
   // chat (el estudiante la puede volver a abrir). Solo cuando aparece una práctica nueva, no en cada render.

@@ -32,6 +32,10 @@ export function useAppTabs() {
   const setActiveView = useCallback((vista: ActiveView) => {
     setVistas(prev => (prev[activeTabId] === vista ? prev : { ...prev, [activeTabId]: vista }));
   }, [activeTabId]);
+  /** Devuelve una pestaña a la terminal (por ejemplo, cuando su sesión cambia de práctica). */
+  const reiniciarVista = useCallback((tabId: string) => {
+    setVistas(prev => { if (!(tabId in prev)) return prev; const { [tabId]: _, ...resto } = prev; return resto; });
+  }, []);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   const activeTab = useMemo(() => {
@@ -240,6 +244,7 @@ export function useAppTabs() {
     closePanel,
     activeView,
     setActiveView,
+    reiniciarVista,
     isChatOpen,
     setIsChatOpen,
     reorderTabs,

@@ -52,6 +52,13 @@ import { GuiaPractica } from '@/features/practicas/linux/GuiaPractica';
 import type { ProgresoPractica } from '@/features/practicas/linux/LinuxPracticeProgressBar';
 import { contextoPractica, loQueTocaAhora, relacionDelComando, textoComandoFueraDeLugar, type RelacionComando } from '@/features/practicas/linux/contextoTutor';
 import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPracticeSession';
+import { esperarConTope } from './esperaConTope';
+
+/**
+ * Tope de espera de la explicación de un comando aprobado antes de mostrar el paso siguiente. La explicación es
+ * un extra del tutor: si tarda más (servicio de IA caído o lento), la práctica sigue y la explicación llega después.
+ */
+const ESPERA_MAX_EXPLICACION_MS = 15_000;
 
 const REGLAS_PRACTICA =
   'MODO PRÁCTICA (estas reglas mandan sobre el FORMATO DE RESPUESTA): le estás hablando a un estudiante que ' +
@@ -312,6 +319,9 @@ const ChatPane: React.FC<Props> = ({
   const linuxExplainedStepIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => { linuxExplainedStepIdsRef.current = new Set(); }, [practiceId]);
   const linuxExplainRunningRef = useRef(false);
+  // La práctica NO depende del chat: si la explicación falla, se queda pensando o se cancela, el paso siguiente
+  // se entrega igual (antes la práctica quedaba bloqueada esperando una respuesta que nunca terminaba).
+  const liberarExplicacionRef = useRef<(() => void) | null>(null);
 
   const [agentState, setAgentState] = useState<AgentState>({ cwd: '/', lastExitCode: undefined, lastStdoutTail: undefined, lastFile: undefined });
   const [isSending, setIsSending] = useState(false);
@@ -988,6 +998,8 @@ const ChatPane: React.FC<Props> = ({
     explainLinuxMistake(signal.command, pendingStep?.command, relacionDelComando(signal.command, linuxModule, result, pendingStep?.id));
   }, [linuxSession?.mistakeSignal, isPracticeSession, linuxModule, practiceResult, explainLinuxMistake]);
 
+  const ultimoResultadoRef = useRef(practiceResult);
+  ultimoResultadoRef.current = practiceResult;
   useEffect(() => {
     if (!isPracticeSession || !linuxModule || linuxExplainRunningRef.current) return;
     const rules = linuxModule.validation_rules;
@@ -1011,11 +1023,15 @@ const ChatPane: React.FC<Props> = ({
     if (toExplain) {
       linuxExplainedStepIdsRef.current.add(toExplain.id);
       linuxExplainRunningRef.current = true;
-      explainLinuxCommandOutput(toExplain.command).finally(() => {
+      // Se espera la explicación (una cosa a la vez), pero con tope: lo que pase primero entre que termine, falle,
+      // se cancele o se cumpla el tope libera la práctica, con el resultado más reciente.
+      const liberar = esperarConTope(explainLinuxCommandOutput(toExplain.command), ESPERA_MAX_EXPLICACION_MS, () => {
+        if (liberarExplicacionRef.current === liberar) liberarExplicacionRef.current = null;
         linuxExplainRunningRef.current = false;
-        deliverLinuxBatch(linuxModule, result);
+        deliverLinuxBatch(linuxModule, (ultimoResultadoRef.current as unknown as LinuxValidationResult) ?? null);
       });
-      return; // el resto del contenido se entrega recién después de explicar
+      liberarExplicacionRef.current = liberar;
+      return; // el resto del contenido se entrega después de explicar (o al cumplirse el tope)
     }
 
     deliverLinuxBatch(linuxModule, result);
@@ -1106,6 +1122,8 @@ const ChatPane: React.FC<Props> = ({
     currentReqIdRef.current = null;
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     isSendingRef.current = false; setIsSending(false);
+    // Si se cancela la explicación de un comando, la práctica sigue al paso siguiente en vez de quedarse esperando.
+    liberarExplicacionRef.current?.();
     // Saca ya mismo la burbuja vacía en vez de dejarla colgada hasta que el
     // backend eventualmente resuelva (el chequeo por-pedido en handleSend
     // igual descarta esa respuesta tardía, esto es solo para que no quede

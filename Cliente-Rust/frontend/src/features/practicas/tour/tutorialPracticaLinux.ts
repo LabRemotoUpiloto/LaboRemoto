@@ -8,6 +8,7 @@ import 'driver.js/dist/driver.css';
 import '@/features/onboarding/tourStyles.css';
 import { PASOS_PRACTICA_LINUX, type PasoTourPractica } from './pasos';
 import { botonPausaNarrado, cuerpoNarrado, marcarPausa, tituloNarrado } from '@/features/onboarding/narrado';
+import { esperarElementoVisible } from '@/features/onboarding/elementoVisible';
 
 const PAUSA_ENTRE_PASOS_MS = 700;
 const ESPERA_ELEMENTO_MS = 3000;
@@ -58,25 +59,7 @@ function pararAudio() {
   if (audio) { audio.onended = null; audio.pause(); audio = null; }
 }
 
-/** El primer selector que exista en pantalla, esperando un poco por si el panel recién se está montando. */
-function esperarElemento(selectores: string[]): Promise<Element | null> {
-  return new Promise((resolve) => {
-    const inicio = Date.now();
-    const buscar = () => {
-      for (const s of selectores) {
-        const el = document.querySelector(s);
-        const caja = el?.getBoundingClientRect();
-        if (el && caja && caja.width > 0 && caja.height > 0) return resolve(el);
-      }
-      if (Date.now() - inicio >= ESPERA_ELEMENTO_MS) {
-        for (const s of selectores) { const el = document.querySelector(s); if (el) return resolve(el); }
-        return resolve(null);
-      }
-      setTimeout(buscar, 80);
-    };
-    buscar();
-  });
-}
+const esperarElemento = (selectores: string[]) => esperarElementoVisible(selectores, ESPERA_ELEMENTO_MS);
 
 function botonPausa(): HTMLButtonElement {
   return botonPausaNarrado(pausado, () => {
