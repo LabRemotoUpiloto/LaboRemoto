@@ -271,6 +271,20 @@ pub struct KeycloakRole {
 }
 
 impl KeycloakClient {
+    /// Dirección base de Keycloak para las llamadas que van con el token del usuario (Admin y Account API).
+    /// Keycloak responde 401 si el emisor del token no coincide con la dirección por la que llega la petición, y el
+    /// token puede venir emitido en https aunque la configuración diga http: el navegador pasa solo a https desde
+    /// que el proxy lo ofrece (ver `jwt::emisores_aceptados`). Se usa la base del emisor del token solo si es una de
+    /// las dos formas del emisor configurado; si no, la configurada.
+    fn base_para(&self, token: &str) -> String {
+        let configurado = format!("{}/realms/{}", self.config.base_url, self.config.realm);
+        let sufijo = format!("/realms/{}", self.config.realm);
+        jwt::emisor_sin_verificar(token)
+            .filter(|iss| jwt::emisores_aceptados(&configurado).contains(iss))
+            .and_then(|iss| iss.strip_suffix(&sufijo).map(str::to_string))
+            .unwrap_or_else(|| self.config.base_url.clone())
+    }
+
     fn keycloak_admin_error(operation: &str, status: reqwest::StatusCode, body: String) -> AppError {
         if status.as_u16() == 403 {
             return AppError::Api(format!(
@@ -288,7 +302,7 @@ impl KeycloakClient {
     /// endpoints de LISTA (a diferencia de GET de un solo usuario) vienen en
     /// modo "brief" y omiten ese campo.
     pub async fn admin_search_users(&self, token: &str, query: &str) -> Result<Vec<KeycloakUser>, AppError> {
-        let url = format!("{}/admin/realms/{}/users", self.config.base_url, self.config.realm);
+        let url = format!("{}/admin/realms/{}/users", self.base_para(token), self.config.realm);
         let response = self.http
             .get(&url)
             .bearer_auth(token)
@@ -314,7 +328,7 @@ impl KeycloakClient {
     /// completo entero; si el realm crece más allá de eso, esta vista deja
     /// de ser exhaustiva (limitación conocida, no paginada por ahora).
     pub async fn admin_list_all_users(&self, token: &str) -> Result<Vec<KeycloakUser>, AppError> {
-        let url = format!("{}/admin/realms/{}/users", self.config.base_url, self.config.realm);
+        let url = format!("{}/admin/realms/{}/users", self.base_para(token), self.config.realm);
         let response = self.http
             .get(&url)
             .bearer_auth(token)
@@ -337,7 +351,7 @@ impl KeycloakClient {
     /// Lista los usuarios que ya tienen asignado un rol dado — usado por la
     /// vista por defecto de gestión de roles (lista, no búsqueda).
     pub async fn admin_list_role_users(&self, token: &str, role_name: &str) -> Result<Vec<KeycloakUser>, AppError> {
-        let url = format!("{}/admin/realms/{}/roles/{}/users", self.config.base_url, self.config.realm, role_name);
+        let url = format!("{}/admin/realms/{}/roles/{}/users", self.base_para(token), self.config.realm, role_name);
         let response = self.http
             .get(&url)
             .bearer_auth(token)
@@ -358,7 +372,7 @@ impl KeycloakClient {
 
     /// GET /admin/realms/{realm}/users/{id}/role-mappings/realm
     pub async fn admin_get_user_roles(&self, token: &str, user_id: &str) -> Result<Vec<KeycloakRole>, AppError> {
-        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.config.base_url, self.config.realm, user_id);
+        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.base_para(token), self.config.realm, user_id);
         let response = self.http
             .get(&url)
             .bearer_auth(token)
@@ -378,7 +392,7 @@ impl KeycloakClient {
 
     /// GET /admin/realms/{realm}/roles/{role_name}
     pub async fn admin_get_role_by_name(&self, token: &str, role_name: &str) -> Result<KeycloakRole, AppError> {
-        let url = format!("{}/admin/realms/{}/roles/{}", self.config.base_url, self.config.realm, role_name);
+        let url = format!("{}/admin/realms/{}/roles/{}", self.base_para(token), self.config.realm, role_name);
         let response = self.http
             .get(&url)
             .bearer_auth(token)
@@ -398,7 +412,7 @@ impl KeycloakClient {
 
     /// POST /admin/realms/{realm}/users/{id}/role-mappings/realm
     pub async fn admin_assign_role(&self, token: &str, user_id: &str, role: &KeycloakRole) -> Result<(), AppError> {
-        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.config.base_url, self.config.realm, user_id);
+        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.base_para(token), self.config.realm, user_id);
         let response = self.http
             .post(&url)
             .bearer_auth(token)
@@ -417,7 +431,7 @@ impl KeycloakClient {
 
     /// DELETE /admin/realms/{realm}/users/{id}/role-mappings/realm
     pub async fn admin_remove_role(&self, token: &str, user_id: &str, role: &KeycloakRole) -> Result<(), AppError> {
-        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.config.base_url, self.config.realm, user_id);
+        let url = format!("{}/admin/realms/{}/users/{}/role-mappings/realm", self.base_para(token), self.config.realm, user_id);
         let response = self.http
             .delete(&url)
             .bearer_auth(token)
@@ -452,7 +466,7 @@ impl KeycloakClient {
     /// ya había cerrado del otro lado -- una conexión nueva del pool resuelve
     /// esto casi siempre.
     pub async fn account_get(&self, token: &str) -> Result<serde_json::Value, AppError> {
-        let url = format!("{}/realms/{}/account", self.config.base_url, self.config.realm);
+        let url = format!("{}/realms/{}/account", self.base_para(token), self.config.realm);
 
         let mut last_err = None;
         for attempt in 0..2 {
@@ -486,7 +500,7 @@ impl KeycloakClient {
     /// — el caller debe partir de un `account_get` previo y solo pisar el
     /// campo que quiere cambiar antes de reenviar, para no perder el resto.
     pub async fn account_update(&self, token: &str, account: &serde_json::Value) -> Result<(), AppError> {
-        let url = format!("{}/realms/{}/account", self.config.base_url, self.config.realm);
+        let url = format!("{}/realms/{}/account", self.base_para(token), self.config.realm);
         let response = self.http
             .post(&url)
             .bearer_auth(token)
@@ -512,7 +526,7 @@ impl KeycloakClient {
     /// deserializador estricto del lado de Keycloak para el Admin API) no
     /// reconoce y rechaza con 400.
     pub async fn admin_get_user(&self, token: &str, user_id: &str) -> Result<serde_json::Value, AppError> {
-        let url = format!("{}/admin/realms/{}/users/{}", self.config.base_url, self.config.realm, user_id);
+        let url = format!("{}/admin/realms/{}/users/{}", self.base_para(token), self.config.realm, user_id);
         let response = self.http
             .get(&url)
             .bearer_auth(token)
@@ -538,7 +552,7 @@ impl KeycloakClient {
     /// `avatar`. Requiere permisos de admin (`manage-users`), por eso solo
     /// admin_lab puede usarlo (ver `check_admin_lab` en commands.rs).
     pub async fn admin_update_user(&self, token: &str, user_id: &str, user: &serde_json::Value) -> Result<(), AppError> {
-        let url = format!("{}/admin/realms/{}/users/{}", self.config.base_url, self.config.realm, user_id);
+        let url = format!("{}/admin/realms/{}/users/{}", self.base_para(token), self.config.realm, user_id);
         let response = self.http
             .put(&url)
             .bearer_auth(token)
@@ -572,5 +586,41 @@ mod tests_mojibake {
         for s in ["CAÑON MURCIA", "María José", "GONZALEZ GARZON", "", "Ãngel"] {
             assert_eq!(reparar_mojibake(s), s);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests_base_para {
+    use super::*;
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+
+    fn cliente() -> KeycloakClient {
+        KeycloakClient::new(KeycloakConfig {
+            base_url: "http://kc.test/auth".to_string(),
+            realm: "lab".to_string(),
+            client_id: "app".to_string(),
+        })
+    }
+
+    fn token_con_iss(iss: &str) -> String {
+        let payload = URL_SAFE_NO_PAD.encode(format!("{{\"iss\":\"{iss}\"}}"));
+        format!("e30.{payload}.firma")
+    }
+
+    #[test]
+    fn usa_https_si_el_token_vino_en_https() {
+        assert_eq!(cliente().base_para(&token_con_iss("https://kc.test/auth/realms/lab")), "https://kc.test/auth");
+    }
+
+    #[test]
+    fn usa_la_configurada_si_el_token_vino_en_http() {
+        assert_eq!(cliente().base_para(&token_con_iss("http://kc.test/auth/realms/lab")), "http://kc.test/auth");
+    }
+
+    #[test]
+    fn nunca_sigue_a_un_emisor_ajeno() {
+        assert_eq!(cliente().base_para(&token_con_iss("https://otro.test/auth/realms/lab")), "http://kc.test/auth");
+        assert_eq!(cliente().base_para(&token_con_iss("https://kc.test/auth/realms/otro")), "http://kc.test/auth");
+        assert_eq!(cliente().base_para("no-es-un-jwt"), "http://kc.test/auth");
     }
 }
