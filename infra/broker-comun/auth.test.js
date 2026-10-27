@@ -38,6 +38,18 @@ test('acepta un token válido y devuelve los claims', async () => {
   });
 });
 
+test('acepta varios emisores (separados por coma o como otrosEmisores) y sigue rechazando uno ajeno', async () => {
+  await conJwks(async ({ jwksUrl, priv }) => {
+    const OTRO = 'https://kc.test/realms/lab';
+    const v = crearVerificador({ jwksUrl, issuer: `${ISSUER}, ${OTRO}` });
+    assert.strictEqual((await v(firmar(priv, { payload: { iss: OTRO, exp: en(300) } }))).iss, OTRO);
+    assert.strictEqual((await v(firmar(priv, { payload: { iss: ISSUER, exp: en(300) } }))).iss, ISSUER);
+    const w = crearVerificador({ jwksUrl, issuer: ISSUER, otrosEmisores: [OTRO] });
+    assert.strictEqual((await w(firmar(priv, { payload: { iss: OTRO, exp: en(300) } }))).iss, OTRO);
+    await assert.rejects(v(firmar(priv, { payload: { iss: 'https://ajeno.test/realms/lab', exp: en(300) } })), /issuer/);
+  });
+});
+
 test('rechaza: expirado, issuer ajeno, firma de otra llave, alg distinto, kid desconocido y mal formado', async () => {
   await conJwks(async ({ jwksUrl, priv, privOtra }) => {
     const v = crearVerificador({ jwksUrl, issuer: ISSUER });

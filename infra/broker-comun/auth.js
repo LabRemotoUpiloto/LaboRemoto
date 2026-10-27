@@ -4,13 +4,17 @@
 // antes vivía dentro de broker_server.js; cada servicio valida el token por su cuenta (nadie confía en que "otro
 // servicio ya lo validó"), por eso es una librería y no un servicio.
 //
-// Config (env, comunes a todos): KEYCLOAK_JWKS_URL, KEYCLOAK_ISSUER.
+// Config (env, comunes a todos): KEYCLOAK_JWKS_URL, KEYCLOAK_ISSUER (uno o varios emisores separados por coma).
 
 const http = require('node:http');
 const https = require('node:https');
 const crypto = require('node:crypto');
 
 const JWKS_TTL_MS = 5 * 60_000;
+
+// Keycloak firma el token con la dirección por la que se abrió el inicio de sesión. La app usa el dominio (certificado
+// válido); mientras haya tokens emitidos por la dirección vieja, se aceptan los dos.
+const EMISOR_DOMINIO = 'https://labo-keycloak.duckdns.org/auth/realms/laboratorio-semillero';
 
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
@@ -34,6 +38,7 @@ function configDesdeEnv() {
       || 'http://52.14.162.232/auth/realms/laboratorio-semillero/protocol/openid-connect/certs',
     issuer: process.env.KEYCLOAK_ISSUER
       || 'http://52.14.162.232/auth/realms/laboratorio-semillero',
+    otrosEmisores: process.env.KEYCLOAK_ISSUER ? [] : [EMISOR_DOMINIO],
   };
 }
 
@@ -41,7 +46,8 @@ function configDesdeEnv() {
  * Devuelve `verifyJwt(jwt) -> claims` (lanza Error si no es válido).
  * `ahora` (ms) se inyecta para pruebas.
  */
-function crearVerificador({ jwksUrl, issuer, ahora = Date.now }) {
+function crearVerificador({ jwksUrl, issuer, otrosEmisores = [], ahora = Date.now }) {
+  const emisores = [...String(issuer).split(','), ...otrosEmisores].map((e) => e.trim()).filter(Boolean);
   let cache = null;
   let cacheEn = 0;
 
@@ -75,7 +81,7 @@ function crearVerificador({ jwksUrl, issuer, ahora = Date.now }) {
 
     const ahoraS = Math.floor(ahora() / 1000);
     if (typeof payload.exp !== 'number' || payload.exp < ahoraS) throw new Error('token expirado');
-    if (payload.iss !== issuer) throw new Error(`issuer inesperado: ${payload.iss}`);
+    if (!emisores.includes(payload.iss)) throw new Error(`issuer inesperado: ${payload.iss}`);
 
     return payload; // el llamador decide qué campos necesita (sub, preferred_username, realm_access…)
   };
