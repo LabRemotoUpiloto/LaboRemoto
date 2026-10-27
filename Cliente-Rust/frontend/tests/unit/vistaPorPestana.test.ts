@@ -37,4 +37,12 @@ describe('useAppTabs: vista por pestaña', () => {
     act(() => result.current.setActiveTabId('s1'));
     expect(result.current.activeView).toBe('escritorio');
   });
+
+  it('reiniciarVista devuelve esa pestaña a la terminal (cuando su sesión cambia de práctica)', () => {
+    const { result } = renderHook(() => useAppTabs());
+    act(() => result.current.openSession('s1'));
+    act(() => result.current.setActiveView('escritorio'));
+    act(() => result.current.reiniciarVista('s1'));
+    expect(result.current.activeView).toBe('terminal');
+  });
 });
