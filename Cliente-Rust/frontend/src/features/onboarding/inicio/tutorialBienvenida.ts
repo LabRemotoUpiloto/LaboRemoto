@@ -6,6 +6,7 @@ import '../tourStyles.css';
 import './bienvenida.css';
 import { botonPausaNarrado, cuerpoNarrado, marcarPausa, tituloNarrado } from '../narrado';
 import { PASOS_BIENVENIDA, type EscenaTutorial, type PasoBienvenida } from './pasos';
+import { esperarElementoVisible } from '@/features/onboarding/elementoVisible';
 
 const PAUSA_ENTRE_PASOS_MS = 700;
 // Las categorías de Prácticas vienen de la Pi y pueden tardar: se espera un poco antes de caer al botón del menú.
@@ -60,26 +61,7 @@ function pararAudio() {
   if (audio) { audio.onended = null; audio.pause(); audio = null; }
 }
 
-/** El primer selector que exista en pantalla, esperando un poco a que la página recién abierta lo pinte. */
-function esperarElemento(selectores: string[]): Promise<Element | null> {
-  return new Promise((resolve) => {
-    const inicio = Date.now();
-    const buscar = () => {
-      for (const s of selectores) {
-        const el = document.querySelector(s);
-        const caja = el?.getBoundingClientRect();
-        if (el && caja && caja.width > 0 && caja.height > 0) return resolve(el);
-      }
-      // El primero es el preferido: mientras haya tiempo se espera por él; al final vale cualquiera de la lista.
-      if (Date.now() - inicio >= ESPERA_ELEMENTO_MS) {
-        for (const s of selectores) { const el = document.querySelector(s); if (el) return resolve(el); }
-        return resolve(null);
-      }
-      setTimeout(buscar, 80);
-    };
-    buscar();
-  });
-}
+const esperarElemento = (selectores: string[]) => esperarElementoVisible(selectores, ESPERA_ELEMENTO_MS);
 
 function descripcion(paso: PasoBienvenida, i: number): string {
   const ilustracion = paso.ilustracion ? `<div class="flex justify-center mb-3.5">${paso.ilustracion}</div>` : '';
