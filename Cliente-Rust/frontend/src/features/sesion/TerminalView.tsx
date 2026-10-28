@@ -15,6 +15,8 @@ import type { LinuxPracticeSessionApi } from '@/features/practicas/useLinuxPract
 import { isEv3Module } from '@/features/practicas/linuxPractice.service';
 import { VistaPracticaEv3 } from '@/features/practicas/ev3/VistaPracticaEv3';
 import type { VistaEscenario } from '@/features/practicas/ev3/necesidadesEv3';
+import { guardarVistaCompleta, leerVistaCompleta } from '@/features/practicas/ev3/preferenciaVista';
+import { useAuth } from '@/features/cuenta/useAuth';
 import SesionMosaico from './SesionMosaico';
 import { olvidar } from './herramientasSesion';
 import { EVENTO_ESCRIBIR, type DetalleEscribir } from './escribirEnTerminal';
@@ -35,20 +37,6 @@ interface TerminalViewProps {
   linuxSession?: LinuxPracticeSessionApi;
   /** Abre o cierra la cámara de esta sesión. En la vista guiada de EV3 es el «Robot real» del escenario. */
   onSetCameraOpen?: (open: boolean) => void;
-}
-
-/** Preferencia de cada estudiante: vista completa (terminal + Panel EV3) en vez de la guiada. */
-const CLAVE_VISTA_COMPLETA = 'labremoto.ev3.vistaCompleta';
-
-function leerVistaCompleta(): boolean {
-  try { return localStorage.getItem(CLAVE_VISTA_COMPLETA) === '1'; } catch { return false; }
-}
-
-function guardarVistaCompleta(valor: boolean) {
-  try {
-    if (valor) localStorage.setItem(CLAVE_VISTA_COMPLETA, '1');
-    else localStorage.removeItem(CLAVE_VISTA_COMPLETA);
-  } catch { /* sin almacenamiento: la preferencia dura lo que dure la sesión */ }
 }
 
 /**
@@ -116,8 +104,11 @@ const TerminalView: React.FC<TerminalViewProps> = (props) => {
 
   // Práctica de EV3 con robot: vista guiada (escenario + guía + riel), salvo que el estudiante prefiera la completa.
   const esEv3 = !!practiceId && isEv3Module(practiceId) && !!props.robotDashboardEnabled;
-  const [vistaCompleta, setVistaCompleta] = useState(leerVistaCompleta);
-  const cambiarVistaCompleta = (valor: boolean) => { guardarVistaCompleta(valor); setVistaCompleta(valor); };
+  // La preferencia es de cada estudiante, no del computador (ver preferenciaVista.ts).
+  const usuario = useAuth().user?.preferred_username ?? '';
+  const [vistaCompleta, setVistaCompleta] = useState(() => leerVistaCompleta(usuario));
+  useEffect(() => { setVistaCompleta(leerVistaCompleta(usuario)); }, [usuario]);
+  const cambiarVistaCompleta = (valor: boolean) => { guardarVistaCompleta(usuario, valor); setVistaCompleta(valor); };
 
   // El escenario muestra la cámara si la cámara de la sesión está abierta (así la abre el módulo y la alterna la
   // barra lateral); sin quién la controle desde App, decide el propio escenario.

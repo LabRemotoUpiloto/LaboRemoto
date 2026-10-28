@@ -14,7 +14,12 @@
 //! la vista «Probar con mi robot»; más adelante podrá venir embebida al compilar, como las de la práctica de Linux.
 //!
 //! Solo se aceptan direcciones de red local (IPv4 privada, de enlace local o loopback) y nombres `.local` o
-//! `localhost`: la app no debe poder apuntar a cualquier servidor de internet.
+//! `localhost`: la app no debe poder apuntar a cualquier servidor de internet. El propio computador (`localhost` o
+//! loopback) solo vale en el puerto de `api_simulador` (8080), para probar con el simulador sin robot: en otro puerto
+//! la app podría mandar POST a servicios locales que no son el robot.
+//!
+//! El cuerpo de cada orden se arma en `cuerpo_mover` / `cuerpo_detener`; el puente del laboratorio usa otro formato
+//! (`{port, speed}`, ver `ev3.rs`). Las pruebas de `ev3.rs` fijan los dos para que no se desalineen sin aviso.
 
 use std::net::Ipv4Addr;
 use std::time::Duration;
@@ -51,6 +56,11 @@ fn host_permitido(host: &str) -> bool {
     caracteres_ok && (nombre == "localhost" || (nombre.ends_with(".local") && nombre.len() > ".local".len()))
 }
 
+/// `localhost` o una IPv4 de loopback: el propio computador, no un robot de la red.
+fn es_este_computador(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost") || host.parse::<Ipv4Addr>().is_ok_and(|ip| ip.is_loopback())
+}
+
 /// Valida lo que escribió la persona: `host` o `host:puerto` (puerto 8080 por defecto).
 pub fn validar_robot(entrada: &str) -> Result<RobotDirecto, CommandError> {
     let entrada = entrada.trim();
@@ -72,6 +82,11 @@ pub fn validar_robot(entrada: &str) -> Result<RobotDirecto, CommandError> {
         return Err(invalida(
             "Solo se permiten direcciones de tu red local (IP privada) o nombres terminados en .local, como ev3dev.local.",
         ));
+    }
+    if es_este_computador(host) && puerto != PUERTO_ROBOT {
+        return Err(invalida(format!(
+            "En este mismo computador solo se puede usar el puerto {PUERTO_ROBOT}, el de api_simulador."
+        )));
     }
     let nombre = if puerto == PUERTO_ROBOT { host.to_string() } else { format!("{host}:{puerto}") };
     Ok(RobotDirecto { base: format!("http://{host}:{puerto}"), nombre })
@@ -152,16 +167,25 @@ async fn orden(robot: &RobotDirecto, ruta: &str, cuerpo: serde_json::Value) -> R
     Ok(Ev3ApiResult { status: "success".into(), message: texto })
 }
 
+/// Cuerpo de `POST /move` para `api_simulador`: `{motor, speed}`, con la velocidad en −100…100.
+pub(super) fn cuerpo_mover(puerto: &str, velocidad: i32) -> serde_json::Value {
+    serde_json::json!({ "motor": puerto, "speed": velocidad.clamp(-100, 100) })
+}
+
+/// Cuerpo de `POST /stop` para `api_simulador`: `{motor}` para uno solo, `{}` para los cuatro.
+pub(super) fn cuerpo_detener(puerto: Option<&str>) -> serde_json::Value {
+    match puerto {
+        Some(p) => serde_json::json!({ "motor": p }),
+        None => serde_json::json!({}),
+    }
+}
+
 pub async fn mover(robot: &RobotDirecto, puerto: &str, velocidad: i32) -> Result<Ev3ApiResult, CommandError> {
-    orden(robot, "/move", serde_json::json!({ "motor": puerto, "speed": velocidad.clamp(-100, 100) })).await
+    orden(robot, "/move", cuerpo_mover(puerto, velocidad)).await
 }
 
 pub async fn detener(robot: &RobotDirecto, puerto: Option<&str>) -> Result<Ev3ApiResult, CommandError> {
-    let cuerpo = match puerto {
-        Some(p) => serde_json::json!({ "motor": p }),
-        None => serde_json::json!({}),
-    };
-    orden(robot, "/stop", cuerpo).await
+    orden(robot, "/stop", cuerpo_detener(puerto)).await
 }
 
 #[cfg(test)]
@@ -186,7 +210,19 @@ mod tests {
         assert!(validar_robot(&ip(10, 42, 0, 3)).is_ok());
         assert!(validar_robot(&ip(169, 254, 7, 9)).is_ok());
         assert!(validar_robot("ev3dev.local").is_ok());
-        assert!(validar_robot("localhost:9090").is_ok());
+    }
+
+    #[test]
+    fn este_computador_solo_en_el_puerto_de_api_simulador() {
+        // Para probar con el simulador en el mismo equipo: localhost o loopback, solo en el 8080.
+        assert_eq!(validar_robot("localhost").unwrap().base, "http://localhost:8080");
+        assert!(validar_robot("LocalHost:8080").is_ok());
+        assert!(validar_robot(&format!("{}:8080", ip(127, 0, 0, 1))).is_ok());
+        // En otro puerto podría ser cualquier servicio local que no es el robot.
+        assert!(validar_robot("localhost:9090").is_err());
+        assert!(validar_robot("localhost:5174").is_err());
+        assert!(validar_robot(&format!("{}:22", ip(127, 0, 0, 1))).is_err());
+        assert!(validar_robot(&format!("{}:3000", ip(127, 1, 2, 3))).is_err());
     }
 
     #[test]

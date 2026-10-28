@@ -210,6 +210,20 @@ fn ev3_api_error(id: &str, operation: &str, code: u16, body: &str) -> CommandErr
     .with_context(operation, id)
 }
 
+/// Cuerpo de `POST /api/motor` para el puente del laboratorio (`ev3_bridge.py`): `{port, speed}`.
+/// El robot directo usa `{motor, speed}` (`ev3_directo::cuerpo_mover`); las pruebas fijan los dos.
+fn cuerpo_motor_puente(port: &str, speed: i32) -> serde_json::Value {
+    serde_json::json!({ "port": port, "speed": speed.clamp(-100, 100) })
+}
+
+/// Cuerpo de `POST /api/stop_all` para el puente: `{port}` para un motor, `{}` para todos.
+fn cuerpo_detener_puente(port: Option<&str>) -> serde_json::Value {
+    match port {
+        Some(p) => serde_json::json!({ "port": p }),
+        None => serde_json::json!({}),
+    }
+}
+
 /// Mueve un motor. `port` acepta `"A"`/`"outA"`; `speed` en % (−100…100).
 /// Con `robot`, la orden va directo al robot físico (ver `ev3_status`).
 #[tauri::command]
@@ -225,7 +239,7 @@ pub async fn ev3_set_motor(
         return super::ev3_directo::mover(&r, &port, speed).await;
     }
     tokio::task::spawn_blocking(move || {
-        let payload = serde_json::json!({ "port": port, "speed": speed }).to_string();
+        let payload = cuerpo_motor_puente(&port, speed).to_string();
         let quoted = bash_quote(&payload);
         let inner = format!(
             "curl -s --max-time 5 -X POST -H 'Content-Type: application/json' -o - -w '\\n\\t%{{http_code}}' {}/api/motor -d {}",
@@ -255,10 +269,7 @@ pub async fn ev3_stop_all(
         return super::ev3_directo::detener(&r, port.as_deref()).await;
     }
     tokio::task::spawn_blocking(move || {
-        let payload = match &port {
-            Some(p) => serde_json::json!({ "port": p }).to_string(),
-            None => "{}".to_string(),
-        };
+        let payload = cuerpo_detener_puente(port.as_deref()).to_string();
         let quoted = bash_quote(&payload);
         let inner = format!(
             "curl -s --max-time 5 -X POST -H 'Content-Type: application/json' -o - -w '\\n\\t%{{http_code}}' {}/api/stop_all -d {}",
@@ -287,6 +298,32 @@ mod tests {
             "sensors":[],"alerts":[]}"#;
         let st: Ev3Status = serde_json::from_str(body).unwrap();
         assert_eq!(st.motors[0].position, Some(-360));
+    }
+
+    /// Los dos caminos hablan con servidores distintos: el puente del laboratorio (`ev3_bridge.py`) y el robot
+    /// directo (`api_simulador/main.py`). Si alguno cambia su formato, esta prueba avisa.
+    #[test]
+    fn contratos_del_motor_en_los_dos_caminos() {
+        use super::super::ev3_directo::{cuerpo_detener, cuerpo_mover};
+        use serde_json::json;
+
+        // Mover: el puente espera `port`, el robot directo `motor`; la velocidad, igual y limitada en los dos.
+        assert_eq!(cuerpo_motor_puente("outB", 40), json!({ "port": "outB", "speed": 40 }));
+        assert_eq!(cuerpo_mover("outB", 40), json!({ "motor": "outB", "speed": 40 }));
+        assert_eq!(cuerpo_motor_puente("outA", 250), json!({ "port": "outA", "speed": 100 }));
+        assert_eq!(cuerpo_mover("outA", 250), json!({ "motor": "outA", "speed": 100 }));
+        assert_eq!(cuerpo_motor_puente("D", -300), json!({ "port": "D", "speed": -100 }));
+        assert_eq!(cuerpo_mover("D", -300), json!({ "motor": "D", "speed": -100 }));
+
+        // Detener uno o todos.
+        assert_eq!(cuerpo_detener_puente(Some("outC")), json!({ "port": "outC" }));
+        assert_eq!(cuerpo_detener(Some("outC")), json!({ "motor": "outC" }));
+        assert_eq!(cuerpo_detener_puente(None), json!({}));
+        assert_eq!(cuerpo_detener(None), json!({}));
+
+        // Lo que viaja por la terminal al puente es exactamente este texto (va entre comillas en el curl).
+        assert_eq!(cuerpo_motor_puente("outB", 40).to_string(), r#"{"port":"outB","speed":40}"#);
+        assert_eq!(cuerpo_detener_puente(None).to_string(), "{}");
     }
 
     #[test]
