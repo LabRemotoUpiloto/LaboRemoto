@@ -18,6 +18,7 @@ pub mod sesiones;    // Registro central de sesiones de práctica (vía broker)
 pub mod moodle_cursos; // Cursos y prácticas desde Moodle (vía broker)
 pub mod camaras_admin; // Administración de cámaras (crear/editar/eliminar/probar, vía broker)
 pub mod encuestas; // Encuesta al terminar una práctica (vía broker de sesiones)
+pub mod registros; // Registro de la terminal de cada intento de práctica, guardado en la Pi (vía broker de sesiones)
 pub mod dispositivos; // Conexiones SSH a los dispositivos (pestaña Dispositivos de Actividad, vía broker)
 pub mod comandos;    // Comandos guardados (antes snippets), en un JSON local
 pub mod logs;        // Sistema de logs de sesión

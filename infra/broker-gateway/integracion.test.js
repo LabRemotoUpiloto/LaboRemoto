@@ -151,6 +151,7 @@ test.before(async () => {
   arrancar('broker-sesiones/server.js', {
     ...keycloak, PORT: pSes, SESIONES_FILE: path.join(tmp, 'sesiones.jsonl'),
     DISPOSITIVOS_JSON: JSON.stringify({ pi4: { nombre: 'Pi4', token: 'token-del-agente' } }), DISPOSITIVOS_FILE: path.join(tmp, 'dispositivos.jsonl'), ENCUESTAS_FILE: path.join(tmp, 'encuestas.jsonl'),
+    REGISTROS_DIR: path.join(tmp, 'registros'),
   });
   const moodle = arrancar('broker-moodle/server.js', {
     ...keycloak, PORT: pMoo, MOODLE_URL: `http://127.0.0.1:${moodleFalso.address().port}`, MOODLE_TOKEN: 'tok', MOODLE_HOST_HEADER: 'localhost:8080',
@@ -339,4 +340,24 @@ test('encuestas: el estudiante responde por la puerta de entrada y solo la super
   assert.strictEqual(r.status, 200);
   assert.strictEqual(r.json.practicas[0].respuestas, 1);
   assert.doesNotMatch(r.texto, /ana-perez/);
+});
+
+test('registros: el intento llega por la puerta de entrada a la carpeta de quien lo hizo y solo el personal autorizado lo lee', async () => {
+  const zlib = require('node:zlib');
+  const gzipBase64 = zlib.gzipSync(Buffer.from('<!DOCTYPE html><html><body>pwd</body></html>')).toString('base64');
+  const ahora = new Date().toISOString();
+  const cuerpo = { id: 'intento-integracion-1', practica: 'linux-m1', estado: 'terminada', inicio: ahora, fin: ahora, nota: 80, gzipBase64 };
+  assert.strictEqual((await pedir('POST', '/nvr/registros', { cuerpo })).status, 401);
+  const est = jwt(g.priv, { usuario: 'ana-perez' });
+  const r = await pedir('POST', '/nvr/registros', { token: est, cuerpo });
+  assert.strictEqual(r.status, 201);
+  assert.match(r.json.archivo, /^ana-perez\/Nombre-Ana-Perez_linux-m1_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.html$/);
+  assert.ok(fs.existsSync(path.join(g.tmp, 'registros', ...r.json.archivo.split('/'))));
+  assert.strictEqual((await pedir('GET', '/nvr/registros', { token: est })).status, 403);
+  const admin = jwt(g.priv, { usuario: 'admin@x', roles: ['admin_lab'] });
+  const lista = await pedir('GET', '/nvr/registros?dias=20', { token: admin });
+  assert.strictEqual(lista.status, 200);
+  const [x] = lista.json.registros;
+  const html = await pedir('GET', `/nvr/registros/archivo?carpeta=${x.carpeta}&id=${x.id}`, { token: admin });
+  assert.deepStrictEqual([html.status, html.texto], [200, '<!DOCTYPE html><html><body>pwd</body></html>']);
 });

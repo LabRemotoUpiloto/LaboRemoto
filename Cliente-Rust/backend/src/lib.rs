@@ -224,6 +224,12 @@ pub fn run() {
       cmd::encuestas::encuestas_enviar,
       cmd::encuestas::encuestas_mia,
       cmd::encuestas::encuestas_resumen,
+      cmd::registros::registros_guardar_copia,
+      cmd::registros::registros_enviar_intento,
+      cmd::registros::registros_enviar_pendientes,
+      cmd::registros::registros_listar,
+      cmd::registros::registros_archivo,
+      cmd::registros::app_cerrar,
       // Agente AI con tools (tool_use loop + contexto terminal)
       cmd::tools::tools::get_terminal_context,
       cmd::tools::pi4_config::pi4_agent_ready,
@@ -280,7 +286,14 @@ pub fn run() {
       crate::auth::commands::account_get_avatar,
       crate::auth::commands::account_set_avatar,
     ])
-    .on_window_event(|_win, event| {
+    .on_window_event(|win, event| {
+      // Al cerrar la ventana principal, primero se mandan los registros de las prácticas abiertas (cmd::registros).
+      if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        if crate::cmd::registros::detener_cierre(win) {
+          api.prevent_close();
+          return;
+        }
+      }
       if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {
         crate::cmd::vnc::cleanup_all_vnc_sessions();
         // En Windows los procesos hijos no mueren con el padre: matar las

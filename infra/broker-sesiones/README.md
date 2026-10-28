@@ -31,5 +31,18 @@ conexiones **nuevas** (no importa historial). Lo alimenta `../agente-conexiones`
 - Las cuentas del LDAP (`UPILOTO\x`, `UPILOTOx`, `x@upiloto.edu`, `x@upc.edu.co`) se normalizan a `UPILOTO\persona`.
 - Datos en `dispositivos.jsonl` (`DISPOSITIVOS_FILE`, 90 días). En el log solo se escribe el id de sesión y la persona, nunca la IP ni el token.
 
+## Registros de la terminal de las prácticas (`registros.js`)
+Lo que cada estudiante hizo en la terminal durante una práctica de Linux, guardado aquí (antes solo quedaba en el equipo donde la
+hizo). Un **intento** es una práctica abierta en una pestaña de la app: la app lo manda al **aprobarla**, al **cerrar la pestaña** sin
+terminarla y al **cerrar la app**, y cada 2 minutos deja una copia en el equipo por si se cuelga (se manda al volver a iniciar sesión).
+- `POST /nvr/registros` — `{id, practica, practicaNombre?, estado: terminada|sin_terminar|app_cerrada, inicio, fin, nota?, gzipBase64}`.
+  Cualquier persona con sesión, **solo en su carpeta** (sale del token). Un envío del mismo `id` **reemplaza** el archivo: un archivo por
+  intento. Aprobada una vez, queda «terminada». Tope: 1 MB por petición, lo que deja pasar el nginx de AWS; si el registro comprimido no cabe, la app recorta el principio
+  (queda lo más reciente) y lo avisa dentro del registro.
+- `GET /nvr/registros?dias=N` y `GET /nvr/registros/archivo?carpeta=C&id=I` — solo `admin_lab`, `semillerista` y `docente` (rol o
+  `user_type`; debe coincidir con `REGISTROS_ESTUDIANTES` en `usePermissions.ts`). En la app: Conexiones → «Prácticas de estudiantes».
+- Archivos: `REGISTROS_DIR/<usuario>/<Nombre-Del-Estudiante>_<practica>_<AAAA-MM-DD_HH-MM-SS>.html` (hora de inicio, Bogotá) y el
+  índice `registros.jsonl`. Se borran a los **20 días** (revisión cada hora).
+
 ## Configuración (ver `sesiones.env.example`)
-`PORT` (8093), `SESIONES_FILE`, `SESIONES_WEBHOOK_URL`, `IPINFO_TOKEN`, `DISPOSITIVOS_JSON`, `DISPOSITIVOS_FILE` y las de Keycloak.
+`PORT` (8093), `SESIONES_FILE`, `SESIONES_WEBHOOK_URL`, `IPINFO_TOKEN`, `DISPOSITIVOS_JSON`, `DISPOSITIVOS_FILE`, `REGISTROS_DIR` y las de Keycloak.

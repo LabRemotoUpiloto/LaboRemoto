@@ -59,6 +59,9 @@ const STAFF: EffectiveRole[] = ['admin_lab', 'jefe_laboratorio', 'coordinador_la
 const TECHNICAL: EffectiveRole[] = ['admin_lab', 'semillerista']
 // Logs: el personal y también el docente.
 const LOGS: EffectiveRole[] = [...STAFF, 'docente']
+// Registros de las prácticas de los estudiantes (guardados en la Pi). Debe coincidir con ROLES_LECTURA en
+// infra/broker-sesiones/registros.js; el docente llega como rol o como `user_type`.
+const REGISTROS_ESTUDIANTES: EffectiveRole[] = ['admin_lab', 'semillerista', 'docente']
 // Debe coincidir con RESUMEN_ROLES en infra/broker-sesiones/sesiones.js.
 const SUPERVISION: EffectiveRole[] = ['admin_lab', 'jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista']
 
@@ -92,6 +95,8 @@ const PAGE_ACCESS: Record<string, EffectiveRole[]> = {
   sftp: TECHNICAL,
   snippets: TECHNICAL,
   logs: LOGS,
+  // Pestaña «Prácticas de estudiantes» de Conexiones
+  'registros-estudiantes': REGISTROS_ESTUDIANTES,
   vigilancia: STAFF,
   dashboard: SUPERVISION,
   // Las encuestas (pestaña de Prácticas) las lee el mismo personal que Actividad (el broker exige los mismos roles).

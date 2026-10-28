@@ -1,6 +1,7 @@
 // features/conexion/ConexionesPage.tsx — Conexiones: una sola página para conectarse. Junta lo que eran Nueva conexión,
 // Terminal local, Equipos guardados y Sesiones SSH (pestaña «Registros»). Cada rol ve solo su parte: conectarse es de
-// semillerista y administrador (permiso 'hosts'); los registros, del personal y el docente (permiso 'logs').
+// semillerista y administrador (permiso 'hosts'); los registros, del personal y el docente (permiso 'logs'); las prácticas
+// de los estudiantes guardadas en la Pi, de administrador, semillerista y docente (permiso 'registros-estudiantes').
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Pencil, Plus, Search, SquareTerminal, Trash2 } from 'lucide-react';
 import { useToasts } from '@/app/providers/ToastContext';
@@ -10,6 +11,7 @@ import {
 } from '@/components/ui';
 import { canAccessPage, useEffectiveRole } from '@/features/cuenta/usePermissions';
 import LogsPage from '@/features/logs/LogsPage';
+import RegistrosEstudiantes from '@/features/registros/RegistrosEstudiantes';
 import type { SessionLog } from '@/features/logs/sesiones';
 import { KNOWN_DEVICES, getDeviceLabel, isRaspberryPi4 } from '@/lib/devices';
 import { deleteHostFile, listHostEntries, type SavedHostFileEntry } from '@/lib/storage.service';
@@ -18,7 +20,7 @@ import { useConectarGuardado } from './useConectarGuardado';
 import { useRecentConnections, type RecentConnection } from './useRecentConnections';
 import { precargar } from '@/app/diferidos';
 
-export type PestanaConexiones = 'equipos' | 'registros';
+export type PestanaConexiones = 'equipos' | 'registros' | 'estudiantes';
 const POR_PAGINA = 8;
 
 const PI: EquipoRapido = {
@@ -52,15 +54,25 @@ export default function ConexionesPage({ onConnected, onOpenLog, pestanaInicial 
   const conEquipos = canAccessPage('hosts', role);
   const conRegistros = canAccessPage('logs', role);
   const conTerminal = canAccessPage('local-terminal-new', role);
-  const [pestana, setPestana] = useState<PestanaConexiones>(conEquipos ? pestanaInicial : 'registros');
-  useEffect(() => { setPestana(conEquipos ? pestanaInicial : 'registros'); }, [pestanaInicial, conEquipos]);
+  const conEstudiantes = canAccessPage('registros-estudiantes', role);
+  const opciones = useMemo(() => ([
+    conEquipos && { valor: 'equipos', etiqueta: 'Equipos' },
+    conRegistros && { valor: 'registros', etiqueta: 'Registros' },
+    conEstudiantes && { valor: 'estudiantes', etiqueta: 'Prácticas de estudiantes' },
+  ].filter(Boolean) as { valor: PestanaConexiones; etiqueta: string }[]), [conEquipos, conRegistros, conEstudiantes]);
+  // la pestaña pedida, si este rol la tiene; si no, la primera que sí
+  const inicial = opciones.some((o) => o.valor === pestanaInicial) ? pestanaInicial : (opciones[0]?.valor ?? 'registros');
+  const [pestana, setPestana] = useState<PestanaConexiones>(inicial);
+  useEffect(() => { setPestana(inicial); }, [inicial]);
 
   return (
     <Pagina>
       <Encabezado titulo="Conexiones"
         descripcion={conEquipos
           ? 'Entra por SSH a un equipo del laboratorio o a tu propio servidor, o abre una terminal en este computador.'
-          : 'Historial de las sesiones SSH: quién entró, a qué equipo, cuánto duró y qué comandos usó.'}
+          : conEstudiantes
+            ? 'Historial de las sesiones SSH y lo que hizo cada estudiante en la terminal durante sus prácticas.'
+            : 'Historial de las sesiones SSH: quién entró, a qué equipo, cuánto duró y qué comandos usó.'}
         derecha={conEquipos && <>
           {conTerminal && (
             <Boton onClick={() => window.dispatchEvent(new CustomEvent('app:open-local-terminal'))}>
@@ -71,12 +83,13 @@ export default function ConexionesPage({ onConnected, onOpenLog, pestanaInicial 
             <Plus size={15} aria-hidden /> Nueva conexión
           </BotonPrincipal>
         </>}
-        pestanas={conEquipos && conRegistros && (
-          <Pestanas<PestanaConexiones> valor={pestana} onCambio={setPestana} nombre="Secciones de Conexiones"
-            opciones={[{ valor: 'equipos', etiqueta: 'Equipos' }, { valor: 'registros', etiqueta: 'Registros' }]} />
+        pestanas={opciones.length > 1 && (
+          <Pestanas<PestanaConexiones> valor={pestana} onCambio={setPestana} nombre="Secciones de Conexiones" opciones={opciones} />
         )} />
 
-      {pestana === 'registros' ? <LogsPage incrustada onOpenLog={onOpenLog} /> : <Equipos onConnected={onConnected} />}
+      {pestana === 'registros' ? <LogsPage incrustada onOpenLog={onOpenLog} />
+        : pestana === 'estudiantes' ? <RegistrosEstudiantes />
+        : <Equipos onConnected={onConnected} />}
     </Pagina>
   );
 }

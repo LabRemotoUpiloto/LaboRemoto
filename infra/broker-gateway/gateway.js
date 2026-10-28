@@ -6,7 +6,7 @@
 // siguen respondiendo.
 //
 //   /nvr/monitor, /nvr/hls, /nvr/ptz, /nvr/whep, /nvr/camaras  -> broker-camaras   (UPSTREAM_CAMARAS,  http://127.0.0.1:8092)
-//   /nvr/sesiones, /nvr/encuestas, /nvr/dispositivos/resumen -> broker-sesiones  (UPSTREAM_SESIONES, http://127.0.0.1:8093)
+//   /nvr/sesiones, /nvr/encuestas, /nvr/registros, /nvr/dispositivos/resumen -> broker-sesiones  (UPSTREAM_SESIONES, http://127.0.0.1:8093)
 //   /nvr/moodle                                  -> broker-moodle    (UPSTREAM_MOODLE,   http://127.0.0.1:8094)
 
 const http = require('node:http');
@@ -26,7 +26,7 @@ function upstreamsDesdeEnv(env = process.env) {
 function servicioDe(parts) {
   if (parts[0] !== 'nvr' || parts.length < 2) return null;
   if (RUTAS_CAMARAS.has(parts[1])) return 'camaras';
-  if (parts[1] === 'sesiones' || parts[1] === 'encuestas') return 'sesiones';
+  if (parts[1] === 'sesiones' || parts[1] === 'encuestas' || parts[1] === 'registros') return 'sesiones';
   // Dispositivos: solo la consulta (con JWT). La ruta de eventos es del agente y es solo local: no se publica.
   if (parts[1] === 'dispositivos') return parts.length === 3 && parts[2] === 'resumen' ? 'sesiones' : null;
   if (parts[1] === 'moodle') return 'moodle';
