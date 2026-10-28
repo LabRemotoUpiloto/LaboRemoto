@@ -1,0 +1,188 @@
+# Arquitectura general de LaboRemoto: qué hace cada máquina y cómo se conectan.
+# Vista de alto nivel: sin direcciones, puertos ni protocolos (eso va en docs/infra).
+# Render:  d2 docs/arquitectura/arquitectura-general.d2 docs/arquitectura/arquitectura-general.svg
+#
+# Para añadir un componente: copia uno de los bloques de su máquina y, si hace falta, agrega la
+# flecha abajo en «Conexiones». Un color por máquina; naranja = la voz; punteado = apoyo.
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 50
+  }
+}
+
+direction: down
+
+titulo: Arquitectura general de LaboRemoto {
+  near: top-center
+  shape: text
+  style: {
+    font-size: 40
+    bold: true
+  }
+}
+
+# ── Quién usa el laboratorio ────────────────────────────────────────────────────────────────
+
+personas: "Estudiante · Docente · Administrador" {
+  shape: person
+  width: 110
+  height: 110
+  style.fill: "#e8f1fb"
+}
+
+app: "App de escritorio\n(Tauri + React + Rust)\nLo único que instala cada persona" {
+  shape: rectangle
+  style: {
+    fill: "#fdecea"
+    stroke: "#d51f22"
+    stroke-width: 3
+    border-radius: 12
+    font-size: 20
+    bold: true
+  }
+}
+
+# ── Máquinas del laboratorio ────────────────────────────────────────────────────────────────
+
+identidad: "Servidor de identidad\nQuién eres y qué puedes hacer" {
+  style: {
+    fill: "#f3ecfa"
+    stroke: "#7e57c2"
+    border-radius: 12
+    font-size: 18
+  }
+
+  keycloak: "Keycloak\nInicio de sesión único\ny roles" {
+    style.fill: "#ffffff"
+  }
+  bd_usuarios: "Base de datos\nUsuarios y roles" {
+    shape: cylinder
+    style.fill: "#ffffff"
+  }
+  keycloak -> bd_usuarios
+}
+
+pi4: "Raspberry Pi 4 · Servidor central\nLo que ve y hace la persona durante la práctica" {
+  style: {
+    fill: "#e8f1fb"
+    stroke: "#1e88e5"
+    border-radius: 12
+    font-size: 18
+  }
+
+  ssh: "Terminal de la práctica\nLa persona escribe comandos\nen un equipo real" {
+    style.fill: "#ffffff"
+  }
+  video: "Video en vivo y grabación\nMuestra las cámaras\nen la app" {
+    style.fill: "#ffffff"
+  }
+  practicas: "API de prácticas\nGuarda los módulos y\nvalida lo que hace la persona" {
+    style.fill: "#ffffff"
+  }
+  laboratorio: "API del laboratorio\nSesiones, notas, cámaras,\nencuestas y actividad" {
+    style.fill: "#ffffff"
+  }
+  bd: "Base de datos\nSesiones y encuestas" {
+    shape: cylinder
+    style.fill: "#ffffff"
+  }
+  laboratorio -> bd
+}
+
+pi5: "Raspberry Pi 5\nCursos y robot" {
+  style: {
+    fill: "#e9f6ec"
+    stroke: "#2e7d32"
+    border-radius: 12
+    font-size: 18
+  }
+
+  moodle: "Moodle\nCursos, tareas y notas\nde los estudiantes" {
+    style.fill: "#ffffff"
+  }
+  api_robot: "API del robot\nRecibe los bloques de la\npersona y los ejecuta" {
+    style.fill: "#ffffff"
+  }
+}
+
+jetson: "NVIDIA Jetson\nTutor conversacional por voz" {
+  style: {
+    fill: "#fff3e0"
+    stroke: "#ef6c00"
+    border-radius: 12
+    font-size: 18
+  }
+
+  agente: "Agente de voz\nEscucha a la persona (voz a texto),\npiensa con un modelo local que\nconoce la práctica y le responde\nhablando (texto a voz)" {
+    style.fill: "#ffffff"
+  }
+}
+
+monitoreo: "Servidor de monitoreo\nVigila las máquinas y\navisa por Teams" {
+  style: {
+    fill: "#f5f5f5"
+    stroke: "#757575"
+    border-radius: 12
+  }
+}
+
+# ── Equipos reales (solo red interna) ───────────────────────────────────────────────────────
+
+dispositivos: "Equipos reales\nSolo red interna del laboratorio" {
+  label.near: bottom-center
+  style: {
+    fill: "#eeeeee"
+    stroke: "#616161"
+    border-radius: 12
+    font-size: 18
+  }
+
+  camaras: "5 cámaras" {
+    style.fill: "#ffffff"
+  }
+  robot: "Robot LEGO EV3" {
+    style.fill: "#ffffff"
+  }
+}
+
+# ── Conexiones ──────────────────────────────────────────────────────────────────────────────
+# Van de máquina a máquina: el detalle de cada una está dentro de su recuadro.
+
+personas -> app: usa
+
+app -> identidad: "inicia sesión"
+app -> pi4: "terminal, video en vivo,\nprácticas, sesiones y notas"
+app -> pi5: "cursos y notas de Moodle,\nenvío de bloques al robot"
+app -> jetson: "habla y escucha" {
+  style: {
+    stroke: "#ef6c00"
+    stroke-width: 3
+  }
+}
+
+pi4 -> identidad: "comprueba quién es" {
+  style.stroke-dash: 4
+}
+pi4 -> pi5: "envía la nota\na Moodle"
+pi4 <-> dispositivos.camaras: "recibe el video y\nmueve las cámaras"
+
+jetson -> pi4: "lee la práctica" {
+  style: {
+    stroke: "#ef6c00"
+    stroke-width: 3
+  }
+}
+jetson -> pi5: "consulta el estado\ndel robot" {
+  style: {
+    stroke: "#ef6c00"
+    stroke-width: 3
+  }
+}
+
+pi5 -> dispositivos.robot: "ejecuta los bloques"
+
+monitoreo -> pi4: "vigila y alerta" {
+  style.stroke-dash: 4
+}
