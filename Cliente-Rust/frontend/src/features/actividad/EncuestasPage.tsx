@@ -2,7 +2,6 @@
 // funcionamiento). Anónimo: el servidor nunca manda quién respondió. Antes era una pestaña de Actividad; no es actividad.
 import { useEffect, useState, type ReactNode } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { RefreshCw } from 'lucide-react';
 import {
   Aviso, Barra, Boton, BarraAcento, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Seccion, TARJETA,
   TEXTO_NIVEL, paginar,
@@ -10,6 +9,7 @@ import {
 import { encuestasService, type ResumenPracticaEncuesta } from '@/features/practicas/encuestas.service';
 import { nivelNota5, nota5, problemasOrdenados, repartoDificultad } from './encuestasStats';
 import { useResumen } from './useResumen';
+import { BotonActualizar, useActualizar } from './BotonActualizar';
 
 const COMENTARIOS_POR_PAGINA = 5;
 
@@ -27,8 +27,8 @@ const PREGUNTAS: { clave: keyof ResumenPracticaEncuesta['promedios']; etiqueta: 
 export default function EncuestasPage({ incrustada = false }: { incrustada?: boolean }) {
   // Las encuestas se juntan más despacio que la actividad: el período va de 30 días a un año.
   const [dias, setDias] = useState('90');
-  const [recarga, setRecarga] = useState(0);
-  const { datos, error, cargando } = useResumen(encuestasService.resumen, Number(dias), recarga);
+  const { datos, error, cargando, recargar } = useResumen(encuestasService.resumen, Number(dias));
+  const { actualizando, actualizar } = useActualizar([recargar], { bien: 'Encuestas actualizadas', mal: 'No se pudieron actualizar las encuestas' });
   const [nombres, setNombres] = useState<Record<string, string>>({});
 
   // Nombre de cada práctica (las encuestas llegan con el id, p. ej. «linux»).
@@ -42,7 +42,7 @@ export default function EncuestasPage({ incrustada = false }: { incrustada?: boo
     <>
       <Desplegable etiqueta="Período" valor={dias} onCambio={setDias} className="w-[180px]"
         opciones={[{ valor: '30', etiqueta: 'Últimos 30 días' }, { valor: '90', etiqueta: 'Últimos 90 días' }, { valor: '365', etiqueta: 'Último año' }]} />
-      <Boton onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={14} aria-hidden /> Actualizar</Boton>
+      <BotonActualizar actualizando={actualizando} onClick={() => void actualizar()} />
     </>
   );
   const Marco = incrustada ? Incrustada : Pagina;
@@ -63,7 +63,7 @@ export default function EncuestasPage({ incrustada = false }: { incrustada?: boo
         <div className={`${TARJETA} h-[240px] bg-ui-pista`} role="status" aria-busy="true"><span className="sr-only">Cargando…</span></div>
       ) : error && !datos ? (
         <Aviso nivel="critico" titulo="No se pudieron cargar las encuestas" detalle={error}
-          accion={<Boton onClick={() => setRecarga((n) => n + 1)}>Reintentar</Boton>} />
+          accion={<Boton onClick={() => void actualizar()} disabled={actualizando}>Reintentar</Boton>} />
       ) : !datos?.practicas.length ? (
         <Aviso titulo="Todavía no hay encuestas en este período"
           detalle="Aparecen cuando un estudiante termina todos los módulos de una práctica." />

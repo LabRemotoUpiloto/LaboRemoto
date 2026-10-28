@@ -2,19 +2,21 @@
 // Dos preguntas arriba y todo lo de abajo responde a ellas: cuándo (en vivo / histórico) y qué (prácticas, trabajo por SSH, la app).
 // El mapa es el protagonista; a su lado, la lista de quién está (en vivo) o de quién estuvo (histórico). Las listas van paginadas.
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import {
-  Aviso, Boton, Buscador, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Seccion, Selector,
+  Aviso, Boton, Buscador, CampoFecha, Desplegable, Encabezado, ETIQUETA, NOTA, Num, Pagina, Paginador, Seccion, Selector,
   TARJETA, Tabla, paginar,
 } from '@/components/ui';
 import { sesionesService } from './sesiones.service';
 import { dispositivosService } from './dispositivos.service';
 import { haceTiempo } from './dispositivosStats';
 import { useResumen } from './useResumen';
+import { BotonActualizar, useActualizar } from './BotonActualizar';
 import MapaActividad, { type PuntoMapa } from './MapaActividad';
 import {
-  cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, diaCorto, enVivo, fechaCorta, lapso, lugares, nombreOperador,
-  paraRevisar, personas, porDia, recientes, TEXTO_MOTIVO, TEXTO_TIPO, total, type Actividad, type Filtro, type Tipo,
+  ajustarRango, cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, enVivo, fechaCorta, isoLocal, lapso, limitesRango,
+  lugares, nombreOperador, paraRevisar, periodo, personas, porDia, porHora, recientes, TEXTO_MOTIVO, TEXTO_TIPO, total,
+  type Actividad, type Filtro, type OpcionPeriodo, type Periodo, type Rango, type Tipo,
 } from './actividad';
 
 type Cuando = 'vivo' | 'historico';
@@ -27,15 +29,22 @@ const POR_PAGINA_REVISAR = 5;
 export default function DashboardPage() {
   const [cuando, setCuando] = useState<Cuando>('vivo');
   const [filtro, setFiltro] = useState<Filtro>('todo');
-  const [dias, setDias] = useState('30');
-  const [recarga, setRecarga] = useState(0);
-  // En vivo basta con lo reciente (y «lo último» si no hay nadie); el histórico pide su período.
-  const diasPedidos = cuando === 'vivo' ? 7 : Number(dias);
+  const [opcion, setOpcion] = useState<OpcionPeriodo>('30');
+  // El rango a mano arranca en la última semana; los brokers guardan 90 días, así que no se puede ir más atrás.
+  const [rango, setRango] = useState<Rango>(() => ({ desde: isoLocal(Date.now() - 6 * 86_400_000), hasta: isoLocal(Date.now()) }));
+  // En vivo basta con lo reciente (y «lo último» si no hay nadie); el histórico pide lo que cubra su período.
+  const diasPedidos = useMemo(() => (cuando === 'vivo' ? 7 : periodo(opcion, rango, Date.now()).pedir), [cuando, opcion, rango]);
   const refresco = cuando === 'vivo' ? 15_000 : 60_000;
-  const sesiones = useResumen(sesionesService.resumen, diasPedidos, recarga, refresco);
-  const equipos = useResumen(dispositivosService.resumen, diasPedidos, recarga, refresco);
+  const sesiones = useResumen(sesionesService.resumen, diasPedidos, refresco);
+  const equipos = useResumen(dispositivosService.resumen, diasPedidos, refresco);
+  const { actualizando, actualizar } = useActualizar([sesiones.recargar, equipos.recargar],
+    { bien: 'Actividad actualizada', mal: 'No se pudo actualizar la actividad' });
   const ahora = Math.max(sesiones.ahora, equipos.ahora);
   const dispositivos = equipos.datos?.dispositivos ?? [];
+  const elPeriodo = useMemo(() => periodo(opcion, rango, ahora), [opcion, rango, ahora]);
+  const limites = limitesRango(ahora);
+  // Ya hay algo en pantalla y se está volviendo a pedir: se atenúa para que se vea que se recarga.
+  const recargando = actualizando || ((sesiones.cargando || equipos.cargando) && !!sesiones.datos);
 
   const todas = useMemo(() => {
     const deSesiones = desdeSesiones(sesiones.datos?.sesiones ?? []);
@@ -57,10 +66,22 @@ export default function DashboardPage() {
           <Selector<Cuando> nombre="Cuándo" valor={cuando} onCambio={setCuando}
             opciones={[{ valor: 'vivo', etiqueta: 'En vivo' }, { valor: 'historico', etiqueta: 'Histórico' }]} />
           {cuando === 'historico' && (
-            <Desplegable etiqueta="Período" valor={dias} onCambio={setDias} className="w-[180px]"
-              opciones={[{ valor: '7', etiqueta: 'Últimos 7 días' }, { valor: '30', etiqueta: 'Últimos 30 días' }, { valor: '90', etiqueta: 'Últimos 90 días' }]} />
+            <Desplegable<OpcionPeriodo> etiqueta="Período" valor={opcion} onCambio={setOpcion} className="w-[180px]"
+              opciones={[
+                { valor: 'hoy', etiqueta: 'Hoy' }, { valor: '7', etiqueta: 'Últimos 7 días' }, { valor: '30', etiqueta: 'Últimos 30 días' },
+                { valor: '90', etiqueta: 'Últimos 90 días' }, { valor: 'rango', etiqueta: 'Elegir fechas' },
+              ]} />
           )}
-          <Boton onClick={() => setRecarga((n) => n + 1)}><RefreshCw size={14} aria-hidden /> Actualizar</Boton>
+          {cuando === 'historico' && opcion === 'rango' && (
+            <span className="flex items-center gap-2 text-[13px] text-ui-tinta-2">
+              <CampoFecha etiqueta="Desde" valor={rango.desde} min={limites.desde} max={limites.hasta}
+                onCambio={(v) => setRango((r) => ajustarRango(r, 'desde', v, Date.now()))} />
+              a
+              <CampoFecha etiqueta="Hasta" valor={rango.hasta} min={limites.desde} max={limites.hasta}
+                onCambio={(v) => setRango((r) => ajustarRango(r, 'hasta', v, Date.now()))} />
+            </span>
+          )}
+          <BotonActualizar actualizando={actualizando} onClick={() => void actualizar()} />
         </>}
       />
 
@@ -80,19 +101,21 @@ export default function DashboardPage() {
         <Aviso nivel="alerta" titulo="No se pudo leer el trabajo por SSH" detalle={`Se muestran las prácticas y el uso de la app. Detalle: ${equipos.error}`} />
       )}
 
-      {sesiones.error && !sesiones.datos ? (
-        <Aviso nivel="critico" titulo="No se pudo cargar la actividad" detalle={sesiones.error}
-          accion={<Boton onClick={() => setRecarga((n) => n + 1)}>Reintentar</Boton>} />
-      ) : sesiones.cargando && !sesiones.datos ? (
-        <div className={`grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] ${ALTO}`} role="status" aria-busy="true">
-          <span className="sr-only">Cargando…</span>
-          <div className={`${TARJETA} bg-ui-pista`} /><div className={`${TARJETA} bg-ui-pista`} />
-        </div>
-      ) : cuando === 'vivo' ? (
-        <EnVivo todas={delTipo} ahora={ahora} />
-      ) : (
-        <Historico actividades={delPeriodo(delTipo, Number(dias), ahora)} dias={Number(dias)} ahora={ahora} filtro={filtro} />
-      )}
+      <div aria-busy={recargando} className={`flex flex-col gap-7 transition-opacity duration-300 ${recargando ? 'opacity-50' : ''}`}>
+        {sesiones.error && !sesiones.datos ? (
+          <Aviso nivel="critico" titulo="No se pudo cargar la actividad" detalle={sesiones.error}
+            accion={<Boton onClick={() => void actualizar()} disabled={actualizando}>Reintentar</Boton>} />
+        ) : sesiones.cargando && !sesiones.datos ? (
+          <div className={`grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] ${ALTO}`} role="status" aria-busy="true">
+            <span className="sr-only">Cargando…</span>
+            <div className={`${TARJETA} bg-ui-pista`} /><div className={`${TARJETA} bg-ui-pista`} />
+          </div>
+        ) : cuando === 'vivo' ? (
+          <EnVivo todas={delTipo} ahora={ahora} />
+        ) : (
+          <Historico actividades={delPeriodo(delTipo, elPeriodo)} periodo={elPeriodo} ahora={ahora} filtro={filtro} />
+        )}
+      </div>
     </Pagina>
   );
 }
@@ -171,7 +194,10 @@ function Fila({ a, nota }: { a: Actividad; nota: string }) {
 
 // ── Histórico ─────────────────────────────────────────────────────────────────
 
-function Historico({ actividades, dias, ahora, filtro }: { actividades: Actividad[]; dias: number; ahora: number; filtro: Filtro }) {
+/** «en los últimos 7 días» → «En los últimos 7 días», para empezar la frase. */
+const mayuscula = (s: string) => s[0].toUpperCase() + s.slice(1);
+
+function Historico({ actividades, periodo: p, ahora, filtro }: { actividades: Actividad[]; periodo: Periodo; ahora: number; filtro: Filtro }) {
   const [elegido, setElegido] = useState<string | null>(null);
   // Tocar un lugar del mapa muestra las conexiones desde ahí (con IP, operador y cómo se ubicó).
   const [lugar, setLugar] = useState<string | null>(null);
@@ -179,9 +205,11 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
   const [paginaPersonas, setPaginaPersonas] = useState(1);
   const [paginaHistorial, setPaginaHistorial] = useState(1);
   const [paginaRevisar, setPaginaRevisar] = useState(1);
-  useEffect(() => { setPaginaPersonas(1); }, [busqueda, filtro, dias]);
-  useEffect(() => { setPaginaHistorial(1); }, [elegido, lugar, filtro, dias]);
-  useEffect(() => { setPaginaRevisar(1); }, [filtro, dias]);
+  // la frase identifica el período («hoy», «del 3 oct al 10 oct»…) y no cambia con cada refresco, a diferencia de `desde`
+  const clave = p.frase;
+  useEffect(() => { setPaginaPersonas(1); }, [busqueda, filtro, clave]);
+  useEffect(() => { setPaginaHistorial(1); }, [elegido, lugar, filtro, clave]);
+  useEffect(() => { setPaginaRevisar(1); }, [filtro, clave]);
 
   const dePersona = useMemo(() => (elegido ? actividades.filter((a) => a.persona === elegido) : actividades), [actividades, elegido]);
   const vista = useMemo(() => (lugar ? dePersona.filter((a) => a.lugar === lugar) : dePersona), [dePersona, lugar]);
@@ -203,14 +231,14 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
   const pagHistorial = paginar(historial, paginaHistorial, POR_PAGINA_HISTORIAL);
 
   if (!actividades.length) {
-    return <Aviso titulo={`No hubo actividad ${filtro === 'todo' ? '' : 'de este tipo '}en los últimos ${dias} días`} />;
+    return <Aviso titulo={`No hubo actividad ${filtro === 'todo' ? '' : 'de este tipo '}${p.frase}`} />;
   }
   return (
     <>
       <p className="m-0 text-[15px] text-ui-tinta-2">
         {elegido || lugar
-          ? <>{[elegidoNombre, lugar && `desde ${lugar}`].filter(Boolean).join(' ')}: {vista.length} {vista.length === 1 ? 'vez' : 'veces'} en los últimos {dias} días, {total(vista.reduce((s, a) => s + Math.max(0, (a.fin ?? ahora) - a.inicio), 0))} en total.</>
-          : <>En los últimos {dias} días, {todasLasPersonas.length} {todasLasPersonas.length === 1 ? 'persona usó' : 'personas usaron'} el laboratorio {actividades.length} {actividades.length === 1 ? 'vez' : 'veces'}.</>}
+          ? <>{[elegidoNombre, lugar && `desde ${lugar}`].filter(Boolean).join(' ')}: {vista.length} {vista.length === 1 ? 'vez' : 'veces'} {p.frase}, {total(vista.reduce((s, a) => s + Math.max(0, (a.fin ?? ahora) - a.inicio), 0))} en total.</>
+          : <>{mayuscula(p.frase)}, {todasLasPersonas.length} {todasLasPersonas.length === 1 ? 'persona usó' : 'personas usaron'} el laboratorio {actividades.length} {actividades.length === 1 ? 'vez' : 'veces'}.</>}
       </p>
       {revisar.length > 0 && (
         <Seccion titulo="Para revisar">
@@ -264,7 +292,7 @@ function Historico({ actividades, dias, ahora, filtro }: { actividades: Activida
         </Seccion>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
-          <PorDia actividades={vista} dias={dias} ahora={ahora} filtro={filtro} />
+          <PorDia actividades={vista} periodo={p} ahora={ahora} filtro={filtro} />
           <CuandoSeUsa actividades={vista} />
         </div>
       )}
@@ -337,29 +365,32 @@ function Leyenda({ lugares: deLugares }: { lugares?: boolean }) {
   );
 }
 
-function PorDia({ actividades, dias, ahora, filtro }: { actividades: Actividad[]; dias: number; ahora: number; filtro: Filtro }) {
+/** Barras por día; si el período es de un solo día (hoy, o un día elegido), por hora. */
+function PorDia({ actividades, periodo: p, ahora, filtro }: { actividades: Actividad[]; periodo: Periodo; ahora: number; filtro: Filtro }) {
   const tipos: Tipo[] = filtro === 'todo' ? ['practica', 'ssh', 'app'] : [filtro];
-  const filas = porDia(actividades, dias, ahora);
+  const unDia = p.dias.length === 1;
+  const filas = unDia ? porHora(actividades) : porDia(actividades, p.dias);
   const max = Math.max(1, ...filas.map((f) => f.total));
+  const ultimoEsHoy = isoLocal(p.dias[p.dias.length - 1]) === isoLocal(ahora);
   return (
-    <Seccion titulo="Por día" derecha={tipos.length > 1 && (
+    <Seccion titulo={unDia ? 'Por hora' : 'Por día'} derecha={tipos.length > 1 && (
       <span className="flex gap-4 text-[12px] text-ui-tinta-2">
         {tipos.map((t) => <span key={t} className="flex items-center gap-1.5"><i className={`block h-2.5 w-2.5 rounded-sm ${BARRA[t]}`} />{TEXTO_TIPO[t]}</span>)}
       </span>
     )}>
       <div className={`${TARJETA} flex flex-col gap-2 px-5 pb-3 pt-5`}>
         <div className="flex h-[140px] items-end gap-[3px]" role="img"
-          aria-label={`Actividad por día en los últimos ${dias} días, ${filas.reduce((s, f) => s + f.total, 0)} en total`}>
+          aria-label={`Actividad por ${unDia ? 'hora' : 'día'} ${p.frase}, ${filas.reduce((s, f) => s + f.total, 0)} en total`}>
           {filas.map((f) => (
-            <div key={f.dia.getTime()} className="flex h-full flex-1 flex-col-reverse" title={`${diaCorto(f.dia)}: ${f.total}`}>
+            <div key={f.etiqueta} className="flex h-full flex-1 flex-col-reverse" title={`${f.etiqueta}: ${f.total}`}>
               {f.total === 0 && <i className="block h-px bg-ui-pista" />}
               {tipos.map((t) => f.por[t] > 0 && <i key={t} className={`block ${BARRA[t]}`} style={{ height: `${(f.por[t] / max) * 100}%` }} />)}
             </div>
           ))}
         </div>
         <div className="flex justify-between border-t border-ui-pista pt-2">
-          <span className={NOTA}>{diaCorto(filas[0].dia)}</span>
-          <span className={NOTA}>hoy</span>
+          <span className={NOTA}>{unDia ? '0h' : filas[0].etiqueta}</span>
+          <span className={NOTA}>{unDia ? '23h' : ultimoEsHoy ? 'hoy' : filas[filas.length - 1].etiqueta}</span>
         </div>
       </div>
     </Seccion>
