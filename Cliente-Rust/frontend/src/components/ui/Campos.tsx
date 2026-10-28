@@ -57,6 +57,29 @@ export function Campo({ etiqueta, mono, derecha, className = '', filas, ...props
   );
 }
 
+/** Fecha nativa con la forma del desplegable (mismo alto); el valor es la fecha local «AAAA-MM-DD». */
+export function CampoFecha({ etiqueta, valor, onCambio, min, max }: {
+  /** Lo que lee el lector de pantalla. */
+  etiqueta: string;
+  valor: string;
+  onCambio: (v: string) => void;
+  min?: string;
+  max?: string;
+}) {
+  return (
+    <input
+      type="date"
+      aria-label={etiqueta}
+      value={valor}
+      min={min}
+      max={max}
+      // vacío mientras se escribe a medias: se ignora hasta que la fecha esté completa
+      onChange={(e) => e.target.value && onCambio(e.target.value)}
+      className={`h-8 ${RADIO} ${BORDE} px-2.5 font-ui-num text-[13px] text-ui-tinta`}
+    />
+  );
+}
+
 /** Desplegable nativo con la forma de los campos: teclado y lector de pantalla sin piezas extra. */
 export function Desplegable<T extends string>({ etiqueta, valor, onCambio, opciones, className = '' }: {
   /** Lo que lee el lector de pantalla. */

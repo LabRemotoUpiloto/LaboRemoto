@@ -234,7 +234,7 @@ pub struct RegistroSesion {
 }
 
 /// Lo que se manda al broker: el HTML completo comprimido (gzip) y en base64, para que un registro grande quepa en la petición.
-fn registro_comprimido(r: &RegistroSesion) -> Result<String, CommandError> {
+pub(crate) fn registro_comprimido(r: &RegistroSesion) -> Result<String, CommandError> {
     use base64::Engine;
     use std::io::Write;
     let html = crate::cmd::logs::logs::html_de_buffer_crudo(

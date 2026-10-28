@@ -10,7 +10,7 @@ porque cada servicio tiene secretos y ritmos de despliegue distintos.
 |---|---|---|---|---|
 | `broker-gateway` | Puerta de entrada: reparte `/nvr/…` al servicio correcto. No valida ni guarda nada | todas | **8091** | ninguno |
 | `broker-camaras` | Cámaras (Shinobi), PTZ, WebRTC y administración de cámaras | `/nvr/monitor`, `/nvr/hls`, `/nvr/ptz`, `/nvr/whep`, `/nvr/camaras` | 8092 | `SHINOBI_API_KEY`, claves de cámaras (registro) |
-| `broker-sesiones` | Registro central de sesiones de práctica y conexiones SSH a dispositivos | `/nvr/sesiones`, `/nvr/dispositivos/resumen` | 8093 | webhook del Excel, `IPINFO_TOKEN` |
+| `broker-sesiones` | Registro central de sesiones de práctica, conexiones SSH a dispositivos, encuestas y registros de la terminal de las prácticas | `/nvr/sesiones`, `/nvr/encuestas`, `/nvr/registros`, `/nvr/dispositivos/resumen` | 8093 | webhook del Excel, `IPINFO_TOKEN` |
 | `broker-moodle` | Cursos y prácticas desde Moodle; resultados para revisión | `/nvr/moodle` | 8094 | `MOODLE_TOKEN` |
 | `broker-comun` | Librería compartida: validación del JWT (`auth.js`) y servidor base (`servidor.js`) | — | — | — |
 
@@ -30,7 +30,7 @@ las apps ya instaladas siguen funcionando. Si un servicio se cae, solo falla su 
 ```
 /opt/laboremoto-brokers/
   broker-comun/  broker-camaras/  broker-sesiones/  broker-moodle/  broker-gateway/
-  data/sesiones.jsonl
+  data/sesiones.jsonl  data/registros/   (REGISTROS_DIR: una carpeta por estudiante)
 /etc/laboremoto-brokers/{camaras,sesiones,moodle,gateway}.env     (600, root; copiar de los *.env.example)
 /etc/systemd/system/broker-{camaras,sesiones,moodle,gateway}.service   (copiar de cada carpeta)
 ```

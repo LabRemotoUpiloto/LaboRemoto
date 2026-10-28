@@ -39,6 +39,7 @@ import { useLinuxPracticeSession } from '@/features/practicas/useLinuxPracticeSe
 import { requestPracticesFocus } from '@/features/practicas/practiceNavigation.service'
 import { clearModuleBadge } from '@/features/practicas/badges.service'
 import { usePracticeActivityReporter, type PracticaAbierta } from '@/features/practicas/usePracticeActivityReporter'
+import { useRegistrosIntentos } from '@/features/registros/useRegistrosIntentos'
 import { useUbicacionAppReporter } from '@/features/actividad/useUbicacionAppReporter'
 import { useUsoAppReporter } from '@/features/actividad/useUsoAppReporter'
 import { useEnlacesApp } from './hooks/useEnlacesApp'
@@ -254,6 +255,8 @@ const AppMain: React.FC = () => {
     return abiertas
   }, [combinedPracticeMeta, tabs])
   const { finalizarTodas: finalizarPracticasReportadas } = usePracticeActivityReporter(practicasAbiertas, isAuthenticated)
+  // Registro de la terminal de cada intento de práctica de Linux, guardado en la Pi (al aprobarla, al cerrarla y al cerrar la app)
+  useRegistrosIntentos(practicasAbiertas, linuxSession.results, isAuthenticated)
   // Prueba de rendimiento de la Pi4 en curso: se sigue grabando aunque el admin cambie de sección.
   const rolEfectivo = useEffectiveRole()
   useGrabadorPrueba(isAuthenticated && canAccessPage('rendimiento', rolEfectivo))
