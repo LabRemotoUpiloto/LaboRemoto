@@ -1,11 +1,12 @@
-# Arquitectura general de LaboRemoto: componentes y cómo interactúan, de arriba hacia abajo.
+# Arquitectura general de LaboRemoto: subsistemas, sus componentes y cómo interactúan.
 # Vista de alto nivel: sin direcciones, puertos ni protocolos.
 # Render:  d2 docs/arquitectura/arquitectura-general.d2 docs/arquitectura/arquitectura-general.svg
 #
-# Es una cuadrícula de 6 columnas y 4 filas (en ese orden de lectura). Las celdas «vacio_*» son
-# huecos para que las flechas queden rectas. Filas: 1 persona, app e inicio de sesión · 2 servidores
-# · 3 tutor de voz · 4 equipos reales. Para añadir un componente: copia un nodo (ícono + nombre
-# corto) a su máquina y agrega la flecha abajo, en «Conexiones».
+# Cuadrícula de 6 columnas y 4 filas, de arriba hacia abajo. Las celdas «vacio_*» son huecos para que
+# las flechas queden rectas. Filas: 1 usuarios, cliente e inicio de sesión · 2 servidores · 3 tutor de
+# voz · 4 equipos reales. Cada recuadro grande es un subsistema; los pequeños son sus componentes.
+# Para añadir un componente: copia un recuadro pequeño dentro de su subsistema; para una conexión,
+# agrega la flecha abajo, en «Conexiones».
 # Íconos: Lucide y Simple Icons por jsDelivr, con versión fijada. Naranja = la voz; punteado = apoyo.
 
 vars: {
@@ -17,20 +18,28 @@ vars: {
 }
 
 classes: {
-  nodo: {
-    shape: image
-    width: 130
-    height: 80
-    style.font-size: 18
-    style.bold: true
+  # Componente: recuadro blanco con ícono y nombre corto.
+  comp: {
+    shape: rectangle
+    width: 190
+    height: 150
+    label.near: bottom-center
+    style: {
+      fill: "#ffffff"
+      border-radius: 8
+      stroke-width: 2
+      font-size: 17
+      bold: true
+    }
   }
-  maquina: {
-    icon.near: outside-top-left
+  # Subsistema: recuadro de color que agrupa componentes.
+  sub: {
+    label.near: top-left
     style: {
       border-radius: 14
       font-size: 22
       bold: true
-      stroke-width: 2
+      stroke-width: 3
     }
   }
   hueco: {
@@ -45,100 +54,152 @@ classes: {
 
 grid-rows: 4
 grid-columns: 6
-grid-gap: 120
+grid-gap: 110
 
-# ── Fila 1 · Quién lo usa y cómo inicia sesión ──────────────────────────────────────────────
+# ── Fila 1 · Usuarios, cliente e inicio de sesión ───────────────────────────────────────────
 
 vacio_1: { class: hueco }
 
-personas: "Estudiante\nDocente · Admin" {
-  class: nodo
-  icon: ${lucide}/users.svg
-  width: 100
-  height: 100
+usuarios: "Usuarios" {
+  class: sub
+  style.fill: "#e3f2fd"
+  style.stroke: "#1565c0"
+
+  personas: "Estudiante\nDocente · Admin" {
+    class: comp
+    style.stroke: "#1565c0"
+    icon: ${lucide}/users.svg
+  }
 }
 
-app: "App de escritorio" {
-  class: nodo
-  icon: ${lucide}/app-window.svg
-  width: 100
-  height: 100
+cliente: "Cliente" {
+  class: sub
+  style.fill: "#fdecea"
+  style.stroke: "#d51f22"
+
+  app: "App de escritorio" {
+    class: comp
+    style.stroke: "#d51f22"
+    icon: ${lucide}/app-window.svg
+  }
 }
 
-login: "Servidor de\ninicio de sesión" {
-  class: nodo
-  icon: ${lucide}/shield-check.svg
-  width: 160
+acceso: "Acceso" {
+  class: sub
+  style.fill: "#ede7f6"
+  style.stroke: "#5e35b1"
+
+  login: "Servidor de\ninicio de sesión" {
+    class: comp
+    style.stroke: "#5e35b1"
+    icon: ${lucide}/shield-check.svg
+  }
 }
 
 universidad: "Universidad" {
-  class: nodo
-  icon: ${lucide}/graduation-cap.svg
+  class: sub
+  style.fill: "#eeeeee"
+  style.stroke: "#616161"
+
+  cuentas: "Cuentas\ninstitucionales" {
+    class: comp
+    style.stroke: "#616161"
+    icon: ${lucide}/graduation-cap.svg
+  }
 }
 
 vacio_2: { class: hueco }
 
 # ── Fila 2 · Servidores del laboratorio ─────────────────────────────────────────────────────
 
-monitoreo: "Monitoreo\n(avisa por Teams)" {
-  class: nodo
-  icon: ${lucide}/activity.svg
+monitoreo: "Monitoreo" {
+  class: sub
+  style.fill: "#f5f5f5"
+  style.stroke: "#757575"
+
+  vigia: "Vigila las\nmáquinas" {
+    class: comp
+    style.stroke: "#757575"
+    icon: ${lucide}/activity.svg
+  }
+  teams: "Avisa por\nTeams" {
+    class: comp
+    style.stroke: "#757575"
+    icon: ${marcas}/microsoftteams.svg
+  }
+  vigia -> teams
 }
 
-pi4: "Raspberry Pi 4" {
-  class: maquina
-  icon: ${marcas}/raspberrypi.svg
+pi4: "Raspberry Pi 4 · Laboratorio" {
+  class: sub
   style.fill: "#e8f1fb"
   style.stroke: "#1e88e5"
+  icon: ${marcas}/raspberrypi.svg
+  icon.near: outside-top-left
   grid-columns: 2
 
   terminal: "Terminal" {
-    class: nodo
+    class: comp
+    style.stroke: "#1e88e5"
     icon: ${lucide}/terminal.svg
   }
   video: "Video en vivo" {
-    class: nodo
+    class: comp
+    style.stroke: "#1e88e5"
     icon: ${lucide}/video.svg
   }
   practicas: "API de prácticas" {
-    class: nodo
+    class: comp
+    style.stroke: "#1e88e5"
     icon: ${lucide}/book-open-check.svg
   }
   lab: "API del laboratorio" {
-    class: nodo
+    class: comp
+    style.stroke: "#1e88e5"
     icon: ${lucide}/layout-dashboard.svg
   }
+  bd: "Base de datos" {
+    class: comp
+    style.stroke: "#1e88e5"
+    icon: ${lucide}/database.svg
+  }
+  lab -> bd
 }
 
 vacio_3: { class: hueco }
 
-pi5: "Raspberry Pi 5" {
-  class: maquina
-  icon: ${marcas}/raspberrypi.svg
+pi5: "Raspberry Pi 5 · Cursos y robot" {
+  class: sub
   style.fill: "#e9f6ec"
   style.stroke: "#2e7d32"
+  icon: ${marcas}/raspberrypi.svg
+  icon.near: outside-top-left
 
   moodle: "Moodle" {
-    class: nodo
+    class: comp
+    style.stroke: "#2e7d32"
     icon: ${marcas}/moodle.svg
   }
   api_robot: "API del robot" {
-    class: nodo
+    class: comp
+    style.stroke: "#2e7d32"
     icon: ${lucide}/blocks.svg
   }
 }
 
 vacio_4: { class: hueco }
 
-pi5_auto: "Raspberry Pi 5\nAutomatización" {
-  class: maquina
-  icon: ${marcas}/raspberrypi.svg
+pi5_auto: "Raspberry Pi 5 · Automatización" {
+  class: sub
   style.fill: "#f3ecfa"
   style.stroke: "#7e57c2"
+  icon: ${marcas}/raspberrypi.svg
+  icon.near: outside-top-left
 
   api_auto: "API de\nautomatización" {
-    class: nodo
-    width: 260
+    class: comp
+    width: 330
+    style.stroke: "#7e57c2"
     icon: ${lucide}/workflow.svg
   }
 }
@@ -148,15 +209,17 @@ pi5_auto: "Raspberry Pi 5\nAutomatización" {
 vacio_5: { class: hueco }
 vacio_6: { class: hueco }
 
-jetson: "NVIDIA Jetson" {
-  class: maquina
-  icon: ${marcas}/nvidia.svg
+jetson: "NVIDIA Jetson · Tutor de voz" {
+  class: sub
   style.fill: "#fff3e0"
   style.stroke: "#ef6c00"
+  icon: ${marcas}/nvidia.svg
+  icon.near: outside-top-left
 
-  voz: "Tutor de voz" {
-    class: nodo
-    width: 260
+  voz: "Agente de voz" {
+    class: comp
+    width: 330
+    style.stroke: "#ef6c00"
     icon: ${lucide}/audio-lines.svg
   }
 }
@@ -175,35 +238,57 @@ rotulo_equipos: "Equipos reales\nsolo red interna" {
   }
 }
 
-camaras: "5 cámaras" {
-  class: nodo
-  icon: ${lucide}/cctv.svg
+camaras: "Cámaras" {
+  class: sub
+  style.fill: "#eeeeee"
+  style.stroke: "#616161"
+
+  cams: "5 cámaras IP" {
+    class: comp
+    style.stroke: "#616161"
+    icon: ${lucide}/cctv.svg
+  }
 }
 
 vacio_10: { class: hueco }
 
-robot: "Robot EV3" {
-  class: nodo
-  icon: ${lucide}/bot.svg
+robot: "Robot" {
+  class: sub
+  style.fill: "#eeeeee"
+  style.stroke: "#616161"
+
+  ev3: "Robot LEGO EV3" {
+    class: comp
+    style.stroke: "#616161"
+    icon: ${lucide}/bot.svg
+  }
 }
 
 vacio_11: { class: hueco }
 
-plc: "PLC" {
-  class: nodo
-  icon: ${lucide}/cpu.svg
+planta: "Proceso industrial" {
+  class: sub
+  style.fill: "#eeeeee"
+  style.stroke: "#616161"
+
+  plc: "PLC" {
+    class: comp
+    style.stroke: "#616161"
+    icon: ${lucide}/cpu.svg
+  }
 }
 
 # ── Conexiones ──────────────────────────────────────────────────────────────────────────────
+# Van de subsistema a subsistema: el detalle de cada uno está dentro de su recuadro.
 
-personas -> app: usa
-app -> login: "inicia sesión"
-login -> universidad: cuentas
+usuarios -> cliente: usa
+cliente -> acceso: "inicia sesión"
+acceso -> universidad: "valida cuentas"
 
-app -> pi4: "terminal, video,\nprácticas y notas"
-app -> pi5: "cursos y robot"
-app -> pi5_auto: automatización
-app -> jetson {
+cliente -> pi4: "terminal, video,\nprácticas y notas"
+cliente -> pi5: "cursos y robot"
+cliente -> pi5_auto: automatización
+cliente -> jetson {
   target-arrowhead.label: voz
   style: {
     stroke: "#ef6c00"
@@ -230,4 +315,4 @@ monitoreo -> pi4: vigila {
 
 pi4 <-> camaras: "video y\nmovimiento"
 pi5 -> robot: ejecuta
-pi5_auto -> plc: controla
+pi5_auto -> planta: controla
