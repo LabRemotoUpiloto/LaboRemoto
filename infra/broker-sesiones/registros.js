@@ -20,8 +20,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 
-// Mismo tope que el registro que va a Moodle (broker-moodle, MAX_BODY_RESULTADO): ya se sabe que pasa por el nginx de AWS.
-const MAX_BODY = 1_500_000;
+// El nginx de AWS no deja pasar cuerpos de más de 1 MB (client_max_body_size por defecto; medido el 2026-10-28): la app
+// recorta el principio de un registro más grande (cmd/registros.rs, MAX_GZIP_BASE64) para no pasarse.
+const MAX_BODY = 1_048_576;
 const MAX_HTML = 20 * 1024 * 1024;
 const MAX_POR_PERSONA = 2000;
 const RETENCION_DIAS = 20;

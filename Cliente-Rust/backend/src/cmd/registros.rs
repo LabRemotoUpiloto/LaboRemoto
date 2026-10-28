@@ -28,6 +28,9 @@ use crate::session_manager::SessionManager;
 const QUE: &str = "el registro de prácticas";
 /// Lo mismo que guarda el servidor: una copia que no salió en 20 días ya no le sirve a nadie.
 const RETENCION_DIAS: i64 = 20;
+/// El nginx de AWS no deja pasar cuerpos de más de 1 MB: el registro comprimido (en base64) debe quedar bastante por debajo.
+const MAX_GZIP_BASE64: usize = 900_000;
+const AVISO_RECORTE: &str = "[LaboRemoto: se omitió el principio de este registro porque era demasiado grande]\r\n";
 /// La interfaz tarda hasta ~2 s en pedir los registros y espera 5 s el envío (useRegistrosIntentos): esto le sobra.
 const ESPERA_CIERRE: Duration = Duration::from_secs(10);
 pub const EVENTO_CERRANDO: &str = "app:cerrando";
@@ -116,6 +119,23 @@ fn validar(i: &IntentoPractica) -> Result<(), CommandError> {
     Ok(())
 }
 
+/// El registro comprimido, cabiendo en lo que deja pasar el servidor: si no cabe, se descarta la mitad más vieja de la
+/// terminal (lo último que hizo el estudiante es lo que más importa) hasta que quepa, y se avisa al principio.
+fn registro_que_cabe(r: &RegistroSesion) -> Result<String, CommandError> {
+    let mut gz = registro_comprimido(r)?;
+    let mut recortado = r.clone();
+    while gz.len() > MAX_GZIP_BASE64 && recortado.raw_content.len() > AVISO_RECORTE.len() * 2 {
+        let crudo = recortado.raw_content.strip_prefix(AVISO_RECORTE).unwrap_or(&recortado.raw_content);
+        let mut corte = crudo.len() / 2;
+        while !crudo.is_char_boundary(corte) {
+            corte += 1;
+        }
+        recortado.raw_content = format!("{AVISO_RECORTE}{}", &crudo[corte..]);
+        gz = registro_comprimido(&recortado)?;
+    }
+    Ok(gz)
+}
+
 /// El cuerpo para el broker: el HTML completo del registro (el mismo formato del log guardado), comprimido.
 fn cuerpo_de(i: &IntentoPractica) -> Result<serde_json::Value, CommandError> {
     Ok(serde_json::json!({
@@ -126,7 +146,7 @@ fn cuerpo_de(i: &IntentoPractica) -> Result<serde_json::Value, CommandError> {
         "inicio": i.inicio,
         "fin": i.registro.end_time,
         "nota": i.nota.filter(|n| n.is_finite() && (0.0..=100.0).contains(n)),
-        "gzipBase64": registro_comprimido(&i.registro)?,
+        "gzipBase64": registro_que_cabe(&i.registro)?,
     }))
 }
 
@@ -376,6 +396,27 @@ mod tests {
         assert_eq!(c["practicaNombre"], "Primeros pasos");
         assert!(c["nota"].is_null());
         assert!(c["gzipBase64"].as_str().is_some_and(|s| !s.is_empty()));
+    }
+
+    #[test]
+    fn un_registro_enorme_se_recorta_por_el_principio_hasta_caber_y_lo_avisa() {
+        use base64::Engine;
+        use std::io::Read;
+        // texto que casi no se comprime: ~3 MB de caracteres pseudoaleatorios, con una marca al final
+        let mut x: u64 = 7;
+        let mut crudo: String = (0..3_000_000).map(|_| { x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407); (b'!' + (x >> 58) as u8 % 90) as char }).collect();
+        crudo.push_str("ULTIMO-COMANDO");
+        let mut i = intento("intento-0001", "linux-m1", "terminada");
+        i.registro.raw_content = crudo;
+        let gz = registro_que_cabe(&i.registro).unwrap();
+        assert!(gz.len() <= MAX_GZIP_BASE64);
+        let mut html = String::new();
+        flate2::read::GzDecoder::new(&base64::engine::general_purpose::STANDARD.decode(gz).unwrap()[..]).read_to_string(&mut html).unwrap();
+        assert!(html.contains("ULTIMO-COMANDO"), "lo más reciente se conserva");
+        assert!(html.contains("se omitió el principio"));
+        // uno normal no se toca
+        let normal = intento("intento-0002", "linux-m1", "terminada");
+        assert_eq!(registro_que_cabe(&normal.registro).unwrap(), registro_comprimido(&normal.registro).unwrap());
     }
 
     #[test]
