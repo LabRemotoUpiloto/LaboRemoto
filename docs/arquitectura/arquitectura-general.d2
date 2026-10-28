@@ -1,6 +1,9 @@
 # Arquitectura general de LaboRemoto: subsistemas, sus componentes y cómo interactúan.
 # Vista de alto nivel, de arriba hacia abajo: sin direcciones, puertos ni protocolos.
-# Render:  d2 docs/arquitectura/arquitectura-general.d2 docs/arquitectura/arquitectura-general.svg
+# Render (los flags compactan el espacio entre capas y dentro de los recuadros):
+#   d2 --elk-nodeNodeBetweenLayers 45 --elk-edgeNodeBetweenLayers 25 \
+#      --elk-padding "[top=45,left=20,bottom=20,right=20]" \
+#      docs/arquitectura/arquitectura-general.d2 docs/arquitectura/arquitectura-general.svg
 #
 # Convenciones (para que todo se vea igual):
 #   - Subsistema: recuadro de color claro, título arriba a la izquierda y logo arriba a la derecha.
@@ -35,22 +38,22 @@ classes: {
     label.near: top-left
     icon.near: top-right
     style: {
-      border-radius: 14
+      border-radius: 12
       stroke-width: 2
-      font-size: 22
+      font-size: 19
       bold: true
     }
   }
   comp: {
     shape: rectangle
-    width: 180
-    height: 130
+    width: 150
+    height: 100
     label.near: bottom-center
     style: {
       fill: "#ffffff"
       border-radius: 8
       stroke-width: 2
-      font-size: 16
+      font-size: 14
       bold: true
     }
   }
@@ -70,25 +73,17 @@ classes: {
 
 # ── Usuarios y cliente ──────────────────────────────────────────────────────────────────────
 
-usuarios: "Usuarios" {
-  class: sub
-  icon: ${lucide}/users.svg
-  style.fill: "#e3f2fd"
-  style.stroke: "#1565c0"
-
-  personas: "Estudiante,\ndocente o admin" {
-    class: comp
-    style.stroke: "#1565c0"
-    icon: ${lucide}/user.svg
-  }
-}
-
-cliente: "Cliente" {
+cliente: "Usuarios y cliente" {
   class: sub
   icon: ${lucide}/monitor.svg
   style.fill: "#fdecea"
   style.stroke: "#d51f22"
 
+  personas: "Estudiante,\ndocente o admin" {
+    class: comp
+    style.stroke: "#d51f22"
+    icon: ${lucide}/users.svg
+  }
   app: "App de escritorio" {
     class: comp
     style.stroke: "#d51f22"
@@ -270,8 +265,6 @@ equipos: "Equipos reales · solo red interna" {
 }
 
 # ── Conexiones ──────────────────────────────────────────────────────────────────────────────
-
-usuarios -> cliente: usa
 
 cliente -> acceso: "inicia sesión"
 acceso -> universidad: "valida la cuenta"
