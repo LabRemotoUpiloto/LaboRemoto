@@ -1,8 +1,8 @@
 // Actividad: prácticas, trabajo por SSH y uso de la app en una sola lista.
 import { describe, expect, it } from 'vitest';
 import {
-  cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, encuadrar, enVivo, lapso, lugares, nombreOperador, paraRevisar,
-  personas, porDia, recientes, total, ubicar, type Actividad,
+  ajustarRango, cuandoSeUsa, delFiltro, delPeriodo, desdeConexiones, desdeSesiones, encuadrar, enVivo, isoLocal, lapso, lugares,
+  nombreOperador, paraRevisar, periodo, personas, porDia, porHora, recientes, total, ubicar, type Actividad,
 } from '@/features/actividad/actividad';
 import type { SesionPractica } from '@/features/actividad/sesiones.service';
 import type { ConexionDispositivo } from '@/features/actividad/dispositivos.service';
@@ -45,6 +45,10 @@ describe('unir prácticas, app y SSH', () => {
   });
 });
 
+const RANGO = { desde: '2026-10-20', hasta: '2026-10-22' };
+/** Minutos entre un momento de octubre de 2026 y AHORA (para `act`). */
+const minDesde = (dia: number, h: number, m = 0) => (AHORA - new Date(2026, 9, dia, h, m).getTime()) / 60_000;
+
 const act = (id: string, persona: string, tipo: Actividad['tipo'], inicioMin: number, finMin: number | null, extra: Partial<Actividad> = {}): Actividad => ({
   id, tipo, persona, nombre: persona, detalle: tipo, inicio: AHORA - inicioMin * 60_000, fin: finMin === null ? null : AHORA - finMin * 60_000,
   lugar: 'Bogotá, CO', lat: 4.6, lon: -74.08, pais: 'CO', ip: '203.0.113.7', operador: null, ubicadoPor: 'ip', precisionM: null,
@@ -73,7 +77,7 @@ describe('histórico', () => {
   ];
 
   it('período y filtro por tipo', () => {
-    expect(delPeriodo(lista, 30, AHORA).map((a) => a.id)).toEqual(['1', '2']);
+    expect(delPeriodo(lista, periodo('30', RANGO, AHORA)).map((a) => a.id)).toEqual(['1', '2']);
     expect(lista.filter(delFiltro('ssh')).map((a) => a.id)).toEqual(['2']);
     expect(lista.filter(delFiltro('todo'))).toHaveLength(3);
   });
@@ -96,7 +100,7 @@ describe('histórico', () => {
   });
 
   it('por día: todos los días del período, separados por tipo', () => {
-    const dias = porDia(lista, 7, AHORA);
+    const dias = porDia(lista, periodo('7', RANGO, AHORA).dias);
     expect(dias).toHaveLength(7);
     expect(dias[6].por).toEqual({ practica: 1, ssh: 0, app: 0 });
     expect(dias[3].por.ssh).toBe(1);
@@ -164,5 +168,43 @@ describe('para revisar', () => {
   it('sin nada raro, nada que revisar; el operador se muestra sin el número de AS', () => {
     expect(paraRevisar([act('1', 'ana', 'ssh', 10, 5)])).toEqual([]);
     expect(nombreOperador('AS10620 Telmex Colombia S.A.')).toBe('Telmex Colombia S.A.');
+  });
+});
+
+describe('período del histórico', () => {
+  it('hoy: desde la medianoche, con la gráfica por horas', () => {
+    const p = periodo('hoy', RANGO, AHORA);
+    expect([p.frase, p.dias.length, p.pedir]).toEqual(['hoy', 1, 1]);
+    const lista = [act('1', 'a', 'app', minDesde(24, 1), null), act('2', 'a', 'app', minDesde(23, 23, 30), null)];
+    expect(delPeriodo(lista, p).map((a) => a.id)).toEqual(['1']);
+    const horas = porHora(delPeriodo(lista, p));
+    expect(horas).toHaveLength(24);
+    expect(horas[1].por.app).toBe(1);
+  });
+
+  it('un rango incluye sus dos días completos y le pide al broker lo que lo cubra', () => {
+    const p = periodo('rango', RANGO, AHORA);
+    expect(p.frase).toBe('del 20 oct al 22 oct');
+    expect(p.dias.map(isoLocal)).toEqual(['2026-10-20', '2026-10-21', '2026-10-22']);
+    expect(p.pedir).toBe(5); // del 20 oct a medianoche al 24 oct a las 16:00 van 4 días y 16 horas
+    const lista = [
+      act('antes', 'a', 'ssh', minDesde(19, 23, 59), null), act('primero', 'a', 'ssh', minDesde(20, 0), null),
+      act('ultimo', 'a', 'ssh', minDesde(22, 23, 59), null), act('despues', 'a', 'ssh', minDesde(23, 0), null),
+    ];
+    expect(delPeriodo(lista, p).map((a) => a.id)).toEqual(['primero', 'ultimo']);
+    expect(porDia(lista, p.dias).map((c) => [c.etiqueta, c.total])).toEqual([['20 oct', 1], ['21 oct', 0], ['22 oct', 1]]);
+  });
+
+  it('un rango de un solo día se nombra por su fecha, o «hoy» si es hoy', () => {
+    expect(periodo('rango', { desde: '2026-10-21', hasta: '2026-10-21' }, AHORA).frase).toBe('el 21 oct');
+    expect(periodo('rango', { desde: '2026-10-24', hasta: '2026-10-24' }, AHORA).frase).toBe('hoy');
+  });
+
+  it('el rango no se sale de los 90 días que guardan los brokers ni queda al revés', () => {
+    expect(ajustarRango(RANGO, 'desde', '2026-01-01', AHORA).desde).toBe('2026-07-27');
+    expect(ajustarRango(RANGO, 'hasta', '2027-01-01', AHORA).hasta).toBe('2026-10-24');
+    expect(ajustarRango(RANGO, 'desde', '2026-10-23', AHORA)).toEqual({ desde: '2026-10-23', hasta: '2026-10-23' });
+    expect(ajustarRango(RANGO, 'hasta', '2026-10-18', AHORA)).toEqual({ desde: '2026-10-18', hasta: '2026-10-18' });
+    expect(periodo('rango', { desde: '2026-07-27', hasta: '2026-10-24' }, AHORA).pedir).toBe(90);
   });
 });

@@ -140,8 +140,72 @@ export function enVivo(actividades: Actividad[]): Actividad[] {
 export const recientes = (actividades: Actividad[], n = 5) =>
   actividades.filter((a) => a.fin !== null).sort((a, b) => b.fin! - a.fin!).slice(0, n);
 
-export const delPeriodo = (actividades: Actividad[], dias: number, ahora: number) =>
-  actividades.filter((a) => a.inicio >= ahora - dias * 86_400_000);
+// ── Período del histórico ─────────────────────────────────────────────────────
+
+export type OpcionPeriodo = 'hoy' | '7' | '30' | '90' | 'rango';
+/** Lo más atrás que guardan los brokers (MAX_DIAS_RESUMEN de broker-sesiones). */
+export const MAX_DIAS = 90;
+const DIA = 86_400_000;
+
+export interface Periodo {
+  /** Lo que entra: [desde, hasta), en ms. */
+  desde: number;
+  hasta: number;
+  /** Días que se le piden al broker: cuenta hacia atrás desde ahora, entre 1 y MAX_DIAS. */
+  pedir: number;
+  /** Los días de la gráfica, del primero al último. Si es uno solo, la gráfica va por horas. */
+  dias: Date[];
+  /** «hoy», «en los últimos 7 días», «el 3 oct» o «del 3 oct al 10 oct». También sirve de clave del período. */
+  frase: string;
+}
+
+/** Un rango elegido a mano, con las fechas locales «AAAA-MM-DD» de los campos de fecha (ambos días entran). */
+export interface Rango { desde: string; hasta: string }
+
+/** Fecha local «AAAA-MM-DD» (no toISOString, que va en UTC y de noche ya es mañana). */
+export const isoLocal = (t: number | Date) => {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+};
+const deIsoLocal = (iso: string) => {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(a, m - 1, d).getTime();
+};
+const inicioDelDia = (t: number) => new Date(t).setHours(0, 0, 0, 0);
+const otroDia = (t: number, n: number) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
+
+/** Los días que se pueden elegir en un rango: de hace MAX_DIAS − 1 días a hoy. */
+export const limitesRango = (ahora: number): Rango => ({ desde: isoLocal(otroDia(ahora, -(MAX_DIAS - 1))), hasta: isoLocal(ahora) });
+
+/** Cambia un extremo del rango sin salirse de los límites; si queda al revés, el otro extremo lo sigue. */
+export function ajustarRango(rango: Rango, extremo: keyof Rango, valor: string, ahora: number): Rango {
+  const { desde: min, hasta: max } = limitesRango(ahora);
+  const v = valor < min ? min : valor > max ? max : valor;
+  if (extremo === 'desde') return { desde: v, hasta: rango.hasta < v ? v : rango.hasta };
+  return { desde: rango.desde > v ? v : rango.desde, hasta: v };
+}
+
+export function periodo(opcion: OpcionPeriodo, rango: Rango, ahora: number): Periodo {
+  const hoy = inicioDelDia(ahora);
+  if (opcion === 'hoy') return { desde: hoy, hasta: Infinity, pedir: 1, dias: [new Date(hoy)], frase: 'hoy' };
+  if (opcion === 'rango') {
+    const desde = deIsoLocal(rango.desde), ultimo = deIsoLocal(rango.hasta);
+    const dias: Date[] = [];
+    for (let t = desde; t <= ultimo; t = otroDia(t, 1)) dias.push(new Date(t));
+    const frase = desde !== ultimo ? `del ${diaCorto(new Date(desde))} al ${diaCorto(new Date(ultimo))}`
+      : desde === hoy ? 'hoy' : `el ${diaCorto(new Date(desde))}`;
+    const pedir = Math.min(MAX_DIAS, Math.max(1, Math.ceil((ahora - desde) / DIA)));
+    return { desde, hasta: otroDia(ultimo, 1), pedir, dias, frase };
+  }
+  const n = Number(opcion);
+  return {
+    desde: ahora - n * DIA, hasta: Infinity, pedir: n, frase: `en los últimos ${n} días`,
+    dias: Array.from({ length: n }, (_, i) => new Date(otroDia(hoy, i - (n - 1)))),
+  };
+}
+
+export const delPeriodo = (actividades: Actividad[], p: Periodo) =>
+  actividades.filter((a) => a.inicio >= p.desde && a.inicio < p.hasta);
 
 export interface ResumenPersona { persona: string; nombre: string; veces: number; ms: number; ultima: number }
 
@@ -184,18 +248,23 @@ export function encuadrar<P extends { lat: number; lon: number }>(puntos: P[], r
   return { dentro: puntos.filter(cerca), fuera: puntos.filter((p) => !cerca(p)) };
 }
 
-/** Un registro por día del período (incluye los días sin nada), separado por tipo. */
-export function porDia(actividades: Actividad[], dias: number, ahora: number): { dia: Date; por: Record<Tipo, number>; total: number }[] {
-  return Array.from({ length: dias }, (_, i) => {
-    const dia = new Date(ahora - (dias - 1 - i) * 86_400_000);
-    dia.setHours(0, 0, 0, 0);
-    const desde = dia.getTime(), hasta = desde + 86_400_000;
-    const delDia = actividades.filter((a) => a.inicio >= desde && a.inicio < hasta);
-    const por = { practica: 0, ssh: 0, app: 0 };
-    for (const a of delDia) por[a.tipo]++;
-    return { dia, por, total: delDia.length };
-  });
+export interface Columna { etiqueta: string; por: Record<Tipo, number>; total: number }
+
+function columna(etiqueta: string, actividades: Actividad[]): Columna {
+  const por = { practica: 0, ssh: 0, app: 0 };
+  for (const a of actividades) por[a.tipo]++;
+  return { etiqueta, por, total: actividades.length };
 }
+
+/** Una columna por día del período (incluye los días sin nada), separada por tipo. */
+export const porDia = (actividades: Actividad[], dias: Date[]): Columna[] => dias.map((dia) => {
+  const desde = dia.getTime(), hasta = otroDia(desde, 1);
+  return columna(diaCorto(dia), actividades.filter((a) => a.inicio >= desde && a.inicio < hasta));
+});
+
+/** Una columna por hora del día (para un período de un solo día), separada por tipo. */
+export const porHora = (actividades: Actividad[]): Columna[] =>
+  Array.from({ length: 24 }, (_, h) => columna(`${h}:00`, actividades.filter((a) => new Date(a.inicio).getHours() === h)));
 
 /** Cuántas veces empezó algo en cada día de la semana (lunes primero) y hora. */
 export function cuandoSeUsa(actividades: Actividad[]): number[][] {

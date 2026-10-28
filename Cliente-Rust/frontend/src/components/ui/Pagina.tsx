@@ -26,7 +26,7 @@ export function Encabezado({ titulo, descripcion, derecha, pestanas }: {
           <h1 className="m-0 font-ui-titulo text-2xl font-bold leading-tight text-ui-tinta">{titulo}</h1>
           <p className="m-0 text-[13px] text-ui-tinta-2">{descripcion}</p>
         </div>
-        {derecha && <div className="flex items-center gap-3">{derecha}</div>}
+        {derecha && <div className="flex flex-wrap items-center justify-end gap-3">{derecha}</div>}
       </div>
       {pestanas}
     </header>
