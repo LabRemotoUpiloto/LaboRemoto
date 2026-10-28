@@ -1,18 +1,21 @@
-# Arquitectura general de LaboRemoto: qué hace cada máquina y cómo se conectan.
-# Vista de alto nivel: sin direcciones, puertos ni protocolos (eso va en docs/infra).
+# Arquitectura general de LaboRemoto: componentes y cómo interactúan.
+# Vista de alto nivel: sin direcciones, puertos, protocolos ni el login (Keycloak).
 # Render:  d2 docs/arquitectura/arquitectura-general.d2 docs/arquitectura/arquitectura-general.svg
 #
-# Para añadir un componente: copia uno de los bloques de su máquina y, si hace falta, agrega la
-# flecha abajo en «Conexiones». Un color por máquina; naranja = la voz; punteado = apoyo.
+# Para añadir un componente: copia un nodo (ícono + nombre corto) dentro de su máquina y agrega la
+# flecha abajo, en «Conexiones». Íconos: Lucide y Simple Icons por jsDelivr, con versión fijada.
+# Naranja = la voz; punteado = apoyo.
 
 vars: {
   d2-config: {
     layout-engine: elk
     pad: 50
   }
+  lucide: "https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/icons"
+  marcas: "https://cdn.jsdelivr.net/npm/simple-icons@11.14.0/icons"
 }
 
-direction: down
+direction: right
 
 titulo: Arquitectura general de LaboRemoto {
   near: top-center
@@ -23,166 +26,166 @@ titulo: Arquitectura general de LaboRemoto {
   }
 }
 
-# ── Quién usa el laboratorio ────────────────────────────────────────────────────────────────
+classes: {
+  nodo: {
+    shape: image
+    width: 130
+    height: 80
+    style.font-size: 18
+    style.bold: true
+  }
+  maquina: {
+    style: {
+      border-radius: 14
+      font-size: 22
+      bold: true
+      stroke-width: 2
+    }
+  }
+}
 
-personas: "Estudiante · Docente · Administrador" {
-  shape: person
-  width: 110
-  height: 110
+# ── Quién lo usa ────────────────────────────────────────────────────────────────────────────
+
+personas: "Estudiante · Docente · Admin" {
+  class: nodo
+  icon: ${lucide}/users.svg
+  width: 100
+  height: 100
+}
+
+app: "App de escritorio" {
+  class: nodo
+  icon: ${lucide}/app-window.svg
+  width: 100
+  height: 100
+}
+
+# ── Máquinas y sus componentes ──────────────────────────────────────────────────────────────
+
+pi4: "Raspberry Pi 4" {
+  class: maquina
+  icon: ${marcas}/raspberrypi.svg
   style.fill: "#e8f1fb"
+  style.stroke: "#1e88e5"
+
+  terminal: "Terminal" {
+    class: nodo
+    icon: ${lucide}/terminal.svg
+  }
+  video: "Video en vivo" {
+    class: nodo
+    icon: ${lucide}/video.svg
+  }
+  practicas: "API de prácticas" {
+    class: nodo
+    icon: ${lucide}/book-open-check.svg
+  }
+  lab: "API del laboratorio" {
+    class: nodo
+    icon: ${lucide}/layout-dashboard.svg
+  }
+  bd: "Base de datos" {
+    class: nodo
+    icon: ${lucide}/database.svg
+  }
+
+  lab -> bd
 }
 
-app: "App de escritorio\n(Tauri + React + Rust)\nLo único que instala cada persona" {
-  shape: rectangle
-  style: {
-    fill: "#fdecea"
-    stroke: "#d51f22"
-    stroke-width: 3
-    border-radius: 12
-    font-size: 20
-    bold: true
-  }
-}
+pi5: "Raspberry Pi 5" {
+  class: maquina
+  icon: ${marcas}/raspberrypi.svg
+  style.fill: "#e9f6ec"
+  style.stroke: "#2e7d32"
 
-# ── Máquinas del laboratorio ────────────────────────────────────────────────────────────────
-
-identidad: "Servidor de identidad\nQuién eres y qué puedes hacer" {
-  style: {
-    fill: "#f3ecfa"
-    stroke: "#7e57c2"
-    border-radius: 12
-    font-size: 18
+  moodle: "Moodle" {
+    class: nodo
+    icon: ${marcas}/moodle.svg
   }
-
-  keycloak: "Keycloak\nInicio de sesión único\ny roles" {
-    style.fill: "#ffffff"
-  }
-  bd_usuarios: "Base de datos\nUsuarios y roles" {
-    shape: cylinder
-    style.fill: "#ffffff"
-  }
-  keycloak -> bd_usuarios
-}
-
-pi4: "Raspberry Pi 4 · Servidor central\nLo que ve y hace la persona durante la práctica" {
-  style: {
-    fill: "#e8f1fb"
-    stroke: "#1e88e5"
-    border-radius: 12
-    font-size: 18
-  }
-
-  ssh: "Terminal de la práctica\nLa persona escribe comandos\nen un equipo real" {
-    style.fill: "#ffffff"
-  }
-  video: "Video en vivo y grabación\nMuestra las cámaras\nen la app" {
-    style.fill: "#ffffff"
-  }
-  practicas: "API de prácticas\nGuarda los módulos y\nvalida lo que hace la persona" {
-    style.fill: "#ffffff"
-  }
-  laboratorio: "API del laboratorio\nSesiones, notas, cámaras,\nencuestas y actividad" {
-    style.fill: "#ffffff"
-  }
-  bd: "Base de datos\nSesiones y encuestas" {
-    shape: cylinder
-    style.fill: "#ffffff"
-  }
-  laboratorio -> bd
-}
-
-pi5: "Raspberry Pi 5\nCursos y robot" {
-  style: {
-    fill: "#e9f6ec"
-    stroke: "#2e7d32"
-    border-radius: 12
-    font-size: 18
-  }
-
-  moodle: "Moodle\nCursos, tareas y notas\nde los estudiantes" {
-    style.fill: "#ffffff"
-  }
-  api_robot: "API del robot\nRecibe los bloques de la\npersona y los ejecuta" {
-    style.fill: "#ffffff"
+  api_robot: "API del robot" {
+    class: nodo
+    icon: ${lucide}/bot.svg
   }
 }
 
-jetson: "NVIDIA Jetson\nTutor conversacional por voz" {
-  style: {
-    fill: "#fff3e0"
-    stroke: "#ef6c00"
-    border-radius: 12
-    font-size: 18
-  }
+jetson: "NVIDIA Jetson" {
+  class: maquina
+  icon: ${marcas}/nvidia.svg
+  style.fill: "#fff3e0"
+  style.stroke: "#ef6c00"
 
-  agente: "Agente de voz\nEscucha a la persona (voz a texto),\npiensa con un modelo local que\nconoce la práctica y le responde\nhablando (texto a voz)" {
-    style.fill: "#ffffff"
+  voz: "Tutor de voz" {
+    class: nodo
+    icon: ${lucide}/audio-lines.svg
   }
 }
 
-monitoreo: "Servidor de monitoreo\nVigila las máquinas y\navisa por Teams" {
-  style: {
-    fill: "#f5f5f5"
-    stroke: "#757575"
-    border-radius: 12
-  }
+monitoreo: "Monitoreo" {
+  class: nodo
+  icon: ${lucide}/activity.svg
+}
+
+teams: "Teams" {
+  class: nodo
+  icon: ${marcas}/microsoftteams.svg
 }
 
 # ── Equipos reales (solo red interna) ───────────────────────────────────────────────────────
 
-dispositivos: "Equipos reales\nSolo red interna del laboratorio" {
-  label.near: bottom-center
-  style: {
-    fill: "#eeeeee"
-    stroke: "#616161"
-    border-radius: 12
-    font-size: 18
-  }
+equipos: "Equipos reales" {
+  class: maquina
+  style.fill: "#eeeeee"
+  style.stroke: "#616161"
 
   camaras: "5 cámaras" {
-    style.fill: "#ffffff"
+    class: nodo
+    icon: ${lucide}/cctv.svg
   }
-  robot: "Robot LEGO EV3" {
-    style.fill: "#ffffff"
+  robot: "Robot EV3" {
+    class: nodo
+    icon: ${lucide}/bot.svg
   }
 }
 
 # ── Conexiones ──────────────────────────────────────────────────────────────────────────────
-# Van de máquina a máquina: el detalle de cada una está dentro de su recuadro.
 
 personas -> app: usa
 
-app -> identidad: "inicia sesión"
-app -> pi4: "terminal, video en vivo,\nprácticas, sesiones y notas"
-app -> pi5: "cursos y notas de Moodle,\nenvío de bloques al robot"
-app -> jetson: "habla y escucha" {
+app -> pi4.terminal: terminal
+app -> pi4.video: video
+app -> pi4.practicas: prácticas
+app -> pi4.lab: "sesiones y notas"
+app -> pi5.moodle: cursos
+app -> pi5.api_robot: bloques
+app -> jetson.voz: voz {
   style: {
     stroke: "#ef6c00"
     stroke-width: 3
   }
 }
 
-pi4 -> identidad: "comprueba quién es" {
+pi4.lab -> pi5.moodle: nota
+pi4.lab -> equipos.camaras: mueve
+equipos.camaras -> pi4.video: imagen
+
+jetson.voz -> pi4.practicas: "lee la práctica" {
+  style: {
+    stroke: "#ef6c00"
+    stroke-width: 3
+  }
+}
+jetson.voz -> pi5.api_robot: "estado" {
+  style: {
+    stroke: "#ef6c00"
+    stroke-width: 3
+  }
+}
+
+pi5.api_robot -> equipos.robot: ejecuta
+
+monitoreo -> pi4: vigila {
   style.stroke-dash: 4
 }
-pi4 -> pi5: "envía la nota\na Moodle"
-pi4 <-> dispositivos.camaras: "recibe el video y\nmueve las cámaras"
-
-jetson -> pi4: "lee la práctica" {
-  style: {
-    stroke: "#ef6c00"
-    stroke-width: 3
-  }
-}
-jetson -> pi5: "consulta el estado\ndel robot" {
-  style: {
-    stroke: "#ef6c00"
-    stroke-width: 3
-  }
-}
-
-pi5 -> dispositivos.robot: "ejecuta los bloques"
-
-monitoreo -> pi4: "vigila y alerta" {
+monitoreo -> teams: alerta {
   style.stroke-dash: 4
 }
