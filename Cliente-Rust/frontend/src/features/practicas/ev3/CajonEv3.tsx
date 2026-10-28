@@ -2,7 +2,9 @@
 // riel (motores, sensores, consola o estado del robot), al lado del escenario y sin taparlo.
 //
 // La consola queda montada aunque el cajón esté cerrado o muestre otra herramienta, para no perder un programa que
-// está corriendo en el robot. Las piezas (MotorPort, SensorPort, KeyboardControl, Ev3Console) son las del Panel EV3.
+// está corriendo en el robot. Pasar a «Ver todo» sí desmonta la vista guiada, y Ev3Console detiene el programa al
+// desmontarse: es lo seguro con un robot compartido. Las piezas (MotorPort, SensorPort, KeyboardControl, Ev3Console)
+// son las del Panel EV3.
 import React from 'react';
 import { X } from 'lucide-react';
 import { BotonIcono, ETIQUETA, NOTA, Num, Punto, TEXTO_NIVEL } from '@/components/ui';

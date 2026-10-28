@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Ev3Status } from '../ev3.service';
 import './KeyboardControl.css';
 
@@ -27,6 +27,11 @@ const KeyboardControl: React.FC<KeyboardControlProps> = ({ status, onSetSpeed })
   const [rightPort, setRightPort] = useState('outD');
   const [baseSpeed, setBaseSpeed] = useState(60);
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
+  // Las teclas apretadas viven también en un ref: los manejadores y la limpieza al desmontar leen siempre el valor
+  // actual, y las órdenes al robot salen fuera de los actualizadores de estado (que React puede llamar dos veces).
+  const teclasRef = useRef<Set<string>>(new Set());
+  const ruedasRef = useRef({ leftPort, rightPort, onSetSpeed });
+  ruedasRef.current = { leftPort, rightPort, onSetSpeed };
 
   const motors = status?.motors ?? [];
   const connectedPorts = motors.filter(m => m.connected).map(m => m.port);
@@ -44,7 +49,22 @@ const KeyboardControl: React.FC<KeyboardControlProps> = ({ status, onSetSpeed })
     onSetSpeed(rightPort, rightSpeed);
   }, [leftPort, rightPort, baseSpeed, onSetSpeed]);
 
+  /** Frena las dos ruedas si alguna tecla seguía apretada. */
+  const soltarTodo = useCallback(() => {
+    if (teclasRef.current.size === 0) return;
+    teclasRef.current = new Set();
+    const { leftPort: izq, rightPort: der, onSetSpeed: mover } = ruedasRef.current;
+    mover(izq, 0);
+    mover(der, 0);
+  }, []);
+
   useEffect(() => {
+    const actualizar = (teclas: Set<string>) => {
+      teclasRef.current = teclas;
+      setActiveKeys(teclas);
+      sendMove(teclas);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Mientras se escribe (chat, consola, cualquier campo) las letras son letras, no órdenes al robot.
       if (esCampoDeTexto(e.target)) return;
@@ -53,39 +73,46 @@ const KeyboardControl: React.FC<KeyboardControlProps> = ({ status, onSetSpeed })
       e.preventDefault();
 
       if (key === ' ') {
+        teclasRef.current = new Set();
+        setActiveKeys(new Set());
         onSetSpeed(leftPort, 0);
         onSetSpeed(rightPort, 0);
-        setActiveKeys(new Set());
         return;
       }
 
-      setActiveKeys(prev => {
-        const next = new Set(prev);
-        next.add(key);
-        sendMove(next);
-        return next;
-      });
+      // La repetición automática de una tecla sostenida no cambia el movimiento.
+      if (teclasRef.current.has(key)) return;
+      actualizar(new Set(teclasRef.current).add(key));
     };
 
+    // Soltar nunca se filtra por el campo con foco: si W se apretó fuera del chat y se suelta dentro, el robot debe
+    // frenar igual. Solo cuentan las teclas que este control había tomado (escribir «w» en el chat no manda nada).
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (esCampoDeTexto(e.target)) return;
       const key = e.key.toLowerCase();
-      if (!['w', 'a', 's', 'd'].includes(key)) return;
-      setActiveKeys(prev => {
-        const next = new Set(prev);
-        next.delete(key);
-        sendMove(next);
-        return next;
-      });
+      if (!teclasRef.current.has(key)) return;
+      const next = new Set(teclasRef.current);
+      next.delete(key);
+      actualizar(next);
+    };
+
+    // Si la ventana pierde el foco con una tecla apretada, el keyup nunca llega.
+    const handleBlur = () => {
+      soltarTodo();
+      setActiveKeys(new Set());
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
-  }, [leftPort, rightPort, baseSpeed, sendMove, onSetSpeed]);
+  }, [leftPort, rightPort, sendMove, onSetSpeed, soltarTodo]);
+
+  // Cerrar el cajón de Motores (o el panel) con una tecla apretada desmonta el control: el robot se frena.
+  useEffect(() => soltarTodo, [soltarTodo]);
 
   return (
     <div className="kbd-panel">

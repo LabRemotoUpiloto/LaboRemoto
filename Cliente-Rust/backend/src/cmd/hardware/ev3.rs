@@ -24,9 +24,12 @@
 //! módulo EV3, con los `environment.setup_commands` que declara el propio
 //! módulo (también reenviados por el bastión).
 
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 
 use crate::cmd::protocol::CommandError;
+use crate::session_manager::SessionManager;
 
 const BRIDGE_URL: &str = "http://127.0.0.1:8000";
 
@@ -108,19 +111,47 @@ pub struct Ev3Status {
     pub reachable: bool,
 }
 
+/// Roles que pueden usar «Probar con mi robot»: el equipo técnico. Debe coincidir con `TECHNICAL` en
+/// `frontend/src/features/cuenta/usePermissions.ts`, que solo oculta el botón; quien decide es esta lista.
+const ROLES_ROBOT_DIRECTO: &[&str] = &["admin_lab", "semillerista"];
+
+fn puede_usar_robot_directo(roles: &[String]) -> bool {
+    roles.iter().any(|r| ROLES_ROBOT_DIRECTO.contains(&r.as_str()))
+}
+
 /// Robot directo pedido por el frontend (vista «Probar con mi robot»), ya validado; `None` = por el laboratorio.
-fn robot_directo(robot: Option<String>) -> Result<Option<super::ev3_directo::RobotDirecto>, CommandError> {
-    match robot {
-        Some(r) if !r.trim().is_empty() => super::ev3_directo::validar_robot(&r).map(Some),
-        _ => Ok(None),
+/// Pedir un robot directo exige sesión iniciada con un rol del equipo técnico: ocultar el botón no basta.
+async fn robot_directo(
+    robot: Option<String>,
+    manager: &Arc<dyn SessionManager>,
+) -> Result<Option<super::ev3_directo::RobotDirecto>, CommandError> {
+    let robot = match robot {
+        Some(r) if !r.trim().is_empty() => r,
+        _ => return Ok(None),
+    };
+    let sesion = manager
+        .session_info()
+        .await
+        .map_err(|e| CommandError::internal("SESSION_ERROR", e.to_string()))?
+        .ok_or_else(|| CommandError::permanent("AUTH_REQUIRED", "Debes iniciar sesión"))?;
+    if !puede_usar_robot_directo(&sesion.roles) {
+        return Err(CommandError::permanent(
+            "FORBIDDEN",
+            "«Probar con mi robot» es solo para semilleristas y el administrador del laboratorio",
+        ));
     }
+    super::ev3_directo::validar_robot(&robot).map(Some)
 }
 
 /// Telemetría del robot. Con `robot` (IP o nombre `.local`) se consulta directo al robot físico en la red local
 /// (ver `ev3_directo.rs`); sin él, por el puente del laboratorio a través de la sesión SSH `id`.
 #[tauri::command]
-pub async fn ev3_status(id: String, robot: Option<String>) -> Result<Ev3Status, CommandError> {
-    if let Some(r) = robot_directo(robot)? {
+pub async fn ev3_status(
+    id: String,
+    robot: Option<String>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<Ev3Status, CommandError> {
+    if let Some(r) = robot_directo(robot, manager.inner()).await? {
         return super::ev3_directo::estado(&r).await;
     }
     tokio::task::spawn_blocking(move || {
@@ -182,9 +213,15 @@ fn ev3_api_error(id: &str, operation: &str, code: u16, body: &str) -> CommandErr
 /// Mueve un motor. `port` acepta `"A"`/`"outA"`; `speed` en % (−100…100).
 /// Con `robot`, la orden va directo al robot físico (ver `ev3_status`).
 #[tauri::command]
-pub async fn ev3_set_motor(id: String, port: String, speed: i32, robot: Option<String>) -> Result<Ev3ApiResult, CommandError> {
+pub async fn ev3_set_motor(
+    id: String,
+    port: String,
+    speed: i32,
+    robot: Option<String>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<Ev3ApiResult, CommandError> {
     let speed = speed.clamp(-100, 100);
-    if let Some(r) = robot_directo(robot)? {
+    if let Some(r) = robot_directo(robot, manager.inner()).await? {
         return super::ev3_directo::mover(&r, &port, speed).await;
     }
     tokio::task::spawn_blocking(move || {
@@ -208,8 +245,13 @@ pub async fn ev3_set_motor(id: String, port: String, speed: i32, robot: Option<S
 
 /// Detiene todos los motores, o uno solo si se pasa `port`. Con `robot`, directo al robot físico (ver `ev3_status`).
 #[tauri::command]
-pub async fn ev3_stop_all(id: String, port: Option<String>, robot: Option<String>) -> Result<Ev3ApiResult, CommandError> {
-    if let Some(r) = robot_directo(robot)? {
+pub async fn ev3_stop_all(
+    id: String,
+    port: Option<String>,
+    robot: Option<String>,
+    manager: tauri::State<'_, Arc<dyn SessionManager>>,
+) -> Result<Ev3ApiResult, CommandError> {
+    if let Some(r) = robot_directo(robot, manager.inner()).await? {
         return super::ev3_directo::detener(&r, port.as_deref()).await;
     }
     tokio::task::spawn_blocking(move || {
@@ -245,6 +287,16 @@ mod tests {
             "sensors":[],"alerts":[]}"#;
         let st: Ev3Status = serde_json::from_str(body).unwrap();
         assert_eq!(st.motors[0].position, Some(-360));
+    }
+
+    #[test]
+    fn robot_directo_solo_para_el_equipo_tecnico() {
+        let roles = |rs: &[&str]| rs.iter().map(|r| r.to_string()).collect::<Vec<_>>();
+        assert!(puede_usar_robot_directo(&roles(&["admin_lab"])));
+        assert!(puede_usar_robot_directo(&roles(&["estudiante", "semillerista"])));
+        assert!(!puede_usar_robot_directo(&roles(&["estudiante"])));
+        assert!(!puede_usar_robot_directo(&roles(&["docente", "laboratorista", "jefe_laboratorio"])));
+        assert!(!puede_usar_robot_directo(&[]));
     }
 
     #[test]

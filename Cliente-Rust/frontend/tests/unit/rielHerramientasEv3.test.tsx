@@ -79,4 +79,64 @@ describe('control por teclado del robot', () => {
     fireEvent.keyDown(window, { key: 'w' });
     expect(onSetSpeed).toHaveBeenCalled();
   });
+
+  it('si W se aprieta afuera y se suelta en el chat, el robot frena', () => {
+    const onSetSpeed = vi.fn();
+    render(<><textarea aria-label="Mensaje" /><KeyboardControl status={null} onSetSpeed={onSetSpeed} /></>);
+    fireEvent.keyDown(window, { key: 'w' });
+    expect(onSetSpeed).toHaveBeenCalledWith('outA', 60);
+    expect(onSetSpeed).toHaveBeenCalledWith('outD', 60);
+    onSetSpeed.mockClear();
+
+    const chat = screen.getByRole('textbox', { name: 'Mensaje' });
+    chat.focus();
+    fireEvent.keyUp(chat, { key: 'w' });
+    expect(onSetSpeed).toHaveBeenCalledWith('outA', 0);
+    expect(onSetSpeed).toHaveBeenCalledWith('outD', 0);
+  });
+
+  it('escribir «w» en el chat sin haberla apretado afuera no manda órdenes al soltarla', () => {
+    const onSetSpeed = vi.fn();
+    render(<><textarea aria-label="Mensaje" /><KeyboardControl status={null} onSetSpeed={onSetSpeed} /></>);
+    const chat = screen.getByRole('textbox', { name: 'Mensaje' });
+    fireEvent.keyDown(chat, { key: 'w' });
+    fireEvent.keyUp(chat, { key: 'w' });
+    expect(onSetSpeed).not.toHaveBeenCalled();
+  });
+
+  it('mantener W apretada no repite la orden', () => {
+    const onSetSpeed = vi.fn();
+    render(<KeyboardControl status={null} onSetSpeed={onSetSpeed} />);
+    fireEvent.keyDown(window, { key: 'w' });
+    fireEvent.keyDown(window, { key: 'w', repeat: true });
+    fireEvent.keyDown(window, { key: 'w', repeat: true });
+    expect(onSetSpeed).toHaveBeenCalledTimes(2);
+  });
+
+  it('cerrar el control con una tecla apretada frena el robot', () => {
+    const onSetSpeed = vi.fn();
+    const { unmount } = render(<KeyboardControl status={null} onSetSpeed={onSetSpeed} />);
+    fireEvent.keyDown(window, { key: 'w' });
+    onSetSpeed.mockClear();
+    unmount();
+    expect(onSetSpeed).toHaveBeenCalledWith('outA', 0);
+    expect(onSetSpeed).toHaveBeenCalledWith('outD', 0);
+  });
+
+  it('cerrar el control sin teclas apretadas no manda nada', () => {
+    const onSetSpeed = vi.fn();
+    const { unmount } = render(<KeyboardControl status={null} onSetSpeed={onSetSpeed} />);
+    unmount();
+    expect(onSetSpeed).not.toHaveBeenCalled();
+  });
+
+  it('si la ventana pierde el foco con una tecla apretada, el robot frena', () => {
+    const onSetSpeed = vi.fn();
+    render(<KeyboardControl status={null} onSetSpeed={onSetSpeed} />);
+    fireEvent.keyDown(window, { key: 'd' });
+    onSetSpeed.mockClear();
+    fireEvent.blur(window);
+    expect(onSetSpeed).toHaveBeenCalledWith('outA', 0);
+    expect(onSetSpeed).toHaveBeenCalledWith('outD', 0);
+  });
 });

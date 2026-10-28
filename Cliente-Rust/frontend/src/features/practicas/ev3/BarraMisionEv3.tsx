@@ -1,6 +1,6 @@
 // features/practicas/ev3/BarraMisionEv3.tsx — barra superior de la práctica de EV3: título, progreso por tramos (uno por
 // paso del chat), estado del robot y «Detener», siempre a la vista porque el robot es real y compartido.
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Bot, OctagonX } from 'lucide-react';
 import { NOTA, RADIO } from '@/components/ui';
 import type { ProgresoPractica } from '@/features/practicas/linux/LinuxPracticeProgressBar';
@@ -87,8 +87,16 @@ export const EstadoRobot: React.FC<{ conectado: boolean }> = ({ conectado }) => 
 export const BotonDetener: React.FC<{ onDetener: () => Promise<void> }> = ({ onDetener }) => {
   const [deteniendo, setDeteniendo] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  // Un solo temporizador para borrar el aviso: el de un clic anterior no borra el aviso del siguiente antes de tiempo.
+  const temporizador = useRef<number | null>(null);
+  const limpiarTemporizador = () => {
+    if (temporizador.current !== null) window.clearTimeout(temporizador.current);
+    temporizador.current = null;
+  };
+  useEffect(() => limpiarTemporizador, []);
 
   const detener = async () => {
+    limpiarTemporizador();
     setDeteniendo(true);
     setAviso(null);
     try {
@@ -98,7 +106,10 @@ export const BotonDetener: React.FC<{ onDetener: () => Promise<void> }> = ({ onD
       setAviso('No se pudo detener el robot. Revisa la conexión.');
     } finally {
       setDeteniendo(false);
-      window.setTimeout(() => setAviso(null), 4000);
+      temporizador.current = window.setTimeout(() => {
+        temporizador.current = null;
+        setAviso(null);
+      }, 4000);
     }
   };
 
