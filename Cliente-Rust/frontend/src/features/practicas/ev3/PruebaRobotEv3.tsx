@@ -7,10 +7,9 @@
 //
 // Mismas piezas que la vista guiada de la práctica: gemelo 3D en el escenario, riel de herramientas y cajón.
 // La consola de Python no está: necesita la sesión SSH del laboratorio para subir el programa al robot.
-// El escenario alterna entre el gemelo 3D y el editor de trayectorias (trayectorias/EditorTrayectorias).
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { Aviso, Boton, BotonPrincipal, Campo, NOTA, Selector, type Opcion } from '@/components/ui';
+import { Aviso, Boton, BotonPrincipal, Campo, NOTA } from '@/components/ui';
 import { Ev3Twin } from '@/app/diferidos';
 import { getEv3Status, stopEv3Motors } from '@/features/hardware/ev3.service';
 import { useEv3Estado } from '@/features/hardware/ev3/useEv3Estado';
@@ -18,7 +17,6 @@ import { necesidadesDe, type HerramientaEv3 } from './necesidadesEv3';
 import { RielHerramientas } from './RielHerramientas';
 import { CajonEv3 } from './CajonEv3';
 import { BotonDetener, EstadoRobot } from './BarraMisionEv3';
-import { EditorTrayectorias } from './trayectorias/EditorTrayectorias';
 
 const CLAVE_ROBOT = 'labremoto.ev3.robotDirecto';
 /** Identificador de la «sesión»: en conexión directa el backend no lo usa, solo sirve de etiqueta. */
@@ -26,14 +24,6 @@ const ID_DIRECTO = 'robot-directo';
 const ROBOT_EMBEBIDO = String(import.meta.env.VITE_EV3_ROBOT ?? '').trim();
 /** Todo disponible menos la consola (necesita el laboratorio). */
 const NECESIDADES = necesidadesDe('prueba-robot', { consola: 'oculta', abierta: 'motores' });
-
-type VistaEscenarioPrueba = 'gemelo' | 'trayectorias';
-const OPCIONES_ESCENARIO: Opcion<VistaEscenarioPrueba>[] = [
-  { valor: 'gemelo', etiqueta: 'Gemelo 3D' },
-  { valor: 'trayectorias', etiqueta: 'Trayectorias' },
-];
-/** Mientras se graba la trayectoria real se lee el robot más seguido: la odometría mejora con más muestras. */
-const LECTURA_GRABANDO_MS = 300;
 
 function leerRobot(): string {
   try { return localStorage.getItem(CLAVE_ROBOT) ?? ROBOT_EMBEBIDO; } catch { return ROBOT_EMBEBIDO; }
@@ -132,9 +122,7 @@ const Instrucciones: React.FC = () => (
 
 /** Conectado: escenario con el gemelo 3D, cajón y riel, como en la práctica. */
 const PanelDirecto: React.FC<{ robot: string }> = ({ robot }) => {
-  const [escenario, setEscenario] = useState<VistaEscenarioPrueba>('gemelo');
-  const [grabando, setGrabando] = useState(false);
-  const { status, setSpeed, stopAll } = useEv3Estado(ID_DIRECTO, robot, grabando ? LECTURA_GRABANDO_MS : undefined);
+  const { status, setSpeed, stopAll } = useEv3Estado(ID_DIRECTO, robot);
   const [abierta, setAbierta] = useState<HerramientaEv3 | null>(NECESIDADES.abierta);
   const alternar = (h: HerramientaEv3) => setAbierta((actual) => (actual === h ? null : h));
 
@@ -163,19 +151,10 @@ const PanelDirecto: React.FC<{ robot: string }> = ({ robot }) => {
 
       <div className="relative flex min-h-0 flex-1">
         <section aria-label="Escenario del robot" className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex shrink-0 items-center px-3 pt-3">
-            <Selector opciones={OPCIONES_ESCENARIO} valor={escenario} onCambio={(v) => setEscenario(v)} nombre="Vista del escenario" />
-          </div>
-          <div className="relative mx-3 mb-3 mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-ui border border-ui-borde bg-ui-superficie">
-            {escenario === 'gemelo' && (
-              <Suspense fallback={<p className="m-0 p-4 text-[13px] text-ui-apagado" role="status">Cargando el modelo 3D…</p>}>
-                <Ev3Twin status={status} />
-              </Suspense>
-            )}
-            {/* El editor queda montado aunque se vea el gemelo: la ruta y la grabación no se pierden al cambiar. */}
-            <div className={escenario === 'trayectorias' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
-              <EditorTrayectorias status={status} onGrabandoCambio={setGrabando} />
-            </div>
+          <div className="relative m-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-ui border border-ui-borde bg-ui-superficie">
+            <Suspense fallback={<p className="m-0 p-4 text-[13px] text-ui-apagado" role="status">Cargando el modelo 3D…</p>}>
+              <Ev3Twin status={status} />
+            </Suspense>
           </div>
         </section>
         <CajonEv3

@@ -21,10 +21,8 @@ export interface Ev3Estado {
 /**
  * `robot`: IP o nombre `.local` de un robot físico en la red local; con él todo va directo al robot (vista «Probar con
  * mi robot») y `sessionId` es solo una etiqueta. Sin él, por el laboratorio con la sesión SSH `sessionId`.
- * `intervaloMs`: cada cuánto se lee el robot (1 s por defecto). El editor de trayectorias lee más seguido mientras
- * graba los encoders; por el laboratorio cada lectura es un comando SSH, así que allá conviene no bajarlo.
  */
-export function useEv3Estado(sessionId: string, robot?: string | null, intervaloMs: number = POLL_MS): Ev3Estado {
+export function useEv3Estado(sessionId: string, robot?: string | null): Ev3Estado {
   const [status, setStatus] = useState<Ev3Status | null>(null);
   const cancelledRef = useRef(false);
 
@@ -57,9 +55,9 @@ export function useEv3Estado(sessionId: string, robot?: string | null, intervalo
   useEffect(() => {
     cancelledRef.current = false;
     void refreshStatus();
-    const it = window.setInterval(refreshStatus, intervaloMs);
+    const it = window.setInterval(refreshStatus, POLL_MS);
     return () => { cancelledRef.current = true; window.clearInterval(it); };
-  }, [refreshStatus, intervaloMs]);
+  }, [refreshStatus]);
 
   const setSpeed = useCallback((port: string, speed: number) => {
     void setEv3Motor(sessionId, port, speed, robot).catch(e => console.error('[EV3] Error moviendo motor:', e));
