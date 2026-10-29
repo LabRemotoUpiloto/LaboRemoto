@@ -124,7 +124,9 @@ const Instrucciones: React.FC = () => (
         </ol>
       )}
     />
-    <p className={NOTA}>Solo se aceptan direcciones de tu red local. Si el robot usa otro puerto, escríbelo así: dirección:puerto.</p>
+    <p className="m-0 text-[12px] text-ui-tinta-2">
+      Solo se aceptan direcciones de tu red local. Si el robot usa otro puerto, escríbelo así: <code className="font-ui-num">dirección:puerto</code>.
+    </p>
   </div>
 );
 
