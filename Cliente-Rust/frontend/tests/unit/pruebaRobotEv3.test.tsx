@@ -61,6 +61,20 @@ describe('Probar con mi robot', () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 
+  it('el escenario cambia entre el gemelo 3D y el editor de trayectorias', async () => {
+    HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
+    invoke.mockResolvedValue(ESTADO);
+    render(<PruebaRobotEv3 onVolver={() => {}} />);
+    fireEvent.change(campo(), { target: { value: 'ev3dev.local' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Conectar' }));
+    await screen.findByRole('button', { name: 'Desconectar' });
+
+    expect(screen.getByText('gemelo')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Trayectorias' }));
+    expect(screen.queryByText('gemelo')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Editor de trayectorias' })).toBeTruthy();
+  });
+
   it('al desconectar frena los motores del robot', async () => {
     invoke.mockResolvedValue(ESTADO);
     render(<PruebaRobotEv3 onVolver={() => {}} />);
