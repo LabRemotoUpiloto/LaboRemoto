@@ -64,6 +64,11 @@ export default function ConexionesPage({ onConnected, onOpenLog, pestanaInicial 
   const inicial = opciones.some((o) => o.valor === pestanaInicial) ? pestanaInicial : (opciones[0]?.valor ?? 'registros');
   const [pestana, setPestana] = useState<PestanaConexiones>(inicial);
   useEffect(() => { setPestana(inicial); }, [inicial]);
+  // «Nueva conexión» está en el encabezado, visible en todas las pestañas, pero su diálogo vive en Equipos: el botón lleva
+  // a Equipos y deja el pedido para que lo atienda al montarse (antes era un evento que solo oía Equipos: desde Registros
+  // el botón no hacía nada).
+  const [nuevaPedida, setNuevaPedida] = useState(false);
+  const atenderNueva = useCallback(() => setNuevaPedida(false), []);
 
   return (
     <Pagina>
@@ -79,7 +84,7 @@ export default function ConexionesPage({ onConnected, onOpenLog, pestanaInicial 
               <SquareTerminal size={14} aria-hidden /> Terminal local
             </Boton>
           )}
-          <BotonPrincipal data-tour="nueva-conexion" onClick={() => window.dispatchEvent(new CustomEvent('conexiones:nueva'))}>
+          <BotonPrincipal data-tour="nueva-conexion" onClick={() => { setPestana('equipos'); setNuevaPedida(true); }}>
             <Plus size={15} aria-hidden /> Nueva conexión
           </BotonPrincipal>
         </>}
@@ -89,13 +94,18 @@ export default function ConexionesPage({ onConnected, onOpenLog, pestanaInicial 
 
       {pestana === 'registros' ? <LogsPage incrustada onOpenLog={onOpenLog} />
         : pestana === 'estudiantes' ? <RegistrosEstudiantes />
-        : <Equipos onConnected={onConnected} />}
+        : <Equipos onConnected={onConnected} nuevaPedida={nuevaPedida} onNuevaAtendida={atenderNueva} />}
     </Pagina>
   );
 }
 
 /** Equipos: los del laboratorio, los guardados y los recientes. Cada uno se conecta desde su fila. */
-function Equipos({ onConnected }: { onConnected: Props['onConnected'] }) {
+function Equipos({ onConnected, nuevaPedida, onNuevaAtendida }: {
+  onConnected: Props['onConnected'];
+  /** El encabezado pidió «Nueva conexión»: se abre el diálogo y se avisa que ya se atendió. */
+  nuevaPedida: boolean;
+  onNuevaAtendida: () => void;
+}) {
   const { push } = useToasts();
   const [entradas, setEntradas] = useState<SavedHostFileEntry[] | null>(null);
   const [errorLista, setErrorLista] = useState<string | null>(null);
@@ -119,12 +129,11 @@ function Equipos({ onConnected }: { onConnected: Props['onConnected'] }) {
   // quien abre Conexiones suele conectarse: la sesión y el chat se adelantan (app/diferidos.ts)
   useEffect(() => { precargar('sesion', 'lectores'); }, []);
   useEffect(() => { setPagina(1); }, [q]);
-  // «Nueva conexión» está en el encabezado (fuera de esta parte): llega por evento
   useEffect(() => {
-    const abrir = () => setDialogo({ tipo: 'nueva' });
-    window.addEventListener('conexiones:nueva', abrir);
-    return () => window.removeEventListener('conexiones:nueva', abrir);
-  }, []);
+    if (!nuevaPedida) return;
+    setDialogo({ tipo: 'nueva' });
+    onNuevaAtendida();
+  }, [nuevaPedida, onNuevaAtendida]);
 
   const visibles = useMemo(() => {
     const t = q.trim().toLowerCase();
