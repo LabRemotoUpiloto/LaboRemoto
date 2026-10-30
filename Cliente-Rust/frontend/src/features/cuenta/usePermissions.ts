@@ -57,6 +57,8 @@ const EVERYONE: EffectiveRole[] = ROLE_ORDER
 // administración de usuarios. Los logs sí los ve (ver LOGS más abajo).
 const STAFF: EffectiveRole[] = ['admin_lab', 'jefe_laboratorio', 'coordinador_laboratorio', 'laboratorista', 'semillerista']
 const TECHNICAL: EffectiveRole[] = ['admin_lab', 'semillerista']
+/** Equipo técnico (admin_lab y semillerista): herramientas de prueba como «Probar con mi robot» en Robótica. */
+export const esRolTecnico = (role: EffectiveRole): boolean => TECHNICAL.includes(role)
 // Logs: el personal y también el docente.
 const LOGS: EffectiveRole[] = [...STAFF, 'docente']
 // Registros de las prácticas de los estudiantes (guardados en la Pi). Debe coincidir con ROLES_LECTURA en

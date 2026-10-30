@@ -177,6 +177,11 @@ export interface LinuxValidationRule {
 export interface LinuxModuleEnvironment {
   /** Paneles que se abren junto a la terminal al conectar. */
   panels?: { robot_dashboard?: boolean; camera?: boolean };
+  /**
+   * EV3: estado de cada herramienta del riel (`motores`, `sensores`, `consola`, `avanzado`: `inicio`, `paso`,
+   * `bloqueada` u `oculta`) y `abierta`, la que se abre sola. Manda sobre la tabla de practicas/ev3/necesidadesEv3.ts.
+   */
+  tools?: Record<string, unknown>;
   /** Pasos de arranque; el backend los valida y los ejecuta por la sesión SSH del estudiante. */
   setup_commands?: string[];
 }

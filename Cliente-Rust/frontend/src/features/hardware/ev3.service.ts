@@ -13,6 +13,8 @@ export interface Ev3Motor {
   port: string;
   connected: boolean;
   speed: number;
+  /** Grados acumulados del encoder; `null` si el puente no los envía. */
+  position: number | null;
 }
 
 export interface Ev3Sensor {
@@ -36,13 +38,16 @@ export interface Ev3ApiResult {
   message: string;
 }
 
+// `robot`: IP o nombre `.local` de un robot físico en la red local (vista «Probar con mi robot»). Con él, el backend
+// habla directo con el robot (cmd::hardware::ev3_directo) y `sessionId` no se usa; sin él, va por el laboratorio.
+
 /** Telemetría completa del robot (motores, sensores, batería, alertas). */
-export const getEv3Status = (sessionId: string): Promise<Ev3Status> =>
-  invoke<Ev3Status>('ev3_status', { id: sessionId });
+export const getEv3Status = (sessionId: string, robot?: string | null): Promise<Ev3Status> =>
+  invoke<Ev3Status>('ev3_status', { id: sessionId, robot: robot ?? null });
 
 /** Mueve un motor. `port` acepta "A" u "outA"; `speed` en % (-100..100). */
-export const setEv3Motor = (sessionId: string, port: string, speed: number): Promise<Ev3ApiResult> =>
-  invoke<Ev3ApiResult>('ev3_set_motor', { id: sessionId, port, speed });
+export const setEv3Motor = (sessionId: string, port: string, speed: number, robot?: string | null): Promise<Ev3ApiResult> =>
+  invoke<Ev3ApiResult>('ev3_set_motor', { id: sessionId, port, speed, robot: robot ?? null });
 
 // ── Consola de Python (cmd::hardware::ev3_console) ──
 
@@ -73,5 +78,5 @@ export const stopEv3Program = (sessionId: string, runId: string): Promise<void> 
   invoke<void>('ev3_run_stop', { id: sessionId, runId });
 
 /** Detiene todos los motores, o uno solo si se pasa `port`. */
-export const stopEv3Motors = (sessionId: string, port?: string): Promise<Ev3ApiResult> =>
-  invoke<Ev3ApiResult>('ev3_stop_all', { id: sessionId, port: port ?? null });
+export const stopEv3Motors = (sessionId: string, port?: string, robot?: string | null): Promise<Ev3ApiResult> =>
+  invoke<Ev3ApiResult>('ev3_stop_all', { id: sessionId, port: port ?? null, robot: robot ?? null });
