@@ -1,7 +1,9 @@
 // features/monitoreo/RendimientoPage.tsx — Monitoreo del laboratorio (solo admin_lab).
 //
 // Primero «Equipos del laboratorio» (Pi 4 y cámaras con datos; Pi 5, Jetson y domótica todavía no
-// envían). Desde la Pi 4 se abre su detalle en cuatro pestañas: Estado, Gráficas, Registros y Procesos.
+// envían). Cada equipo abre su detalle aquí mismo, con «← Equipos del laboratorio» arriba para volver
+// (VolverAEquipos): la Pi 4 en cuatro pestañas (Estado, Gráficas, Registros y Procesos) y las cámaras
+// con la misma vista de Vigilancia.
 // «Iniciar prueba» marca el comienzo de una prueba de carga; al terminar se ve con cuántos estudiantes
 // algo llegó a crítico y se puede guardar en Excel. Los datos salen de metrics_svc.py en la Pi.
 import React, { useMemo, useState } from 'react';
@@ -14,10 +16,12 @@ import ProcesosPestana from './ProcesosPestana';
 import { guardarExcelDePrueba } from './exportarPrueba';
 import { resumirPrueba, unirMuestras } from './rendimientoStats';
 import { duracion, estadoPi } from './monitoreo';
-import { ETIQUETA, Punto } from '@/components/ui';
+import { Punto } from '@/components/ui';
+import VigilanciaPage from '@/features/camaras/VigilanciaPage';
 import { useCamaras, useInformePi } from './useDatosLab';
+import VolverAEquipos, { EQUIPOS_MONITOREO, type EquipoMonitoreo } from './VolverAEquipos';
 
-type Vista = 'equipos' | 'pi4';
+type Vista = 'equipos' | EquipoMonitoreo;
 type Pestana = 'estado' | 'graficas' | 'registros' | 'procesos';
 const PESTANAS: { valor: Pestana; etiqueta: string }[] = [
   { valor: 'estado', etiqueta: 'Estado' },
@@ -39,16 +43,17 @@ function recordar(clave: string, valor: string) {
   try { localStorage.setItem(clave, valor); } catch { /* sin almacenamiento: no pasa nada */ }
 }
 
-const RendimientoPage: React.FC<{ onOpenPanel?: (id: string) => void }> = ({ onOpenPanel }) => {
+const RendimientoPage: React.FC = () => {
   const pi = useInformePi();
   const camaras = useCamaras();
   const { informe, muestras, ultima, error } = pi;
   // La prueba vive en el equipo (pruebaRendimiento.ts): sobrevive a cambiar de sección o cerrar la app.
   const prueba = usePrueba();
-  const [vista, setVista] = useState<Vista>(() => leer(CLAVE_VISTA, ['equipos', 'pi4'] as const, 'equipos'));
+  const [vista, setVista] = useState<Vista>(() => leer<Vista>(CLAVE_VISTA, ['equipos', ...EQUIPOS_MONITOREO], 'equipos'));
   const [pestana, setPestana] = useState<Pestana>(() => leer(CLAVE_PESTANA, ['estado', 'graficas', 'registros', 'procesos'] as const, 'estado'));
   const [errorExcel, setErrorExcel] = useState<string | null>(null);
   const irA = (v: Vista) => { setVista(v); recordar(CLAVE_VISTA, v); };
+  const volver = () => irA('equipos');
   const elegirPestana = (p: Pestana) => { setPestana(p); recordar(CLAVE_PESTANA, p); };
 
   // Lo grabado en segundo plano más lo que esta página acaba de recibir (lo más fresco).
@@ -72,10 +77,12 @@ const RendimientoPage: React.FC<{ onOpenPanel?: (id: string) => void }> = ({ onO
   if (vista === 'equipos') {
     return (
       <div className="flex h-full flex-col overflow-y-auto bg-ui-fondo text-ui-tinta">
-        <EquiposVista pi={pi} camaras={camaras} onAbrirPi4={() => irA('pi4')} onAbrirVigilancia={() => onOpenPanel?.('vigilancia')} />
+        <EquiposVista pi={pi} camaras={camaras} onAbrir={irA} />
       </div>
     );
   }
+  // Antes «Abrir vigilancia» saltaba a la página Vigilancia y desde ahí no había cómo regresar a Monitoreo.
+  if (vista === 'camaras') return <VigilanciaPage volver={<VolverAEquipos onVolver={volver} />} />;
 
   const estado = estadoPi(ultima, informe?.servicios, error);
   const pruebaEnCurso = !!prueba && prueba.fin == null;
@@ -87,17 +94,13 @@ const RendimientoPage: React.FC<{ onOpenPanel?: (id: string) => void }> = ({ onO
   ].filter(Boolean).join(', ');
 
   return (
-    // Arriba lo fijo (migas, título, estado y pestañas); abajo la pestaña con su propio scroll.
+    // Arriba lo fijo (volver, título, estado y pestañas); abajo la pestaña con su propio scroll.
     <div className="flex h-full flex-col bg-ui-fondo text-ui-tinta">
       <header className="shrink-0">
         <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-2 px-6 pt-8">
-          <nav aria-label="Ruta" className={ETIQUETA}>
-            <button type="button" onClick={() => irA('equipos')} className="cursor-pointer border-none bg-transparent p-0 font-bold uppercase tracking-[0.08em] text-ui-apagado hover:text-ui-tinta-2">
-              Equipos
-            </button>
-            <span aria-hidden>  /  </span>
-            <span>Raspberry Pi 4</span>
-          </nav>
+          {/* Antes eran migas («EQUIPOS / RASPBERRY PI 4») y el enlace se veía igual que la etiqueta: nadie encontraba
+              cómo volver, y como la vista se recuerda, Monitoreo seguía abriendo en la Pi. */}
+          <VolverAEquipos className="mb-2 self-start" onVolver={volver} />
           <h1 className="m-0 font-ui-titulo text-2xl font-bold text-ui-tinta">Raspberry Pi 4</h1>
           <Punto nivel={estado.nivel} fuerte={estado.fuerte} resto={resto && `(${resto})`} />
           <div role="tablist" aria-label="Secciones de la Pi 4" className="mt-4 flex gap-2 border-b border-ui-pista">

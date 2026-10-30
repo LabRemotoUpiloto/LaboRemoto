@@ -1,7 +1,8 @@
 // features/camaras/VigilanciaPage.tsx — video en vivo de las cámaras del laboratorio para los roles de personal
 // (PAGE_ACCESS['vigilancia'] en usePermissions.ts). Cada cámara con su nombre y estado DEBAJO del video.
-// El panel de cámaras de una sesión sigue usando CameraGrid (sin PTZ).
-import { useCallback, useEffect, useState } from 'react';
+// El panel de cámaras de una sesión sigue usando CameraGrid (sin PTZ). Monitoreo la abre como detalle de las cámaras
+// y le pasa `volver` (el botón para regresar a sus equipos).
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ChevronLeft, Maximize2, RotateCw, Settings2 } from 'lucide-react';
 import { useEffectiveRole, puedeAdministrarCamaras } from '@/features/cuenta/usePermissions';
 import { Aviso, Boton, BotonIcono, Encabezado, Pagina, Punto, TARJETA } from '@/components/ui';
@@ -12,7 +13,7 @@ import PtzControls from './PtzControls';
 import { useNvrCameras, type NvrCamera } from './useNvrCameras';
 import { usePtzControl, type PtzOp } from './usePtzControl';
 
-export default function VigilanciaPage() {
+export default function VigilanciaPage({ volver }: { volver?: ReactNode } = {}) {
   const role = useEffectiveRole();
   const [adminAbierto, setAdminAbierto] = useState(false);
   const [ampliada, setAmpliada] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export default function VigilanciaPage() {
 
   return (
     <Pagina ancho="max-w-[1240px]">
-      <Encabezado titulo="Vigilancia" descripcion="Video en vivo de las cámaras del laboratorio."
+      <Encabezado titulo="Vigilancia" descripcion="Video en vivo de las cámaras del laboratorio." volver={volver}
         derecha={<>
           {listo && cameras.length > 0 && (
             <Punto nivel={enVivo === cameras.length ? 'bien' : 'alerta'} fuerte={`${enVivo} de ${cameras.length}`} resto="en vivo" />
