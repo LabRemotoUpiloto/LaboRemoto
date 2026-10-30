@@ -69,7 +69,7 @@ const HomeContainer: React.FC<Props> = ({
       ) : effectivePage === 'dashboard' ? (
         <DashboardPage />
       ) : effectivePage === 'rendimiento' ? (
-        <RendimientoPage onOpenPanel={onOpenPanel} />
+        <RendimientoPage />
       ) : effectivePage === 'perfil' ? (
         <PerfilPage />
       ) : effectivePage === 'ajustes' ? (

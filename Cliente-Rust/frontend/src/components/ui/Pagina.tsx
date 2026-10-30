@@ -12,15 +12,18 @@ export function Pagina({ children, ancho = 'max-w-[1080px]' }: { children: React
   );
 }
 
-/** El mismo encabezado en todas las páginas: título, para qué sirve y, a la derecha, lo que la controla. */
-export function Encabezado({ titulo, descripcion, derecha, pestanas }: {
+/** El mismo encabezado en todas las páginas: título, para qué sirve y, a la derecha, lo que la controla.
+ *  `volver`: el botón para regresar cuando la página se abrió desde otra (p. ej. un equipo desde Monitoreo). */
+export function Encabezado({ titulo, descripcion, derecha, pestanas, volver }: {
   titulo: string;
   descripcion: string;
   derecha?: React.ReactNode;
   pestanas?: React.ReactNode;
+  volver?: React.ReactNode;
 }) {
   return (
     <header className={`flex flex-col gap-4 ${pestanas ? '' : 'pb-2'}`}>
+      {volver && <div className="self-start">{volver}</div>}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h1 className="m-0 font-ui-titulo text-2xl font-bold leading-tight text-ui-tinta">{titulo}</h1>
