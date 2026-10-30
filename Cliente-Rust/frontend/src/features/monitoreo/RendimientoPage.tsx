@@ -14,7 +14,8 @@ import ProcesosPestana from './ProcesosPestana';
 import { guardarExcelDePrueba } from './exportarPrueba';
 import { resumirPrueba, unirMuestras } from './rendimientoStats';
 import { duracion, estadoPi } from './monitoreo';
-import { ETIQUETA, Punto } from '@/components/ui';
+import { ArrowLeft } from 'lucide-react';
+import { Boton, Punto } from '@/components/ui';
 import { useCamaras, useInformePi } from './useDatosLab';
 
 type Vista = 'equipos' | 'pi4';
@@ -87,17 +88,15 @@ const RendimientoPage: React.FC<{ onOpenPanel?: (id: string) => void }> = ({ onO
   ].filter(Boolean).join(', ');
 
   return (
-    // Arriba lo fijo (migas, título, estado y pestañas); abajo la pestaña con su propio scroll.
+    // Arriba lo fijo (volver, título, estado y pestañas); abajo la pestaña con su propio scroll.
     <div className="flex h-full flex-col bg-ui-fondo text-ui-tinta">
       <header className="shrink-0">
         <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-2 px-6 pt-8">
-          <nav aria-label="Ruta" className={ETIQUETA}>
-            <button type="button" onClick={() => irA('equipos')} className="cursor-pointer border-none bg-transparent p-0 font-bold uppercase tracking-[0.08em] text-ui-apagado hover:text-ui-tinta-2">
-              Equipos
-            </button>
-            <span aria-hidden>  /  </span>
-            <span>Raspberry Pi 4</span>
-          </nav>
+          {/* Antes eran migas («EQUIPOS / RASPBERRY PI 4») y el enlace se veía igual que la etiqueta: nadie encontraba
+              cómo volver, y como la vista se recuerda, Monitoreo seguía abriendo en la Pi. */}
+          <Boton className="mb-2 self-start" onClick={() => irA('equipos')}>
+            <ArrowLeft size={14} aria-hidden /> Equipos del laboratorio
+          </Boton>
           <h1 className="m-0 font-ui-titulo text-2xl font-bold text-ui-tinta">Raspberry Pi 4</h1>
           <Punto nivel={estado.nivel} fuerte={estado.fuerte} resto={resto && `(${resto})`} />
           <div role="tablist" aria-label="Secciones de la Pi 4" className="mt-4 flex gap-2 border-b border-ui-pista">
