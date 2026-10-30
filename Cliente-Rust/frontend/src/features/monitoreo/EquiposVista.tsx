@@ -7,6 +7,7 @@ import { duracion, estadoPi, formatoValor, hora24 } from './monitoreo';
 import { Barra, Boton, ETIQUETA, NOTA, Punto, TARJETA, TARJETA_APAGADA, type Nivel } from '@/components/ui';
 import { Camara, ModuloDomotica, PlacaJetson, PlacaPi4, PlacaPi5 } from './Dibujos';
 import type { DatosCamaras, DatosPi } from './useDatosLab';
+import type { EquipoMonitoreo } from './VolverAEquipos';
 
 const NIVEL_DE: Record<string, Nivel> = { bueno: 'bien', alerta: 'alerta', critico: 'critico' };
 
@@ -148,11 +149,11 @@ const PROXIMOS = [
   { nombre: 'Módulo de domótica', texto: 'Arduino con relés y sensores.', Dibujo: ModuloDomotica },
 ];
 
-export default function EquiposVista({ pi, camaras, onAbrirPi4, onAbrirVigilancia }: {
+export default function EquiposVista({ pi, camaras, onAbrir }: {
   pi: DatosPi;
   camaras: DatosCamaras;
-  onAbrirPi4: () => void;
-  onAbrirVigilancia: () => void;
+  /** Abre el detalle del equipo dentro de Monitoreo (con el botón para volver aquí). */
+  onAbrir: (equipo: EquipoMonitoreo) => void;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-6 pb-10 pt-8">
@@ -164,8 +165,8 @@ export default function EquiposVista({ pi, camaras, onAbrirPi4, onAbrirVigilanci
         </div>
       </header>
 
-      <Pi4Tarjeta pi={pi} onAbrir={onAbrirPi4} />
-      <CamarasTarjeta datos={camaras} pi={pi} onAbrir={onAbrirVigilancia} />
+      <Pi4Tarjeta pi={pi} onAbrir={() => onAbrir('pi4')} />
+      <CamarasTarjeta datos={camaras} pi={pi} onAbrir={() => onAbrir('camaras')} />
 
       <section className="mt-4 flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-3">

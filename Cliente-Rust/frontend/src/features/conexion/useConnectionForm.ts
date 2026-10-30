@@ -94,37 +94,22 @@ export function useConnectionForm({
   //
   // Deps vacías a propósito: initialPayload (el equipo guardado que se edita) se lee una sola vez al montar.
   // El diálogo de Conexiones se monta de nuevo en cada apertura, así que no arrastra datos de una visita a otra.
+  // Sin equipo que editar no se toca nada: el formulario ya arranca vacío, y este efecto corre DESPUÉS de los de
+  // quickHost y recentConnection; vaciarlo aquí borraba la Pi o la conexión reciente que acababan de poner (el botón
+  // «Conectar» de la Pi quedaba apagado para siempre: su host ni se muestra).
 
   useEffect(() => {
-    if (initialPayload) {
-      const p = initialPayload as any;
-      setHost('');
-      setPort('22');
-      setUser('');
-      setPassword('');
-      setShowPassword(false);
-      setErrors({});
-      if (p.host) setHost(p.host);
-      if (p.port) setPort(String(p.port));
-      if (p.user) setUser(p.user);
-      if (p.password) setPassword(p.password);
-      const isEdit = !!p.host && !p.autoConnect;
-      setIsEditMode(isEdit);
-      if (isEdit && p._originalFile) setOriginalHostFile(p._originalFile);
-      setHostName(isEdit && p.name ? p.name : '');
-      setHostDescription(isEdit && p.description ? p.description : '');
-    } else {
-      setHost('');
-      setPort('22');
-      setUser('');
-      setPassword('');
-      setShowPassword(false);
-      setErrors({});
-      setIsEditMode(false);
-      setOriginalHostFile(null);
-      setHostName('');
-      setHostDescription('');
-    }
+    if (!initialPayload) return;
+    const p = initialPayload as any;
+    if (p.host) setHost(p.host);
+    if (p.port) setPort(String(p.port));
+    if (p.user) setUser(p.user);
+    if (p.password) setPassword(p.password);
+    const isEdit = !!p.host && !p.autoConnect;
+    setIsEditMode(isEdit);
+    if (isEdit && p._originalFile) setOriginalHostFile(p._originalFile);
+    setHostName(isEdit && p.name ? p.name : '');
+    setHostDescription(isEdit && p.description ? p.description : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
