@@ -35,6 +35,7 @@ const MotorPort: React.FC<MotorPortProps> = ({ port, motor, onSetSpeed }) => {
 
   const label = port.replace('out', '');
   const rpm = motor?.speed ?? 0;
+  const position = motor?.position ?? null;
 
   if (!connected) {
     return (
@@ -79,6 +80,11 @@ const MotorPort: React.FC<MotorPortProps> = ({ port, motor, onSetSpeed }) => {
       <div className="ev3-readout">
         <span className="ev3-readout-main">{rpm}<span className="ev3-unit">rpm</span></span>
         <span className="ev3-readout-sub">{speed > 0 ? '+' : ''}{speed}%</span>
+        {position !== null && (
+          <span className="ev3-readout-sub" title="Posición del encoder (grados acumulados)">
+            {position}°
+          </span>
+        )}
       </div>
 
       <button

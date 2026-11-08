@@ -23,6 +23,8 @@ type Props = {
   selectedPage: string
   activeView: 'terminal' | 'escritorio'
   isCameraOpen: (sessionId: string) => boolean
+  /** Abre o cierra la cámara de una sesión (el escenario de la vista guiada de EV3 la usa). */
+  setCameraOpen?: (sessionId: string, open: boolean) => void
   isChatOpen: boolean
   onCloseChat: () => void
   onOpenLog: (session: SessionLog) => void
@@ -38,6 +40,7 @@ const SessionContainer: React.FC<Props> = ({
   selectedPage,
   activeView,
   isCameraOpen,
+  setCameraOpen,
   isChatOpen,
   onCloseChat,
   onOpenLog,
@@ -64,6 +67,7 @@ const SessionContainer: React.FC<Props> = ({
               sessionId={t.id}
               activeView={activeView}
               isCameraOpen={isCameraOpen(t.id)}
+              onSetCameraOpen={setCameraOpen ? (open) => setCameraOpen(t.id, open) : undefined}
               isChatOpen={isChatOpen}
               onCloseChat={onCloseChat}
               isTabActive={activeTabId === t.id}

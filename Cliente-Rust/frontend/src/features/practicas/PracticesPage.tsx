@@ -13,7 +13,8 @@ import PracticeCard from './PracticeCard';
 import { getInsigniaForPractice } from './badges/insigniaRegistry';
 import LinuxPasswordPrompt from './linux/LinuxPasswordPrompt';
 import { linuxGetModule, type LinuxModule } from './linuxPractice.service';
-import { canAccessPage, useEffectiveRole } from '@/features/cuenta/usePermissions';
+import { canAccessPage, esRolTecnico, useEffectiveRole } from '@/features/cuenta/usePermissions';
+import { PruebaRobotEv3 } from './ev3/PruebaRobotEv3';
 import EncuestaPracticaModal from './EncuestaPracticaModal';
 import { encuestasService } from './encuestas.service';
 import type { Practice } from '@/types';
@@ -79,6 +80,8 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     const [abriendoCircuito, setAbriendoCircuito] = useState<string | null>(null);
     /** Práctica de circuitos abierta (simulador en iframe y chat del tutor). */
     const [practicaCircuito, setPracticaCircuito] = useState<PracticaCircuito | null>(null);
+    // «Probar con mi robot» (Robótica, solo equipo técnico): el panel del EV3 contra un robot físico de la red local.
+    const [probandoRobot, setProbandoRobot] = useState(false);
     const [loading, setLoading] = useState(true);
     const [startingPractice, setStartingPractice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -348,8 +351,12 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
     // Circuitos: sus prácticas no vienen en la lista de la Pi (ver cargarCircuitos)
     const cantidadPracticas = (cat: PracticeCategory) =>
         cat.practices.length + (cat.id === 'circuitos' ? circuitos?.length ?? 0 : 0);
-    // Si el simulador no respondió, la tarjeta igual se abre para explicar qué pasa y reintentar
-    const disponible = (cat: PracticeCategory) => cantidadPracticas(cat) > 0 || (cat.id === 'circuitos' && !!errorCircuitos);
+    // Si el simulador no respondió, la tarjeta igual se abre para explicar qué pasa y reintentar. Robótica se abre
+    // siempre para el equipo técnico: ahí está «Probar con mi robot», aunque la Pi no tenga módulos.
+    const tecnico = esRolTecnico(rol);
+    const disponible = (cat: PracticeCategory) => cantidadPracticas(cat) > 0
+        || (cat.id === 'circuitos' && !!errorCircuitos)
+        || (cat.id === 'eve3' && tecnico);
     const tarjetaCategoria = (cat: PracticeCategory) => (
         <CategoryCard key={cat.id} id={cat.id} name={cat.name} description={cat.description} icon={cat.icon} color={cat.color}
             practiceCount={cantidadPracticas(cat)} disponible={disponible(cat)}
@@ -365,6 +372,10 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
 
     if (practicaCircuito) {
         return <PracticaCircuitoVista practica={practicaCircuito} onVolver={() => setPracticaCircuito(null)} />;
+    }
+
+    if (probandoRobot && tecnico) {
+        return <PruebaRobotEv3 onVolver={() => setProbandoRobot(false)} />;
     }
 
     return (
@@ -458,6 +469,17 @@ const PracticesPage: React.FC<PracticesPageProps> = ({ onStartPractice, onNewSes
                         </Stack>
 
                         <Divider />
+
+                        {selectedCategory.id === 'eve3' && selectedCategory.practices.length === 0 && (
+                            <Aviso titulo="Todavía no hay módulos de robótica"
+                                detalle="Aparecen cuando la Raspberry del laboratorio los publique." />
+                        )}
+
+                        {selectedCategory.id === 'eve3' && tecnico && (
+                            <Aviso titulo="Probar con mi robot"
+                                detalle="Conecta un EV3 de tu red local (Wi‑Fi o USB) y prueba motores, sensores y el gemelo 3D, sin el laboratorio. Solo para el equipo técnico."
+                                accion={<Boton onClick={() => setProbandoRobot(true)}>Probar con mi robot</Boton>} />
+                        )}
 
                         {selectedCategory.id === 'circuitos' && (
                             // Las sirve el simulador de circuitos (fork de Velxio, servicio aparte), no la Pi

@@ -478,6 +478,7 @@ const AppMain: React.FC = () => {
                 selectedPage={selectedPage}
                 activeView={activeView}
                 isCameraOpen={isCameraOpen}
+                setCameraOpen={setCameraPanelOpen}
                 isChatOpen={isChatOpen}
                 onCloseChat={() => setIsChatOpen(false)}
                 onOpenLog={openLogTab}

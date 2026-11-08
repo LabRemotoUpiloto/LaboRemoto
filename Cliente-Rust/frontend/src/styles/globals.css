@@ -78,6 +78,9 @@
   --color-ui-rango: color-mix(in srgb, var(--text-primary) 45%, var(--background-secondary));
   --color-ui-borde: var(--card-border-color, var(--border-color));
   --color-ui-acento: var(--accent-primary);
+  /* Lo que señala la guía de una práctica (herramienta nueva, paso actual). Distinto del acento, que en unipiloto es el
+     mismo rojo de «Detener». Solo para bordes, anillos y rellenos: en varios temas no alcanza contraste AA como texto. */
+  --color-ui-guia: var(--accent-secondary, var(--ring, var(--accent-primary)));
   --color-ui-hover: var(--interactive-hover, color-mix(in srgb, var(--text-secondary) 10%, transparent));
   --color-ui-bien: var(--success);
   --color-ui-bien-texto: var(--success-text, var(--success));
