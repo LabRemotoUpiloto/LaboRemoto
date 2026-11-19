@@ -43,6 +43,7 @@ terminarla y al **cerrar la app**, y cada 2 minutos deja una copia en el equipo 
   `user_type`; debe coincidir con `REGISTROS_ESTUDIANTES` en `usePermissions.ts`). En la app: Conexiones → «Prácticas de estudiantes».
 - Archivos: `REGISTROS_DIR/<usuario>/<Nombre-Del-Estudiante>_<practica>_<AAAA-MM-DD_HH-MM-SS>.html` (hora de inicio, Bogotá) y el
   índice `registros.jsonl`. Se borran a los **180 días**, un semestre (revisión cada hora).
+- Respaldo: `respaldar-registros.sh` deja una copia diaria en `data/respaldos/AAAA-MM-DD` (rsync con enlaces duros: solo ocupa lo nuevo; se conservan 14 días; permisos 700). En la Pi4 corre por `cron` a las 03:30 (`crontab -l` del usuario `pi`) y escribe en el registro del sistema (`journalctl -t respaldo-registros`). Protege contra un borrado o un bug del broker, **no** contra la pérdida del disco ni contra quien entre a la Pi: para eso falta una copia en otro equipo que la jale por SSH (pendiente).
 
 ## Configuración (ver `sesiones.env.example`)
 `PORT` (8093), `SESIONES_FILE`, `SESIONES_WEBHOOK_URL`, `IPINFO_TOKEN`, `DISPOSITIVOS_JSON`, `DISPOSITIVOS_FILE`, `REGISTROS_DIR` y las de Keycloak.
