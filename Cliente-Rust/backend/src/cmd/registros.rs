@@ -26,8 +26,8 @@ use crate::cmd::protocol::CommandError;
 use crate::session_manager::SessionManager;
 
 const QUE: &str = "el registro de prácticas";
-/// Lo mismo que guarda el servidor: una copia que no salió en 20 días ya no le sirve a nadie.
-const RETENCION_DIAS: i64 = 20;
+/// Lo mismo que guarda el servidor: una copia que no salió en 180 días ya no le sirve a nadie.
+const RETENCION_DIAS: i64 = 180;
 /// El nginx de AWS no deja pasar cuerpos de más de 1 MB: el registro comprimido (en base64) debe quedar bastante por debajo.
 const MAX_GZIP_BASE64: usize = 900_000;
 const AVISO_RECORTE: &str = "[LaboRemoto: se omitió el principio de este registro porque era demasiado grande]\r\n";
@@ -266,7 +266,7 @@ pub async fn registros_enviar_intento(
     }
 }
 
-/// Manda las copias que quedaron en este equipo y son de la persona con sesión iniciada. Las de más de 20 días se borran
+/// Manda las copias que quedaron en este equipo y son de la persona con sesión iniciada. Las de más de 180 días se borran
 /// (de cualquiera). Devuelve cuántas llegaron.
 #[tauri::command]
 pub async fn registros_enviar_pendientes(
@@ -316,7 +316,7 @@ fn error_de_lectura(status: u16, texto: &str) -> CommandError {
     }
 }
 
-/// Los intentos de los últimos `dias` días (máximo 20). Solo admin_lab, semillerista y docente (lo exige el servidor).
+/// Los intentos de los últimos `dias` días (máximo 180). Solo admin_lab, semillerista y docente (lo exige el servidor).
 #[tauri::command]
 pub async fn registros_listar(dias: Option<u32>, manager: tauri::State<'_, Arc<dyn SessionManager>>) -> Result<ListaRegistros, CommandError> {
     let ctx = "registros_listar";

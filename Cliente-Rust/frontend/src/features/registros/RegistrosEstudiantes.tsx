@@ -40,7 +40,7 @@ export default function RegistrosEstudiantes() {
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="m-0 text-[13px] text-ui-tinta-2">
-          Lo que cada estudiante hizo en la terminal durante las prácticas de Linux. Se guardan {datos?.retencionDias ?? 20} días.
+          Lo que cada estudiante hizo en la terminal durante las prácticas de Linux. Se guardan {datos?.retencionDias ?? 180} días.
         </p>
         <BotonActualizar actualizando={actualizando} onClick={() => void actualizar()} />
       </div>
@@ -51,7 +51,7 @@ export default function RegistrosEstudiantes() {
         <Desplegable etiqueta="Estado" valor={estado} onCambio={setEstado} className="w-[170px]"
           opciones={[{ valor: '', etiqueta: 'Todos los estados' }, ...Object.entries(TEXTO_ESTADO).map(([valor, etiqueta]) => ({ valor, etiqueta }))]} />
         <Desplegable<Periodo> etiqueta="Período" valor={periodo} onCambio={setPeriodo} className="w-[170px]"
-          opciones={[{ valor: 'hoy', etiqueta: 'Hoy' }, { valor: '7', etiqueta: 'Últimos 7 días' }, { valor: '20', etiqueta: 'Últimos 20 días' }]} />
+          opciones={[{ valor: 'hoy', etiqueta: 'Hoy' }, { valor: '7', etiqueta: 'Últimos 7 días' }, { valor: '30', etiqueta: 'Últimos 30 días' }, { valor: '180', etiqueta: 'Todo el semestre' }]} />
       </div>
 
       {error && !datos ? (

@@ -1,7 +1,7 @@
 // features/registros/filtros.ts — filtros de «Prácticas de estudiantes» (Conexiones), sin React (para probarlo).
 import type { RegistroIntento } from './registros.service';
 
-export type Periodo = 'hoy' | '7' | '20';
+export type Periodo = 'hoy' | '7' | '30' | '180';
 export interface Filtros { busqueda: string; practica: string; estado: string; periodo: Periodo }
 
 export const TEXTO_ESTADO: Record<string, string> = {
@@ -10,7 +10,7 @@ export const TEXTO_ESTADO: Record<string, string> = {
   app_cerrada: 'Cerró la app',
 };
 
-/** Días que se le piden al servidor según el período (el servidor guarda 20). */
+/** Días que se le piden al servidor según el período (el servidor guarda 180: un semestre). */
 export const diasDe = (p: Periodo) => (p === 'hoy' ? 1 : Number(p));
 
 const sinTildes = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

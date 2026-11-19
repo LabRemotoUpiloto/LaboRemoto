@@ -42,7 +42,7 @@ terminarla y al **cerrar la app**, y cada 2 minutos deja una copia en el equipo 
 - `GET /nvr/registros?dias=N` y `GET /nvr/registros/archivo?carpeta=C&id=I` — solo `admin_lab`, `semillerista` y `docente` (rol o
   `user_type`; debe coincidir con `REGISTROS_ESTUDIANTES` en `usePermissions.ts`). En la app: Conexiones → «Prácticas de estudiantes».
 - Archivos: `REGISTROS_DIR/<usuario>/<Nombre-Del-Estudiante>_<practica>_<AAAA-MM-DD_HH-MM-SS>.html` (hora de inicio, Bogotá) y el
-  índice `registros.jsonl`. Se borran a los **20 días** (revisión cada hora).
+  índice `registros.jsonl`. Se borran a los **180 días**, un semestre (revisión cada hora).
 
 ## Configuración (ver `sesiones.env.example`)
 `PORT` (8093), `SESIONES_FILE`, `SESIONES_WEBHOOK_URL`, `IPINFO_TOKEN`, `DISPOSITIVOS_JSON`, `DISPOSITIVOS_FILE`, `REGISTROS_DIR` y las de Keycloak.

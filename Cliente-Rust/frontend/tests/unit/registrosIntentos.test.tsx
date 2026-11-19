@@ -73,7 +73,7 @@ describe('filtros de «Prácticas de estudiantes»', () => {
     expect(filtrar(lista, { ...f, estado: 'terminada' }, AHORA).map((r) => r.id)).toEqual(['1', '3']);
     expect(filtrar(lista, { ...f, periodo: 'hoy' }, AHORA).map((r) => r.id)).toEqual(['1', '2']);
     expect(practicasDe(lista)).toEqual([{ valor: 'linux-m2', etiqueta: 'Archivos' }, { valor: 'linux-m1', etiqueta: 'Primeros pasos' }]);
-    expect([diasDe('hoy'), diasDe('7'), diasDe('20')]).toEqual([1, 7, 20]);
+    expect([diasDe('hoy'), diasDe('7'), diasDe('30'), diasDe('180')]).toEqual([1, 7, 30, 180]);
   });
 });
 

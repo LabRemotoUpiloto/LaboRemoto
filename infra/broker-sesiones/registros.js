@@ -5,7 +5,7 @@
 //
 //   POST /nvr/registros                     (JWT) {id, practica, practicaNombre?, estado, inicio, fin, nota?, gzipBase64}
 //                                           → 201 {archivo} nuevo | 200 {archivo} reemplazado
-//   GET  /nvr/registros?dias=N              (JWT con rol de lectura) los intentos de los últimos N días (máx. 20)
+//   GET  /nvr/registros?dias=N              (JWT con rol de lectura) los intentos de los últimos N días (máx. RETENCION_DIAS = 180)
 //   GET  /nvr/registros/archivo?carpeta=C&id=I   (JWT con rol de lectura) el HTML de un intento
 //
 // Archivos: REGISTROS_DIR/<usuario>/<Nombre-Del-Estudiante>_<practica>_<AAAA-MM-DD_HH-MM-SS>.html, con la hora de inicio
@@ -25,7 +25,7 @@ const zlib = require('node:zlib');
 const MAX_BODY = 1_048_576;
 const MAX_HTML = 20 * 1024 * 1024;
 const MAX_POR_PERSONA = 2000;
-const RETENCION_DIAS = 20;
+const RETENCION_DIAS = 180; // un semestre
 const REVISION_MS = 60 * 60_000;
 const RE_PRACTICA = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const RE_ID = /^[A-Za-z0-9-]{8,64}$/;

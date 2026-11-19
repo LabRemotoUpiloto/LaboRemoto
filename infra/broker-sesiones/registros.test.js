@@ -131,17 +131,17 @@ test('leer: solo admin_lab, semillerista o docente; la lista no expone rutas y e
   assert.strictEqual((await pedir(r, { metodo: 'GET', ruta: '/nvr/registros/archivo?carpeta=ana-perez&id=otro-intento', jwt: ADMIN })).status, 404);
 });
 
-test('a los 20 días se borran el archivo, la entrada y la carpeta vacía', async () => {
+test('a los 180 días se borran el archivo, la entrada y la carpeta vacía', async () => {
   const { r, dir, reloj } = montar();
   await enviar(r);
-  reloj.t += 19 * DIA;
+  reloj.t += 179 * DIA;
   await enviar(r, { id: 'intento-0002', inicio: new Date(reloj.t - 60_000).toISOString(), fin: new Date(reloj.t).toISOString() }, 'beto|Beto Ruiz');
   assert.strictEqual(r.borrarVencidos(), 0);
   reloj.t += 2 * DIA;
   assert.strictEqual(r.borrarVencidos(), 1);
   assert.ok(!fs.existsSync(path.join(dir, 'ana-perez')));
   assert.strictEqual(fs.readdirSync(path.join(dir, 'beto')).length, 1);
-  assert.deepStrictEqual(r.lista(20).registros.map((x) => x.carpeta), ['beto']);
+  assert.deepStrictEqual(r.lista(180).registros.map((x) => x.carpeta), ['beto']);
 });
 
 test('solo atiende /nvr/registros', async () => {
